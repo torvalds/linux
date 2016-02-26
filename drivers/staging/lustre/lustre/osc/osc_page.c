@@ -403,7 +403,7 @@ static const struct cl_page_operations osc_page_ops = {
 };
 
 int osc_page_init(const struct lu_env *env, struct cl_object *obj,
-		struct cl_page *page, struct page *vmpage)
+		  struct cl_page *page, struct page *vmpage)
 {
 	struct osc_object *osc = cl2osc(obj);
 	struct osc_page *opg = cl_object_page_slice(obj, page);
@@ -413,13 +413,12 @@ int osc_page_init(const struct lu_env *env, struct cl_object *obj,
 	opg->ops_to = PAGE_CACHE_SIZE;
 
 	result = osc_prep_async_page(osc, opg, vmpage,
-					cl_offset(obj, page->cp_index));
+				     cl_offset(obj, page->cp_index));
 	if (result == 0) {
 		struct osc_io *oio = osc_env_io(env);
 
 		opg->ops_srvlock = osc_io_srvlock(oio);
-		cl_page_slice_add(page, &opg->ops_cl, obj,
-				&osc_page_ops);
+		cl_page_slice_add(page, &opg->ops_cl, obj, &osc_page_ops);
 	}
 	/*
 	 * Cannot assert osc_page_protected() here as read-ahead
@@ -462,7 +461,7 @@ void osc_page_submit(const struct lu_env *env, struct osc_page *opg,
 	oap->oap_brw_flags = brw_flags | OBD_BRW_SYNC;
 
 	if (!client_is_remote(osc_export(obj)) &&
-			capable(CFS_CAP_SYS_RESOURCE)) {
+	    capable(CFS_CAP_SYS_RESOURCE)) {
 		oap->oap_brw_flags |= OBD_BRW_NOQUOTA;
 		oap->oap_cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -590,7 +589,7 @@ int osc_lru_shrink(struct client_obd *cli, int target)
 			break;
 
 		opg = list_entry(cli->cl_lru_list.next, struct osc_page,
-				     ops_lru);
+				 ops_lru);
 		page = cl_page_top(opg->ops_cl.cpl_page);
 		if (cl_page_in_use_noref(page)) {
 			list_move_tail(&opg->ops_lru, &cli->cl_lru_list);
@@ -737,14 +736,14 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	rc = osc_lru_shrink(cli, lru_shrink_min);
 	if (rc != 0) {
 		CDEBUG(D_CACHE, "%s: Free %d pages from own LRU: %p.\n",
-			cli->cl_import->imp_obd->obd_name, rc, cli);
+		       cli->cl_import->imp_obd->obd_name, rc, cli);
 		return rc;
 	}
 
 	CDEBUG(D_CACHE, "%s: cli %p no free slots, pages: %d, busy: %d.\n",
-		cli->cl_import->imp_obd->obd_name, cli,
-		atomic_read(&cli->cl_lru_in_list),
-		atomic_read(&cli->cl_lru_busy));
+	       cli->cl_import->imp_obd->obd_name, cli,
+	       atomic_read(&cli->cl_lru_in_list),
+	       atomic_read(&cli->cl_lru_busy));
 
 	/* Reclaim LRU slots from other client_obd as it can't free enough
 	 * from its own. This should rarely happen.
@@ -758,12 +757,12 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	max_scans = atomic_read(&cache->ccc_users);
 	while (--max_scans > 0 && !list_empty(&cache->ccc_lru)) {
 		cli = list_entry(cache->ccc_lru.next, struct client_obd,
-					cl_lru_osc);
+				 cl_lru_osc);
 
 		CDEBUG(D_CACHE, "%s: cli %p LRU pages: %d, busy: %d.\n",
-			cli->cl_import->imp_obd->obd_name, cli,
-			atomic_read(&cli->cl_lru_in_list),
-			atomic_read(&cli->cl_lru_busy));
+		       cli->cl_import->imp_obd->obd_name, cli,
+		       atomic_read(&cli->cl_lru_in_list),
+		       atomic_read(&cli->cl_lru_busy));
 
 		list_move_tail(&cli->cl_lru_osc, &cache->ccc_lru);
 		if (atomic_read(&cli->cl_lru_in_list) > 0) {
@@ -778,7 +777,7 @@ static int osc_lru_reclaim(struct client_obd *cli)
 	spin_unlock(&cache->ccc_lru_lock);
 
 	CDEBUG(D_CACHE, "%s: cli %p freed %d pages.\n",
-		cli->cl_import->imp_obd->obd_name, cli, rc);
+	       cli->cl_import->imp_obd->obd_name, cli, rc);
 	return rc;
 }
 
@@ -812,10 +811,10 @@ static int osc_lru_reserve(const struct lu_env *env, struct osc_object *obj,
 
 		gen = atomic_read(&cli->cl_lru_in_list);
 		rc = l_wait_event(osc_lru_waitq,
-				atomic_read(cli->cl_lru_left) > 0 ||
-				(atomic_read(&cli->cl_lru_in_list) > 0 &&
-				 gen != atomic_read(&cli->cl_lru_in_list)),
-				&lwi);
+				  atomic_read(cli->cl_lru_left) > 0 ||
+				  (atomic_read(&cli->cl_lru_in_list) > 0 &&
+				   gen != atomic_read(&cli->cl_lru_in_list)),
+				  &lwi);
 
 		atomic_dec(&osc_lru_waiters);
 		if (rc < 0)

@@ -1117,7 +1117,7 @@ static int osc_lock_enqueue(const struct lu_env *env,
 		 "Impossible state: %d\n", ols->ols_state);
 
 	LASSERTF(ergo(ols->ols_glimpse, lock->cll_descr.cld_mode <= CLM_READ),
-		"lock = %p, ols = %p\n", lock, ols);
+		 "lock = %p, ols = %p\n", lock, ols);
 
 	result = osc_lock_enqueue_wait(env, ols);
 	if (result == 0) {
@@ -1144,12 +1144,12 @@ static int osc_lock_enqueue(const struct lu_env *env,
 			ostid_build_res_name(&obj->oo_oinfo->loi_oi, resname);
 			osc_lock_build_policy(env, lock, policy);
 			result = osc_enqueue_base(osc_export(obj), resname,
-					  &ols->ols_flags, policy,
-					  &ols->ols_lvb,
-					  obj->oo_oinfo->loi_kms_valid,
-					  osc_lock_upcall,
-					  ols, einfo, &ols->ols_handle,
-					  PTLRPCD_SET, 1, ols->ols_agl);
+						  &ols->ols_flags, policy,
+						  &ols->ols_lvb,
+						  obj->oo_oinfo->loi_kms_valid,
+						  osc_lock_upcall,
+						  ols, einfo, &ols->ols_handle,
+						  PTLRPCD_SET, 1, ols->ols_agl);
 			if (result != 0) {
 				cl_lock_user_del(env, lock);
 				cl_lock_unhold(env, lock, "upcall", lock);
@@ -1266,11 +1266,12 @@ static int osc_lock_flush(struct osc_lock *ols, int discard)
 
 		if (descr->cld_mode >= CLM_WRITE) {
 			result = osc_cache_writeback_range(env, obj,
-					descr->cld_start, descr->cld_end,
-					1, discard);
+							   descr->cld_start,
+							   descr->cld_end,
+							   1, discard);
 			LDLM_DEBUG(ols->ols_lock,
-				"lock %p: %d pages were %s.\n", lock, result,
-				discard ? "discarded" : "written");
+				   "lock %p: %d pages were %s.\n", lock, result,
+				   discard ? "discarded" : "written");
 			if (result > 0)
 				result = 0;
 		}
@@ -1590,7 +1591,7 @@ int osc_lock_init(const struct lu_env *env,
 			clk->ols_flags |= LDLM_FL_DENY_ON_CONTENTION;
 
 		LDLM_DEBUG_NOLOCK("lock %p, osc lock %p, flags %llx\n",
-				lock, clk, clk->ols_flags);
+				  lock, clk, clk->ols_flags);
 
 		result = 0;
 	} else
@@ -1612,7 +1613,7 @@ int osc_dlm_lock_pageref(struct ldlm_lock *dlm)
 	 */
 	if (olock &&
 	    atomic_add_return(_PAGEREF_MAGIC,
-				  &olock->ols_pageref) != _PAGEREF_MAGIC) {
+			      &olock->ols_pageref) != _PAGEREF_MAGIC) {
 		atomic_sub(_PAGEREF_MAGIC, &olock->ols_pageref);
 		rc = 1;
 	}

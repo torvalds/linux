@@ -993,8 +993,7 @@ static int osc_grant_shrink_grant_cb(struct timeout_item *item, void *data)
 {
 	struct client_obd *client;
 
-	list_for_each_entry(client, &item->ti_obd_list,
-				cl_grant_shrink_list) {
+	list_for_each_entry(client, &item->ti_obd_list, cl_grant_shrink_list) {
 		if (osc_should_shrink_grant(client))
 			osc_shrink_grant(client);
 	}
@@ -1011,7 +1010,7 @@ static int osc_add_shrink_grant(struct client_obd *client)
 				       &client->cl_grant_shrink_list);
 	if (rc) {
 		CERROR("add grant client %s error %d\n",
-			client->cl_import->imp_obd->obd_name, rc);
+		       client->cl_import->imp_obd->obd_name, rc);
 		return rc;
 	}
 	CDEBUG(D_CACHE, "add grant client %s\n",
@@ -1127,7 +1126,7 @@ static int check_write_rcs(struct ptlrpc_request *req,
 
 		if (remote_rcs[i] != 0) {
 			CDEBUG(D_INFO, "rc[%d] invalid (%d) req %p\n",
-				i, remote_rcs[i], req);
+			       i, remote_rcs[i], req);
 			return -EPROTO;
 		}
 	}
@@ -1195,7 +1194,7 @@ static u32 osc_checksum_bulk(int nob, u32 pg_count,
 			kunmap(pga[i]->pg);
 		}
 		cfs_crypto_hash_update_page(hdesc, pga[i]->pg,
-				  pga[i]->off & ~CFS_PAGE_MASK,
+					    pga[i]->off & ~CFS_PAGE_MASK,
 				  count);
 		CDEBUG(D_PAGE,
 		       "page %p map %p index %lu flags %lx count %u priv %0lx: off %d\n",
@@ -1554,7 +1553,7 @@ static int osc_brw_fini_request(struct ptlrpc_request *req, int rc)
 
 	if (rc != req->rq_bulk->bd_nob_transferred) {
 		CERROR("Unexpected rc %d (%d transferred)\n",
-			rc, req->rq_bulk->bd_nob_transferred);
+		       rc, req->rq_bulk->bd_nob_transferred);
 		return -EPROTO;
 	}
 
@@ -1944,7 +1943,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 
 	sort_brw_pages(pga, page_count);
 	rc = osc_brw_prep_request(cmd, cli, oa, NULL, page_count,
-			pga, &req, 1, 0);
+				  pga, &req, 1, 0);
 	if (rc != 0) {
 		CERROR("prep_req failed: %d\n", rc);
 		goto out;
@@ -1986,7 +1985,7 @@ int osc_build_rpc(const struct lu_env *env, struct client_obd *cli,
 			tmp = oap;
 		if (oap->oap_interrupted && !req->rq_intr) {
 			CDEBUG(D_INODE, "oap %p in req %p interrupted\n",
-					oap, req);
+			       oap, req);
 			ptlrpc_mark_interrupted(req);
 		}
 	}
@@ -2034,7 +2033,7 @@ out:
 		 */
 		while (!list_empty(ext_list)) {
 			ext = list_entry(ext_list->next, struct osc_extent,
-					     oe_link);
+					 oe_link);
 			list_del_init(&ext->oe_link);
 			osc_extent_finish(env, ext, 0, rc);
 		}

@@ -603,7 +603,7 @@ void osc_extent_release(const struct lu_env *env, struct osc_extent *ext)
 
 			if (ext->oe_urgent)
 				list_move_tail(&ext->oe_link,
-						   &obj->oo_urgent_exts);
+					       &obj->oo_urgent_exts);
 		}
 		osc_object_unlock(obj);
 
@@ -855,8 +855,7 @@ int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 
 	ext->oe_rc = rc ?: ext->oe_nr_pages;
 	EASSERT(ergo(rc == 0, ext->oe_state == OES_RPC), ext);
-	list_for_each_entry_safe(oap, tmp, &ext->oe_pages,
-				     oap_pending_item) {
+	list_for_each_entry_safe(oap, tmp, &ext->oe_pages, oap_pending_item) {
 		list_del_init(&oap->oap_rpc_item);
 		list_del_init(&oap->oap_pending_item);
 		if (last_off <= oap->oap_obj_off) {
@@ -989,8 +988,7 @@ static int osc_extent_truncate(struct osc_extent *ext, pgoff_t trunc_index,
 		goto out;
 
 	/* discard all pages with index greater then trunc_index */
-	list_for_each_entry_safe(oap, tmp, &ext->oe_pages,
-				     oap_pending_item) {
+	list_for_each_entry_safe(oap, tmp, &ext->oe_pages, oap_pending_item) {
 		struct cl_page *sub = oap2cl_page(oap);
 		struct cl_page *page = cl_page_top(sub);
 
@@ -1912,7 +1910,7 @@ static int get_write_extents(struct osc_object *obj, struct list_head *rpclist)
 	LASSERT(osc_object_is_locked(obj));
 	while (!list_empty(&obj->oo_hp_exts)) {
 		ext = list_entry(obj->oo_hp_exts.next, struct osc_extent,
-				     oe_link);
+				 oe_link);
 		LASSERT(ext->oe_state == OES_CACHE);
 		if (!try_to_add_extent_for_io(cli, ext, rpclist, &page_count,
 					      &max_pages))
@@ -1924,7 +1922,7 @@ static int get_write_extents(struct osc_object *obj, struct list_head *rpclist)
 
 	while (!list_empty(&obj->oo_urgent_exts)) {
 		ext = list_entry(obj->oo_urgent_exts.next,
-				     struct osc_extent, oe_link);
+				 struct osc_extent, oe_link);
 		if (!try_to_add_extent_for_io(cli, ext, rpclist, &page_count,
 					      &max_pages))
 			return page_count;
@@ -2051,8 +2049,7 @@ osc_send_read_rpc(const struct lu_env *env, struct client_obd *cli,
 	int rc = 0;
 
 	LASSERT(osc_object_is_locked(osc));
-	list_for_each_entry_safe(ext, next,
-				     &osc->oo_reading_exts, oe_link) {
+	list_for_each_entry_safe(ext, next, &osc->oo_reading_exts, oe_link) {
 		EASSERT(ext->oe_state == OES_LOCK_DONE, ext);
 		if (!try_to_add_extent_for_io(cli, ext, &rpclist, &page_count,
 					      &max_pages))
@@ -2928,8 +2925,7 @@ int osc_cache_writeback_range(const struct lu_env *env, struct osc_object *obj,
 					ext->oe_max_end <= end, ext);
 				osc_extent_state_set(ext, OES_LOCKING);
 				ext->oe_owner = current;
-				list_move_tail(&ext->oe_link,
-						   &discard_list);
+				list_move_tail(&ext->oe_link, &discard_list);
 				osc_update_pending(obj, OBD_BRW_WRITE,
 						   -ext->oe_nr_pages);
 			}

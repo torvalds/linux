@@ -357,7 +357,7 @@ static int trunc_check_cb(const struct lu_env *env, struct cl_io *io,
 	if (oap->oap_cmd & OBD_BRW_WRITE &&
 	    !list_empty(&oap->oap_pending_item))
 		CL_PAGE_DEBUG(D_ERROR, env, page, "exists %llu/%s.\n",
-				start, current->comm);
+			      start, current->comm);
 
 	{
 		struct page *vmpage = cl_page_vmpage(env, page);
@@ -761,8 +761,7 @@ static void osc_req_attr_set(const struct lu_env *env,
 			struct cl_lock *scan;
 
 			head = cl_object_header(apage->cp_obj);
-			list_for_each_entry(scan, &head->coh_locks,
-						cll_linkage)
+			list_for_each_entry(scan, &head->coh_locks, cll_linkage)
 				CL_LOCK_DEBUG(D_ERROR, env, scan,
 					      "no cover page!\n");
 			CL_PAGE_DEBUG(D_ERROR, env, apage,

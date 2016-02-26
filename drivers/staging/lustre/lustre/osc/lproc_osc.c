@@ -397,8 +397,8 @@ static int osc_checksum_type_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t osc_checksum_type_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					   const char __user *buffer,
+					   size_t count, loff_t *off)
 {
 	struct obd_device *obd = ((struct seq_file *)file->private_data)->private;
 	int i;
@@ -652,10 +652,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 1 << i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   1 << i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
@@ -676,10 +676,10 @@ static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
 		read_cum += r;
 		write_cum += w;
 		seq_printf(seq, "%d:\t\t%10lu %3lu %3lu   | %10lu %3lu %3lu\n",
-				 i, r, pct(r, read_tot),
-				 pct(read_cum, read_tot), w,
-				 pct(w, write_tot),
-				 pct(write_cum, write_tot));
+			   i, r, pct(r, read_tot),
+			   pct(read_cum, read_tot), w,
+			   pct(w, write_tot),
+			   pct(write_cum, write_tot));
 		if (read_cum == read_tot && write_cum == write_tot)
 			break;
 	}
