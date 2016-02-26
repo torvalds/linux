@@ -115,7 +115,7 @@ struct ldlm_interval *ldlm_interval_alloc(struct ldlm_lock *lock)
 	struct ldlm_interval *node;
 
 	LASSERT(lock->l_resource->lr_type == LDLM_EXTENT);
-	node = kmem_cache_alloc(ldlm_interval_slab, GFP_NOFS | __GFP_ZERO);
+	node = kmem_cache_zalloc(ldlm_interval_slab, GFP_NOFS);
 	if (!node)
 		return NULL;
 

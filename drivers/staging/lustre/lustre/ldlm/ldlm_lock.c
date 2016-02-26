@@ -406,7 +406,7 @@ static struct ldlm_lock *ldlm_lock_new(struct ldlm_resource *resource)
 
 	LASSERT(resource);
 
-	lock = kmem_cache_alloc(ldlm_lock_slab, GFP_NOFS | __GFP_ZERO);
+	lock = kmem_cache_zalloc(ldlm_lock_slab, GFP_NOFS);
 	if (!lock)
 		return NULL;
 

@@ -1041,7 +1041,7 @@ static struct ldlm_resource *ldlm_resource_new(void)
 	struct ldlm_resource *res;
 	int idx;
 
-	res = kmem_cache_alloc(ldlm_resource_slab, GFP_NOFS | __GFP_ZERO);
+	res = kmem_cache_zalloc(ldlm_resource_slab, GFP_NOFS);
 	if (!res)
 		return NULL;
 
