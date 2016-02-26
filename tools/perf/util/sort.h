@@ -117,6 +117,7 @@ struct hist_entry {
 			bool	init_have_children;
 			bool	unfolded;
 			bool	has_children;
+			bool	has_no_entry;
 		};
 	};
 	char			*srcline;

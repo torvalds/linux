@@ -260,6 +260,9 @@ static int hierarchy_count_rows(struct hist_browser *hb, struct hist_entry *he,
 	if (he->leaf)
 		return callchain__count_rows(&he->sorted_chain);
 
+	if (he->has_no_entry)
+		return 1;
+
 	node = rb_first(&he->hroot_out);
 	while (node) {
 		float percent;
@@ -409,9 +412,17 @@ static bool hist_browser__toggle_fold(struct hist_browser *browser)
 			/* account grand children */
 			if (symbol_conf.report_hierarchy)
 				browser->b.nr_entries += child_rows - he->nr_rows;
+
+			if (!he->leaf && he->nr_rows == 0) {
+				he->has_no_entry = true;
+				he->nr_rows = 1;
+			}
 		} else {
 			if (symbol_conf.report_hierarchy)
 				browser->b.nr_entries -= child_rows - he->nr_rows;
+
+			if (he->has_no_entry)
+				he->has_no_entry = false;
 
 			he->nr_rows = 0;
 		}
@@ -545,6 +556,12 @@ __hist_browser__set_folding(struct hist_browser *browser, bool unfold)
 			browser->nr_hierarchy_entries++;
 		if (he->leaf)
 			browser->nr_callchain_rows += he->nr_rows;
+		else if (unfold && !hist_entry__has_hierarchy_children(he, browser->min_pcnt)) {
+			browser->nr_hierarchy_entries++;
+			he->has_no_entry = true;
+			he->nr_rows = 1;
+		} else
+			he->has_no_entry = false;
 	}
 }
 
@@ -1412,6 +1429,75 @@ show_callchain:
 	return printed;
 }
 
+static int hist_browser__show_no_entry(struct hist_browser *browser,
+				       unsigned short row,
+				       int level, int nr_sort_keys)
+{
+	int width = browser->b.width;
+	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
+	bool first = true;
+	int column = 0;
+	int ret;
+	struct perf_hpp_fmt *fmt;
+
+	if (current_entry) {
+		browser->he_selection = NULL;
+		browser->selection = NULL;
+	}
+
+	hist_browser__gotorc(browser, row, 0);
+
+	if (current_entry && browser->b.navkeypressed)
+		ui_browser__set_color(&browser->b, HE_COLORSET_SELECTED);
+	else
+		ui_browser__set_color(&browser->b, HE_COLORSET_NORMAL);
+
+	ui_browser__write_nstring(&browser->b, "", level * HIERARCHY_INDENT);
+	width -= level * HIERARCHY_INDENT;
+
+	hists__for_each_format(browser->hists, fmt) {
+		if (perf_hpp__should_skip(fmt, browser->hists) ||
+		    column++ < browser->b.horiz_scroll)
+			continue;
+
+		if (perf_hpp__is_sort_entry(fmt) ||
+		    perf_hpp__is_dynamic_entry(fmt))
+			break;
+
+		ret = fmt->width(fmt, NULL, hists_to_evsel(browser->hists));
+
+		if (first) {
+			/* for folded sign */
+			first = false;
+			ret++;
+		} else {
+			/* space between columns */
+			ret += 2;
+		}
+
+		ui_browser__write_nstring(&browser->b, "", ret);
+		width -= ret;
+	}
+
+	ui_browser__write_nstring(&browser->b, "", nr_sort_keys * HIERARCHY_INDENT);
+	width -= nr_sort_keys * HIERARCHY_INDENT;
+
+	if (column >= browser->b.horiz_scroll) {
+		char buf[32];
+
+		ret = snprintf(buf, sizeof(buf), "no entry >= %.2f%%", browser->min_pcnt);
+		ui_browser__printf(&browser->b, "  %s", buf);
+		width -= ret + 2;
+	}
+
+	/* The scroll bar isn't being used */
+	if (!browser->b.navkeypressed)
+		width += 1;
+
+	ui_browser__write_nstring(&browser->b, "", width);
+	return 1;
+}
+
 static int advance_hpp_check(struct perf_hpp *hpp, int inc)
 {
 	advance_hpp(hpp, inc);
@@ -1575,6 +1661,14 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			row += hist_browser__show_hierarchy_entry(hb, h, row,
 								  h->depth,
 								  nr_sort);
+			if (row == browser->rows)
+				break;
+
+			if (h->has_no_entry) {
+				hist_browser__show_no_entry(hb, row, h->depth,
+							    nr_sort);
+				row++;
+			}
 		} else {
 			row += hist_browser__show_entry(hb, h, row);
 		}
@@ -2460,6 +2554,11 @@ static void hist_browser__update_percent_limit(struct hist_browser *hb,
 
 	while ((nd = hists__filter_entries(nd, hb->min_pcnt)) != NULL) {
 		he = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (he->has_no_entry) {
+			he->has_no_entry = false;
+			he->nr_rows = 0;
+		}
 
 		if (!he->leaf || !symbol_conf.use_callchain)
 			goto next;

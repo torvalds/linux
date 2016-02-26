@@ -1625,6 +1625,7 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 
 			/* force fold unfiltered entry for simplicity */
 			parent->unfolded = false;
+			parent->has_no_entry = false;
 			parent->row_offset = 0;
 			parent->nr_rows = 0;
 next:
@@ -1637,6 +1638,7 @@ next:
 
 	/* force fold unfiltered entry for simplicity */
 	h->unfolded = false;
+	h->has_no_entry = false;
 	h->row_offset = 0;
 	h->nr_rows = 0;
 
