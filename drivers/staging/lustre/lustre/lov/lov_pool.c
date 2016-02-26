@@ -444,7 +444,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 		lov_pool_putref(new_pool);
 	}
 	CDEBUG(D_INFO, "pool %p - proc %p\n",
-		new_pool, new_pool->pool_debugfs_entry);
+	       new_pool, new_pool->pool_debugfs_entry);
 
 	spin_lock(&obd->obd_dev_lock);
 	list_add_tail(&new_pool->pool_list, &lov->lov_pool_list);
@@ -638,7 +638,7 @@ struct pool_desc *lov_find_pool(struct lov_obd *lov, char *poolname)
 			      poolname);
 		if (pool && (pool_tgt_count(pool) == 0)) {
 			CWARN("Request for an empty pool ("LOV_POOLNAMEF")\n",
-			       poolname);
+			      poolname);
 			/* pool is ignored, so we remove ref on it */
 			lov_pool_putref(pool);
 			pool = NULL;

@@ -141,7 +141,7 @@ static void lsm_unpackmd_common(struct lov_stripe_md *lsm,
 
 static void
 lsm_stripe_by_index_plain(struct lov_stripe_md *lsm, int *stripeno,
-			   u64 *lov_off, u64 *swidth)
+			  u64 *lov_off, u64 *swidth)
 {
 	if (swidth)
 		*swidth = (u64)lsm->lsm_stripe_size * lsm->lsm_stripe_count;

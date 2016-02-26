@@ -43,8 +43,7 @@
 #include "lov_internal.h"
 
 /* compute object size given "stripeno" and the ost size */
-u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size,
-			 int stripeno)
+u64 lov_stripe_size(struct lov_stripe_md *lsm, u64 ost_size, int stripeno)
 {
 	unsigned long ssize = lsm->lsm_stripe_size;
 	unsigned long stripe_size;

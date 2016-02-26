@@ -683,7 +683,7 @@ static int lov_lock_unuse(const struct lu_env *env,
 }
 
 static void lov_lock_cancel(const struct lu_env *env,
-			   const struct cl_lock_slice *slice)
+			    const struct cl_lock_slice *slice)
 {
 	struct lov_lock	*lck     = cl2lov_lock(slice);
 	struct cl_lock_closure *closure = lov_closure_get(env, slice->cls_lock);
@@ -1125,7 +1125,8 @@ static void lov_empty_lock_fini(const struct lu_env *env,
 }
 
 static int lov_empty_lock_print(const struct lu_env *env, void *cookie,
-			lu_printer_t p, const struct cl_lock_slice *slice)
+				lu_printer_t p,
+				const struct cl_lock_slice *slice)
 {
 	(*p)(env, cookie, "empty\n");
 	return 0;
@@ -1138,7 +1139,7 @@ static const struct cl_lock_operations lov_empty_lock_ops = {
 };
 
 int lov_lock_init_empty(const struct lu_env *env, struct cl_object *obj,
-		struct cl_lock *lock, const struct cl_io *io)
+			struct cl_lock *lock, const struct cl_io *io)
 {
 	struct lov_lock *lck;
 	int result = -ENOMEM;

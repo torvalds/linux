@@ -172,8 +172,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	offset = cl_offset(obj, page->cp_index);
 	stripe = lov_stripe_number(loo->lo_lsm, offset);
 	LASSERT(stripe < r0->lo_nr);
-	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe,
-				   &suboff);
+	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
 	lpg->lps_invalid = 1;

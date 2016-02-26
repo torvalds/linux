@@ -404,7 +404,7 @@ static void lovsub_lock_delete(const struct lu_env *env,
 
 		restart = 0;
 		list_for_each_entry_safe(scan, temp,
-					     &sub->lss_parents, lll_list) {
+					 &sub->lss_parents, lll_list) {
 			lov     = scan->lll_super;
 			subdata = &lov->lls_sub[scan->lll_idx];
 			lovsub_parent_lock(env, lov);

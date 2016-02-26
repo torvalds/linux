@@ -59,7 +59,7 @@ struct lov_layout_operations {
 			const struct cl_object_conf *conf,
 			union lov_layout_state *state);
 	int (*llo_delete)(const struct lu_env *env, struct lov_object *lov,
-			   union lov_layout_state *state);
+			  union lov_layout_state *state);
 	void (*llo_fini)(const struct lu_env *env, struct lov_object *lov,
 			 union lov_layout_state *state);
 	void (*llo_install)(const struct lu_env *env, struct lov_object *lov,
@@ -67,7 +67,7 @@ struct lov_layout_operations {
 	int  (*llo_print)(const struct lu_env *env, void *cookie,
 			  lu_printer_t p, const struct lu_object *o);
 	int  (*llo_page_init)(const struct lu_env *env, struct cl_object *obj,
-				struct cl_page *page, struct page *vmpage);
+			      struct cl_page *page, struct page *vmpage);
 	int  (*llo_lock_init)(const struct lu_env *env,
 			      struct cl_object *obj, struct cl_lock *lock,
 			      const struct cl_io *io);
@@ -266,9 +266,9 @@ out:
 }
 
 static int lov_init_released(const struct lu_env *env,
-			struct lov_device *dev, struct lov_object *lov,
-			const struct cl_object_conf *conf,
-			union  lov_layout_state *state)
+			     struct lov_device *dev, struct lov_object *lov,
+			     const struct cl_object_conf *conf,
+			     union  lov_layout_state *state)
 {
 	struct lov_stripe_md *lsm = conf->u.coc_md->lsm;
 
@@ -389,7 +389,7 @@ static void lov_fini_raid0(const struct lu_env *env, struct lov_object *lov,
 }
 
 static void lov_fini_released(const struct lu_env *env, struct lov_object *lov,
-				union lov_layout_state *state)
+			      union lov_layout_state *state)
 {
 	dump_lsm(D_INODE, lov->lo_lsm);
 	lov_free_memmd(&lov->lo_lsm);
@@ -411,9 +411,9 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 	int			 i;
 
 	(*p)(env, cookie, "stripes: %d, %s, lsm{%p 0x%08X %d %u %u}:\n",
-		r0->lo_nr, lov->lo_layout_invalid ? "invalid" : "valid", lsm,
-		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
-		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
+	     r0->lo_nr, lov->lo_layout_invalid ? "invalid" : "valid", lsm,
+	     lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
+	     lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	for (i = 0; i < r0->lo_nr; ++i) {
 		struct lu_object *sub;
 
@@ -428,16 +428,16 @@ static int lov_print_raid0(const struct lu_env *env, void *cookie,
 }
 
 static int lov_print_released(const struct lu_env *env, void *cookie,
-				lu_printer_t p, const struct lu_object *o)
+			      lu_printer_t p, const struct lu_object *o)
 {
 	struct lov_object	*lov = lu2lov(o);
 	struct lov_stripe_md	*lsm = lov->lo_lsm;
 
 	(*p)(env, cookie,
-		"released: %s, lsm{%p 0x%08X %d %u %u}:\n",
-		lov->lo_layout_invalid ? "invalid" : "valid", lsm,
-		lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
-		lsm->lsm_stripe_count, lsm->lsm_layout_gen);
+	     "released: %s, lsm{%p 0x%08X %d %u %u}:\n",
+	     lov->lo_layout_invalid ? "invalid" : "valid", lsm,
+	     lsm->lsm_magic, atomic_read(&lsm->lsm_refc),
+	     lsm->lsm_stripe_count, lsm->lsm_layout_gen);
 	return 0;
 }
 
@@ -646,9 +646,9 @@ static int lov_layout_wait(const struct lu_env *env, struct lov_object *lov)
 	struct l_wait_info lwi = { 0 };
 
 	while (atomic_read(&lov->lo_active_ios) > 0) {
-		CDEBUG(D_INODE, "file:"DFID" wait for active IO, now: %d.\n",
-			PFID(lu_object_fid(lov2lu(lov))),
-			atomic_read(&lov->lo_active_ios));
+		CDEBUG(D_INODE, "file:" DFID " wait for active IO, now: %d.\n",
+		       PFID(lu_object_fid(lov2lu(lov))),
+		       atomic_read(&lov->lo_active_ios));
 
 		l_wait_event(lov->lo_waitq,
 			     atomic_read(&lov->lo_active_ios) == 0, &lwi);
@@ -825,7 +825,7 @@ static int lov_object_print(const struct lu_env *env, void *cookie,
 }
 
 int lov_page_init(const struct lu_env *env, struct cl_object *obj,
-		struct cl_page *page, struct page *vmpage)
+		  struct cl_page *page, struct page *vmpage)
 {
 	return LOV_2DISPATCH_NOLOCK(cl2lov(obj),
 				    llo_page_init, env, obj, page, vmpage);
@@ -924,8 +924,8 @@ static struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov)
 	if (lov->lo_lsm) {
 		lsm = lsm_addref(lov->lo_lsm);
 		CDEBUG(D_INODE, "lsm %p addref %d/%d by %p.\n",
-			lsm, atomic_read(&lsm->lsm_refc),
-			lov->lo_layout_invalid, current);
+		       lsm, atomic_read(&lsm->lsm_refc),
+		       lov->lo_layout_invalid, current);
 	}
 	lov_conf_thaw(lov);
 	return lsm;

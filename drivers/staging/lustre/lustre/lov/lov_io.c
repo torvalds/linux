@@ -947,7 +947,7 @@ int lov_io_init_empty(const struct lu_env *env, struct cl_object *obj,
 }
 
 int lov_io_init_released(const struct lu_env *env, struct cl_object *obj,
-			struct cl_io *io)
+			 struct cl_io *io)
 {
 	struct lov_object *lov = cl2lov(obj);
 	struct lov_io *lio = lov_env_io(env);

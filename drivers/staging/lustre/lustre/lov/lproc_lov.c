@@ -53,8 +53,8 @@ static int lov_stripesize_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t lov_stripesize_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
@@ -86,8 +86,8 @@ static int lov_stripeoffset_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t lov_stripeoffset_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					  const char __user *buffer,
+					  size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
@@ -118,8 +118,8 @@ static int lov_stripetype_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t lov_stripetype_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					const char __user *buffer,
+					size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;
@@ -150,8 +150,8 @@ static int lov_stripecount_seq_show(struct seq_file *m, void *v)
 }
 
 static ssize_t lov_stripecount_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+					 const char __user *buffer,
+					 size_t count, loff_t *off)
 {
 	struct obd_device *dev = ((struct seq_file *)file->private_data)->private;
 	struct lov_desc *desc;

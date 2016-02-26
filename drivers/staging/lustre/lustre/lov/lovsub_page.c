@@ -60,7 +60,7 @@ static const struct cl_page_operations lovsub_page_ops = {
 };
 
 int lovsub_page_init(const struct lu_env *env, struct cl_object *obj,
-			struct cl_page *page, struct page *unused)
+		     struct cl_page *page, struct page *unused)
 {
 	struct lovsub_page *lsb = cl_object_page_slice(obj, page);
 

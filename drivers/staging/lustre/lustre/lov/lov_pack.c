@@ -134,7 +134,7 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 	if ((lmm_magic != LOV_MAGIC_V1) &&
 	    (lmm_magic != LOV_MAGIC_V3)) {
 		CERROR("bad mem LOV MAGIC: 0x%08X != 0x%08X nor 0x%08X\n",
-			lmm_magic, LOV_MAGIC_V1, LOV_MAGIC_V3);
+		       lmm_magic, LOV_MAGIC_V1, LOV_MAGIC_V3);
 		return -EINVAL;
 
 	}
@@ -145,7 +145,7 @@ int lov_packmd(struct obd_export *exp, struct lov_mds_md **lmmp,
 		 */
 		if (!lmmp) {
 			stripe_count = lov_get_stripecnt(lov, lmm_magic,
-							lsm->lsm_stripe_count);
+							 lsm->lsm_stripe_count);
 			lsm->lsm_stripe_count = stripe_count;
 		} else if (!lsm_is_released(lsm)) {
 			stripe_count = lsm->lsm_stripe_count;
@@ -267,7 +267,8 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 		return -EINVAL;
 	}
 	rc = lsm_op_find(le32_to_cpu(*(__u32 *)lmm))->lsm_lmm_verify(lmm,
-				     lmm_bytes, stripe_count);
+								     lmm_bytes,
+								  stripe_count);
 	return rc;
 }
 
