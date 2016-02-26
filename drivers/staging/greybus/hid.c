@@ -345,6 +345,7 @@ static int gb_hid_open(struct hid_device *hid)
 static void gb_hid_close(struct hid_device *hid)
 {
 	struct gb_hid *ghid = hid->driver_data;
+	int ret;
 
 	/*
 	 * Protecting hid->open to make sure we don't restart data acquistion
@@ -355,7 +356,10 @@ static void gb_hid_close(struct hid_device *hid)
 		clear_bit(GB_HID_STARTED, &ghid->flags);
 
 		/* Save some power */
-		WARN_ON(gb_hid_set_power(ghid, GB_HID_TYPE_PWR_OFF));
+		ret = gb_hid_set_power(ghid, GB_HID_TYPE_PWR_OFF);
+		if (ret)
+			dev_err(&ghid->connection->bundle->dev,
+				"failed to power off (%d)\n", ret);
 	}
 	mutex_unlock(&gb_hid_open_mutex);
 }
