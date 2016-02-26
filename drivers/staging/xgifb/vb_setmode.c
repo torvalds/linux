@@ -5067,7 +5067,6 @@ reg_and_or:
 	}
 }
 
-
 void XGI_UnLockCRT2(struct vb_device_info *pVBInfo)
 {
 	xgifb_reg_and_or(pVBInfo->Part1Port, 0x2f, 0xFF, 0x01);
