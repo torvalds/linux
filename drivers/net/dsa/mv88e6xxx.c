@@ -1087,12 +1087,32 @@ abort:
 	return ret;
 }
 
-static int _mv88e6xxx_port_vlan_map_set(struct dsa_switch *ds, int port,
-					u16 output_ports)
+static int _mv88e6xxx_port_based_vlan_map(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct net_device *bridge = ps->ports[port].bridge_dev;
 	const u16 mask = (1 << ps->num_ports) - 1;
+	u16 output_ports = 0;
 	int reg;
+	int i;
+
+	/* allow CPU port or DSA link(s) to send frames to every port */
+	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
+		output_ports = mask;
+	} else {
+		for (i = 0; i < ps->num_ports; ++i) {
+			/* allow sending frames to every group member */
+			if (bridge && ps->ports[i].bridge_dev == bridge)
+				output_ports |= BIT(i);
+
+			/* allow sending frames to CPU port and DSA link(s) */
+			if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
+				output_ports |= BIT(i);
+		}
+	}
+
+	/* prevent frames from going back out of the port they came in on */
+	output_ports &= ~BIT(port);
 
 	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_BASE_VLAN);
 	if (reg < 0)
@@ -2114,7 +2134,17 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 	if (err)
 		goto unlock;
 
+	/* Assign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = bridge;
+
+	for (i = 0; i < ps->num_ports; ++i) {
+		if (ps->ports[i].bridge_dev == bridge) {
+			err = _mv88e6xxx_port_based_vlan_map(ds, i);
+			if (err)
+				break;
+		}
+	}
+
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
@@ -2124,8 +2154,9 @@ unlock:
 int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct net_device *bridge = ps->ports[port].bridge_dev;
 	u16 fid;
-	int err;
+	int i, err;
 
 	mutex_lock(&ps->smi_mutex);
 
@@ -2138,7 +2169,17 @@ int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	if (err)
 		goto unlock;
 
+	/* Unassign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = NULL;
+
+	for (i = 0; i < ps->num_ports; ++i) {
+		if (i == port || ps->ports[i].bridge_dev == bridge) {
+			err = _mv88e6xxx_port_based_vlan_map(ds, i);
+			if (err)
+				break;
+		}
+	}
+
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
@@ -2402,15 +2443,14 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 		goto abort;
 
 	/* Port based VLAN map: give each port its own address
-	 * database, and allow every port to egress frames on all other ports.
+	 * database, and allow bidirectional communication between the
+	 * CPU and DSA port(s), and the other ports.
 	 */
 	ret = _mv88e6xxx_port_fid_set(ds, port, port + 1);
 	if (ret)
 		goto abort;
 
-	reg = BIT(ps->num_ports) - 1; /* all ports */
-	reg &= ~BIT(port); /* except itself */
-	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg);
+	ret = _mv88e6xxx_port_based_vlan_map(ds, port);
 	if (ret)
 		goto abort;
 
