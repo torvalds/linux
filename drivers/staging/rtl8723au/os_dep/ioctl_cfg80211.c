@@ -543,7 +543,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
 				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       (min(16, key_len)));
 
 				/* set mic key */
 				memcpy(psecuritypriv->
@@ -565,7 +565,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
 				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       (min(16, key_len)));
 			} else {
 				DBG_8723A("%s, set group_key, none\n",
 					  __func__);
@@ -603,7 +603,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 		if (set_tx == 1) {
 			/* pairwise key */
 			memcpy(psta->dot118021x_UncstKey.skey,
-			       keyparms->key, (key_len > 16 ? 16 : key_len));
+			       keyparms->key, (min(16, key_len)));
 
 			if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
@@ -661,7 +661,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
 				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       (min(16, key_len)));
 
 				/* set mic key */
 				memcpy(psecuritypriv->
@@ -679,7 +679,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
 				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       (min(16, key_len)));
 			} else {
 				psecuritypriv->dot118021XGrpPrivacy = 0;
 			}
@@ -789,7 +789,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 
 					memcpy(psta->dot118021x_UncstKey.skey,
 					       keyparms->key,
-					       (key_len > 16 ? 16 : key_len));
+					       (min(16, key_len)));
 
 					if (keyparms->cipher ==
 					    WLAN_CIPHER_SUITE_TKIP) {
@@ -812,7 +812,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 					memcpy(padapter->securitypriv.
 					       dot118021XGrpKey[key_index].skey,
 					       keyparms->key,
-					       (key_len > 16 ? 16 : key_len));
+					       (min(16, key_len)));
 					memcpy(padapter->securitypriv.
 					       dot118021XGrptxmickey[key_index].
 					       skey, &keyparms->key[16], 8);
