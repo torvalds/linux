@@ -1137,7 +1137,7 @@ out_free:
 /* Send early replies to everybody expiring within at_early_margin
  * asking for at_extra time
  */
-static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
+static void ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 {
 	struct ptlrpc_at_array *array = &svcpt->scp_at_array;
 	struct ptlrpc_request *rq, *n;
@@ -1151,14 +1151,14 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 	spin_lock(&svcpt->scp_at_lock);
 	if (svcpt->scp_at_check == 0) {
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 	delay = cfs_time_sub(cfs_time_current(), svcpt->scp_at_checktime);
 	svcpt->scp_at_check = 0;
 
 	if (array->paa_count == 0) {
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 
 	/* The timer went off, but maybe the nearest rpc already completed. */
@@ -1167,7 +1167,7 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 		/* We've still got plenty of time.  Reset the timer. */
 		ptlrpc_at_set_timer(svcpt);
 		spin_unlock(&svcpt->scp_at_lock);
-		return 0;
+		return;
 	}
 
 	/* We're close to a timeout, and we don't know how much longer the
@@ -1237,8 +1237,6 @@ static int ptlrpc_at_check_timed(struct ptlrpc_service_part *svcpt)
 
 		ptlrpc_server_drop_request(rq);
 	}
-
-	return 1; /* return "did_something" for liblustre */
 }
 
 /**
