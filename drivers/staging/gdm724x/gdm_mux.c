@@ -433,7 +433,7 @@ static int gdm_mux_send_control(void *priv_dev, int request, int value,
 	if (ret < 0)
 		pr_err("usb_control_msg error: %d\n", ret);
 
-	return ret < 0 ? ret : 0;
+	return min(ret, 0);
 }
 
 static void release_usb(struct mux_dev *mux_dev)
