@@ -1596,6 +1596,8 @@ struct drm_bridge_funcs {
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
+	 *
+	 * The disable callback is optional.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
 
@@ -1612,6 +1614,8 @@ struct drm_bridge_funcs {
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
 	 * singals) feeding it is no longer running when this callback is
 	 * called.
+	 *
+	 * The post_disable callback is optional.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
 
@@ -1640,6 +1644,8 @@ struct drm_bridge_funcs {
 	 * will not yet be running when this callback is called. The bridge must
 	 * not enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
+	 *
+	 * The pre_enable callback is optional.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
 
@@ -1657,6 +1663,8 @@ struct drm_bridge_funcs {
 	 * signals) feeding it is running when this callback is called. This
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
+	 *
+	 * The enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
 };
