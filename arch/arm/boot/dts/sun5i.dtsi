@@ -574,6 +574,16 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
+			lcd_rgb565_pins: lcd_rgb565@0 {
+				allwinner,pins = "PD3", "PD4", "PD5", "PD6", "PD7",
+						 "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
+						 "PD19", "PD20", "PD21", "PD22", "PD23",
+						 "PD24", "PD25", "PD26", "PD27";
+				allwinner,function = "lcd0";
+				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
 			mmc0_pins_a: mmc0@0 {
 				allwinner,pins = "PF0", "PF1", "PF2", "PF3",
 						 "PF4", "PF5";
