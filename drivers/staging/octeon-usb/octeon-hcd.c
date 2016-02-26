@@ -2768,26 +2768,23 @@ static int cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 			 */
 			if (cvmx_usb_pipe_needs_split(usb, pipe)) {
 				if (transaction->stage ==
-				    CVMX_USB_STAGE_NON_CONTROL)
+				    CVMX_USB_STAGE_NON_CONTROL) {
 					transaction->stage =
 						CVMX_USB_STAGE_NON_CONTROL_SPLIT_COMPLETE;
-				else {
-					if (buffer_space_left &&
-					    (bytes_in_last_packet ==
-					     pipe->max_packet))
-						transaction->stage =
-							CVMX_USB_STAGE_NON_CONTROL;
-					else {
-						if (transaction->type ==
-						    CVMX_USB_TRANSFER_INTERRUPT)
-							pipe->next_tx_frame +=
-								pipe->interval;
-							cvmx_usb_perform_complete(
-								usb,
-								pipe,
-								transaction,
-								CVMX_USB_COMPLETE_SUCCESS);
-					}
+				} else if (buffer_space_left &&
+					   (bytes_in_last_packet ==
+					   pipe->max_packet)) {
+					transaction->stage =
+						CVMX_USB_STAGE_NON_CONTROL;
+				} else {
+					if (transaction->type ==
+					    CVMX_USB_TRANSFER_INTERRUPT)
+						pipe->next_tx_frame +=
+							pipe->interval;
+					cvmx_usb_perform_complete(usb,
+								  pipe,
+								  transaction,
+								  CVMX_USB_COMPLETE_SUCCESS);
 				}
 			} else {
 				if ((pipe->device_speed ==
