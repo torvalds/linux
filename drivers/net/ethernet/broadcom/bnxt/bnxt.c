@@ -3521,6 +3521,21 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
+	u32 buf_tmrs, u16 flags,
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+{
+	req->flags = cpu_to_le16(flags);
+	req->num_cmpl_dma_aggr = cpu_to_le16((u16)max_bufs);
+	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(max_bufs >> 16);
+	req->cmpl_aggr_dma_tmr = cpu_to_le16((u16)buf_tmrs);
+	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmrs >> 16);
+	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
+	req->int_lat_tmr_min = cpu_to_le16((u16)buf_tmrs * 2);
+	req->int_lat_tmr_max = cpu_to_le16((u16)buf_tmrs * 4);
+	req->num_cmpl_aggr_int = cpu_to_le16((u16)max_bufs * 4);
+}
+
 int bnxt_hwrm_set_coal(struct bnxt *bp)
 {
 	int i, rc = 0;
@@ -3553,15 +3568,8 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	if (bp->rx_coal_ticks < 25)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 
-	req.flags = cpu_to_le16(flags);
-	req.num_cmpl_dma_aggr = cpu_to_le16(max_buf);
-	req.num_cmpl_dma_aggr_during_int = cpu_to_le16(max_buf_irq);
-	req.cmpl_aggr_dma_tmr = cpu_to_le16(buf_tmr);
-	req.cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmr_irq);
-	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
-	req.int_lat_tmr_min = cpu_to_le16(buf_tmr * 2);
-	req.int_lat_tmr_max = cpu_to_le16(buf_tmr * 4);
-	req.num_cmpl_aggr_int = cpu_to_le16(max_buf * 4);
+	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
+				  buf_tmr_irq << 16 | buf_tmr, flags, &req);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
