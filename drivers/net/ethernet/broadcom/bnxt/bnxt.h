@@ -481,9 +481,11 @@ struct rx_tpa_end_cmp_ext {
 #define HWRM_CMD_TIMEOUT		(bp->hwrm_cmd_timeout)
 #define HWRM_RESET_TIMEOUT		((HWRM_CMD_TIMEOUT) * 4)
 #define HWRM_RESP_ERR_CODE_MASK		0xffff
+#define HWRM_RESP_LEN_OFFSET		4
 #define HWRM_RESP_LEN_MASK		0xffff0000
 #define HWRM_RESP_LEN_SFT		16
 #define HWRM_RESP_VALID_MASK		0xff000000
+#define HWRM_SEQ_ID_INVALID		-1
 #define BNXT_HWRM_REQ_MAX_SIZE		128
 #define BNXT_HWRM_REQS_PER_PAGE		(BNXT_PAGE_SIZE /	\
 					 BNXT_HWRM_REQ_MAX_SIZE)
@@ -644,19 +646,6 @@ struct bnxt_irq {
 #define HWRM_RING_ALLOC_CMPL	0x8
 
 #define INVALID_STATS_CTX_ID	-1
-
-struct hwrm_cmd_req_hdr {
-#define HWRM_CMPL_RING_MASK	0xffff0000
-#define HWRM_CMPL_RING_SFT	16
-	__le32	cmpl_ring_req_type;
-#define HWRM_SEQ_ID_MASK	0xffff
-#define HWRM_SEQ_ID_INVALID -1
-#define HWRM_RESP_LEN_OFFSET	4
-#define HWRM_TARGET_FID_MASK	0xffff0000
-#define HWRM_TARGET_FID_SFT	16
-	__le32	target_id_seq_id;
-	__le64	resp_addr;
-};
 
 struct bnxt_ring_grp_info {
 	u16	fw_stats_ctx;

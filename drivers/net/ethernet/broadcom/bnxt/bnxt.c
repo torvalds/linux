@@ -2600,28 +2600,26 @@ alloc_mem_err:
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 			    u16 cmpl_ring, u16 target_id)
 {
-	struct hwrm_cmd_req_hdr *req = request;
+	struct input *req = request;
 
-	req->cmpl_ring_req_type =
-		cpu_to_le32(req_type | (cmpl_ring << HWRM_CMPL_RING_SFT));
-	req->target_id_seq_id = cpu_to_le32(target_id << HWRM_TARGET_FID_SFT);
+	req->req_type = cpu_to_le16(req_type);
+	req->cmpl_ring = cpu_to_le16(cmpl_ring);
+	req->target_id = cpu_to_le16(target_id);
 	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
 }
 
 int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 {
 	int i, intr_process, rc;
-	struct hwrm_cmd_req_hdr *req = msg;
+	struct input *req = msg;
 	u32 *data = msg;
 	__le32 *resp_len, *valid;
 	u16 cp_ring_id, len = 0;
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 
-	req->target_id_seq_id |= cpu_to_le32(bp->hwrm_cmd_seq++);
+	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
-	cp_ring_id = (le32_to_cpu(req->cmpl_ring_req_type) &
-		      HWRM_CMPL_RING_MASK) >>
-		     HWRM_CMPL_RING_SFT;
+	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
 
 	/* Write request msg to hwrm channel */
@@ -2632,8 +2630,7 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 	/* currently supports only one outstanding message */
 	if (intr_process)
-		bp->hwrm_intr_seq_id = le32_to_cpu(req->target_id_seq_id) &
-				       HWRM_SEQ_ID_MASK;
+		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + 0x100);
@@ -2651,7 +2648,7 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
 			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
-				   req->cmpl_ring_req_type);
+				   le16_to_cpu(req->req_type));
 			return -1;
 		}
 	} else {
@@ -2667,8 +2664,8 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (i >= timeout) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
-				   timeout, req->cmpl_ring_req_type,
-				   req->target_id_seq_id, *resp_len);
+				   timeout, le16_to_cpu(req->req_type),
+				   le16_to_cpu(req->seq_id), *resp_len);
 			return -1;
 		}
 
@@ -2682,8 +2679,8 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (i >= timeout) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
-				   timeout, req->cmpl_ring_req_type,
-				   req->target_id_seq_id, len, *valid);
+				   timeout, le16_to_cpu(req->req_type),
+				   le16_to_cpu(req->seq_id), len, *valid);
 			return -1;
 		}
 	}

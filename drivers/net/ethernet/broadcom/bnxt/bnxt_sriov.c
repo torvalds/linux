@@ -801,8 +801,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 static int bnxt_vf_req_validate_snd(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
 	int rc = 0;
-	struct hwrm_cmd_req_hdr *encap_req = vf->hwrm_cmd_req_addr;
-	u32 req_type = le32_to_cpu(encap_req->cmpl_ring_req_type) & 0xffff;
+	struct input *encap_req = vf->hwrm_cmd_req_addr;
+	u32 req_type = le16_to_cpu(encap_req->req_type);
 
 	switch (req_type) {
 	case HWRM_CFA_L2_FILTER_ALLOC:
