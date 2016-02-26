@@ -196,7 +196,8 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 			*vm_id = id->mgr_id - adev->vm_manager.ids;
 			*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
-			trace_amdgpu_vm_grab_id(vm, *vm_id, ring->idx);
+			trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id,
+						*vm_pd_addr);
 
 			mutex_unlock(&adev->vm_manager.lock);
 			return 0;
@@ -222,7 +223,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 
 		*vm_id = id->mgr_id - adev->vm_manager.ids;
 		*vm_pd_addr = pd_addr;
-		trace_amdgpu_vm_grab_id(vm, *vm_id, ring->idx);
+		trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
 	}
 
 	mutex_unlock(&adev->vm_manager.lock);
