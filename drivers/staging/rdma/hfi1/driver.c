@@ -1169,6 +1169,12 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 
+	/*
+	 * This pairs with the memory barrier implied by the atomic_dec in
+	 * hfi1_set_led_override to ensure that we read the correct state of
+	 * LED beaconing represented by led_override_timer_active
+	 */
+	smp_mb();
 	if (atomic_read(&ppd->led_override_timer_active)) {
 		del_timer_sync(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 0);
@@ -1199,11 +1205,14 @@ static void run_led_override(unsigned long opaque)
 	 * don't re-fire the timer if user asked for it to be off; we let
 	 * it fire one more time after they turn it off to simplify
 	 */
-	if (ppd->led_override_vals[0] || ppd->led_override_vals[1])
+	if (ppd->led_override_vals[0] || ppd->led_override_vals[1]) {
 		mod_timer(&ppd->led_override_timer, jiffies + timeout);
-	else
+	} else {
 		/* Hand control of the LED to the DC for normal operation */
 		write_csr(dd, DCC_CFG_LED_CNTRL, 0);
+		/* Record that we did not re-fire the timer */
+		atomic_dec(&ppd->led_override_timer_active);
+	}
 }
 
 /*

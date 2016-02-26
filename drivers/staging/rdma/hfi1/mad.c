@@ -516,6 +516,7 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	struct opa_port_info *pi = (struct opa_port_info *)data;
 	u8 mtu;
 	u8 credit_rate;
+	u8 is_beaconing_active;
 	u32 state;
 	u32 num_ports = OPA_AM_NPORT(am);
 	u32 start_of_sm_config = OPA_AM_START_SM_CFG(am);
@@ -581,6 +582,14 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.ledenable_offlinereason = ppd->neighbor_normal << 4;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
+	/*
+	 * This pairs with the memory barrier implied by the atomic_dec in
+	 * hfi1_set_led_override to ensure that we read the correct state of
+	 * LED beaconing represented by led_override_timer_active
+	 */
+	smp_mb();
+	is_beaconing_active = !!atomic_read(&ppd->led_override_timer_active);
+	pi->port_states.ledenable_offlinereason |= is_beaconing_active << 6;
 	pi->port_states.ledenable_offlinereason |=
 		ppd->offline_disabled_reason;
 #else
@@ -3578,19 +3587,24 @@ static int __subn_get_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 				   u32 *resp_len)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
+	struct hfi1_pportdata *ppd = dd->pport;
 	struct opa_led_info *p = (struct opa_led_info *)data;
 	u32 nport = OPA_AM_NPORT(am);
-	u64 reg;
+	u32 is_beaconing_active;
 
 	if (nport != 1) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	reg = read_csr(dd, DCC_CFG_LED_CNTRL);
-	if ((reg & DCC_CFG_LED_CNTRL_LED_CNTRL_SMASK) &&
-	    ((reg & DCC_CFG_LED_CNTRL_LED_SW_BLINK_RATE_SMASK) == 0xf))
-		p->rsvd_led_mask = cpu_to_be32(OPA_LED_MASK);
+	/*
+	 * This pairs with the memory barrier implied by the atomic_dec in
+	 * hfi1_set_led_override to ensure that we read the correct state of
+	 * LED beaconing represented by led_override_timer_active
+	 */
+	smp_mb();
+	is_beaconing_active = !!atomic_read(&ppd->led_override_timer_active);
+	p->rsvd_led_mask = cpu_to_be32(is_beaconing_active << OPA_LED_SHIFT);
 
 	if (resp_len)
 		*resp_len += sizeof(struct opa_led_info);
