@@ -628,6 +628,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	bool first = true;
 	size_t linesz;
 	char *line = NULL;
+	unsigned indent;
 
 	init_rem_hits();
 
@@ -704,6 +705,8 @@ print_entries:
 		goto out;
 	}
 
+	indent = hists__overhead_width(hists) + 4;
+
 	for (nd = rb_first(&hists->entries); nd; nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent;
@@ -719,6 +722,20 @@ print_entries:
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
+
+		/*
+		 * If all children are filtered out or percent-limited,
+		 * display "no entry >= x.xx%" message.
+		 */
+		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
+			int nr_sort = hists->hpp_list->nr_sort_keys;
+
+			print_hierarchy_indent(sep, nr_sort + h->depth + 1, spaces, fp);
+			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);
+
+			if (max_rows && ++nr_rows >= max_rows)
+				break;
+		}
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(h->thread->mg,
