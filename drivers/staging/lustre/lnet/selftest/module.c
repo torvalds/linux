@@ -148,6 +148,7 @@ error:
 	return rc;
 }
 
+MODULE_AUTHOR("OpenSFS, Inc. <http://www.lustre.org/>");
 MODULE_DESCRIPTION("LNet Selftest");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.9.0");
