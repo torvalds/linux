@@ -769,6 +769,8 @@ config ARM64_LSE_ATOMICS
 
 endmenu
 
+menu "ARMv8.2 architectural features"
+
 config ARM64_UAO
 	bool "Enable support for User Access Override (UAO)"
 	default y
@@ -789,6 +791,8 @@ config ARM64_UAO
 	  The feature is detected at runtime, the kernel will use the
 	  regular load/store instructions if the cpu does not implement the
 	  feature.
+
+endmenu
 
 config ARM64_MODULE_CMODEL_LARGE
 	bool
