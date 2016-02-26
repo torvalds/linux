@@ -77,6 +77,7 @@ struct nvme_ctrl {
 	char serial[20];
 	char model[40];
 	char firmware_rev[8];
+	int cntlid;
 
 	u32 ctrl_config;
 
