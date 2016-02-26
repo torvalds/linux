@@ -461,7 +461,7 @@ static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 static inline struct kvmppc_passthru_irqmap *kvmppc_get_passthru_irqmap(
 				struct kvm *kvm)
 {
-	if (kvm)
+	if (kvm && kvm_irq_bypass)
 		return kvm->arch.pimap;
 	return NULL;
 }
