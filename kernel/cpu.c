@@ -481,8 +481,6 @@ static int takedown_cpu(unsigned int cpu)
 	else
 		synchronize_rcu();
 
-	smpboot_park_threads(cpu);
-
 	/*
 	 * Prevent irq alloc/free while the dying cpu reorganizes the
 	 * interrupt affinities.
@@ -611,38 +609,6 @@ int cpu_down(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpu_down);
 #endif /*CONFIG_HOTPLUG_CPU*/
-
-/*
- * Unpark per-CPU smpboot kthreads at CPU-online time.
- */
-static int smpboot_thread_call(struct notifier_block *nfb,
-			       unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-
-	case CPU_DOWN_FAILED:
-	case CPU_ONLINE:
-		smpboot_unpark_threads(cpu);
-		break;
-
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block smpboot_thread_notifier = {
-	.notifier_call = smpboot_thread_call,
-	.priority = CPU_PRI_SMPBOOT,
-};
-
-void smpboot_thread_init(void)
-{
-	register_cpu_notifier(&smpboot_thread_notifier);
-}
 
 /**
  * notify_cpu_starting(cpu) - call the CPU_STARTING notifiers
@@ -958,6 +924,11 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.name			= "cpu:active",
 		.startup		= cpuhp_set_cpu_active,
 		.teardown		= NULL,
+	},
+	[CPUHP_SMPBOOT_THREADS] = {
+		.name			= "smpboot:threads",
+		.startup		= smpboot_unpark_threads,
+		.teardown		= smpboot_park_threads,
 	},
 	[CPUHP_NOTIFY_ONLINE] = {
 		.name			= "notify:online",
