@@ -42,7 +42,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-&extbus {
+&system_bus {
+	status = "okay";
 	ranges = <1 0x00000000 0x42000000 0x02000000>;
 
 	support_card: support_card {

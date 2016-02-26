@@ -52,12 +52,6 @@
 		ranges;
 		interrupt-parent = <&intc>;
 
-		extbus: extbus {
-			compatible = "simple-bus";
-			#address-cells = <2>;
-			#size-cells = <1>;
-		};
-
 		serial0: serial@54006800 {
 			compatible = "socionext,uniphier-uart";
 			status = "disabled";
@@ -98,9 +92,17 @@
 			clocks = <&uart_clk>;
 		};
 
-		system-bus-controller@58c00000 {
-			compatible = "socionext,uniphier-system-bus-controller";
-			reg = <0x58c00000 0x400>, <0x59800000 0x2000>;
+		system_bus: system-bus@58c00000 {
+			compatible = "socionext,uniphier-system-bus";
+			status = "disabled";
+			reg = <0x58c00000 0x400>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+		};
+
+		smpctrl@59800000 {
+			compatible = "socionext,uniphier-smpctrl";
+			reg = <0x59801000 0x400>;
 		};
 
 		timer@60000200 {
