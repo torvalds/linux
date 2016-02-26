@@ -202,9 +202,9 @@ static int copy_attributes_to_inode(struct inode *inode,
 
 	inode->i_uid = make_kuid(&init_user_ns, attrs->owner);
 	inode->i_gid = make_kgid(&init_user_ns, attrs->group);
-	inode->i_atime.tv_sec = (time_t) attrs->atime;
-	inode->i_mtime.tv_sec = (time_t) attrs->mtime;
-	inode->i_ctime.tv_sec = (time_t) attrs->ctime;
+	inode->i_atime.tv_sec = (time64_t) attrs->atime;
+	inode->i_mtime.tv_sec = (time64_t) attrs->mtime;
+	inode->i_ctime.tv_sec = (time64_t) attrs->ctime;
 	inode->i_atime.tv_nsec = 0;
 	inode->i_mtime.tv_nsec = 0;
 	inode->i_ctime.tv_nsec = 0;
@@ -301,16 +301,14 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	if (iattr->ia_valid & ATTR_ATIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_ATIME;
 		if (iattr->ia_valid & ATTR_ATIME_SET) {
-			attrs->atime =
-			    orangefs_convert_time_field(&iattr->ia_atime);
+			attrs->atime = (time64_t)iattr->ia_atime.tv_sec;
 			attrs->mask |= ORANGEFS_ATTR_SYS_ATIME_SET;
 		}
 	}
 	if (iattr->ia_valid & ATTR_MTIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_MTIME;
 		if (iattr->ia_valid & ATTR_MTIME_SET) {
-			attrs->mtime =
-			    orangefs_convert_time_field(&iattr->ia_mtime);
+			attrs->mtime = (time64_t)iattr->ia_mtime.tv_sec;
 			attrs->mask |= ORANGEFS_ATTR_SYS_MTIME_SET;
 		}
 	}

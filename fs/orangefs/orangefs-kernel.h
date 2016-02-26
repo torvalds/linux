@@ -555,11 +555,6 @@ int orangefs_unmount_sb(struct super_block *sb);
 
 bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op);
 
-static inline __u64 orangefs_convert_time_field(const struct timespec *ts)
-{
-	return (__u64)ts->tv_sec;
-}
-
 int orangefs_normalize_to_errno(__s32 error_code);
 
 extern struct mutex devreq_mutex;
