@@ -1789,8 +1789,7 @@ int ll_iocontrol(struct inode *inode, struct file *file,
 			return 0;
 		}
 
-		oinfo.oi_oa = kmem_cache_alloc(obdo_cachep,
-					       GFP_NOFS | __GFP_ZERO);
+		oinfo.oi_oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
 		if (!oinfo.oi_oa) {
 			ccc_inode_lsm_put(inode, lsm);
 			return -ENOMEM;

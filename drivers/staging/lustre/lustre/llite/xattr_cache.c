@@ -114,7 +114,7 @@ static int ll_xattr_cache_add(struct list_head *cache,
 		return -EPROTO;
 	}
 
-	xattr = kmem_cache_alloc(xattr_kmem, GFP_NOFS | __GFP_ZERO);
+	xattr = kmem_cache_zalloc(xattr_kmem, GFP_NOFS);
 	if (!xattr) {
 		CDEBUG(D_CACHE, "failed to allocate xattr\n");
 		return -ENOMEM;

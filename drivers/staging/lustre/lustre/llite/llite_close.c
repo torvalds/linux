@@ -225,7 +225,7 @@ int ll_som_update(struct inode *inode, struct md_op_data *op_data)
 		       inode->i_ino, inode->i_generation,
 		       lli->lli_flags);
 
-	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
+	oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
 	if (!oa) {
 		CERROR("can't allocate memory for Size-on-MDS update.\n");
 		return -ENOMEM;

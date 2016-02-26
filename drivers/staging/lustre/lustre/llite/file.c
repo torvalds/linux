@@ -64,7 +64,7 @@ static struct ll_file_data *ll_file_data_get(void)
 {
 	struct ll_file_data *fd;
 
-	fd = kmem_cache_alloc(ll_file_data_slab, GFP_NOFS | __GFP_ZERO);
+	fd = kmem_cache_zalloc(ll_file_data_slab, GFP_NOFS);
 	if (!fd)
 		return NULL;
 	fd->fd_write_failed = false;
@@ -1280,7 +1280,7 @@ static int ll_lov_recreate(struct inode *inode, struct ost_id *oi, u32 ost_idx)
 	int rc = 0;
 	struct lov_stripe_md *lsm = NULL, *lsm2;
 
-	oa = kmem_cache_alloc(obdo_cachep, GFP_NOFS | __GFP_ZERO);
+	oa = kmem_cache_zalloc(obdo_cachep, GFP_NOFS);
 	if (!oa)
 		return -ENOMEM;
 
