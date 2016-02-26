@@ -305,18 +305,19 @@ mlxsw_sp_port_system_port_mapping_set(struct mlxsw_sp_port *mlxsw_sp_port)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sspr), sspr_pl);
 }
 
-static int mlxsw_sp_port_module_check(struct mlxsw_sp_port *mlxsw_sp_port,
-				      bool *p_usable)
+static int mlxsw_sp_port_module_info_get(struct mlxsw_sp *mlxsw_sp,
+					 u8 local_port, u8 *p_module,
+					 u8 *p_width)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int err;
 
-	mlxsw_reg_pmlp_pack(pmlp_pl, mlxsw_sp_port->local_port);
+	mlxsw_reg_pmlp_pack(pmlp_pl, local_port);
 	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(pmlp), pmlp_pl);
 	if (err)
 		return err;
-	*p_usable = mlxsw_reg_pmlp_width_get(pmlp_pl) ? true : false;
+	*p_module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
+	*p_width = mlxsw_reg_pmlp_width_get(pmlp_pl);
 	return 0;
 }
 
@@ -1365,7 +1366,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct devlink_port *devlink_port;
 	struct net_device *dev;
-	bool usable;
 	size_t bytes;
 	int err;
 
@@ -1415,19 +1415,6 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	 * headers.
 	 */
 	dev->hard_header_len += MLXSW_TXHDR_LEN;
-
-	err = mlxsw_sp_port_module_check(mlxsw_sp_port, &usable);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to check module\n",
-			mlxsw_sp_port->local_port);
-		goto err_port_module_check;
-	}
-
-	if (!usable) {
-		dev_dbg(mlxsw_sp->bus_info->dev, "Port %d: Not usable, skipping initialization\n",
-			mlxsw_sp_port->local_port);
-		goto port_not_usable;
-	}
 
 	devlink_port = &mlxsw_sp_port->devlink_port;
 	err = devlink_port_register(devlink, devlink_port, local_port);
@@ -1496,8 +1483,6 @@ err_port_swid_set:
 err_port_system_port_mapping_set:
 	devlink_port_unregister(&mlxsw_sp_port->devlink_port);
 err_devlink_port_register:
-port_not_usable:
-err_port_module_check:
 err_dev_addr_init:
 	free_percpu(mlxsw_sp_port->pcpu_stats);
 err_alloc_stats:
@@ -1559,6 +1544,7 @@ static void mlxsw_sp_ports_remove(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 {
 	size_t alloc_size;
+	u8 module, width;
 	int i;
 	int err;
 
@@ -1568,6 +1554,13 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 		return -ENOMEM;
 
 	for (i = 1; i < MLXSW_PORT_MAX_PORTS; i++) {
+		err = mlxsw_sp_port_module_info_get(mlxsw_sp, i, &module,
+						    &width);
+		if (err)
+			goto err_port_module_info_get;
+		if (!width)
+			continue;
+		mlxsw_sp->port_to_module[i] = module;
 		err = mlxsw_sp_port_create(mlxsw_sp, i);
 		if (err)
 			goto err_port_create;
@@ -1575,6 +1568,7 @@ static int mlxsw_sp_ports_create(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_port_create:
+err_port_module_info_get:
 	for (i--; i >= 1; i--)
 		mlxsw_sp_port_remove(mlxsw_sp, i);
 	kfree(mlxsw_sp->ports);

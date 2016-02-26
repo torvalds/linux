@@ -123,6 +123,7 @@ struct mlxsw_sp {
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
 	struct mlxsw_sp_upper lags[MLXSW_SP_LAG_MAX];
+	u8 port_to_module[MLXSW_PORT_MAX_PORTS];
 };
 
 static inline struct mlxsw_sp_upper *
