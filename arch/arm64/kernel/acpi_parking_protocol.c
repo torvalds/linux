@@ -21,7 +21,14 @@
 
 #include <asm/cpu_ops.h>
 
+struct parking_protocol_mailbox {
+	__le32 cpu_id;
+	__le32 reserved;
+	__le64 entry_point;
+};
+
 struct cpu_mailbox_entry {
+	struct parking_protocol_mailbox __iomem *mailbox;
 	phys_addr_t mailbox_addr;
 	u8 version;
 	u8 gic_cpu_id;
@@ -59,12 +66,6 @@ static int acpi_parking_protocol_cpu_prepare(unsigned int cpu)
 	return 0;
 }
 
-struct parking_protocol_mailbox {
-	__le32 cpu_id;
-	__le32 reserved;
-	__le64 entry_point;
-};
-
 static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 {
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
@@ -97,6 +98,12 @@ static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 	}
 
 	/*
+	 * stash the mailbox address mapping to use it for further FW
+	 * checks in the postboot method
+	 */
+	cpu_entry->mailbox = mailbox;
+
+	/*
 	 * We write the entry point and cpu id as LE regardless of the
 	 * native endianness of the kernel. Therefore, any boot-loaders
 	 * that read this address need to convert this address to the
@@ -107,8 +114,6 @@ static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
-	iounmap(mailbox);
-
 	return 0;
 }
 
@@ -116,23 +121,8 @@ static void acpi_parking_protocol_cpu_postboot(void)
 {
 	int cpu = smp_processor_id();
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
-	struct parking_protocol_mailbox __iomem *mailbox;
+	struct parking_protocol_mailbox __iomem *mailbox = cpu_entry->mailbox;
 	__le64 entry_point;
-
-	/*
-	 * Map mailbox memory with attribute device nGnRE (ie ioremap -
-	 * this deviates from the parking protocol specifications since
-	 * the mailboxes are required to be mapped nGnRnE; the attribute
-	 * discrepancy is harmless insofar as the protocol specification
-	 * is concerned).
-	 * If the mailbox is mistakenly allocated in the linear mapping
-	 * by FW ioremap will fail since the mapping will be prevented
-	 * by the kernel (it clashes with the linear mapping attributes
-	 * specifications).
-	 */
-	mailbox = ioremap(cpu_entry->mailbox_addr, sizeof(*mailbox));
-	if (!mailbox)
-		return;
 
 	entry_point = readl_relaxed(&mailbox->entry_point);
 	/*
@@ -140,8 +130,6 @@ static void acpi_parking_protocol_cpu_postboot(void)
 	 * by the protocol specification.
 	 */
 	WARN_ON(entry_point);
-
-	iounmap(mailbox);
 }
 
 const struct cpu_operations acpi_parking_protocol_ops = {
