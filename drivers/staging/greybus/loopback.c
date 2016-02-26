@@ -986,14 +986,14 @@ static int gb_loopback_fn(void *data)
 			break;
 
 		mutex_lock(&gb->mutex);
-		sysfs_notify(&gb->connection->bundle->dev.kobj,
-			     NULL, "iteration_count");
 
 		/* Optionally terminate */
 		if (send_count == gb->iteration_max) {
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				send_count = 0;
+				sysfs_notify(&gb->dev->kobj,  NULL,
+						"iteration_count");
 			}
 			mutex_unlock(&gb->mutex);
 			continue;
