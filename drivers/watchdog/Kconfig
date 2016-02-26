@@ -1475,6 +1475,19 @@ config MT7621_WDT
 	help
 	  Hardware driver for the Mediatek/Ralink MT7621/8 SoC Watchdog Timer.
 
+config PIC32_WDT
+	tristate "Microchip PIC32 hardware watchdog"
+	select WATCHDOG_CORE
+	depends on MACH_PIC32
+	help
+	  Watchdog driver for the built in watchdog hardware in a PIC32.
+
+	  Configuration bits must be set appropriately for the watchdog to be
+	  controlled by this driver.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called pic32-wdt.
+
 # PARISC Architecture
 
 # POWERPC Architecture
