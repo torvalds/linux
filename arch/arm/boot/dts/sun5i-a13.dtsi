@@ -237,6 +237,16 @@
 &pio {
 	compatible = "allwinner,sun5i-a13-pinctrl";
 
+	lcd_rgb666_pins: lcd_rgb666@0 {
+		allwinner,pins = "PD2", "PD3", "PD4", "PD5", "PD6", "PD7",
+				 "PD10", "PD11", "PD12", "PD13", "PD14", "PD15",
+				 "PD18", "PD19", "PD20", "PD21", "PD22", "PD23",
+				 "PD24", "PD25", "PD26", "PD27";
+		allwinner,function = "lcd0";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	uart1_pins_a: uart1@0 {
 		allwinner,pins = "PE10", "PE11";
 		allwinner,function = "uart1";
