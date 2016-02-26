@@ -1718,10 +1718,6 @@ int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 {
 	int err;
 
-	/* We reserve a few VLANs to isolate unbridged ports */
-	if (vlan->vid_end >= 4000)
-		return -EOPNOTSUPP;
-
 	/* If the requested port doesn't belong to the same bridge as the VLAN
 	 * members, do not support it (yet) and fallback to software VLAN.
 	 */
@@ -1819,7 +1815,6 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	const u16 defpvid = 4000 + ds->index * DSA_MAX_PORTS + port;
 	u16 pvid, vid;
 	int err = 0;
 
@@ -1835,8 +1830,7 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			goto unlock;
 
 		if (vid == pvid) {
-			/* restore reserved VLAN ID */
-			err = _mv88e6xxx_port_pvid_set(ds, port, defpvid);
+			err = _mv88e6xxx_port_pvid_set(ds, port, 0);
 			if (err)
 				goto unlock;
 		}
@@ -2186,20 +2180,6 @@ unlock:
 	return err;
 }
 
-static int mv88e6xxx_setup_port_default_vlan(struct dsa_switch *ds, int port)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
-	int err;
-
-	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_port_vlan_add(ds, port, pvid, true);
-	if (!err)
-		err = _mv88e6xxx_port_pvid_set(ds, port, pvid);
-	mutex_unlock(&ps->smi_mutex);
-	return err;
-}
-
 static void mv88e6xxx_bridge_work(struct work_struct *work)
 {
 	struct mv88e6xxx_priv_state *ps;
@@ -2320,7 +2300,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	}
 
 	/* Port Control 2: don't force a good FCS, set the maximum frame size to
-	 * 10240 bytes, enable secure 802.1q tags, don't discard tagged or
+	 * 10240 bytes, disable 802.1q tags checking, don't discard tagged or
 	 * untagged frames on this port, do a destination address lookup on all
 	 * received packets as usual, disable ARP mirroring and don't send a
 	 * copy of all transmitted/received frames on this port to the CPU.
@@ -2345,7 +2325,7 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
 	}
 
-	reg |= PORT_CONTROL_2_8021Q_SECURE;
+	reg |= PORT_CONTROL_2_8021Q_DISABLED;
 
 	if (reg) {
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
@@ -2472,13 +2452,6 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 
 	for (i = 0; i < ps->num_ports; i++) {
 		ret = mv88e6xxx_setup_port(ds, i);
-		if (ret < 0)
-			return ret;
-
-		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
-			continue;
-
-		ret = mv88e6xxx_setup_port_default_vlan(ds, i);
 		if (ret < 0)
 			return ret;
 	}
