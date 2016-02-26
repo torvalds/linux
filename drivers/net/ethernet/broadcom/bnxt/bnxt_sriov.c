@@ -809,13 +809,19 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 	if (_hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT))
 		goto update_vf_mac_exit;
 
-	if (!is_valid_ether_addr(resp->perm_mac_address))
-		goto update_vf_mac_exit;
-
+	/* Store MAC address from the firmware.  There are 2 cases:
+	 * 1. MAC address is valid.  It is assigned from the PF and we
+	 *    need to override the current VF MAC address with it.
+	 * 2. MAC address is zero.  The VF will use a random MAC address by
+	 *    default but the stored zero MAC will allow the VF user to change
+	 *    the random MAC address using ndo_set_mac_address() if he wants.
+	 */
 	if (!ether_addr_equal(resp->perm_mac_address, bp->vf.mac_addr))
 		memcpy(bp->vf.mac_addr, resp->perm_mac_address, ETH_ALEN);
-	/* overwrite netdev dev_adr with admin VF MAC */
-	memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+
+	/* overwrite netdev dev_addr with admin VF MAC */
+	if (is_valid_ether_addr(bp->vf.mac_addr))
+		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
 update_vf_mac_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 }
