@@ -339,14 +339,15 @@ static ssize_t ll_direct_IO_26_seg(const struct lu_env *env, struct cl_io *io,
 				   size_t size, loff_t file_offset,
 				   struct page **pages, int page_count)
 {
-    struct ll_dio_pages pvec = { .ldp_pages	= pages,
-				 .ldp_nr	   = page_count,
-				 .ldp_size	 = size,
-				 .ldp_offsets      = NULL,
-				 .ldp_start_offset = file_offset
-			       };
+	struct ll_dio_pages pvec = {
+		.ldp_pages	= pages,
+		.ldp_nr		= page_count,
+		.ldp_size	= size,
+		.ldp_offsets	= NULL,
+		.ldp_start_offset = file_offset
+	};
 
-    return ll_direct_rw_pages(env, io, rw, inode, &pvec);
+	return ll_direct_rw_pages(env, io, rw, inode, &pvec);
 }
 
 #ifdef KMALLOC_MAX_SIZE

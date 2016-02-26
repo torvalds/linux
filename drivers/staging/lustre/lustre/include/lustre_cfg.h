@@ -50,7 +50,7 @@
 #define LUSTRE_CFG_MAX_BUFCOUNT 8
 
 #define LCFG_HDR_SIZE(count) \
-    cfs_size_round(offsetof (struct lustre_cfg, lcfg_buflens[(count)]))
+	cfs_size_round(offsetof(struct lustre_cfg, lcfg_buflens[(count)]))
 
 /** If the LCFG_REQUIRED bit is set in a configuration command,
  * then the client is required to understand this parameter

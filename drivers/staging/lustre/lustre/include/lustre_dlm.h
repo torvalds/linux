@@ -149,13 +149,13 @@ extern enum ldlm_mode lck_compat_array[];
 
 static inline void lockmode_verify(enum ldlm_mode mode)
 {
-       LASSERT(mode > LCK_MINMODE && mode < LCK_MAXMODE);
+	LASSERT(mode > LCK_MINMODE && mode < LCK_MAXMODE);
 }
 
 static inline int lockmode_compat(enum ldlm_mode exist_mode,
 				  enum ldlm_mode new_mode)
 {
-       return (lck_compat_array[exist_mode] & new_mode);
+	return (lck_compat_array[exist_mode] & new_mode);
 }
 
 /*
