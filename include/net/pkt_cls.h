@@ -392,4 +392,9 @@ struct tc_cls_u32_offload {
 	};
 };
 
+static inline bool tc_should_offload(struct net_device *dev)
+{
+	return dev->netdev_ops->ndo_setup_tc;
+}
+
 #endif
