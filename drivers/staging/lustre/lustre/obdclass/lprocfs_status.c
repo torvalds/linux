@@ -607,13 +607,13 @@ static void obd_connect_seq_flags2str(struct seq_file *m, __u64 flags, char *sep
 	for (i = 0; obd_connect_names[i]; i++, mask <<= 1) {
 		if (flags & mask) {
 			seq_printf(m, "%s%s",
-					first ? sep : "", obd_connect_names[i]);
+				   first ? sep : "", obd_connect_names[i]);
 			first = false;
 		}
 	}
 	if (flags & ~(mask - 1))
 		seq_printf(m, "%sunknown flags %#llx",
-				first ? sep : "", flags & ~(mask - 1));
+			   first ? sep : "", flags & ~(mask - 1));
 }
 
 int lprocfs_rd_import(struct seq_file *m, void *data)
@@ -637,26 +637,27 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m,
-		     "import:\n"
-		     "    name: %s\n"
-		     "    target: %s\n"
-		     "    state: %s\n"
-		     "    instance: %u\n"
-		     "    connect_flags: [ ",
-		     obd->obd_name,
-		     obd2cli_tgt(obd),
-		     ptlrpc_import_state_name(imp->imp_state),
-		     imp->imp_connect_data.ocd_instance);
-	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags, ", ");
+		   "import:\n"
+		   "    name: %s\n"
+		   "    target: %s\n"
+		   "    state: %s\n"
+		   "    instance: %u\n"
+		   "    connect_flags: [ ",
+		   obd->obd_name,
+		   obd2cli_tgt(obd),
+		   ptlrpc_import_state_name(imp->imp_state),
+		   imp->imp_connect_data.ocd_instance);
+	obd_connect_seq_flags2str(m, imp->imp_connect_data.ocd_connect_flags,
+				  ", ");
 	seq_printf(m,
-		      " ]\n"
-		      "    import_flags: [ ");
+		   " ]\n"
+		   "    import_flags: [ ");
 	obd_import_flags2str(imp, m);
 
 	seq_printf(m,
-		      " ]\n"
-		      "    connection:\n"
-		      "       failover_nids: [ ");
+		   " ]\n"
+		   "    connection:\n"
+		   "       failover_nids: [ ");
 	spin_lock(&imp->imp_lock);
 	j = 0;
 	list_for_each_entry(conn, &imp->imp_conn_list, oic_item) {
@@ -671,15 +672,15 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	else
 		strncpy(nidstr, "<none>", sizeof(nidstr));
 	seq_printf(m,
-		      " ]\n"
-		      "       current_connection: %s\n"
-		      "       connection_attempts: %u\n"
-		      "       generation: %u\n"
-		      "       in-progress_invalidations: %u\n",
-		      nidstr,
-		      imp->imp_conn_cnt,
-		      imp->imp_generation,
-		      atomic_read(&imp->imp_inval_count));
+		   " ]\n"
+		   "       current_connection: %s\n"
+		   "       connection_attempts: %u\n"
+		   "       generation: %u\n"
+		   "       in-progress_invalidations: %u\n",
+		   nidstr,
+		   imp->imp_conn_cnt,
+		   imp->imp_generation,
+		   atomic_read(&imp->imp_inval_count));
 	spin_unlock(&imp->imp_lock);
 
 	if (!obd->obd_svc_stats)
@@ -696,15 +697,15 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 	} else
 		ret.lc_sum = 0;
 	seq_printf(m,
-		      "    rpcs:\n"
-		      "       inflight: %u\n"
-		      "       unregistering: %u\n"
-		      "       timeouts: %u\n"
-		      "       avg_waittime: %llu %s\n",
-		      atomic_read(&imp->imp_inflight),
-		      atomic_read(&imp->imp_unregistering),
-		      atomic_read(&imp->imp_timeouts),
-		      ret.lc_sum, header->lc_units);
+		   "    rpcs:\n"
+		   "       inflight: %u\n"
+		   "       unregistering: %u\n"
+		   "       timeouts: %u\n"
+		   "       avg_waittime: %llu %s\n",
+		   atomic_read(&imp->imp_inflight),
+		   atomic_read(&imp->imp_unregistering),
+		   atomic_read(&imp->imp_timeouts),
+		   ret.lc_sum, header->lc_units);
 
 	k = 0;
 	for (j = 0; j < IMP_AT_MAX_PORTALS; j++) {
@@ -714,20 +715,20 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			  at_get(&imp->imp_at.iat_service_estimate[j]));
 	}
 	seq_printf(m,
-		      "    service_estimates:\n"
-		      "       services: %u sec\n"
-		      "       network: %u sec\n",
-		      k,
-		      at_get(&imp->imp_at.iat_net_latency));
+		   "    service_estimates:\n"
+		   "       services: %u sec\n"
+		   "       network: %u sec\n",
+		   k,
+		   at_get(&imp->imp_at.iat_net_latency));
 
 	seq_printf(m,
-		      "    transactions:\n"
-		      "       last_replay: %llu\n"
-		      "       peer_committed: %llu\n"
-		      "       last_checked: %llu\n",
-		      imp->imp_last_replay_transno,
-		      imp->imp_peer_committed_transno,
-		      imp->imp_last_transno_checked);
+		   "    transactions:\n"
+		   "       last_replay: %llu\n"
+		   "       peer_committed: %llu\n"
+		   "       last_checked: %llu\n",
+		   imp->imp_last_replay_transno,
+		   imp->imp_peer_committed_transno,
+		   imp->imp_last_transno_checked);
 
 	/* avg data rates */
 	for (rw = 0; rw <= 1; rw++) {
@@ -741,10 +742,10 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
-				      "    %s_data_averages:\n"
-				      "       bytes_per_rpc: %llu\n",
-				      rw ? "write" : "read",
-				      ret.lc_sum);
+				   "    %s_data_averages:\n"
+				   "       bytes_per_rpc: %llu\n",
+				   rw ? "write" : "read",
+				   ret.lc_sum);
 		}
 		k = (int)ret.lc_sum;
 		j = opcode_offset(OST_READ + rw) + EXTRA_MAX_OPCODES;
@@ -757,13 +758,13 @@ int lprocfs_rd_import(struct seq_file *m, void *data)
 			do_div(sum, ret.lc_count);
 			ret.lc_sum = sum;
 			seq_printf(m,
-				      "       %s_per_rpc: %llu\n",
-				      header->lc_units, ret.lc_sum);
+				   "       %s_per_rpc: %llu\n",
+				   header->lc_units, ret.lc_sum);
 			j = (int)ret.lc_sum;
 			if (j > 0)
 				seq_printf(m,
-					      "       MB_per_sec: %u.%.02u\n",
-					      k / j, (100 * k / j) % 100);
+					   "       MB_per_sec: %u.%.02u\n",
+					   k / j, (100 * k / j) % 100);
 		}
 	}
 
@@ -787,7 +788,7 @@ int lprocfs_rd_state(struct seq_file *m, void *data)
 	imp = obd->u.cli.cl_import;
 
 	seq_printf(m, "current_state: %s\n",
-		     ptlrpc_import_state_name(imp->imp_state));
+		   ptlrpc_import_state_name(imp->imp_state));
 	seq_printf(m, "state_history:\n");
 	k = imp->imp_state_hist_idx;
 	for (j = 0; j < IMP_STATE_HIST_LEN; j++) {
@@ -1206,7 +1207,7 @@ struct file_operations lprocfs_stats_seq_fops = {
 };
 
 int ldebugfs_register_stats(struct dentry *parent, const char *name,
-			   struct lprocfs_stats *stats)
+			    struct lprocfs_stats *stats)
 {
 	struct dentry *entry;
 
@@ -1427,11 +1428,9 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
 
-int ldebugfs_seq_create(struct dentry *parent,
-		       const char *name,
-		       umode_t mode,
-		       const struct file_operations *seq_fops,
-		       void *data)
+int ldebugfs_seq_create(struct dentry *parent, const char *name,
+			umode_t mode, const struct file_operations *seq_fops,
+			void *data)
 {
 	struct dentry *entry;
 

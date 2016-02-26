@@ -461,8 +461,8 @@ EXPORT_SYMBOL(class_num2obd);
  * otherwise any client connected to the tgt is returned.
  */
 struct obd_device *class_find_client_obd(struct obd_uuid *tgt_uuid,
-					  const char *typ_name,
-					  struct obd_uuid *grp_uuid)
+					 const char *typ_name,
+					 struct obd_uuid *grp_uuid)
 {
 	int i;
 
@@ -582,21 +582,21 @@ int obd_init_caches(void)
 {
 	LASSERT(!obd_device_cachep);
 	obd_device_cachep = kmem_cache_create("ll_obd_dev_cache",
-						 sizeof(struct obd_device),
-						 0, 0, NULL);
+					      sizeof(struct obd_device),
+					      0, 0, NULL);
 	if (!obd_device_cachep)
 		goto out;
 
 	LASSERT(!obdo_cachep);
 	obdo_cachep = kmem_cache_create("ll_obdo_cache", sizeof(struct obdo),
-					   0, 0, NULL);
+					0, 0, NULL);
 	if (!obdo_cachep)
 		goto out;
 
 	LASSERT(!import_cachep);
 	import_cachep = kmem_cache_create("ll_import_cache",
-					     sizeof(struct obd_import),
-					     0, 0, NULL);
+					  sizeof(struct obd_import),
+					  0, 0, NULL);
 	if (!import_cachep)
 		goto out;
 
@@ -828,7 +828,7 @@ EXPORT_SYMBOL(class_unlink_export);
 static void class_import_destroy(struct obd_import *imp)
 {
 	CDEBUG(D_IOCTL, "destroying import %p for %s\n", imp,
-		imp->imp_obd->obd_name);
+	       imp->imp_obd->obd_name);
 
 	LASSERT_ATOMIC_ZERO(&imp->imp_refcount);
 
@@ -838,7 +838,7 @@ static void class_import_destroy(struct obd_import *imp)
 		struct obd_import_conn *imp_conn;
 
 		imp_conn = list_entry(imp->imp_conn_list.next,
-					  struct obd_import_conn, oic_item);
+				      struct obd_import_conn, oic_item);
 		list_del_init(&imp_conn->oic_item);
 		ptlrpc_put_connection_superhack(imp_conn->oic_conn);
 		kfree(imp_conn);
@@ -1125,16 +1125,16 @@ static void obd_zombie_impexp_cull(void)
 		import = NULL;
 		if (!list_empty(&obd_zombie_imports)) {
 			import = list_entry(obd_zombie_imports.next,
-						struct obd_import,
-						imp_zombie_chain);
+					    struct obd_import,
+					    imp_zombie_chain);
 			list_del_init(&import->imp_zombie_chain);
 		}
 
 		export = NULL;
 		if (!list_empty(&obd_zombie_exports)) {
 			export = list_entry(obd_zombie_exports.next,
-						struct obd_export,
-						exp_obd_chain);
+					    struct obd_export,
+					    exp_obd_chain);
 			list_del_init(&export->exp_obd_chain);
 		}
 

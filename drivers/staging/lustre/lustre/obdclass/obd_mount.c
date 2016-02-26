@@ -72,7 +72,7 @@ static void (*kill_super_cb)(struct super_block *sb);
  *   this log, and is added to the mgc's list of logs to follow.
  */
 int lustre_process_log(struct super_block *sb, char *logname,
-		     struct config_llog_instance *cfg)
+		      struct config_llog_instance *cfg)
 {
 	struct lustre_cfg *lcfg;
 	struct lustre_cfg_bufs *bufs;
@@ -114,7 +114,7 @@ EXPORT_SYMBOL(lustre_process_log);
 
 /* Stop watching this config log for updates */
 int lustre_end_log(struct super_block *sb, char *logname,
-		       struct config_llog_instance *cfg)
+		   struct config_llog_instance *cfg)
 {
 	struct lustre_cfg *lcfg;
 	struct lustre_cfg_bufs bufs;
@@ -340,7 +340,7 @@ int lustre_start_mgc(struct super_block *sb)
 	/* Add any failover MGS nids */
 	i = 1;
 	while (ptr && ((*ptr == ':' ||
-	       class_find_param(ptr, PARAM_MGSNODE, &ptr) == 0))) {
+			class_find_param(ptr, PARAM_MGSNODE, &ptr) == 0))) {
 		/* New failover node */
 		sprintf(niduuid, "%s_%x", mgcname, i);
 		j = 0;
@@ -1181,7 +1181,7 @@ EXPORT_SYMBOL(lustre_register_kill_super_cb);
 
 /***************** FS registration ******************/
 static struct dentry *lustre_mount(struct file_system_type *fs_type, int flags,
-				const char *devname, void *data)
+				   const char *devname, void *data)
 {
 	struct lustre_mount_data2 lmd2 = {
 		.lmd2_data = data,

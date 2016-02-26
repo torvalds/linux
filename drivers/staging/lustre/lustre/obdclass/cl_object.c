@@ -247,8 +247,7 @@ int cl_object_attr_set(const struct lu_env *env, struct cl_object *obj,
 
 	top = obj->co_lu.lo_header;
 	result = 0;
-	list_for_each_entry_reverse(obj, &top->loh_layers,
-					co_lu.lo_linkage) {
+	list_for_each_entry_reverse(obj, &top->loh_layers, co_lu.lo_linkage) {
 		if (obj->co_ops->coo_attr_set) {
 			result = obj->co_ops->coo_attr_set(env, obj, attr, v);
 			if (result != 0) {
@@ -278,8 +277,7 @@ int cl_object_glimpse(const struct lu_env *env, struct cl_object *obj,
 
 	top = obj->co_lu.lo_header;
 	result = 0;
-	list_for_each_entry_reverse(obj, &top->loh_layers,
-					co_lu.lo_linkage) {
+	list_for_each_entry_reverse(obj, &top->loh_layers, co_lu.lo_linkage) {
 		if (obj->co_ops->coo_glimpse) {
 			result = obj->co_ops->coo_glimpse(env, obj, lvb);
 			if (result != 0)
@@ -457,13 +455,13 @@ locks: ...... ...... ...... ...... ...... [...... ...... ...... ...... ......]
 	seq_printf(m, " [");
 	for (i = 0; i < ARRAY_SIZE(site->cs_pages_state); ++i)
 		seq_printf(m, "%s: %u ", pstate[i],
-				atomic_read(&site->cs_pages_state[i]));
+			   atomic_read(&site->cs_pages_state[i]));
 	seq_printf(m, "]\n");
 	cache_stats_print(&site->cs_locks, m, 0);
 	seq_printf(m, " [");
 	for (i = 0; i < ARRAY_SIZE(site->cs_locks_state); ++i)
 		seq_printf(m, "%s: %u ", lstate[i],
-				atomic_read(&site->cs_locks_state[i]));
+			   atomic_read(&site->cs_locks_state[i]));
 	seq_printf(m, "]\n");
 	cache_stats_print(&cl_env_stats, m, 0);
 	seq_printf(m, "\n");

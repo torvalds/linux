@@ -139,7 +139,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 	case CIT_MISC:
 		/* Check ignore layout change conf */
 		LASSERT(ergo(io->ci_ignore_layout || !io->ci_verify_layout,
-				!io->ci_need_restart));
+			     !io->ci_need_restart));
 		break;
 	default:
 		LBUG();
@@ -291,11 +291,11 @@ static void cl_io_locks_sort(struct cl_io *io)
 		prev = NULL;
 
 		list_for_each_entry_safe(curr, temp,
-					     &io->ci_lockset.cls_todo,
-					     cill_linkage) {
+					 &io->ci_lockset.cls_todo,
+					 cill_linkage) {
 			if (prev) {
 				switch (cl_lock_descr_sort(&prev->cill_descr,
-							  &curr->cill_descr)) {
+							   &curr->cill_descr)) {
 				case 0:
 					/*
 					 * IMPOSSIBLE: Identical locks are
@@ -306,7 +306,7 @@ static void cl_io_locks_sort(struct cl_io *io)
 					LBUG();
 				case 1:
 					list_move_tail(&curr->cill_linkage,
-							   &prev->cill_linkage);
+						       &prev->cill_linkage);
 					done = 0;
 					continue; /* don't change prev: it's
 						   * still "previous"
@@ -385,8 +385,7 @@ static int cl_lockset_lock_one(const struct lu_env *env,
 		if (!(link->cill_descr.cld_enq_flags & CEF_ASYNC)) {
 			result = cl_wait(env, lock);
 			if (result == 0)
-				list_move(&link->cill_linkage,
-					      &set->cls_done);
+				list_move(&link->cill_linkage, &set->cls_done);
 		} else
 			result = 0;
 	} else
@@ -430,12 +429,11 @@ static int cl_lockset_lock(const struct lu_env *env, struct cl_io *io,
 	}
 	if (result == 0) {
 		list_for_each_entry_safe(link, temp,
-					     &set->cls_curr, cill_linkage) {
+					 &set->cls_curr, cill_linkage) {
 			lock = link->cill_lock;
 			result = cl_wait(env, lock);
 			if (result == 0)
-				list_move(&link->cill_linkage,
-					      &set->cls_done);
+				list_move(&link->cill_linkage, &set->cls_done);
 			else
 				break;
 		}
@@ -1354,7 +1352,7 @@ void cl_req_completion(const struct lu_env *env, struct cl_req *req, int rc)
 	 */
 	while (!list_empty(&req->crq_layers)) {
 		slice = list_entry(req->crq_layers.prev,
-				       struct cl_req_slice, crs_linkage);
+				   struct cl_req_slice, crs_linkage);
 		list_del_init(&slice->crs_linkage);
 		if (slice->crs_ops->cro_completion)
 			slice->crs_ops->cro_completion(env, slice, rc);

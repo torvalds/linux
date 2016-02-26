@@ -255,7 +255,7 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 		struct cl_page_slice *slice;
 
 		slice = list_entry(page->cp_layers.next,
-				       struct cl_page_slice, cpl_linkage);
+				   struct cl_page_slice, cpl_linkage);
 		list_del_init(page->cp_layers.next);
 		slice->cpl_ops->cpo_fini(env, slice);
 	}
@@ -277,8 +277,9 @@ static inline void cl_page_state_set_trust(struct cl_page *page,
 }
 
 static struct cl_page *cl_page_alloc(const struct lu_env *env,
-		struct cl_object *o, pgoff_t ind, struct page *vmpage,
-		enum cl_page_type type)
+				     struct cl_object *o, pgoff_t ind,
+				     struct page *vmpage,
+				     enum cl_page_type type)
 {
 	struct cl_page	  *page;
 	struct lu_object_header *head;
@@ -303,8 +304,7 @@ static struct cl_page *cl_page_alloc(const struct lu_env *env,
 		mutex_init(&page->cp_mutex);
 		lu_ref_init(&page->cp_reference);
 		head = o->co_lu.lo_header;
-		list_for_each_entry(o, &head->loh_layers,
-					co_lu.lo_linkage) {
+		list_for_each_entry(o, &head->loh_layers, co_lu.lo_linkage) {
 			if (o->co_ops->coo_page_init) {
 				result = o->co_ops->coo_page_init(env, o,
 								  page, vmpage);

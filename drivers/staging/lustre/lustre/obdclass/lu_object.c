@@ -1473,8 +1473,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 		 * XXX memory barrier has to go here.
 		 */
 		spin_lock(&lu_keys_guard);
-		list_for_each_entry(ctx, &lu_context_remembered,
-					lc_remember)
+		list_for_each_entry(ctx, &lu_context_remembered, lc_remember)
 			key_fini(ctx, key->lct_index);
 		spin_unlock(&lu_keys_guard);
 		++key_set_version;

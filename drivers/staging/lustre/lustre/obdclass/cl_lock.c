@@ -259,7 +259,7 @@ static void cl_lock_free(const struct lu_env *env, struct cl_lock *lock)
 		struct cl_lock_slice *slice;
 
 		slice = list_entry(lock->cll_layers.next,
-				       struct cl_lock_slice, cls_linkage);
+				   struct cl_lock_slice, cls_linkage);
 		list_del_init(lock->cll_layers.next);
 		slice->cls_ops->clo_fini(env, slice);
 	}
@@ -382,8 +382,7 @@ static struct cl_lock *cl_lock_alloc(const struct lu_env *env,
 		CS_LOCK_INC(obj, total);
 		CS_LOCK_INC(obj, create);
 		cl_lock_lockdep_init(lock);
-		list_for_each_entry(obj, &head->loh_layers,
-					co_lu.lo_linkage) {
+		list_for_each_entry(obj, &head->loh_layers, co_lu.lo_linkage) {
 			int err;
 
 			err = obj->co_ops->coo_lock_init(env, obj, lock, io);
@@ -534,7 +533,7 @@ static struct cl_lock *cl_lock_find(const struct lu_env *env,
 			if (!ghost) {
 				cl_lock_get_trust(lock);
 				list_add_tail(&lock->cll_linkage,
-						  &head->coh_locks);
+					      &head->coh_locks);
 				spin_unlock(&head->coh_lock_guard);
 				CS_LOCK_INC(obj, busy);
 			} else {
@@ -774,7 +773,7 @@ static void cl_lock_cancel0(const struct lu_env *env, struct cl_lock *lock)
 
 		lock->cll_flags |= CLF_CANCELLED;
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
-						cls_linkage) {
+					    cls_linkage) {
 			if (slice->cls_ops->clo_cancel)
 				slice->cls_ops->clo_cancel(env, slice);
 		}
@@ -811,7 +810,7 @@ static void cl_lock_delete0(const struct lu_env *env, struct cl_lock *lock)
 		 * by cl_lock_lookup().
 		 */
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
-						cls_linkage) {
+					    cls_linkage) {
 			if (slice->cls_ops->clo_delete)
 				slice->cls_ops->clo_delete(env, slice);
 		}
@@ -1040,7 +1039,7 @@ static int cl_unuse_try_internal(const struct lu_env *env, struct cl_lock *lock)
 
 		result = -ENOSYS;
 		list_for_each_entry_reverse(slice, &lock->cll_layers,
-						cls_linkage) {
+					    cls_linkage) {
 			if (slice->cls_ops->clo_unuse) {
 				result = slice->cls_ops->clo_unuse(env, slice);
 				if (result != 0)
@@ -1658,7 +1657,7 @@ void cl_lock_disclosure(const struct lu_env *env,
 
 	cl_lock_trace(D_DLMTRACE, env, "disclosure lock", closure->clc_origin);
 	list_for_each_entry_safe(scan, temp, &closure->clc_list,
-				     cll_inclosure){
+				 cll_inclosure) {
 		list_del_init(&scan->cll_inclosure);
 		cl_lock_mutex_put(env, scan);
 		lu_ref_del(&scan->cll_reference, "closure", closure);
@@ -1845,7 +1844,7 @@ static int check_and_discard_cb(const struct lu_env *env, struct cl_io *io,
 
 		/* refresh non-overlapped index */
 		tmp = cl_lock_at_pgoff(env, lock->cll_descr.cld_obj, index,
-					lock, 1, 0);
+				       lock, 1, 0);
 		if (tmp) {
 			/* Cache the first-non-overlapped index so as to skip
 			 * all pages within [index, clt_fn_index). This
@@ -2173,8 +2172,8 @@ EXPORT_SYMBOL(cl_lock_mode_name);
  * Prints human readable representation of a lock description.
  */
 void cl_lock_descr_print(const struct lu_env *env, void *cookie,
-		       lu_printer_t printer,
-		       const struct cl_lock_descr *descr)
+			 lu_printer_t printer,
+			 const struct cl_lock_descr *descr)
 {
 	const struct lu_fid  *fid;
 
