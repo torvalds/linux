@@ -912,7 +912,7 @@ static int synaptics_rmi4_probe
 		return -ENOMEM;
 
 	rmi4_data->input_dev = input_allocate_device();
-	if (rmi4_data->input_dev == NULL) {
+	if (!rmi4_data->input_dev) {
 		retval = -ENOMEM;
 		goto err_input;
 	}
