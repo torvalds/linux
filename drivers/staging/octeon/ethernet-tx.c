@@ -427,7 +427,6 @@ dont_put_skbuff_in_hw:
 	/* Drop this packet if we have too many already queued to the HW */
 	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
 		     MAX_OUT_QUEUE_DEPTH)) {
-
 		if (dev->tx_queue_len != 0) {
 			/* Drop the lock when notifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
