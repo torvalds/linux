@@ -6,12 +6,6 @@
 #include "tests.h"
 #include "debug.h"
 
-static int perf_config_cb(const char *var, const char *val,
-			  void *arg __maybe_unused)
-{
-	return perf_default_config(var, val, arg);
-}
-
 #ifdef HAVE_LIBBPF_SUPPORT
 static int test__bpf_parsing(void *obj_buf, size_t obj_buf_sz)
 {
@@ -76,8 +70,6 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	desc = bpf_source_table[idx].desc;
 	if (should_load_fail)
 		*should_load_fail = bpf_source_table[idx].should_load_fail;
-
-	perf_config(perf_config_cb, NULL);
 
 	/*
 	 * Skip this test if user's .perfconfig doesn't set [llvm] section

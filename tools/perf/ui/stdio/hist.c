@@ -418,6 +418,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
 	char *buf = hpp->buf;
+	size_t size = hpp->size;
 	int ret, printed = 0;
 	bool first = true;
 
@@ -457,6 +458,11 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 				(nr_sort_key - 1) * HIERARCHY_INDENT + 2, "");
 	advance_hpp(hpp, ret);
 
+	printed += fprintf(fp, "%s", buf);
+
+	hpp->buf  = buf;
+	hpp->size = size;
+
 	/*
 	 * No need to call hist_entry__snprintf_alignment() since this
 	 * fmt is always the last column in the hierarchy mode.
@@ -467,7 +473,11 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	else
 		fmt->entry(fmt, hpp, he);
 
-	printed += fprintf(fp, "%s\n", buf);
+	/*
+	 * dynamic entries are right-aligned but we want left-aligned
+	 * in the hierarchy mode
+	 */
+	printed += fprintf(fp, "%s\n", ltrim(buf));
 
 	if (symbol_conf.use_callchain && he->leaf) {
 		u64 total = hists__total_period(hists);
@@ -495,7 +505,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		size = hpp.size = bfsz;
 
 	if (symbol_conf.report_hierarchy) {
-		int nr_sort = hists->hpp_list->nr_sort_keys;
+		int nr_sort = hists->nr_sort_keys;
 
 		return hist_entry__hierarchy_fprintf(he, &hpp, nr_sort,
 						     hists, fp);
@@ -525,11 +535,12 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 {
 	bool first = true;
 	int nr_sort;
+	int depth;
 	unsigned width = 0;
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 
-	nr_sort = hists->hpp_list->nr_sort_keys;
+	nr_sort = hists->nr_sort_keys;
 
 	/* preserve max indent depth for column headers */
 	print_hierarchy_indent(sep, nr_sort, spaces, fp);
@@ -558,18 +569,15 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 		if (!first)
 			header_width += fprintf(fp, " / ");
 		else {
-			header_width += fprintf(fp, "%s", sep ?: "  ");
+			fprintf(fp, "%s", sep ?: "  ");
 			first = false;
 		}
 
 		fmt->header(fmt, hpp, hists_to_evsel(hists));
 		rtrim(hpp->buf);
 
-		header_width += fprintf(fp, "%s", hpp->buf);
+		header_width += fprintf(fp, "%s", ltrim(hpp->buf));
 	}
-
-	/* preserve max indent depth for combined sort headers */
-	print_hierarchy_indent(sep, nr_sort, spaces, fp);
 
 	fprintf(fp, "\n# ");
 
@@ -590,6 +598,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 		fprintf(fp, "%.*s", width, dots);
 	}
 
+	depth = 0;
 	hists__for_each_format(hists, fmt) {
 		if (!perf_hpp__is_sort_entry(fmt) && !perf_hpp__is_dynamic_entry(fmt))
 			continue;
@@ -597,14 +606,15 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 			continue;
 
 		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
+		width += depth * HIERARCHY_INDENT;
+
 		if (width > header_width)
 			header_width = width;
+
+		depth++;
 	}
 
 	fprintf(fp, "%s%-.*s", sep ?: "  ", header_width, dots);
-
-	/* preserve max indent depth for dots under sort headers */
-	print_hierarchy_indent(sep, nr_sort, dots, fp);
 
 	fprintf(fp, "\n#\n");
 
@@ -628,6 +638,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	bool first = true;
 	size_t linesz;
 	char *line = NULL;
+	unsigned indent;
 
 	init_rem_hits();
 
@@ -704,6 +715,8 @@ print_entries:
 		goto out;
 	}
 
+	indent = hists__overhead_width(hists) + 4;
+
 	for (nd = rb_first(&hists->entries); nd; nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		float percent;
@@ -719,6 +732,20 @@ print_entries:
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
+
+		/*
+		 * If all children are filtered out or percent-limited,
+		 * display "no entry >= x.xx%" message.
+		 */
+		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
+			int nr_sort = hists->nr_sort_keys;
+
+			print_hierarchy_indent(sep, nr_sort + h->depth + 1, spaces, fp);
+			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);
+
+			if (max_rows && ++nr_rows >= max_rows)
+				break;
+		}
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(h->thread->mg,

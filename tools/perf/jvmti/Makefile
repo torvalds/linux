@@ -35,12 +35,21 @@ SOLIBEXT=so
 
 # The following works at least on fedora 23, you may need the next
 # line for other distros.
-ifeq (,$(wildcard /usr/sbin/update-java-alternatives))
-JDIR=$(shell alternatives --display java | tail -1 | cut -d' ' -f 5 | sed 's%/jre/bin/java.%%g')
-else
+ifneq (,$(wildcard /usr/sbin/update-java-alternatives))
 JDIR=$(shell /usr/sbin/update-java-alternatives -l | head -1 | cut -d ' ' -f 3)
+else
+  ifneq (,$(wildcard /usr/sbin/alternatives))
+    JDIR=$(shell alternatives --display java | tail -1 | cut -d' ' -f 5 | sed 's%/jre/bin/java.%%g')
+  endif
 endif
-
+ifndef JDIR
+$(error Could not find alternatives command, you need to set JDIR= to point to the root of your Java directory)
+else
+  ifeq (,$(wildcard $(JDIR)/include/jvmti.h))
+  $(error the openjdk development package appears to me missing, install and try again)
+  endif
+endif
+$(info Using Java from $(JDIR))
 # -lrt required in 32-bit mode for clock_gettime()
 LIBS=-lelf -lrt
 INCDIR=-I $(JDIR)/include -I $(JDIR)/include/linux

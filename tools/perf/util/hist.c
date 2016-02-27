@@ -1002,6 +1002,10 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	hists__for_each_sort_list(hists, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    !perf_hpp__defined_dynamic_entry(fmt, hists))
+			continue;
+
 		cmp = fmt->cmp(fmt, left, right);
 		if (cmp)
 			break;
@@ -1018,6 +1022,10 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 	int64_t cmp = 0;
 
 	hists__for_each_sort_list(hists, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    !perf_hpp__defined_dynamic_entry(fmt, hists))
+			continue;
+
 		cmp = fmt->collapse(fmt, left, right);
 		if (cmp)
 			break;
@@ -1117,7 +1125,7 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 	new->fmt = fmt;
 
 	/* some fields are now passed to 'new' */
-	if (perf_hpp__is_trace_entry(fmt))
+	if (perf_hpp__is_trace_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
 		he->trace_output = NULL;
 	else
 		new->trace_output = NULL;
@@ -1363,6 +1371,10 @@ static void hierarchy_insert_output_entry(struct rb_root *root,
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, root);
+
+	/* update column width of dynamic entry */
+	if (perf_hpp__is_dynamic_entry(he->fmt))
+		he->fmt->sort(he->fmt, he, NULL);
 }
 
 static void hists__hierarchy_output_resort(struct hists *hists,
@@ -1432,6 +1444,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	struct rb_node **p = &entries->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
+	struct perf_hpp_fmt *fmt;
 
 	if (use_callchain) {
 		if (callchain_param.mode == CHAIN_GRAPH_REL) {
@@ -1458,6 +1471,12 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, entries);
+
+	perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt) &&
+		    perf_hpp__defined_dynamic_entry(fmt, he->hists))
+			fmt->sort(fmt, he, NULL);  /* update column width */
+	}
 }
 
 static void output_resort(struct hists *hists, struct ui_progress *prog,
@@ -1582,6 +1601,31 @@ struct rb_node *rb_hierarchy_prev(struct rb_node *node)
 	return &he->rb_node;
 }
 
+bool hist_entry__has_hierarchy_children(struct hist_entry *he, float limit)
+{
+	struct rb_node *node;
+	struct hist_entry *child;
+	float percent;
+
+	if (he->leaf)
+		return false;
+
+	node = rb_first(&he->hroot_out);
+	child = rb_entry(node, struct hist_entry, rb_node);
+
+	while (node && child->filtered) {
+		node = rb_next(node);
+		child = rb_entry(node, struct hist_entry, rb_node);
+	}
+
+	if (node)
+		percent = hist_entry__get_percent_limit(child);
+	else
+		percent = 0;
+
+	return node && percent >= limit;
+}
+
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
 				       enum hist_filter filter)
 {
@@ -1600,6 +1644,7 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 
 			/* force fold unfiltered entry for simplicity */
 			parent->unfolded = false;
+			parent->has_no_entry = false;
 			parent->row_offset = 0;
 			parent->nr_rows = 0;
 next:
@@ -1612,6 +1657,7 @@ next:
 
 	/* force fold unfiltered entry for simplicity */
 	h->unfolded = false;
+	h->has_no_entry = false;
 	h->row_offset = 0;
 	h->nr_rows = 0;
 

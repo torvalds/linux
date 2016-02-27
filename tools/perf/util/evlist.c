@@ -1223,6 +1223,9 @@ int perf_evlist__set_filter(struct perf_evlist *evlist, const char *filter)
 	int err = 0;
 
 	evlist__for_each(evlist, evsel) {
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
+			continue;
+
 		err = perf_evsel__set_filter(evsel, filter);
 		if (err)
 			break;

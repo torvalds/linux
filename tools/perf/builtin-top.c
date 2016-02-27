@@ -1065,7 +1065,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 	return parse_callchain_top_opt(arg);
 }
 
-static int perf_top_config(const char *var, const char *value, void *cb)
+static int perf_top_config(const char *var, const char *value, void *cb __maybe_unused)
 {
 	if (!strcmp(var, "top.call-graph"))
 		var = "call-graph.record-mode"; /* fall-through */
@@ -1074,7 +1074,7 @@ static int perf_top_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static int

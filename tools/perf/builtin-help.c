@@ -272,7 +272,7 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "man."))
 		return add_man_viewer_info(var, value);
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static struct cmdnames main_cmds, other_cmds;

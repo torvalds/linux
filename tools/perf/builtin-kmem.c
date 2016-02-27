@@ -1834,7 +1834,7 @@ static int __cmd_record(int argc, const char **argv)
 	return cmd_record(i, rec_argv, NULL);
 }
 
-static int kmem_config(const char *var, const char *value, void *cb)
+static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
 {
 	if (!strcmp(var, "kmem.default")) {
 		if (!strcmp(value, "slab"))
@@ -1847,7 +1847,7 @@ static int kmem_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)

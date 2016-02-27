@@ -449,6 +449,17 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 			perf_gtk__add_hierarchy_entries(hists, &he->hroot_out,
 							store, &iter, hpp,
 							min_pcnt);
+
+			if (!hist_entry__has_hierarchy_children(he, min_pcnt)) {
+				char buf[32];
+				GtkTreeIter child;
+
+				snprintf(buf, sizeof(buf), "no entry >= %.2f%%",
+					 min_pcnt);
+
+				gtk_tree_store_append(store, &child, &iter);
+				gtk_tree_store_set(store, &child, col_idx, buf, -1);
+			}
 		}
 
 		if (symbol_conf.use_callchain && he->leaf) {

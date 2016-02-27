@@ -1764,6 +1764,9 @@ static int __sort__hde_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	if (hde->raw_trace)
 		goto raw_field;
 
+	if (!he->trace_output)
+		he->trace_output = get_trace_output(he);
+
 	field = hde->field;
 	namelen = strlen(field->name);
 	str = he->trace_output;
@@ -1813,6 +1816,11 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
 
+	if (b == NULL) {
+		update_dynamic_len(hde, a);
+		return 0;
+	}
+
 	field = hde->field;
 	if (field->flags & FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
@@ -1827,9 +1835,6 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 	} else {
 		offset = field->offset;
 		size = field->size;
-
-		update_dynamic_len(hde, a);
-		update_dynamic_len(hde, b);
 	}
 
 	return memcmp(a->raw_data + offset, b->raw_data + offset, size);
@@ -2633,6 +2638,9 @@ out:
 int setup_sorting(struct perf_evlist *evlist)
 {
 	int err;
+	struct hists *hists;
+	struct perf_evsel *evsel;
+	struct perf_hpp_fmt *fmt;
 
 	err = __setup_sorting(evlist);
 	if (err < 0)
@@ -2642,6 +2650,22 @@ int setup_sorting(struct perf_evlist *evlist)
 		err = sort_dimension__add("parent", evlist);
 		if (err < 0)
 			return err;
+	}
+
+	evlist__for_each(evlist, evsel) {
+		hists = evsel__hists(evsel);
+		hists->nr_sort_keys = perf_hpp_list.nr_sort_keys;
+
+		/*
+		 * If dynamic entries were used, it might add multiple
+		 * entries to each evsel for a single field name.  Set
+		 * actual number of sort keys for each hists.
+		 */
+		perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
+			if (perf_hpp__is_dynamic_entry(fmt) &&
+			    !perf_hpp__defined_dynamic_entry(fmt, hists))
+				hists->nr_sort_keys--;
+		}
 	}
 
 	reset_dimensions();
