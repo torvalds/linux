@@ -156,8 +156,7 @@ static void dgnc_cleanup_module(void)
 
 	dgnc_tty_post_uninit();
 
-	if (dgnc_NumBoards)
-		pci_unregister_driver(&dgnc_driver);
+	pci_unregister_driver(&dgnc_driver);
 }
 
 /*
