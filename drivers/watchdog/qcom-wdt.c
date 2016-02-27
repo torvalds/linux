@@ -70,7 +70,8 @@ static int qcom_wdt_set_timeout(struct watchdog_device *wdd,
 	return qcom_wdt_start(wdd);
 }
 
-static int qcom_wdt_restart(struct watchdog_device *wdd)
+static int qcom_wdt_restart(struct watchdog_device *wdd, unsigned long action,
+			    void *data)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 	u32 timeout;

@@ -31,7 +31,8 @@ struct moxart_wdt_dev {
 
 static int heartbeat;
 
-static int moxart_wdt_restart(struct watchdog_device *wdt_dev)
+static int moxart_wdt_restart(struct watchdog_device *wdt_dev,
+			      unsigned long action, void *data)
 {
 	struct moxart_wdt_dev *moxart_wdt = watchdog_get_drvdata(wdt_dev);
 

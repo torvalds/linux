@@ -80,7 +80,8 @@ static const struct watchdog_info imx2_wdt_info = {
 	.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
 };
 
-static int imx2_wdt_restart(struct watchdog_device *wdog)
+static int imx2_wdt_restart(struct watchdog_device *wdog, unsigned long action,
+			    void *data)
 {
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
 	unsigned int wcr_enable = IMX2_WDT_WCR_WDE;

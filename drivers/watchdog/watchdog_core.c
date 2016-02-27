@@ -164,7 +164,7 @@ static int watchdog_restart_notifier(struct notifier_block *nb,
 
 	int ret;
 
-	ret = wdd->ops->restart(wdd);
+	ret = wdd->ops->restart(wdd, action, data);
 	if (ret)
 		return NOTIFY_BAD;
 

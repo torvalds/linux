@@ -349,7 +349,8 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 	return 0;
 }
 
-static int s3c2410wdt_restart(struct watchdog_device *wdd)
+static int s3c2410wdt_restart(struct watchdog_device *wdd, unsigned long action,
+			      void *data)
 {
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 	void __iomem *wdt_base = wdt->reg_base;
