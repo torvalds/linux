@@ -456,7 +456,7 @@ static int mn88472_probe(struct i2c_client *client,
 	}
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
+	if (!dev) {
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -483,7 +483,7 @@ static int mn88472_probe(struct i2c_client *client,
 	 * 0x1a and 0x1c, in order to get own I2C client for each register page.
 	 */
 	dev->client[1] = i2c_new_dummy(client->adapter, 0x1a);
-	if (dev->client[1] == NULL) {
+	if (!dev->client[1]) {
 		ret = -ENODEV;
 		dev_err(&client->dev, "I2C registration failed\n");
 		if (ret)
@@ -497,7 +497,7 @@ static int mn88472_probe(struct i2c_client *client,
 	i2c_set_clientdata(dev->client[1], dev);
 
 	dev->client[2] = i2c_new_dummy(client->adapter, 0x1c);
-	if (dev->client[2] == NULL) {
+	if (!dev->client[2]) {
 		ret = -ENODEV;
 		dev_err(&client->dev, "2nd I2C registration failed\n");
 		if (ret)
