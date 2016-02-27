@@ -125,12 +125,7 @@ static struct pci_driver dgnc_driver = {
  *
  ************************************************************************/
 
-/*
- * dgnc_cleanup_module()
- *
- * Module unload.  This is where it all ends.
- */
-static void dgnc_cleanup_module(void)
+static void cleanup(bool sysfiles)
 {
 	int i;
 	unsigned long flags;
@@ -142,7 +137,8 @@ static void dgnc_cleanup_module(void)
 	/* Turn off poller right away. */
 	del_timer_sync(&dgnc_poll_timer);
 
-	dgnc_remove_driver_sysfiles(&dgnc_driver);
+	if (sysfiles)
+		dgnc_remove_driver_sysfiles(&dgnc_driver);
 
 	device_destroy(dgnc_class, MKDEV(dgnc_Major, 0));
 	class_destroy(dgnc_class);
@@ -155,7 +151,16 @@ static void dgnc_cleanup_module(void)
 	}
 
 	dgnc_tty_post_uninit();
+}
 
+/*
+ * dgnc_cleanup_module()
+ *
+ * Module unload.  This is where it all ends.
+ */
+static void dgnc_cleanup_module(void)
+{
+	cleanup(true);
 	pci_unregister_driver(&dgnc_driver);
 }
 
@@ -182,7 +187,7 @@ static int __init dgnc_init_module(void)
 	rc = pci_register_driver(&dgnc_driver);
 	if (rc) {
 		pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
-		dgnc_cleanup_module();
+		cleanup(false);
 		return rc;
 	}
 	dgnc_create_driver_sysfiles(&dgnc_driver);
