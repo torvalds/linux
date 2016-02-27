@@ -1115,7 +1115,7 @@ void dib0090_pwm_gain_reset(struct dvb_frontend *fe)
 		dib0090_set_bbramp_pwm(state, bb_ramp);
 
 		/* activate the ramp generator using PWM control */
-		if (rf_ramp)
+		if (state->rf_ramp)
 			dprintk("ramp RF gain = %d BAND = %s version = %d",
 				state->rf_ramp[0],
 				(state->current_band == BAND_CBAND) ? "CBAND" : "NOT CBAND",
