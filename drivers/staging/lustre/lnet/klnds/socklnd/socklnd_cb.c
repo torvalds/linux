@@ -2354,13 +2354,12 @@ static inline void
 ksocknal_flush_stale_txs(ksock_peer_t *peer)
 {
 	ksock_tx_t *tx;
+	ksock_tx_t *tmp;
 	LIST_HEAD(stale_txs);
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
-	while (!list_empty(&peer->ksnp_tx_queue)) {
-		tx = list_entry(peer->ksnp_tx_queue.next, ksock_tx_t, tx_list);
-
+	list_for_each_entry_safe(tx, tmp, &peer->ksnp_tx_queue, tx_list) {
 		if (!cfs_time_aftereq(cfs_time_current(),
 				      tx->tx_deadline))
 			break;
