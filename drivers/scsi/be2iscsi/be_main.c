@@ -5572,6 +5572,12 @@ static void beiscsi_eeh_resume(struct pci_dev *pdev)
 	phba->shost->max_id = phba->params.cxns_per_ctrl;
 	phba->shost->can_queue = phba->params.ios_per_ctrl;
 	ret = hwi_init_controller(phba);
+	if (ret) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BM_%d : beiscsi_eeh_resume -"
+			     "Failed to initialize beiscsi_hba.\n");
+		goto ret_err;
+	}
 
 	for (i = 0; i < MAX_MCC_CMD; i++) {
 		init_waitqueue_head(&phba->ctrl.mcc_wait[i + 1]);
