@@ -596,6 +596,7 @@ config XEN_SCSI_FRONTEND
 config HYPERV_STORAGE
 	tristate "Microsoft Hyper-V virtual storage driver"
 	depends on SCSI && HYPERV
+	depends on m || SCSI_FC_ATTRS != m
 	default HYPERV
 	help
 	  Select this option to enable the Hyper-V virtual storage driver.
