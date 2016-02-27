@@ -69,7 +69,7 @@ FEATURE_USER = .libbpf
 FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
 FEATURE_DISPLAY = libelf bpf
 
-INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
+INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/arch/$(ARCH)/include/generated/uapi -I$(srctree)/include/uapi -I$(srctree)/include/generated/uapi
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
 
 check_feat := 1
