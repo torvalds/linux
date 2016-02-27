@@ -283,13 +283,13 @@ static int dgnc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* wake up and enable device */
 	rc = pci_enable_device(pdev);
 
-	if (rc < 0) {
-		rc = -EIO;
-	} else {
-		rc = dgnc_found_board(pdev, ent->driver_data);
-		if (rc == 0)
-			dgnc_NumBoards++;
-	}
+	if (rc)
+		return -EIO;
+
+	rc = dgnc_found_board(pdev, ent->driver_data);
+	if (rc == 0)
+		dgnc_NumBoards++;
+
 	return rc;
 }
 
