@@ -248,22 +248,22 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 	 * Limit the MTU to make sure the ethernet packets are between
 	 * 64 bytes and 65535 bytes.
 	 */
-	if ((new_mtu + 14 + 4 + vlan_bytes < 64)
-	    || (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
+	if ((new_mtu + 14 + 4 + vlan_bytes < 64) ||
+	    (new_mtu + 14 + 4 + vlan_bytes > 65392)) {
 		pr_err("MTU must be between %d and %d.\n",
 		       64 - 14 - 4 - vlan_bytes, 65392 - 14 - 4 - vlan_bytes);
 		return -EINVAL;
 	}
 	dev->mtu = new_mtu;
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		/* Add ethernet header and FCS, and VLAN if configured. */
 		int max_packet = new_mtu + 14 + 4 + vlan_bytes;
 
-		if (OCTEON_IS_MODEL(OCTEON_CN3XXX)
-		    || OCTEON_IS_MODEL(OCTEON_CN58XX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN3XXX) ||
+		    OCTEON_IS_MODEL(OCTEON_CN58XX)) {
 			/* Signal errors on packets larger than the MTU */
 			cvmx_write_csr(CVMX_GMXX_RXX_FRM_MAX(index, interface),
 				       max_packet);
@@ -302,8 +302,8 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
 
@@ -354,8 +354,8 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 	int interface = INTERFACE(priv->port);
 	int index = INDEX(priv->port);
 
-	if ((interface < 2)
-	    && (cvmx_helper_interface_get_mode(interface) !=
+	if ((interface < 2) &&
+	    (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		int i;
 		u8 *ptr = dev->dev_addr;
@@ -428,8 +428,8 @@ int cvm_oct_common_init(struct net_device *dev)
 	 * Force the interface to use the POW send if always_use_pow
 	 * was specified or it is in the pow send list.
 	 */
-	if ((pow_send_group != -1)
-	    && (always_use_pow || strstr(pow_send_list, dev->name)))
+	if ((pow_send_group != -1) &&
+	    (always_use_pow || strstr(pow_send_list, dev->name)))
 		priv->queue = -1;
 
 	if (priv->queue != -1)

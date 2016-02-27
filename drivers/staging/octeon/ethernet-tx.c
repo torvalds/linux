@@ -618,8 +618,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.dec_ipcomp = 0;	/* FIXME */
 #endif
 		work->word2.s.tcp_or_udp =
-		    (ip_hdr(skb)->protocol == IPPROTO_TCP)
-		    || (ip_hdr(skb)->protocol == IPPROTO_UDP);
+		    (ip_hdr(skb)->protocol == IPPROTO_TCP) ||
+		    (ip_hdr(skb)->protocol == IPPROTO_UDP);
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
@@ -630,8 +630,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		/* No error, packet is internal */
 		work->word2.s.L4_error = 0;
 #endif
-		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0)
-					  || (ip_hdr(skb)->frag_off ==
+		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
+					  (ip_hdr(skb)->frag_off ==
 					      1 << 14));
 #if 0
 		/* Assume Linux is sending a good packet */
