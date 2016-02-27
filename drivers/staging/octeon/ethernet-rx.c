@@ -215,7 +215,8 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			}
 			break;
 		}
-		pskb = (struct sk_buff **)(cvm_oct_get_buffer_ptr(work->packet_ptr) -
+		pskb = (struct sk_buff **)
+			(cvm_oct_get_buffer_ptr(work->packet_ptr) -
 			sizeof(void *));
 		prefetch(pskb);
 
@@ -297,7 +298,9 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 
 				while (segments--) {
 					union cvmx_buf_ptr next_ptr =
-					    *(union cvmx_buf_ptr *)cvmx_phys_to_ptr(segment_ptr.s.addr - 8);
+					    *(union cvmx_buf_ptr *)
+					      cvmx_phys_to_ptr(
+					      segment_ptr.s.addr - 8);
 
 			/*
 			 * Octeon Errata PKI-100: The segment size is
@@ -321,7 +324,8 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 						segment_size = len;
 					/* Copy the data into the packet */
 					memcpy(skb_put(skb, segment_size),
-					       cvmx_phys_to_ptr(segment_ptr.s.addr),
+					       cvmx_phys_to_ptr(
+					       segment_ptr.s.addr),
 					       segment_size);
 					len -= segment_size;
 					segment_ptr = next_ptr;
