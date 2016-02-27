@@ -328,7 +328,7 @@ static int submit_rx_urb(hfa384x_t *hw, gfp_t memflags)
 	int result;
 
 	skb = dev_alloc_skb(sizeof(hfa384x_usbin_t));
-	if (skb == NULL) {
+	if (!skb) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -1298,7 +1298,7 @@ hfa384x_docmd(hfa384x_t *hw,
 	hfa384x_usbctlx_t *ctlx;
 
 	ctlx = usbctlx_alloc();
-	if (ctlx == NULL) {
+	if (!ctlx) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -1388,7 +1388,7 @@ hfa384x_dorrid(hfa384x_t *hw,
 	hfa384x_usbctlx_t *ctlx;
 
 	ctlx = usbctlx_alloc();
-	if (ctlx == NULL) {
+	if (!ctlx) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -1469,7 +1469,7 @@ hfa384x_dowrid(hfa384x_t *hw,
 	hfa384x_usbctlx_t *ctlx;
 
 	ctlx = usbctlx_alloc();
-	if (ctlx == NULL) {
+	if (!ctlx) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -1557,7 +1557,7 @@ hfa384x_dormem(hfa384x_t *hw,
 	hfa384x_usbctlx_t *ctlx;
 
 	ctlx = usbctlx_alloc();
-	if (ctlx == NULL) {
+	if (!ctlx) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -1650,7 +1650,7 @@ hfa384x_dowmem(hfa384x_t *hw,
 	pr_debug("page=0x%04x offset=0x%04x len=%d\n", page, offset, len);
 
 	ctlx = usbctlx_alloc();
-	if (ctlx == NULL) {
+	if (!ctlx) {
 		result = -ENOMEM;
 		goto done;
 	}
@@ -3446,7 +3446,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	}
 
 	skb = dev_alloc_skb(skblen);
-	if (skb == NULL)
+	if (!skb)
 		return;
 
 	/* only prepend the prism header if in the right mode */

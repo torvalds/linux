@@ -67,7 +67,7 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 
 	dev = interface_to_usbdev(interface);
 	wlandev = create_wlan();
-	if (wlandev == NULL) {
+	if (!wlandev) {
 		dev_err(&interface->dev, "Memory allocation failure.\n");
 		result = -EIO;
 		goto failed;

@@ -538,7 +538,7 @@ static int mkimage(struct imgchunk *clist, unsigned int *ccnt)
 	/* Allocate buffer space for chunks */
 	for (i = 0; i < *ccnt; i++) {
 		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
-		if (clist[i].data == NULL) {
+		if (!clist[i].data) {
 			pr_err("failed to allocate image space, exitting.\n");
 			return 1;
 		}
