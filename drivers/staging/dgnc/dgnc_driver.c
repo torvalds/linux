@@ -181,23 +181,14 @@ static int __init dgnc_init_module(void)
 	 * Find and configure all the cards
 	 */
 	rc = pci_register_driver(&dgnc_driver);
-
-	/*
-	 * If something went wrong in the scan, bail out of driver.
-	 */
-	if (rc < 0) {
-		/* Only unregister if it was actually registered. */
-		if (dgnc_NumBoards)
-			pci_unregister_driver(&dgnc_driver);
-		else
-			pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
-
+	if (rc) {
+		pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
 		dgnc_cleanup_module();
-	} else {
-		dgnc_create_driver_sysfiles(&dgnc_driver);
+		return rc;
 	}
+	dgnc_create_driver_sysfiles(&dgnc_driver);
 
-	return rc;
+	return 0;
 }
 
 module_init(dgnc_init_module);
