@@ -76,7 +76,6 @@ extern int pow_send_group;
 extern int pow_receive_group;
 extern char pow_send_list[];
 extern struct net_device *cvm_oct_device[];
-extern struct workqueue_struct *cvm_oct_poll_queue;
 extern atomic_t cvm_oct_poll_queue_stopping;
 extern u64 cvm_oct_tx_poll_interval;
 
