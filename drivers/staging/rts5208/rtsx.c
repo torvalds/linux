@@ -880,7 +880,7 @@ static int rtsx_probe(struct pci_dev *pci,
 	memset(dev, 0, sizeof(struct rtsx_dev));
 
 	dev->chip = kzalloc(sizeof(struct rtsx_chip), GFP_KERNEL);
-	if (dev->chip == NULL) {
+	if (!dev->chip) {
 		err = -ENOMEM;
 		goto errout;
 	}
@@ -901,7 +901,7 @@ static int rtsx_probe(struct pci_dev *pci,
 		 (unsigned int)pci_resource_len(pci, 0));
 	dev->addr = pci_resource_start(pci, 0);
 	dev->remap_addr = ioremap_nocache(dev->addr, pci_resource_len(pci, 0));
-	if (dev->remap_addr == NULL) {
+	if (!dev->remap_addr) {
 		dev_err(&pci->dev, "ioremap error\n");
 		err = -ENXIO;
 		goto errout;
@@ -916,7 +916,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	dev->rtsx_resv_buf = dmam_alloc_coherent(&pci->dev, RTSX_RESV_BUF_LEN,
 			&dev->rtsx_resv_buf_addr, GFP_KERNEL);
-	if (dev->rtsx_resv_buf == NULL) {
+	if (!dev->rtsx_resv_buf) {
 		dev_err(&pci->dev, "alloc dma buffer fail\n");
 		err = -ENXIO;
 		goto errout;

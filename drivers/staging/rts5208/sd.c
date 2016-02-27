@@ -4588,7 +4588,7 @@ int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		cmd[4] = srb->cmnd[6];
 
 		buf = kmalloc(data_len, GFP_KERNEL);
-		if (buf == NULL) {
+		if (!buf) {
 			rtsx_trace(chip);
 			return TRANSPORT_ERROR;
 		}
@@ -4871,7 +4871,7 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		u8 *buf;
 
 		buf = kmalloc(data_len, GFP_KERNEL);
-		if (buf == NULL) {
+		if (!buf) {
 			rtsx_trace(chip);
 			return TRANSPORT_ERROR;
 		}

@@ -507,7 +507,7 @@ static int inquiry(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf = vmalloc(scsi_bufflen(srb));
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -644,7 +644,7 @@ static int request_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf = vmalloc(scsi_bufflen(srb));
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -792,7 +792,7 @@ static int mode_sense(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #endif
 
 	buf = kmalloc(dataSize, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -1017,7 +1017,7 @@ static int read_format_capacity(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	buf_len = (scsi_bufflen(srb) > 12) ? 0x14 : 12;
 
 	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -1096,7 +1096,7 @@ static int read_capacity(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf = kmalloc(8, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -1206,7 +1206,7 @@ static int write_eeprom(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		len = (unsigned short)min_t(unsigned int, scsi_bufflen(srb),
 					len);
 		buf = vmalloc(len);
-		if (buf == NULL) {
+		if (!buf) {
 			rtsx_trace(chip);
 			return TRANSPORT_ERROR;
 		}
@@ -1315,7 +1315,7 @@ static int write_mem(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	len = (unsigned short)min_t(unsigned int, scsi_bufflen(srb), len);
 	buf = vmalloc(len);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -1410,7 +1410,7 @@ static int trace_msg_cmd(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	clear = srb->cmnd[2];
 
 	buf = vmalloc(scsi_bufflen(srb));
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -2030,7 +2030,7 @@ static int write_phy_register(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 					len);
 
 		buf = vmalloc(len);
-		if (buf == NULL) {
+		if (!buf) {
 			rtsx_trace(chip);
 			return TRANSPORT_ERROR;
 		}
@@ -2186,7 +2186,7 @@ static int write_eeprom2(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	len = (unsigned short)min_t(unsigned int, scsi_bufflen(srb), len);
 	buf = vmalloc(len);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}
@@ -2290,7 +2290,7 @@ static int write_efuse(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 	len = (u8)min_t(unsigned int, scsi_bufflen(srb), len);
 	buf = vmalloc(len);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return TRANSPORT_ERROR;
 	}

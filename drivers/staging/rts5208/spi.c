@@ -662,7 +662,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	}
 
 	buf = kmalloc(SF_PAGE_LEN, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return STATUS_ERROR;
 	}

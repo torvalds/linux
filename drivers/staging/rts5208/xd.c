@@ -1435,7 +1435,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	if (zone->l2p_table == NULL) {
 		zone->l2p_table = vmalloc(2000);
-		if (zone->l2p_table == NULL) {
+		if (!zone->l2p_table) {
 			rtsx_trace(chip);
 			goto Build_Fail;
 		}
@@ -1444,7 +1444,7 @@ static int xd_build_l2p_tbl(struct rtsx_chip *chip, int zone_no)
 
 	if (zone->free_table == NULL) {
 		zone->free_table = vmalloc(XD_FREE_TABLE_CNT * 2);
-		if (zone->free_table == NULL) {
+		if (!zone->free_table) {
 			rtsx_trace(chip);
 			goto Build_Fail;
 		}

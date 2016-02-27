@@ -1039,7 +1039,7 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 	}
 
 	buf = kmalloc(64 * 512, GFP_KERNEL);
-	if (buf == NULL) {
+	if (!buf) {
 		rtsx_trace(chip);
 		return STATUS_ERROR;
 	}
@@ -2405,7 +2405,7 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 
 	size = ms_card->segment_cnt * sizeof(struct zone_entry);
 	ms_card->segment = vzalloc(size);
-	if (ms_card->segment == NULL) {
+	if (!ms_card->segment) {
 		rtsx_trace(chip);
 		return STATUS_FAIL;
 	}
@@ -2614,7 +2614,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	if (segment->l2p_table == NULL) {
 		segment->l2p_table = vmalloc(table_size * 2);
-		if (segment->l2p_table == NULL) {
+		if (!segment->l2p_table) {
 			rtsx_trace(chip);
 			goto BUILD_FAIL;
 		}
@@ -2623,7 +2623,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	if (segment->free_table == NULL) {
 		segment->free_table = vmalloc(MS_FREE_TABLE_CNT * 2);
-		if (segment->free_table == NULL) {
+		if (!segment->free_table) {
 			rtsx_trace(chip);
 			goto BUILD_FAIL;
 		}
