@@ -3170,9 +3170,35 @@ static void addrconf_gre_config(struct net_device *dev)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+/* If the host route is cached on the addr struct make sure it is associated
+ * with the proper table. e.g., enslavement can change and if so the cached
+ * host route needs to move to the new table.
+ */
+static void l3mdev_check_host_rt(struct inet6_dev *idev,
+				  struct inet6_ifaddr *ifp)
+{
+	if (ifp->rt) {
+		u32 tb_id = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL;
+
+		if (tb_id != ifp->rt->rt6i_table->tb6_id) {
+			ip6_del_rt(ifp->rt);
+			ifp->rt = NULL;
+		}
+	}
+}
+#else
+static void l3mdev_check_host_rt(struct inet6_dev *idev,
+				  struct inet6_ifaddr *ifp)
+{
+}
+#endif
+
 static int fixup_permanent_addr(struct inet6_dev *idev,
 				struct inet6_ifaddr *ifp)
 {
+	l3mdev_check_host_rt(idev, ifp);
+
 	if (!ifp->rt) {
 		struct rt6_info *rt;
 
