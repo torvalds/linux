@@ -9597,12 +9597,13 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 
 	   Precision errors still possible.
 	 */
-	e = post_bit_err_rs * 742686;
-	m = fec_oc_period * 100;
-	if (fec_oc_period == 0)
+	if (!fec_oc_period) {
 		qam_post_rs_ber = 0xFFFFFFFF;
-	else
+	} else {
+		e = post_bit_err_rs * 742686;
+		m = fec_oc_period * 100;
 		qam_post_rs_ber = e / m;
+	}
 
 	/* fill signal quality data structure */
 	p->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
