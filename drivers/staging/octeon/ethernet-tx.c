@@ -560,7 +560,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 
 	/* Get a packet buffer */
 	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
-	if (unlikely(packet_buffer == NULL)) {
+	if (unlikely(!packet_buffer)) {
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);

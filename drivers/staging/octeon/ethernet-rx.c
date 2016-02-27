@@ -209,7 +209,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 
 		prefetch(work);
 		did_work_request = 0;
-		if (work == NULL) {
+		if (!work) {
 			if (OCTEON_IS_MODEL(OCTEON_CN68XX)) {
 				cvmx_write_csr(CVMX_SSO_WQ_IQ_DIS,
 					       1ull << pow_receive_group);
@@ -416,7 +416,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 	}
 	cvm_oct_rx_refill_pool(0);
 
-	if (rx_count < budget && napi != NULL) {
+	if (rx_count < budget && napi) {
 		/* No more work */
 		napi_complete(napi);
 		enable_irq(OCTEON_IRQ_WORKQ0 + pow_receive_group);
@@ -449,7 +449,7 @@ void cvm_oct_rx_initialize(void)
 		}
 	}
 
-	if (NULL == dev_for_napi)
+	if (!dev_for_napi)
 		panic("No net_devices were allocated.");
 
 	netif_napi_add(dev_for_napi, &cvm_oct_napi, cvm_oct_napi_poll,
