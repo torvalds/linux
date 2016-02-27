@@ -1879,7 +1879,7 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 			return desc;
 	}
 
-	if (info.active_low)
+	if (info.polarity == GPIO_ACTIVE_LOW)
 		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
@@ -2217,7 +2217,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
 		if (!IS_ERR(desc))
-			active_low = info.active_low;
+			active_low = info.polarity == GPIO_ACTIVE_LOW;
 	}
 
 	if (IS_ERR(desc))

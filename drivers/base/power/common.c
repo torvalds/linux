@@ -112,7 +112,7 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
 
 /**
  * dev_pm_domain_detach - Detach a device from its PM domain.
- * @dev: Device to attach.
+ * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
  *
  * This functions will reverse the actions from dev_pm_domain_attach() and thus

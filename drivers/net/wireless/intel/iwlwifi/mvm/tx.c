@@ -299,6 +299,8 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
+		pn = atomic64_inc_return(&keyconf->tx_pn);
+		ieee80211_tkip_add_iv(crypto_hdr, keyconf, pn);
 		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
 		break;
 

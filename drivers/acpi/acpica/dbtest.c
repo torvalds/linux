@@ -953,7 +953,7 @@ acpi_db_evaluate_one_predefined_name(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}

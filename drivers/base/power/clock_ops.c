@@ -473,6 +473,7 @@ static int pm_clk_notify(struct notifier_block *nb,
 			enable_clock(dev, NULL);
 		}
 		break;
+	case BUS_NOTIFY_DRIVER_NOT_BOUND:
 	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (clknb->con_ids[0]) {
 			for (con_id = clknb->con_ids; *con_id; con_id++)
