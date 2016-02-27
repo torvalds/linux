@@ -114,17 +114,11 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			}
 
 			if (*ptr == 0xd5) {
-				/*
-				  printk_ratelimited("Port %d received 0xd5 preamble\n",
-					  port);
-				 */
+				/* Port received 0xd5 preamble */
 				work->packet_ptr.s.addr += i + 1;
 				work->word1.len -= i + 5;
 			} else if ((*ptr & 0xf) == 0xd) {
-				/*
-				  printk_ratelimited("Port %d received 0x?d preamble\n",
-					  port);
-				 */
+				/* Port received 0xd preamble */
 				work->packet_ptr.s.addr += i;
 				work->word1.len -= i + 4;
 				for (i = 0; i < work->word1.len; i++) {
@@ -136,9 +130,6 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 			} else {
 				printk_ratelimited("Port %d unknown preamble, packet dropped\n",
 						   port);
-				/*
-				   cvmx_helper_dump_packet(work);
-				 */
 				cvm_oct_free_work(work);
 				return 1;
 			}
@@ -367,11 +358,10 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 				}
 				netif_receive_skb(skb);
 			} else {
-				/* Drop any packet received for a device that isn't up */
 				/*
-				  printk_ratelimited("%s: Device not up, packet dropped\n",
-					   dev->name);
-				*/
+				 * Drop any packet received for a device that
+				 * isn't up.
+				 */
 				priv->stats.rx_dropped++;
 				dev_kfree_skb_irq(skb);
 			}

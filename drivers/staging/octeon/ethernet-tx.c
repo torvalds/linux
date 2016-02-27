@@ -309,55 +309,38 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	fpa_head = skb->head + 256 - ((unsigned long)skb->head & 0x7f);
 	if (unlikely(skb->data < fpa_head)) {
-		/*
-		 * printk("TX buffer beginning can't meet FPA
-		 * alignment constraints\n");
-		 */
+		/* TX buffer beginning can't meet FPA alignment constraints */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    ((skb_end_pointer(skb) - fpa_head) < CVMX_FPA_PACKET_POOL_SIZE)) {
-		/*
-		   printk("TX buffer isn't large enough for the FPA\n");
-		 */
+		/* TX buffer isn't large enough for the FPA */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shared(skb))) {
-		/*
-		   printk("TX buffer sharing data with someone else\n");
-		 */
+		/* TX buffer sharing data with someone else */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_cloned(skb))) {
-		/*
-		   printk("TX buffer has been cloned\n");
-		 */
+		/* TX buffer has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_header_cloned(skb))) {
-		/*
-		   printk("TX buffer header has been cloned\n");
-		 */
+		/* TX buffer header has been cloned */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb->destructor)) {
-		/*
-		   printk("TX buffer has a destructor\n");
-		 */
+		/* TX buffer has a destructor */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shinfo(skb)->nr_frags)) {
-		/*
-		   printk("TX buffer has fragments\n");
-		 */
+		/* TX buffer has fragments */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely
 	    (skb->truesize !=
 	     sizeof(*skb) + skb_end_offset(skb))) {
-		/*
-		   printk("TX buffer truesize has been changed\n");
-		 */
+		/* TX buffer truesize has been changed */
 		goto dont_put_skbuff_in_hw;
 	}
 
