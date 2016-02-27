@@ -513,8 +513,10 @@ static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
 
 	/* Get Rom signature */
 	chip->pch_phub_extrom_base_address = pci_map_rom(chip->pdev, &rom_size);
-	if (!chip->pch_phub_extrom_base_address)
+	if (!chip->pch_phub_extrom_base_address) {
+		err = -ENODATA;
 		goto exrom_map_err;
+	}
 
 	pch_phub_read_serial_rom(chip, chip->pch_opt_rom_start_address,
 				(unsigned char *)&rom_signature);
