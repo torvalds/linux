@@ -75,6 +75,7 @@ unsigned int extra_msr_offset64;
 unsigned int extra_delta_offset32;
 unsigned int extra_delta_offset64;
 unsigned int aperf_mperf_multiplier = 1;
+int do_irq = 1;
 int do_smi;
 double bclk;
 double base_hz;
@@ -154,6 +155,7 @@ struct thread_data {
 	unsigned long long extra_delta64;
 	unsigned long long extra_msr32;
 	unsigned long long extra_delta32;
+	unsigned int irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
 	unsigned int flags;
@@ -220,6 +222,9 @@ struct topo_params {
 } topo;
 
 struct timeval tv_even, tv_odd, tv_delta;
+
+int *irq_column_2_cpu;	/* /proc/interrupts column numbers */
+int *irqs_per_cpu;		/* indexed by cpu_num */
 
 void setup_all_buffers(void);
 
@@ -306,8 +311,8 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 /*
  * Example Format w/ field column widths:
  *
- *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
- * 123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
+ *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     IRQ   SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
+ * 12345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
  */
 
 void print_header(void)
@@ -338,6 +343,8 @@ void print_header(void)
 	if (!debug)
 		goto done;
 
+	if (do_irq)
+		outp += sprintf(outp, "     IRQ");
 	if (do_smi)
 		outp += sprintf(outp, "     SMI");
 
@@ -429,6 +436,8 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 			extra_msr_offset32, t->extra_msr32);
 		outp += sprintf(outp, "msr0x%x: %016llX\n",
 			extra_msr_offset64, t->extra_msr64);
+		if (do_irq)
+			outp += sprintf(outp, "IRQ: %08X\n", t->irq_count);
 		if (do_smi)
 			outp += sprintf(outp, "SMI: %08X\n", t->smi_count);
 	}
@@ -561,6 +570,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	if (!debug)
 		goto done;
+
+	/* IRQ */
+	if (do_irq)
+		outp += sprintf(outp, "%8d", t->irq_count);
 
 	/* SMI */
 	if (do_smi)
@@ -827,6 +840,9 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	old->extra_msr32 = new->extra_msr32;
 	old->extra_msr64 = new->extra_msr64;
 
+	if (do_irq)
+		old->irq_count = new->irq_count - old->irq_count;
+
 	if (do_smi)
 		old->smi_count = new->smi_count - old->smi_count;
 }
@@ -856,9 +872,11 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->mperf = 0;
 	t->c1 = 0;
 
-	t->smi_count = 0;
 	t->extra_delta32 = 0;
 	t->extra_delta64 = 0;
+
+	t->irq_count = 0;
+	t->smi_count = 0;
 
 	/* tells format_counters to dump all fields from this set */
 	t->flags = CPU_IS_FIRST_THREAD_IN_CORE | CPU_IS_FIRST_CORE_IN_PACKAGE;
@@ -902,6 +920,9 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 
 	average.threads.extra_delta32 += t->extra_delta32;
 	average.threads.extra_delta64 += t->extra_delta64;
+
+	average.threads.irq_count += t->irq_count;
+	average.threads.smi_count += t->smi_count;
 
 	/* sum per-core values only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -1000,7 +1021,6 @@ static unsigned long long rdtsc(void)
 	return low | ((unsigned long long)high) << 32;
 }
 
-
 /*
  * get_counters(...)
  * migrate to cpu
@@ -1027,6 +1047,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		t->mperf = t->mperf * aperf_mperf_multiplier;
 	}
 
+	if (do_irq)
+		t->irq_count = irqs_per_cpu[cpu];
 	if (do_smi) {
 		if (get_msr(cpu, MSR_SMI_COUNT, &msr))
 			return -5;
@@ -1515,6 +1537,9 @@ void free_all_buffers(void)
 	outp = NULL;
 
 	free_fd_percpu();
+
+	free(irq_column_2_cpu);
+	free(irqs_per_cpu);
 }
 
 /*
@@ -1737,6 +1762,83 @@ int mark_cpu_present(int cpu)
 	return 0;
 }
 
+/*
+ * snapshot_proc_interrupts()
+ *
+ * read and record summary of /proc/interrupts
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_proc_interrupts(void)
+{
+	static FILE *fp;
+	int column, retval;
+
+	if (fp == NULL)
+		fp = fopen_or_die("/proc/interrupts", "r");
+	else
+		rewind(fp);
+
+	/* read 1st line of /proc/interrupts to get cpu* name for each column */
+	for (column = 0; column < topo.num_cpus; ++column) {
+		int cpu_number;
+
+		retval = fscanf(fp, " CPU%d", &cpu_number);
+		if (retval != 1)
+			break;
+
+		if (cpu_number > topo.max_cpu_num) {
+			warn("/proc/interrupts: cpu%d: > %d", cpu_number, topo.max_cpu_num);
+			return 1;
+		}
+
+		irq_column_2_cpu[column] = cpu_number;
+		irqs_per_cpu[cpu_number] = 0;
+	}
+
+	/* read /proc/interrupt count lines and sum up irqs per cpu */
+	while (1) {
+		int column;
+		char buf[64];
+
+		retval = fscanf(fp, " %s:", buf);	/* flush irq# "N:" */
+		if (retval != 1)
+			break;
+
+		/* read the count per cpu */
+		for (column = 0; column < topo.num_cpus; ++column) {
+
+			int cpu_number, irq_count;
+
+			retval = fscanf(fp, " %d", &irq_count);
+			if (retval != 1)
+				break;
+
+			cpu_number = irq_column_2_cpu[column];
+			irqs_per_cpu[cpu_number] += irq_count;
+
+		}
+
+		while (getc(fp) != '\n')
+			;	/* flush interrupt description */
+
+	}
+	return 0;
+}
+
+/*
+ * snapshot /proc and /sys files
+ *
+ * return 1 if configuration restart needed, else return 0
+ */
+int snapshot_proc_sysfs_files(void)
+{
+	if (snapshot_proc_interrupts())
+		return 1;
+
+	return 0;
+}
+
 void turbostat_loop()
 {
 	int retval;
@@ -1745,6 +1847,7 @@ void turbostat_loop()
 restart:
 	restarted++;
 
+	snapshot_proc_sysfs_files();
 	retval = for_all_cpus(get_counters, EVEN_COUNTERS);
 	if (retval < -1) {
 		exit(retval);
@@ -1764,6 +1867,8 @@ restart:
 			goto restart;
 		}
 		nanosleep(&interval_ts, NULL);
+		if (snapshot_proc_sysfs_files())
+			goto restart;
 		retval = for_all_cpus(get_counters, ODD_COUNTERS);
 		if (retval < -1) {
 			exit(retval);
@@ -1778,6 +1883,8 @@ restart:
 		format_all_counters(EVEN_COUNTERS);
 		flush_output_stdout();
 		nanosleep(&interval_ts, NULL);
+		if (snapshot_proc_sysfs_files())
+			goto restart;
 		retval = for_all_cpus(get_counters, EVEN_COUNTERS);
 		if (retval < -1) {
 			exit(retval);
@@ -3233,9 +3340,20 @@ void allocate_fd_percpu(void)
 	if (fd_percpu == NULL)
 		err(-1, "calloc fd_percpu");
 }
+void allocate_irq_buffers(void)
+{
+	irq_column_2_cpu = calloc(topo.num_cpus, sizeof(int));
+	if (irq_column_2_cpu == NULL)
+		err(-1, "calloc %d", topo.num_cpus);
+
+	irqs_per_cpu = calloc(topo.max_cpu_num, sizeof(int));
+	if (irqs_per_cpu == NULL)
+		err(-1, "calloc %d", topo.max_cpu_num);
+}
 void setup_all_buffers(void)
 {
 	topology_probe();
+	allocate_irq_buffers();
 	allocate_fd_percpu();
 	allocate_counters(&thread_even, &core_even, &package_even);
 	allocate_counters(&thread_odd, &core_odd, &package_odd);
