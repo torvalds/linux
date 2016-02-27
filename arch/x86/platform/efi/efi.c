@@ -827,6 +827,19 @@ static void __init kexec_enter_virtual_mode(void)
 		get_systab_virt_addr(md);
 	}
 
+	/*
+	 * Unregister the early EFI memmap from efi_init() and install
+	 * the new EFI memory map.
+	 */
+	efi_memmap_unmap();
+
+	if (efi_memmap_init_late(efi.memmap.phys_map,
+				 efi.memmap.desc_size * efi.memmap.nr_map)) {
+		pr_err("Failed to remap late EFI memory map\n");
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
+	}
+
 	save_runtime_map();
 
 	BUG_ON(!efi.systab);
@@ -888,6 +901,7 @@ static void __init __efi_enter_virtual_mode(void)
 	int count = 0, pg_shift = 0;
 	void *new_memmap = NULL;
 	efi_status_t status;
+	phys_addr_t pa;
 
 	efi.systab = NULL;
 
@@ -905,11 +919,26 @@ static void __init __efi_enter_virtual_mode(void)
 		return;
 	}
 
+	pa = __pa(new_memmap);
+
+	/*
+	 * Unregister the early EFI memmap from efi_init() and install
+	 * the new EFI memory map that we are about to pass to the
+	 * firmware via SetVirtualAddressMap().
+	 */
+	efi_memmap_unmap();
+
+	if (efi_memmap_init_late(pa, efi.memmap.desc_size * count)) {
+		pr_err("Failed to remap late EFI memory map\n");
+		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+		return;
+	}
+
 	save_runtime_map();
 
 	BUG_ON(!efi.systab);
 
-	if (efi_setup_page_tables(__pa(new_memmap), 1 << pg_shift)) {
+	if (efi_setup_page_tables(pa, 1 << pg_shift)) {
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
@@ -921,14 +950,14 @@ static void __init __efi_enter_virtual_mode(void)
 				efi.memmap.desc_size * count,
 				efi.memmap.desc_size,
 				efi.memmap.desc_version,
-				(efi_memory_desc_t *)__pa(new_memmap));
+				(efi_memory_desc_t *)pa);
 	} else {
 		status = efi_thunk_set_virtual_address_map(
 				efi_phys.set_virtual_address_map,
 				efi.memmap.desc_size * count,
 				efi.memmap.desc_size,
 				efi.memmap.desc_version,
-				(efi_memory_desc_t *)__pa(new_memmap));
+				(efi_memory_desc_t *)pa);
 	}
 
 	if (status != EFI_SUCCESS) {
@@ -959,15 +988,6 @@ static void __init __efi_enter_virtual_mode(void)
 	 */
 	efi_runtime_update_mappings();
 	efi_dump_pagetable();
-
-	/*
-	 * We mapped the descriptor array into the EFI pagetable above
-	 * but we're not unmapping it here because if we're running in
-	 * EFI mixed mode we need all of memory to be accessible when
-	 * we pass parameters to the EFI runtime services in the
-	 * thunking code.
-	 */
-	free_pages((unsigned long)new_memmap, pg_shift);
 
 	/* clean DUMMY object */
 	efi_delete_dummy_variable();

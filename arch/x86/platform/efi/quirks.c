@@ -286,8 +286,6 @@ void __init efi_free_boot_services(void)
 
 		free_bootmem_late(start, size);
 	}
-
-	efi_memmap_unmap();
 }
 
 /*

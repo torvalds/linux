@@ -116,12 +116,10 @@ static int __init arm_enable_runtime_services(void)
 
 	mapsize = efi.memmap.desc_size * efi.memmap.nr_map;
 
-	efi.memmap.map = memremap(efi.memmap.phys_map, mapsize, MEMREMAP_WB);
-	if (!efi.memmap.map) {
+	if (efi_memmap_init_late(efi.memmap.phys_map, mapsize)) {
 		pr_err("Failed to remap EFI memory map\n");
 		return -ENOMEM;
 	}
-	efi.memmap.map_end = efi.memmap.map + mapsize;
 
 	if (!efi_virtmap_init()) {
 		pr_err("UEFI virtual mapping missing or invalid -- runtime services will not be available\n");

@@ -347,56 +347,31 @@ subsys_initcall(efisubsys_init);
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
- * physicall address, determine if it exists within an EFI Memory Map entry,
+ * physical address, determine if it exists within an EFI Memory Map entry,
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = &efi.memmap;
-	phys_addr_t p, e;
+	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
 		return -EINVAL;
 	}
 
-	if (!map) {
-		pr_err_once("efi.memmap is not set.\n");
-		return -EINVAL;
-	}
 	if (!out_md) {
 		pr_err_once("out_md is null.\n");
 		return -EINVAL;
         }
-	if (WARN_ON_ONCE(!map->phys_map))
-		return -EINVAL;
-	if (WARN_ON_ONCE(map->nr_map == 0) || WARN_ON_ONCE(map->desc_size == 0))
-		return -EINVAL;
 
-	e = map->phys_map + map->nr_map * map->desc_size;
-	for (p = map->phys_map; p < e; p += map->desc_size) {
-		efi_memory_desc_t *md;
+	for_each_efi_memory_desc(md) {
 		u64 size;
 		u64 end;
-
-		/*
-		 * If a driver calls this after efi_free_boot_services,
-		 * ->map will be NULL, and the target may also not be mapped.
-		 * So just always get our own virtual map on the CPU.
-		 *
-		 */
-		md = early_memremap(p, sizeof (*md));
-		if (!md) {
-			pr_err_once("early_memremap(%pa, %zu) failed.\n",
-				    &p, sizeof (*md));
-			return -ENOMEM;
-		}
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
 		    md->type != EFI_BOOT_SERVICES_DATA &&
 		    md->type != EFI_RUNTIME_SERVICES_DATA) {
-			early_memunmap(md, sizeof (*md));
 			continue;
 		}
 
@@ -404,11 +379,8 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
 			memcpy(out_md, md, sizeof(*out_md));
-			early_memunmap(md, sizeof (*md));
 			return 0;
 		}
-
-		early_memunmap(md, sizeof (*md));
 	}
 	pr_err_once("requested map not found.\n");
 	return -ENOENT;
@@ -545,32 +517,49 @@ int __init efi_config_init(efi_config_table_type_t *arch_tables)
 }
 
 /**
- * efi_memmap_init_early - Map the EFI memory map data structure
+ * __efi_memmap_init - Common code for mapping the EFI memory map
  * @data: EFI memory map data
+ * @late: Use early or late mapping function?
  *
- * Use early_memremap() to map the passed in EFI memory map and assign
- * it to efi.memmap.
+ * This function takes care of figuring out which function to use to
+ * map the EFI memory map in efi.memmap based on how far into the boot
+ * we are.
+ *
+ * During bootup @late should be %false since we only have access to
+ * the early_memremap*() functions as the vmalloc space isn't setup.
+ * Once the kernel is fully booted we can fallback to the more robust
+ * memremap*() API.
+ *
+ * Returns zero on success, a negative error code on failure.
  */
-int __init efi_memmap_init_early(struct efi_memory_map_data *data)
+static int __init
+__efi_memmap_init(struct efi_memory_map_data *data, bool late)
 {
 	struct efi_memory_map map;
+	phys_addr_t phys_map;
 
 	if (efi_enabled(EFI_PARAVIRT))
 		return 0;
 
-	map.phys_map = data->phys_map;
+	phys_map = data->phys_map;
 
-	map.map = early_memremap(data->phys_map, data->size);
+	if (late)
+		map.map = memremap(phys_map, data->size, MEMREMAP_WB);
+	else
+		map.map = early_memremap(phys_map, data->size);
+
 	if (!map.map) {
 		pr_err("Could not map the memory map!\n");
 		return -ENOMEM;
 	}
 
+	map.phys_map = data->phys_map;
 	map.nr_map = data->size / data->desc_size;
 	map.map_end = map.map + data->size;
 
 	map.desc_version = data->desc_version;
 	map.desc_size = data->desc_size;
+	map.late = late;
 
 	set_bit(EFI_MEMMAP, &efi.flags);
 
@@ -579,15 +568,81 @@ int __init efi_memmap_init_early(struct efi_memory_map_data *data)
 	return 0;
 }
 
+/**
+ * efi_memmap_init_early - Map the EFI memory map data structure
+ * @data: EFI memory map data
+ *
+ * Use early_memremap() to map the passed in EFI memory map and assign
+ * it to efi.memmap.
+ */
+int __init efi_memmap_init_early(struct efi_memory_map_data *data)
+{
+	/* Cannot go backwards */
+	WARN_ON(efi.memmap.late);
+
+	return __efi_memmap_init(data, false);
+}
+
 void __init efi_memmap_unmap(void)
 {
-	unsigned long size;
+	if (!efi.memmap.late) {
+		unsigned long size;
 
-	size = efi.memmap.desc_size * efi.memmap.nr_map;
+		size = efi.memmap.desc_size * efi.memmap.nr_map;
+		early_memunmap(efi.memmap.map, size);
+	} else {
+		memunmap(efi.memmap.map);
+	}
 
-	early_memunmap(efi.memmap.map, size);
 	efi.memmap.map = NULL;
 	clear_bit(EFI_MEMMAP, &efi.flags);
+}
+
+/**
+ * efi_memmap_init_late - Map efi.memmap with memremap()
+ * @phys_addr: Physical address of the new EFI memory map
+ * @size: Size in bytes of the new EFI memory map
+ *
+ * Setup a mapping of the EFI memory map using ioremap_cache(). This
+ * function should only be called once the vmalloc space has been
+ * setup and is therefore not suitable for calling during early EFI
+ * initialise, e.g. in efi_init(). Additionally, it expects
+ * efi_memmap_init_early() to have already been called.
+ *
+ * The reason there are two EFI memmap initialisation
+ * (efi_memmap_init_early() and this late version) is because the
+ * early EFI memmap should be explicitly unmapped once EFI
+ * initialisation is complete as the fixmap space used to map the EFI
+ * memmap (via early_memremap()) is a scarce resource.
+ *
+ * This late mapping is intended to persist for the duration of
+ * runtime so that things like efi_mem_desc_lookup() and
+ * efi_mem_attributes() always work.
+ *
+ * Returns zero on success, a negative error code on failure.
+ */
+int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size)
+{
+	struct efi_memory_map_data data = {
+		.phys_map = addr,
+		.size = size,
+	};
+
+	/* Did we forget to unmap the early EFI memmap? */
+	WARN_ON(efi.memmap.map);
+
+	/* Were we already called? */
+	WARN_ON(efi.memmap.late);
+
+	/*
+	 * It makes no sense to allow callers to register different
+	 * values for the following fields. Copy them out of the
+	 * existing early EFI memmap.
+	 */
+	data.desc_version = efi.memmap.desc_version;
+	data.desc_size = efi.memmap.desc_size;
+
+	return __efi_memmap_init(&data, true);
 }
 
 #ifdef CONFIG_EFI_VARS_MODULE
