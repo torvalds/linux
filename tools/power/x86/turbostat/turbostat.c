@@ -1059,19 +1059,68 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
 	int cpu = t->cpu_id;
 	unsigned long long msr;
+	int aperf_mperf_retry_count = 0;
 
 	if (cpu_migrate(cpu)) {
 		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
 		return -1;
 	}
 
+retry:
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
 	if (has_aperf) {
+		unsigned long long tsc_before, tsc_between, tsc_after, aperf_time, mperf_time;
+
+		/*
+		 * The TSC, APERF and MPERF must be read together for
+		 * APERF/MPERF and MPERF/TSC to give accurate results.
+		 *
+		 * Unfortunately, APERF and MPERF are read by
+		 * individual system call, so delays may occur
+		 * between them.  If the time to read them
+		 * varies by a large amount, we re-read them.
+		 */
+
+		/*
+		 * This initial dummy APERF read has been seen to
+		 * reduce jitter in the subsequent reads.
+		 */
+
 		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
 			return -3;
+
+		t->tsc = rdtsc();	/* re-read close to APERF */
+
+		tsc_before = t->tsc;
+
+		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
+			return -3;
+
+		tsc_between = rdtsc();
+
 		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
 			return -4;
+
+		tsc_after = rdtsc();
+
+		aperf_time = tsc_between - tsc_before;
+		mperf_time = tsc_after - tsc_between;
+
+		/*
+		 * If the system call latency to read APERF and MPERF
+		 * differ by more than 2x, then try again.
+		 */
+		if ((aperf_time > (2 * mperf_time)) || (mperf_time > (2 * aperf_time))) {
+			aperf_mperf_retry_count++;
+			if (aperf_mperf_retry_count < 5)
+				goto retry;
+			else
+				warnx("cpu%d jitter %lld %lld",
+					cpu, aperf_time, mperf_time);
+		}
+		aperf_mperf_retry_count = 0;
+
 		t->aperf = t->aperf * aperf_mperf_multiplier;
 		t->mperf = t->mperf * aperf_mperf_multiplier;
 	}
@@ -3554,7 +3603,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.10 10 Dec, 2015"
+	fprintf(outf, "turbostat version 4.11 27 Feb 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
