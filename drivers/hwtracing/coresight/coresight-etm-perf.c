@@ -21,7 +21,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -390,4 +390,4 @@ static int __init etm_perf_init(void)
 
 	return ret;
 }
-module_init(etm_perf_init);
+device_initcall(etm_perf_init);
