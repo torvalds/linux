@@ -1441,7 +1441,7 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
  */
 static int add_default_attributes(void)
 {
-	struct perf_event_attr default_attrs[] = {
+	struct perf_event_attr default_attrs0[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES	},
@@ -1449,8 +1449,14 @@ static int add_default_attributes(void)
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
 
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES		},
+};
+	struct perf_event_attr frontend_attrs[] = {
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_FRONTEND	},
+};
+	struct perf_event_attr backend_attrs[] = {
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_BACKEND	},
+};
+	struct perf_event_attr default_attrs1[] = {
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS		},
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS	},
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
@@ -1567,7 +1573,19 @@ static int add_default_attributes(void)
 	}
 
 	if (!evsel_list->nr_entries) {
-		if (perf_evlist__add_default_attrs(evsel_list, default_attrs) < 0)
+		if (perf_evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
+			return -1;
+		if (pmu_have_event("cpu", "stalled-cycles-frontend")) {
+			if (perf_evlist__add_default_attrs(evsel_list,
+						frontend_attrs) < 0)
+				return -1;
+		}
+		if (pmu_have_event("cpu", "stalled-cycles-backend")) {
+			if (perf_evlist__add_default_attrs(evsel_list,
+						backend_attrs) < 0)
+				return -1;
+		}
+		if (perf_evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
 			return -1;
 	}
 
