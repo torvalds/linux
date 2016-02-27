@@ -540,6 +540,7 @@ static const struct net_device_ops cvm_oct_npi_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
@@ -555,6 +556,7 @@ static const struct net_device_ops cvm_oct_xaui_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_init		= cvm_oct_sgmii_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
@@ -570,6 +572,7 @@ static const struct net_device_ops cvm_oct_sgmii_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_init		= cvm_oct_spi_init,
 	.ndo_uninit		= cvm_oct_spi_uninit,
@@ -583,6 +586,7 @@ static const struct net_device_ops cvm_oct_spi_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_uninit		= cvm_oct_common_uninit,
@@ -598,6 +602,7 @@ static const struct net_device_ops cvm_oct_rgmii_netdev_ops = {
 	.ndo_poll_controller	= cvm_oct_poll_controller,
 #endif
 };
+
 static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 	.ndo_init		= cvm_oct_common_init,
 	.ndo_start_xmit		= cvm_oct_xmit_pow,
