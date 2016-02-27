@@ -174,8 +174,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 			qos = 0;
 		else if (qos >= cvmx_pko_get_num_queues(priv->port))
 			qos = 0;
-	} else
+	} else {
 		qos = 0;
+	}
 
 	if (USE_ASYNC_IOBDMA) {
 		/* Save scratch in case userspace is using it */
