@@ -201,13 +201,13 @@
 				#clock-cells = <1>;
 			};
 
-			usb0_otg_phy: phy@004 {
+			usb0_otg_phy: phy {
 				compatible = "nxp,lpc1850-usb-otg-phy";
 				clocks = <&ccu1 CLK_USB0>;
 				#phy-cells = <0>;
 			};
 
-			dmamux: dma-mux@11c {
+			dmamux: dma-mux {
 				compatible = "nxp,lpc1850-dmamux";
 				#dma-cells = <3>;
 				dma-requests = <64>;
