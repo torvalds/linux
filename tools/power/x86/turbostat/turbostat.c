@@ -90,6 +90,8 @@ char *output_buffer, *outp;
 unsigned int do_rapl;
 unsigned int do_dts;
 unsigned int do_ptm;
+unsigned int do_gfx_mhz;
+unsigned int gfx_cur_mhz;
 unsigned int tcc_activation_temp;
 unsigned int tcc_activation_temp_override;
 double rapl_power_units, rapl_time_units;
@@ -183,6 +185,7 @@ struct pkg_data {
 	unsigned long long pkg_any_core_c0;
 	unsigned long long pkg_any_gfxe_c0;
 	unsigned long long pkg_both_core_gfxe_c0;
+	unsigned int gfx_mhz;
 	unsigned int package_id;
 	unsigned int energy_pkg;	/* MSR_PKG_ENERGY_STATUS */
 	unsigned int energy_dram;	/* MSR_DRAM_ENERGY_STATUS */
@@ -311,7 +314,7 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 /*
  * Example Format w/ field column widths:
  *
- *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     IRQ   SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
+ *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     IRQ   SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp  GFXMHz Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
  * 12345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
  */
 
@@ -361,6 +364,9 @@ void print_header(void)
 		outp += sprintf(outp, " CoreTmp");
 	if (do_ptm)
 		outp += sprintf(outp, "  PkgTmp");
+
+	if (do_gfx_mhz)
+		outp += sprintf(outp, "  GFXMHz");
 
 	if (do_skl_residency) {
 		outp += sprintf(outp, " Totl%%C0");
@@ -608,6 +614,10 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_ptm)
 		outp += sprintf(outp, "%8d", p->pkg_temp_c);
 
+	/* GFXMHz */
+	if (do_gfx_mhz)
+		outp += sprintf(outp, "%8d", p->gfx_mhz);
+
 	/* Totl%C0, Any%C0 GFX%C0 CPUGFX% */
 	if (do_skl_residency) {
 		outp += sprintf(outp, "%8.2f", 100.0 * p->pkg_wtd_core_c0/t->tsc);
@@ -745,6 +755,8 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	old->pc9 = new->pc9 - old->pc9;
 	old->pc10 = new->pc10 - old->pc10;
 	old->pkg_temp_c = new->pkg_temp_c;
+
+	old->gfx_mhz = new->gfx_mhz;
 
 	DELTA_WRAP32(new->energy_pkg, old->energy_pkg);
 	DELTA_WRAP32(new->energy_cores, old->energy_cores);
@@ -909,6 +921,8 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->rapl_pkg_perf_status = 0;
 	p->rapl_dram_perf_status = 0;
 	p->pkg_temp_c = 0;
+
+	p->gfx_mhz = 0;
 }
 int sum_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
@@ -960,6 +974,8 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.packages.energy_dram += p->energy_dram;
 	average.packages.energy_cores += p->energy_cores;
 	average.packages.energy_gfx += p->energy_gfx;
+
+	average.packages.gfx_mhz = p->gfx_mhz;
 
 	average.packages.pkg_temp_c = MAX(average.packages.pkg_temp_c, p->pkg_temp_c);
 
@@ -1176,6 +1192,9 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 			return -17;
 		p->pkg_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
+	if (do_gfx_mhz)
+		p->gfx_mhz = gfx_cur_mhz;
+
 	return 0;
 }
 
@@ -1825,6 +1844,30 @@ int snapshot_proc_interrupts(void)
 	}
 	return 0;
 }
+/*
+ * snapshot_gfx_mhz()
+ *
+ * record snapshot of
+ * /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz
+ *
+ * return 1 if config change requires a restart, else return 0
+ */
+int snapshot_gfx_mhz(void)
+{
+	static FILE *fp;
+	int retval;
+
+	if (fp == NULL)
+		fp = fopen_or_die("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", "r");
+	else
+		rewind(fp);
+
+	retval = fscanf(fp, "%d", &gfx_cur_mhz);
+	if (retval != 1)
+		err(1, "GFX MHz");
+
+	return 0;
+}
 
 /*
  * snapshot /proc and /sys files
@@ -1835,6 +1878,9 @@ int snapshot_proc_sysfs_files(void)
 {
 	if (snapshot_proc_interrupts())
 		return 1;
+
+	if (do_gfx_mhz)
+		snapshot_gfx_mhz();
 
 	return 0;
 }
@@ -3110,6 +3156,8 @@ void process_cpuid()
 
 	if (has_skl_msrs(family, model))
 		calculate_tsc_tweak();
+
+	do_gfx_mhz = !access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK);
 
 	return;
 }
