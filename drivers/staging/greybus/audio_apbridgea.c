@@ -29,13 +29,15 @@ int gb_audio_apbridgea_set_config(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_set_config);
 
 int gb_audio_apbridgea_register_cport(struct gb_connection *connection,
-				      __u16 i2s_port, __u16 cportid)
+				      __u16 i2s_port, __u16 cportid,
+				      __u8 direction)
 {
 	struct audio_apbridgea_register_cport_request req;
 
 	req.hdr.type = AUDIO_APBRIDGEA_TYPE_REGISTER_CPORT;
 	req.hdr.i2s_port = cpu_to_le16(i2s_port);
 	req.cport = cpu_to_le16(cportid);
+	req.direction = direction;
 
 	return gb_hd_output(connection->hd, &req, sizeof(req),
 			    GB_APB_REQUEST_AUDIO_CONTROL, true);
@@ -43,13 +45,15 @@ int gb_audio_apbridgea_register_cport(struct gb_connection *connection,
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_register_cport);
 
 int gb_audio_apbridgea_unregister_cport(struct gb_connection *connection,
-					__u16 i2s_port, __u16 cportid)
+					__u16 i2s_port, __u16 cportid,
+					__u8 direction)
 {
 	struct audio_apbridgea_unregister_cport_request req;
 
 	req.hdr.type = AUDIO_APBRIDGEA_TYPE_UNREGISTER_CPORT;
 	req.hdr.i2s_port = cpu_to_le16(i2s_port);
 	req.cport = cpu_to_le16(cportid);
+	req.direction = direction;
 
 	return gb_hd_output(connection->hd, &req, sizeof(req),
 			    GB_APB_REQUEST_AUDIO_CONTROL, true);

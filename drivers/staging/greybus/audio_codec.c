@@ -60,7 +60,8 @@ static int gbcodec_startup(struct snd_pcm_substream *substream,
 	i2s_port = 0;	/* fixed for now */
 	cportid = gb_dai->connection->hd_cport_id;
 	ret = gb_audio_apbridgea_register_cport(gb_dai->connection, i2s_port,
-						cportid);
+						cportid,
+						AUDIO_APBRIDGEA_DIRECTION_TX);
 	dev_dbg(dai->dev, "Register %s:%d DAI, ret:%d\n", dai->name, cportid,
 		ret);
 
@@ -117,7 +118,8 @@ static void gbcodec_shutdown(struct snd_pcm_substream *substream,
 	/* un register cport */
 	i2s_port = 0;	/* fixed for now */
 	ret = gb_audio_apbridgea_unregister_cport(gb_dai->connection, i2s_port,
-					gb_dai->connection->hd_cport_id);
+					gb_dai->connection->hd_cport_id,
+					AUDIO_APBRIDGEA_DIRECTION_TX);
 
 	dev_dbg(dai->dev, "Unregister %s:%d DAI, ret:%d\n", dai->name,
 		gb_dai->connection->hd_cport_id, ret);
@@ -495,7 +497,8 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 					 ret);
 			cportid = connection->hd_cport_id;
 			ret = gb_audio_apbridgea_unregister_cport(connection, 0,
-								  cportid);
+						cportid,
+						AUDIO_APBRIDGEA_DIRECTION_TX);
 			if (ret)
 				dev_info(dev, "%d:Failed during unregister cport\n",
 					 ret);
