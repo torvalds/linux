@@ -42,7 +42,7 @@ static int mpl115_i2c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	return mpl115_probe(&client->dev, id->name, &mpl115_i2c_ops);
 }

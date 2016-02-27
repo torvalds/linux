@@ -339,7 +339,7 @@ static int mcp3422_probe(struct i2c_client *client,
 	u8 config;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!indio_dev)
