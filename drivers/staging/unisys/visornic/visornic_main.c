@@ -59,8 +59,6 @@ static const struct file_operations debugfs_enable_ints_fops = {
 	.write = enable_ints_write,
 };
 
-static struct workqueue_struct *visornic_timeout_reset_workqueue;
-
 /* GUIDS for director channel type supported by this driver.  */
 static struct visor_channeltype_descriptor visornic_channel_types[] = {
 	/* Note that the only channel type we expect to be reported by the
@@ -1070,7 +1068,7 @@ visornic_xmit_timeout(struct net_device *netdev)
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		return;
 	}
-	queue_work(visornic_timeout_reset_workqueue, &devdata->timeout_reset);
+	schedule_work(&devdata->timeout_reset);
 	spin_unlock_irqrestore(&devdata->priv_lock, flags);
 }
 
@@ -1998,7 +1996,7 @@ static void visornic_remove(struct visor_device *dev)
 	}
 
 	/* going_away prevents new items being added to the workqueues */
-	flush_workqueue(visornic_timeout_reset_workqueue);
+	cancel_work_sync(&devdata->timeout_reset);
 
 	debugfs_remove_recursive(devdata->eth_debugfs_dir);
 
@@ -2117,21 +2115,10 @@ static int visornic_init(void)
 	if (!ret)
 		goto cleanup_debugfs;
 
-	/* create workqueue for tx timeout reset */
-	visornic_timeout_reset_workqueue =
-		create_singlethread_workqueue("visornic_timeout_reset");
-	if (!visornic_timeout_reset_workqueue)
-		goto cleanup_workqueue;
-
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (!err)
 		return 0;
 
-cleanup_workqueue:
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 cleanup_debugfs:
 	debugfs_remove_recursive(visornic_debugfs_dir);
 
@@ -2147,10 +2134,6 @@ static void visornic_cleanup(void)
 {
 	visorbus_unregister_visor_driver(&visornic_driver);
 
-	if (visornic_timeout_reset_workqueue) {
-		flush_workqueue(visornic_timeout_reset_workqueue);
-		destroy_workqueue(visornic_timeout_reset_workqueue);
-	}
 	debugfs_remove_recursive(visornic_debugfs_dir);
 }
 
