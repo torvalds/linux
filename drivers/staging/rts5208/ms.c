@@ -2457,10 +2457,8 @@ static int ms_init_l2p_tbl(struct rtsx_chip *chip)
 	return STATUS_SUCCESS;
 
 INIT_FAIL:
-	if (ms_card->segment) {
-		vfree(ms_card->segment);
-		ms_card->segment = NULL;
-	}
+	vfree(ms_card->segment);
+	ms_card->segment = NULL;
 
 	return STATUS_FAIL;
 }
@@ -2803,14 +2801,10 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 BUILD_FAIL:
 	segment->build_flag = 0;
-	if (segment->l2p_table) {
-		vfree(segment->l2p_table);
-		segment->l2p_table = NULL;
-	}
-	if (segment->free_table) {
-		vfree(segment->free_table);
-		segment->free_table = NULL;
-	}
+	vfree(segment->l2p_table);
+	segment->l2p_table = NULL;
+	vfree(segment->free_table);
+	segment->free_table = NULL;
 
 	return STATUS_FAIL;
 }
@@ -4096,14 +4090,10 @@ void ms_free_l2p_tbl(struct rtsx_chip *chip)
 
 	if (ms_card->segment != NULL) {
 		for (i = 0; i < ms_card->segment_cnt; i++) {
-			if (ms_card->segment[i].l2p_table != NULL) {
-				vfree(ms_card->segment[i].l2p_table);
-				ms_card->segment[i].l2p_table = NULL;
-			}
-			if (ms_card->segment[i].free_table != NULL) {
-				vfree(ms_card->segment[i].free_table);
-				ms_card->segment[i].free_table = NULL;
-			}
+			vfree(ms_card->segment[i].l2p_table);
+			ms_card->segment[i].l2p_table = NULL;
+			vfree(ms_card->segment[i].free_table);
+			ms_card->segment[i].free_table = NULL;
 		}
 		vfree(ms_card->segment);
 		ms_card->segment = NULL;
