@@ -2207,7 +2207,7 @@ static int ptlrpc_hr_main(void *arg)
 {
 	struct ptlrpc_hr_thread	*hrt = arg;
 	struct ptlrpc_hr_partition *hrp = hrt->hrt_partition;
-	LIST_HEAD	(replies);
+	LIST_HEAD(replies);
 	char threadname[20];
 	int rc;
 
@@ -2306,7 +2306,7 @@ static void ptlrpc_svcpt_stop_threads(struct ptlrpc_service_part *svcpt)
 {
 	struct l_wait_info lwi = { 0 };
 	struct ptlrpc_thread *thread;
-	LIST_HEAD	(zombie);
+	LIST_HEAD(zombie);
 
 	CDEBUG(D_INFO, "Stopping threads for service %s\n",
 	       svcpt->scp_service->srv_name);
