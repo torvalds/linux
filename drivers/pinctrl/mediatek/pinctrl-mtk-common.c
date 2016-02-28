@@ -1395,17 +1395,16 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pctl->pctl_desc.pmxops = &mtk_pmx_ops;
 	pctl->dev = &pdev->dev;
 
-	pctl->pctl_dev = pinctrl_register(&pctl->pctl_desc, &pdev->dev, pctl);
+	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, &pctl->pctl_desc,
+					       pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
 		return PTR_ERR(pctl->pctl_dev);
 	}
 
 	pctl->chip = devm_kzalloc(&pdev->dev, sizeof(*pctl->chip), GFP_KERNEL);
-	if (!pctl->chip) {
-		ret = -ENOMEM;
-		goto pctrl_error;
-	}
+	if (!pctl->chip)
+		return -ENOMEM;
 
 	*pctl->chip = mtk_gpio_chip;
 	pctl->chip->ngpio = pctl->devdata->npins;
@@ -1414,10 +1413,8 @@ int mtk_pctrl_init(struct platform_device *pdev,
 	pctl->chip->base = -1;
 
 	ret = gpiochip_add_data(pctl->chip, pctl);
-	if (ret) {
-		ret = -EINVAL;
-		goto pctrl_error;
-	}
+	if (ret)
+		return -EINVAL;
 
 	/* Register the GPIO to pin mappings. */
 	ret = gpiochip_add_pin_range(pctl->chip, dev_name(&pdev->dev),
@@ -1495,8 +1492,6 @@ int mtk_pctrl_init(struct platform_device *pdev,
 
 chip_error:
 	gpiochip_remove(pctl->chip);
-pctrl_error:
-	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
 }
 
