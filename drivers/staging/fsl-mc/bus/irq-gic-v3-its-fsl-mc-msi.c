@@ -118,8 +118,6 @@ void its_fsl_mc_msi_cleanup(void)
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		mc_msi_domain = irq_find_matching_host(np,
-						       DOMAIN_BUS_FSL_MC_MSI);
 		if (mc_msi_domain &&
 		    mc_msi_domain->host_data == &its_fsl_mc_msi_domain_info)
 			irq_domain_remove(mc_msi_domain);
