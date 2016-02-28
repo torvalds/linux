@@ -85,7 +85,8 @@ It contains following fields:
   If set, the infrastructure will send heartbeats to the watchdog driver
   if 'timeout' is larger than max_hw_heartbeat_ms, unless WDOG_ACTIVE
   is set and userspace failed to send a heartbeat for at least 'timeout'
-  seconds.
+  seconds. max_hw_heartbeat_ms must be set if a driver does not implement
+  the stop function.
 * reboot_nb: notifier block that is registered for reboot notifications, for
   internal use only. If the driver calls watchdog_stop_on_reboot, watchdog core
   will stop the watchdog on such notifications.
@@ -134,17 +135,20 @@ are:
   device.
   The routine needs a pointer to the watchdog timer device structure as a
   parameter. It returns zero on success or a negative errno code for failure.
-* stop: with this routine the watchdog timer device is being stopped.
-  The routine needs a pointer to the watchdog timer device structure as a
-  parameter. It returns zero on success or a negative errno code for failure.
-  Some watchdog timer hardware can only be started and not be stopped.
-  If a watchdog can not be stopped, the watchdog driver must set the
-  WDOG_HW_RUNNING flag in its stop function to inform the watchdog core that
-  the watchdog is still running.
 
 Not all watchdog timer hardware supports the same functionality. That's why
 all other routines/operations are optional. They only need to be provided if
 they are supported. These optional routines/operations are:
+* stop: with this routine the watchdog timer device is being stopped.
+  The routine needs a pointer to the watchdog timer device structure as a
+  parameter. It returns zero on success or a negative errno code for failure.
+  Some watchdog timer hardware can only be started and not be stopped. A
+  driver supporting such hardware does not have to implement the stop routine.
+  If a driver has no stop function, the watchdog core will set WDOG_HW_RUNNING
+  and start calling the driver's keepalive pings function after the watchdog
+  device is closed.
+  If a watchdog driver does not implement the stop function, it must set
+  max_hw_heartbeat_ms.
 * ping: this is the routine that sends a keepalive ping to the watchdog timer
   hardware.
   The routine needs a pointer to the watchdog timer device structure as a
