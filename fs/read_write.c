@@ -1533,9 +1533,11 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
-	    (file_out->f_flags & O_APPEND) ||
-	    !file_in->f_op->clone_file_range)
+	    (file_out->f_flags & O_APPEND))
 		return -EBADF;
+
+	if (!file_in->f_op->clone_file_range)
+		return -EOPNOTSUPP;
 
 	ret = clone_verify_area(file_in, pos_in, len, false);
 	if (ret)
