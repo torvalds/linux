@@ -113,7 +113,7 @@ kiblnd_get_idle_tx(lnet_ni_t *ni, lnet_nid_t target)
 	node = kiblnd_pool_alloc_node(&tps->tps_poolset);
 	if (!node)
 		return NULL;
-	tx = container_of(node, kib_tx_t, tx_list);
+	tx = list_entry(node, kib_tx_t, tx_list);
 
 	LASSERT(!tx->tx_nwrq);
 	LASSERT(!tx->tx_queued);
