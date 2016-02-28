@@ -446,6 +446,12 @@ struct qed_eth_stats {
 #define RX_PI           0
 #define TX_PI(tc)       (RX_PI + 1 + tc)
 
+struct qed_sb_cnt_info {
+	int	sb_cnt;
+	int	sb_iov_cnt;
+	int	sb_free_blk;
+};
+
 static inline u16 qed_sb_update_sb_idx(struct qed_sb_info *sb_info)
 {
 	u32 prod = 0;

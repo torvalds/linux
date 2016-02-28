@@ -634,15 +634,18 @@ static int qed_get_int_fp(struct qed_dev *cdev, struct qed_int_info *info)
 static int qed_slowpath_setup_int(struct qed_dev *cdev,
 				  enum qed_int_mode int_mode)
 {
-	int rc, i;
-	u8 num_vectors = 0;
-
+	struct qed_sb_cnt_info sb_cnt_info;
+	int rc;
+	int i;
 	memset(&cdev->int_params, 0, sizeof(struct qed_int_params));
 
 	cdev->int_params.in.int_mode = int_mode;
-	for_each_hwfn(cdev, i)
-		num_vectors +=  qed_int_get_num_sbs(&cdev->hwfns[i], NULL) + 1;
-	cdev->int_params.in.num_vectors = num_vectors;
+	for_each_hwfn(cdev, i) {
+		memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+		qed_int_get_num_sbs(&cdev->hwfns[i], &sb_cnt_info);
+		cdev->int_params.in.num_vectors += sb_cnt_info.sb_cnt;
+		cdev->int_params.in.num_vectors++; /* slowpath */
+	}
 
 	/* We want a minimum of one slowpath and one fastpath vector per hwfn */
 	cdev->int_params.in.min_msix_cnt = cdev->num_hwfns * 2;

@@ -343,17 +343,17 @@ void qed_int_sp_dpc(unsigned long hwfn_cookie)
 
 static void qed_int_sb_attn_free(struct qed_hwfn *p_hwfn)
 {
-	struct qed_dev *cdev   = p_hwfn->cdev;
-	struct qed_sb_attn_info *p_sb   = p_hwfn->p_sb_attn;
+	struct qed_sb_attn_info *p_sb = p_hwfn->p_sb_attn;
 
-	if (p_sb) {
-		if (p_sb->sb_attn)
-			dma_free_coherent(&cdev->pdev->dev,
-					  SB_ATTN_ALIGNED_SIZE(p_hwfn),
-					  p_sb->sb_attn,
-					  p_sb->sb_phys);
-		kfree(p_sb);
-	}
+	if (!p_sb)
+		return;
+
+	if (p_sb->sb_attn)
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  SB_ATTN_ALIGNED_SIZE(p_hwfn),
+				  p_sb->sb_attn,
+				  p_sb->sb_phys);
+	kfree(p_sb);
 }
 
 static void qed_int_sb_attn_setup(struct qed_hwfn *p_hwfn,
@@ -433,6 +433,7 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 			   u16 vf_number,
 			   u8 vf_valid)
 {
+	struct qed_dev *cdev = p_hwfn->cdev;
 	u32 cau_state;
 
 	memset(p_sb_entry, 0, sizeof(*p_sb_entry));
@@ -451,14 +452,12 @@ void qed_init_cau_sb_entry(struct qed_hwfn *p_hwfn,
 
 	cau_state = CAU_HC_DISABLE_STATE;
 
-	if (p_hwfn->cdev->int_coalescing_mode == QED_COAL_MODE_ENABLE) {
+	if (cdev->int_coalescing_mode == QED_COAL_MODE_ENABLE) {
 		cau_state = CAU_HC_ENABLE_STATE;
-		if (!p_hwfn->cdev->rx_coalesce_usecs)
-			p_hwfn->cdev->rx_coalesce_usecs =
-				QED_CAU_DEF_RX_USECS;
-		if (!p_hwfn->cdev->tx_coalesce_usecs)
-			p_hwfn->cdev->tx_coalesce_usecs =
-				QED_CAU_DEF_TX_USECS;
+		if (!cdev->rx_coalesce_usecs)
+			cdev->rx_coalesce_usecs = QED_CAU_DEF_RX_USECS;
+		if (!cdev->tx_coalesce_usecs)
+			cdev->tx_coalesce_usecs = QED_CAU_DEF_TX_USECS;
 	}
 
 	SET_FIELD(p_sb_entry->data, CAU_SB_ENTRY_STATE0, cau_state);
@@ -638,8 +637,10 @@ int qed_int_sb_release(struct qed_hwfn *p_hwfn,
 	sb_info->sb_ack = 0;
 	memset(sb_info->sb_virt, 0, sizeof(*sb_info->sb_virt));
 
-	p_hwfn->sbs_info[sb_id] = NULL;
-	p_hwfn->num_sbs--;
+	if (p_hwfn->sbs_info[sb_id] != NULL) {
+		p_hwfn->sbs_info[sb_id] = NULL;
+		p_hwfn->num_sbs--;
+	}
 
 	return 0;
 }
@@ -648,14 +649,15 @@ static void qed_int_sp_sb_free(struct qed_hwfn *p_hwfn)
 {
 	struct qed_sb_sp_info *p_sb = p_hwfn->p_sp_sb;
 
-	if (p_sb) {
-		if (p_sb->sb_info.sb_virt)
-			dma_free_coherent(&p_hwfn->cdev->pdev->dev,
-					  SB_ALIGNED_SIZE(p_hwfn),
-					  p_sb->sb_info.sb_virt,
-					  p_sb->sb_info.sb_phys);
-		kfree(p_sb);
-	}
+	if (!p_sb)
+		return;
+
+	if (p_sb->sb_info.sb_virt)
+		dma_free_coherent(&p_hwfn->cdev->pdev->dev,
+				  SB_ALIGNED_SIZE(p_hwfn),
+				  p_sb->sb_info.sb_virt,
+				  p_sb->sb_info.sb_phys);
+	kfree(p_sb);
 }
 
 static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn,
@@ -718,36 +720,36 @@ int qed_int_register_cb(struct qed_hwfn *p_hwfn,
 			__le16 **p_fw_cons)
 {
 	struct qed_sb_sp_info *p_sp_sb = p_hwfn->p_sp_sb;
-	int qed_status = -ENOMEM;
+	int rc = -ENOMEM;
 	u8 pi;
 
 	/* Look for a free index */
 	for (pi = 0; pi < ARRAY_SIZE(p_sp_sb->pi_info_arr); pi++) {
-		if (!p_sp_sb->pi_info_arr[pi].comp_cb) {
-			p_sp_sb->pi_info_arr[pi].comp_cb = comp_cb;
-			p_sp_sb->pi_info_arr[pi].cookie = cookie;
-			*sb_idx = pi;
-			*p_fw_cons = &p_sp_sb->sb_info.sb_virt->pi_array[pi];
-			qed_status = 0;
-			break;
-		}
+		if (p_sp_sb->pi_info_arr[pi].comp_cb)
+			continue;
+
+		p_sp_sb->pi_info_arr[pi].comp_cb = comp_cb;
+		p_sp_sb->pi_info_arr[pi].cookie = cookie;
+		*sb_idx = pi;
+		*p_fw_cons = &p_sp_sb->sb_info.sb_virt->pi_array[pi];
+		rc = 0;
+		break;
 	}
 
-	return qed_status;
+	return rc;
 }
 
 int qed_int_unregister_cb(struct qed_hwfn *p_hwfn, u8 pi)
 {
 	struct qed_sb_sp_info *p_sp_sb = p_hwfn->p_sp_sb;
-	int qed_status = -ENOMEM;
 
-	if (p_sp_sb->pi_info_arr[pi].comp_cb) {
-		p_sp_sb->pi_info_arr[pi].comp_cb = NULL;
-		p_sp_sb->pi_info_arr[pi].cookie = NULL;
-		qed_status = 0;
-	}
+	if (p_sp_sb->pi_info_arr[pi].comp_cb == NULL)
+		return -ENOMEM;
 
-	return qed_status;
+	p_sp_sb->pi_info_arr[pi].comp_cb = NULL;
+	p_sp_sb->pi_info_arr[pi].cookie = NULL;
+
+	return 0;
 }
 
 u16 qed_int_get_sp_sb_id(struct qed_hwfn *p_hwfn)
@@ -937,6 +939,39 @@ void qed_int_igu_init_pure_rt(struct qed_hwfn *p_hwfn,
 	}
 }
 
+static u32 qed_int_igu_read_cam_block(struct qed_hwfn	*p_hwfn,
+				      struct qed_ptt	*p_ptt,
+				      u16		sb_id)
+{
+	u32 val = qed_rd(p_hwfn, p_ptt,
+			 IGU_REG_MAPPING_MEMORY +
+			 sizeof(u32) * sb_id);
+	struct qed_igu_block *p_block;
+
+	p_block = &p_hwfn->hw_info.p_igu_info->igu_map.igu_blocks[sb_id];
+
+	/* stop scanning when hit first invalid PF entry */
+	if (!GET_FIELD(val, IGU_MAPPING_LINE_VALID) &&
+	    GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID))
+		goto out;
+
+	/* Fill the block information */
+	p_block->status		= QED_IGU_STATUS_VALID;
+	p_block->function_id	= GET_FIELD(val,
+					    IGU_MAPPING_LINE_FUNCTION_NUMBER);
+	p_block->is_pf		= GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID);
+	p_block->vector_number	= GET_FIELD(val,
+					    IGU_MAPPING_LINE_VECTOR_NUMBER);
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
+		   "IGU_BLOCK: [SB 0x%04x, Value in CAM 0x%08x] func_id = %d is_pf = %d vector_num = 0x%x\n",
+		   sb_id, val, p_block->function_id,
+		   p_block->is_pf, p_block->vector_number);
+
+out:
+	return val;
+}
+
 int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt)
 {
@@ -963,25 +998,12 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn,
 	     sb_id++) {
 		blk = &p_igu_info->igu_map.igu_blocks[sb_id];
 
-		val = qed_rd(p_hwfn, p_ptt,
-			     IGU_REG_MAPPING_MEMORY + sizeof(u32) * sb_id);
+		val	= qed_int_igu_read_cam_block(p_hwfn, p_ptt, sb_id);
 
 		/* stop scanning when hit first invalid PF entry */
 		if (!GET_FIELD(val, IGU_MAPPING_LINE_VALID) &&
 		    GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID))
 			break;
-
-		blk->status = QED_IGU_STATUS_VALID;
-		blk->function_id = GET_FIELD(val,
-					     IGU_MAPPING_LINE_FUNCTION_NUMBER);
-		blk->is_pf = GET_FIELD(val, IGU_MAPPING_LINE_PF_VALID);
-		blk->vector_number = GET_FIELD(val,
-					       IGU_MAPPING_LINE_VECTOR_NUMBER);
-
-		DP_VERBOSE(p_hwfn, NETIF_MSG_INTR,
-			   "IGU_BLOCK[sb_id]:%x:func_id = %d is_pf = %d vector_num = 0x%x\n",
-			   val, blk->function_id, blk->is_pf,
-			   blk->vector_number);
 
 		if (blk->is_pf) {
 			if (blk->function_id == p_hwfn->rel_pf_id) {
@@ -1121,18 +1143,17 @@ void qed_int_setup(struct qed_hwfn *p_hwfn,
 	qed_int_sp_dpc_setup(p_hwfn);
 }
 
-int qed_int_get_num_sbs(struct qed_hwfn *p_hwfn,
-			int *p_iov_blks)
+void qed_int_get_num_sbs(struct qed_hwfn	*p_hwfn,
+			 struct qed_sb_cnt_info *p_sb_cnt_info)
 {
 	struct qed_igu_info *info = p_hwfn->hw_info.p_igu_info;
 
-	if (!info)
-		return 0;
+	if (!info || !p_sb_cnt_info)
+		return;
 
-	if (p_iov_blks)
-		*p_iov_blks = info->free_blks;
-
-	return info->igu_sb_cnt;
+	p_sb_cnt_info->sb_cnt		= info->igu_sb_cnt;
+	p_sb_cnt_info->sb_iov_cnt	= info->igu_sb_cnt_iov;
+	p_sb_cnt_info->sb_free_blk	= info->free_blks;
 }
 
 void qed_int_disable_post_isr_release(struct qed_dev *cdev)
