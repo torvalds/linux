@@ -1768,11 +1768,8 @@ static int echo_client_setup(const struct lu_env *env,
 	ec->ec_unique = 0;
 
 	ocd = kzalloc(sizeof(*ocd), GFP_NOFS);
-	if (!ocd) {
-		CERROR("Can't alloc ocd connecting to %s\n",
-		       lustre_cfg_string(lcfg, 1));
+	if (!ocd)
 		return -ENOMEM;
-	}
 
 	ocd->ocd_connect_flags = OBD_CONNECT_VERSION | OBD_CONNECT_REQPORTAL |
 				 OBD_CONNECT_BRW_SIZE |

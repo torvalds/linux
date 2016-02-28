@@ -365,10 +365,8 @@ int llog_process_or_fork(const struct lu_env *env,
 	int		      rc;
 
 	lpi = kzalloc(sizeof(*lpi), GFP_NOFS);
-	if (!lpi) {
-		CERROR("cannot alloc pointer\n");
+	if (!lpi)
 		return -ENOMEM;
-	}
 	lpi->lpi_loghandle = loghandle;
 	lpi->lpi_cb	= cb;
 	lpi->lpi_cbdata    = data;

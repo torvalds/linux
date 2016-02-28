@@ -251,10 +251,8 @@ static int cfs_crypto_test_hashes(void)
 	unsigned int	    data_len = 1 * 128 * 1024;
 
 	data = kmalloc(data_len, 0);
-	if (!data) {
-		CERROR("Failed to allocate mem\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	for (j = 0; j < data_len; j++)
 		data[j] = j & 0xff;
