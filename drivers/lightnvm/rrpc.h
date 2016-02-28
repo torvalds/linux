@@ -54,7 +54,9 @@ struct rrpc_rq {
 
 struct rrpc_block {
 	struct nvm_block *parent;
+	struct rrpc_lun *rlun;
 	struct list_head prio;
+	struct list_head list;
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -73,7 +75,16 @@ struct rrpc_lun {
 	struct nvm_lun *parent;
 	struct rrpc_block *cur, *gc_cur;
 	struct rrpc_block *blocks;	/* Reference to block allocation */
-	struct list_head prio_list;		/* Blocks that may be GC'ed */
+
+	struct list_head prio_list;	/* Blocks that may be GC'ed */
+	struct list_head open_list;	/* In-use open blocks. These are blocks
+					 * that can be both written to and read
+					 * from
+					 */
+	struct list_head closed_list;	/* In-use closed blocks. These are
+					 * blocks that can _only_ be read from
+					 */
+
 	struct work_struct ws_gc;
 
 	spinlock_t lock;
@@ -163,8 +174,7 @@ static inline sector_t rrpc_get_sector(sector_t laddr)
 static inline int request_intersects(struct rrpc_inflight_rq *r,
 				sector_t laddr_start, sector_t laddr_end)
 {
-	return (laddr_end >= r->l_start && laddr_end <= r->l_end) &&
-		(laddr_start >= r->l_start && laddr_start <= r->l_end);
+	return (laddr_end >= r->l_start) && (laddr_start <= r->l_end);
 }
 
 static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
@@ -172,6 +182,8 @@ static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 {
 	sector_t laddr_end = laddr + pages - 1;
 	struct rrpc_inflight_rq *rtmp;
+
+	WARN_ON(irqs_disabled());
 
 	spin_lock_irq(&rrpc->inflights.lock);
 	list_for_each_entry(rtmp, &rrpc->inflights.reqs, list) {

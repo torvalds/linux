@@ -4,7 +4,7 @@ ifdef CROSS_COMPILE
 fixdep:
 else
 fixdep:
-	$(Q)$(MAKE) -C $(srctree)/tools/build fixdep
+	$(Q)$(MAKE) -C $(srctree)/tools/build CFLAGS= LDFLAGS= $(OUTPUT)fixdep
 endif
 
 .PHONY: fixdep

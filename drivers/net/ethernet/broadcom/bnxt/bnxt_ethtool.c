@@ -211,7 +211,10 @@ static void bnxt_get_channels(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int max_rx_rings, max_tx_rings, tcs;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
+	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, true);
+	channel->max_combined = max_rx_rings;
+
+	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, false);
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
@@ -219,9 +222,12 @@ static void bnxt_get_channels(struct net_device *dev,
 	channel->max_rx = max_rx_rings;
 	channel->max_tx = max_tx_rings;
 	channel->max_other = 0;
-	channel->max_combined = 0;
-	channel->rx_count = bp->rx_nr_rings;
-	channel->tx_count = bp->tx_nr_rings_per_tc;
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS) {
+		channel->combined_count = bp->rx_nr_rings;
+	} else {
+		channel->rx_count = bp->rx_nr_rings;
+		channel->tx_count = bp->tx_nr_rings_per_tc;
+	}
 }
 
 static int bnxt_set_channels(struct net_device *dev,
@@ -230,19 +236,35 @@ static int bnxt_set_channels(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int max_rx_rings, max_tx_rings, tcs;
 	u32 rc = 0;
+	bool sh = false;
 
-	if (channel->other_count || channel->combined_count ||
-	    !channel->rx_count || !channel->tx_count)
+	if (channel->other_count)
 		return -EINVAL;
 
-	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings);
+	if (!channel->combined_count &&
+	    (!channel->rx_count || !channel->tx_count))
+		return -EINVAL;
+
+	if (channel->combined_count &&
+	    (channel->rx_count || channel->tx_count))
+		return -EINVAL;
+
+	if (channel->combined_count)
+		sh = true;
+
+	bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
+
 	tcs = netdev_get_num_tc(dev);
 	if (tcs > 1)
 		max_tx_rings /= tcs;
 
-	if (channel->rx_count > max_rx_rings ||
-	    channel->tx_count > max_tx_rings)
-		return -EINVAL;
+	if (sh && (channel->combined_count > max_rx_rings ||
+		   channel->combined_count > max_tx_rings))
+		return -ENOMEM;
+
+	if (!sh && (channel->rx_count > max_rx_rings ||
+		    channel->tx_count > max_tx_rings))
+		return -ENOMEM;
 
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
@@ -258,14 +280,27 @@ static int bnxt_set_channels(struct net_device *dev,
 		}
 	}
 
-	bp->rx_nr_rings = channel->rx_count;
-	bp->tx_nr_rings_per_tc = channel->tx_count;
+	if (sh) {
+		bp->flags |= BNXT_FLAG_SHARED_RINGS;
+		bp->rx_nr_rings = channel->combined_count;
+		bp->tx_nr_rings_per_tc = channel->combined_count;
+	} else {
+		bp->flags &= ~BNXT_FLAG_SHARED_RINGS;
+		bp->rx_nr_rings = channel->rx_count;
+		bp->tx_nr_rings_per_tc = channel->tx_count;
+	}
+
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 	if (tcs > 1)
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+
+	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
+			       bp->tx_nr_rings + bp->rx_nr_rings;
+
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
+	/* After changing number of rx channels, update NTUPLE feature. */
+	netdev_update_features(dev);
 	if (netif_running(dev)) {
 		rc = bnxt_open_nic(bp, true, false);
 		if ((!rc) && BNXT_PF(bp)) {
@@ -451,15 +486,8 @@ static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
 		speed_mask |= SUPPORTED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= SUPPORTED_10000baseT_Full;
-	/* TODO: support 25GB, 50GB with different cable type */
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= SUPPORTED_20000baseMLD2_Full |
-			SUPPORTED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= SUPPORTED_40000baseKR4_Full |
-			SUPPORTED_40000baseCR4_Full |
-			SUPPORTED_40000baseSR4_Full |
-			SUPPORTED_40000baseLR4_Full;
+		speed_mask |= SUPPORTED_40000baseCR4_Full;
 
 	return speed_mask;
 }
@@ -479,15 +507,8 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 		speed_mask |= ADVERTISED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= ADVERTISED_10000baseT_Full;
-	/* TODO: how to advertise 20, 25, 40, 50GB with different cable type ?*/
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= ADVERTISED_20000baseMLD2_Full |
-			      ADVERTISED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= ADVERTISED_40000baseKR4_Full |
-			      ADVERTISED_40000baseCR4_Full |
-			      ADVERTISED_40000baseSR4_Full |
-			      ADVERTISED_40000baseLR4_Full;
+		speed_mask |= ADVERTISED_40000baseCR4_Full;
 	return speed_mask;
 }
 
@@ -522,11 +543,12 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	u16 ethtool_speed;
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
+	cmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (link_info->auto_link_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
 
-	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+	if (link_info->autoneg) {
 		cmd->advertising =
 			bnxt_fw_to_ethtool_advertised_spds(link_info);
 		cmd->advertising |= ADVERTISED_Autoneg;
@@ -535,27 +557,15 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
 	}
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) {
 		if ((link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
 		    BNXT_LINK_PAUSE_BOTH) {
 			cmd->advertising |= ADVERTISED_Pause;
-			cmd->supported |= SUPPORTED_Pause;
 		} else {
 			cmd->advertising |= ADVERTISED_Asym_Pause;
-			cmd->supported |= SUPPORTED_Asym_Pause;
 			if (link_info->auto_pause_setting &
 			    BNXT_LINK_PAUSE_RX)
 				cmd->advertising |= ADVERTISED_Pause;
-		}
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if ((link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
-		    BNXT_LINK_PAUSE_BOTH) {
-			cmd->supported |= SUPPORTED_Pause;
-		} else {
-			cmd->supported |= SUPPORTED_Asym_Pause;
-			if (link_info->force_pause_setting &
-			    BNXT_LINK_PAUSE_RX)
-				cmd->supported |= SUPPORTED_Pause;
 		}
 	}
 
@@ -635,6 +645,9 @@ static u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
 	if (advertising & ADVERTISED_10000baseT_Full)
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_10GB;
 
+	if (advertising & ADVERTISED_40000baseCR4_Full)
+		fw_speed_mask |= BNXT_LINK_SPEED_MSK_40GB;
+
 	return fw_speed_mask;
 }
 
@@ -694,7 +707,7 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		speed = ethtool_cmd_speed(cmd);
 		link_info->req_link_speed = bnxt_get_fw_speed(dev, speed);
 		link_info->req_duplex = BNXT_LINK_DUPLEX_FULL;
-		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->autoneg = 0;
 		link_info->advertising = 0;
 	}
 
@@ -713,8 +726,7 @@ static void bnxt_get_pauseparam(struct net_device *dev,
 
 	if (BNXT_VF(bp))
 		return;
-	epause->autoneg = !!(link_info->auto_pause_setting &
-			     BNXT_LINK_PAUSE_BOTH);
+	epause->autoneg = !!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL);
 	epause->rx_pause = ((link_info->pause & BNXT_LINK_PAUSE_RX) != 0);
 	epause->tx_pause = ((link_info->pause & BNXT_LINK_PAUSE_TX) != 0);
 }
@@ -730,6 +742,9 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 		return rc;
 
 	if (epause->autoneg) {
+		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
+			return -EINVAL;
+
 		link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_BOTH;
 	} else {
@@ -802,6 +817,45 @@ static int bnxt_flash_nvram(struct net_device *dev,
 	return rc;
 }
 
+static int bnxt_firmware_reset(struct net_device *dev,
+			       u16 dir_type)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct hwrm_fw_reset_input req = {0};
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_RESET, -1, -1);
+
+	/* TODO: Support ASAP ChiMP self-reset (e.g. upon PF driver unload) */
+	/* TODO: Address self-reset of APE/KONG/BONO/TANG or ungraceful reset */
+	/*       (e.g. when firmware isn't already running) */
+	switch (dir_type) {
+	case BNX_DIR_TYPE_CHIMP_PATCH:
+	case BNX_DIR_TYPE_BOOTCODE:
+	case BNX_DIR_TYPE_BOOTCODE_2:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_BOOT;
+		/* Self-reset ChiMP upon next PCIe reset: */
+		req.selfrst_status = FW_RESET_REQ_SELFRST_STATUS_SELFRSTPCIERST;
+		break;
+	case BNX_DIR_TYPE_APE_FW:
+	case BNX_DIR_TYPE_APE_PATCH:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_MGMT;
+		break;
+	case BNX_DIR_TYPE_KONG_FW:
+	case BNX_DIR_TYPE_KONG_PATCH:
+		req.embedded_proc_type =
+			FW_RESET_REQ_EMBEDDED_PROC_TYPE_NETCTRL;
+		break;
+	case BNX_DIR_TYPE_BONO_FW:
+	case BNX_DIR_TYPE_BONO_PATCH:
+		req.embedded_proc_type = FW_RESET_REQ_EMBEDDED_PROC_TYPE_ROCE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+}
+
 static int bnxt_flash_firmware(struct net_device *dev,
 			       u16 dir_type,
 			       const u8 *fw_data,
@@ -817,6 +871,9 @@ static int bnxt_flash_firmware(struct net_device *dev,
 	case BNX_DIR_TYPE_BOOTCODE:
 	case BNX_DIR_TYPE_BOOTCODE_2:
 		code_type = CODE_BOOT;
+		break;
+	case BNX_DIR_TYPE_APE_FW:
+		code_type = CODE_MCTP_PASSTHRU;
 		break;
 	default:
 		netdev_err(dev, "Unsupported directory entry type: %u\n",
@@ -856,10 +913,9 @@ static int bnxt_flash_firmware(struct net_device *dev,
 	/* TODO: Validate digital signature (RSA-encrypted SHA-256 hash) here */
 	rc = bnxt_flash_nvram(dev, dir_type, BNX_DIR_ORDINAL_FIRST,
 			      0, 0, fw_data, fw_size);
-	if (rc == 0) {	/* Firmware update successful */
-		/* TODO: Notify processor it needs to reset itself
-		 */
-	}
+	if (rc == 0)	/* Firmware update successful */
+		rc = bnxt_firmware_reset(dev, dir_type);
+
 	return rc;
 }
 

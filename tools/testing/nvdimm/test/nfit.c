@@ -217,13 +217,16 @@ static int nfit_test_cmd_set_config_data(struct nd_cmd_set_config_hdr *nd_cmd,
 	return rc;
 }
 
+#define NFIT_TEST_ARS_RECORDS 4
+
 static int nfit_test_cmd_ars_cap(struct nd_cmd_ars_cap *nd_cmd,
 		unsigned int buf_len)
 {
 	if (buf_len < sizeof(*nd_cmd))
 		return -EINVAL;
 
-	nd_cmd->max_ars_out = 256;
+	nd_cmd->max_ars_out = sizeof(struct nd_cmd_ars_status)
+		+ NFIT_TEST_ARS_RECORDS * sizeof(struct nd_ars_record);
 	nd_cmd->status = (ND_ARS_PERSISTENT | ND_ARS_VOLATILE) << 16;
 
 	return 0;
@@ -246,8 +249,11 @@ static int nfit_test_cmd_ars_status(struct nd_cmd_ars_status *nd_cmd,
 	if (buf_len < sizeof(*nd_cmd))
 		return -EINVAL;
 
-	nd_cmd->out_length = 256;
+	nd_cmd->out_length = sizeof(struct nd_cmd_ars_status);
+	/* TODO: emit error records */
 	nd_cmd->num_records = 0;
+	nd_cmd->address = 0;
+	nd_cmd->length = -1ULL;
 	nd_cmd->status = 0;
 
 	return 0;
@@ -1088,6 +1094,8 @@ static void nfit_test1_setup(struct nfit_test *t)
 	struct acpi_nfit_memory_map *memdev;
 	struct acpi_nfit_control_region *dcr;
 	struct acpi_nfit_system_address *spa;
+	struct nvdimm_bus_descriptor *nd_desc;
+	struct acpi_nfit_desc *acpi_desc;
 
 	offset = 0;
 	/* spa0 (flat range with no bdw aliasing) */
@@ -1135,6 +1143,13 @@ static void nfit_test1_setup(struct nfit_test *t)
 	dcr->command_size = 0;
 	dcr->status_offset = 0;
 	dcr->status_size = 0;
+
+	acpi_desc = &t->acpi_desc;
+	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
+	nd_desc = &acpi_desc->nd_desc;
+	nd_desc->ndctl = nfit_test_ctl;
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,

@@ -25,17 +25,13 @@
 #include "emac.h"
 
 #define DRV_NAME        "rockchip_emac"
-#define DRV_VERSION     "1.0"
-
-#define GRF_MODE_MII		(1UL << 0)
-#define GRF_MODE_RMII		(0UL << 0)
-#define GRF_SPEED_10M		(0UL << 1)
-#define GRF_SPEED_100M		(1UL << 1)
-#define GRF_SPEED_ENABLE_BIT	(1UL << 17)
-#define GRF_MODE_ENABLE_BIT	(1UL << 16)
+#define DRV_VERSION     "1.1"
 
 struct emac_rockchip_soc_data {
-	int grf_offset;
+	unsigned int grf_offset;
+	unsigned int grf_mode_offset;
+	unsigned int grf_speed_offset;
+	bool need_div_macclk;
 };
 
 struct rockchip_priv_data {
@@ -44,23 +40,22 @@ struct rockchip_priv_data {
 	const struct emac_rockchip_soc_data *soc_data;
 	struct regulator *regulator;
 	struct clk *refclk;
+	struct clk *macclk;
 };
 
 static void emac_rockchip_set_mac_speed(void *priv, unsigned int speed)
 {
 	struct rockchip_priv_data *emac = priv;
+	u32 speed_offset = emac->soc_data->grf_speed_offset;
 	u32 data;
 	int err = 0;
 
-	/* write-enable bits */
-	data = GRF_SPEED_ENABLE_BIT;
-
 	switch(speed) {
 	case 10:
-		data |= GRF_SPEED_10M;
+		data = (1 << (speed_offset + 16)) | (0 << speed_offset);
 		break;
 	case 100:
-		data |= GRF_SPEED_100M;
+		data = (1 << (speed_offset + 16)) | (1 << speed_offset);
 		break;
 	default:
 		pr_err("speed %u not supported\n", speed);
@@ -72,14 +67,25 @@ static void emac_rockchip_set_mac_speed(void *priv, unsigned int speed)
 		pr_err("unable to apply speed %u to grf (%d)\n", speed, err);
 }
 
-static const struct emac_rockchip_soc_data emac_rockchip_dt_data[] = {
-	{ .grf_offset = 0x154 }, /* rk3066 */
-	{ .grf_offset = 0x0a4 }, /* rk3188 */
+static const struct emac_rockchip_soc_data emac_rk3036_emac_data = {
+	.grf_offset = 0x140,   .grf_mode_offset = 8,
+	.grf_speed_offset = 9, .need_div_macclk = 1,
+};
+
+static const struct emac_rockchip_soc_data emac_rk3066_emac_data = {
+	.grf_offset = 0x154,   .grf_mode_offset = 0,
+	.grf_speed_offset = 1, .need_div_macclk = 0,
+};
+
+static const struct emac_rockchip_soc_data emac_rk3188_emac_data = {
+	.grf_offset = 0x0a4,   .grf_mode_offset = 0,
+	.grf_speed_offset = 1, .need_div_macclk = 0,
 };
 
 static const struct of_device_id emac_rockchip_dt_ids[] = {
-	{ .compatible = "rockchip,rk3066-emac", .data = &emac_rockchip_dt_data[0] },
-	{ .compatible = "rockchip,rk3188-emac", .data = &emac_rockchip_dt_data[1] },
+	{ .compatible = "rockchip,rk3036-emac", .data = &emac_rk3036_emac_data },
+	{ .compatible = "rockchip,rk3066-emac", .data = &emac_rk3066_emac_data },
+	{ .compatible = "rockchip,rk3188-emac", .data = &emac_rk3188_emac_data },
 	{ /* Sentinel */ }
 };
 
@@ -110,7 +116,7 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	interface = of_get_phy_mode(dev->of_node);
 
-	/* RK3066 and RK3188 SoCs only support RMII */
+	/* RK3036/RK3066/RK3188 SoCs only support RMII */
 	if (interface != PHY_INTERFACE_MODE_RMII) {
 		dev_err(dev, "unsupported phy interface mode %d\n", interface);
 		err = -ENOTSUPP;
@@ -164,15 +170,12 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = arc_emac_probe(ndev, interface);
-	if (err)
-		goto out_regulator_disable;
-
-	/* write-enable bits */
-	data = GRF_MODE_ENABLE_BIT | GRF_SPEED_ENABLE_BIT;
-
-	data |= GRF_SPEED_100M;
-	data |= GRF_MODE_RMII;
+	/* Set speed 100M */
+	data = (1 << (priv->soc_data->grf_speed_offset + 16)) |
+	       (1 << priv->soc_data->grf_speed_offset);
+	/* Set RMII mode */
+	data |= (1 << (priv->soc_data->grf_mode_offset + 16)) |
+		(0 << priv->soc_data->grf_mode_offset);
 
 	err = regmap_write(priv->grf, priv->soc_data->grf_offset, data);
 	if (err) {
@@ -184,6 +187,33 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	err = clk_set_rate(priv->refclk, 50000000);
 	if (err)
 		dev_err(dev, "failed to change reference clock rate (%d)\n", err);
+
+	if (priv->soc_data->need_div_macclk) {
+		priv->macclk = devm_clk_get(dev, "macclk");
+		if (IS_ERR(priv->macclk)) {
+			dev_err(dev, "failed to retrieve mac clock (%ld)\n", PTR_ERR(priv->macclk));
+			err = PTR_ERR(priv->macclk);
+			goto out_regulator_disable;
+		}
+
+		err = clk_prepare_enable(priv->macclk);
+		if (err) {
+			dev_err(dev, "failed to enable mac clock (%d)\n", err);
+			goto out_regulator_disable;
+		}
+
+		/* RMII TX/RX needs always a rate of 25MHz */
+		err = clk_set_rate(priv->macclk, 25000000);
+		if (err)
+			dev_err(dev, "failed to change mac clock rate (%d)\n", err);
+	}
+
+	err = arc_emac_probe(ndev, interface);
+	if (err) {
+		dev_err(dev, "failed to probe arc emac (%d)\n", err);
+		goto out_regulator_disable;
+	}
+
 	return 0;
 
 out_regulator_disable:

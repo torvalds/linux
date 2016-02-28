@@ -16,8 +16,11 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
+#include <linux/math64.h>
 
 #include "ntp_internal.h"
+#include "timekeeping_internal.h"
+
 
 /*
  * NTP timekeeping variables:
@@ -70,7 +73,7 @@ static long			time_esterror = NTP_PHASE_LIMIT;
 static s64			time_freq;
 
 /* time at last adjustment (secs):					*/
-static long			time_reftime;
+static time64_t		time_reftime;
 
 static long			time_adjust;
 
@@ -297,25 +300,27 @@ static void ntp_update_offset(long offset)
 	if (!(time_status & STA_PLL))
 		return;
 
-	if (!(time_status & STA_NANO))
+	if (!(time_status & STA_NANO)) {
+		/* Make sure the multiplication below won't overflow */
+		offset = clamp(offset, -USEC_PER_SEC, USEC_PER_SEC);
 		offset *= NSEC_PER_USEC;
+	}
 
 	/*
 	 * Scale the phase adjustment and
 	 * clamp to the operating range.
 	 */
-	offset = min(offset, MAXPHASE);
-	offset = max(offset, -MAXPHASE);
+	offset = clamp(offset, -MAXPHASE, MAXPHASE);
 
 	/*
 	 * Select how the frequency is to be controlled
 	 * and in which mode (PLL or FLL).
 	 */
-	secs = get_seconds() - time_reftime;
+	secs = (long)(__ktime_get_real_seconds() - time_reftime);
 	if (unlikely(time_status & STA_FREQHOLD))
 		secs = 0;
 
-	time_reftime = get_seconds();
+	time_reftime = __ktime_get_real_seconds();
 
 	offset64    = offset;
 	freq_adj    = ntp_update_offset_fll(offset64, secs);
@@ -390,10 +395,11 @@ ktime_t ntp_get_next_leap(void)
  *
  * Also handles leap second processing, and returns leap offset
  */
-int second_overflow(unsigned long secs)
+int second_overflow(time64_t secs)
 {
 	s64 delta;
 	int leap = 0;
+	s32 rem;
 
 	/*
 	 * Leap second processing. If in leap-insert state at the end of the
@@ -404,19 +410,19 @@ int second_overflow(unsigned long secs)
 	case TIME_OK:
 		if (time_status & STA_INS) {
 			time_state = TIME_INS;
-			ntp_next_leap_sec = secs + SECS_PER_DAY -
-						(secs % SECS_PER_DAY);
+			div_s64_rem(secs, SECS_PER_DAY, &rem);
+			ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
 		} else if (time_status & STA_DEL) {
 			time_state = TIME_DEL;
-			ntp_next_leap_sec = secs + SECS_PER_DAY -
-						 ((secs+1) % SECS_PER_DAY);
+			div_s64_rem(secs + 1, SECS_PER_DAY, &rem);
+			ntp_next_leap_sec = secs + SECS_PER_DAY - rem;
 		}
 		break;
 	case TIME_INS:
 		if (!(time_status & STA_INS)) {
 			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_OK;
-		} else if (secs % SECS_PER_DAY == 0) {
+		} else if (secs == ntp_next_leap_sec) {
 			leap = -1;
 			time_state = TIME_OOP;
 			printk(KERN_NOTICE
@@ -427,7 +433,7 @@ int second_overflow(unsigned long secs)
 		if (!(time_status & STA_DEL)) {
 			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_OK;
-		} else if ((secs + 1) % SECS_PER_DAY == 0) {
+		} else if (secs == ntp_next_leap_sec) {
 			leap = 1;
 			ntp_next_leap_sec = TIME64_MAX;
 			time_state = TIME_WAIT;
@@ -590,7 +596,7 @@ static inline void process_adj_status(struct timex *txc, struct timespec64 *ts)
 	 * reference time to current time.
 	 */
 	if (!(time_status & STA_PLL) && (txc->status & STA_PLL))
-		time_reftime = get_seconds();
+		time_reftime = __ktime_get_real_seconds();
 
 	/* only set allowed bits */
 	time_status &= STA_RONLY;
@@ -674,8 +680,24 @@ int ntp_validate_timex(struct timex *txc)
 			return -EINVAL;
 	}
 
-	if ((txc->modes & ADJ_SETOFFSET) && (!capable(CAP_SYS_TIME)))
-		return -EPERM;
+	if (txc->modes & ADJ_SETOFFSET) {
+		/* In order to inject time, you gotta be super-user! */
+		if (!capable(CAP_SYS_TIME))
+			return -EPERM;
+
+		if (txc->modes & ADJ_NANO) {
+			struct timespec ts;
+
+			ts.tv_sec = txc->time.tv_sec;
+			ts.tv_nsec = txc->time.tv_usec;
+			if (!timespec_inject_offset_valid(&ts))
+				return -EINVAL;
+
+		} else {
+			if (!timeval_inject_offset_valid(&txc->time))
+				return -EINVAL;
+		}
+	}
 
 	/*
 	 * Check for potential multiplication overflows that can

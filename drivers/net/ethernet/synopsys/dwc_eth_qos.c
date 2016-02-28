@@ -972,9 +972,7 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	}
 
 	if (netif_msg_probe(lp))
-		netdev_dbg(lp->ndev,
-			   "phydev %p, phydev->phy_id 0xa%x, phydev->addr 0x%x\n",
-			   phydev, phydev->phy_id, phydev->addr);
+		phy_attached_info(phydev);
 
 	phydev->supported &= PHY_GBIT_FEATURES;
 
@@ -982,14 +980,6 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
 	lp->phy_dev = phydev;
-
-	if (netif_msg_probe(lp)) {
-		netdev_dbg(lp->ndev, "phy_addr 0x%x, phy_id 0x%08x\n",
-			   lp->phy_dev->addr, lp->phy_dev->phy_id);
-
-		netdev_dbg(lp->ndev, "attach [%s] phy driver\n",
-			   lp->phy_dev->drv->name);
-	}
 
 	return 0;
 }
@@ -1230,7 +1220,7 @@ static void dwceqos_enable_mmc_interrupt(struct net_local *lp)
 
 static int dwceqos_mii_init(struct net_local *lp)
 {
-	int ret = -ENXIO, i;
+	int ret = -ENXIO;
 	struct resource res;
 	struct device_node *mdionode;
 
@@ -1251,24 +1241,14 @@ static int dwceqos_mii_init(struct net_local *lp)
 	lp->mii_bus->priv = lp;
 	lp->mii_bus->parent = &lp->ndev->dev;
 
-	lp->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!lp->mii_bus->irq) {
-		ret = -ENOMEM;
-		goto err_out_free_mdiobus;
-	}
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		lp->mii_bus->irq[i] = PHY_POLL;
 	of_address_to_resource(lp->pdev->dev.of_node, 0, &res);
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%.8llx",
 		 (unsigned long long)res.start);
 	if (of_mdiobus_register(lp->mii_bus, mdionode))
-		goto err_out_free_mdio_irq;
+		goto err_out_free_mdiobus;
 
 	return 0;
 
-err_out_free_mdio_irq:
-	kfree(lp->mii_bus->irq);
 err_out_free_mdiobus:
 	mdiobus_free(lp->mii_bus);
 err_out:
@@ -1900,9 +1880,9 @@ static int dwceqos_open(struct net_device *ndev)
 	}
 	netdev_reset_queue(ndev);
 
+	dwceqos_init_hw(lp);
 	napi_enable(&lp->napi);
 	phy_start(lp->phy_dev);
-	dwceqos_init_hw(lp);
 
 	netif_start_queue(ndev);
 	tasklet_enable(&lp->tx_bdreclaim_tasklet);
@@ -2107,7 +2087,7 @@ static int dwceqos_tx_frags(struct sk_buff *skb, struct net_local *lp,
 			dd = &lp->tx_descs[lp->tx_next];
 
 			/* Set DMA Descriptor fields */
-			dd->des0 = dma_handle;
+			dd->des0 = dma_handle + consumed_size;
 			dd->des1 = 0;
 			dd->des2 = dma_size;
 
@@ -2987,7 +2967,6 @@ static int dwceqos_remove(struct platform_device *pdev)
 		if (lp->phy_dev)
 			phy_disconnect(lp->phy_dev);
 		mdiobus_unregister(lp->mii_bus);
-		kfree(lp->mii_bus->irq);
 		mdiobus_free(lp->mii_bus);
 
 		unregister_netdev(ndev);

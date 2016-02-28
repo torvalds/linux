@@ -140,6 +140,9 @@ struct gma_encoder {
 struct gma_connector {
 	struct drm_connector base;
 	struct gma_encoder *encoder;
+
+	void (*save)(struct drm_connector *connector);
+	void (*restore)(struct drm_connector *connector);
 };
 
 struct psb_intel_crtc_state {

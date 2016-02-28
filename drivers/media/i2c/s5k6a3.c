@@ -144,8 +144,7 @@ static int s5k6a3_set_fmt(struct v4l2_subdev *sd,
 	mf = __s5k6a3_get_format(sensor, cfg, fmt->pad, fmt->which);
 	if (mf) {
 		mutex_lock(&sensor->lock);
-		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-			*mf = fmt->format;
+		*mf = fmt->format;
 		mutex_unlock(&sensor->lock);
 	}
 	return 0;
@@ -333,7 +332,7 @@ static int s5k6a3_probe(struct i2c_client *client,
 	sensor->format.height = S5K6A3_DEFAULT_HEIGHT;
 
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, 1, &sensor->pad, 0);
+	ret = media_entity_pads_init(&sd->entity, 1, &sensor->pad);
 	if (ret < 0)
 		return ret;
 

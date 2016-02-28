@@ -1063,12 +1063,18 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	raw_spin_lock_init(&iommu->register_lock);
 
-	drhd->iommu = iommu;
-
-	if (intel_iommu_enabled)
+	if (intel_iommu_enabled) {
 		iommu->iommu_dev = iommu_device_create(NULL, iommu,
 						       intel_iommu_groups,
 						       "%s", iommu->name);
+
+		if (IS_ERR(iommu->iommu_dev)) {
+			err = PTR_ERR(iommu->iommu_dev);
+			goto err_unmap;
+		}
+	}
+
+	drhd->iommu = iommu;
 
 	return 0;
 
@@ -1347,7 +1353,7 @@ void dmar_disable_qi(struct intel_iommu *iommu)
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
-	sts =  dmar_readq(iommu->reg + DMAR_GSTS_REG);
+	sts =  readl(iommu->reg + DMAR_GSTS_REG);
 	if (!(sts & DMA_GSTS_QIES))
 		goto end;
 

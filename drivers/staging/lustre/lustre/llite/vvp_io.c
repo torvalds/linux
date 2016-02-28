@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -439,7 +439,7 @@ static int vvp_io_setattr_start(const struct lu_env *env,
 	struct inode	*inode = ccc_object_inode(io->ci_obj);
 	int result = 0;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	if (cl_io_is_trunc(io))
 		result = vvp_io_setattr_trunc(env, ios, inode,
 					io->u.ci_setattr.sa_attr.lvb_size);
@@ -459,7 +459,7 @@ static void vvp_io_setattr_end(const struct lu_env *env,
 		 * because osc has already notified to destroy osc_extents. */
 		vvp_do_vmtruncate(inode, io->u.ci_setattr.sa_attr.lvb_size);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 }
 
 static void vvp_io_setattr_fini(const struct lu_env *env,
@@ -849,7 +849,7 @@ static int vvp_io_read_page(const struct lu_env *env,
 	 * Add page into the queue even when it is marked uptodate above.
 	 * this will unlock it automatically as part of cl_page_list_disown().
 	 */
-	cl_2queue_add(queue, page);
+	cl_page_list_add(&queue->c2_qin, page);
 	if (sbi->ll_ra_info.ra_max_pages_per_file &&
 	    sbi->ll_ra_info.ra_max_pages)
 		ll_readahead(env, io, ras,

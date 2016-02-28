@@ -202,22 +202,20 @@ static void bcap_free_sensor_formats(struct bcap_device *bcap_dev)
 }
 
 static int bcap_queue_setup(struct vb2_queue *vq,
-				const void *parg,
 				unsigned int *nbuffers, unsigned int *nplanes,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct bcap_device *bcap_dev = vb2_get_drv_priv(vq);
-
-	if (fmt && fmt->fmt.pix.sizeimage < bcap_dev->fmt.sizeimage)
-		return -EINVAL;
 
 	if (vq->num_buffers + *nbuffers < 2)
 		*nbuffers = 2;
+	alloc_ctxs[0] = bcap_dev->alloc_ctx;
+
+	if (*nplanes)
+		return sizes[0] < bcap_dev->fmt.sizeimage ? -EINVAL : 0;
 
 	*nplanes = 1;
-	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : bcap_dev->fmt.sizeimage;
-	alloc_ctxs[0] = bcap_dev->alloc_ctx;
+	sizes[0] = bcap_dev->fmt.sizeimage;
 
 	return 0;
 }
@@ -406,7 +404,7 @@ static irqreturn_t bcap_isr(int irq, void *dev_id)
 	spin_lock(&bcap_dev->lock);
 
 	if (!list_empty(&bcap_dev->dma_queue)) {
-		v4l2_get_timestamp(&vbuf->timestamp);
+		vb->timestamp = ktime_get_ns();
 		if (ppi->err) {
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 			ppi->err = false;

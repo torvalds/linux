@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-ctrls.h>
-#include <media/ad9389b.h>
+#include <media/i2c/ad9389b.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -1158,7 +1158,7 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	state->rgb_quantization_range_ctrl->is_private = true;
 
 	state->pad.flags = MEDIA_PAD_FL_SINK;
-	err = media_entity_init(&sd->entity, 1, &state->pad, 0);
+	err = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (err)
 		goto err_hdl;
 

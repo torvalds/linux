@@ -201,13 +201,13 @@ static int ipip6_tunnel_create(struct net_device *dev)
 	if ((__force u16)t->parms.i_flags & SIT_ISATAP)
 		dev->priv_flags |= IFF_ISATAP;
 
+	dev->rtnl_link_ops = &sit_link_ops;
+
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto out;
 
 	ipip6_tunnel_clone_6rd(dev, sitn);
-
-	dev->rtnl_link_ops = &sit_link_ops;
 
 	dev_hold(dev);
 
@@ -820,7 +820,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	const struct in6_addr *addr6;
 	int addr_type;
 	u8 ttl;
-	int err;
 	u8 protocol = IPPROTO_IPV6;
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
@@ -983,10 +982,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 
 	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
 
-	err = iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr,
-			    protocol, tos, ttl, df,
-			    !net_eq(tunnel->net, dev_net(dev)));
-	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
+	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, protocol, tos, ttl,
+		      df, !net_eq(tunnel->net, dev_net(dev)));
 	return NETDEV_TX_OK;
 
 tx_error_icmp:

@@ -33,11 +33,11 @@ affs_file_release(struct inode *inode, struct file *filp)
 		 inode->i_ino, atomic_read(&AFFS_I(inode)->i_opencnt));
 
 	if (atomic_dec_and_test(&AFFS_I(inode)->i_opencnt)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		if (inode->i_size != AFFS_I(inode)->mmu_private)
 			affs_truncate(inode);
 		affs_free_prealloc(inode);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 
 	return 0;
@@ -511,8 +511,6 @@ affs_do_readpage_ofs(struct page *page, unsigned to)
 	pr_debug("%s(%lu, %ld, 0, %d)\n", __func__, inode->i_ino,
 		 page->index, to);
 	BUG_ON(to > PAGE_CACHE_SIZE);
-	kmap(page);
-	data = page_address(page);
 	bsize = AFFS_SB(sb)->s_data_blksize;
 	tmp = page->index << PAGE_CACHE_SHIFT;
 	bidx = tmp / bsize;
@@ -524,14 +522,15 @@ affs_do_readpage_ofs(struct page *page, unsigned to)
 			return PTR_ERR(bh);
 		tmp = min(bsize - boff, to - pos);
 		BUG_ON(pos + tmp > to || tmp > bsize);
+		data = kmap_atomic(page);
 		memcpy(data + pos, AFFS_DATA(bh) + boff, tmp);
+		kunmap_atomic(data);
 		affs_brelse(bh);
 		bidx++;
 		pos += tmp;
 		boff = 0;
 	}
 	flush_dcache_page(page);
-	kunmap(page);
 	return 0;
 }
 
@@ -958,12 +957,12 @@ int affs_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	if (err)
 		return err;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	ret = write_inode_now(inode, 0);
 	err = sync_blockdev(inode->i_sb->s_bdev);
 	if (!ret)
 		ret = err;
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return ret;
 }
 const struct file_operations affs_file_operations = {

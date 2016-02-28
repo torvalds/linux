@@ -32,6 +32,7 @@
 #include "amdgpu_vce.h"
 #include "cikd.h"
 #include "atom.h"
+#include "amd_pcie.h"
 
 #include "cik.h"
 #include "gmc_v7_0.h"
@@ -65,6 +66,7 @@
 #include "oss/oss_2_0_sh_mask.h"
 
 #include "amdgpu_amdkfd.h"
+#include "amdgpu_powerplay.h"
 
 /*
  * Indirect registers accessor
@@ -929,6 +931,37 @@ static bool cik_read_disabled_bios(struct amdgpu_device *adev)
 	return r;
 }
 
+static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
+				   u8 *bios, u32 length_bytes)
+{
+	u32 *dw_ptr;
+	unsigned long flags;
+	u32 i, length_dw;
+
+	if (bios == NULL)
+		return false;
+	if (length_bytes == 0)
+		return false;
+	/* APU vbios image is part of sbios image */
+	if (adev->flags & AMD_IS_APU)
+		return false;
+
+	dw_ptr = (u32 *)bios;
+	length_dw = ALIGN(length_bytes, 4) / 4;
+	/* take the smc lock since we are using the smc index */
+	spin_lock_irqsave(&adev->smc_idx_lock, flags);
+	/* set rom index to 0 */
+	WREG32(mmSMC_IND_INDEX_0, ixROM_INDEX);
+	WREG32(mmSMC_IND_DATA_0, 0);
+	/* set index to data for continous read */
+	WREG32(mmSMC_IND_INDEX_0, ixROM_DATA);
+	for (i = 0; i < length_dw; i++)
+		dw_ptr[i] = RREG32(mmSMC_IND_DATA_0);
+	spin_unlock_irqrestore(&adev->smc_idx_lock, flags);
+
+	return true;
+}
+
 static struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
 	{mmGB_ADDR_CONFIG, false},
@@ -1563,8 +1596,8 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 {
 	struct pci_dev *root = adev->pdev->bus->self;
 	int bridge_pos, gpu_pos;
-	u32 speed_cntl, mask, current_data_rate;
-	int ret, i;
+	u32 speed_cntl, current_data_rate;
+	int i;
 	u16 tmp16;
 
 	if (pci_is_root_bus(adev->pdev->bus))
@@ -1576,23 +1609,20 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret != 0)
-		return;
-
-	if (!(mask & (DRM_PCIE_SPEED_50 | DRM_PCIE_SPEED_80)))
+	if (!(adev->pm.pcie_gen_mask & (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 |
+					CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)))
 		return;
 
 	speed_cntl = RREG32_PCIE(ixPCIE_LC_SPEED_CNTL);
 	current_data_rate = (speed_cntl & PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK) >>
 		PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate == 2) {
 			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
 			return;
 		}
 		DRM_INFO("enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
-	} else if (mask & DRM_PCIE_SPEED_50) {
+	} else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) {
 		if (current_data_rate == 1) {
 			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 			return;
@@ -1608,7 +1638,7 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 	if (!gpu_pos)
 		return;
 
-	if (mask & DRM_PCIE_SPEED_80) {
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		/* re-try equalization if gen3 is not already enabled */
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
@@ -1703,9 +1733,9 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 
 	pci_read_config_word(adev->pdev, gpu_pos + PCI_EXP_LNKCTL2, &tmp16);
 	tmp16 &= ~0xf;
-	if (mask & DRM_PCIE_SPEED_80)
+	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 		tmp16 |= 3; /* gen3 */
-	else if (mask & DRM_PCIE_SPEED_50)
+	else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2)
 		tmp16 |= 2; /* gen2 */
 	else
 		tmp16 |= 1; /* gen1 */
@@ -1730,6 +1760,9 @@ static void cik_program_aspm(struct amdgpu_device *adev)
 	bool disable_clkreq = false;
 
 	if (amdgpu_aspm == 0)
+		return;
+
+	if (pci_is_root_bus(adev->pdev->bus))
 		return;
 
 	/* XXX double check APUs */
@@ -1922,7 +1955,7 @@ static const struct amdgpu_ip_block_version bonaire_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &ci_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -1990,7 +2023,7 @@ static const struct amdgpu_ip_block_version hawaii_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &ci_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2058,7 +2091,7 @@ static const struct amdgpu_ip_block_version kabini_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2126,7 +2159,7 @@ static const struct amdgpu_ip_block_version mullins_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2194,7 +2227,7 @@ static const struct amdgpu_ip_block_version kaveri_ip_blocks[] =
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
-		.funcs = &kv_dpm_ip_funcs,
+		.funcs = &amdgpu_pp_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_DCE,
@@ -2267,6 +2300,7 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
+	.read_bios_from_rom = &cik_read_bios_from_rom,
 	.read_register = &cik_read_register,
 	.reset = &cik_asic_reset,
 	.set_vga_state = &cik_vga_set_state,
@@ -2301,72 +2335,72 @@ static int cik_common_early_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 		adev->cg_flags =
-			AMDGPU_CG_SUPPORT_GFX_MGCG |
-			AMDGPU_CG_SUPPORT_GFX_MGLS |
-			/*AMDGPU_CG_SUPPORT_GFX_CGCG |*/
-			AMDGPU_CG_SUPPORT_GFX_CGLS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS_LS |
-			AMDGPU_CG_SUPPORT_GFX_CP_LS |
-			AMDGPU_CG_SUPPORT_MC_LS |
-			AMDGPU_CG_SUPPORT_MC_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_LS |
-			AMDGPU_CG_SUPPORT_BIF_LS |
-			AMDGPU_CG_SUPPORT_VCE_MGCG |
-			AMDGPU_CG_SUPPORT_UVD_MGCG |
-			AMDGPU_CG_SUPPORT_HDP_LS |
-			AMDGPU_CG_SUPPORT_HDP_MGCG;
+			AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			/*AMD_CG_SUPPORT_GFX_CGCG |*/
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CGTS |
+			AMD_CG_SUPPORT_GFX_CGTS_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_VCE_MGCG |
+			AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
 	case CHIP_HAWAII:
 		adev->cg_flags =
-			AMDGPU_CG_SUPPORT_GFX_MGCG |
-			AMDGPU_CG_SUPPORT_GFX_MGLS |
-			/*AMDGPU_CG_SUPPORT_GFX_CGCG |*/
-			AMDGPU_CG_SUPPORT_GFX_CGLS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS |
-			AMDGPU_CG_SUPPORT_GFX_CP_LS |
-			AMDGPU_CG_SUPPORT_MC_LS |
-			AMDGPU_CG_SUPPORT_MC_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_LS |
-			AMDGPU_CG_SUPPORT_BIF_LS |
-			AMDGPU_CG_SUPPORT_VCE_MGCG |
-			AMDGPU_CG_SUPPORT_UVD_MGCG |
-			AMDGPU_CG_SUPPORT_HDP_LS |
-			AMDGPU_CG_SUPPORT_HDP_MGCG;
+			AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			/*AMD_CG_SUPPORT_GFX_CGCG |*/
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CGTS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_VCE_MGCG |
+			AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x28;
 		break;
 	case CHIP_KAVERI:
 		adev->cg_flags =
-			AMDGPU_CG_SUPPORT_GFX_MGCG |
-			AMDGPU_CG_SUPPORT_GFX_MGLS |
-			/*AMDGPU_CG_SUPPORT_GFX_CGCG |*/
-			AMDGPU_CG_SUPPORT_GFX_CGLS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS_LS |
-			AMDGPU_CG_SUPPORT_GFX_CP_LS |
-			AMDGPU_CG_SUPPORT_SDMA_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_LS |
-			AMDGPU_CG_SUPPORT_BIF_LS |
-			AMDGPU_CG_SUPPORT_VCE_MGCG |
-			AMDGPU_CG_SUPPORT_UVD_MGCG |
-			AMDGPU_CG_SUPPORT_HDP_LS |
-			AMDGPU_CG_SUPPORT_HDP_MGCG;
+			AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			/*AMD_CG_SUPPORT_GFX_CGCG |*/
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CGTS |
+			AMD_CG_SUPPORT_GFX_CGTS_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_VCE_MGCG |
+			AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags =
-			/*AMDGPU_PG_SUPPORT_GFX_PG |
-			  AMDGPU_PG_SUPPORT_GFX_SMG |
-			  AMDGPU_PG_SUPPORT_GFX_DMG |*/
-			AMDGPU_PG_SUPPORT_UVD |
-			/*AMDGPU_PG_SUPPORT_VCE |
-			  AMDGPU_PG_SUPPORT_CP |
-			  AMDGPU_PG_SUPPORT_GDS |
-			  AMDGPU_PG_SUPPORT_RLC_SMU_HS |
-			  AMDGPU_PG_SUPPORT_ACP |
-			  AMDGPU_PG_SUPPORT_SAMU |*/
+			/*AMD_PG_SUPPORT_GFX_PG |
+			  AMD_PG_SUPPORT_GFX_SMG |
+			  AMD_PG_SUPPORT_GFX_DMG |*/
+			AMD_PG_SUPPORT_UVD |
+			/*AMD_PG_SUPPORT_VCE |
+			  AMD_PG_SUPPORT_CP |
+			  AMD_PG_SUPPORT_GDS |
+			  AMD_PG_SUPPORT_RLC_SMU_HS |
+			  AMD_PG_SUPPORT_ACP |
+			  AMD_PG_SUPPORT_SAMU |*/
 			0;
 		if (adev->pdev->device == 0x1312 ||
 			adev->pdev->device == 0x1316 ||
@@ -2378,29 +2412,29 @@ static int cik_common_early_init(void *handle)
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
 		adev->cg_flags =
-			AMDGPU_CG_SUPPORT_GFX_MGCG |
-			AMDGPU_CG_SUPPORT_GFX_MGLS |
-			/*AMDGPU_CG_SUPPORT_GFX_CGCG |*/
-			AMDGPU_CG_SUPPORT_GFX_CGLS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS |
-			AMDGPU_CG_SUPPORT_GFX_CGTS_LS |
-			AMDGPU_CG_SUPPORT_GFX_CP_LS |
-			AMDGPU_CG_SUPPORT_SDMA_MGCG |
-			AMDGPU_CG_SUPPORT_SDMA_LS |
-			AMDGPU_CG_SUPPORT_BIF_LS |
-			AMDGPU_CG_SUPPORT_VCE_MGCG |
-			AMDGPU_CG_SUPPORT_UVD_MGCG |
-			AMDGPU_CG_SUPPORT_HDP_LS |
-			AMDGPU_CG_SUPPORT_HDP_MGCG;
+			AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			/*AMD_CG_SUPPORT_GFX_CGCG |*/
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CGTS |
+			AMD_CG_SUPPORT_GFX_CGTS_LS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_BIF_LS |
+			AMD_CG_SUPPORT_VCE_MGCG |
+			AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags =
-			/*AMDGPU_PG_SUPPORT_GFX_PG |
-			  AMDGPU_PG_SUPPORT_GFX_SMG | */
-			AMDGPU_PG_SUPPORT_UVD |
-			/*AMDGPU_PG_SUPPORT_VCE |
-			  AMDGPU_PG_SUPPORT_CP |
-			  AMDGPU_PG_SUPPORT_GDS |
-			  AMDGPU_PG_SUPPORT_RLC_SMU_HS |
-			  AMDGPU_PG_SUPPORT_SAMU |*/
+			/*AMD_PG_SUPPORT_GFX_PG |
+			  AMD_PG_SUPPORT_GFX_SMG | */
+			AMD_PG_SUPPORT_UVD |
+			/*AMD_PG_SUPPORT_VCE |
+			  AMD_PG_SUPPORT_CP |
+			  AMD_PG_SUPPORT_GDS |
+			  AMD_PG_SUPPORT_RLC_SMU_HS |
+			  AMD_PG_SUPPORT_SAMU |*/
 			0;
 		if (adev->asic_type == CHIP_KABINI) {
 			if (adev->rev_id == 0)
@@ -2416,6 +2450,8 @@ static int cik_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	amdgpu_get_pcie_info(adev);
 
 	return 0;
 }

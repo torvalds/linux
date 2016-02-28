@@ -41,6 +41,8 @@ enum {
 	IB_ETH_BYTES  = 14,
 	IB_VLAN_BYTES = 4,
 	IB_GRH_BYTES  = 40,
+	IB_IP4_BYTES  = 20,
+	IB_UDP_BYTES  = 8,
 	IB_BTH_BYTES  = 12,
 	IB_DETH_BYTES = 8
 };
@@ -223,6 +225,27 @@ struct ib_unpacked_eth {
 	__be16	type;
 };
 
+struct ib_unpacked_ip4 {
+	u8	ver;
+	u8	hdr_len;
+	u8	tos;
+	__be16	tot_len;
+	__be16	id;
+	__be16	frag_off;
+	u8	ttl;
+	u8	protocol;
+	__sum16	check;
+	__be32	saddr;
+	__be32	daddr;
+};
+
+struct ib_unpacked_udp {
+	__be16	sport;
+	__be16	dport;
+	__be16	length;
+	__be16	csum;
+};
+
 struct ib_unpacked_vlan {
 	__be16  tag;
 	__be16  type;
@@ -237,6 +260,10 @@ struct ib_ud_header {
 	struct ib_unpacked_vlan vlan;
 	int			grh_present;
 	struct ib_unpacked_grh	grh;
+	int			ipv4_present;
+	struct ib_unpacked_ip4	ip4;
+	int			udp_present;
+	struct ib_unpacked_udp	udp;
 	struct ib_unpacked_bth	bth;
 	struct ib_unpacked_deth deth;
 	int			immediate_present;
@@ -253,13 +280,17 @@ void ib_unpack(const struct ib_field        *desc,
 	       void                         *buf,
 	       void                         *structure);
 
-void ib_ud_header_init(int		    payload_bytes,
-		       int		    lrh_present,
-		       int		    eth_present,
-		       int		    vlan_present,
-		       int		    grh_present,
-		       int		    immediate_present,
-		       struct ib_ud_header *header);
+__sum16 ib_ud_ip4_csum(struct ib_ud_header *header);
+
+int ib_ud_header_init(int		    payload_bytes,
+		      int		    lrh_present,
+		      int		    eth_present,
+		      int		    vlan_present,
+		      int		    grh_present,
+		      int		    ip_version,
+		      int		    udp_present,
+		      int		    immediate_present,
+		      struct ib_ud_header *header);
 
 int ib_ud_header_pack(struct ib_ud_header *header,
 		      void                *buf);

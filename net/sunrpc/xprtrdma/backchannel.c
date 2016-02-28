@@ -15,7 +15,7 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-#define RPCRDMA_BACKCHANNEL_DEBUG
+#undef RPCRDMA_BACKCHANNEL_DEBUG
 
 static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
 				 struct rpc_rqst *rqst)
@@ -42,8 +42,8 @@ static int rpcrdma_bc_setup_rqst(struct rpcrdma_xprt *r_xprt,
 	size_t size;
 
 	req = rpcrdma_create_req(r_xprt);
-	if (!req)
-		return -ENOMEM;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 	req->rl_backchannel = true;
 
 	size = RPCRDMA_INLINE_WRITE_THRESHOLD(rqst);
@@ -84,9 +84,7 @@ out_fail:
 static int rpcrdma_bc_setup_reps(struct rpcrdma_xprt *r_xprt,
 				 unsigned int count)
 {
-	struct rpcrdma_buffer *buffers = &r_xprt->rx_buf;
 	struct rpcrdma_rep *rep;
-	unsigned long flags;
 	int rc = 0;
 
 	while (count--) {
@@ -98,9 +96,7 @@ static int rpcrdma_bc_setup_reps(struct rpcrdma_xprt *r_xprt,
 			break;
 		}
 
-		spin_lock_irqsave(&buffers->rb_lock, flags);
-		list_add(&rep->rr_list, &buffers->rb_recv_bufs);
-		spin_unlock_irqrestore(&buffers->rb_lock, flags);
+		rpcrdma_recv_buffer_put(rep);
 	}
 
 	return rc;
@@ -140,6 +136,7 @@ int xprt_rdma_bc_setup(struct rpc_xprt *xprt, unsigned int reqs)
 			       __func__);
 			goto out_free;
 		}
+		dprintk("RPC:       %s: new rqst %p\n", __func__, rqst);
 
 		rqst->rq_xprt = &r_xprt->rx_xprt;
 		INIT_LIST_HEAD(&rqst->rq_list);
@@ -220,12 +217,14 @@ int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 
 	rpclen = rqst->rq_svec[0].iov_len;
 
+#ifdef RPCRDMA_BACKCHANNEL_DEBUG
 	pr_info("RPC:       %s: rpclen %zd headerp 0x%p lkey 0x%x\n",
 		__func__, rpclen, headerp, rdmab_lkey(req->rl_rdmabuf));
 	pr_info("RPC:       %s: RPC/RDMA: %*ph\n",
 		__func__, (int)RPCRDMA_HDRLEN_MIN, headerp);
 	pr_info("RPC:       %s:      RPC: %*ph\n",
 		__func__, (int)rpclen, rqst->rq_svec[0].iov_base);
+#endif
 
 	req->rl_send_iov[0].addr = rdmab_addr(req->rl_rdmabuf);
 	req->rl_send_iov[0].length = RPCRDMA_HDRLEN_MIN;
@@ -268,6 +267,9 @@ void xprt_rdma_bc_destroy(struct rpc_xprt *xprt, unsigned int reqs)
 void xprt_rdma_bc_free_rqst(struct rpc_rqst *rqst)
 {
 	struct rpc_xprt *xprt = rqst->rq_xprt;
+
+	dprintk("RPC:       %s: freeing rqst %p (req %p)\n",
+		__func__, rqst, rpcr_to_rdmar(rqst));
 
 	smp_mb__before_atomic();
 	WARN_ON_ONCE(!test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state));
@@ -333,14 +335,14 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 				struct rpc_rqst, rq_bc_pa_list);
 	list_del(&rqst->rq_bc_pa_list);
 	spin_unlock(&xprt->bc_pa_lock);
-#ifdef RPCRDMA_BACKCHANNEL_DEBUG
-	pr_info("RPC:       %s: using rqst %p\n", __func__, rqst);
-#endif
+	dprintk("RPC:       %s: using rqst %p\n", __func__, rqst);
 
 	/* Prepare rqst */
 	rqst->rq_reply_bytes_recvd = 0;
 	rqst->rq_bytes_sent = 0;
 	rqst->rq_xid = headerp->rm_xid;
+
+	rqst->rq_private_buf.len = size;
 	set_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state);
 
 	buf = &rqst->rq_rcv_buf;
@@ -355,10 +357,8 @@ void rpcrdma_bc_receive_call(struct rpcrdma_xprt *r_xprt,
 	 * direction reply.
 	 */
 	req = rpcr_to_rdmar(rqst);
-#ifdef RPCRDMA_BACKCHANNEL_DEBUG
-	pr_info("RPC:       %s: attaching rep %p to req %p\n",
+	dprintk("RPC:       %s: attaching rep %p to req %p\n",
 		__func__, rep, req);
-#endif
 	req->rl_reply = rep;
 
 	/* Defeat the retransmit detection logic in send_request */

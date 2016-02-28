@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
+#include <linux/sched/sysctl.h>
 #include <uapi/linux/lightnvm.h>
 
 static LIST_HEAD(nvm_targets);
@@ -105,6 +106,9 @@ struct nvmm_type *nvm_init_mgr(struct nvm_dev *dev)
 	lockdep_assert_held(&nvm_lock);
 
 	list_for_each_entry(mt, &nvm_mgrs, list) {
+		if (strncmp(dev->sb.mmtype, mt->name, NVM_MMTYPE_LEN))
+			continue;
+
 		ret = mt->register_mgr(dev);
 		if (ret < 0) {
 			pr_err("nvm: media mgr failed to init (%d) on dev %s\n",
@@ -166,6 +170,20 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
+struct nvm_block *nvm_get_blk_unlocked(struct nvm_dev *dev, struct nvm_lun *lun,
+							unsigned long flags)
+{
+	return dev->mt->get_blk_unlocked(dev, lun, flags);
+}
+EXPORT_SYMBOL(nvm_get_blk_unlocked);
+
+/* Assumes that all valid pages have already been moved on release to bm */
+void nvm_put_blk_unlocked(struct nvm_dev *dev, struct nvm_block *blk)
+{
+	return dev->mt->put_blk_unlocked(dev, blk);
+}
+EXPORT_SYMBOL(nvm_put_blk_unlocked);
+
 struct nvm_block *nvm_get_blk(struct nvm_dev *dev, struct nvm_lun *lun,
 							unsigned long flags)
 {
@@ -192,6 +210,206 @@ int nvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk)
 }
 EXPORT_SYMBOL(nvm_erase_blk);
 
+void nvm_addr_to_generic_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	int i;
+
+	if (rqd->nr_pages > 1) {
+		for (i = 0; i < rqd->nr_pages; i++)
+			rqd->ppa_list[i] = dev_to_generic_addr(dev,
+							rqd->ppa_list[i]);
+	} else {
+		rqd->ppa_addr = dev_to_generic_addr(dev, rqd->ppa_addr);
+	}
+}
+EXPORT_SYMBOL(nvm_addr_to_generic_mode);
+
+void nvm_generic_to_addr_mode(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	int i;
+
+	if (rqd->nr_pages > 1) {
+		for (i = 0; i < rqd->nr_pages; i++)
+			rqd->ppa_list[i] = generic_to_dev_addr(dev,
+							rqd->ppa_list[i]);
+	} else {
+		rqd->ppa_addr = generic_to_dev_addr(dev, rqd->ppa_addr);
+	}
+}
+EXPORT_SYMBOL(nvm_generic_to_addr_mode);
+
+int nvm_set_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd,
+					struct ppa_addr *ppas, int nr_ppas)
+{
+	int i, plane_cnt, pl_idx;
+
+	if (dev->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
+		rqd->nr_pages = 1;
+		rqd->ppa_addr = ppas[0];
+
+		return 0;
+	}
+
+	plane_cnt = (1 << dev->plane_mode);
+	rqd->nr_pages = plane_cnt * nr_ppas;
+
+	if (dev->ops->max_phys_sect < rqd->nr_pages)
+		return -EINVAL;
+
+	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
+	if (!rqd->ppa_list) {
+		pr_err("nvm: failed to allocate dma memory\n");
+		return -ENOMEM;
+	}
+
+	for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+		for (i = 0; i < nr_ppas; i++) {
+			ppas[i].g.pl = pl_idx;
+			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppas[i];
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nvm_set_rqd_ppalist);
+
+void nvm_free_rqd_ppalist(struct nvm_dev *dev, struct nvm_rq *rqd)
+{
+	if (!rqd->ppa_list)
+		return;
+
+	nvm_dev_dma_free(dev, rqd->ppa_list, rqd->dma_ppa_list);
+}
+EXPORT_SYMBOL(nvm_free_rqd_ppalist);
+
+int nvm_erase_ppa(struct nvm_dev *dev, struct ppa_addr *ppas, int nr_ppas)
+{
+	struct nvm_rq rqd;
+	int ret;
+
+	if (!dev->ops->erase_block)
+		return 0;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppas, nr_ppas);
+	if (ret)
+		return ret;
+
+	nvm_generic_to_addr_mode(dev, &rqd);
+
+	ret = dev->ops->erase_block(dev, &rqd);
+
+	nvm_free_rqd_ppalist(dev, &rqd);
+
+	return ret;
+}
+EXPORT_SYMBOL(nvm_erase_ppa);
+
+void nvm_end_io(struct nvm_rq *rqd, int error)
+{
+	rqd->error = error;
+	rqd->end_io(rqd);
+}
+EXPORT_SYMBOL(nvm_end_io);
+
+static void nvm_end_io_sync(struct nvm_rq *rqd)
+{
+	struct completion *waiting = rqd->wait;
+
+	rqd->wait = NULL;
+
+	complete(waiting);
+}
+
+int nvm_submit_ppa(struct nvm_dev *dev, struct ppa_addr *ppa, int nr_ppas,
+				int opcode, int flags, void *buf, int len)
+{
+	DECLARE_COMPLETION_ONSTACK(wait);
+	struct nvm_rq rqd;
+	struct bio *bio;
+	int ret;
+	unsigned long hang_check;
+
+	bio = bio_map_kern(dev->q, buf, len, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(bio))
+		return -ENOMEM;
+
+	memset(&rqd, 0, sizeof(struct nvm_rq));
+	ret = nvm_set_rqd_ppalist(dev, &rqd, ppa, nr_ppas);
+	if (ret) {
+		bio_put(bio);
+		return ret;
+	}
+
+	rqd.opcode = opcode;
+	rqd.bio = bio;
+	rqd.wait = &wait;
+	rqd.dev = dev;
+	rqd.end_io = nvm_end_io_sync;
+	rqd.flags = flags;
+	nvm_generic_to_addr_mode(dev, &rqd);
+
+	ret = dev->ops->submit_io(dev, &rqd);
+
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	hang_check = sysctl_hung_task_timeout_secs;
+	if (hang_check)
+		while (!wait_for_completion_io_timeout(&wait, hang_check * (HZ/2)));
+	else
+		wait_for_completion_io(&wait);
+
+	nvm_free_rqd_ppalist(dev, &rqd);
+
+	return rqd.error;
+}
+EXPORT_SYMBOL(nvm_submit_ppa);
+
+static int nvm_init_slc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
+{
+	int i;
+
+	dev->lps_per_blk = dev->pgs_per_blk;
+	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
+	if (!dev->lptbl)
+		return -ENOMEM;
+
+	/* Just a linear array */
+	for (i = 0; i < dev->lps_per_blk; i++)
+		dev->lptbl[i] = i;
+
+	return 0;
+}
+
+static int nvm_init_mlc_tbl(struct nvm_dev *dev, struct nvm_id_group *grp)
+{
+	int i, p;
+	struct nvm_id_lp_mlc *mlc = &grp->lptbl.mlc;
+
+	if (!mlc->num_pairs)
+		return 0;
+
+	dev->lps_per_blk = mlc->num_pairs;
+	dev->lptbl = kcalloc(dev->lps_per_blk, sizeof(int), GFP_KERNEL);
+	if (!dev->lptbl)
+		return -ENOMEM;
+
+	/* The lower page table encoding consists of a list of bytes, where each
+	 * has a lower and an upper half. The first half byte maintains the
+	 * increment value and every value after is an offset added to the
+	 * previous incrementation value */
+	dev->lptbl[0] = mlc->pairs[0] & 0xF;
+	for (i = 1; i < dev->lps_per_blk; i++) {
+		p = mlc->pairs[i >> 1];
+		if (i & 0x1) /* upper */
+			dev->lptbl[i] = dev->lptbl[i - 1] + ((p & 0xF0) >> 4);
+		else /* lower */
+			dev->lptbl[i] = dev->lptbl[i - 1] + (p & 0xF);
+	}
+
+	return 0;
+}
+
 static int nvm_core_init(struct nvm_dev *dev)
 {
 	struct nvm_id *id = &dev->identity;
@@ -206,6 +424,7 @@ static int nvm_core_init(struct nvm_dev *dev)
 	dev->sec_size = grp->csecs;
 	dev->oob_size = grp->sos;
 	dev->sec_per_pg = grp->fpg_sz / grp->csecs;
+	dev->mccap = grp->mccap;
 	memcpy(&dev->ppaf, &id->ppaf, sizeof(struct nvm_addr_format));
 
 	dev->plane_mode = NVM_PLANE_SINGLE;
@@ -216,10 +435,22 @@ static int nvm_core_init(struct nvm_dev *dev)
 		return -EINVAL;
 	}
 
-	if (grp->fmtype != 0 && grp->fmtype != 1) {
+	switch (grp->fmtype) {
+	case NVM_ID_FMTYPE_SLC:
+		if (nvm_init_slc_tbl(dev, grp))
+			return -ENOMEM;
+		break;
+	case NVM_ID_FMTYPE_MLC:
+		if (nvm_init_mlc_tbl(dev, grp))
+			return -ENOMEM;
+		break;
+	default:
 		pr_err("nvm: flash type not supported\n");
 		return -EINVAL;
 	}
+
+	if (!dev->lps_per_blk)
+		pr_info("nvm: lower page programming table missing\n");
 
 	if (grp->mpos & 0x020202)
 		dev->plane_mode = NVM_PLANE_DOUBLE;
@@ -238,6 +469,7 @@ static int nvm_core_init(struct nvm_dev *dev)
 				dev->nr_chnls;
 	dev->total_pages = dev->total_blocks * dev->pgs_per_blk;
 	INIT_LIST_HEAD(&dev->online_targets);
+	mutex_init(&dev->mlock);
 
 	return 0;
 }
@@ -249,6 +481,8 @@ static void nvm_free(struct nvm_dev *dev)
 
 	if (dev->mt)
 		dev->mt->unregister_mgr(dev);
+
+	kfree(dev->lptbl);
 }
 
 static int nvm_init(struct nvm_dev *dev)
@@ -338,9 +572,18 @@ int nvm_register(struct request_queue *q, char *disk_name,
 		}
 	}
 
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
+		ret = nvm_get_sysblock(dev, &dev->sb);
+		if (!ret)
+			pr_err("nvm: device not initialized.\n");
+		else if (ret < 0)
+			pr_err("nvm: err (%d) on device initialization\n", ret);
+	}
+
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
-	dev->mt = nvm_init_mgr(dev);
+	if (ret > 0)
+		dev->mt = nvm_init_mgr(dev);
 	list_add(&dev->devices, &nvm_devices);
 	up_write(&nvm_lock);
 
@@ -788,6 +1031,102 @@ static long nvm_ioctl_dev_remove(struct file *file, void __user *arg)
 	return __nvm_configure_remove(&remove);
 }
 
+static void nvm_setup_nvm_sb_info(struct nvm_sb_info *info)
+{
+	info->seqnr = 1;
+	info->erase_cnt = 0;
+	info->version = 1;
+}
+
+static long __nvm_ioctl_dev_init(struct nvm_ioctl_dev_init *init)
+{
+	struct nvm_dev *dev;
+	struct nvm_sb_info info;
+	int ret;
+
+	down_write(&nvm_lock);
+	dev = nvm_find_nvm_dev(init->dev);
+	up_write(&nvm_lock);
+	if (!dev) {
+		pr_err("nvm: device not found\n");
+		return -EINVAL;
+	}
+
+	nvm_setup_nvm_sb_info(&info);
+
+	strncpy(info.mmtype, init->mmtype, NVM_MMTYPE_LEN);
+	info.fs_ppa.ppa = -1;
+
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
+		ret = nvm_init_sysblock(dev, &info);
+		if (ret)
+			return ret;
+	}
+
+	memcpy(&dev->sb, &info, sizeof(struct nvm_sb_info));
+
+	down_write(&nvm_lock);
+	dev->mt = nvm_init_mgr(dev);
+	up_write(&nvm_lock);
+
+	return 0;
+}
+
+static long nvm_ioctl_dev_init(struct file *file, void __user *arg)
+{
+	struct nvm_ioctl_dev_init init;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(&init, arg, sizeof(struct nvm_ioctl_dev_init)))
+		return -EFAULT;
+
+	if (init.flags != 0) {
+		pr_err("nvm: no flags supported\n");
+		return -EINVAL;
+	}
+
+	init.dev[DISK_NAME_LEN - 1] = '\0';
+
+	return __nvm_ioctl_dev_init(&init);
+}
+
+static long nvm_ioctl_dev_factory(struct file *file, void __user *arg)
+{
+	struct nvm_ioctl_dev_factory fact;
+	struct nvm_dev *dev;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (copy_from_user(&fact, arg, sizeof(struct nvm_ioctl_dev_factory)))
+		return -EFAULT;
+
+	fact.dev[DISK_NAME_LEN - 1] = '\0';
+
+	if (fact.flags & ~(NVM_FACTORY_NR_BITS - 1))
+		return -EINVAL;
+
+	down_write(&nvm_lock);
+	dev = nvm_find_nvm_dev(fact.dev);
+	up_write(&nvm_lock);
+	if (!dev) {
+		pr_err("nvm: device not found\n");
+		return -EINVAL;
+	}
+
+	if (dev->mt) {
+		dev->mt->unregister_mgr(dev);
+		dev->mt = NULL;
+	}
+
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT)
+		return nvm_dev_factory(dev, fact.flags);
+
+	return 0;
+}
+
 static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -801,6 +1140,10 @@ static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)
 		return nvm_ioctl_dev_create(file, argp);
 	case NVM_DEV_REMOVE:
 		return nvm_ioctl_dev_remove(file, argp);
+	case NVM_DEV_INIT:
+		return nvm_ioctl_dev_init(file, argp);
+	case NVM_DEV_FACTORY:
+		return nvm_ioctl_dev_factory(file, argp);
 	}
 	return 0;
 }

@@ -72,8 +72,8 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
 	unsigned long flags;
-	unsigned i;
-	int vpos, hpos, stat, min_udelay;
+	unsigned i, repcnt = 4;
+	int vpos, hpos, stat, min_udelay = 0;
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
 
 	amdgpu_flip_wait_fence(adev, &work->excl);
@@ -96,7 +96,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	 * In practice this won't execute very often unless on very fast
 	 * machines because the time window for this to happen is very small.
 	 */
-	for (;;) {
+	while (amdgpuCrtc->enabled && repcnt--) {
 		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
 		 * start in hpos, and to the "fudged earlier" vblank start in
 		 * vpos.
@@ -114,9 +114,21 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 		/* Sleep at least until estimated real start of hw vblank */
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
+		if (min_udelay > vblank->framedur_ns / 2000) {
+			/* Don't wait ridiculously long - something is wrong */
+			repcnt = 0;
+			break;
+		}
 		usleep_range(min_udelay, 2 * min_udelay);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	};
+
+	if (!repcnt)
+		DRM_DEBUG_DRIVER("Delay problem on crtc %d: min_udelay %d, "
+				 "framedur %d, linedur %d, stat %d, vpos %d, "
+				 "hpos %d\n", work->crtc_id, min_udelay,
+				 vblank->framedur_ns / 1000,
+				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
 	/* do the flip (mmio) */
 	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
@@ -518,7 +530,7 @@ static const struct drm_framebuffer_funcs amdgpu_fb_funcs = {
 int
 amdgpu_framebuffer_init(struct drm_device *dev,
 			struct amdgpu_framebuffer *rfb,
-			struct drm_mode_fb_cmd2 *mode_cmd,
+			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	int ret;
@@ -535,7 +547,7 @@ amdgpu_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 amdgpu_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
-			       struct drm_mode_fb_cmd2 *mode_cmd)
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;

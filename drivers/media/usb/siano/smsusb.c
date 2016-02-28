@@ -361,10 +361,11 @@ static void *siano_media_device_register(struct smsusb_device_t *dev,
 	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
 	mdev->driver_version = LINUX_VERSION_CODE;
 
+	media_device_init(mdev);
+
 	ret = media_device_register(mdev);
 	if (ret) {
-		pr_err("Couldn't create a media device. Error: %d\n",
-			ret);
+		media_device_cleanup(mdev);
 		kfree(mdev);
 		return NULL;
 	}

@@ -569,13 +569,13 @@ static void indirect_free_block(struct super_block *sb,
 }
 
 
-static struct logfs_block_ops inode_block_ops = {
+static const struct logfs_block_ops inode_block_ops = {
 	.write_block = inode_write_block,
 	.free_block = inode_free_block,
 	.write_alias = inode_write_alias,
 };
 
-struct logfs_block_ops indirect_block_ops = {
+const struct logfs_block_ops indirect_block_ops = {
 	.write_block = indirect_write_block,
 	.free_block = indirect_free_block,
 	.write_alias = indirect_write_alias,

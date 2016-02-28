@@ -182,39 +182,62 @@ EXPORT_SYMBOL_GPL(gpiod_get_direction);
 
 /*
  * Add a new chip to the global chips list, keeping the list of chips sorted
- * by base order.
+ * by range(means [base, base + ngpio - 1]) order.
  *
  * Return -EBUSY if the new chip overlaps with some other chip's integer
  * space.
  */
 static int gpiochip_add_to_list(struct gpio_chip *chip)
 {
-	struct list_head *pos;
-	struct gpio_chip *_chip;
-	int err = 0;
+	struct gpio_chip *iterator;
+	struct gpio_chip *previous = NULL;
 
-	/* find where to insert our chip */
-	list_for_each(pos, &gpio_chips) {
-		_chip = list_entry(pos, struct gpio_chip, list);
-		/* shall we insert before _chip? */
-		if (_chip->base >= chip->base + chip->ngpio)
-			break;
+	if (list_empty(&gpio_chips)) {
+		list_add_tail(&chip->list, &gpio_chips);
+		return 0;
 	}
 
-	/* are we stepping on the chip right before? */
-	if (pos != &gpio_chips && pos->prev != &gpio_chips) {
-		_chip = list_entry(pos->prev, struct gpio_chip, list);
-		if (_chip->base + _chip->ngpio > chip->base) {
-			dev_err(chip->dev,
-			       "GPIO integer space overlap, cannot add chip\n");
-			err = -EBUSY;
+	list_for_each_entry(iterator, &gpio_chips, list) {
+		if (iterator->base >= chip->base + chip->ngpio) {
+			/*
+			 * Iterator is the first GPIO chip so there is no
+			 * previous one
+			 */
+			if (!previous) {
+				goto found;
+			} else {
+				/*
+				 * We found a valid range(means
+				 * [base, base + ngpio - 1]) between previous
+				 * and iterator chip.
+				 */
+				if (previous->base + previous->ngpio
+						<= chip->base)
+					goto found;
+			}
 		}
+		previous = iterator;
 	}
 
-	if (!err)
-		list_add_tail(&chip->list, pos);
+	/*
+	 * We are beyond the last chip in the list and iterator now
+	 * points to the head.
+	 * Let iterator point to the last chip in the list.
+	 */
 
-	return err;
+	iterator = list_last_entry(&gpio_chips, struct gpio_chip, list);
+	if (iterator->base + iterator->ngpio <= chip->base) {
+		list_add(&chip->list, &iterator->list);
+		return 0;
+	}
+
+	dev_err(chip->parent,
+	       "GPIO integer space overlap, cannot add chip\n");
+	return -EBUSY;
+
+found:
+	list_add_tail(&chip->list, &iterator->list);
+	return 0;
 }
 
 /**
@@ -252,7 +275,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
  * Takes the names from gc->names and checks if they are all unique. If they
  * are, they are assigned to their gpio descriptors.
  *
- * Returns -EEXIST if one of the names is already used for a different GPIO.
+ * Warning if one of the names is already used for a different GPIO.
  */
 static int gpiochip_set_desc_names(struct gpio_chip *gc)
 {
@@ -267,7 +290,7 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 
 		gpio = gpio_name_to_desc(gc->names[i]);
 		if (gpio)
-			dev_warn(gc->dev, "Detected name collision for "
+			dev_warn(gc->parent, "Detected name collision for "
 				 "GPIO name '%s'\n",
 				 gc->names[i]);
 	}
@@ -280,7 +303,7 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 }
 
 /**
- * gpiochip_add() - register a gpio_chip
+ * gpiochip_add_data() - register a gpio_chip
  * @chip: the chip to register, with chip->base initialized
  * Context: potentially before irqs will work
  *
@@ -288,15 +311,15 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
  * because the chip->base is invalid or already associated with a
  * different chip.  Otherwise it returns zero as a success code.
  *
- * When gpiochip_add() is called very early during boot, so that GPIOs
- * can be freely used, the chip->dev device must be registered before
+ * When gpiochip_add_data() is called very early during boot, so that GPIOs
+ * can be freely used, the chip->parent device must be registered before
  * the gpio framework's arch_initcall().  Otherwise sysfs initialization
  * for GPIOs will fail rudely.
  *
  * If chip->base is negative, this requests dynamic assignment of
  * a range of valid GPIOs.
  */
-int gpiochip_add(struct gpio_chip *chip)
+int gpiochip_add_data(struct gpio_chip *chip, void *data)
 {
 	unsigned long	flags;
 	int		status = 0;
@@ -307,6 +330,13 @@ int gpiochip_add(struct gpio_chip *chip)
 	descs = kcalloc(chip->ngpio, sizeof(descs[0]), GFP_KERNEL);
 	if (!descs)
 		return -ENOMEM;
+
+	chip->data = data;
+
+	if (chip->ngpio == 0) {
+		chip_err(chip, "tried to insert a GPIO chip with zero lines\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -348,8 +378,8 @@ int gpiochip_add(struct gpio_chip *chip)
 	INIT_LIST_HEAD(&chip->pin_ranges);
 #endif
 
-	if (!chip->owner && chip->dev && chip->dev->driver)
-		chip->owner = chip->dev->driver->owner;
+	if (!chip->owner && chip->parent && chip->parent->driver)
+		chip->owner = chip->parent->driver->owner;
 
 	status = gpiochip_set_desc_names(chip);
 	if (status)
@@ -389,7 +419,7 @@ err_free_descs:
 		chip->label ? : "generic");
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpiochip_add);
+EXPORT_SYMBOL_GPL(gpiochip_add_data);
 
 /**
  * gpiochip_remove() - unregister a gpio_chip
@@ -424,7 +454,8 @@ void gpiochip_remove(struct gpio_chip *chip)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	if (requested)
-		dev_crit(chip->dev, "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
+		dev_crit(chip->parent,
+			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
 	kfree(chip->desc);
 	chip->desc = NULL;
@@ -659,7 +690,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * gpiochip, providing an irq domain to translate the local IRQs to
  * global irqs in the gpiolib core, and making sure that the gpiochip
  * is passed as chip data to all related functions. Driver callbacks
- * need to use container_of() to get their local state containers back
+ * need to use gpiochip_get_data() to get their local state containers back
  * from the gpiochip passed as chip data. An irqdomain will be stored
  * in the gpiochip that shall be used by the driver to handle IRQ number
  * translation. The gpiochip will need to be initialized and registered
@@ -683,15 +714,16 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 	if (!gpiochip || !irqchip)
 		return -EINVAL;
 
-	if (!gpiochip->dev) {
+	if (!gpiochip->parent) {
 		pr_err("missing gpiochip .dev parent pointer\n");
 		return -EINVAL;
 	}
-	of_node = gpiochip->dev->of_node;
+	of_node = gpiochip->parent->of_node;
 #ifdef CONFIG_OF_GPIO
 	/*
 	 * If the gpiochip has an assigned OF node this takes precedence
-	 * FIXME: get rid of this and use gpiochip->dev->of_node everywhere
+	 * FIXME: get rid of this and use gpiochip->parent->of_node
+	 * everywhere
 	 */
 	if (gpiochip->of_node)
 		of_node = gpiochip->of_node;
@@ -1279,13 +1311,7 @@ static int _gpiod_get_raw_value(const struct gpio_desc *desc)
 	chip = desc->chip;
 	offset = gpio_chip_hwgpio(desc);
 	value = chip->get ? chip->get(chip, offset) : -EIO;
-	/*
-	 * FIXME: fix all drivers to clamp to [0,1] or return negative,
-	 * then change this to:
-	 * value = value < 0 ? value : !!value;
-	 * so we can properly propagate error codes.
-	 */
-	value = !!value;
+	value = value < 0 ? value : !!value;
 	trace_gpio_value(desc_to_gpio(desc), 1, value);
 	return value;
 }
@@ -1874,12 +1900,15 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 
 	/* Then from plain _CRS GPIOs */
 	if (IS_ERR(desc)) {
+		if (!acpi_can_fallback_to_crs(adev, con_id))
+			return ERR_PTR(-ENOENT);
+
 		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
 		if (IS_ERR(desc))
 			return desc;
 	}
 
-	if (info.active_low)
+	if (info.polarity == GPIO_ACTIVE_LOW)
 		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;
@@ -2217,7 +2246,7 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 
 		desc = acpi_node_get_gpiod(fwnode, propname, 0, &info);
 		if (!IS_ERR(desc))
-			active_low = info.active_low;
+			active_low = info.polarity == GPIO_ACTIVE_LOW;
 	}
 
 	if (IS_ERR(desc))
@@ -2509,7 +2538,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "%sGPIOs %d-%d", (char *)s->private,
 			chip->base, chip->base + chip->ngpio - 1);
-	dev = chip->dev;
+	dev = chip->parent;
 	if (dev)
 		seq_printf(s, ", %s/%s", dev->bus ? dev->bus->name : "no-bus",
 			dev_name(dev));

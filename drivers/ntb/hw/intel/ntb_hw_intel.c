@@ -875,7 +875,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	limit_reg = bar2_off(ndev->xlat_reg->bar2_limit, bar);
 
 	if (bar < 4 || !ndev->bar4_split) {
-		base = ioread64(mmio + base_reg);
+		base = ioread64(mmio + base_reg) & NTB_BAR_MASK_64;
 
 		/* Set the limit if supported, if size is not mw_size */
 		if (limit_reg && size != mw_size)
@@ -906,7 +906,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 		if ((addr + size) & (~0ull << 32))
 			return -EINVAL;
 
-		base = ioread32(mmio + base_reg);
+		base = ioread32(mmio + base_reg) & NTB_BAR_MASK_32;
 
 		/* Set the limit if supported, if size is not mw_size */
 		if (limit_reg && size != mw_size)

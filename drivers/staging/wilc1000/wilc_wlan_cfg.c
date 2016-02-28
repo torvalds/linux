@@ -275,9 +275,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 	while (size > 0) {
 		i = 0;
 		wid = info[0] | (info[1] << 8);
-#ifdef BIG_ENDIAN
-		wid = BYTE_SWAP(wid);
-#endif
+		wid = cpu_to_le32(wid);
 		PRINT_INFO(GENERIC_DBG, "Processing response for %d seq %d\n", wid, seq++);
 		switch ((wid >> 12) & 0x7) {
 		case WID_CHAR:
@@ -300,11 +298,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 					break;
 
 				if (g_cfg_hword[i].id == wid) {
-#ifdef BIG_ENDIAN
-					g_cfg_hword[i].val = (info[3] << 8) | (info[4]);
-#else
-					g_cfg_hword[i].val = info[3] | (info[4] << 8);
-#endif
+					g_cfg_hword[i].val = cpu_to_le16(info[3] | (info[4] << 8));
 					break;
 				}
 				i++;
@@ -318,11 +312,7 @@ static void wilc_wlan_parse_response_frame(u8 *info, int size)
 					break;
 
 				if (g_cfg_word[i].id == wid) {
-#ifdef BIG_ENDIAN
-					g_cfg_word[i].val = (info[3] << 24) | (info[4] << 16) | (info[5] << 8) | (info[6]);
-#else
-					g_cfg_word[i].val = info[3] | (info[4] << 8) | (info[5] << 16) | (info[6] << 24);
-#endif
+					g_cfg_word[i].val = cpu_to_le32(info[3] | (info[4] << 8) | (info[5] << 16) | (info[6] << 24));
 					break;
 				}
 				i++;
@@ -505,7 +495,8 @@ int wilc_wlan_cfg_get_wid_value(u16 wid, u8 *buffer, u32 buffer_size)
 	return ret;
 }
 
-int wilc_wlan_cfg_indicate_rx(u8 *frame, int size, wilc_cfg_rsp_t *rsp)
+int wilc_wlan_cfg_indicate_rx(struct wilc *wilc, u8 *frame, int size,
+			      struct wilc_cfg_rsp *rsp)
 {
 	int ret = 1;
 	u8 msg_type;
@@ -532,17 +523,17 @@ int wilc_wlan_cfg_indicate_rx(u8 *frame, int size, wilc_cfg_rsp_t *rsp)
 		rsp->seq_no = msg_id;
 		/*call host interface info parse as well*/
 		PRINT_INFO(RX_DBG, "Info message received\n");
-		GnrlAsyncInfoReceived(frame - 4, size + 4);
+		wilc_gnrl_async_info_received(wilc, frame - 4, size + 4);
 		break;
 
 	case 'N':
-		NetworkInfoReceived(frame - 4, size + 4);
+		wilc_network_info_received(wilc, frame - 4, size + 4);
 		rsp->type = 0;
 		break;
 
 	case 'S':
 		PRINT_INFO(RX_DBG, "Scan Notification Received\n");
-		host_int_ScanCompleteReceived(frame - 4, size + 4);
+		wilc_scan_complete_received(wilc, frame - 4, size + 4);
 		break;
 
 	default:

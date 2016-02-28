@@ -152,9 +152,10 @@ struct ib_ah *ocrdma_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 	if ((pd->uctx) &&
 	    (!rdma_is_multicast_addr((struct in6_addr *)attr->grh.dgid.raw)) &&
 	    (!rdma_link_local_addr((struct in6_addr *)attr->grh.dgid.raw))) {
-		status = rdma_addr_find_dmac_by_grh(&sgid, &attr->grh.dgid,
-						    attr->dmac, &vlan_tag,
-						    sgid_attr.ndev->ifindex);
+		status = rdma_addr_find_l2_eth_by_grh(&sgid, &attr->grh.dgid,
+						      attr->dmac, &vlan_tag,
+						      &sgid_attr.ndev->ifindex,
+						      NULL);
 		if (status) {
 			pr_err("%s(): Failed to resolve dmac from gid." 
 				"status = %d\n", __func__, status);

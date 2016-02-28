@@ -652,8 +652,6 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {
 	.dpms = nv04_lvds_dpms,
-	.save = nv04_dfp_save,
-	.restore = nv04_dfp_restore,
 	.mode_fixup = nv04_dfp_mode_fixup,
 	.prepare = nv04_dfp_prepare,
 	.commit = nv04_dfp_commit,
@@ -663,8 +661,6 @@ static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {
 
 static const struct drm_encoder_helper_funcs nv04_tmds_helper_funcs = {
 	.dpms = nv04_tmds_dpms,
-	.save = nv04_dfp_save,
-	.restore = nv04_dfp_restore,
 	.mode_fixup = nv04_dfp_mode_fixup,
 	.prepare = nv04_dfp_prepare,
 	.commit = nv04_dfp_commit,
@@ -701,12 +697,15 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 	if (!nv_encoder)
 		return -ENOMEM;
 
+	nv_encoder->enc_save = nv04_dfp_save;
+	nv_encoder->enc_restore = nv04_dfp_restore;
+
 	encoder = to_drm_encoder(nv_encoder);
 
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
-	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type);
+	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type, NULL);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;

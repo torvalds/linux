@@ -84,7 +84,7 @@ struct fsl_espi_transfer {
 /* SPCOM register values */
 #define SPCOM_CS(x)		((x) << 30)
 #define SPCOM_TRANLEN(x)	((x) << 0)
-#define	SPCOM_TRANLEN_MAX	0xFFFF	/* Max transaction length */
+#define	SPCOM_TRANLEN_MAX	0x10000	/* Max transaction length */
 
 #define AUTOSUSPEND_TIMEOUT 2000
 
@@ -233,7 +233,7 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	reinit_completion(&mpc8xxx_spi->done);
 
 	/* Set SPCOM[CS] and SPCOM[TRANLEN] field */
-	if ((t->len - 1) > SPCOM_TRANLEN_MAX) {
+	if (t->len > SPCOM_TRANLEN_MAX) {
 		dev_err(mpc8xxx_spi->dev, "Transaction length (%d)"
 				" beyond the SPCOM[TRANLEN] field\n", t->len);
 		return -EINVAL;
@@ -643,6 +643,11 @@ static int fsl_espi_runtime_resume(struct device *dev)
 }
 #endif
 
+static size_t fsl_espi_max_transfer_size(struct spi_device *spi)
+{
+	return SPCOM_TRANLEN_MAX;
+}
+
 static struct spi_master * fsl_espi_probe(struct device *dev,
 		struct resource *mem, unsigned int irq)
 {
@@ -670,6 +675,7 @@ static struct spi_master * fsl_espi_probe(struct device *dev,
 	master->cleanup = fsl_espi_cleanup;
 	master->transfer_one_message = fsl_espi_do_one_msg;
 	master->auto_runtime_pm = true;
+	master->max_transfer_size = fsl_espi_max_transfer_size;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 

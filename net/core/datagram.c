@@ -83,8 +83,8 @@ static int receiver_wake_function(wait_queue_t *wait, unsigned int mode, int syn
 /*
  * Wait for the last received packet to be different from skb
  */
-static int wait_for_more_packets(struct sock *sk, int *err, long *timeo_p,
-				 const struct sk_buff *skb)
+int __skb_wait_for_more_packets(struct sock *sk, int *err, long *timeo_p,
+				const struct sk_buff *skb)
 {
 	int error;
 	DEFINE_WAIT_FUNC(wait, receiver_wake_function);
@@ -130,6 +130,7 @@ out_noerr:
 	error = 1;
 	goto out;
 }
+EXPORT_SYMBOL(__skb_wait_for_more_packets);
 
 static struct sk_buff *skb_set_peeked(struct sk_buff *skb)
 {
@@ -161,13 +162,15 @@ done:
 }
 
 /**
- *	__skb_recv_datagram - Receive a datagram skbuff
+ *	__skb_try_recv_datagram - Receive a datagram skbuff
  *	@sk: socket
  *	@flags: MSG_ flags
  *	@peeked: returns non-zero if this packet has been seen before
  *	@off: an offset in bytes to peek skb from. Returns an offset
  *	      within an skb where data actually starts
  *	@err: error code returned
+ *	@last: set to last peeked message to inform the wait function
+ *	       what to look for when peeking
  *
  *	Get a datagram skbuff, understands the peeking, nonblocking wakeups
  *	and possible races. This replaces identical code in packet, raw and
@@ -175,9 +178,11 @@ done:
  *	the long standing peek and read race for datagram sockets. If you
  *	alter this routine remember it must be re-entrant.
  *
- *	This function will lock the socket if a skb is returned, so the caller
- *	needs to unlock the socket in that case (usually by calling
- *	skb_free_datagram)
+ *	This function will lock the socket if a skb is returned, so
+ *	the caller needs to unlock the socket in that case (usually by
+ *	calling skb_free_datagram). Returns NULL with *err set to
+ *	-EAGAIN if no data was available or to some other value if an
+ *	error was detected.
  *
  *	* It does not lock socket since today. This function is
  *	* free of race conditions. This measure should/can improve
@@ -191,13 +196,13 @@ done:
  *	quite explicitly by POSIX 1003.1g, don't change them without having
  *	the standard around please.
  */
-struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
-				    int *peeked, int *off, int *err)
+struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
+					int *peeked, int *off, int *err,
+					struct sk_buff **last)
 {
 	struct sk_buff_head *queue = &sk->sk_receive_queue;
-	struct sk_buff *skb, *last;
+	struct sk_buff *skb;
 	unsigned long cpu_flags;
-	long timeo;
 	/*
 	 * Caller is allowed not to check sk->sk_err before skb_recv_datagram()
 	 */
@@ -205,8 +210,6 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 
 	if (error)
 		goto no_packet;
-
-	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
 	do {
 		/* Again only user level code calls this function, so nothing
@@ -217,10 +220,10 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 		 */
 		int _off = *off;
 
-		last = (struct sk_buff *)queue;
+		*last = (struct sk_buff *)queue;
 		spin_lock_irqsave(&queue->lock, cpu_flags);
 		skb_queue_walk(queue, skb) {
-			last = skb;
+			*last = skb;
 			*peeked = skb->peeked;
 			if (flags & MSG_PEEK) {
 				if (_off >= skb->len && (skb->len || _off ||
@@ -231,8 +234,11 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 
 				skb = skb_set_peeked(skb);
 				error = PTR_ERR(skb);
-				if (IS_ERR(skb))
-					goto unlock_err;
+				if (IS_ERR(skb)) {
+					spin_unlock_irqrestore(&queue->lock,
+							       cpu_flags);
+					goto no_packet;
+				}
 
 				atomic_inc(&skb->users);
 			} else
@@ -242,25 +248,38 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
 			*off = _off;
 			return skb;
 		}
+
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
+	} while (sk_can_busy_loop(sk) &&
+		 sk_busy_loop(sk, flags & MSG_DONTWAIT));
 
-		if (sk_can_busy_loop(sk) &&
-		    sk_busy_loop(sk, flags & MSG_DONTWAIT))
-			continue;
+	error = -EAGAIN;
 
-		/* User doesn't want to wait */
-		error = -EAGAIN;
-		if (!timeo)
-			goto no_packet;
-
-	} while (!wait_for_more_packets(sk, err, &timeo, last));
-
-	return NULL;
-
-unlock_err:
-	spin_unlock_irqrestore(&queue->lock, cpu_flags);
 no_packet:
 	*err = error;
+	return NULL;
+}
+EXPORT_SYMBOL(__skb_try_recv_datagram);
+
+struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned int flags,
+				    int *peeked, int *off, int *err)
+{
+	struct sk_buff *skb, *last;
+	long timeo;
+
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
+
+	do {
+		skb = __skb_try_recv_datagram(sk, flags, peeked, off, err,
+					      &last);
+		if (skb)
+			return skb;
+
+		if (*err != -EAGAIN)
+			break;
+	} while (timeo &&
+		!__skb_wait_for_more_packets(sk, err, &timeo, last));
+
 	return NULL;
 }
 EXPORT_SYMBOL(__skb_recv_datagram);

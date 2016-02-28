@@ -305,8 +305,9 @@ static void _lookup_sddiv(struct clk_hw_omap *clk, u8 *sd_div, u16 m, u8 n)
 static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 {
 	struct dpll_data *dd = clk->dpll_data;
-	u8 dco, sd_div;
+	u8 dco, sd_div, ai = 0;
 	u32 v;
+	bool errata_i810;
 
 	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
 	_omap3_noncore_dpll_bypass(clk);
@@ -350,6 +351,25 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 		v |= sd_div << __ffs(dd->sddiv_mask);
 	}
 
+	/*
+	 * Errata i810 - DPLL controller can get stuck while transitioning
+	 * to a power saving state. Software must ensure the DPLL can not
+	 * transition to a low power state while changing M/N values.
+	 * Easiest way to accomplish this is to prevent DPLL autoidle
+	 * before doing the M/N re-program.
+	 */
+	errata_i810 = ti_clk_get_features()->flags & TI_CLK_ERRATA_I810;
+
+	if (errata_i810) {
+		ai = omap3_dpll_autoidle_read(clk);
+		if (ai) {
+			omap3_dpll_deny_idle(clk);
+
+			/* OCP barrier */
+			omap3_dpll_autoidle_read(clk);
+		}
+	}
+
 	ti_clk_ll_ops->clk_writel(v, dd->mult_div1_reg);
 
 	/* Set 4X multiplier and low-power mode */
@@ -378,6 +398,9 @@ static int omap3_noncore_dpll_program(struct clk_hw_omap *clk, u16 freqsel)
 	/* REVISIT: Set ramp-up delay? */
 
 	_omap3_noncore_dpll_lock(clk);
+
+	if (errata_i810 && ai)
+		omap3_dpll_allow_idle(clk);
 
 	return 0;
 }
@@ -437,7 +460,8 @@ int omap3_noncore_dpll_enable(struct clk_hw *hw)
 
 	parent = clk_hw_get_parent(hw);
 
-	if (clk_hw_get_rate(hw) == clk_get_rate(dd->clk_bypass)) {
+	if (clk_hw_get_rate(hw) ==
+	    clk_hw_get_rate(__clk_get_hw(dd->clk_bypass))) {
 		WARN_ON(parent != __clk_get_hw(dd->clk_bypass));
 		r = _omap3_noncore_dpll_bypass(clk);
 	} else {

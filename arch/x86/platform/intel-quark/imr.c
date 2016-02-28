@@ -111,23 +111,19 @@ static int imr_read(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	u32 reg = imr_id * IMR_NUM_REGS + idev->reg_base;
 	int ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_lo);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_lo);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->addr_hi);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->addr_hi);
 	if (ret)
 		return ret;
 
-	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->rmask);
+	ret = iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->rmask);
 	if (ret)
 		return ret;
 
-	return iosf_mbi_read(QRK_MBI_UNIT_MM, QRK_MBI_MM_READ,
-				reg++, &imr->wmask);
+	return iosf_mbi_read(QRK_MBI_UNIT_MM, MBI_REG_READ, reg++, &imr->wmask);
 }
 
 /**
@@ -151,31 +147,27 @@ static int imr_write(struct imr_device *idev, u32 imr_id,
 
 	local_irq_save(flags);
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE, reg++,
-				imr->addr_lo);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_lo);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->addr_hi);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->addr_hi);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->rmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->rmask);
 	if (ret)
 		goto failed;
 
-	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-				reg++, imr->wmask);
+	ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE, reg++, imr->wmask);
 	if (ret)
 		goto failed;
 
 	/* Lock bit must be set separately to addr_lo address bits. */
 	if (lock) {
 		imr->addr_lo |= IMR_LOCK;
-		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, QRK_MBI_MM_WRITE,
-					reg - IMR_NUM_REGS, imr->addr_lo);
+		ret = iosf_mbi_write(QRK_MBI_UNIT_MM, MBI_REG_WRITE,
+				     reg - IMR_NUM_REGS, imr->addr_lo);
 		if (ret)
 			goto failed;
 	}
@@ -228,11 +220,12 @@ static int imr_dbgfs_state_show(struct seq_file *s, void *unused)
 		if (imr_is_enabled(&imr)) {
 			base = imr_to_phys(imr.addr_lo);
 			end = imr_to_phys(imr.addr_hi) + IMR_MASK;
+			size = end - base + 1;
 		} else {
 			base = 0;
 			end = 0;
+			size = 0;
 		}
-		size = end - base;
 		seq_printf(s, "imr%02i: base=%pa, end=%pa, size=0x%08zx "
 			   "rmask=0x%08x, wmask=0x%08x, %s, %s\n", i,
 			   &base, &end, size, imr.rmask, imr.wmask,
@@ -587,6 +580,7 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 {
 	phys_addr_t base = virt_to_phys(&_text);
 	size_t size = virt_to_phys(&__end_rodata) - base;
+	unsigned long start, end;
 	int i;
 	int ret;
 
@@ -594,18 +588,24 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 	for (i = 0; i < idev->max_imr; i++)
 		imr_clear(i);
 
+	start = (unsigned long)_text;
+	end = (unsigned long)__end_rodata - 1;
+
 	/*
-	 * Setup a locked IMR around the physical extent of the kernel
+	 * Setup an unlocked IMR around the physical extent of the kernel
 	 * from the beginning of the .text secton to the end of the
 	 * .rodata section as one physically contiguous block.
+	 *
+	 * We don't round up @size since it is already PAGE_SIZE aligned.
+	 * See vmlinux.lds.S for details.
 	 */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, true);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
 	if (ret < 0) {
-		pr_err("unable to setup IMR for kernel: (%p - %p)\n",
-			&_text, &__end_rodata);
+		pr_err("unable to setup IMR for kernel: %zu KiB (%lx - %lx)\n",
+			size / 1024, start, end);
 	} else {
-		pr_info("protecting kernel .text - .rodata: %zu KiB (%p - %p)\n",
-			size / 1024, &_text, &__end_rodata);
+		pr_info("protecting kernel .text - .rodata: %zu KiB (%lx - %lx)\n",
+			size / 1024, start, end);
 	}
 
 }

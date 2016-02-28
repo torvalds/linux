@@ -7,6 +7,7 @@
 #include <linux/if_ether.h>
 #include <net/ip.h>
 #include <net/netlink.h>
+#include <net/switchdev.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -210,9 +211,31 @@ static inline size_t rtnl_mdb_nlmsg_size(void)
 static void __br_mdb_notify(struct net_device *dev, struct br_mdb_entry *entry,
 			    int type)
 {
+	struct switchdev_obj_port_mdb mdb = {
+		.obj = {
+			.id = SWITCHDEV_OBJ_ID_PORT_MDB,
+			.flags = SWITCHDEV_F_DEFER,
+		},
+		.vid = entry->vid,
+	};
+	struct net_device *port_dev;
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
+
+	port_dev = __dev_get_by_index(net, entry->ifindex);
+	if (entry->addr.proto == htons(ETH_P_IP))
+		ip_eth_mc_map(entry->addr.u.ip4, mdb.addr);
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		ipv6_eth_mc_map(&entry->addr.u.ip6, mdb.addr);
+#endif
+
+	mdb.obj.orig_dev = port_dev;
+	if (port_dev && type == RTM_NEWMDB)
+		switchdev_port_obj_add(port_dev, &mdb.obj);
+	else if (port_dev && type == RTM_DELMDB)
+		switchdev_port_obj_del(port_dev, &mdb.obj);
 
 	skb = nlmsg_new(rtnl_mdb_nlmsg_size(), GFP_ATOMIC);
 	if (!skb)
@@ -402,8 +425,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	mp = br_mdb_ip_get(mdb, group);
 	if (!mp) {
 		mp = br_multicast_new_group(br, port, group);
-		err = PTR_ERR(mp);
-		if (IS_ERR(mp))
+		err = PTR_ERR_OR_ZERO(mp);
+		if (err)
 			return err;
 	}
 

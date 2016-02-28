@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/gpio/consumer.h>
 #include <linux/phy.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
@@ -616,98 +617,112 @@ static void _mv88e6xxx_stats_read(struct dsa_switch *ds, int stat, u32 *val)
 }
 
 static struct mv88e6xxx_hw_stat mv88e6xxx_hw_stats[] = {
-	{ "in_good_octets", 8, 0x00, },
-	{ "in_bad_octets", 4, 0x02, },
-	{ "in_unicast", 4, 0x04, },
-	{ "in_broadcasts", 4, 0x06, },
-	{ "in_multicasts", 4, 0x07, },
-	{ "in_pause", 4, 0x16, },
-	{ "in_undersize", 4, 0x18, },
-	{ "in_fragments", 4, 0x19, },
-	{ "in_oversize", 4, 0x1a, },
-	{ "in_jabber", 4, 0x1b, },
-	{ "in_rx_error", 4, 0x1c, },
-	{ "in_fcs_error", 4, 0x1d, },
-	{ "out_octets", 8, 0x0e, },
-	{ "out_unicast", 4, 0x10, },
-	{ "out_broadcasts", 4, 0x13, },
-	{ "out_multicasts", 4, 0x12, },
-	{ "out_pause", 4, 0x15, },
-	{ "excessive", 4, 0x11, },
-	{ "collisions", 4, 0x1e, },
-	{ "deferred", 4, 0x05, },
-	{ "single", 4, 0x14, },
-	{ "multiple", 4, 0x17, },
-	{ "out_fcs_error", 4, 0x03, },
-	{ "late", 4, 0x1f, },
-	{ "hist_64bytes", 4, 0x08, },
-	{ "hist_65_127bytes", 4, 0x09, },
-	{ "hist_128_255bytes", 4, 0x0a, },
-	{ "hist_256_511bytes", 4, 0x0b, },
-	{ "hist_512_1023bytes", 4, 0x0c, },
-	{ "hist_1024_max_bytes", 4, 0x0d, },
-	/* Not all devices have the following counters */
-	{ "sw_in_discards", 4, 0x110, },
-	{ "sw_in_filtered", 2, 0x112, },
-	{ "sw_out_filtered", 2, 0x113, },
-
+	{ "in_good_octets",	8, 0x00, BANK0, },
+	{ "in_bad_octets",	4, 0x02, BANK0, },
+	{ "in_unicast",		4, 0x04, BANK0, },
+	{ "in_broadcasts",	4, 0x06, BANK0, },
+	{ "in_multicasts",	4, 0x07, BANK0, },
+	{ "in_pause",		4, 0x16, BANK0, },
+	{ "in_undersize",	4, 0x18, BANK0, },
+	{ "in_fragments",	4, 0x19, BANK0, },
+	{ "in_oversize",	4, 0x1a, BANK0, },
+	{ "in_jabber",		4, 0x1b, BANK0, },
+	{ "in_rx_error",	4, 0x1c, BANK0, },
+	{ "in_fcs_error",	4, 0x1d, BANK0, },
+	{ "out_octets",		8, 0x0e, BANK0, },
+	{ "out_unicast",	4, 0x10, BANK0, },
+	{ "out_broadcasts",	4, 0x13, BANK0, },
+	{ "out_multicasts",	4, 0x12, BANK0, },
+	{ "out_pause",		4, 0x15, BANK0, },
+	{ "excessive",		4, 0x11, BANK0, },
+	{ "collisions",		4, 0x1e, BANK0, },
+	{ "deferred",		4, 0x05, BANK0, },
+	{ "single",		4, 0x14, BANK0, },
+	{ "multiple",		4, 0x17, BANK0, },
+	{ "out_fcs_error",	4, 0x03, BANK0, },
+	{ "late",		4, 0x1f, BANK0, },
+	{ "hist_64bytes",	4, 0x08, BANK0, },
+	{ "hist_65_127bytes",	4, 0x09, BANK0, },
+	{ "hist_128_255bytes",	4, 0x0a, BANK0, },
+	{ "hist_256_511bytes",	4, 0x0b, BANK0, },
+	{ "hist_512_1023bytes", 4, 0x0c, BANK0, },
+	{ "hist_1024_max_bytes", 4, 0x0d, BANK0, },
+	{ "sw_in_discards",	4, 0x10, PORT, },
+	{ "sw_in_filtered",	2, 0x12, PORT, },
+	{ "sw_out_filtered",	2, 0x13, PORT, },
+	{ "in_discards",	4, 0x00 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_filtered",	4, 0x01 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_accepted",	4, 0x02 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_bad_accepted",	4, 0x03 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_good_avb_class_a", 4, 0x04 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_good_avb_class_b", 4, 0x05 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_bad_avb_class_a", 4, 0x06 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_bad_avb_class_b", 4, 0x07 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "tcam_counter_0",	4, 0x08 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "tcam_counter_1",	4, 0x09 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "tcam_counter_2",	4, 0x0a | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "tcam_counter_3",	4, 0x0b | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_da_unknown",	4, 0x0e | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "in_management",	4, 0x0f | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_0",	4, 0x10 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_1",	4, 0x11 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_2",	4, 0x12 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_3",	4, 0x13 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_4",	4, 0x14 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_5",	4, 0x15 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_6",	4, 0x16 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_queue_7",	4, 0x17 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_cut_through",	4, 0x18 | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_octets_a",	4, 0x1a | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_octets_b",	4, 0x1b | GLOBAL_STATS_OP_BANK_1, BANK1, },
+	{ "out_management",	4, 0x1f | GLOBAL_STATS_OP_BANK_1, BANK1, },
 };
 
-static bool have_sw_in_discards(struct dsa_switch *ds)
+static bool mv88e6xxx_has_stat(struct dsa_switch *ds,
+			       struct mv88e6xxx_hw_stat *stat)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	switch (ps->id) {
-	case PORT_SWITCH_ID_6095: case PORT_SWITCH_ID_6161:
-	case PORT_SWITCH_ID_6165: case PORT_SWITCH_ID_6171:
-	case PORT_SWITCH_ID_6172: case PORT_SWITCH_ID_6176:
-	case PORT_SWITCH_ID_6182: case PORT_SWITCH_ID_6185:
-	case PORT_SWITCH_ID_6352:
+	switch (stat->type) {
+	case BANK0:
 		return true;
-	default:
-		return false;
+	case BANK1:
+		return mv88e6xxx_6320_family(ds);
+	case PORT:
+		return mv88e6xxx_6095_family(ds) ||
+			mv88e6xxx_6185_family(ds) ||
+			mv88e6xxx_6097_family(ds) ||
+			mv88e6xxx_6165_family(ds) ||
+			mv88e6xxx_6351_family(ds) ||
+			mv88e6xxx_6352_family(ds);
 	}
-}
-
-static void _mv88e6xxx_get_strings(struct dsa_switch *ds,
-				   int nr_stats,
-				   struct mv88e6xxx_hw_stat *stats,
-				   int port, uint8_t *data)
-{
-	int i;
-
-	for (i = 0; i < nr_stats; i++) {
-		memcpy(data + i * ETH_GSTRING_LEN,
-		       stats[i].string, ETH_GSTRING_LEN);
-	}
+	return false;
 }
 
 static uint64_t _mv88e6xxx_get_ethtool_stat(struct dsa_switch *ds,
-					    int stat,
-					    struct mv88e6xxx_hw_stat *stats,
+					    struct mv88e6xxx_hw_stat *s,
 					    int port)
 {
-	struct mv88e6xxx_hw_stat *s = stats + stat;
 	u32 low;
 	u32 high = 0;
 	int ret;
 	u64 value;
 
-	if (s->reg >= 0x100) {
-		ret = _mv88e6xxx_reg_read(ds, REG_PORT(port),
-					  s->reg - 0x100);
+	switch (s->type) {
+	case PORT:
+		ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), s->reg);
 		if (ret < 0)
 			return UINT64_MAX;
 
 		low = ret;
 		if (s->sizeof_stat == 4) {
 			ret = _mv88e6xxx_reg_read(ds, REG_PORT(port),
-						  s->reg - 0x100 + 1);
+						  s->reg + 1);
 			if (ret < 0)
 				return UINT64_MAX;
 			high = ret;
 		}
-	} else {
+		break;
+	case BANK0:
+	case BANK1:
 		_mv88e6xxx_stats_read(ds, s->reg, &low);
 		if (s->sizeof_stat == 8)
 			_mv88e6xxx_stats_read(ds, s->reg + 1, &high);
@@ -716,14 +731,42 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct dsa_switch *ds,
 	return value;
 }
 
-static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
-					 int nr_stats,
-					 struct mv88e6xxx_hw_stat *stats,
-					 int port, uint64_t *data)
+void mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+{
+	struct mv88e6xxx_hw_stat *stat;
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
+		stat = &mv88e6xxx_hw_stats[i];
+		if (mv88e6xxx_has_stat(ds, stat)) {
+			memcpy(data + j * ETH_GSTRING_LEN, stat->string,
+			       ETH_GSTRING_LEN);
+			j++;
+		}
+	}
+}
+
+int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_hw_stat *stat;
+	int i, j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
+		stat = &mv88e6xxx_hw_stats[i];
+		if (mv88e6xxx_has_stat(ds, stat))
+			j++;
+	}
+	return j;
+}
+
+void
+mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
+			    int port, uint64_t *data)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	struct mv88e6xxx_hw_stat *stat;
 	int ret;
-	int i;
+	int i, j;
 
 	mutex_lock(&ps->smi_mutex);
 
@@ -732,45 +775,15 @@ static void _mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 		mutex_unlock(&ps->smi_mutex);
 		return;
 	}
-
-	/* Read each of the counters. */
-	for (i = 0; i < nr_stats; i++)
-		data[i] = _mv88e6xxx_get_ethtool_stat(ds, i, stats, port);
+	for (i = 0, j = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
+		stat = &mv88e6xxx_hw_stats[i];
+		if (mv88e6xxx_has_stat(ds, stat)) {
+			data[j] = _mv88e6xxx_get_ethtool_stat(ds, stat, port);
+			j++;
+		}
+	}
 
 	mutex_unlock(&ps->smi_mutex);
-}
-
-/* All the statistics in the table */
-void
-mv88e6xxx_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
-{
-	if (have_sw_in_discards(ds))
-		_mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6xxx_hw_stats),
-				       mv88e6xxx_hw_stats, port, data);
-	else
-		_mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6xxx_hw_stats) - 3,
-				       mv88e6xxx_hw_stats, port, data);
-}
-
-int mv88e6xxx_get_sset_count(struct dsa_switch *ds)
-{
-	if (have_sw_in_discards(ds))
-		return ARRAY_SIZE(mv88e6xxx_hw_stats);
-	return ARRAY_SIZE(mv88e6xxx_hw_stats) - 3;
-}
-
-void
-mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
-			    int port, uint64_t *data)
-{
-	if (have_sw_in_discards(ds))
-		_mv88e6xxx_get_ethtool_stats(
-			ds, ARRAY_SIZE(mv88e6xxx_hw_stats),
-			mv88e6xxx_hw_stats, port, data);
-	else
-		_mv88e6xxx_get_ethtool_stats(
-			ds, ARRAY_SIZE(mv88e6xxx_hw_stats) - 3,
-			mv88e6xxx_hw_stats, port, data);
 }
 
 int mv88e6xxx_get_regs_len(struct dsa_switch *ds, int port)
@@ -1519,7 +1532,7 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	/* no PVID with ranges, otherwise it's a bug */
 	if (pvid)
-		err = _mv88e6xxx_port_pvid_set(ds, port, vid);
+		err = _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end);
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
@@ -1542,7 +1555,7 @@ static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	if (vlan.vid != vid || !vlan.valid ||
 	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
-		return -ENOENT;
+		return -EOPNOTSUPP;
 
 	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
@@ -1569,6 +1582,7 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	const u16 defpvid = 4000 + ds->index * DSA_MAX_PORTS + port;
 	u16 pvid, vid;
 	int err = 0;
 
@@ -1584,7 +1598,8 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			goto unlock;
 
 		if (vid == pvid) {
-			err = _mv88e6xxx_port_pvid_set(ds, port, 0);
+			/* restore reserved VLAN ID */
+			err = _mv88e6xxx_port_pvid_set(ds, port, defpvid);
 			if (err)
 				goto unlock;
 		}
@@ -1876,26 +1891,20 @@ unlock:
 
 int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port, u32 members)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
-	int err;
-
-	/* The port joined a bridge, so leave its reserved VLAN */
-	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_port_vlan_del(ds, port, pvid);
-	if (!err)
-		err = _mv88e6xxx_port_pvid_set(ds, port, 0);
-	mutex_unlock(&ps->smi_mutex);
-	return err;
+	return 0;
 }
 
 int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port, u32 members)
+{
+	return 0;
+}
+
+static int mv88e6xxx_setup_port_default_vlan(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
 	int err;
 
-	/* The port left the bridge, so join its reserved VLAN */
 	mutex_lock(&ps->smi_mutex);
 	err = _mv88e6xxx_port_vlan_add(ds, port, pvid, true);
 	if (!err)
@@ -2150,7 +2159,8 @@ static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 	 * database, and allow every port to egress frames on all other ports.
 	 */
 	reg = BIT(ps->num_ports) - 1; /* all ports */
-	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg & ~port);
+	reg &= ~BIT(port); /* except itself */
+	ret = _mv88e6xxx_port_vlan_map_set(ds, port, reg);
 	if (ret)
 		goto abort;
 
@@ -2178,8 +2188,7 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
 			continue;
 
-		/* setup the unbridged state */
-		ret = mv88e6xxx_port_bridge_leave(ds, i, 0);
+		ret = mv88e6xxx_setup_port_default_vlan(ds, i);
 		if (ret < 0)
 			return ret;
 	}
@@ -2323,6 +2332,7 @@ int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
+	struct gpio_desc *gpiod = ds->pd->reset;
 	unsigned long timeout;
 	int ret;
 	int i;
@@ -2335,6 +2345,14 @@ int mv88e6xxx_switch_reset(struct dsa_switch *ds, bool ppu_active)
 
 	/* Wait for transmit queues to drain. */
 	usleep_range(2000, 4000);
+
+	/* If there is a gpio connected to the reset pin, toggle it */
+	if (gpiod) {
+		gpiod_set_value_cansleep(gpiod, 1);
+		usleep_range(10000, 20000);
+		gpiod_set_value_cansleep(gpiod, 0);
+		usleep_range(10000, 20000);
+	}
 
 	/* Reset the switch. Keep the PPU active if requested. The PPU
 	 * needs to be active to support indirect phy register access

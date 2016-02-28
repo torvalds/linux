@@ -35,6 +35,7 @@
 #ifndef _AHCI_H
 #define _AHCI_H
 
+#include <linux/pci.h>
 #include <linux/clk.h>
 #include <linux/libata.h>
 #include <linux/phy/phy.h>
@@ -237,11 +238,19 @@ enum {
 	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do not start engine on
 						        port start (wait until
 						        error-handling stage) */
-	AHCI_HFLAG_MULTI_MSI		= (1 << 16), /* multiple PCI MSIs */
 	AHCI_HFLAG_NO_DEVSLP		= (1 << 17), /* no device sleep */
 	AHCI_HFLAG_NO_FBS		= (1 << 18), /* no FBS */
 	AHCI_HFLAG_EDGE_IRQ		= (1 << 19), /* HOST_IRQ_STAT behaves as
 							Edge Triggered */
+#ifdef CONFIG_PCI_MSI
+	AHCI_HFLAG_MULTI_MSI		= (1 << 20), /* multiple PCI MSIs */
+	AHCI_HFLAG_MULTI_MSIX		= (1 << 21), /* per-port MSI-X */
+#else
+	/* compile out MSI infrastructure */
+	AHCI_HFLAG_MULTI_MSI		= 0,
+	AHCI_HFLAG_MULTI_MSIX		= 0,
+#endif
+	AHCI_HFLAG_WAKE_BEFORE_STOP	= (1 << 22), /* wake before DMA stop */
 
 	/* ap->flags bits */
 
@@ -308,7 +317,6 @@ struct ahci_port_priv {
 	unsigned int		ncq_saw_d2h:1;
 	unsigned int		ncq_saw_dmas:1;
 	unsigned int		ncq_saw_sdb:1;
-	atomic_t		intr_status;	/* interrupts to handle */
 	spinlock_t		lock;		/* protects parent ata_port */
 	u32 			intr_mask;	/* interrupts to enable */
 	bool			fbs_supported;	/* set iff FBS is supported */
@@ -343,6 +351,7 @@ struct ahci_host_priv {
 	 * the PHY position in this array.
 	 */
 	struct phy		**phys;
+	struct msix_entry	*msix;		/* Optional MSI-X support */
 	unsigned		nports;		/* Number of ports */
 	void			*plat_data;	/* Other platform data */
 	unsigned int		irq;		/* interrupt line */
@@ -353,6 +362,21 @@ struct ahci_host_priv {
 	 */
 	void			(*start_engine)(struct ata_port *ap);
 };
+
+#ifdef CONFIG_PCI_MSI
+static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
+{
+	if (hpriv->flags & AHCI_HFLAG_MULTI_MSIX)
+		return hpriv->msix[port].vector;
+	else
+		return hpriv->irq + port;
+}
+#else
+static inline int ahci_irq_vector(struct ahci_host_priv *hpriv, int port)
+{
+	return hpriv->irq;
+}
+#endif
 
 extern int ahci_ignore_sss;
 

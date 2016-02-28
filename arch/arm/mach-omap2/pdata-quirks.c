@@ -23,6 +23,8 @@
 #include <linux/platform_data/pinctrl-single.h>
 #include <linux/platform_data/iommu-omap.h>
 #include <linux/platform_data/wkup_m3.h>
+#include <linux/platform_data/pwm_omap_dmtimer.h>
+#include <plat/dmtimer.h>
 
 #include "common.h"
 #include "common-board-devices.h"
@@ -150,6 +152,21 @@ static struct platform_device wl18xx_device = {
 	}
 };
 
+static struct ti_st_plat_data wilink7_pdata = {
+	.nshutdown_gpio = 162,
+	.dev_name = "/dev/ttyO1",
+	.flow_cntrl = 1,
+	.baud_rate = 300000,
+};
+
+static struct platform_device wl128x_device = {
+	.name	= "kim",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &wilink7_pdata,
+	}
+};
+
 static struct platform_device btwilink_device = {
 	.name	= "btwilink",
 	.id	= -1,
@@ -265,7 +282,7 @@ static void __init nokia_n900_legacy_init(void)
 			pr_warn("Thumb binaries may crash randomly without this workaround\n");
 		}
 
-		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		pr_info("RX-51: Registering OMAP3 HWRNG device\n");
 		platform_device_register(&omap3_rom_rng_device);
 
 	}
@@ -274,6 +291,13 @@ static void __init nokia_n900_legacy_init(void)
 static void __init omap3_tao3530_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
+}
+
+static void __init omap3_logicpd_torpedo_init(void)
+{
+	omap3_gpio126_127_129();
+	platform_device_register(&wl128x_device);
+	platform_device_register(&btwilink_device);
 }
 
 /* omap3pandora legacy devices */
@@ -427,6 +451,24 @@ void omap_auxdata_legacy_init(struct device *dev)
 	dev->platform_data = &twl_gpio_auxdata;
 }
 
+/* Dual mode timer PWM callbacks platdata */
+#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
+struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
+	.request_by_node = omap_dm_timer_request_by_node,
+	.free = omap_dm_timer_free,
+	.enable = omap_dm_timer_enable,
+	.disable = omap_dm_timer_disable,
+	.get_fclk = omap_dm_timer_get_fclk,
+	.start = omap_dm_timer_start,
+	.stop = omap_dm_timer_stop,
+	.set_load = omap_dm_timer_set_load,
+	.set_match = omap_dm_timer_set_match,
+	.set_pwm = omap_dm_timer_set_pwm,
+	.set_prescaler = omap_dm_timer_set_prescaler,
+	.write_counter = omap_dm_timer_write_counter,
+};
+#endif
+
 /*
  * Few boards still need auxdata populated before we populate
  * the dev entries in of_platform_populate().
@@ -480,6 +522,9 @@ static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("ti,am4372-wkup-m3", 0x44d00000, "44d00000.wkup_m3",
 		       &wkup_m3_data),
 #endif
+#if IS_ENABLED(CONFIG_OMAP_DM_TIMER)
+	OF_DEV_AUXDATA("ti,omap-dmtimer-pwm", 0, NULL, &pwm_dmtimer_pdata),
+#endif
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 	OF_DEV_AUXDATA("ti,omap4-iommu", 0x4a066000, "4a066000.mmu",
 		       &omap4_iommu_pdata),
@@ -503,7 +548,7 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "isee,omap3-igep0020-rev-f", omap3_igep0020_rev_f_legacy_init, },
 	{ "isee,omap3-igep0030-rev-g", omap3_igep0030_rev_g_legacy_init, },
-	{ "logicpd,dm3730-torpedo-devkit", omap3_gpio126_127_129, },
+	{ "logicpd,dm3730-torpedo-devkit", omap3_logicpd_torpedo_init, },
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
 	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },

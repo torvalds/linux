@@ -62,20 +62,6 @@ void pmd_init(unsigned long addr, unsigned long pagetable)
 }
 #endif
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-
-void pmdp_splitting_flush(struct vm_area_struct *vma,
-			 unsigned long address,
-			 pmd_t *pmdp)
-{
-	if (!pmd_trans_splitting(*pmdp)) {
-		pmd_t pmd = pmd_mksplitting(*pmdp);
-		set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-	}
-}
-
-#endif
-
 pmd_t mk_pmd(struct page *page, pgprot_t prot)
 {
 	pmd_t pmd;

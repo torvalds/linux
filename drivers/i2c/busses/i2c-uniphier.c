@@ -327,6 +327,11 @@ static int uniphier_i2c_clk_init(struct device *dev,
 	if (of_property_read_u32(np, "clock-frequency", &bus_speed))
 		bus_speed = UNIPHIER_I2C_DEFAULT_SPEED;
 
+	if (!bus_speed) {
+		dev_err(dev, "clock-frequency should not be zero\n");
+		return -EINVAL;
+	}
+
 	if (bus_speed > UNIPHIER_I2C_MAX_SPEED)
 		bus_speed = UNIPHIER_I2C_MAX_SPEED;
 
@@ -342,6 +347,10 @@ static int uniphier_i2c_clk_init(struct device *dev,
 		return ret;
 
 	clk_rate = clk_get_rate(priv->clk);
+	if (!clk_rate) {
+		dev_err(dev, "input clock rate should not be zero\n");
+		return -EINVAL;
+	}
 
 	uniphier_i2c_reset(priv, true);
 
@@ -388,7 +397,7 @@ static int uniphier_i2c_probe(struct platform_device *pdev)
 
 	ret = uniphier_i2c_clk_init(dev, priv);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = devm_request_irq(dev, irq, uniphier_i2c_interrupt, 0, pdev->name,
 			       priv);

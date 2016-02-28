@@ -388,7 +388,7 @@ static int get_domain_enable(struct powercap_zone *power_zone, bool *mode)
 }
 
 /* per RAPL domain ops, in the order of rapl_domain_type */
-static struct powercap_zone_ops zone_ops[] = {
+static const struct powercap_zone_ops zone_ops[] = {
 	/* RAPL_DOMAIN_PACKAGE */
 	{
 		.get_energy_uj = get_energy_counter,
@@ -584,7 +584,7 @@ static int get_max_power(struct powercap_zone *power_zone, int id,
 	return ret;
 }
 
-static struct powercap_zone_constraint_ops constraint_ops = {
+static const struct powercap_zone_constraint_ops constraint_ops = {
 	.set_power_limit_uw = set_power_limit,
 	.get_power_limit_uw = get_current_power_limit,
 	.set_time_window_us = set_time_window,
@@ -988,16 +988,16 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 	}
 
 	if (!power_ctrl_orig_val)
-		iosf_mbi_read(BT_MBI_UNIT_PMC, BT_MBI_PMC_READ,
-			rapl_defaults->floor_freq_reg_addr,
-				&power_ctrl_orig_val);
+		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_CR_READ,
+			      rapl_defaults->floor_freq_reg_addr,
+			      &power_ctrl_orig_val);
 	mdata = power_ctrl_orig_val;
 	if (enable) {
 		mdata &= ~(0x7f << 8);
 		mdata |= 1 << 8;
 	}
-	iosf_mbi_write(BT_MBI_UNIT_PMC, BT_MBI_PMC_WRITE,
-		rapl_defaults->floor_freq_reg_addr, mdata);
+	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_CR_WRITE,
+		       rapl_defaults->floor_freq_reg_addr, mdata);
 }
 
 static u64 rapl_compute_time_window_core(struct rapl_package *rp, u64 value,

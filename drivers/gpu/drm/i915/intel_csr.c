@@ -47,21 +47,10 @@
 MODULE_FIRMWARE(I915_CSR_SKL);
 MODULE_FIRMWARE(I915_CSR_BXT);
 
-/*
-* SKL CSR registers for DC5 and DC6
-*/
-#define CSR_PROGRAM(i)			(0x80000 + (i) * 4)
-#define CSR_SSP_BASE_ADDR_GEN9		0x00002FC0
-#define CSR_HTP_ADDR_SKL		0x00500034
-#define CSR_SSP_BASE			0x8F074
-#define CSR_HTP_SKL			0x8F004
-#define CSR_LAST_WRITE			0x8F034
-#define CSR_LAST_WRITE_VALUE		0xc003b400
-/* MMIO address range for CSR program (0x80000 - 0x82FFF) */
+#define SKL_CSR_VERSION_REQUIRED	CSR_VERSION(1, 23)
+
 #define CSR_MAX_FW_SIZE			0x2FFF
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
-#define CSR_MMIO_START_RANGE	0x80000
-#define CSR_MMIO_END_RANGE		0x8FFFF
 
 struct intel_css_header {
 	/* 0x09 for DMC */
@@ -177,167 +166,148 @@ struct stepping_info {
 	char substepping;
 };
 
-static const struct stepping_info skl_stepping_info[] = {
-		{'A', '0'}, {'B', '0'}, {'C', '0'},
-		{'D', '0'}, {'E', '0'}, {'F', '0'},
-		{'G', '0'}, {'H', '0'}, {'I', '0'}
+/*
+ * Kabylake derivated from Skylake H0, so SKL H0
+ * is the right firmware for KBL A0 (revid 0).
+ */
+static const struct stepping_info kbl_stepping_info[] = {
+	{'H', '0'}, {'I', '0'}
 };
 
-static struct stepping_info bxt_stepping_info[] = {
+static const struct stepping_info skl_stepping_info[] = {
+	{'A', '0'}, {'B', '0'}, {'C', '0'},
+	{'D', '0'}, {'E', '0'}, {'F', '0'},
+	{'G', '0'}, {'H', '0'}, {'I', '0'}
+};
+
+static const struct stepping_info bxt_stepping_info[] = {
 	{'A', '0'}, {'A', '1'}, {'A', '2'},
 	{'B', '0'}, {'B', '1'}, {'B', '2'}
 };
 
-static char intel_get_stepping(struct drm_device *dev)
+static const struct stepping_info *intel_get_stepping_info(struct drm_device *dev)
 {
-	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
-			ARRAY_SIZE(skl_stepping_info)))
-		return skl_stepping_info[dev->pdev->revision].stepping;
-	else if (IS_BROXTON(dev) && (dev->pdev->revision <
-				ARRAY_SIZE(bxt_stepping_info)))
-		return bxt_stepping_info[dev->pdev->revision].stepping;
-	else
-		return -ENODATA;
-}
+	const struct stepping_info *si;
+	unsigned int size;
 
-static char intel_get_substepping(struct drm_device *dev)
-{
-	if (IS_SKYLAKE(dev) && (dev->pdev->revision <
-			ARRAY_SIZE(skl_stepping_info)))
-		return skl_stepping_info[dev->pdev->revision].substepping;
-	else if (IS_BROXTON(dev) && (dev->pdev->revision <
-			ARRAY_SIZE(bxt_stepping_info)))
-		return bxt_stepping_info[dev->pdev->revision].substepping;
-	else
-		return -ENODATA;
-}
+	if (IS_KABYLAKE(dev)) {
+		size = ARRAY_SIZE(kbl_stepping_info);
+		si = kbl_stepping_info;
+	} else if (IS_SKYLAKE(dev)) {
+		size = ARRAY_SIZE(skl_stepping_info);
+		si = skl_stepping_info;
+	} else if (IS_BROXTON(dev)) {
+		size = ARRAY_SIZE(bxt_stepping_info);
+		si = bxt_stepping_info;
+	} else {
+		return NULL;
+	}
 
-/**
- * intel_csr_load_status_get() - to get firmware loading status.
- * @dev_priv: i915 device.
- *
- * This function helps to get the firmware loading status.
- *
- * Return: Firmware loading status.
- */
-enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
-{
-	enum csr_state state;
+	if (INTEL_REVID(dev) < size)
+		return si + INTEL_REVID(dev);
 
-	mutex_lock(&dev_priv->csr_lock);
-	state = dev_priv->csr.state;
-	mutex_unlock(&dev_priv->csr_lock);
-
-	return state;
-}
-
-/**
- * intel_csr_load_status_set() - help to set firmware loading status.
- * @dev_priv: i915 device.
- * @state: enumeration of firmware loading status.
- *
- * Set the firmware loading status.
- */
-void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
-			enum csr_state state)
-{
-	mutex_lock(&dev_priv->csr_lock);
-	dev_priv->csr.state = state;
-	mutex_unlock(&dev_priv->csr_lock);
+	return NULL;
 }
 
 /**
  * intel_csr_load_program() - write the firmware from memory to register.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * CSR firmware is read from a .bin file and kept in internal memory one time.
  * Everytime display comes back from low power state this function is called to
  * copy the firmware from internal memory to registers.
  */
-void intel_csr_load_program(struct drm_device *dev)
+void intel_csr_load_program(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 *payload = dev_priv->csr.dmc_payload;
 	uint32_t i, fw_size;
 
-	if (!IS_GEN9(dev)) {
+	if (!IS_GEN9(dev_priv)) {
 		DRM_ERROR("No CSR support available for this platform\n");
 		return;
 	}
 
-	/*
-	 * FIXME: Firmware gets lost on S3/S4, but not when entering system
-	 * standby or suspend-to-idle (which is just like forced runtime pm).
-	 * Unfortunately the ACPI subsystem doesn't yet give us a way to
-	 * differentiate this, hence figure it out with this hack.
-	 */
-	if (I915_READ(CSR_PROGRAM(0)))
+	if (!dev_priv->csr.dmc_payload) {
+		DRM_ERROR("Tried to program CSR with empty payload\n");
 		return;
+	}
 
-	mutex_lock(&dev_priv->csr_lock);
 	fw_size = dev_priv->csr.dmc_fw_size;
 	for (i = 0; i < fw_size; i++)
 		I915_WRITE(CSR_PROGRAM(i), payload[i]);
 
 	for (i = 0; i < dev_priv->csr.mmio_count; i++) {
 		I915_WRITE(dev_priv->csr.mmioaddr[i],
-			dev_priv->csr.mmiodata[i]);
+			   dev_priv->csr.mmiodata[i]);
 	}
 
-	dev_priv->csr.state = FW_LOADED;
-	mutex_unlock(&dev_priv->csr_lock);
+	dev_priv->csr.dc_state = 0;
 }
 
-static void finish_csr_load(const struct firmware *fw, void *context)
+static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
+			      const struct firmware *fw)
 {
-	struct drm_i915_private *dev_priv = context;
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
-	char stepping = intel_get_stepping(dev);
-	char substepping = intel_get_substepping(dev);
+	const struct stepping_info *stepping_info = intel_get_stepping_info(dev);
+	char stepping, substepping;
 	uint32_t dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
 	uint32_t i;
 	uint32_t *dmc_payload;
-	bool fw_loaded = false;
 
-	if (!fw) {
-		i915_firmware_load_error_print(csr->fw_path, 0);
-		goto out;
-	}
+	if (!fw)
+		return NULL;
 
-	if ((stepping == -ENODATA) || (substepping == -ENODATA)) {
+	if (!stepping_info) {
 		DRM_ERROR("Unknown stepping info, firmware loading failed\n");
-		goto out;
+		return NULL;
 	}
+
+	stepping = stepping_info->stepping;
+	substepping = stepping_info->substepping;
 
 	/* Extract CSS Header information*/
 	css_header = (struct intel_css_header *)fw->data;
 	if (sizeof(struct intel_css_header) !=
-		(css_header->header_len * 4)) {
+	    (css_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong CSS header length %u bytes\n",
-			(css_header->header_len * 4));
-		goto out;
+			  (css_header->header_len * 4));
+		return NULL;
 	}
+
+	csr->version = css_header->version;
+
+	if (IS_SKYLAKE(dev) && csr->version < SKL_CSR_VERSION_REQUIRED) {
+		DRM_INFO("Refusing to load old Skylake DMC firmware v%u.%u,"
+			 " please upgrade to v%u.%u or later"
+			 " [https://01.org/linuxgraphics/intel-linux-graphics-firmwares].\n",
+			 CSR_VERSION_MAJOR(csr->version),
+			 CSR_VERSION_MINOR(csr->version),
+			 CSR_VERSION_MAJOR(SKL_CSR_VERSION_REQUIRED),
+			 CSR_VERSION_MINOR(SKL_CSR_VERSION_REQUIRED));
+		return NULL;
+	}
+
 	readcount += sizeof(struct intel_css_header);
 
 	/* Extract Package Header information*/
 	package_header = (struct intel_package_header *)
-					&fw->data[readcount];
+		&fw->data[readcount];
 	if (sizeof(struct intel_package_header) !=
-		(package_header->header_len * 4)) {
+	    (package_header->header_len * 4)) {
 		DRM_ERROR("Firmware has wrong package header length %u bytes\n",
-			(package_header->header_len * 4));
-		goto out;
+			  (package_header->header_len * 4));
+		return NULL;
 	}
 	readcount += sizeof(struct intel_package_header);
 
 	/* Search for dmc_offset to find firware binary. */
 	for (i = 0; i < package_header->num_entries; i++) {
 		if (package_header->fw_info[i].substepping == '*' &&
-			stepping == package_header->fw_info[i].stepping) {
+		    stepping == package_header->fw_info[i].stepping) {
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
 		} else if (stepping == package_header->fw_info[i].stepping &&
@@ -345,12 +315,12 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 			dmc_offset = package_header->fw_info[i].offset;
 			break;
 		} else if (package_header->fw_info[i].stepping == '*' &&
-			package_header->fw_info[i].substepping == '*')
+			   package_header->fw_info[i].substepping == '*')
 			dmc_offset = package_header->fw_info[i].offset;
 	}
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
 		DRM_ERROR("Firmware not supported for %c stepping\n", stepping);
-		goto out;
+		return NULL;
 	}
 	readcount += dmc_offset;
 
@@ -358,26 +328,26 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	dmc_header = (struct intel_dmc_header *)&fw->data[readcount];
 	if (sizeof(struct intel_dmc_header) != (dmc_header->header_len)) {
 		DRM_ERROR("Firmware has wrong dmc header length %u bytes\n",
-				(dmc_header->header_len));
-		goto out;
+			  (dmc_header->header_len));
+		return NULL;
 	}
 	readcount += sizeof(struct intel_dmc_header);
 
 	/* Cache the dmc header info. */
 	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
 		DRM_ERROR("Firmware has wrong mmio count %u\n",
-						dmc_header->mmio_count);
-		goto out;
+			  dmc_header->mmio_count);
+		return NULL;
 	}
 	csr->mmio_count = dmc_header->mmio_count;
 	for (i = 0; i < dmc_header->mmio_count; i++) {
 		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
-			dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
+		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR(" Firmware has wrong mmio address 0x%x\n",
-						dmc_header->mmioaddr[i]);
-			goto out;
+				  dmc_header->mmioaddr[i]);
+			return NULL;
 		}
-		csr->mmioaddr[i] = dmc_header->mmioaddr[i];
+		csr->mmioaddr[i] = _MMIO(dmc_header->mmioaddr[i]);
 		csr->mmiodata[i] = dmc_header->mmiodata[i];
 	}
 
@@ -385,56 +355,80 @@ static void finish_csr_load(const struct firmware *fw, void *context)
 	nbytes = dmc_header->fw_size * 4;
 	if (nbytes > CSR_MAX_FW_SIZE) {
 		DRM_ERROR("CSR firmware too big (%u) bytes\n", nbytes);
-		goto out;
+		return NULL;
 	}
 	csr->dmc_fw_size = dmc_header->fw_size;
 
-	csr->dmc_payload = kmalloc(nbytes, GFP_KERNEL);
-	if (!csr->dmc_payload) {
+	dmc_payload = kmalloc(nbytes, GFP_KERNEL);
+	if (!dmc_payload) {
 		DRM_ERROR("Memory allocation failed for dmc payload\n");
-		goto out;
+		return NULL;
 	}
 
-	dmc_payload = csr->dmc_payload;
 	memcpy(dmc_payload, &fw->data[readcount], nbytes);
 
-	/* load csr program during system boot, as needed for DC states */
-	intel_csr_load_program(dev);
-	fw_loaded = true;
+	return dmc_payload;
+}
 
-	DRM_DEBUG_KMS("Finished loading %s\n", dev_priv->csr.fw_path);
+static void csr_load_work_fn(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv;
+	struct intel_csr *csr;
+	const struct firmware *fw;
+	int ret;
+
+	dev_priv = container_of(work, typeof(*dev_priv), csr.work);
+	csr = &dev_priv->csr;
+
+	ret = request_firmware(&fw, dev_priv->csr.fw_path,
+			       &dev_priv->dev->pdev->dev);
+	if (!fw)
+		goto out;
+
+	dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
+	if (!dev_priv->csr.dmc_payload)
+		goto out;
+
+	/* load csr program during system boot, as needed for DC states */
+	intel_csr_load_program(dev_priv);
+
 out:
-	if (fw_loaded)
-		intel_runtime_pm_put(dev_priv);
-	else
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
+	if (dev_priv->csr.dmc_payload) {
+		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
+		DRM_INFO("Finished loading %s (v%u.%u)\n",
+			 dev_priv->csr.fw_path,
+			 CSR_VERSION_MAJOR(csr->version),
+			 CSR_VERSION_MINOR(csr->version));
+	} else {
+		DRM_ERROR("Failed to load DMC firmware, disabling rpm\n");
+	}
 
 	release_firmware(fw);
 }
 
 /**
  * intel_csr_ucode_init() - initialize the firmware loading.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * This function is called at the time of loading the display driver to read
  * firmware from a .bin file and copied into a internal memory.
  */
-void intel_csr_ucode_init(struct drm_device *dev)
+void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_csr *csr = &dev_priv->csr;
-	int ret;
 
-	if (!HAS_CSR(dev))
+	INIT_WORK(&dev_priv->csr.work, csr_load_work_fn);
+
+	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;
 	else {
 		DRM_ERROR("Unexpected: no known CSR firmware for platform\n");
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
 		return;
 	}
 
@@ -444,43 +438,24 @@ void intel_csr_ucode_init(struct drm_device *dev)
 	 * Obtain a runtime pm reference, until CSR is loaded,
 	 * to avoid entering runtime-suspend.
 	 */
-	intel_runtime_pm_get(dev_priv);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
-	/* CSR supported for platform, load firmware */
-	ret = request_firmware_nowait(THIS_MODULE, true, csr->fw_path,
-				&dev_priv->dev->pdev->dev,
-				GFP_KERNEL, dev_priv,
-				finish_csr_load);
-	if (ret) {
-		i915_firmware_load_error_print(csr->fw_path, ret);
-		intel_csr_load_status_set(dev_priv, FW_FAILED);
-	}
+	schedule_work(&dev_priv->csr.work);
 }
 
 /**
  * intel_csr_ucode_fini() - unload the CSR firmware.
- * @dev: drm device.
+ * @dev_priv: i915 drm device.
  *
  * Firmmware unloading includes freeing the internal momory and reset the
  * firmware loading status.
  */
-void intel_csr_ucode_fini(struct drm_device *dev)
+void intel_csr_ucode_fini(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_CSR(dev))
+	if (!HAS_CSR(dev_priv))
 		return;
 
-	intel_csr_load_status_set(dev_priv, FW_FAILED);
-	kfree(dev_priv->csr.dmc_payload);
-}
+	flush_work(&dev_priv->csr.work);
 
-void assert_csr_loaded(struct drm_i915_private *dev_priv)
-{
-	WARN_ONCE(intel_csr_load_status_get(dev_priv) != FW_LOADED,
-		  "CSR is not loaded.\n");
-	WARN_ONCE(!I915_READ(CSR_PROGRAM(0)),
-		  "CSR program storage start is NULL\n");
-	WARN_ONCE(!I915_READ(CSR_SSP_BASE), "CSR SSP Base Not fine\n");
-	WARN_ONCE(!I915_READ(CSR_HTP_SKL), "CSR HTP Not fine\n");
+	kfree(dev_priv->csr.dmc_payload);
 }

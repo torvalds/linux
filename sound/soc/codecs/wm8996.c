@@ -2204,7 +2204,7 @@ static void wm8996_init_gpio(struct wm8996_priv *wm8996)
 
 	wm8996->gpio_chip = wm8996_template_chip;
 	wm8996->gpio_chip.ngpio = 5;
-	wm8996->gpio_chip.dev = wm8996->dev;
+	wm8996->gpio_chip.parent = wm8996->dev;
 
 	if (wm8996->pdata.gpio_base)
 		wm8996->gpio_chip.base = wm8996->pdata.gpio_base;

@@ -138,10 +138,6 @@
 	status = "okay";
 };
 
-&g2d {
-	status = "okay";
-};
-
 &i2c_0 {
 	status = "okay";
 	samsung,i2c-sda-delay = <100>;

@@ -39,7 +39,7 @@
 
 #include <sound/tlv320aic3x.h>
 #include <sound/tpa6130a2-plat.h>
-#include <media/si4713.h>
+#include <linux/platform_data/media/si4713.h>
 #include <linux/platform_data/leds-lp55xx.h>
 
 #include <linux/platform_data/tsl2563.h>
@@ -48,7 +48,7 @@
 #include <video/omap-panel-data.h>
 
 #if defined(CONFIG_IR_RX51) || defined(CONFIG_IR_RX51_MODULE)
-#include <media/ir-rx51.h>
+#include <linux/platform_data/media/ir-rx51.h>
 #endif
 
 #include "mux.h"
@@ -1257,7 +1257,7 @@ static struct platform_device omap3_rom_rng_device = {
 static void __init rx51_init_omap3_rom_rng(void)
 {
 	if (omap_type() == OMAP2_DEVICE_TYPE_SEC) {
-		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		pr_info("RX-51: Registering OMAP3 HWRNG device\n");
 		platform_device_register(&omap3_rom_rng_device);
 	}
 }

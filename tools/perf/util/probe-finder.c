@@ -654,6 +654,7 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwfl_Module *mod,
 static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 {
 	Dwarf_Attribute fb_attr;
+	Dwarf_Frame *frame = NULL;
 	size_t nops;
 	int ret;
 
@@ -685,12 +686,13 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 		pf->fb_ops = NULL;
 #if _ELFUTILS_PREREQ(0, 142)
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
-		   pf->cfi != NULL) {
-		Dwarf_Frame *frame;
-		if (dwarf_cfi_addrframe(pf->cfi, pf->addr, &frame) != 0 ||
+		   (pf->cfi_eh != NULL || pf->cfi_dbg != NULL)) {
+		if ((dwarf_cfi_addrframe(pf->cfi_eh, pf->addr, &frame) != 0 &&
+		     (dwarf_cfi_addrframe(pf->cfi_dbg, pf->addr, &frame) != 0)) ||
 		    dwarf_frame_cfa(frame, &pf->fb_ops, &nops) != 0) {
 			pr_warning("Failed to get call frame on 0x%jx\n",
 				   (uintmax_t)pf->addr);
+			free(frame);
 			return -ENOENT;
 		}
 #endif
@@ -699,7 +701,8 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 	/* Call finder's callback handler */
 	ret = pf->callback(sc_die, pf);
 
-	/* *pf->fb_ops will be cached in libdw. Don't free it. */
+	/* Since *pf->fb_ops can be a part of frame. we should free it here. */
+	free(frame);
 	pf->fb_ops = NULL;
 
 	return ret;
@@ -1013,8 +1016,7 @@ static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 	return DWARF_CB_OK;
 }
 
-/* Find probe points from debuginfo */
-static int debuginfo__find_probes(struct debuginfo *dbg,
+static int debuginfo__find_probe_location(struct debuginfo *dbg,
 				  struct probe_finder *pf)
 {
 	struct perf_probe_point *pp = &pf->pev->point;
@@ -1022,27 +1024,6 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 	size_t cuhl;
 	Dwarf_Die *diep;
 	int ret = 0;
-
-#if _ELFUTILS_PREREQ(0, 142)
-	Elf *elf;
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-
-	/* Get the call frame information from this dwarf */
-	elf = dwarf_getelf(dbg->dbg);
-	if (elf == NULL)
-		return -EINVAL;
-
-	if (gelf_getehdr(elf, &ehdr) == NULL)
-		return -EINVAL;
-
-	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
-	    shdr.sh_type == SHT_PROGBITS) {
-		pf->cfi = dwarf_getcfi_elf(elf);
-	} else {
-		pf->cfi = dwarf_getcfi(dbg->dbg);
-	}
-#endif
 
 	off = 0;
 	pf->lcache = intlist__new(NULL);
@@ -1103,6 +1084,39 @@ found:
 	intlist__delete(pf->lcache);
 	pf->lcache = NULL;
 
+	return ret;
+}
+
+/* Find probe points from debuginfo */
+static int debuginfo__find_probes(struct debuginfo *dbg,
+				  struct probe_finder *pf)
+{
+	int ret = 0;
+
+#if _ELFUTILS_PREREQ(0, 142)
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+
+	if (pf->cfi_eh || pf->cfi_dbg)
+		return debuginfo__find_probe_location(dbg, pf);
+
+	/* Get the call frame information from this dwarf */
+	elf = dwarf_getelf(dbg->dbg);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		return -EINVAL;
+
+	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
+	    shdr.sh_type == SHT_PROGBITS)
+		pf->cfi_eh = dwarf_getcfi_elf(elf);
+
+	pf->cfi_dbg = dwarf_getcfi(dbg->dbg);
+#endif
+
+	ret = debuginfo__find_probe_location(dbg, pf);
 	return ret;
 }
 

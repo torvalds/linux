@@ -64,7 +64,7 @@ config IIO_ST_ACCEL_3AXIS
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
-	  LIS331DLH, LSM303DL, LSM303DLM, LSM330.
+	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:
@@ -106,6 +106,35 @@ config KXCJK1013
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called kxcjk-1013.
+
+config MMA7455
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config MMA7455_I2C
+	tristate "Freescale MMA7455L/MMA7456L Accelerometer I2C Driver"
+	depends on I2C
+	select MMA7455
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the Freescale MMA7455L and
+	  MMA7456L 3-axis accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma7455_i2c.
+
+config MMA7455_SPI
+	tristate "Freescale MMA7455L/MMA7456L Accelerometer SPI Driver"
+	depends on SPI_MASTER
+	select MMA7455
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for the Freescale MMA7455L and
+	  MMA7456L 3-axis accelerometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mma7455_spi.
 
 config MMA8452
 	tristate "Freescale MMA8452Q and similar Accelerometers Driver"
@@ -158,6 +187,17 @@ config MXC4005
 	  To compile this driver as a module, choose M. The module will be
 	  called mxc4005.
 
+config MXC6255
+	tristate "Memsic MXC6255 Orientation Sensing Accelerometer Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for the Memsic MXC6255 Orientation
+	  Sensing Accelerometer Driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mxc6255.
+
 config STK8312
 	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
 	depends on I2C
@@ -173,6 +213,7 @@ config STK8312
 config STK8BA50
 	tristate "Sensortek STK8BA50 3-Axis Accelerometer Driver"
 	depends on I2C
+	depends on IIO_TRIGGER
 	help
 	  Say yes here to get support for the Sensortek STK8BA50 3-axis
 	  accelerometer.

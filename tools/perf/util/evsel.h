@@ -227,7 +227,8 @@ int perf_evsel__append_filter(struct perf_evsel *evsel,
 			      const char *op, const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
-int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads);
+int perf_evsel__enable(struct perf_evsel *evsel);
+int perf_evsel__disable(struct perf_evsel *evsel);
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
 			     struct cpu_map *cpus);
@@ -368,6 +369,7 @@ struct perf_attr_details {
 	bool verbose;
 	bool event_group;
 	bool force;
+	bool trace_fields;
 };
 
 int perf_evsel__fprintf(struct perf_evsel *evsel,

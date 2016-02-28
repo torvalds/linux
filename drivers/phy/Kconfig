@@ -118,6 +118,13 @@ config PHY_RCAR_GEN2
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
 
+config PHY_RCAR_GEN3_USB2
+	tristate "Renesas R-Car generation 3 USB 2.0 PHY driver"
+	depends on OF && ARCH_SHMOBILE
+	select GENERIC_PHY
+	help
+	  Support for USB 2.0 PHY found on Renesas R-Car generation 3 SoCs.
+
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
@@ -214,6 +221,16 @@ config PHY_MT65XX_USB3
 	  Say 'Y' here to add support for Mediatek USB3.0 PHY driver
 	  for mt65xx SoCs. it supports two usb2.0 ports and
 	  one usb3.0 port.
+
+config PHY_HI6220_USB
+	tristate "hi6220 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the HISILICON HI6220 USB PHY.
+
+	  To compile this driver as a module, choose M here.
 
 config PHY_SUN4I_USB
 	tristate "Allwinner sunxi SoC USB PHY driver"
@@ -374,11 +391,11 @@ config PHY_TUSB1210
 
 config PHY_BRCMSTB_SATA
 	tristate "Broadcom STB SATA PHY driver"
-	depends on ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
 	depends on OF
 	select GENERIC_PHY
 	help
-	  Enable this to support the SATA3 PHY on 28nm Broadcom STB SoCs.
+	  Enable this to support the SATA3 PHY on 28nm or 40nm Broadcom STB SoCs.
 	  Likely useful only with CONFIG_SATA_BRCMSTB enabled.
 
 config PHY_CYGNUS_PCIE

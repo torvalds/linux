@@ -39,9 +39,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include <mach/hardware.h>
-#include <mach/board-pba8.h>
-#include <mach/irqs.h>
+#include "hardware.h"
+#include "board-pba8.h"
+#include "irqs-pba8.h"
 
 #include "core.h"
 
@@ -77,14 +77,6 @@ static struct map_desc realview_pba8_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
-#ifdef CONFIG_PCI
-	{
-		.virtual	= PCIX_UNIT_BASE,
-		.pfn		= __phys_to_pfn(REALVIEW_PBA8_PCI_BASE),
-		.length		= REALVIEW_PBA8_PCI_BASE_SIZE,
-		.type		= MT_DEVICE
-	},
-#endif
 #ifdef CONFIG_DEBUG_LL
 	{
 		.virtual	= IO_ADDRESS(REALVIEW_PBA8_UART0_BASE),

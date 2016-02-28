@@ -29,7 +29,6 @@
  */
 #define EXTENT_BIO_COMPRESSED 1
 #define EXTENT_BIO_TREE_LOG 2
-#define EXTENT_BIO_PARENT_LOCKED 4
 #define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */
@@ -199,17 +198,17 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
 int try_release_extent_buffer(struct page *page);
-int lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		     unsigned bits, struct extent_state **cached);
-int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end);
-int unlock_extent_cached(struct extent_io_tree *tree, u64 start, u64 end,
-			 struct extent_state **cached, gfp_t mask);
+		     struct extent_state **cached);
+
+static inline int lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
+{
+	return lock_extent_bits(tree, start, end, NULL);
+}
+
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent, int mirror_num);
-int extent_read_full_page_nolock(struct extent_io_tree *tree, struct page *page,
-				 get_extent_t *get_extent, int mirror_num);
 int __init extent_io_init(void);
 void extent_io_exit(void);
 
@@ -221,39 +220,105 @@ void free_extent_state(struct extent_state *state);
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   unsigned bits, int filled,
 		   struct extent_state *cached_state);
-int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		      unsigned bits, gfp_t mask);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     unsigned bits, gfp_t mask,
 			     struct extent_changeset *changeset);
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     unsigned bits, int wake, int delete,
 		     struct extent_state **cached, gfp_t mask);
-int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		    unsigned bits, gfp_t mask);
+
+static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end)
+{
+	return clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, NULL,
+				GFP_NOFS);
+}
+
+static inline int unlock_extent_cached(struct extent_io_tree *tree, u64 start,
+		u64 end, struct extent_state **cached, gfp_t mask)
+{
+	return clear_extent_bit(tree, start, end, EXTENT_LOCKED, 1, 0, cached,
+				mask);
+}
+
+static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
+		u64 end, unsigned bits, gfp_t mask)
+{
+	int wake = 0;
+
+	if (bits & EXTENT_LOCKED)
+		wake = 1;
+
+	return clear_extent_bit(tree, start, end, bits, wake, 0, NULL, mask);
+}
+
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			   unsigned bits, gfp_t mask,
 			   struct extent_changeset *changeset);
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   unsigned bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask);
-int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
-			struct extent_state **cached_state, gfp_t mask);
-int clear_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
-			  struct extent_state **cached_state, gfp_t mask);
-int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
-		   gfp_t mask);
-int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
-		     gfp_t mask);
-int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
-		       gfp_t mask);
+
+static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
+		u64 end, unsigned bits, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, mask);
+}
+
+static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
+		u64 end, struct extent_state **cached_state, gfp_t mask)
+{
+	return clear_extent_bit(tree, start, end, EXTENT_UPTODATE, 0, 0,
+				cached_state, mask);
+}
+
+static inline int set_extent_dirty(struct extent_io_tree *tree, u64 start,
+		u64 end, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, EXTENT_DIRTY, NULL,
+			      NULL, mask);
+}
+
+static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
+		u64 end, gfp_t mask)
+{
+	return clear_extent_bit(tree, start, end,
+				EXTENT_DIRTY | EXTENT_DELALLOC |
+				EXTENT_DO_ACCOUNTING, 0, 0, NULL, mask);
+}
+
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       unsigned bits, unsigned clear_bits,
 		       struct extent_state **cached_state, gfp_t mask);
-int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
-			struct extent_state **cached_state, gfp_t mask);
-int set_extent_defrag(struct extent_io_tree *tree, u64 start, u64 end,
-		      struct extent_state **cached_state, gfp_t mask);
+
+static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
+		u64 end, struct extent_state **cached_state, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end,
+			      EXTENT_DELALLOC | EXTENT_UPTODATE,
+			      NULL, cached_state, mask);
+}
+
+static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
+		u64 end, struct extent_state **cached_state, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end,
+			      EXTENT_DELALLOC | EXTENT_UPTODATE | EXTENT_DEFRAG,
+			      NULL, cached_state, mask);
+}
+
+static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
+		u64 end, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, NULL, mask);
+}
+
+static inline int set_extent_uptodate(struct extent_io_tree *tree, u64 start,
+		u64 end, struct extent_state **cached_state, gfp_t mask)
+{
+	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, NULL,
+			      cached_state, mask);
+}
+
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, unsigned bits,
 			  struct extent_state **cached_state);
@@ -282,8 +347,10 @@ void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start);
+struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
+						  u64 start, unsigned long len);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-		u64 start);
+						u64 start);
 struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
 struct extent_buffer *find_extent_buffer(struct btrfs_fs_info *fs_info,
 					 u64 start);
@@ -328,19 +395,25 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			   unsigned long src_offset, unsigned long len);
 void memset_extent_buffer(struct extent_buffer *eb, char c,
 			  unsigned long start, unsigned long len);
+int extent_buffer_test_bit(struct extent_buffer *eb, unsigned long start,
+			   unsigned long pos);
+void extent_buffer_bitmap_set(struct extent_buffer *eb, unsigned long start,
+			      unsigned long pos, unsigned long len);
+void extent_buffer_bitmap_clear(struct extent_buffer *eb, unsigned long start,
+				unsigned long pos, unsigned long len);
 void clear_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_buffer *eb);
-int set_extent_buffer_uptodate(struct extent_buffer *eb);
-int clear_extent_buffer_uptodate(struct extent_buffer *eb);
+void set_extent_buffer_uptodate(struct extent_buffer *eb);
+void clear_extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_uptodate(struct extent_buffer *eb);
 int extent_buffer_under_io(struct extent_buffer *eb);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
 		      unsigned long *map_len);
-int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
-int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
+void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
+void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				 struct page *locked_page,
 				 unsigned bits_to_clear,
 				 unsigned long page_ops);
@@ -357,7 +430,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 		      int mirror_num);
 int clean_io_failure(struct inode *inode, u64 start, struct page *page,
 		     unsigned int pg_offset);
-int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
+void end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num);
 

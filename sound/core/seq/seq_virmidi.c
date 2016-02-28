@@ -155,21 +155,26 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
 	int count, res;
 	unsigned char buf[32], *pbuf;
+	unsigned long flags;
 
 	if (up) {
 		vmidi->trigger = 1;
 		if (vmidi->seq_mode == SNDRV_VIRMIDI_SEQ_DISPATCH &&
 		    !(vmidi->rdev->flags & SNDRV_VIRMIDI_SUBSCRIBE)) {
-			snd_rawmidi_transmit_ack(substream, substream->runtime->buffer_size - substream->runtime->avail);
-			return;		/* ignored */
+			while (snd_rawmidi_transmit(substream, buf,
+						    sizeof(buf)) > 0) {
+				/* ignored */
+			}
+			return;
 		}
 		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
 			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
 				return;
 			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 		}
+		spin_lock_irqsave(&substream->runtime->lock, flags);
 		while (1) {
-			count = snd_rawmidi_transmit_peek(substream, buf, sizeof(buf));
+			count = __snd_rawmidi_transmit_peek(substream, buf, sizeof(buf));
 			if (count <= 0)
 				break;
 			pbuf = buf;
@@ -179,16 +184,18 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 					snd_midi_event_reset_encode(vmidi->parser);
 					continue;
 				}
-				snd_rawmidi_transmit_ack(substream, res);
+				__snd_rawmidi_transmit_ack(substream, res);
 				pbuf += res;
 				count -= res;
 				if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
 					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
-						return;
+						goto out;
 					vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 				}
 			}
 		}
+	out:
+		spin_unlock_irqrestore(&substream->runtime->lock, flags);
 	} else {
 		vmidi->trigger = 0;
 	}
@@ -254,9 +261,13 @@ static int snd_virmidi_output_open(struct snd_rawmidi_substream *substream)
  */
 static int snd_virmidi_input_close(struct snd_rawmidi_substream *substream)
 {
+	struct snd_virmidi_dev *rdev = substream->rmidi->private_data;
 	struct snd_virmidi *vmidi = substream->runtime->private_data;
-	snd_midi_event_free(vmidi->parser);
+
+	write_lock_irq(&rdev->filelist_lock);
 	list_del(&vmidi->list);
+	write_unlock_irq(&rdev->filelist_lock);
+	snd_midi_event_free(vmidi->parser);
 	substream->runtime->private_data = NULL;
 	kfree(vmidi);
 	return 0;
@@ -468,7 +479,7 @@ static int snd_virmidi_dev_unregister(struct snd_rawmidi *rmidi)
 /*
  *
  */
-static struct snd_rawmidi_global_ops snd_virmidi_global_ops = {
+static const struct snd_rawmidi_global_ops snd_virmidi_global_ops = {
 	.dev_register = snd_virmidi_dev_register,
 	.dev_unregister = snd_virmidi_dev_unregister,
 };

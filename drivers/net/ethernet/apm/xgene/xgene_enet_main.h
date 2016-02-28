@@ -25,6 +25,7 @@
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/efi.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
 #include <linux/of_net.h>
@@ -174,8 +175,8 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
-	struct xgene_mac_ops *mac_ops;
-	struct xgene_port_ops *port_ops;
+	const struct xgene_mac_ops *mac_ops;
+	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
 	struct delayed_work link_work;
 	u32 port_id;

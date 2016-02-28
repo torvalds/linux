@@ -17,7 +17,7 @@ static pid_t spawn(void)
 	if (pid)
 		return pid;
 
-	while(1);
+	while(1)
 		sleep(5);
 	return 0;
 }
@@ -33,7 +33,7 @@ static pid_t spawn(void)
  * the last read counter value to avoid triggering a WARN_ON_ONCE() in
  * smp_call_function_many() caused by sending IPIs from NMI context.
  */
-int test__intel_cqm_count_nmi_context(void)
+int test__intel_cqm_count_nmi_context(int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel = NULL;
@@ -54,7 +54,7 @@ int test__intel_cqm_count_nmi_context(void)
 
 	ret = parse_events(evlist, "intel_cqm/llc_occupancy/", NULL);
 	if (ret) {
-		pr_debug("parse_events failed\n");
+		pr_debug("parse_events failed, is \"intel_cqm/llc_occupancy/\" available?\n");
 		err = TEST_SKIP;
 		goto out;
 	}

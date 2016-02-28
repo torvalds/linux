@@ -80,7 +80,7 @@ typedef struct mdu_array_info_s {
 	int major_version;
 	int minor_version;
 	int patch_version;
-	int ctime;
+	unsigned int ctime;
 	int level;
 	int size;
 	int nr_disks;
@@ -91,7 +91,7 @@ typedef struct mdu_array_info_s {
 	/*
 	 * Generic state information
 	 */
-	int utime;		/*  0 Superblock update time		      */
+	unsigned int utime;	/*  0 Superblock update time		      */
 	int state;		/*  1 State bits (clean, ...)		      */
 	int active_disks;	/*  2 Number of currently active disks	      */
 	int working_disks;	/*  3 Number of working disks		      */

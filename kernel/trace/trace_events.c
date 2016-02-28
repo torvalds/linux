@@ -869,7 +869,8 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		 * The ftrace subsystem is for showing formats only.
 		 * They can not be enabled or disabled via the event files.
 		 */
-		if (call->class && call->class->reg)
+		if (call->class && call->class->reg &&
+		    !(call->flags & TRACE_EVENT_FL_IGNORE_ENABLE))
 			return file;
 	}
 
@@ -1340,15 +1341,9 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, cnt)) {
-		free_page((unsigned long) buf);
-		return -EFAULT;
-	}
-	buf[cnt] = '\0';
+	buf = memdup_user_nul(ubuf, cnt);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mutex_lock(&event_mutex);
 	file = event_file_data(filp);
@@ -1356,7 +1351,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		err = apply_event_filter(file, buf);
 	mutex_unlock(&event_mutex);
 
-	free_page((unsigned long) buf);
+	kfree(buf);
 	if (err < 0)
 		return err;
 
@@ -1507,18 +1502,12 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	buf = (char *)__get_free_page(GFP_TEMPORARY);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, cnt)) {
-		free_page((unsigned long) buf);
-		return -EFAULT;
-	}
-	buf[cnt] = '\0';
+	buf = memdup_user_nul(ubuf, cnt);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	err = apply_subsystem_event_filter(dir, buf);
-	free_page((unsigned long) buf);
+	kfree(buf);
 	if (err < 0)
 		return err;
 

@@ -1261,6 +1261,10 @@
  *	audit_rule_init.
  *	@rule contains the allocated rule
  *
+ * @inode_invalidate_secctx:
+ *	Notify the security module that it must revalidate the security context
+ *	of an inode.
+ *
  * @inode_notifysecctx:
  *	Notify the security module of what the security context of an inode
  *	should be.  Initializes the incore security context managed by the
@@ -1413,14 +1417,14 @@ union security_list_options {
 	int (*inode_removexattr)(struct dentry *dentry, const char *name);
 	int (*inode_need_killpriv)(struct dentry *dentry);
 	int (*inode_killpriv)(struct dentry *dentry);
-	int (*inode_getsecurity)(const struct inode *inode, const char *name,
+	int (*inode_getsecurity)(struct inode *inode, const char *name,
 					void **buffer, bool alloc);
 	int (*inode_setsecurity)(struct inode *inode, const char *name,
 					const void *value, size_t size,
 					int flags);
 	int (*inode_listsecurity)(struct inode *inode, char *buffer,
 					size_t buffer_size);
-	void (*inode_getsecid)(const struct inode *inode, u32 *secid);
+	void (*inode_getsecid)(struct inode *inode, u32 *secid);
 
 	int (*file_permission)(struct file *file, int mask);
 	int (*file_alloc_security)(struct file *file);
@@ -1516,6 +1520,7 @@ union security_list_options {
 	int (*secctx_to_secid)(const char *secdata, u32 seclen, u32 *secid);
 	void (*release_secctx)(char *secdata, u32 seclen);
 
+	void (*inode_invalidate_secctx)(struct inode *inode);
 	int (*inode_notifysecctx)(struct inode *inode, void *ctx, u32 ctxlen);
 	int (*inode_setsecctx)(struct dentry *dentry, void *ctx, u32 ctxlen);
 	int (*inode_getsecctx)(struct inode *inode, void **ctx, u32 *ctxlen);
@@ -1757,6 +1762,7 @@ struct security_hook_heads {
 	struct list_head secid_to_secctx;
 	struct list_head secctx_to_secid;
 	struct list_head release_secctx;
+	struct list_head inode_invalidate_secctx;
 	struct list_head inode_notifysecctx;
 	struct list_head inode_setsecctx;
 	struct list_head inode_getsecctx;

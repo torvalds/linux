@@ -147,6 +147,7 @@
 			compatible = "hisilicon,hi6220-sysctrl", "syscon";
 			reg = <0x0 0xf7030000 0x0 0x2000>;
 			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		media_ctrl: media_ctrl@f4410000 {

@@ -134,21 +134,32 @@ struct palmas_pmic_driver_data {
 			    struct regulator_config config);
 };
 
+struct palmas_adc_wakeup_property {
+	int adc_channel_number;
+	int adc_high_threshold;
+	int adc_low_threshold;
+};
+
 struct palmas_gpadc_platform_data {
 	/* Channel 3 current source is only enabled during conversion */
-	int ch3_current;
+	int ch3_current;	/* 0: off; 1: 10uA; 2: 400uA; 3: 800 uA */
 
 	/* Channel 0 current source can be used for battery detection.
 	 * If used for battery detection this will cause a permanent current
 	 * consumption depending on current level set here.
 	 */
-	int ch0_current;
+	int ch0_current;	/* 0: off; 1: 5uA; 2: 15uA; 3: 20 uA */
+	bool extended_delay;	/* use extended delay for conversion */
 
 	/* default BAT_REMOVAL_DAT setting on device probe */
 	int bat_removal;
 
 	/* Sets the START_POLARITY bit in the RT_CTRL register */
 	int start_polarity;
+
+	int auto_conversion_period_ms;
+	struct palmas_adc_wakeup_property *adc_wakeup1_data;
+	struct palmas_adc_wakeup_property *adc_wakeup2_data;
 };
 
 struct palmas_reg_init {
@@ -405,28 +416,7 @@ struct palmas_gpadc_calibration {
 	s32 offset_error;
 };
 
-struct palmas_gpadc {
-	struct device *dev;
-	struct palmas *palmas;
-
-	int ch3_current;
-	int ch0_current;
-
-	int gpadc_force;
-
-	int bat_removal;
-
-	struct mutex reading_lock;
-	struct completion irq_complete;
-
-	int eoc_sw_irq;
-
-	struct palmas_gpadc_calibration *palmas_cal_tbl;
-
-	int conv0_channel;
-	int conv1_channel;
-	int rt_channel;
-};
+#define PALMAS_DATASHEET_NAME(_name)	"palmas-gpadc-chan-"#_name
 
 struct palmas_gpadc_result {
 	s32 raw_code;
@@ -518,6 +508,43 @@ enum palmas_irqs {
 	PALMAS_GPIO_7_IRQ,
 	/* Total Number IRQs */
 	PALMAS_NUM_IRQ,
+};
+
+/* Palmas GPADC Channels */
+enum {
+	PALMAS_ADC_CH_IN0,
+	PALMAS_ADC_CH_IN1,
+	PALMAS_ADC_CH_IN2,
+	PALMAS_ADC_CH_IN3,
+	PALMAS_ADC_CH_IN4,
+	PALMAS_ADC_CH_IN5,
+	PALMAS_ADC_CH_IN6,
+	PALMAS_ADC_CH_IN7,
+	PALMAS_ADC_CH_IN8,
+	PALMAS_ADC_CH_IN9,
+	PALMAS_ADC_CH_IN10,
+	PALMAS_ADC_CH_IN11,
+	PALMAS_ADC_CH_IN12,
+	PALMAS_ADC_CH_IN13,
+	PALMAS_ADC_CH_IN14,
+	PALMAS_ADC_CH_IN15,
+	PALMAS_ADC_CH_MAX,
+};
+
+/* Palmas GPADC Channel0 Current Source */
+enum {
+	PALMAS_ADC_CH0_CURRENT_SRC_0,
+	PALMAS_ADC_CH0_CURRENT_SRC_5,
+	PALMAS_ADC_CH0_CURRENT_SRC_15,
+	PALMAS_ADC_CH0_CURRENT_SRC_20,
+};
+
+/* Palmas GPADC Channel3 Current Source */
+enum {
+	PALMAS_ADC_CH3_CURRENT_SRC_0,
+	PALMAS_ADC_CH3_CURRENT_SRC_10,
+	PALMAS_ADC_CH3_CURRENT_SRC_400,
+	PALMAS_ADC_CH3_CURRENT_SRC_800,
 };
 
 struct palmas_pmic {

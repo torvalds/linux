@@ -350,8 +350,8 @@ struct inode_operations {
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-	const char *(*follow_link) (struct dentry *, void **);
-	void (*put_link) (struct inode *, void *);
+	const char *(*get_link) (struct dentry *, struct inode *,
+				 struct delayed_call *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -434,20 +434,19 @@ otherwise noted.
   readlink: called by the readlink(2) system call. Only required if
 	you want to support reading symbolic links
 
-  follow_link: called by the VFS to follow a symbolic link to the
+  get_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
 	symbolic links.  This method returns the symlink body
 	to traverse (and possibly resets the current position with
 	nd_jump_link()).  If the body won't go away until the inode
 	is gone, nothing else is needed; if it needs to be otherwise
-	pinned, the data needed to release whatever we'd grabbed
-	is to be stored in void * variable passed by address to
-	follow_link() instance.
-
-  put_link: called by the VFS to release resources allocated by
-	follow_link().  The cookie stored by follow_link() is passed
-	to this method as the last parameter; only called when
-	cookie isn't NULL.
+	pinned, arrange for its release by having get_link(..., ..., done)
+	do set_delayed_call(done, destructor, argument).
+	In that case destructor(argument) will be called once VFS is
+	done with the body you've returned.
+	May be called in RCU mode; that is indicated by NULL dentry
+	argument.  If request can't be handled without leaving RCU mode,
+	have it return ERR_PTR(-ECHILD).
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.

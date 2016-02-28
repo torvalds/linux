@@ -273,7 +273,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 
 	encoder = &gma_encoder->base;
 	drm_encoder_init(dev, encoder,
-		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
+		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC, NULL);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 

@@ -363,8 +363,8 @@ struct trace_option_dentry {
  * @name: the name chosen to select it on the available_tracers file
  * @init: called when one switches to this tracer (echo name > current_tracer)
  * @reset: called when one switches to another tracer
- * @start: called when tracing is unpaused (echo 1 > tracing_enabled)
- * @stop: called when tracing is paused (echo 0 > tracing_enabled)
+ * @start: called when tracing is unpaused (echo 1 > tracing_on)
+ * @stop: called when tracing is paused (echo 0 > tracing_on)
  * @update_thresh: called when tracing_thresh is updated
  * @open: called when the trace file is opened
  * @pipe_open: called when the trace_pipe file is opened
@@ -466,8 +466,6 @@ enum {
 	TRACE_INTERNAL_NMI_BIT,
 	TRACE_INTERNAL_IRQ_BIT,
 	TRACE_INTERNAL_SIRQ_BIT,
-
-	TRACE_CONTROL_BIT,
 
 	TRACE_BRANCH_BIT,
 /*

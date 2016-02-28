@@ -172,13 +172,6 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 	handle_syscall(regs);
 }
 
-int get_syscall(struct uml_pt_regs *regs)
-{
-	UPT_SYSCALL_NR(regs) = PT_SYSCALL_NR(regs->gp);
-
-	return UPT_SYSCALL_NR(regs);
-}
-
 extern char __syscall_stub_start[];
 
 static int userspace_tramp(void *stack)

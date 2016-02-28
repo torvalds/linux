@@ -269,7 +269,7 @@ struct fsl_qspi {
 	struct clk *clk, *clk_en;
 	struct device *dev;
 	struct completion c;
-	struct fsl_qspi_devtype_data *devtype_data;
+	const struct fsl_qspi_devtype_data *devtype_data;
 	u32 nor_size;
 	u32 nor_num;
 	u32 clk_rate;
@@ -927,15 +927,12 @@ static void fsl_qspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 static int fsl_qspi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct mtd_part_parser_data ppdata;
 	struct device *dev = &pdev->dev;
 	struct fsl_qspi *q;
 	struct resource *res;
 	struct spi_nor *nor;
 	struct mtd_info *mtd;
 	int ret, i = 0;
-	const struct of_device_id *of_id =
-			of_match_device(fsl_qspi_dt_ids, &pdev->dev);
 
 	q = devm_kzalloc(dev, sizeof(*q), GFP_KERNEL);
 	if (!q)
@@ -946,7 +943,9 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	q->dev = dev;
-	q->devtype_data = (struct fsl_qspi_devtype_data *)of_id->data;
+	q->devtype_data = of_device_get_match_data(dev);
+	if (!q->devtype_data)
+		return -ENODEV;
 	platform_set_drvdata(pdev, q);
 
 	/* find the resources */
@@ -1013,7 +1012,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		mtd = &nor->mtd;
 
 		nor->dev = dev;
-		nor->flash_node = np;
+		spi_nor_set_flash_node(nor, np);
 		nor->priv = q;
 
 		/* fill the hooks */
@@ -1038,8 +1037,7 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		if (ret)
 			goto mutex_failed;
 
-		ppdata.of_node = np;
-		ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
+		ret = mtd_device_register(mtd, NULL, 0);
 		if (ret)
 			goto mutex_failed;
 

@@ -68,6 +68,6 @@
 		ti,keep-vref-on = <1>;
 		ti,settle-delay-usec = /bits/ 16 <150>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };

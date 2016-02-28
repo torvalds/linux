@@ -7,6 +7,7 @@ enum pnv_phb_type {
 	PNV_PHB_P5IOC2	= 0,
 	PNV_PHB_IODA1	= 1,
 	PNV_PHB_IODA2	= 2,
+	PNV_PHB_NPU	= 3,
 };
 
 /* Precise PHB model for error management */
@@ -15,6 +16,7 @@ enum pnv_phb_model {
 	PNV_PHB_MODEL_P5IOC2,
 	PNV_PHB_MODEL_P7IOC,
 	PNV_PHB_MODEL_PHB3,
+	PNV_PHB_MODEL_NPU,
 };
 
 #define PNV_PCI_DIAG_BUF_SIZE	8192
@@ -24,12 +26,16 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_MASTER	(1 << 3)	/* Master PE in compound case	*/
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
+#define PNV_IODA_PE_PEER	(1 << 6)	/* PE has peers			*/
 
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_phb;
 struct pnv_ioda_pe {
 	unsigned long		flags;
 	struct pnv_phb		*phb;
+
+#define PNV_IODA_MAX_PEER_PES	8
+	struct pnv_ioda_pe	*peers[PNV_IODA_MAX_PEER_PES];
 
 	/* A PE can be associated with a single device or an
 	 * entire bus (& children). In the former case, pdev
@@ -229,13 +235,27 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
+extern void pnv_pci_init_npu_phb(struct device_node *np);
 extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
 					__be64 *startp, __be64 *endp, bool rm);
 extern void pnv_pci_reset_secondary_bus(struct pci_dev *dev);
 extern int pnv_eeh_phb_reset(struct pci_controller *hose, int option);
 
 extern void pnv_pci_dma_dev_setup(struct pci_dev *pdev);
+extern void pnv_pci_dma_bus_setup(struct pci_bus *bus);
 extern int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
 extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
+
+/* Nvlink functions */
+extern void pnv_npu_tce_invalidate_entire(struct pnv_ioda_pe *npe);
+extern void pnv_npu_tce_invalidate(struct pnv_ioda_pe *npe,
+				       struct iommu_table *tbl,
+				       unsigned long index,
+				       unsigned long npages,
+				       bool rm);
+extern void pnv_npu_init_dma_pe(struct pnv_ioda_pe *npe);
+extern void pnv_npu_setup_dma_pe(struct pnv_ioda_pe *npe);
+extern int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe, bool enabled);
+extern int pnv_npu_dma_set_mask(struct pci_dev *npdev, u64 dma_mask);
 
 #endif /* __POWERNV_PCI_H */

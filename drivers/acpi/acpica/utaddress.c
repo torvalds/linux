@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,8 +239,9 @@ acpi_ut_check_address_range(acpi_adr_space_type space_id,
 			overlap_count++;
 			if (warn) {	/* Optional warning message */
 				pathname =
-				    acpi_ns_get_external_pathname(range_info->
-								  region_node);
+				    acpi_ns_get_normalized_pathname(range_info->
+								    region_node,
+								    TRUE);
 
 				ACPI_WARNING((AE_INFO,
 					      "%s range 0x%8.8X%8.8X-0x%8.8X%8.8X conflicts with OpRegion 0x%8.8X%8.8X-0x%8.8X%8.8X (%s)",

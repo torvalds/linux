@@ -64,7 +64,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	struct perf_evsel *evsel;
 	struct addr_location al;
 	struct hist_entry *he;
-	struct perf_sample sample = { .period = 1, };
+	struct perf_sample sample = { .period = 1, .weight = 1, };
 	size_t i = 0, k;
 
 	/*
@@ -90,7 +90,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 				goto out;
 
 			he = __hists__add_entry(hists, &al, NULL,
-						NULL, NULL, 1, 1, 0, true);
+						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
 				goto out;
@@ -116,7 +116,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 				goto out;
 
 			he = __hists__add_entry(hists, &al, NULL,
-						NULL, NULL, 1, 1, 0, true);
+						NULL, NULL, &sample, true);
 			if (he == NULL) {
 				addr_location__put(&al);
 				goto out;
@@ -274,7 +274,7 @@ static int validate_link(struct hists *leader, struct hists *other)
 	return __validate_link(leader, 0) || __validate_link(other, 1);
 }
 
-int test__hists_link(void)
+int test__hists_link(int subtest __maybe_unused)
 {
 	int err = -1;
 	struct hists *hists, *first_hists;
@@ -293,8 +293,9 @@ int test__hists_link(void)
 	if (err)
 		goto out;
 
+	err = TEST_FAIL;
 	/* default sort order (comm,dso,sym) will be used */
-	if (setup_sorting() < 0)
+	if (setup_sorting(NULL) < 0)
 		goto out;
 
 	machines__init(&machines);

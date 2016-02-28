@@ -663,27 +663,22 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 	/* assign mpp modes to groups */
 	for (n = 0; n < soc->nmodes; n++) {
 		struct mvebu_mpp_mode *mode = &soc->modes[n];
-		struct mvebu_pinctrl_group *grp =
-			mvebu_pinctrl_find_group_by_pid(pctl, mode->pid);
+		struct mvebu_mpp_ctrl_setting *set = &mode->settings[0];
+		struct mvebu_pinctrl_group *grp;
 		unsigned num_settings;
+		unsigned supp_settings;
 
-		if (!grp) {
-			dev_warn(&pdev->dev, "unknown pinctrl group %d\n",
-				mode->pid);
-			continue;
-		}
-
-		for (num_settings = 0; ;) {
-			struct mvebu_mpp_ctrl_setting *set =
-				&mode->settings[num_settings];
-
+		for (num_settings = 0, supp_settings = 0; ; set++) {
 			if (!set->name)
 				break;
+
 			num_settings++;
 
 			/* skip unsupported settings for this variant */
 			if (pctl->variant && !(pctl->variant & set->variant))
 				continue;
+
+			supp_settings++;
 
 			/* find gpio/gpo/gpi settings */
 			if (strcmp(set->name, "gpio") == 0)
@@ -693,6 +688,17 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 				set->flags = MVEBU_SETTING_GPO;
 			else if (strcmp(set->name, "gpi") == 0)
 				set->flags = MVEBU_SETTING_GPI;
+		}
+
+		/* skip modes with no settings for this variant */
+		if (!supp_settings)
+			continue;
+
+		grp = mvebu_pinctrl_find_group_by_pid(pctl, mode->pid);
+		if (!grp) {
+			dev_warn(&pdev->dev, "unknown pinctrl group %d\n",
+				mode->pid);
+			continue;
 		}
 
 		grp->settings = mode->settings;
