@@ -369,7 +369,7 @@ static int act8865_pdata_from_dt(struct device *dev,
 	for (i = 0; i < num_matches; i++) {
 		regulator->id = i;
 		regulator->name = matches[i].name;
-		regulator->platform_data = matches[i].init_data;
+		regulator->init_data = matches[i].init_data;
 		of_node[i] = matches[i].of_node;
 		regulator++;
 	}
@@ -396,7 +396,7 @@ static struct regulator_init_data
 
 	for (i = 0; i < pdata->num_regulators; i++) {
 		if (pdata->regulators[i].id == id)
-			return pdata->regulators[i].platform_data;
+			return pdata->regulators[i].init_data;
 	}
 
 	return NULL;
