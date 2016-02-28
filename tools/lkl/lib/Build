@@ -1,3 +1,5 @@
+CFLAGS_posix-host.o += -D_FILE_OFFSET_BITS=64
+
 lkl-y += fs.o
 lkl-y += iomem.o
 lkl-y += net.o
