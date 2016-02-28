@@ -25,7 +25,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for Analog Devices ADM1075, ADM1275,
+This driver supports hardware monitoring for Analog Devices ADM1075, ADM1275,
 ADM1276, ADM1293, and ADM1294 Hot-Swap Controller and Digital Power Monitors.
 
 ADM1075, ADM1275, ADM1276, ADM1293, and ADM1294 are hot-swap controllers that
