@@ -3149,11 +3149,6 @@ finish_lookup:
 	if (unlikely(error))
 		return error;
 
-	if (unlikely(d_is_symlink(path.dentry)) && !(open_flag & O_PATH)) {
-		path_to_nameidata(&path, nd);
-		return -ELOOP;
-	}
-
 	if ((nd->flags & LOOKUP_RCU) || nd->path.mnt != path.mnt) {
 		path_to_nameidata(&path, nd);
 	} else {
@@ -3172,6 +3167,10 @@ finish_open:
 		return error;
 	}
 	audit_inode(nd->name, nd->path.dentry, 0);
+	if (unlikely(d_is_symlink(nd->path.dentry)) && !(open_flag & O_PATH)) {
+		error = -ELOOP;
+		goto out;
+	}
 	error = -EISDIR;
 	if ((open_flag & O_CREAT) && d_is_dir(nd->path.dentry))
 		goto out;
