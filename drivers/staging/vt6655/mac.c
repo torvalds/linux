@@ -117,10 +117,8 @@ bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 bool MACbIsIntDisable(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->PortOffset;
-	unsigned long dwData;
 
-	VNSvInPortD(io_base + MAC_REG_IMR, &dwData);
-	if (dwData != 0)
+	if (ioread32(io_base + MAC_REG_IMR))
 		return false;
 
 	return true;
@@ -363,7 +361,6 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
-	unsigned long dwData;
 
 	/* turn off wow temp for turn off Rx safely */
 
@@ -371,8 +368,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 	VNSvOutPortD(io_base + MAC_REG_RXDMACTL0, DMACTL_CLRRUN);
 	VNSvOutPortD(io_base + MAC_REG_RXDMACTL1, DMACTL_CLRRUN);
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(io_base + MAC_REG_RXDMACTL0, &dwData);
-		if (!(dwData & DMACTL_RUN))
+		if (!(ioread32(io_base + MAC_REG_RXDMACTL0) & DMACTL_RUN))
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
@@ -380,8 +376,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(io_base + MAC_REG_RXDMACTL1, &dwData);
-		if (!(dwData & DMACTL_RUN))
+		if (!(ioread32(io_base + MAC_REG_RXDMACTL1) & DMACTL_RUN))
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
@@ -420,7 +415,6 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
-	unsigned long dwData;
 
 	/* Clear TX DMA */
 	/* Tx0 */
@@ -429,8 +423,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 	VNSvOutPortD(io_base + MAC_REG_AC0DMACTL, DMACTL_CLRRUN);
 
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(io_base + MAC_REG_TXDMACTL0, &dwData);
-		if (!(dwData & DMACTL_RUN))
+		if (!(ioread32(io_base + MAC_REG_TXDMACTL0) & DMACTL_RUN))
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
@@ -438,8 +431,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 		return false;
 	}
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortD(io_base + MAC_REG_AC0DMACTL, &dwData);
-		if (!(dwData & DMACTL_RUN))
+		if (!(ioread32(io_base + MAC_REG_AC0DMACTL) & DMACTL_RUN))
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
