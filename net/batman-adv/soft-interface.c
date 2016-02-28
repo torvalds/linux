@@ -413,10 +413,6 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	batadv_bcast_packet = (struct batadv_bcast_packet *)skb->data;
 	is_bcast = (batadv_bcast_packet->packet_type == BATADV_BCAST);
 
-	/* check if enough space is available for pulling, and pull */
-	if (!pskb_may_pull(skb, hdr_size))
-		goto dropped;
-
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
