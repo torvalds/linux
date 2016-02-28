@@ -38,6 +38,13 @@
 		reg = <0x28000000 0x2000000>; /* 32 MB */
 	};
 
+	vcc: vcc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	/* vmmc is controlled by sdmmc host internally */
 	vmmc: vmmc_fixed {
 		compatible = "regulator-fixed";
@@ -459,6 +466,11 @@
 			input-enable;
 		};
 	};
+};
+
+&adc0 {
+	status = "okay";
+	vref-supply = <&vcc>;
 };
 
 &i2c0 {
