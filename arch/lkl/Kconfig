@@ -58,13 +58,7 @@ source init/Kconfig
 
 source net/Kconfig
 
-source drivers/base/Kconfig
-
-source drivers/virtio/Kconfig
-
-source drivers/block/Kconfig
-
-source drivers/net/Kconfig
+source drivers/Kconfig
 
 source fs/Kconfig
 
