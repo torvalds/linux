@@ -174,6 +174,9 @@ static int ag6xx_setup(struct hci_uart *hu)
 	bool patched = false;
 	int err;
 
+	hu->hdev->set_diag = btintel_set_diag;
+	hu->hdev->set_bdaddr = btintel_set_bdaddr;
+
 	err = btintel_enter_mfg(hdev);
 	if (err)
 		return err;
@@ -298,8 +301,16 @@ patch:
 complete:
 	/* Exit manufacturing mode and reset */
 	err = btintel_exit_mfg(hdev, true, patched);
+	if (err)
+		return err;
 
-	return err;
+	/* Set the event mask for Intel specific vendor events. This enables
+	 * a few extra events that are useful during general operation.
+	 */
+	btintel_set_event_mask_mfg(hdev, false);
+
+	btintel_check_bdaddr(hdev);
+	return 0;
 }
 
 static const struct hci_uart_proto ag6xx_proto = {
