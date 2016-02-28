@@ -415,7 +415,7 @@ static void act8865_power_off(void)
 static int act8865_pmic_probe(struct i2c_client *client,
 			      const struct i2c_device_id *i2c_id)
 {
-	static const struct regulator_desc *regulators;
+	const struct regulator_desc *regulators;
 	struct act8865_platform_data pdata_of, *pdata;
 	struct device *dev = &client->dev;
 	struct device_node **of_node;
