@@ -324,105 +324,6 @@ struct cp210x_comm_status {
 #define PURGE_ALL		0x000f
 
 /*
- * cp210x_get_config
- * Reads from the CP210x configuration registers
- * 'size' is specified in bytes.
- * 'data' is a pointer to a pre-allocated array of integers large
- * enough to hold 'size' bytes (with 4 bytes to each integer)
- */
-static int cp210x_get_config(struct usb_serial_port *port, u8 request,
-		unsigned int *data, int size)
-{
-	struct usb_serial *serial = port->serial;
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	__le32 *buf;
-	int result, i, length;
-
-	/* Number of integers required to contain the array */
-	length = (((size - 1) | 3) + 1) / 4;
-
-	buf = kcalloc(length, sizeof(__le32), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	/* Issue the request, attempting to read 'size' bytes */
-	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
-				request, REQTYPE_INTERFACE_TO_HOST, 0x0000,
-				port_priv->bInterfaceNumber, buf, size,
-				USB_CTRL_GET_TIMEOUT);
-
-	/* Convert data into an array of integers */
-	for (i = 0; i < length; i++)
-		data[i] = le32_to_cpu(buf[i]);
-
-	kfree(buf);
-
-	if (result != size) {
-		dev_dbg(&port->dev, "%s - Unable to send config request, request=0x%x size=%d result=%d\n",
-			__func__, request, size, result);
-		if (result > 0)
-			result = -EPROTO;
-
-		return result;
-	}
-
-	return 0;
-}
-
-/*
- * cp210x_set_config
- * Writes to the CP210x configuration registers
- * Values less than 16 bits wide are sent directly
- * 'size' is specified in bytes.
- */
-static int cp210x_set_config(struct usb_serial_port *port, u8 request,
-		unsigned int *data, int size)
-{
-	struct usb_serial *serial = port->serial;
-	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
-	__le32 *buf;
-	int result, i, length;
-
-	/* Number of integers required to contain the array */
-	length = (((size - 1) | 3) + 1) / 4;
-
-	buf = kmalloc(length * sizeof(__le32), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	/* Array of integers into bytes */
-	for (i = 0; i < length; i++)
-		buf[i] = cpu_to_le32(data[i]);
-
-	if (size > 2) {
-		result = usb_control_msg(serial->dev,
-				usb_sndctrlpipe(serial->dev, 0),
-				request, REQTYPE_HOST_TO_INTERFACE, 0x0000,
-				port_priv->bInterfaceNumber, buf, size,
-				USB_CTRL_SET_TIMEOUT);
-	} else {
-		result = usb_control_msg(serial->dev,
-				usb_sndctrlpipe(serial->dev, 0),
-				request, REQTYPE_HOST_TO_INTERFACE, data[0],
-				port_priv->bInterfaceNumber, NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
-	}
-
-	kfree(buf);
-
-	if ((size > 2 && result != size) || result < 0) {
-		dev_dbg(&port->dev, "%s - Unable to send request, request=0x%x size=%d result=%d\n",
-			__func__, request, size, result);
-		if (result > 0)
-			result = -EPROTO;
-
-		return result;
-	}
-
-	return 0;
-}
-
-/*
  * Reads a variable-sized block of CP210X_ registers, identified by req.
  * Returns data into buf in native USB byte order.
  */
@@ -788,7 +689,8 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp)
 {
 	struct device *dev = &port->dev;
-	unsigned int cflag, modem_ctl[4];
+	unsigned int cflag;
+	u8 modem_ctl[16];
 	u32 baud;
 	u16 bits;
 
@@ -886,8 +788,9 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 		break;
 	}
 
-	cp210x_get_config(port, CP210X_GET_FLOW, modem_ctl, 16);
-	if (modem_ctl[0] & 0x0008) {
+	cp210x_read_reg_block(port, CP210X_GET_FLOW, modem_ctl,
+			sizeof(modem_ctl));
+	if (modem_ctl[0] & 0x08) {
 		dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		cflag |= CRTSCTS;
 	} else {
@@ -956,7 +859,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	struct device *dev = &port->dev;
 	unsigned int cflag, old_cflag;
 	u16 bits;
-	unsigned int modem_ctl[4];
+	u8 modem_ctl[16];
 
 	cflag = tty->termios.c_cflag;
 	old_cflag = old_termios->c_cflag;
@@ -1040,27 +943,35 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	}
 
 	if ((cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
-		cp210x_get_config(port, CP210X_GET_FLOW, modem_ctl, 16);
-		dev_dbg(dev, "%s - read modem controls = 0x%.4x 0x%.4x 0x%.4x 0x%.4x\n",
-			__func__, modem_ctl[0], modem_ctl[1],
-			modem_ctl[2], modem_ctl[3]);
+
+		/* Only bytes 0, 4 and 7 out of first 8 have functional bits */
+
+		cp210x_read_reg_block(port, CP210X_GET_FLOW, modem_ctl,
+				sizeof(modem_ctl));
+		dev_dbg(dev, "%s - read modem controls = %02x .. .. .. %02x .. .. %02x\n",
+			__func__, modem_ctl[0], modem_ctl[4], modem_ctl[7]);
 
 		if (cflag & CRTSCTS) {
 			modem_ctl[0] &= ~0x7B;
 			modem_ctl[0] |= 0x09;
-			modem_ctl[1] = 0x80;
+			modem_ctl[4] = 0x80;
+			/* FIXME - why clear reserved bits just read? */
+			modem_ctl[5] = 0;
+			modem_ctl[6] = 0;
+			modem_ctl[7] = 0;
 			dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		} else {
 			modem_ctl[0] &= ~0x7B;
 			modem_ctl[0] |= 0x01;
-			modem_ctl[1] |= 0x40;
+			/* FIXME - OR here instead of assignment looks wrong */
+			modem_ctl[4] |= 0x40;
 			dev_dbg(dev, "%s - flow control = NONE\n", __func__);
 		}
 
-		dev_dbg(dev, "%s - write modem controls = 0x%.4x 0x%.4x 0x%.4x 0x%.4x\n",
-			__func__, modem_ctl[0], modem_ctl[1],
-			modem_ctl[2], modem_ctl[3]);
-		cp210x_set_config(port, CP210X_SET_FLOW, modem_ctl, 16);
+		dev_dbg(dev, "%s - write modem controls = %02x .. .. .. %02x .. .. %02x\n",
+			__func__, modem_ctl[0], modem_ctl[4], modem_ctl[7]);
+		cp210x_write_reg_block(port, CP210X_SET_FLOW, modem_ctl,
+				sizeof(modem_ctl));
 	}
 
 }
