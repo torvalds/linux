@@ -665,9 +665,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	u32 i;
 	u8 u8security = NO_ENCRYPT;
 	enum AUTHTYPE tenuAuth_type = ANY;
-	char *pcgroup_encrypt_val = NULL;
-	char *pccipher_group = NULL;
-	char *pcwpa_version = NULL;
 
 	struct wilc_priv *priv;
 	struct host_if_drv *pstrWFIDrv;
@@ -711,11 +708,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	memset(priv->WILC_WFI_wep_key_len, 0, sizeof(priv->WILC_WFI_wep_key_len));
 
 	if (sme->crypto.cipher_group != NO_ENCRYPT) {
-		pcwpa_version = "Default";
 		if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP40) {
 			u8security = ENCRYPT_ENABLED | WEP;
-			pcgroup_encrypt_val = "WEP40";
-			pccipher_group = "WLAN_CIPHER_SUITE_WEP40";
 
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
@@ -731,8 +725,6 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 						 sme->key_idx);
 		} else if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_WEP104)   {
 			u8security = ENCRYPT_ENABLED | WEP | WEP_EXTENDED;
-			pcgroup_encrypt_val = "WEP104";
-			pccipher_group = "WLAN_CIPHER_SUITE_WEP104";
 
 			priv->WILC_WFI_wep_key_len[sme->key_idx] = sme->key_len;
 			memcpy(priv->WILC_WFI_wep_key[sme->key_idx], sme->key, sme->key_len);
@@ -749,25 +741,15 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_2)   {
 			if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP)	{
 				u8security = ENCRYPT_ENABLED | WPA2 | TKIP;
-				pcgroup_encrypt_val = "WPA2_TKIP";
-				pccipher_group = "TKIP";
 			} else {
 				u8security = ENCRYPT_ENABLED | WPA2 | AES;
-				pcgroup_encrypt_val = "WPA2_AES";
-				pccipher_group = "AES";
 			}
-			pcwpa_version = "WPA_VERSION_2";
 		} else if (sme->crypto.wpa_versions & NL80211_WPA_VERSION_1)   {
 			if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_TKIP)	{
 				u8security = ENCRYPT_ENABLED | WPA | TKIP;
-				pcgroup_encrypt_val = "WPA_TKIP";
-				pccipher_group = "TKIP";
 			} else {
 				u8security = ENCRYPT_ENABLED | WPA | AES;
-				pcgroup_encrypt_val = "WPA_AES";
-				pccipher_group = "AES";
 			}
-			pcwpa_version = "WPA_VERSION_1";
 
 		} else {
 			s32Error = -ENOTSUPP;
