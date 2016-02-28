@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "omap36xx.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "LG Optimus Black";
@@ -225,6 +226,14 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
+
+&twl_keypad {
+	linux,keymap = <
+		MATRIX_KEY(0x00, 0x00, KEY_VOLUMEUP)
+		MATRIX_KEY(0x01, 0x00, KEY_VOLUMEDOWN)
+		MATRIX_KEY(0x02, 0x00, KEY_SELECT)
+	>;
+};
 
 /*
  * The TWL4030 VAUX2 and VDAC regulators power sensors that are slaves on I2C3.
