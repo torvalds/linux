@@ -560,6 +560,16 @@ static struct em28xx_led pctv_80e_leds[] = {
 	{-1, 0, 0, 0},
 };
 
+static struct em28xx_led terratec_grabby_leds[] = {
+	{
+		.role      = EM28XX_LED_ANALOG_CAPTURING,
+		.gpio_reg  = EM2820_R08_GPIO_CTRL,
+		.gpio_mask = EM_GPIO_3,
+		.inverted  = 1,
+	},
+	{-1, 0, 0, 0},
+};
+
 /*
  *  Board definitions
  */
@@ -2016,6 +2026,7 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 		.buttons         = std_snapshot_button,
+		.leds            = terratec_grabby_leds,
 	},
 	[EM2860_BOARD_TERRATEC_AV350] = {
 		.name            = "Terratec AV350",
