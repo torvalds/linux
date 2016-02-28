@@ -1252,7 +1252,8 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, info);
-	info->pctl = pinctrl_register(&at91_pinctrl_desc, &pdev->dev, info);
+	info->pctl = devm_pinctrl_register(&pdev->dev, &at91_pinctrl_desc,
+					   info);
 
 	if (IS_ERR(info->pctl)) {
 		dev_err(&pdev->dev, "could not register AT91 pinctrl driver\n");
@@ -1265,15 +1266,6 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 			pinctrl_add_gpio_range(info->pctl, &gpio_chips[i]->range);
 
 	dev_info(&pdev->dev, "initialized AT91 pinctrl driver\n");
-
-	return 0;
-}
-
-static int at91_pinctrl_remove(struct platform_device *pdev)
-{
-	struct at91_pinctrl *info = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(info->pctl);
 
 	return 0;
 }
@@ -1821,7 +1813,6 @@ static struct platform_driver at91_pinctrl_driver = {
 		.of_match_table = at91_pinctrl_of_match,
 	},
 	.probe = at91_pinctrl_probe,
-	.remove = at91_pinctrl_remove,
 };
 
 static struct platform_driver * const drivers[] = {
