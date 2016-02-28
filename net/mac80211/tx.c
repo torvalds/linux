@@ -1247,7 +1247,8 @@ static void ieee80211_drv_tx(struct ieee80211_local *local,
 	struct txq_info *txqi;
 	u8 ac;
 
-	if (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE)
+	if ((info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) ||
+	    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 		goto tx_normal;
 
 	if (!ieee80211_is_data(hdr->frame_control))
