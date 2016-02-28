@@ -356,9 +356,8 @@ static inline size_t spc_bitmap_free(unsigned long *bitmap)
 static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t data_needed)
 {
 	struct tcmu_mailbox *mb = udev->mb_addr;
-	size_t space;
+	size_t space, cmd_needed;
 	u32 cmd_head;
-	size_t cmd_needed;
 
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
@@ -382,7 +381,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t d
 
 	space = spc_bitmap_free(udev->data_bitmap);
 	if (space < data_needed) {
-		pr_debug("no data space: only %lu available, but ask for %lu\n",
+		pr_debug("no data space: only %zu available, but ask for %zu\n",
 				space, data_needed);
 		return false;
 	}
