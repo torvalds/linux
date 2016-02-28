@@ -470,6 +470,29 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 }
 
 /*
+ * Reads any 32-bit CP210X_ register identified by req.
+ */
+static int cp210x_read_u32_reg(struct usb_serial_port *port, u8 req, u32 *val)
+{
+	__le32 le32_val;
+	int err;
+
+	err = cp210x_read_reg_block(port, req, &le32_val, sizeof(le32_val));
+	if (err) {
+		/*
+		 * FIXME Some callers don't bother to check for error,
+		 * at least give them consistent junk until they are fixed
+		 */
+		*val = 0;
+		return err;
+	}
+
+	*val = le32_to_cpu(le32_val);
+
+	return 0;
+}
+
+/*
  * Reads any 16-bit CP210X_ register identified by req.
  */
 static int cp210x_read_u16_reg(struct usb_serial_port *port, u8 req, u16 *val)
@@ -482,7 +505,16 @@ static int cp210x_read_u16_reg(struct usb_serial_port *port, u8 req, u16 *val)
 		return err;
 
 	*val = le16_to_cpu(le16_val);
+
 	return 0;
+}
+
+/*
+ * Reads any 8-bit CP210X_ register identified by req.
+ */
+static int cp210x_read_u8_reg(struct usb_serial_port *port, u8 req, u8 *val)
+{
+	return cp210x_read_reg_block(port, req, val, sizeof(*val));
 }
 
 /*
@@ -505,6 +537,55 @@ static int cp210x_write_u16_reg(struct usb_serial_port *port, u8 req, u16 val)
 	}
 
 	return result;
+}
+
+/*
+ * Writes a variable-sized block of CP210X_ registers, identified by req.
+ * Data in buf must be in native USB byte order.
+ */
+static int cp210x_write_reg_block(struct usb_serial_port *port, u8 req,
+		void *buf, int bufsize)
+{
+	struct usb_serial *serial = port->serial;
+	struct cp210x_port_private *port_priv = usb_get_serial_port_data(port);
+	void *dmabuf;
+	int result;
+
+	dmabuf = kmalloc(bufsize, GFP_KERNEL);
+	if (!dmabuf)
+		return -ENOMEM;
+
+	memcpy(dmabuf, buf, bufsize);
+
+	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			req, REQTYPE_HOST_TO_INTERFACE, 0,
+			port_priv->bInterfaceNumber, dmabuf, bufsize,
+			USB_CTRL_SET_TIMEOUT);
+
+	kfree(dmabuf);
+
+	if (result == bufsize) {
+		result = 0;
+	} else {
+		dev_err(&port->dev, "failed set req 0x%x size %d status: %d\n",
+				req, bufsize, result);
+		if (result >= 0)
+			result = -EPROTO;
+	}
+
+	return result;
+}
+
+/*
+ * Writes any 32-bit CP210X_ register identified by req.
+ */
+static int cp210x_write_u32_reg(struct usb_serial_port *port, u8 req, u32 val)
+{
+	__le32 le32_val;
+
+	le32_val = cpu_to_le32(val);
+
+	return cp210x_write_reg_block(port, req, &le32_val, sizeof(le32_val));
 }
 
 /*
@@ -708,10 +789,10 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 {
 	struct device *dev = &port->dev;
 	unsigned int cflag, modem_ctl[4];
-	unsigned int baud;
+	u32 baud;
 	u16 bits;
 
-	cp210x_get_config(port, CP210X_GET_BAUDRATE, &baud, 4);
+	cp210x_read_u32_reg(port, CP210X_GET_BAUDRATE, &baud);
 
 	dev_dbg(dev, "%s - baud rate = %d\n", __func__, baud);
 	*baudp = baud;
@@ -858,8 +939,7 @@ static void cp210x_change_speed(struct tty_struct *tty,
 	baud = cp210x_quantise_baudrate(baud);
 
 	dev_dbg(&port->dev, "%s - setting baud rate to %u\n", __func__, baud);
-	if (cp210x_set_config(port, CP210X_SET_BAUDRATE, &baud,
-							sizeof(baud))) {
+	if (cp210x_write_u32_reg(port, CP210X_SET_BAUDRATE, baud)) {
 		dev_warn(&port->dev, "failed to set baud rate to %u\n", baud);
 		if (old_termios)
 			baud = old_termios->c_ospeed;
@@ -1030,10 +1110,10 @@ static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
 static int cp210x_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	unsigned int control;
+	u8 control;
 	int result;
 
-	cp210x_get_config(port, CP210X_GET_MDMSTS, &control, 1);
+	cp210x_read_u8_reg(port, CP210X_GET_MDMSTS, &control);
 
 	result = ((control & CONTROL_DTR) ? TIOCM_DTR : 0)
 		|((control & CONTROL_RTS) ? TIOCM_RTS : 0)
