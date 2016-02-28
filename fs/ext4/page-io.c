@@ -139,16 +139,6 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 	kmem_cache_free(io_end_cachep, io_end);
 }
 
-static void ext4_clear_io_unwritten_flag(ext4_io_end_t *io_end)
-{
-	struct inode *inode = io_end->inode;
-
-	io_end->flag &= ~EXT4_IO_END_UNWRITTEN;
-	/* Wake up anyone waiting on unwritten extent conversion */
-	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-		wake_up_all(ext4_ioend_wq(inode));
-}
-
 /*
  * Check a range of space and convert unwritten extents to written. Note that
  * we are protected from truncate touching same part of extent tree by the
