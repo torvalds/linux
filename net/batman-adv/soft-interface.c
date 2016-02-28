@@ -385,7 +385,6 @@ end:
  * batadv_interface_rx - receive ethernet frame on local batman-adv interface
  * @soft_iface: local interface which will receive the ethernet frame
  * @skb: ethernet frame for @soft_iface
- * @recv_if: interface on which the batman-adv packet was received
  * @hdr_size: size of already parsed batman-adv header
  * @orig_node: originator from which the batman-adv packet was sent
  *
@@ -400,8 +399,8 @@ end:
  * isolated clients.
  */
 void batadv_interface_rx(struct net_device *soft_iface,
-			 struct sk_buff *skb, struct batadv_hard_iface *recv_if,
-			 int hdr_size, struct batadv_orig_node *orig_node)
+			 struct sk_buff *skb, int hdr_size,
+			 struct batadv_orig_node *orig_node)
 {
 	struct batadv_bcast_packet *batadv_bcast_packet;
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);

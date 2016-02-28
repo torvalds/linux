@@ -912,7 +912,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 							hdr_size))
 			goto rx_success;
 
-		batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
+		batadv_interface_rx(recv_if->soft_iface, skb, hdr_size,
 				    orig_node);
 
 rx_success:
@@ -1122,8 +1122,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 		goto rx_success;
 
 	/* broadcast for me */
-	batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
-			    orig_node);
+	batadv_interface_rx(recv_if->soft_iface, skb, hdr_size, orig_node);
 
 rx_success:
 	ret = NET_RX_SUCCESS;
