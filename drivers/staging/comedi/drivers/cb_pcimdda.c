@@ -24,16 +24,17 @@
  * Updated: Mon, 14 Apr 2008 15:15:51 +0100
  * Status: works
  *
- * All features of the PCIM-DDA06-16 board are supported.  This board
- * has 6 16-bit AO channels, and the usual 8255 DIO setup.  (24 channels,
- * configurable in banks of 8 and 4, etc.).  This board does not support commands.
+ * All features of the PCIM-DDA06-16 board are supported.
+ * This board has 6 16-bit AO channels, and the usual 8255 DIO setup.
+ * (24 channels, configurable in banks of 8 and 4, etc.).
+ * This board does not support commands.
  *
  * The board has a peculiar way of specifying AO gain/range settings -- You have
  * 1 jumper bank on the card, which either makes all 6 AO channels either
  * 5 Volt unipolar, 5V bipolar, 10 Volt unipolar or 10V bipolar.
  *
  * Since there is absolutely _no_ way to tell in software how this jumper is set
- * (well, at least according  to the rather thin spec. from Measurement Computing
+ * (well, at least according to the rather thin spec. from Measurement Computing
  * that comes with the board), the driver assumes the jumper is at its factory
  * default setting of +/-5V.
  *
@@ -47,7 +48,7 @@
  *     you read from any one of the AO channels.  This is useful for loading
  *     all 6 AO values, and then reading from any one of the AO channels on the
  *     device to instantly update all 6 AO values in unison.  Useful for some
- *     control apps, I would assume?  If your jumper is in this setting, then you
+ *     control apps, I would assume? If your jumper is in this setting, then you
  *     need to issue your comedi_data_write()s to load all the values you want,
  *     then issue one comedi_data_read() on any channel on the AO subdevice
  *     to initiate the simultaneous XFER.
