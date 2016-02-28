@@ -52,6 +52,7 @@ struct watchdog_device {
 	unsigned int timeout;
 	unsigned int min_timeout;
 	unsigned int max_timeout;
+	unsigned int max_hw_heartbeat_ms;
 	struct notifier_block reboot_nb;
 	struct notifier_block restart_nb;
 	void *driver_data;
@@ -73,8 +74,18 @@ It contains following fields:
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.
 * timeout: the watchdog timer's timeout value (in seconds).
+  This is the time after which the system will reboot if user space does
+  not send a heartbeat request if WDOG_ACTIVE is set.
 * min_timeout: the watchdog timer's minimum timeout value (in seconds).
-* max_timeout: the watchdog timer's maximum timeout value (in seconds).
+  If set, the minimum configurable value for 'timeout'.
+* max_timeout: the watchdog timer's maximum timeout value (in seconds),
+  as seen from userspace. If set, the maximum configurable value for
+  'timeout'. Not used if max_hw_heartbeat_ms is non-zero.
+* max_hw_heartbeat_ms: Maximum hardware heartbeat, in milli-seconds.
+  If set, the infrastructure will send heartbeats to the watchdog driver
+  if 'timeout' is larger than max_hw_heartbeat_ms, unless WDOG_ACTIVE
+  is set and userspace failed to send a heartbeat for at least 'timeout'
+  seconds.
 * reboot_nb: notifier block that is registered for reboot notifications, for
   internal use only. If the driver calls watchdog_stop_on_reboot, watchdog core
   will stop the watchdog on such notifications.
@@ -153,7 +164,11 @@ they are supported. These optional routines/operations are:
   and -EIO for "could not write value to the watchdog". On success this
   routine should set the timeout value of the watchdog_device to the
   achieved timeout value (which may be different from the requested one
-  because the watchdog does not necessarily has a 1 second resolution).
+  because the watchdog does not necessarily have a 1 second resolution).
+  Drivers implementing max_hw_heartbeat_ms set the hardware watchdog heartbeat
+  to the minimum of timeout and max_hw_heartbeat_ms. Those drivers set the
+  timeout value of the watchdog_device either to the requested timeout value
+  (if it is larger than max_hw_heartbeat_ms), or to the achieved timeout value.
   (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
   watchdog's info structure).
   If the watchdog driver does not have to perform any action but setting the
