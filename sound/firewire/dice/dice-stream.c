@@ -191,53 +191,17 @@ end:
 	return err;
 }
 
-static int get_sync_mode(struct snd_dice *dice, enum cip_flags *sync_mode)
-{
-	u32 source;
-	int err;
-
-	err = snd_dice_transaction_get_clock_source(dice, &source);
-	if (err < 0)
-		goto end;
-
-	switch (source) {
-	/* So-called 'SYT Match' modes, sync_to_syt value of packets received */
-	case CLOCK_SOURCE_ARX4:	/* in 4th stream */
-	case CLOCK_SOURCE_ARX3:	/* in 3rd stream */
-	case CLOCK_SOURCE_ARX2:	/* in 2nd stream */
-		err = -ENOSYS;
-		break;
-	case CLOCK_SOURCE_ARX1:	/* in 1st stream, which this driver uses */
-		*sync_mode = 0;
-		break;
-	default:
-		*sync_mode = CIP_SYNC_TO_DEVICE;
-		break;
-	}
-end:
-	return err;
-}
-
 int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 {
 	struct amdtp_stream *master, *slave;
 	unsigned int curr_rate;
-	enum cip_flags sync_mode;
 	int err = 0;
 
 	if (dice->substreams_counter == 0)
 		goto end;
 
-	err = get_sync_mode(dice, &sync_mode);
-	if (err < 0)
-		goto end;
-	if (sync_mode == CIP_SYNC_TO_DEVICE) {
-		master = &dice->tx_stream;
-		slave  = &dice->rx_stream;
-	} else {
-		master = &dice->rx_stream;
-		slave  = &dice->tx_stream;
-	}
+	master = &dice->rx_stream;
+	slave  = &dice->tx_stream;
 
 	/* Some packet queueing errors. */
 	if (amdtp_streaming_error(master) || amdtp_streaming_error(slave))
@@ -260,8 +224,6 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 	if (!amdtp_stream_running(master)) {
 		stop_stream(dice, slave);
 		snd_dice_transaction_clear_enable(dice);
-
-		amdtp_stream_set_sync(sync_mode, master, slave);
 
 		err = ensure_phase_lock(dice);
 		if (err < 0) {
