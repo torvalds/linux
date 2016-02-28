@@ -19,8 +19,6 @@
 #include "sm750_cursor.h"
 
 
-#define PEEK32(addr) \
-readl(cursor->mmio + (addr))
 
 #define POKE32(addr, data) \
 writel((data), cursor->mmio + (addr))
