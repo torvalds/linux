@@ -81,4 +81,16 @@ static void __exit gpbridge_exit(void)
 }
 module_exit(gpbridge_exit);
 
+/*
+ * One large list of all classes we support in the gpbridge.ko module.
+ *
+ * Due to limitations in older kernels, the different phy .c files can not
+ * contain their own MODULE_DEVICE_TABLE(), so put them all here for now.
+ */
+static const struct greybus_bundle_id bridged_phy_id_table[] = {
+	{ GREYBUS_DEVICE_CLASS(GREYBUS_CLASS_BRIDGED_PHY) },
+	{ },
+};
+MODULE_DEVICE_TABLE(greybus, bridged_phy_id_table);
+
 MODULE_LICENSE("GPL v2");
