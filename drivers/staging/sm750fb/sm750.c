@@ -422,7 +422,6 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 			return ret;
 		}
 
-		pci_disable_device(pdev);
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
 		if (ret) {
 			pr_err("error:%d occurred in pci_set_power_state\n", ret);
@@ -1053,14 +1052,14 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	int err;
 
 	/* enable device */
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err)
 		return err;
 
 	err = -ENOMEM;
 	sm750_dev = devm_kzalloc(&pdev->dev, sizeof(*sm750_dev), GFP_KERNEL);
 	if (!sm750_dev)
-		goto disable_pci;
+		return err;
 
 	sm750_dev->fbinfo[0] = sm750_dev->fbinfo[1] = NULL;
 	sm750_dev->devid = pdev->device;
@@ -1115,8 +1114,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 release_fb:
 	sm750fb_frambuffer_release(sm750_dev);
-disable_pci:
-	pci_disable_device(pdev);
 	return err;
 }
 
