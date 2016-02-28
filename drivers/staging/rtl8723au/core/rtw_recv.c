@@ -264,7 +264,6 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 	u8	bmic_err = false, brpt_micerror = true;
 	u8	*pframe, *payload, *pframemic;
 	u8	*mickey;
-	/* u8	*iv, rxdata_key_idx = 0; */
 	struct	sta_info *stainfo;
 	struct	rx_pkt_attrib *prxattrib = &precvframe->attrib;
 	struct	security_priv *psecuritypriv = &adapter->securitypriv;
@@ -1086,30 +1085,20 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 				pxmitframe->attrib.triggered = 1;
 
-	                        /* DBG_8723A("handling ps-poll, q_len =%d, tim =%x\n", psta->sleepq_len, pstapriv->tim_bitmap); */
-
 				rtl8723au_hal_xmitframe_enqueue(padapter,
 								pxmitframe);
 
 				if (psta->sleepq_len == 0) {
 					pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
-
-					/* DBG_8723A("after handling ps-poll, tim =%x\n", pstapriv->tim_bitmap); */
-
-					/* update BCN for TIM IE */
-					/* update_BCNTIM(padapter); */
 					update_beacon23a(padapter, WLAN_EID_TIM,
 							 NULL, false);
 				}
 
-				/* spin_unlock_bh(&psta->sleep_q.lock); */
 				spin_unlock_bh(&pxmitpriv->lock);
 
 			} else {
-				/* spin_unlock_bh(&psta->sleep_q.lock); */
 				spin_unlock_bh(&pxmitpriv->lock);
 
-				/* DBG_8723A("no buffered packets to xmit\n"); */
 				if (pstapriv->tim_bitmap & CHKBIT(psta->aid)) {
 					if (psta->sleepq_len == 0) {
 						DBG_8723A("no buffered packets "
@@ -1128,8 +1117,6 @@ static int validate_recv_ctrl_frame(struct rtw_adapter *padapter,
 
 					pstapriv->tim_bitmap &= ~CHKBIT(psta->aid);
 
-					/* update BCN for TIM IE */
-					/* update_BCNTIM(padapter); */
 					update_beacon23a(padapter, WLAN_EID_TIM,
 							 NULL, false);
 				}
@@ -1149,7 +1136,6 @@ static int validate_recv_mgnt_frame(struct rtw_adapter *padapter,
 	struct sta_info *psta;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
-	/* struct mlme_priv *pmlmepriv = &adapter->mlmepriv; */
 
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 		 "+validate_recv_mgnt_frame\n");
@@ -1257,8 +1243,6 @@ static int validate_recv_data_frame(struct rtw_adapter *adapter,
 		goto exit;
 	}
 
-	/* psta->rssi = prxcmd->rssi; */
-	/* psta->signal_quality = prxcmd->sq; */
 	precv_frame->psta = psta;
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
@@ -1468,7 +1452,6 @@ static int wlanhdr_to_ethhdr (struct recv_frame *precvframe)
 	psnap = ptr + hdrlen;
 	eth_type = (psnap[6] << 8) | psnap[7];
 	/* convert hdr + possible LLC headers into Ethernet header */
-	/* eth_type = (psnap_type[0] << 8) | psnap_type[1]; */
 	if ((ether_addr_equal(psnap, rfc1042_header) &&
 	     eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
 	    ether_addr_equal(psnap, bridge_tunnel_header)) {
@@ -1789,11 +1772,6 @@ static int enqueue_reorder_recvframe23a(struct recv_reorder_ctrl *preorder_ctrl,
 	struct rx_pkt_attrib *pnextattrib;
 
 	ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
-	/* DbgPrint("+enqueue_reorder_recvframe23a()\n"); */
-
-	/* spin_lock_irqsave(&ppending_recvframe_queue->lock); */
-	/* spin_lock_ex(&ppending_recvframe_queue->lock); */
-
 	phead = get_list_head(ppending_recvframe_queue);
 
 	list_for_each_safe(plist, ptmp, phead) {
@@ -1804,25 +1782,16 @@ static int enqueue_reorder_recvframe23a(struct recv_reorder_ctrl *preorder_ctrl,
 			continue;
 		} else if (SN_EQUAL(pnextattrib->seq_num, pattrib->seq_num)) {
 			/* Duplicate entry is found!! Do not insert current entry. */
-
-			/* spin_unlock_irqrestore(&ppending_recvframe_queue->lock); */
 			return false;
 		} else {
 			break;
 		}
 
-		/* DbgPrint("enqueue_reorder_recvframe23a():while\n"); */
 	}
-
-	/* spin_lock_irqsave(&ppending_recvframe_queue->lock); */
-	/* spin_lock_ex(&ppending_recvframe_queue->lock); */
 
 	list_del_init(&prframe->list);
 
 	list_add_tail(&prframe->list, plist);
-
-	/* spin_unlock_ex(&ppending_recvframe_queue->lock); */
-	/* spin_unlock_irqrestore(&ppending_recvframe_queue->lock); */
 
 	return true;
 }
@@ -1834,30 +1803,21 @@ int recv_indicatepkts_in_order(struct rtw_adapter *padapter,
 			       struct recv_reorder_ctrl *preorder_ctrl,
 			       int bforced)
 {
-	/* u8 bcancelled; */
 	struct list_head *phead, *plist;
 	struct recv_frame *prframe;
 	struct rx_pkt_attrib *pattrib;
-	/* u8 index = 0; */
 	int bPktInBuf = false;
 	struct recv_priv *precvpriv;
 	struct rtw_queue *ppending_recvframe_queue;
 
 	precvpriv = &padapter->recvpriv;
 	ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
-	/* DbgPrint("+recv_indicatepkts_in_order\n"); */
-
-	/* spin_lock_irqsave(&ppending_recvframe_queue->lock); */
-	/* spin_lock_ex(&ppending_recvframe_queue->lock); */
-
 	phead =	get_list_head(ppending_recvframe_queue);
 	plist = phead->next;
 
 	/*  Handling some condition for forced indicate case. */
 	if (bforced) {
 		if (list_empty(phead)) {
-			/*  spin_unlock_irqrestore(&ppending_recvframe_queue->lock); */
-			/* spin_unlock_ex(&ppending_recvframe_queue->lock); */
 			return true;
 		}
 
@@ -1907,11 +1867,7 @@ int recv_indicatepkts_in_order(struct rtw_adapter *padapter,
 			break;
 		}
 
-		/* DbgPrint("recv_indicatepkts_in_order():while\n"); */
 	}
-
-	/* spin_unlock_ex(&ppending_recvframe_queue->lock); */
-	/* spin_unlock_irqrestore(&ppending_recvframe_queue->lock); */
 
 	return bPktInBuf;
 }
@@ -2028,8 +1984,6 @@ void rtw_reordering_ctrl_timeout_handler23a(unsigned long pcontext)
 		return;
 	}
 
-	/* DBG_8723A("+rtw_reordering_ctrl_timeout_handler23a() =>\n"); */
-
 	spin_lock_bh(&ppending_recvframe_queue->lock);
 
 	if (recv_indicatepkts_in_order(padapter, preorder_ctrl, true) == true) {
@@ -2046,14 +2000,10 @@ int process_recv_indicatepkts(struct rtw_adapter *padapter,
 			      struct recv_frame *prframe)
 {
 	int retval = _SUCCESS;
-	/* struct recv_priv *precvpriv = &padapter->recvpriv; */
-	/* struct rx_pkt_attrib *pattrib = &prframe->attrib; */
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 
 	if (phtpriv->ht_option == true) { /* B/G/N Mode */
-		/* prframe->preorder_ctrl = &precvpriv->recvreorder_ctrl[pattrib->priority]; */
-
 		/*  including perform A-MPDU Rx Ordering Buffer Control */
 		if (recv_indicatepkt_reorder(padapter, prframe) != _SUCCESS) {
 			if ((padapter->bDriverStopped == false) &&
