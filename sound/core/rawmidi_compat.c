@@ -85,8 +85,7 @@ static int snd_rawmidi_ioctl_status_compat(struct snd_rawmidi_file *rfile,
 	if (err < 0)
 		return err;
 
-	if (put_user(status.tstamp.tv_sec, &src->tstamp.tv_sec) ||
-	    put_user(status.tstamp.tv_nsec, &src->tstamp.tv_nsec) ||
+	if (compat_put_timespec(&status.tstamp, &src->tstamp) ||
 	    put_user(status.avail, &src->avail) ||
 	    put_user(status.xruns, &src->xruns))
 		return -EFAULT;
