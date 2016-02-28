@@ -64,6 +64,7 @@ struct watchdog_core_data {
 	struct watchdog_device *wdd;
 	struct mutex lock;
 	unsigned long last_keepalive;
+	unsigned long last_hw_keepalive;
 	struct delayed_work work;
 	unsigned long status;		/* Internal status bits */
 #define _WDOG_DEV_OPEN		0	/* Opened ? */
@@ -137,7 +138,18 @@ static inline void watchdog_update_worker(struct watchdog_device *wdd)
 
 static int __watchdog_ping(struct watchdog_device *wdd)
 {
+	struct watchdog_core_data *wd_data = wdd->wd_data;
+	unsigned long earliest_keepalive = wd_data->last_hw_keepalive +
+				msecs_to_jiffies(wdd->min_hw_heartbeat_ms);
 	int err;
+
+	if (time_is_after_jiffies(earliest_keepalive)) {
+		mod_delayed_work(watchdog_wq, &wd_data->work,
+				 earliest_keepalive - jiffies);
+		return 0;
+	}
+
+	wd_data->last_hw_keepalive = jiffies;
 
 	if (wdd->ops->ping)
 		err = wdd->ops->ping(wdd);  /* ping the watchdog */
@@ -818,6 +830,9 @@ static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 		}
 		return err;
 	}
+
+	/* Record time of most recent heartbeat as 'just before now'. */
+	wd_data->last_hw_keepalive = jiffies - 1;
 
 	/*
 	 * If the watchdog is running, prevent its driver from being unloaded,
