@@ -50,14 +50,12 @@ struct sh_pfc {
 	struct sh_pfc_chip *func;
 #endif
 
-	struct sh_pfc_pinctrl *pinctrl;
 };
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc);
 int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc);
 
 int sh_pfc_register_pinctrl(struct sh_pfc *pfc);
-int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc);
 
 u32 sh_pfc_read_raw_reg(void __iomem *mapped_reg, unsigned int reg_width);
 void sh_pfc_write_raw_reg(void __iomem *mapped_reg, unsigned int reg_width,

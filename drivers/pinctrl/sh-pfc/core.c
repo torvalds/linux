@@ -603,7 +603,6 @@ static int sh_pfc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PINCTRL_SH_PFC_GPIO
 	sh_pfc_unregister_gpiochip(pfc);
 #endif
-	sh_pfc_unregister_pinctrl(pfc);
 
 	return 0;
 }

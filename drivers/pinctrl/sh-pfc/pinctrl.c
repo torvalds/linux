@@ -789,7 +789,6 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 		return -ENOMEM;
 
 	pmx->pfc = pfc;
-	pfc->pinctrl = pmx;
 
 	ret = sh_pfc_map_pins(pfc, pmx);
 	if (ret < 0)
@@ -803,19 +802,9 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl_desc.pins = pmx->pins;
 	pmx->pctl_desc.npins = pfc->info->nr_pins;
 
-	pmx->pctl = pinctrl_register(&pmx->pctl_desc, pfc->dev, pmx);
+	pmx->pctl = devm_pinctrl_register(pfc->dev, &pmx->pctl_desc, pmx);
 	if (IS_ERR(pmx->pctl))
 		return PTR_ERR(pmx->pctl);
 
-	return 0;
-}
-
-int sh_pfc_unregister_pinctrl(struct sh_pfc *pfc)
-{
-	struct sh_pfc_pinctrl *pmx = pfc->pinctrl;
-
-	pinctrl_unregister(pmx->pctl);
-
-	pfc->pinctrl = NULL;
 	return 0;
 }
