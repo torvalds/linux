@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_sdio_host {
 	struct gb_connection	*connection;

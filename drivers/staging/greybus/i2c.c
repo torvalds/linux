@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_i2c_device {
 	struct gb_connection	*connection;

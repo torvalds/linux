@@ -17,7 +17,7 @@
 #include <linux/device.h>
 
 #include "greybus.h"
-
+#include "gpbridge.h"
 
 static int __init gpbridge_init(void)
 {

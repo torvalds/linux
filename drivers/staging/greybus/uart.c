@@ -29,6 +29,7 @@
 #include <linux/kdev_t.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 #define GB_NUM_MINORS	16	/* 16 is is more than enough */
 #define GB_NAME		"ttyGB"

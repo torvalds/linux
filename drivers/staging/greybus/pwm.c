@@ -13,6 +13,7 @@
 #include <linux/pwm.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;

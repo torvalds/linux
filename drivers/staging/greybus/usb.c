@@ -14,6 +14,7 @@
 #include <linux/usb/hcd.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 /* Version of the Greybus USB protocol we support */
 #define GB_USB_VERSION_MAJOR		0x00

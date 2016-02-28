@@ -48,32 +48,6 @@ int gb_protocol_get_version(struct gb_connection *connection);
 
 void gb_protocol_put(struct gb_protocol *protocol);
 
-/*
- * These are defined in their respective protocol source files.
- * Declared here for now.  They could be added via modules, or maybe
- * just use initcalls (which level?).
- */
-extern int gb_gpio_protocol_init(void);
-extern void gb_gpio_protocol_exit(void);
-
-extern int gb_pwm_protocol_init(void);
-extern void gb_pwm_protocol_exit(void);
-
-extern int gb_uart_protocol_init(void);
-extern void gb_uart_protocol_exit(void);
-
-extern int gb_sdio_protocol_init(void);
-extern void gb_sdio_protocol_exit(void);
-
-extern int gb_usb_protocol_init(void);
-extern void gb_usb_protocol_exit(void);
-
-extern int gb_i2c_protocol_init(void);
-extern void gb_i2c_protocol_exit(void);
-
-extern int gb_spi_protocol_init(void);
-extern void gb_spi_protocol_exit(void);
-
 /* __protocol: Pointer to struct gb_protocol */
 #define gb_protocol_driver(__protocol)			\
 static int __init protocol_init(void)			\

@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_spi {
 	struct gb_connection	*connection;
