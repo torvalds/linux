@@ -92,7 +92,8 @@ static inline bool watchdog_need_worker(struct watchdog_device *wdd)
 	 *   requests.
 	 * - Userspace requests a longer timeout than the hardware can handle.
 	 */
-	return watchdog_active(wdd) && hm && t > hm;
+	return hm && ((watchdog_active(wdd) && t > hm) ||
+		      (t && !watchdog_active(wdd) && watchdog_hw_running(wdd)));
 }
 
 static long watchdog_next_keepalive(struct watchdog_device *wdd)
@@ -107,6 +108,9 @@ static long watchdog_next_keepalive(struct watchdog_device *wdd)
 	virt_timeout = wd_data->last_keepalive + msecs_to_jiffies(timeout_ms);
 	hw_heartbeat_ms = min(timeout_ms, wdd->max_hw_heartbeat_ms);
 	keepalive_interval = msecs_to_jiffies(hw_heartbeat_ms / 2);
+
+	if (!watchdog_active(wdd))
+		return keepalive_interval;
 
 	/*
 	 * To ensure that the watchdog times out wdd->timeout seconds
@@ -161,7 +165,7 @@ static int watchdog_ping(struct watchdog_device *wdd)
 {
 	struct watchdog_core_data *wd_data = wdd->wd_data;
 
-	if (!watchdog_active(wdd))
+	if (!watchdog_active(wdd) && !watchdog_hw_running(wdd))
 		return 0;
 
 	wd_data->last_keepalive = jiffies;
@@ -178,7 +182,7 @@ static void watchdog_ping_work(struct work_struct *work)
 
 	mutex_lock(&wd_data->lock);
 	wdd = wd_data->wdd;
-	if (wdd && watchdog_active(wdd))
+	if (wdd && (watchdog_active(wdd) || watchdog_hw_running(wdd)))
 		__watchdog_ping(wdd);
 	mutex_unlock(&wd_data->lock);
 }
@@ -204,7 +208,10 @@ static int watchdog_start(struct watchdog_device *wdd)
 		return 0;
 
 	started_at = jiffies;
-	err = wdd->ops->start(wdd);
+	if (watchdog_hw_running(wdd) && wdd->ops->ping)
+		err = wdd->ops->ping(wdd);
+	else
+		err = wdd->ops->start(wdd);
 	if (err == 0) {
 		set_bit(WDOG_ACTIVE, &wdd->status);
 		wd_data->last_keepalive = started_at;
@@ -228,8 +235,7 @@ static int watchdog_start(struct watchdog_device *wdd)
 
 static int watchdog_stop(struct watchdog_device *wdd)
 {
-	struct watchdog_core_data *wd_data = wdd->wd_data;
-	int err;
+	int err = 0;
 
 	if (!watchdog_active(wdd))
 		return 0;
@@ -243,7 +249,7 @@ static int watchdog_stop(struct watchdog_device *wdd)
 	err = wdd->ops->stop(wdd);
 	if (err == 0) {
 		clear_bit(WDOG_ACTIVE, &wdd->status);
-		cancel_delayed_work(&wd_data->work);
+		watchdog_update_worker(wdd);
 	}
 
 	return err;
@@ -641,7 +647,7 @@ static int watchdog_open(struct inode *inode, struct file *file)
 	 * If the /dev/watchdog device is open, we don't want the module
 	 * to be unloaded.
 	 */
-	if (!try_module_get(wdd->ops->owner)) {
+	if (!watchdog_hw_running(wdd) && !try_module_get(wdd->ops->owner)) {
 		err = -EBUSY;
 		goto out_clear;
 	}
@@ -652,7 +658,8 @@ static int watchdog_open(struct inode *inode, struct file *file)
 
 	file->private_data = wd_data;
 
-	kref_get(&wd_data->kref);
+	if (!watchdog_hw_running(wdd))
+		kref_get(&wd_data->kref);
 
 	/* dev/watchdog is a virtual (and thus non-seekable) filesystem */
 	return nonseekable_open(inode, file);
@@ -713,15 +720,22 @@ static int watchdog_release(struct inode *inode, struct file *file)
 	}
 
 	cancel_delayed_work_sync(&wd_data->work);
+	watchdog_update_worker(wdd);
 
 	/* make sure that /dev/watchdog can be re-opened */
 	clear_bit(_WDOG_DEV_OPEN, &wd_data->status);
 
 done:
 	mutex_unlock(&wd_data->lock);
-	/* Allow the owner module to be unloaded again */
-	module_put(wd_data->cdev.owner);
-	kref_put(&wd_data->kref, watchdog_core_data_release);
+	/*
+	 * Allow the owner module to be unloaded again unless the watchdog
+	 * is still running. If the watchdog is still running, it can not
+	 * be stopped, and its driver must not be unloaded.
+	 */
+	if (!watchdog_hw_running(wdd)) {
+		module_put(wdd->ops->owner);
+		kref_put(&wd_data->kref, watchdog_core_data_release);
+	}
 	return 0;
 }
 
@@ -798,8 +812,20 @@ static int watchdog_cdev_register(struct watchdog_device *wdd, dev_t devno)
 			old_wd_data = NULL;
 			kref_put(&wd_data->kref, watchdog_core_data_release);
 		}
+		return err;
 	}
-	return err;
+
+	/*
+	 * If the watchdog is running, prevent its driver from being unloaded,
+	 * and schedule an immediate ping.
+	 */
+	if (watchdog_hw_running(wdd)) {
+		__module_get(wdd->ops->owner);
+		kref_get(&wd_data->kref);
+		queue_delayed_work(watchdog_wq, &wd_data->work, 0);
+	}
+
+	return 0;
 }
 
 /*

@@ -137,10 +137,10 @@ are:
 * stop: with this routine the watchdog timer device is being stopped.
   The routine needs a pointer to the watchdog timer device structure as a
   parameter. It returns zero on success or a negative errno code for failure.
-  Some watchdog timer hardware can only be started and not be stopped. The
-  driver supporting this hardware needs to make sure that a start and stop
-  routine is being provided. This can be done by using a timer in the driver
-  that regularly sends a keepalive ping to the watchdog timer hardware.
+  Some watchdog timer hardware can only be started and not be stopped.
+  If a watchdog can not be stopped, the watchdog driver must set the
+  WDOG_HW_RUNNING flag in its stop function to inform the watchdog core that
+  the watchdog is still running.
 
 Not all watchdog timer hardware supports the same functionality. That's why
 all other routines/operations are optional. They only need to be provided if
@@ -189,11 +189,19 @@ The 'ref' and 'unref' operations are no longer used and deprecated.
 The status bits should (preferably) be set with the set_bit and clear_bit alike
 bit-operations. The status bits that are defined are:
 * WDOG_ACTIVE: this status bit indicates whether or not a watchdog timer device
-  is active or not. When the watchdog is active after booting, then you should
-  set this status bit (Note: when you register the watchdog timer device with
-  this bit set, then opening /dev/watchdog will skip the start operation)
+  is active or not from user perspective. User space is expected to send
+  heartbeat requests to the driver while this flag is set.
 * WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
   If this bit is set then the watchdog timer will not be able to stop.
+* WDOG_HW_RUNNING: Set by the watchdog driver if the hardware watchdog is
+  running. The bit must be set if the watchdog timer hardware can not be
+  stopped. The bit may also be set if the watchdog timer is running after
+  booting, before the watchdog device is opened. If set, the watchdog
+  infrastructure will send keepalives to the watchdog hardware while
+  WDOG_ACTIVE is not set.
+  Note: when you register the watchdog timer device with this bit set,
+  then opening /dev/watchdog will skip the start operation but send a keepalive
+  request instead.
 
   To set the WDOG_NO_WAY_OUT status bit (before registering your watchdog
   timer device) you can either:
