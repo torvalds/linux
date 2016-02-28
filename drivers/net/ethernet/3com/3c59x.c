@@ -1602,7 +1602,7 @@ vortex_up(struct net_device *dev)
 	}
 
 	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
+	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
 	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
