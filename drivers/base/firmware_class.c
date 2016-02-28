@@ -329,8 +329,12 @@ static int fw_get_filesystem_firmware(struct device *device,
 		rc = kernel_read_file_from_path(path, &buf->data, &size,
 						INT_MAX, READING_FIRMWARE);
 		if (rc) {
-			dev_warn(device, "loading %s failed with error %d\n",
-				 path, rc);
+			if (rc == -ENOENT)
+				dev_dbg(device, "loading %s failed with error %d\n",
+					 path, rc);
+			else
+				dev_warn(device, "loading %s failed with error %d\n",
+					 path, rc);
 			continue;
 		}
 		dev_dbg(device, "direct-loading %s\n", buf->fw_id);
