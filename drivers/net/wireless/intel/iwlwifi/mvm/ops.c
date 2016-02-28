@@ -932,7 +932,7 @@ static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
 	if (likely(pkt->hdr.cmd == REPLY_RX_MPDU_CMD))
 		iwl_mvm_rx_rx_mpdu(mvm, napi, rxb);
 	else if (pkt->hdr.cmd == FRAME_RELEASE)
-		iwl_mvm_rx_frame_release(mvm, rxb, 0);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
 	else if (pkt->hdr.cmd == REPLY_RX_PHY_CMD)
 		iwl_mvm_rx_rx_phy_cmd(mvm, rxb);
 	else
@@ -1634,7 +1634,7 @@ static void iwl_mvm_rx_mq_rss(struct iwl_op_mode *op_mode,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	if (unlikely(pkt->hdr.cmd == FRAME_RELEASE))
-		iwl_mvm_rx_frame_release(mvm, rxb, queue);
+		iwl_mvm_rx_frame_release(mvm, napi, rxb, queue);
 	else if (unlikely(pkt->hdr.cmd == RX_QUEUES_NOTIFICATION &&
 			  pkt->hdr.group_id == DATA_PATH_GROUP))
 		iwl_mvm_rx_queue_notif(mvm, rxb, queue);

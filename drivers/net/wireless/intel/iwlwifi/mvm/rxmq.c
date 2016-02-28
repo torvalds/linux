@@ -900,8 +900,37 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rcu_read_unlock();
 }
 
-void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm,
+void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 			      struct iwl_rx_cmd_buffer *rxb, int queue)
 {
-	/* TODO */
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_frame_release *release = (void *)pkt->data;
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_reorder_buffer *reorder_buf;
+	struct iwl_mvm_baid_data *ba_data;
+
+	int baid = release->baid;
+
+	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID))
+		return;
+
+	rcu_read_lock();
+
+	ba_data = rcu_dereference(mvm->baid_map[baid]);
+	if (WARN_ON_ONCE(!ba_data))
+		goto out;
+
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
+		goto out;
+
+	reorder_buf = &ba_data->reorder_buf[queue];
+
+	spin_lock_bh(&reorder_buf->lock);
+	iwl_mvm_release_frames(mvm, sta, napi, reorder_buf,
+			       le16_to_cpu(release->nssn));
+	spin_unlock_bh(&reorder_buf->lock);
+
+out:
+	rcu_read_unlock();
 }
