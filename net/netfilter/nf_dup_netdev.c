@@ -31,7 +31,6 @@ void nf_dup_netdev_egress(const struct nft_pktinfo *pkt, int oif)
 		skb_push(skb, skb->mac_len);
 
 	skb->dev = dev;
-	skb_sender_cpu_clear(skb);
 	dev_queue_xmit(skb);
 }
 EXPORT_SYMBOL_GPL(nf_dup_netdev_egress);
