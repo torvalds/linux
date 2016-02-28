@@ -608,6 +608,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	mvm->queue_info[queue].hw_queue_refcount++;
 	if (mvm->queue_info[queue].hw_queue_refcount > 1)
 		enable_queue = false;
+	else
+		mvm->queue_info[queue].ra_sta_id = cfg->sta_id;
 	mvm->queue_info[queue].tid_bitmap |= BIT(cfg->tid);
 
 	IWL_DEBUG_TX_QUEUES(mvm,
@@ -692,6 +694,8 @@ void iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 		spin_unlock_bh(&mvm->queue_info_lock);
 		return;
 	}
+
+	cmd.sta_id = mvm->queue_info[queue].ra_sta_id;
 
 	/* Make sure queue info is correct even though we overwrite it */
 	WARN(mvm->queue_info[queue].hw_queue_refcount ||

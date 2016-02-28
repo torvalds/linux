@@ -665,6 +665,7 @@ struct iwl_mvm {
 		/* Map to HW queue */
 		u32 hw_queue_to_mac80211;
 		u8 hw_queue_refcount;
+		u8 ra_sta_id; /* The RA this queue is mapped to, if exists */
 		/*
 		 * This is to mark that queue is reserved for a STA but not yet
 		 * allocated. This is needed to make sure we have at least one
