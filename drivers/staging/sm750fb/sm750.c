@@ -1058,7 +1058,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		return err;
 
 	err = -ENOMEM;
-	sm750_dev = kzalloc(sizeof(*sm750_dev), GFP_KERNEL);
+	sm750_dev = devm_kzalloc(&pdev->dev, sizeof(*sm750_dev), GFP_KERNEL);
 	if (!sm750_dev)
 		goto disable_pci;
 
@@ -1090,7 +1090,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	/* call chip specific mmap routine */
 	err = hw_sm750_map(sm750_dev, pdev);
 	if (err)
-		goto free_sm750_dev;
+		return err;
 
 	if (!sm750_dev->mtrr_off)
 		sm750_dev->mtrr.vram = arch_phys_wc_add(sm750_dev->vidmem_start,
@@ -1115,8 +1115,6 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 release_fb:
 	sm750fb_frambuffer_release(sm750_dev);
-free_sm750_dev:
-	kfree(sm750_dev);
 disable_pci:
 	pci_disable_device(pdev);
 	return err;
@@ -1134,7 +1132,6 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 	iounmap(sm750_dev->pvReg);
 	iounmap(sm750_dev->pvMem);
 	kfree(g_settings);
-	kfree(sm750_dev);
 }
 
 static int __init lynxfb_setup(char *options)
