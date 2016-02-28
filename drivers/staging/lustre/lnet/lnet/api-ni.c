@@ -1336,8 +1336,8 @@ lnet_startup_lndni(struct lnet_ni *ni, __s32 peer_timeout,
 		 * shutdown the NI since if we get here then it must've already
 		 * been started
 		 */
-                lnet_shutdown_lndni(ni);
-                return -EINVAL;
+		lnet_shutdown_lndni(ni);
+		return -EINVAL;
 	}
 
 	cfs_percpt_for_each(tq, i, ni->ni_tx_queues) {
