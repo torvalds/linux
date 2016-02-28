@@ -548,30 +548,14 @@ int ade7854_probe(struct iio_dev *indio_dev, struct device *dev)
 	indio_dev->info = &ade7854_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return ret;
 
 	/* Get the device into a sane initial state */
-	ret = ade7854_initial_setup(indio_dev);
-	if (ret)
-		goto error_unreg_dev;
-
-	return 0;
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
-	return ret;
+	return ade7854_initial_setup(indio_dev);
 }
 EXPORT_SYMBOL(ade7854_probe);
-
-int ade7854_remove(struct iio_dev *indio_dev)
-{
-	iio_device_unregister(indio_dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(ade7854_remove);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Energy Meter");
