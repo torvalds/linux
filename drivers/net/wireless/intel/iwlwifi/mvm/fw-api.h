@@ -314,6 +314,7 @@ enum {
 enum iwl_mac_conf_subcmd_ids {
 	LINK_QUALITY_MEASUREMENT_CMD = 0x1,
 	LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF = 0xFE,
+	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
 };
 
 enum iwl_phy_ops_subcmd_ids {
@@ -732,7 +733,7 @@ enum iwl_time_event_type {
 
 	/* P2P GO Events */
 	TE_P2P_GO_ASSOC_PROT,
-	TE_P2P_GO_REPETITIVE_NOA,
+	TE_P2P_GO_REPETITIVET_NOA,
 	TE_P2P_GO_CT_WINDOW,
 
 	/* WiDi Sync Events */
@@ -2110,5 +2111,14 @@ struct iwl_link_qual_msrmnt_notif {
 	__le32 status;
 	__le32 reserved[3];
 } __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
+
+/**
+ * Channel switch NOA notification
+ *
+ * @id_and_color: ID and color of the MAC
+ */
+struct iwl_channel_switch_noa_notif {
+	__le32 id_and_color;
+} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */
