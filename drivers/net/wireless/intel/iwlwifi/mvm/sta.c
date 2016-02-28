@@ -1189,8 +1189,11 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 		struct iwl_mvm_reorder_buffer *reorder_buf =
 			&data->reorder_buf[i];
 
-		if (likely(!reorder_buf->num_stored))
+		spin_lock_bh(&reorder_buf->lock);
+		if (likely(!reorder_buf->num_stored)) {
+			spin_unlock_bh(&reorder_buf->lock);
 			continue;
+		}
 
 		/*
 		 * This shouldn't happen in regular DELBA since the internal
@@ -1201,6 +1204,17 @@ static void iwl_mvm_free_reorder(struct iwl_mvm *mvm,
 
 		for (j = 0; j < reorder_buf->buf_size; j++)
 			__skb_queue_purge(&reorder_buf->entries[j]);
+		/*
+		 * Prevent timer re-arm. This prevents a very far fetched case
+		 * where we timed out on the notification. There may be prior
+		 * RX frames pending in the RX queue before the notification
+		 * that might get processed between now and the actual deletion
+		 * and we would re-arm the timer although we are deleting the
+		 * reorder buffer.
+		 */
+		reorder_buf->removed = true;
+		spin_unlock_bh(&reorder_buf->lock);
+		del_timer_sync(&reorder_buf->reorder_timer);
 	}
 }
 
@@ -1219,6 +1233,13 @@ static void iwl_mvm_init_reorder_buffer(struct iwl_mvm *mvm,
 		reorder_buf->num_stored = 0;
 		reorder_buf->head_sn = ssn;
 		reorder_buf->buf_size = buf_size;
+		/* rx reorder timer */
+		reorder_buf->reorder_timer.function =
+			iwl_mvm_reorder_timer_expired;
+		reorder_buf->reorder_timer.data = (unsigned long)reorder_buf;
+		init_timer(&reorder_buf->reorder_timer);
+		spin_lock_init(&reorder_buf->lock);
+		reorder_buf->mvm = mvm;
 		reorder_buf->queue = i;
 		reorder_buf->sta_id = sta_id;
 		for (j = 0; j < reorder_buf->buf_size; j++)

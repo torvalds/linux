@@ -395,6 +395,8 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 	return ret;
 }
 
+#define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
+
 static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 				   struct ieee80211_sta *sta,
 				   struct napi_struct *napi,
@@ -402,6 +404,12 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 				   u16 nssn)
 {
 	u16 ssn = reorder_buf->head_sn;
+
+	lockdep_assert_held(&reorder_buf->lock);
+
+	/* ignore nssn smaller than head sn - this can happen due to timeout */
+	if (ieee80211_sn_less(nssn, ssn))
+		return;
 
 	while (ieee80211_sn_less(ssn, nssn)) {
 		int index = ssn % reorder_buf->buf_size;
@@ -422,6 +430,66 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		}
 	}
 	reorder_buf->head_sn = nssn;
+
+	if (reorder_buf->num_stored && !reorder_buf->removed) {
+		u16 index = reorder_buf->head_sn % reorder_buf->buf_size;
+
+		while (!skb_peek_tail(&reorder_buf->entries[index]))
+			index = (index + 1) % reorder_buf->buf_size;
+		/* modify timer to match next frame's expiration time */
+		mod_timer(&reorder_buf->reorder_timer,
+			  reorder_buf->reorder_time[index] + 1 +
+			  RX_REORDER_BUF_TIMEOUT_MQ);
+	} else {
+		del_timer(&reorder_buf->reorder_timer);
+	}
+}
+
+void iwl_mvm_reorder_timer_expired(unsigned long data)
+{
+	struct iwl_mvm_reorder_buffer *buf = (void *)data;
+	int i;
+	u16 sn = 0, index = 0;
+	bool expired = false;
+
+	spin_lock_bh(&buf->lock);
+
+	if (!buf->num_stored || buf->removed) {
+		spin_unlock_bh(&buf->lock);
+		return;
+	}
+
+	for (i = 0; i < buf->buf_size ; i++) {
+		index = (buf->head_sn + i) % buf->buf_size;
+
+		if (!skb_peek_tail(&buf->entries[index]))
+			continue;
+		if (!time_after(jiffies, buf->reorder_time[index] +
+				RX_REORDER_BUF_TIMEOUT_MQ))
+			break;
+		expired = true;
+		sn = ieee80211_sn_add(buf->head_sn, i + 1);
+	}
+
+	if (expired) {
+		struct ieee80211_sta *sta;
+
+		rcu_read_lock();
+		sta = rcu_dereference(buf->mvm->fw_id_to_mac_id[buf->sta_id]);
+		/* SN is set to the last expired frame + 1 */
+		iwl_mvm_release_frames(buf->mvm, sta, NULL, buf, sn);
+		rcu_read_unlock();
+	} else if (buf->num_stored) {
+		/*
+		 * If no frame expired and there are stored frames, index is now
+		 * pointing to the first unexpired frame - modify timer
+		 * accordingly to this frame.
+		 */
+		mod_timer(&buf->reorder_timer,
+			  buf->reorder_time[index] +
+			  1 + RX_REORDER_BUF_TIMEOUT_MQ);
+	}
+	spin_unlock_bh(&buf->lock);
 }
 
 static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
@@ -448,9 +516,12 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	reorder_buf = &ba_data->reorder_buf[queue];
 
 	/* release all frames that are in the reorder buffer to the stack */
+	spin_lock_bh(&reorder_buf->lock);
 	iwl_mvm_release_frames(mvm, sta, NULL, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
 						reorder_buf->buf_size));
+	spin_unlock_bh(&reorder_buf->lock);
+	del_timer_sync(&reorder_buf->reorder_timer);
 
 out:
 	rcu_read_unlock();
@@ -545,6 +616,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	buffer = &baid_data->reorder_buf[queue];
 
+	spin_lock_bh(&buffer->lock);
+
 	/*
 	 * If there was a significant jump in the nssn - adjust.
 	 * If the SN is smaller than the NSSN it might need to first go into
@@ -564,8 +637,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 
 	/* release immediately if allowed by nssn and no stored frames */
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
-		buffer->head_sn = nssn;
+		if (ieee80211_sn_less(buffer->head_sn, nssn))
+			buffer->head_sn = nssn;
 		/* No need to update AMSDU last SN - we are moving the head */
+		spin_unlock_bh(&buffer->lock);
 		return false;
 	}
 
@@ -589,16 +664,20 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	/* put in reorder buffer */
 	__skb_queue_tail(&buffer->entries[index], skb);
 	buffer->num_stored++;
+	buffer->reorder_time[index] = jiffies;
+
 	if (amsdu) {
 		buffer->last_amsdu = sn;
 		buffer->last_sub_index = sub_frame_idx;
 	}
 
 	iwl_mvm_release_frames(mvm, sta, napi, buffer, nssn);
+	spin_unlock_bh(&buffer->lock);
 	return true;
 
 drop:
 	kfree_skb(skb);
+	spin_unlock_bh(&buffer->lock);
 	return true;
 }
 
