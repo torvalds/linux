@@ -2610,8 +2610,6 @@ static int rtw_cfg80211_add_monitor_if(struct rtw_adapter *padapter, char *name,
 	/*  wdev */
 	mon_wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!mon_wdev) {
-		DBG_8723A("%s(%s): allocate mon_wdev fail\n", __func__,
-			  padapter->pnetdev->name);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -3262,7 +3260,6 @@ int rtw_wdev_alloc(struct rtw_adapter *padapter, struct device *dev)
 	/*  wdev */
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
-		DBG_8723A("Couldn't allocate wireless device\n");
 		ret = -ENOMEM;
 		goto free_wiphy;
 	}
