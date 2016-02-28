@@ -444,6 +444,15 @@
 			status = "disabled";
 		};
 
+		dac: dac@400e1000 {
+			compatible = "nxp,lpc1850-dac";
+			reg = <0x400e1000 0x1000>;
+			interrupts = <0>;
+			clocks = <&ccu1 CLK_APB3_DAC>;
+			resets = <&rgu 42>;
+			status = "disabled";
+		};
+
 		can0: can@400e2000 {
 			compatible = "bosch,c_can";
 			reg = <0x400e2000 0x1000>;
