@@ -102,7 +102,6 @@ struct parser_context {
 };
 
 static struct delayed_work periodic_controlvm_work;
-static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(notifier_lock);
 
 static struct cdev file_cdev;
@@ -1913,8 +1912,7 @@ cleanup:
 			poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 	}
 
-	queue_delayed_work(periodic_controlvm_workqueue,
-			   &periodic_controlvm_work, poll_jiffies);
+	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -2011,8 +2009,7 @@ cleanup:
 
 	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
 
-	queue_delayed_work(periodic_controlvm_workqueue,
-			   &periodic_controlvm_work, poll_jiffies);
+	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
 }
 
 static void
@@ -2299,19 +2296,10 @@ visorchipset_init(struct acpi_device *acpi_device)
 	else
 		INIT_DELAYED_WORK(&periodic_controlvm_work,
 				  controlvm_periodic_work);
-	periodic_controlvm_workqueue =
-	    create_singlethread_workqueue("visorchipset_controlvm");
 
-	if (!periodic_controlvm_workqueue) {
-		POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
-				 DIAG_SEVERITY_ERR);
-		rc = -ENOMEM;
-		goto cleanup;
-	}
 	most_recent_message_jiffies = jiffies;
 	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-	queue_delayed_work(periodic_controlvm_workqueue,
-			   &periodic_controlvm_work, poll_jiffies);
+	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
 
 	visorchipset_platform_device.dev.devt = major_dev;
 	if (platform_device_register(&visorchipset_platform_device) < 0) {
@@ -2346,10 +2334,7 @@ visorchipset_exit(struct acpi_device *acpi_device)
 
 	visorbus_exit();
 
-	cancel_delayed_work(&periodic_controlvm_work);
-	flush_workqueue(periodic_controlvm_workqueue);
-	destroy_workqueue(periodic_controlvm_workqueue);
-	periodic_controlvm_workqueue = NULL;
+	cancel_delayed_work_sync(&periodic_controlvm_work);
 	destroy_controlvm_payload_info(&controlvm_payload_info);
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
