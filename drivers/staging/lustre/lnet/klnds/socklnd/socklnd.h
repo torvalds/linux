@@ -283,7 +283,7 @@ typedef struct                             /* transmit packet */
 	} tx_frags;
 } ksock_tx_t;
 
-#define KSOCK_NOOP_TX_SIZE ((int)offsetof(ksock_tx_t, tx_frags.paged.kiov[0]))
+#define KSOCK_NOOP_TX_SIZE (offsetof(ksock_tx_t, tx_frags.paged.kiov[0]))
 
 /* network zero copy callback descriptor embedded in ksock_tx_t */
 
