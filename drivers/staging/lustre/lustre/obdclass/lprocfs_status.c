@@ -1197,7 +1197,7 @@ static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations lprocfs_stats_seq_fops = {
+static const struct file_operations lprocfs_stats_seq_fops = {
 	.owner   = THIS_MODULE,
 	.open    = lprocfs_stats_seq_open,
 	.read    = seq_read,
