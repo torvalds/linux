@@ -2015,6 +2015,7 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
+		.buttons         = std_snapshot_button,
 	},
 	[EM2860_BOARD_TERRATEC_AV350] = {
 		.name            = "Terratec AV350",
