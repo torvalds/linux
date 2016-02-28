@@ -210,18 +210,15 @@ void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode)
 void MACvSaveContext(struct vnt_private *priv, unsigned char *pbyCxtBuf)
 {
 	void __iomem *io_base = priv->PortOffset;
-	int         ii;
 
 	/* read page0 register */
-	for (ii = 0; ii < MAC_MAX_CONTEXT_SIZE_PAGE0; ii++)
-		VNSvInPortB((io_base + ii), (pbyCxtBuf + ii));
+	memcpy_fromio(pbyCxtBuf, io_base, MAC_MAX_CONTEXT_SIZE_PAGE0);
 
 	MACvSelectPage1(io_base);
 
 	/* read page1 register */
-	for (ii = 0; ii < MAC_MAX_CONTEXT_SIZE_PAGE1; ii++)
-		VNSvInPortB((io_base + ii),
-			    (pbyCxtBuf + MAC_MAX_CONTEXT_SIZE_PAGE0 + ii));
+	memcpy_fromio(pbyCxtBuf + MAC_MAX_CONTEXT_SIZE_PAGE0, io_base,
+		      MAC_MAX_CONTEXT_SIZE_PAGE1);
 
 	MACvSelectPage0(io_base);
 }
