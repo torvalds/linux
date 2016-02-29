@@ -5727,20 +5727,25 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	 */
 	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
 
-	memset(&h2c, 0, sizeof(struct h2c_cmd));
-	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
-	h2c.ignore_wlan.data = 0;
-	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
-
 	/*
 	 * Software control, antenna at WiFi side
 	 */
 	rtl8723bu_set_ps_tdma(priv, 0x08, 0x00, 0x00, 0x00, 0x00);
 
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.bt_info.cmd = H2C_8723B_BT_INFO;
+	h2c.bt_info.data = BIT(0);
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
+
 	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE1, 0x55555555);
 	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE2, 0x5a5a5a5a);
 	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE3, 0x00ffffff);
 	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE4, 0x00000003);
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
+	h2c.ignore_wlan.data = 0;
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
 }
 
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
@@ -6847,8 +6852,7 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 
 	len = skb->len - 2;
 
-	dev_info(dev, "%s: C2H ID %02x seq %02x, len %02x source %02x\n",
-		 __func__,
+	dev_info(dev, "C2H ID %02x seq %02x, len %02x source %02x\n",
 		 c2h->id, c2h->seq, len, c2h->bt_info.response_source);
 
 	switch(c2h->id) {

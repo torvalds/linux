@@ -881,6 +881,10 @@ struct h2c_cmd {
 		} __packed b_type_dma;
 		struct {
 			u8 cmd;
+			u8 data;
+		} __packed bt_info;
+		struct {
+			u8 cmd;
 			u8 operreq;
 			u8 opcode;
 			u8 data;
