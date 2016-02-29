@@ -4,7 +4,6 @@
  * License terms:  GNU General Public License (GPL), version 2
  */
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
@@ -1576,7 +1575,6 @@ static const struct of_device_id stm32f429_pctrl_match[] = {
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, stm32f429_pctrl_match);
 
 static struct platform_driver stm32f429_pinctrl_driver = {
 	.probe = stm32_pctl_probe,
@@ -1590,9 +1588,4 @@ static int __init stm32f429_pinctrl_init(void)
 {
 	return platform_driver_register(&stm32f429_pinctrl_driver);
 }
-
-module_init(stm32f429_pinctrl_init);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("STM32F429 Pinctrl Driver");
-MODULE_AUTHOR("Maxime Coquelin <mcoquelin.stm32@gmail.com>");
+device_initcall(stm32f429_pinctrl_init);
