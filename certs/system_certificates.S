@@ -19,6 +19,7 @@ __cert_list_end:
 VMLINUX_SYMBOL(system_extra_cert):
 	.fill CONFIG_SYSTEM_EXTRA_CERTIFICATE_SIZE, 1, 0
 
+	.align 4
 	.globl VMLINUX_SYMBOL(system_extra_cert_used)
 VMLINUX_SYMBOL(system_extra_cert_used):
 	.int 0
