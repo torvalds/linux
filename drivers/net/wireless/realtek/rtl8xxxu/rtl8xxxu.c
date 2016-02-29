@@ -5955,6 +5955,26 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
 	if (!macpower) {
+		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
+		if (ret) {
+			dev_warn(dev, "%s: LLT table init failed\n", __func__);
+			goto exit;
+		}
+
+		/*
+		 * Presumably this is for 8188EU as well
+		 * Enable TX report and TX report timer
+		 */
+		if (priv->rtlchip == 0x8723bu) {
+			val8 = rtl8xxxu_read8(priv, REG_TX_REPORT_CTRL);
+			val8 |= BIT(1);
+			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL, val8);
+			/* Set MAX RPT MACID */
+			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL + 1, 0x02);
+			/* TX report Timer. Unit: 32us */
+			rtl8xxxu_write16(priv, REG_TX_REPORT_TIME, 0xcdf0);
+		}
+
 		if (priv->ep_tx_normal_queue)
 			val8 = TX_PAGE_NUM_NORM_PQ;
 		else
@@ -5995,15 +6015,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
 	if (ret)
 		goto exit;
-
-	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
-	if (!macpower) {
-		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
-		if (ret) {
-			dev_warn(dev, "%s: LLT table init failed\n", __func__);
-			goto exit;
-		}
-	}
 
 	/* Fix USB interface interference issue */
 	if (priv->rtlchip == 0x8723a) {
