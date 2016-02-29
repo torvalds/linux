@@ -1808,7 +1808,8 @@ struct ib_device {
 						struct scatterlist *sg,
 						int sg_nents);
 	struct ib_mw *             (*alloc_mw)(struct ib_pd *pd,
-					       enum ib_mw_type type);
+					       enum ib_mw_type type,
+					       struct ib_udata *udata);
 	int                        (*dealloc_mw)(struct ib_mw *mw);
 	struct ib_fmr *	           (*alloc_fmr)(struct ib_pd *pd,
 						int mr_access_flags,
