@@ -2998,6 +2998,7 @@ static int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
 static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 {
 	u8 val8, ldoa15, ldov12d, lpldo, ldohci12;
+	u16 val16;
 	u32 val32;
 
 	/*
@@ -3018,16 +3019,18 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		udelay(2);
 	}
 
-	val8 = rtl8xxxu_read8(priv, REG_SYS_FUNC);
-	val8 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB;
-	rtl8xxxu_write8(priv, REG_SYS_FUNC, val8);
+	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+	val16 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB;
+	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
 
-	/* AFE_XTAL_RF_GATE (bit 14) if addressing as 32 bit register */
-	val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
-	val32 &= ~AFE_XTAL_RF_GATE;
-	if (priv->has_bluetooth)
-		val32 &= ~AFE_XTAL_BT_GATE;
-	rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, val32);
+	if (priv->rtlchip != 0x8723b) {
+		/* AFE_XTAL_RF_GATE (bit 14) if addressing as 32 bit register */
+		val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
+		val32 &= ~AFE_XTAL_RF_GATE;
+		if (priv->has_bluetooth)
+			val32 &= ~AFE_XTAL_BT_GATE;
+		rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, val32);
+	}
 
 	/* 6. 0x1f[7:0] = 0x07 */
 	val8 = RF_ENABLE | RF_RSTB | RF_SDMRSTB;
