@@ -426,7 +426,7 @@
 #define DWC_MMC_RXOCTETCOUNT_GB          0x0784
 #define DWC_MMC_RXPACKETCOUNT_GB         0x0780
 
-static int debug = 3;
+static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "DWC_eth_qos debug level (0=none,...,16=all)");
 
