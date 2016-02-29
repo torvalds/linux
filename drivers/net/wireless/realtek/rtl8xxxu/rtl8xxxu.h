@@ -625,6 +625,7 @@ struct rtl8xxxu_priv {
 
 	u8 mac_addr[ETH_ALEN];
 	char chip_name[8];
+	char chip_vendor[8];
 	u8 cck_tx_power_index_A[3];	/* 0x10 */
 	u8 cck_tx_power_index_B[3];
 	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
@@ -647,6 +648,7 @@ struct rtl8xxxu_priv {
 	u32 has_gps:1;
 	u32 hi_pa:1;
 	u32 vendor_umc:1;
+	u32 vendor_smic:1;
 	u32 has_polarity_ctrl:1;
 	u32 has_eeprom:1;
 	u32 boot_eeprom:1;
