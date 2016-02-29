@@ -1317,6 +1317,21 @@ static void mlx5e_build_tir_ctx_lro(void *tirc, struct mlx5e_priv *priv)
 			      lro_timer_supported_periods[2]));
 }
 
+void mlx5e_build_tir_ctx_hash(void *tirc, struct mlx5e_priv *priv)
+{
+	MLX5_SET(tirc, tirc, rx_hash_fn,
+		 mlx5e_rx_hash_fn(priv->params.rss_hfunc));
+	if (priv->params.rss_hfunc == ETH_RSS_HASH_TOP) {
+		void *rss_key = MLX5_ADDR_OF(tirc, tirc,
+					     rx_hash_toeplitz_key);
+		size_t len = MLX5_FLD_SZ_BYTES(tirc,
+					       rx_hash_toeplitz_key);
+
+		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
+		memcpy(rss_key, priv->params.toeplitz_hash_key, len);
+	}
+}
+
 static int mlx5e_modify_tirs_lro(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1677,17 +1692,7 @@ static void mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 *tirc, int tt)
 	default:
 		MLX5_SET(tirc, tirc, indirect_table,
 			 priv->rqtn[MLX5E_INDIRECTION_RQT]);
-		MLX5_SET(tirc, tirc, rx_hash_fn,
-			 mlx5e_rx_hash_fn(priv->params.rss_hfunc));
-		if (priv->params.rss_hfunc == ETH_RSS_HASH_TOP) {
-			void *rss_key = MLX5_ADDR_OF(tirc, tirc,
-						     rx_hash_toeplitz_key);
-			size_t len = MLX5_FLD_SZ_BYTES(tirc,
-						       rx_hash_toeplitz_key);
-
-			MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
-			memcpy(rss_key, priv->params.toeplitz_hash_key, len);
-		}
+		mlx5e_build_tir_ctx_hash(tirc, priv);
 		break;
 	}
 

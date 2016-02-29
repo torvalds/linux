@@ -447,6 +447,8 @@ enum mlx5e_traffic_types {
 	MLX5E_NUM_TT,
 };
 
+#define IS_HASHING_TT(tt) (tt != MLX5E_TT_ANY)
+
 enum mlx5e_rqt_ix {
 	MLX5E_INDIRECTION_RQT,
 	MLX5E_SINGLE_RQ_RQT,
@@ -613,6 +615,7 @@ void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
 
 int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix);
+void mlx5e_build_tir_ctx_hash(void *tirc, struct mlx5e_priv *priv);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
