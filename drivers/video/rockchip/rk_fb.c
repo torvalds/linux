@@ -4368,9 +4368,6 @@ static int rk_fb_probe(struct platform_device *pdev)
 
 static int rk_fb_remove(struct platform_device *pdev)
 {
-	struct rk_fb *rk_fb = platform_get_drvdata(pdev);
-
-	kfree(rk_fb);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
