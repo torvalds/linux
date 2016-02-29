@@ -8419,7 +8419,7 @@ int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		}
 	}
 
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	return ixgbe_setup_tc(dev, tc->tc);

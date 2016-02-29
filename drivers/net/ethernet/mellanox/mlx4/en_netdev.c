@@ -73,7 +73,7 @@ int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 			      struct tc_to_netdev *tc)
 {
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	return mlx4_en_setup_tc(dev, tc->tc);

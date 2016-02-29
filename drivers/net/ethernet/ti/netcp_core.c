@@ -1860,7 +1860,7 @@ static int netcp_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
 
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	/* Sanity-check the number of traffic classes requested */

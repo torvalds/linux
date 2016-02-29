@@ -5447,7 +5447,7 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	struct bnxt *bp = netdev_priv(dev);
 	u8 tc;
 
-	if (handle != TC_H_ROOT || ntc->type != TC_SETUP_MQPRIO)
+	if (ntc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc = ntc->tc;
