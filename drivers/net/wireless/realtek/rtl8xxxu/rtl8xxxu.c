@@ -5803,14 +5803,14 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
 
+	rtl8723a_phy_lc_calibrate(priv);
+
 	priv->fops->phy_iq_calibrate(priv);
 
 	/*
 	 * This should enable thermal meter
 	 */
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
-
-	rtl8723a_phy_lc_calibrate(priv);
 
 	/* Init BT hw config. */
 	rtl8xxxu_init_bt(priv);
