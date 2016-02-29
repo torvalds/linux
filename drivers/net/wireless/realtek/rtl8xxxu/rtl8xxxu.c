@@ -7296,29 +7296,29 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 
 	len = skb->len - 2;
 
-	dev_info(dev, "C2H ID %02x seq %02x, len %02x source %02x\n",
-		 c2h->id, c2h->seq, len, c2h->bt_info.response_source);
+	dev_dbg(dev, "C2H ID %02x seq %02x, len %02x source %02x\n",
+		c2h->id, c2h->seq, len, c2h->bt_info.response_source);
 
 	switch(c2h->id) {
 	case C2H_8723B_BT_INFO:
 		if (c2h->bt_info.response_source >
 		    BT_INFO_SRC_8723B_BT_ACTIVE_SEND)
-			dev_info(dev, "C2H_BT_INFO WiFi only firmware\n");
+			dev_dbg(dev, "C2H_BT_INFO WiFi only firmware\n");
 		else
-			dev_info(dev, "C2H_BT_INFO BT/WiFi coexist firmware\n");
+			dev_dbg(dev, "C2H_BT_INFO BT/WiFi coexist firmware\n");
 
 		if (c2h->bt_info.bt_has_reset)
-			dev_info(dev, "BT has been reset\n");
+			dev_dbg(dev, "BT has been reset\n");
 		if (c2h->bt_info.tx_rx_mask)
-			dev_info(dev, "BT TRx mask\n");
+			dev_dbg(dev, "BT TRx mask\n");
 
 		break;
 	case C2H_8723B_BT_MP_INFO:
-		dev_info(dev, "C2H_MP_INFO ext ID %02x, status %02x\n",
-			 c2h->bt_mp_info.ext_id, c2h->bt_mp_info.status);
+		dev_dbg(dev, "C2H_MP_INFO ext ID %02x, status %02x\n",
+			c2h->bt_mp_info.ext_id, c2h->bt_mp_info.status);
 		break;
 	default:
-		pr_info("%s: Unhandled C2H event %02x\n", __func__, c2h->id);
+		dev_info(dev, "Unhandled C2H event %02x\n", c2h->id);
 		break;
 	}
 }
