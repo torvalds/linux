@@ -2314,6 +2314,10 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 	       efuse->ht20_max_power_offset,
 	       sizeof(priv->ht20_max_power_offset));
 
+	if (priv->efuse_wifi.efuse8723.version >= 0x01) {
+		priv->has_xtalk = 1;
+		priv->xtalk = priv->efuse_wifi.efuse8723.xtal_k & 0x3f;
+	}
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
 		 efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n",
@@ -2339,6 +2343,9 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 	       sizeof(priv->ht40_1s_tx_power_index_A));
 	memcpy(priv->ht40_1s_tx_power_index_B, efuse->ht40_1s_tx_power_index_B,
 	       sizeof(priv->ht40_1s_tx_power_index_B));
+
+	priv->has_xtalk = 1;
+	priv->xtalk = priv->efuse_wifi.efuse8723bu.xtal_k & 0x3f;
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n", efuse->device_name);
@@ -2443,6 +2450,9 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 		return -EINVAL;
 
 	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
+
+	priv->has_xtalk = 1;
+	priv->xtalk = priv->efuse_wifi.efuse8192eu.xtal_k & 0x3f;
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.11s\n", efuse->device_name);
@@ -3122,11 +3132,10 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	else
 		rtl8xxxu_init_phy_regs(priv, rtl8xxx_agc_standard_table);
 
-	if ((priv->rtlchip == 0x8723a || priv->rtlchip == 0x8723b) &&
-	    priv->efuse_wifi.efuse8723.version >= 0x01) {
+	if (priv->has_xtalk) {
 		val32 = rtl8xxxu_read32(priv, REG_MAC_PHY_CTRL);
 
-		val8 = priv->efuse_wifi.efuse8723.xtal_k & 0x3f;
+		val8 = priv->xtalk;
 		val32 &= 0xff000fff;
 		val32 |= ((val8 | (val8 << 6)) << 12);
 
