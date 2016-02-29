@@ -1521,8 +1521,8 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_create_mkey_mbox_in *in;
 	struct mlx5_ib_mr *mr;
-	int access_mode, err;
-	int ndescs = roundup(max_num_sg, 4);
+	int ndescs = ALIGN(max_num_sg, 4);
+	int err;
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -1540,7 +1540,7 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
 
 	if (mr_type == IB_MR_TYPE_MEM_REG) {
-		access_mode = MLX5_ACCESS_MODE_MTT;
+		mr->access_mode = MLX5_ACCESS_MODE_MTT;
 		in->seg.log2_page_size = PAGE_SHIFT;
 
 		err = mlx5_alloc_priv_descs(pd->device, mr,
@@ -1549,6 +1549,15 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			goto err_free_in;
 
 		mr->desc_size = sizeof(u64);
+		mr->max_descs = ndescs;
+	} else if (mr_type == IB_MR_TYPE_SG_GAPS) {
+		mr->access_mode = MLX5_ACCESS_MODE_KLM;
+
+		err = mlx5_alloc_priv_descs(pd->device, mr,
+					    ndescs, sizeof(struct mlx5_klm));
+		if (err)
+			goto err_free_in;
+		mr->desc_size = sizeof(struct mlx5_klm);
 		mr->max_descs = ndescs;
 	} else if (mr_type == IB_MR_TYPE_SIGNATURE) {
 		u32 psv_index[2];
@@ -1568,7 +1577,7 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 		if (err)
 			goto err_free_sig;
 
-		access_mode = MLX5_ACCESS_MODE_KLM;
+		mr->access_mode = MLX5_ACCESS_MODE_KLM;
 		mr->sig->psv_memory.psv_idx = psv_index[0];
 		mr->sig->psv_wire.psv_idx = psv_index[1];
 
@@ -1582,7 +1591,7 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 		goto err_free_in;
 	}
 
-	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;
+	in->seg.flags = MLX5_PERM_UMR_EN | mr->access_mode;
 	err = mlx5_core_create_mkey(dev->mdev, &mr->mmkey, in, sizeof(*in),
 				    NULL, NULL, NULL);
 	if (err)
@@ -1739,6 +1748,32 @@ done:
 	return ret;
 }
 
+static int
+mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
+		   struct scatterlist *sgl,
+		   unsigned short sg_nents)
+{
+	struct scatterlist *sg = sgl;
+	struct mlx5_klm *klms = mr->descs;
+	u32 lkey = mr->ibmr.pd->local_dma_lkey;
+	int i;
+
+	mr->ibmr.iova = sg_dma_address(sg);
+	mr->ibmr.length = 0;
+	mr->ndescs = sg_nents;
+
+	for_each_sg(sgl, sg, sg_nents, i) {
+		if (unlikely(i > mr->max_descs))
+			break;
+		klms[i].va = cpu_to_be64(sg_dma_address(sg));
+		klms[i].bcount = cpu_to_be32(sg_dma_len(sg));
+		klms[i].key = cpu_to_be32(lkey);
+		mr->ibmr.length += sg_dma_len(sg);
+	}
+
+	return i;
+}
+
 static int mlx5_set_page(struct ib_mr *ibmr, u64 addr)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
@@ -1766,7 +1801,10 @@ int mlx5_ib_map_mr_sg(struct ib_mr *ibmr,
 				   mr->desc_size * mr->max_descs,
 				   DMA_TO_DEVICE);
 
-	n = ib_sg_to_pages(ibmr, sg, sg_nents, mlx5_set_page);
+	if (mr->access_mode == MLX5_ACCESS_MODE_KLM)
+		n = mlx5_ib_sg_to_klms(mr, sg, sg_nents);
+	else
+		n = ib_sg_to_pages(ibmr, sg, sg_nents, mlx5_set_page);
 
 	ib_dma_sync_single_for_device(ibmr->device, mr->desc_map,
 				      mr->desc_size * mr->max_descs,

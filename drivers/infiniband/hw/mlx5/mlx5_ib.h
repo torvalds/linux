@@ -447,6 +447,7 @@ struct mlx5_ib_mr {
 	int			ndescs;
 	int			max_descs;
 	int			desc_size;
+	int			access_mode;
 	struct mlx5_core_mkey	mmkey;
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;

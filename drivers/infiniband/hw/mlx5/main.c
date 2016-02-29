@@ -491,6 +491,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		props->device_cap_flags |= IB_DEVICE_MEM_WINDOW |
 					   IB_DEVICE_MEM_WINDOW_TYPE_2B;
 		props->max_mw = 1 << MLX5_CAP_GEN(mdev, log_max_mkey);
+		/* We support 'Gappy' memory registration too */
+		props->device_cap_flags |= IB_DEVICE_SG_GAPS_REG;
 	}
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (MLX5_CAP_GEN(mdev, sho)) {
