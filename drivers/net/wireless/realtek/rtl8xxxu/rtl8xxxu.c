@@ -5842,6 +5842,7 @@ static void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x0e);
 }
 
+#ifdef NEED_PS_TDMA
 static void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 				  u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5)
 {
@@ -5856,6 +5857,7 @@ static void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 	h2c.b_type_dma.data5 = arg5;
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.b_type_dma));
 }
+#endif
 
 static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 {
@@ -5944,17 +5946,19 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	/*
 	 * Software control, antenna at WiFi side
 	 */
+#ifdef NEED_PS_TDMA
 	rtl8723bu_set_ps_tdma(priv, 0x08, 0x00, 0x00, 0x00, 0x00);
+#endif
+
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE1, 0x55555555);
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE2, 0x55555555);
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE3, 0x00ffffff);
+	rtl8xxxu_write8(priv, REG_BT_COEX_TABLE4, 0x03);
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 	h2c.bt_info.cmd = H2C_8723B_BT_INFO;
 	h2c.bt_info.data = BIT(0);
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
-
-	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE1, 0x55555555);
-	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE2, 0x5a5a5a5a);
-	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE3, 0x00ffffff);
-	rtl8xxxu_write8(priv, REG_BT_COEX_TABLE4, 0x03);
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
 	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
