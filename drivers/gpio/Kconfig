@@ -122,6 +122,7 @@ config GPIO_ALTERA
 config GPIO_AMDPT
 	tristate "AMD Promontory GPIO support"
 	depends on ACPI
+	select GPIO_GENERIC
 	help
 	  driver for GPIO functionality on Promontory IOHub
 	  Require ACPI ASL code to enumerate as a platform device.
