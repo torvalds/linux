@@ -6191,7 +6191,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.load_firmware = rtl8723bu_load_firmware,
 	.power_on = rtl8723au_power_on,
 	.llt_init = rtl8xxxu_auto_llt_table,
-	.writeN_block_size = 128,
+	.writeN_block_size = 1024,
 };
 
 #ifdef CONFIG_RTL8XXXU_UNTESTED
