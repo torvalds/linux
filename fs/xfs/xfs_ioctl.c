@@ -1080,11 +1080,15 @@ xfs_ioctl_setattr_dax_invalidate(
 
 	/*
 	 * It is only valid to set the DAX flag on regular files and
-	 * directories. On directories it serves as an inherit hint.
+	 * directories on filesystems where the block size is equal to the page
+	 * size. On directories it serves as an inherit hint.
 	 */
-	if ((fa->fsx_xflags & FS_XFLAG_DAX) &&
-	    !(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
-		return -EINVAL;
+	if (fa->fsx_xflags & FS_XFLAG_DAX) {
+		if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)))
+			return -EINVAL;
+		if (ip->i_mount->m_sb.sb_blocksize != PAGE_SIZE)
+			return -EINVAL;
+	}
 
 	/* If the DAX state is not changing, we have nothing to do here. */
 	if ((fa->fsx_xflags & FS_XFLAG_DAX) && IS_DAX(inode))
