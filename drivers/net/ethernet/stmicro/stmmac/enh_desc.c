@@ -311,9 +311,14 @@ static void enh_desc_release_tx_desc(struct dma_desc *p, int mode)
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				     bool csum_flag, int mode, bool tx_own,
-				     bool ls_ic)
+				     bool ls)
 {
 	unsigned int tdes0 = p->des0;
+
+	if (mode == STMMAC_CHAIN_MODE)
+		enh_set_tx_desc_len_on_chain(p, len);
+	else
+		enh_set_tx_desc_len_on_ring(p, len);
 
 	if (is_fs)
 		tdes0 |= ETDES0_FIRST_SEGMENT;
@@ -325,6 +330,10 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 	else
 		tdes0 &= ~(TX_CIC_FULL << ETDES0_CHECKSUM_INSERTION_SHIFT);
 
+	if (ls)
+		tdes0 |= ETDES0_LAST_SEGMENT;
+
+	/* Finally set the OWN bit. Later the DMA will start! */
 	if (tx_own)
 		tdes0 |= ETDES0_OWN;
 
@@ -335,20 +344,12 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		 */
 		wmb();
 
-	if (ls_ic)
-		tdes0 |= ETDES0_LAST_SEGMENT | ETDES0_INTERRUPT;
-
 	p->des0 = tdes0;
-
-	if (mode == STMMAC_CHAIN_MODE)
-		enh_set_tx_desc_len_on_chain(p, len);
-	else
-		enh_set_tx_desc_len_on_ring(p, len);
 }
 
-static void enh_desc_clear_tx_ic(struct dma_desc *p)
+static void enh_desc_set_tx_ic(struct dma_desc *p)
 {
-	p->des0 &= ~ETDES0_INTERRUPT;
+	p->des0 |= ETDES0_INTERRUPT;
 }
 
 static int enh_desc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
@@ -419,7 +420,7 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.get_tx_owner = enh_desc_get_tx_owner,
 	.release_tx_desc = enh_desc_release_tx_desc,
 	.prepare_tx_desc = enh_desc_prepare_tx_desc,
-	.clear_tx_ic = enh_desc_clear_tx_ic,
+	.set_tx_ic = enh_desc_set_tx_ic,
 	.get_tx_ls = enh_desc_get_tx_ls,
 	.set_tx_owner = enh_desc_set_tx_owner,
 	.set_rx_owner = enh_desc_set_rx_owner,

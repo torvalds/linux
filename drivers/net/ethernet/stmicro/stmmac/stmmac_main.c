@@ -1942,12 +1942,12 @@ static int stmmac_release(struct net_device *dev)
 static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	int entry;
+	unsigned int nopaged_len = skb_headlen(skb);
 	int i, csum_insertion = 0, is_jumbo = 0;
 	int nfrags = skb_shinfo(skb)->nr_frags;
+	unsigned int entry, first_entry;
 	struct dma_desc *desc, *first;
-	unsigned int nopaged_len = skb_headlen(skb);
-	unsigned int enh_desc = priv->plat->enh_desc;
+	unsigned int enh_desc;
 
 	spin_lock(&priv->tx_lock);
 
@@ -1965,34 +1965,25 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		stmmac_disable_eee_mode(priv);
 
 	entry = priv->cur_tx;
-
+	first_entry = entry;
 
 	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
 
-	if (priv->extend_desc)
+	if (likely(priv->extend_desc))
 		desc = (struct dma_desc *)(priv->dma_etx + entry);
 	else
 		desc = priv->dma_tx + entry;
 
 	first = desc;
 
+	priv->tx_skbuff[first_entry] = skb;
+
+	enh_desc = priv->plat->enh_desc;
 	/* To program the descriptors according to the size of the frame */
 	if (enh_desc)
 		is_jumbo = priv->hw->mode->is_jumbo_frm(skb->len, enh_desc);
 
-	if (likely(!is_jumbo)) {
-		desc->des2 = dma_map_single(priv->device, skb->data,
-					    nopaged_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->device, desc->des2))
-			goto dma_map_err;
-		priv->tx_skbuff_dma[entry].buf = desc->des2;
-		priv->tx_skbuff_dma[entry].len = nopaged_len;
-		/* do not set the own at this stage */
-		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len,
-						csum_insertion, priv->mode, 0,
-						nfrags == 0);
-	} else {
-		desc = first;
+	if (unlikely(is_jumbo)) {
 		entry = priv->hw->mode->jumbo_frm(priv, skb, csum_insertion);
 		if (unlikely(entry < 0))
 			goto dma_map_err;
@@ -2003,10 +1994,9 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		int len = skb_frag_size(frag);
 		bool last_segment = (i == (nfrags - 1));
 
-		priv->tx_skbuff[entry] = NULL;
 		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 
-		if (priv->extend_desc)
+		if (likely(priv->extend_desc))
 			desc = (struct dma_desc *)(priv->dma_etx + entry);
 		else
 			desc = priv->dma_tx + entry;
@@ -2016,41 +2006,25 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (dma_mapping_error(priv->device, desc->des2))
 			goto dma_map_err; /* should reuse desc w/o issues */
 
+		priv->tx_skbuff[entry] = NULL;
 		priv->tx_skbuff_dma[entry].buf = desc->des2;
 		priv->tx_skbuff_dma[entry].map_as_page = true;
 		priv->tx_skbuff_dma[entry].len = len;
+		priv->tx_skbuff_dma[entry].last_segment = last_segment;
+
+		/* Prepare the descriptor and set the own bit too */
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
 						priv->mode, 1, last_segment);
-		priv->tx_skbuff_dma[entry].last_segment = last_segment;
 	}
-
-	priv->tx_skbuff[entry] = skb;
-
-	/* According to the coalesce parameter the IC bit for the latest
-	 * segment could be reset and the timer re-started to invoke the
-	 * stmmac_tx function. This approach takes care about the fragments.
-	 */
-	priv->tx_count_frames += nfrags + 1;
-	if (priv->tx_coal_frames > priv->tx_count_frames) {
-		priv->hw->desc->clear_tx_ic(desc);
-		priv->xstats.tx_reset_ic_bit++;
-		mod_timer(&priv->txtimer,
-			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
-	} else
-		priv->tx_count_frames = 0;
-
-	/* To avoid raise condition */
-	priv->hw->desc->set_tx_owner(first);
-	wmb();
 
 	entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
 
 	priv->cur_tx = entry;
 
 	if (netif_msg_pktdata(priv)) {
-		pr_debug("%s: curr %d dirty=%d entry=%d, first=%p, nfrags=%d",
-			__func__, (priv->cur_tx % DMA_TX_SIZE),
-			(priv->dirty_tx % DMA_TX_SIZE), entry, first, nfrags);
+		pr_debug("%s: curr=%d dirty=%d f=%d, e=%d, first=%p, nfrags=%d",
+			 __func__, priv->cur_tx, priv->dirty_tx, first_entry,
+			 entry, first, nfrags);
 
 		if (priv->extend_desc)
 			stmmac_display_ring((void *)priv->dma_etx,
@@ -2062,6 +2036,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		pr_debug(">>> frame to be transmitted: ");
 		print_pkt(skb->data, skb->len);
 	}
+
 	if (unlikely(stmmac_tx_avail(priv) <= (MAX_SKB_FRAGS + 1))) {
 		if (netif_msg_hw(priv))
 			pr_debug("%s: stop transmitted packets\n", __func__);
@@ -2070,15 +2045,58 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += skb->len;
 
-	if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-		     priv->hwts_tx_en)) {
-		/* declare that device is doing timestamping */
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		priv->hw->desc->enable_tx_timestamp(first);
+	/* According to the coalesce parameter the IC bit for the latest
+	 * segment is reset and the timer re-started to clean the tx status.
+	 * This approach takes care about the fragments: desc is the first
+	 * element in case of no SG.
+	 */
+	priv->tx_count_frames += nfrags + 1;
+	if (likely(priv->tx_coal_frames > priv->tx_count_frames)) {
+		mod_timer(&priv->txtimer,
+			  STMMAC_COAL_TIMER(priv->tx_coal_timer));
+	} else {
+		priv->tx_count_frames = 0;
+		priv->hw->desc->set_tx_ic(desc);
+		priv->xstats.tx_set_ic_bit++;
 	}
 
 	if (!priv->hwts_tx_en)
 		skb_tx_timestamp(skb);
+
+	/* Ready to fill the first descriptor and set the OWN bit w/o any
+	 * problems because all the descriptors are actually ready to be
+	 * passed to the DMA engine.
+	 */
+	if (likely(!is_jumbo)) {
+		bool last_segment = (nfrags == 0);
+
+		first->des2 = dma_map_single(priv->device, skb->data,
+					     nopaged_len, DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->device, first->des2))
+			goto dma_map_err;
+
+		priv->tx_skbuff_dma[first_entry].buf = first->des2;
+		priv->tx_skbuff_dma[first_entry].len = nopaged_len;
+		priv->tx_skbuff_dma[first_entry].last_segment = last_segment;
+
+		if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+			     priv->hwts_tx_en)) {
+			/* declare that device is doing timestamping */
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			priv->hw->desc->enable_tx_timestamp(first);
+		}
+
+		/* Prepare the first descriptor setting the OWN bit too */
+		priv->hw->desc->prepare_tx_desc(first, 1, nopaged_len,
+						csum_insertion, priv->mode, 1,
+						last_segment);
+
+		/* The own bit must be the latest setting done when prepare the
+		 * descriptor and then barrier is needed to make sure that
+		 * all is coherent before granting the DMA engine.
+		 */
+		smp_wmb();
+	}
 
 	netdev_sent_queue(dev, skb->len);
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);

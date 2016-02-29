@@ -195,9 +195,14 @@ static void ndesc_release_tx_desc(struct dma_desc *p, int mode)
 
 static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				  bool csum_flag, int mode, bool tx_own,
-				  bool ls_ic)
+				  bool ls)
 {
 	unsigned int tdes1 = p->des1;
+
+	if (mode == STMMAC_CHAIN_MODE)
+		norm_set_tx_desc_len_on_chain(p, len);
+	else
+		norm_set_tx_desc_len_on_ring(p, len);
 
 	if (is_fs)
 		tdes1 |= TDES1_FIRST_SEGMENT;
@@ -209,23 +214,18 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 	else
 		tdes1 &= ~(TX_CIC_FULL << TDES1_CHECKSUM_INSERTION_SHIFT);
 
+	if (ls)
+		tdes1 |= TDES1_LAST_SEGMENT;
+
 	if (tx_own)
 		tdes1 |= TDES0_OWN;
 
-	if (ls_ic)
-		tdes1 |= TDES1_LAST_SEGMENT | TDES1_INTERRUPT;
-
 	p->des1 = tdes1;
-
-	if (mode == STMMAC_CHAIN_MODE)
-		norm_set_tx_desc_len_on_chain(p, len);
-	else
-		norm_set_tx_desc_len_on_ring(p, len);
 }
 
-static void ndesc_clear_tx_ic(struct dma_desc *p)
+static void ndesc_set_tx_ic(struct dma_desc *p)
 {
-	p->des1 &= ~TDES1_INTERRUPT;
+	p->des1 |= TDES1_INTERRUPT;
 }
 
 static int ndesc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
@@ -288,7 +288,7 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_tx_owner = ndesc_get_tx_owner,
 	.release_tx_desc = ndesc_release_tx_desc,
 	.prepare_tx_desc = ndesc_prepare_tx_desc,
-	.clear_tx_ic = ndesc_clear_tx_ic,
+	.set_tx_ic = ndesc_set_tx_ic,
 	.get_tx_ls = ndesc_get_tx_ls,
 	.set_tx_owner = ndesc_set_tx_owner,
 	.set_rx_owner = ndesc_set_rx_owner,
