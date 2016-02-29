@@ -52,7 +52,7 @@ struct priv_data {
 static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
 	struct priv_data *priv = chip->vendor.priv;
-	struct i2c_client *client = to_i2c_client(chip->pdev);
+	struct i2c_client *client = to_i2c_client(chip->dev.parent);
 	s32 status;
 
 	priv->len = 0;
@@ -62,7 +62,7 @@ static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
 
 	status = i2c_master_send(client, buf, len);
 
-	dev_dbg(chip->pdev,
+	dev_dbg(&chip->dev,
 		"%s(buf=%*ph len=%0zx) -> sts=%d\n", __func__,
 		(int)min_t(size_t, 64, len), buf, len, status);
 	return status;
@@ -71,7 +71,7 @@ static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
 static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct priv_data *priv = chip->vendor.priv;
-	struct i2c_client *client = to_i2c_client(chip->pdev);
+	struct i2c_client *client = to_i2c_client(chip->dev.parent);
 	struct tpm_output_header *hdr =
 		(struct tpm_output_header *)priv->buffer;
 	u32 expected_len;
@@ -88,7 +88,7 @@ static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -ENOMEM;
 
 	if (priv->len >= expected_len) {
-		dev_dbg(chip->pdev,
+		dev_dbg(&chip->dev,
 			"%s early(buf=%*ph count=%0zx) -> ret=%d\n", __func__,
 			(int)min_t(size_t, 64, expected_len), buf, count,
 			expected_len);
@@ -97,7 +97,7 @@ static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	}
 
 	rc = i2c_master_recv(client, buf, expected_len);
-	dev_dbg(chip->pdev,
+	dev_dbg(&chip->dev,
 		"%s reread(buf=%*ph count=%0zx) -> ret=%d\n", __func__,
 		(int)min_t(size_t, 64, expected_len), buf, count,
 		expected_len);
@@ -106,13 +106,13 @@ static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void i2c_atmel_cancel(struct tpm_chip *chip)
 {
-	dev_err(chip->pdev, "TPM operation cancellation was requested, but is not supported");
+	dev_err(&chip->dev, "TPM operation cancellation was requested, but is not supported");
 }
 
 static u8 i2c_atmel_read_status(struct tpm_chip *chip)
 {
 	struct priv_data *priv = chip->vendor.priv;
-	struct i2c_client *client = to_i2c_client(chip->pdev);
+	struct i2c_client *client = to_i2c_client(chip->dev.parent);
 	int rc;
 
 	/* The TPM fails the I2C read until it is ready, so we do the entire
@@ -125,7 +125,7 @@ static u8 i2c_atmel_read_status(struct tpm_chip *chip)
 	/* Once the TPM has completed the command the command remains readable
 	 * until another command is issued. */
 	rc = i2c_master_recv(client, priv->buffer, sizeof(priv->buffer));
-	dev_dbg(chip->pdev,
+	dev_dbg(&chip->dev,
 		"%s: sts=%d", __func__, rc);
 	if (rc <= 0)
 		return 0;

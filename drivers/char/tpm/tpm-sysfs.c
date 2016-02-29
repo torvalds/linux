@@ -284,16 +284,16 @@ static const struct attribute_group tpm_dev_group = {
 int tpm_sysfs_add_device(struct tpm_chip *chip)
 {
 	int err;
-	err = sysfs_create_group(&chip->pdev->kobj,
+	err = sysfs_create_group(&chip->dev.parent->kobj,
 				 &tpm_dev_group);
 
 	if (err)
-		dev_err(chip->pdev,
+		dev_err(&chip->dev,
 			"failed to create sysfs attributes, %d\n", err);
 	return err;
 }
 
 void tpm_sysfs_del_device(struct tpm_chip *chip)
 {
-	sysfs_remove_group(&chip->pdev->kobj, &tpm_dev_group);
+	sysfs_remove_group(&chip->dev.parent->kobj, &tpm_dev_group);
 }

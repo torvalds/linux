@@ -49,7 +49,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	for (i = 0; i < 6; i++) {
 		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->pdev, "error reading header\n");
+			dev_err(&chip->dev, "error reading header\n");
 			return -EIO;
 		}
 		*buf++ = ioread8(chip->vendor.iobase);
@@ -60,12 +60,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	size = be32_to_cpu(*native_size);
 
 	if (count < size) {
-		dev_err(chip->pdev,
+		dev_err(&chip->dev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
 			status = ioread8(chip->vendor.iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-				dev_err(chip->pdev, "error reading data\n");
+				dev_err(&chip->dev, "error reading data\n");
 				return -EIO;
 			}
 		}
@@ -76,7 +76,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	for (; i < size; i++) {
 		status = ioread8(chip->vendor.iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->pdev, "error reading data\n");
+			dev_err(&chip->dev, "error reading data\n");
 			return -EIO;
 		}
 		*buf++ = ioread8(chip->vendor.iobase);
@@ -86,7 +86,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	status = ioread8(chip->vendor.iobase + 1);
 
 	if (status & ATML_STATUS_DATA_AVAIL) {
-		dev_err(chip->pdev, "data available is stuck\n");
+		dev_err(&chip->dev, "data available is stuck\n");
 		return -EIO;
 	}
 
@@ -97,9 +97,9 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int i;
 
-	dev_dbg(chip->pdev, "tpm_atml_send:\n");
+	dev_dbg(&chip->dev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
-		dev_dbg(chip->pdev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
+		dev_dbg(&chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
  		iowrite8(buf[i], chip->vendor.iobase);
 	}
 
