@@ -2454,22 +2454,20 @@ static int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
 		}
 		for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
 			/* Check word enable condition in the section */
-			if (!(word_mask & BIT(i))) {
-				ret = rtl8xxxu_read_efuse8(priv,
-							   efuse_addr++,
-							   &val8);
-				if (ret)
-					goto exit;
-				priv->efuse_wifi.raw[map_addr++] = val8;
-
-				ret = rtl8xxxu_read_efuse8(priv,
-							   efuse_addr++,
-							   &val8);
-				if (ret)
-					goto exit;
-				priv->efuse_wifi.raw[map_addr++] = val8;
-			} else
+			if (word_mask & BIT(i)) {
 				map_addr += 2;
+				continue;
+			}
+
+			ret = rtl8xxxu_read_efuse8(priv, efuse_addr++, &val8);
+			if (ret)
+				goto exit;
+			priv->efuse_wifi.raw[map_addr++] = val8;
+
+			ret = rtl8xxxu_read_efuse8(priv, efuse_addr++, &val8);
+			if (ret)
+				goto exit;
+			priv->efuse_wifi.raw[map_addr++] = val8;
 		}
 	}
 
