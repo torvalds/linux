@@ -501,6 +501,31 @@ int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
 	return sdata->u.mesh.num_gates;
 }
 
+static
+struct mesh_path *mesh_path_new(struct ieee80211_sub_if_data *sdata,
+				const u8 *dst, gfp_t gfp_flags)
+{
+	struct mesh_path *new_mpath;
+
+	new_mpath = kzalloc(sizeof(struct mesh_path), gfp_flags);
+	if (!new_mpath)
+		return NULL;
+
+	memcpy(new_mpath->dst, dst, ETH_ALEN);
+	eth_broadcast_addr(new_mpath->rann_snd_addr);
+	new_mpath->is_root = false;
+	new_mpath->sdata = sdata;
+	new_mpath->flags = 0;
+	skb_queue_head_init(&new_mpath->frame_queue);
+	new_mpath->timer.data = (unsigned long) new_mpath;
+	new_mpath->timer.function = mesh_path_timer;
+	new_mpath->exp_time = jiffies;
+	spin_lock_init(&new_mpath->state_lock);
+	init_timer(&new_mpath->timer);
+
+	return new_mpath;
+}
+
 /**
  * mesh_path_add - allocate and add a new path to the mesh path table
  * @dst: destination address of the path (ETH_ALEN length)
@@ -548,7 +573,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 	}
 
 	err = -ENOMEM;
-	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_ATOMIC);
+	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 	if (!new_mpath)
 		goto err_path_alloc;
 
@@ -556,19 +581,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 	if (!new_node)
 		goto err_node_alloc;
 
-	memcpy(new_mpath->dst, dst, ETH_ALEN);
-	eth_broadcast_addr(new_mpath->rann_snd_addr);
-	new_mpath->is_root = false;
-	new_mpath->sdata = sdata;
-	new_mpath->flags = 0;
-	skb_queue_head_init(&new_mpath->frame_queue);
 	new_node->mpath = new_mpath;
-	new_mpath->timer.data = (unsigned long) new_mpath;
-	new_mpath->timer.function = mesh_path_timer;
-	new_mpath->exp_time = jiffies;
-	spin_lock_init(&new_mpath->state_lock);
-	init_timer(&new_mpath->timer);
-
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
 	    MEAN_CHAIN_LEN * (tbl->hash_mask + 1))
@@ -664,7 +677,7 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 		return -ENOTSUPP;
 
 	err = -ENOMEM;
-	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_ATOMIC);
+	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 	if (!new_mpath)
 		goto err_path_alloc;
 
@@ -672,17 +685,9 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 	if (!new_node)
 		goto err_node_alloc;
 
-	read_lock_bh(&sdata->u.mesh.pathtbl_resize_lock);
-	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	memcpy(new_mpath->mpp, mpp, ETH_ALEN);
-	new_mpath->sdata = sdata;
-	new_mpath->flags = 0;
-	skb_queue_head_init(&new_mpath->frame_queue);
 	new_node->mpath = new_mpath;
-	init_timer(&new_mpath->timer);
-	new_mpath->exp_time = jiffies;
-	spin_lock_init(&new_mpath->state_lock);
-
+	read_lock_bh(&sdata->u.mesh.pathtbl_resize_lock);
 	tbl = resize_dereference_mpp_paths(sdata);
 
 	hash_idx = mesh_table_hash(dst, tbl);
