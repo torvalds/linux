@@ -2318,31 +2318,31 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	memcpy(priv->cck_tx_power_index_A,
 	       efuse->cck_tx_power_index_A,
-	       sizeof(priv->cck_tx_power_index_A));
+	       sizeof(efuse->cck_tx_power_index_A));
 	memcpy(priv->cck_tx_power_index_B,
 	       efuse->cck_tx_power_index_B,
-	       sizeof(priv->cck_tx_power_index_B));
+	       sizeof(efuse->cck_tx_power_index_B));
 
 	memcpy(priv->ht40_1s_tx_power_index_A,
 	       efuse->ht40_1s_tx_power_index_A,
-	       sizeof(priv->ht40_1s_tx_power_index_A));
+	       sizeof(efuse->ht40_1s_tx_power_index_A));
 	memcpy(priv->ht40_1s_tx_power_index_B,
 	       efuse->ht40_1s_tx_power_index_B,
-	       sizeof(priv->ht40_1s_tx_power_index_B));
+	       sizeof(efuse->ht40_1s_tx_power_index_B));
 
 	memcpy(priv->ht20_tx_power_index_diff,
 	       efuse->ht20_tx_power_index_diff,
-	       sizeof(priv->ht20_tx_power_index_diff));
+	       sizeof(efuse->ht20_tx_power_index_diff));
 	memcpy(priv->ofdm_tx_power_index_diff,
 	       efuse->ofdm_tx_power_index_diff,
-	       sizeof(priv->ofdm_tx_power_index_diff));
+	       sizeof(efuse->ofdm_tx_power_index_diff));
 
 	memcpy(priv->ht40_max_power_offset,
 	       efuse->ht40_max_power_offset,
-	       sizeof(priv->ht40_max_power_offset));
+	       sizeof(efuse->ht40_max_power_offset));
 	memcpy(priv->ht20_max_power_offset,
 	       efuse->ht20_max_power_offset,
-	       sizeof(priv->ht20_max_power_offset));
+	       sizeof(efuse->ht20_max_power_offset));
 
 	if (priv->efuse_wifi.efuse8723.version >= 0x01) {
 		priv->has_xtalk = 1;
@@ -2403,34 +2403,34 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 	memcpy(priv->cck_tx_power_index_A,
 	       efuse->cck_tx_power_index_A,
-	       sizeof(priv->cck_tx_power_index_A));
+	       sizeof(efuse->cck_tx_power_index_A));
 	memcpy(priv->cck_tx_power_index_B,
 	       efuse->cck_tx_power_index_B,
-	       sizeof(priv->cck_tx_power_index_B));
+	       sizeof(efuse->cck_tx_power_index_B));
 
 	memcpy(priv->ht40_1s_tx_power_index_A,
 	       efuse->ht40_1s_tx_power_index_A,
-	       sizeof(priv->ht40_1s_tx_power_index_A));
+	       sizeof(efuse->ht40_1s_tx_power_index_A));
 	memcpy(priv->ht40_1s_tx_power_index_B,
 	       efuse->ht40_1s_tx_power_index_B,
-	       sizeof(priv->ht40_1s_tx_power_index_B));
+	       sizeof(efuse->ht40_1s_tx_power_index_B));
 	memcpy(priv->ht40_2s_tx_power_index_diff,
 	       efuse->ht40_2s_tx_power_index_diff,
-	       sizeof(priv->ht40_2s_tx_power_index_diff));
+	       sizeof(efuse->ht40_2s_tx_power_index_diff));
 
 	memcpy(priv->ht20_tx_power_index_diff,
 	       efuse->ht20_tx_power_index_diff,
-	       sizeof(priv->ht20_tx_power_index_diff));
+	       sizeof(efuse->ht20_tx_power_index_diff));
 	memcpy(priv->ofdm_tx_power_index_diff,
 	       efuse->ofdm_tx_power_index_diff,
-	       sizeof(priv->ofdm_tx_power_index_diff));
+	       sizeof(efuse->ofdm_tx_power_index_diff));
 
 	memcpy(priv->ht40_max_power_offset,
 	       efuse->ht40_max_power_offset,
-	       sizeof(priv->ht40_max_power_offset));
+	       sizeof(efuse->ht40_max_power_offset));
 	memcpy(priv->ht20_max_power_offset,
 	       efuse->ht20_max_power_offset,
-	       sizeof(priv->ht20_max_power_offset));
+	       sizeof(efuse->ht20_max_power_offset));
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
 		 efuse->vendor_name);
