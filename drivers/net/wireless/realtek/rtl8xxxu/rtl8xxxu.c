@@ -2774,6 +2774,34 @@ exit:
 	return ret;
 }
 
+static int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page)
+{
+	u32 val32;
+	int ret = 0;
+	int i;
+
+	val32 = rtl8xxxu_read32(priv, REG_AUTO_LLT);
+	pr_info("AUTO_LLT = %08x\n", val32);
+	val32 |= AUTO_LLT_INIT_LLT;
+	rtl8xxxu_write32(priv, REG_AUTO_LLT, val32);
+
+	for (i = 500; i; i--) {
+		val32 = rtl8xxxu_read32(priv, REG_AUTO_LLT);
+		if (!(val32 & AUTO_LLT_INIT_LLT))
+			break;
+		usleep_range(2, 4);
+	}
+
+	if (i) {
+		ret = -EBUSY;
+		dev_warn(&priv->udev->dev, "LLT table init failed\n");
+	}
+	else
+		dev_warn(&priv->udev->dev, "LLT table init success\n");
+
+	return ret;
+}
+
 static int rtl8xxxu_init_queue_priority(struct rtl8xxxu_priv *priv)
 {
 	u16 val16, hi, lo;
@@ -4287,7 +4315,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
 	if (!macpower) {
-		ret = rtl8xxxu_init_llt_table(priv, TX_TOTAL_PAGE_NUM);
+		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
 		if (ret) {
 			dev_warn(dev, "%s: LLT table init failed\n", __func__);
 			goto exit;
@@ -6079,6 +6107,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.parse_efuse = rtl8723au_parse_efuse,
 	.load_firmware = rtl8723au_load_firmware,
 	.power_on = rtl8723au_power_on,
+	.llt_init = rtl8xxxu_init_llt_table,
 	.writeN_block_size = 1024,
 };
 
@@ -6088,6 +6117,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.parse_efuse = rtl8192cu_parse_efuse,
 	.load_firmware = rtl8192cu_load_firmware,
 	.power_on = rtl8192cu_power_on,
+	.llt_init = rtl8xxxu_init_llt_table,
 	.writeN_block_size = 128,
 };
 
@@ -6097,6 +6127,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.parse_efuse = rtl8192eu_parse_efuse,
 	.load_firmware = rtl8192eu_load_firmware,
 	.power_on = rtl8192eu_power_on,
+	.llt_init = rtl8xxxu_auto_llt_table,
 	.writeN_block_size = 128,
 };
 

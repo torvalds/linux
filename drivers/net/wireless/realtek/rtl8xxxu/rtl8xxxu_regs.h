@@ -372,6 +372,9 @@
 #define  RQPN_NPQ_SHIFT			0
 #define  RQPN_EPQ_SHIFT			16
 
+#define REG_AUTO_LLT			0x0224
+#define  AUTO_LLT_INIT_LLT		BIT(16)
+
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280
 #define REG_RXPKT_NUM			0x0284
