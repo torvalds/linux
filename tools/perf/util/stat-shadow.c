@@ -14,6 +14,13 @@ enum {
 
 #define NUM_CTX CTX_BIT_MAX
 
+/*
+ * AGGR_GLOBAL: Use CPU 0
+ * AGGR_SOCKET: Use first CPU of socket
+ * AGGR_CORE: Use first CPU of core
+ * AGGR_NONE: Use matching CPU
+ * AGGR_THREAD: Not supported?
+ */
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
 static struct stats runtime_cycles_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_stalled_cycles_front_stats[NUM_CTX][MAX_NR_CPUS];
