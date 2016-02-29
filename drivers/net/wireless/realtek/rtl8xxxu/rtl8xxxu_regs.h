@@ -708,6 +708,12 @@
 #define REG_MACID1			0x0700
 #define REG_BSSID1			0x0708
 
+/*
+ * This seems to be 8723bu specific
+ */
+#define REG_BT_CONTROL_8723BU		0x0764
+#define  BT_CONTROL_BT_GRANT		BIT(12)
+
 #define REG_FPGA0_RF_MODE		0x0800
 #define  FPGA_RF_MODE			BIT(0)
 #define  FPGA_RF_MODE_JAPAN		BIT(1)
@@ -810,6 +816,7 @@
 #define REG_RFE_CTRL_ANTA_SRC		0x0930	/* 8723BU */
 #define REG_RFE_PATH_SELECT		0x0940	/* 8723BU */
 #define REG_RFE_BUFFER			0x0944	/* 8723BU */
+#define REG_S0S1_PATH_SWITCH		0x0948	/* 8723BU */
 
 #define REG_CCK0_SYSTEM			0x0a00
 #define  CCK0_SIDEBAND			BIT(4)
@@ -1050,3 +1057,13 @@
 #define RF6052_REG_TXPA_G1		0x31	/* RF TX PA control */
 #define RF6052_REG_TXPA_G2		0x32	/* RF TX PA control */
 #define RF6052_REG_TXPA_G3		0x33	/* RF TX PA control */
+
+/*
+ * NextGen regs: 8723BU
+ */
+#define	RF6052_REG_UNKNOWN_43		0x43
+#define	RF6052_REG_UNKNOWN_55		0x55
+#define	RF6052_REG_S0S1			0xb0
+#define	RF6052_REG_UNKNOWN_DF		0xdf
+#define	RF6052_REG_UNKNOWN_ED		0xed
+#define	RF6052_REG_WE_LUT		0xef
