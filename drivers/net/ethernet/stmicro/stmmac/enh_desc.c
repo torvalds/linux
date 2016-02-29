@@ -302,7 +302,8 @@ static void enh_desc_release_tx_desc(struct dma_desc *p, int mode)
 }
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
-				     int csum_flag, int mode)
+				     bool csum_flag, int mode, bool tx_own,
+				     bool ls_ic)
 {
 	unsigned int tdes0 = p->des0;
 
@@ -316,6 +317,19 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 	else
 		tdes0 &= ~(TX_CIC_FULL << ETDES0_CHECKSUM_INSERTION_SHIFT);
 
+	if (tx_own)
+		tdes0 |= ETDES0_OWN;
+
+	if (is_fs & tx_own)
+		/* When the own bit, for the first frame, has to be set, all
+		 * descriptors for the same frame has to be set before, to
+		 * avoid race condition.
+		 */
+		wmb();
+
+	if (ls_ic)
+		tdes0 |= ETDES0_LAST_SEGMENT | ETDES0_INTERRUPT;
+
 	p->des0 = tdes0;
 
 	if (mode == STMMAC_CHAIN_MODE)
@@ -327,11 +341,6 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 static void enh_desc_clear_tx_ic(struct dma_desc *p)
 {
 	p->des0 &= ~ETDES0_INTERRUPT;
-}
-
-static void enh_desc_close_tx_desc(struct dma_desc *p)
-{
-	p->des0 |= ETDES0_LAST_SEGMENT | ETDES0_INTERRUPT;
 }
 
 static int enh_desc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
@@ -403,7 +412,6 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.release_tx_desc = enh_desc_release_tx_desc,
 	.prepare_tx_desc = enh_desc_prepare_tx_desc,
 	.clear_tx_ic = enh_desc_clear_tx_ic,
-	.close_tx_desc = enh_desc_close_tx_desc,
 	.get_tx_ls = enh_desc_get_tx_ls,
 	.set_tx_owner = enh_desc_set_tx_owner,
 	.set_rx_owner = enh_desc_set_rx_owner,

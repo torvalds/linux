@@ -1991,8 +1991,10 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto dma_map_err;
 		priv->tx_skbuff_dma[entry].buf = desc->des2;
 		priv->tx_skbuff_dma[entry].len = nopaged_len;
+		/* do not set the own at this stage */
 		priv->hw->desc->prepare_tx_desc(desc, 1, nopaged_len,
-						csum_insertion, priv->mode);
+						csum_insertion, priv->mode, 0,
+						nfrags == 0);
 	} else {
 		desc = first;
 		entry = priv->hw->mode->jumbo_frm(priv, skb, csum_insertion);
@@ -2003,6 +2005,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	for (i = 0; i < nfrags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		int len = skb_frag_size(frag);
+		bool last_segment = (i == (nfrags - 1));
 
 		priv->tx_skbuff[entry] = NULL;
 		entry = STMMAC_GET_ENTRY(entry, DMA_TX_SIZE);
@@ -2021,19 +2024,12 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->tx_skbuff_dma[entry].map_as_page = true;
 		priv->tx_skbuff_dma[entry].len = len;
 		priv->hw->desc->prepare_tx_desc(desc, 0, len, csum_insertion,
-						priv->mode);
-		wmb();
-		priv->hw->desc->set_tx_owner(desc);
-		wmb();
+						priv->mode, 1, last_segment);
+		priv->tx_skbuff_dma[entry].last_segment = last_segment;
 	}
 
 	priv->tx_skbuff[entry] = skb;
 
-	/* Finalize the latest segment. */
-	priv->hw->desc->close_tx_desc(desc);
-	priv->tx_skbuff_dma[entry].last_segment = true;
-
-	wmb();
 	/* According to the coalesce parameter the IC bit for the latest
 	 * segment could be reset and the timer re-started to invoke the
 	 * stmmac_tx function. This approach takes care about the fragments.
