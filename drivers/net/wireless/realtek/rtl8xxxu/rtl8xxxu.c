@@ -2984,14 +2984,18 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	 *       addresses, which is initialized here. Do we need this?
 	 */
 
-	val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
-	udelay(2);
-	val8 |= AFE_PLL_320_ENABLE;
-	rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL, val8);
-	udelay(2);
+	if (priv->rtlchip == 0x8723b) {
+		rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
+	} else {
+		val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
+		udelay(2);
+		val8 |= AFE_PLL_320_ENABLE;
+		rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL, val8);
+		udelay(2);
 
-	rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL + 1, 0xff);
-	udelay(2);
+		rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL + 1, 0xff);
+		udelay(2);
+	}
 
 	val8 = rtl8xxxu_read8(priv, REG_SYS_FUNC);
 	val8 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB;
@@ -5603,6 +5607,21 @@ static void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x0e);
 }
 
+static void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
+				  u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5)
+{
+	struct h2c_cmd h2c;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.b_type_dma.cmd = H2C_8723B_B_TYPE_TDMA;
+	h2c.b_type_dma.data1 = arg1;
+	h2c.b_type_dma.data2 = arg2;
+	h2c.b_type_dma.data3 = arg3;
+	h2c.b_type_dma.data4 = arg4;
+	h2c.b_type_dma.data5 = arg5;
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.b_type_dma));
+}
+
 static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 {
 	struct h2c_cmd h2c;
@@ -5683,7 +5702,17 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	/*
 	 * 0x280, 0x00, 0x200, 0x80 - not clear
 	 */
-	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x280);
+	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
+
+	/*
+	 * Software control, antenna at WiFi side
+	 */
+	rtl8723bu_set_ps_tdma(priv, 0x00, 0x00, 0x00, 0x00, 0x00);
+
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE1, 0x55555555);
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE2, 0x5a5a5a5a);
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE3, 0x00ffffff);
+	rtl8xxxu_write32(priv, REG_BT_COEX_TABLE4, 0x00000003);
 }
 
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)

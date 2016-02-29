@@ -742,6 +742,14 @@ struct h2c_cmd {
 		} __packed ramask;
 		struct {
 			u8 cmd;
+			u8 data1;
+			u8 data2;
+			u8 data3;
+			u8 data4;
+			u8 data5;
+		} __packed b_type_dma;
+		struct {
+			u8 cmd;
 			u8 data;
 		} __packed bt_wlan_calibration;
 		struct {
