@@ -2202,8 +2202,7 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 							    AMD_PG_STATE_GATE);
 
 				cz_enable_vce_dpm(adev, false);
-				/* TODO: to figure out why vce can't be poweroff. */
-				/* cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerOFF); */
+				cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerOFF);
 				pi->vce_power_gated = true;
 			} else {
 				cz_send_msg_to_smc(adev, PPSMC_MSG_VCEPowerON);
