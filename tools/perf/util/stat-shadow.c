@@ -310,8 +310,8 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 		total = avg_stats(&runtime_stalled_cycles_front_stats[ctx][cpu]);
 		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[ctx][cpu]));
 
-		out->new_line(ctxp);
 		if (total && avg) {
+			out->new_line(ctxp);
 			ratio = total / avg;
 			print_metric(ctxp, NULL, "%7.2f ",
 					"stalled cycles per insn",
