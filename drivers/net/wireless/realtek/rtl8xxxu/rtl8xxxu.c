@@ -5704,6 +5704,11 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	 */
 	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
 
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
+	h2c.ignore_wlan.data = 0;
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
+
 	/*
 	 * Software control, antenna at WiFi side
 	 */

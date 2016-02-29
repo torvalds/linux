@@ -754,6 +754,10 @@ struct h2c_cmd {
 		} __packed bt_wlan_calibration;
 		struct {
 			u8 cmd;
+			u8 data;
+		} __packed ignore_wlan;
+		struct {
+			u8 cmd;
 			u8 ant_inverse;
 			u8 int_switch_type;
 		} __packed ant_sel_rsv;
