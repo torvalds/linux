@@ -7076,16 +7076,17 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	}
 	if (ieee80211_is_mgmt(hdr->frame_control)) {
 		tx_desc->txdw5 = cpu_to_le32(tx_rate->hw_value);
-		tx_desc->txdw4 |= cpu_to_le32(TXDESC_USE_DRIVER_RATE);
-		tx_desc->txdw5 |= cpu_to_le32(6 << TXDESC_RETRY_LIMIT_SHIFT);
-		tx_desc->txdw5 |= cpu_to_le32(TXDESC_RETRY_LIMIT_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC_USE_DRIVER_RATE_8723A);
+		tx_desc->txdw5 |=
+			cpu_to_le32(6 << TXDESC_RETRY_LIMIT_SHIFT_8723A);
+		tx_desc->txdw5 |= cpu_to_le32(TXDESC_RETRY_LIMIT_ENABLE_8723A);
 	}
 
 	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
 		/* Use RTS rate 24M - does the mac80211 tell us which to use? */
 		tx_desc->txdw4 |= cpu_to_le32(DESC_RATE_24M);
-		tx_desc->txdw4 |= cpu_to_le32(TXDESC_RTS_CTS_ENABLE);
-		tx_desc->txdw4 |= cpu_to_le32(TXDESC_HW_RTS_ENABLE);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC_RTS_CTS_ENABLE_8723A);
+		tx_desc->txdw4 |= cpu_to_le32(TXDESC_HW_RTS_ENABLE_8723A);
 	}
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
