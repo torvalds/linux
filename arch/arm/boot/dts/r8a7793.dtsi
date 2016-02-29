@@ -51,7 +51,33 @@
 					   < 937500 1000000>,
 					   < 750000 1000000>,
 					   < 375000 1000000>;
+			next-level-cache = <&L2_CA15>;
 		};
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive	= <0>;
+			polling-delay		= <0>;
+
+			thermal-sensors = <&thermal>;
+
+			trips {
+				cpu-crit {
+					temperature	= <115000>;
+					hysteresis	= <0>;
+					type		= "critical";
+				};
+			};
+			cooling-maps {
+			};
+		};
+	};
+
+	L2_CA15: cache-controller@0 {
+		compatible = "cache";
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	gic: interrupt-controller@f1001000 {
@@ -170,12 +196,15 @@
 		power-domains = <&cpg_clocks>;
 	};
 
-	thermal@e61f0000 {
-		compatible = "renesas,thermal-r8a7793", "renesas,rcar-thermal";
+	thermal: thermal@e61f0000 {
+		compatible =	"renesas,thermal-r8a7793",
+				"renesas,rcar-gen2-thermal",
+				"renesas,rcar-thermal";
 		reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>;
 		interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp5_clks R8A7793_CLK_THERMAL>;
 		power-domains = <&cpg_clocks>;
+		#thermal-sensor-cells = <0>;
 	};
 
 	timer {

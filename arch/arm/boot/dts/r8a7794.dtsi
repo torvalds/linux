@@ -40,6 +40,7 @@
 			compatible = "arm,cortex-a7";
 			reg = <0>;
 			clock-frequency = <1000000000>;
+			next-level-cache = <&L2_CA7>;
 		};
 
 		cpu1: cpu@1 {
@@ -47,7 +48,14 @@
 			compatible = "arm,cortex-a7";
 			reg = <1>;
 			clock-frequency = <1000000000>;
+			next-level-cache = <&L2_CA7>;
 		};
+	};
+
+	L2_CA7: cache-controller@1 {
+		compatible = "cache";
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	gic: interrupt-controller@f1001000 {
@@ -536,6 +544,18 @@
 		status = "disabled";
 	};
 
+	avb: ethernet@e6800000 {
+		compatible = "renesas,etheravb-r8a7794",
+			     "renesas,etheravb-rcar-gen2";
+		reg = <0 0xe6800000 0 0x800>, <0 0xee0e8000 0 0x4000>;
+		interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp8_clks R8A7794_CLK_ETHERAVB>;
+		power-domains = <&cpg_clocks>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	/* The memory map in the User's Manual maps the cores to bus numbers */
 	i2c0: i2c@e6508000 {
 		compatible = "renesas,i2c-r8a7794";
@@ -681,7 +701,7 @@
 	};
 
 	pci0: pci@ee090000 {
-		compatible = "renesas,pci-r8a7794";
+		compatible = "renesas,pci-r8a7794", "renesas,pci-rcar-gen2";
 		device_type = "pci";
 		reg = <0 0xee090000 0 0xc00>,
 		      <0 0xee080000 0 0x1100>;
@@ -716,7 +736,7 @@
 	};
 
 	pci1: pci@ee0d0000 {
-		compatible = "renesas,pci-r8a7794";
+		compatible = "renesas,pci-r8a7794", "renesas,pci-rcar-gen2";
 		device_type = "pci";
 		reg = <0 0xee0d0000 0 0xc00>,
 		      <0 0xee0c0000 0 0x1100>;
@@ -1104,13 +1124,14 @@
 		mstp8_clks: mstp8_clks@e6150990 {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150990 0 4>, <0 0xe61509a0 0 4>;
-			clocks = <&zg_clk>, <&zg_clk>, <&p_clk>;
+			clocks = <&zg_clk>, <&zg_clk>, <&hp_clk>, <&p_clk>;
 			#clock-cells = <1>;
 			clock-indices = <
-				R8A7794_CLK_VIN1 R8A7794_CLK_VIN0 R8A7794_CLK_ETHER
+				R8A7794_CLK_VIN1 R8A7794_CLK_VIN0
+				R8A7794_CLK_ETHERAVB R8A7794_CLK_ETHER
 			>;
 			clock-output-names =
-				"vin1", "vin0", "ether";
+				"vin1", "vin0", "etheravb", "ether";
 		};
 		mstp9_clks: mstp9_clks@e6150994 {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
