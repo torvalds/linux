@@ -90,6 +90,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20000>;
 			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu1: cpu@20001 {
@@ -97,6 +98,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20001>;
 			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu2: cpu@20002 {
@@ -104,6 +106,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20002>;
 			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu3: cpu@20003 {
@@ -111,6 +114,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20003>;
 			enable-method = "psci";
+			next-level-cache = <&cluster0_l2>;
 		};
 
 		cpu4: cpu@20100 {
@@ -118,6 +122,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20100>;
 			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu5: cpu@20101 {
@@ -125,6 +130,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20101>;
 			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu6: cpu@20102 {
@@ -132,6 +138,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20102>;
 			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu7: cpu@20103 {
@@ -139,6 +146,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20103>;
 			enable-method = "psci";
+			next-level-cache = <&cluster1_l2>;
 		};
 
 		cpu8: cpu@20200 {
@@ -146,6 +154,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20200>;
 			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu9: cpu@20201 {
@@ -153,6 +162,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20201>;
 			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu10: cpu@20202 {
@@ -160,6 +170,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20202>;
 			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu11: cpu@20203 {
@@ -167,6 +178,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20203>;
 			enable-method = "psci";
+			next-level-cache = <&cluster2_l2>;
 		};
 
 		cpu12: cpu@20300 {
@@ -174,6 +186,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20300>;
 			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
 		};
 
 		cpu13: cpu@20301 {
@@ -181,6 +194,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20301>;
 			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
 		};
 
 		cpu14: cpu@20302 {
@@ -188,6 +202,7 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20302>;
 			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
 		};
 
 		cpu15: cpu@20303 {
@@ -195,6 +210,23 @@
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x20303>;
 			enable-method = "psci";
+			next-level-cache = <&cluster3_l2>;
+		};
+
+		cluster0_l2: l2-cache0 {
+			compatible = "cache";
+		};
+
+		cluster1_l2: l2-cache1 {
+			compatible = "cache";
+		};
+
+		cluster2_l2: l2-cache2 {
+			compatible = "cache";
+		};
+
+		cluster3_l2: l2-cache3 {
+			compatible = "cache";
 		};
 	};
 
@@ -214,10 +246,28 @@
 		      <0x0 0xfe020000 0 0x10000>;       /* GICV */
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
-		its_totems: interrupt-controller@8c000000 {
+		its_peri: interrupt-controller@8c000000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0x8c000000 0x0 0x40000>;
+		};
+
+		its_m3: interrupt-controller@a3000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xa3000000 0x0 0x40000>;
+		};
+
+		its_pcie: interrupt-controller@b7000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xb7000000 0x0 0x40000>;
+		};
+
+		its_dsa: interrupt-controller@c6000000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			reg = <0x0 0xc6000000 0x0 0x40000>;
 		};
 	};
 
@@ -230,7 +280,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
@@ -271,6 +321,44 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			status = "disabled";
+		};
+
+		peri_gpio0: gpio@802e0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x802e0000 0x0 0x10000>;
+			status = "disabled";
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		peri_gpio1: gpio@802f0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x802f0000 0x0 0x10000>;
+			status = "disabled";
+
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 	};
 };
