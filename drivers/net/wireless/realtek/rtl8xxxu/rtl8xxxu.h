@@ -500,6 +500,47 @@ struct rtl8192cu_efuse {
 	u8 customer_id;
 };
 
+struct rtl8723bu_efuse {
+	__le16 rtl_id;
+	u8 res0[0x0e];
+	u8 cck_tx_power_index_A[3];	/* 0x10 */
+	u8 cck_tx_power_index_B[3];
+	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
+	u8 ht40_1s_tx_power_index_B[3];
+	u8 res1[0x9c];
+	u8 channel_plan;		/* 0xb8 */
+	u8 xtal_k;
+	u8 thermal_meter;
+	u8 iqk_lck;
+	u8 pa_type;			/* 0xbc */
+	u8 lna_type_2g;			/* 0xbd */
+	u8 res2[3];
+	u8 rf_board_option;
+	u8 rf_feature_option;
+	u8 rf_bt_setting;
+	u8 eeprom_version;
+	u8 eeprom_customer_id;
+	u8 res3[2];
+	u8 tx_pwr_calibrate_rate;
+	u8 rf_antenna_option;		/* 0xc9 */
+	u8 rfe_option;
+	u8 res4[9];
+	u8 usb_optional_function;
+	u8 res5[0x1e];
+	u8 res6[2];
+	u8 serial[0x0b];		/* 0xf5 */
+	u8 vid;				/* 0x100 */
+	u8 res7;
+	u8 pid;
+	u8 res8[4];
+	u8 mac_addr[ETH_ALEN];		/* 0x107 */
+	u8 res9[2];
+	u8 vendor_name[0x07];
+	u8 res10[2];
+	u8 device_name[0x14];		/* 0xe8 */
+	u8 res11[0xd4];
+};
+
 struct rtl8192eu_efuse {
 	__le16 rtl_id;
 	u8 res0[0x0e];
@@ -690,6 +731,7 @@ struct rtl8xxxu_priv {
 	union {
 		u8 raw[EFUSE_MAP_LEN];
 		struct rtl8723au_efuse efuse8723;
+		struct rtl8723bu_efuse efuse8723bu;
 		struct rtl8192cu_efuse efuse8192;
 		struct rtl8192eu_efuse efuse8192eu;
 	} efuse_wifi;

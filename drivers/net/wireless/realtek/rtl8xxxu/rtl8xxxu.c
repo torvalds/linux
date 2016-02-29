@@ -1877,6 +1877,51 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
+{
+	if (priv->efuse_wifi.efuse8723bu.rtl_id != cpu_to_le16(0x8129))
+		return -EINVAL;
+
+	ether_addr_copy(priv->mac_addr, priv->efuse_wifi.efuse8723bu.mac_addr);
+
+	memcpy(priv->cck_tx_power_index_A,
+	       priv->efuse_wifi.efuse8723bu.cck_tx_power_index_A,
+	       sizeof(priv->cck_tx_power_index_A));
+	memcpy(priv->cck_tx_power_index_B,
+	       priv->efuse_wifi.efuse8723bu.cck_tx_power_index_B,
+	       sizeof(priv->cck_tx_power_index_B));
+
+	memcpy(priv->ht40_1s_tx_power_index_A,
+	       priv->efuse_wifi.efuse8723bu.ht40_1s_tx_power_index_A,
+	       sizeof(priv->ht40_1s_tx_power_index_A));
+	memcpy(priv->ht40_1s_tx_power_index_B,
+	       priv->efuse_wifi.efuse8723bu.ht40_1s_tx_power_index_B,
+	       sizeof(priv->ht40_1s_tx_power_index_B));
+
+	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
+		 priv->efuse_wifi.efuse8723bu.vendor_name);
+	dev_info(&priv->udev->dev, "Product: %.41s\n",
+		 priv->efuse_wifi.efuse8723bu.device_name);
+
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
+		int i;
+		unsigned char *raw = priv->efuse_wifi.raw;
+
+		dev_info(&priv->udev->dev,
+			 "%s: dumping efuse (0x%02zx bytes):\n",
+			 __func__, sizeof(struct rtl8723bu_efuse));
+		for (i = 0; i < sizeof(struct rtl8723bu_efuse); i += 8) {
+			dev_info(&priv->udev->dev, "%02x: "
+				 "%02x %02x %02x %02x %02x %02x %02x %02x\n", i,
+				 raw[i], raw[i + 1], raw[i + 2],
+				 raw[i + 3], raw[i + 4], raw[i + 5],
+				 raw[i + 6], raw[i + 7]);
+		}
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 
 static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
@@ -6142,7 +6187,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 };
 
 static struct rtl8xxxu_fileops rtl8723bu_fops = {
-	.parse_efuse = rtl8723au_parse_efuse,
+	.parse_efuse = rtl8723bu_parse_efuse,
 	.load_firmware = rtl8723bu_load_firmware,
 	.power_on = rtl8723au_power_on,
 	.llt_init = rtl8xxxu_auto_llt_table,
