@@ -6609,10 +6609,12 @@ static void rtl8xxxu_sw_scan_complete(struct ieee80211_hw *hw,
 	rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
 }
 
-static void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
-				      u32 ramask, int sgi)
+static void rtl8723au_update_rate_mask(struct rtl8xxxu_priv *priv,
+				       u32 ramask, int sgi)
 {
 	struct h2c_cmd h2c;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
 
 	h2c.ramask.cmd = H2C_SET_RATE_MASK;
 	h2c.ramask.mask_lo = cpu_to_le16(ramask & 0xffff);
@@ -6625,6 +6627,32 @@ static void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
 	dev_dbg(&priv->udev->dev, "%s: rate mask %08x, arg %02x, size %zi\n",
 		__func__, ramask, h2c.ramask.arg, sizeof(h2c.ramask));
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ramask));
+}
+
+static void rtl8723bu_update_rate_mask(struct rtl8xxxu_priv *priv,
+				       u32 ramask, int sgi)
+{
+	struct h2c_cmd h2c;
+	u8 bw = 0;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+
+	h2c.b_macid_cfg.cmd = H2C_8723B_MACID_CFG_RAID;
+	h2c.b_macid_cfg.ramask0 = ramask & 0xff;
+	h2c.b_macid_cfg.ramask1 = (ramask >> 8) & 0xff;
+	h2c.b_macid_cfg.ramask2 = (ramask >> 16) & 0xff;
+	h2c.b_macid_cfg.ramask3 = (ramask >> 24) & 0xff;
+
+	h2c.ramask.arg = 0x80;
+	h2c.b_macid_cfg.data1 = 0;
+	if (sgi)
+		h2c.b_macid_cfg.data1 |= BIT(7);
+
+	h2c.b_macid_cfg.data2 = bw;
+
+	dev_dbg(&priv->udev->dev, "%s: rate mask %08x, arg %02x, size %zi\n",
+		__func__, ramask, h2c.ramask.arg, sizeof(h2c.b_macid_cfg));
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.b_macid_cfg));
 }
 
 static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
@@ -6693,7 +6721,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				sgi = 1;
 			rcu_read_unlock();
 
-			rtl8xxxu_update_rate_mask(priv, ramask, sgi);
+			priv->fops->update_rate_mask(priv, ramask, sgi);
 
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
@@ -8210,6 +8238,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
+	.update_rate_mask = rtl8723au_update_rate_mask,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8234,6 +8263,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_statistics = rtl8723bu_init_statistics,
 	.enable_rf = rtl8723b_enable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
+	.update_rate_mask = rtl8723bu_update_rate_mask,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
@@ -8257,6 +8287,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
+	.update_rate_mask = rtl8723au_update_rate_mask,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8279,6 +8310,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
 	.enable_rf = rtl8723b_enable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
+	.update_rate_mask = rtl8723au_update_rate_mask,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,

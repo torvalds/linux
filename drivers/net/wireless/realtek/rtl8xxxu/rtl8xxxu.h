@@ -958,12 +958,24 @@ struct h2c_cmd {
 		} __packed ramask;
 		struct {
 			u8 cmd;
+			u8 macid;
+			/*
+			 * [0:4] - RAID
+			 * [7]   - SGI
+			 */
 			u8 data1;
+			/*
+			 * [0:1] - Bandwidth
+			 * [3]   - No Update
+			 * [4:5] - VHT enable
+			 * [6]   - DISPT
+			 * [7]   - DISRA
+			 */
 			u8 data2;
+			u8 ramask0;
 			u8 ramask1;
 			u8 ramask2;
 			u8 ramask3;
-			u8 ramask4;
 		} __packed b_macid_cfg;
 		struct {
 			u8 cmd;
@@ -1240,6 +1252,8 @@ struct rtl8xxxu_fileops {
 	void (*enable_rf) (struct rtl8xxxu_priv *priv);
 	void (*set_tx_power) (struct rtl8xxxu_priv *priv, int channel,
 			      bool ht40);
+	void (*update_rate_mask) (struct rtl8xxxu_priv *priv,
+				  u32 ramask, int sgi);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
