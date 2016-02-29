@@ -914,8 +914,10 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		result = 1;
 
-		if (dest_map)
+		if (dest_map) {
 			__set_bit(vcpu->vcpu_id, dest_map->map);
+			dest_map->vectors[vcpu->vcpu_id] = vector;
+		}
 
 		if (apic_test_vector(vector, apic->regs + APIC_TMR) != !!trig_mode) {
 			if (trig_mode)
