@@ -53,7 +53,9 @@
 
 #define RTL8723A_CHANNEL_GROUPS		3
 #define RTL8723A_MAX_RF_PATHS		2
+#define RTL8723B_CHANNEL_GROUPS		6
 #define RTL8723B_MAX_RF_PATHS		4
+#define RTL8XXXU_MAX_CHANNEL_GROUPS	6
 #define RF6052_MAX_TX_PWR		0x3f
 
 #define EFUSE_MAP_LEN			512
@@ -1046,19 +1048,24 @@ struct rtl8xxxu_priv {
 	u8 mac_addr[ETH_ALEN];
 	char chip_name[8];
 	char chip_vendor[8];
-	u8 cck_tx_power_index_A[3];	/* 0x10 */
-	u8 cck_tx_power_index_B[3];
-	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
-	u8 ht40_1s_tx_power_index_B[3];
+	u8 cck_tx_power_index_A[RTL8XXXU_MAX_CHANNEL_GROUPS];
+	u8 cck_tx_power_index_B[RTL8XXXU_MAX_CHANNEL_GROUPS];
+	u8 ht40_1s_tx_power_index_A[RTL8XXXU_MAX_CHANNEL_GROUPS];
+	u8 ht40_1s_tx_power_index_B[RTL8XXXU_MAX_CHANNEL_GROUPS];
 	/*
 	 * The following entries are half-bytes split as:
 	 * bits 0-3: path A, bits 4-7: path B, all values 4 bits signed
 	 */
-	struct rtl8723au_idx ht40_2s_tx_power_index_diff[3];
-	struct rtl8723au_idx ht20_tx_power_index_diff[3];
-	struct rtl8723au_idx ofdm_tx_power_index_diff[3];
-	struct rtl8723au_idx ht40_max_power_offset[3];
-	struct rtl8723au_idx ht20_max_power_offset[3];
+	struct rtl8723au_idx ht40_2s_tx_power_index_diff[
+		RTL8XXXU_MAX_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht20_tx_power_index_diff[
+		RTL8XXXU_MAX_CHANNEL_GROUPS];
+	struct rtl8723au_idx ofdm_tx_power_index_diff[
+		RTL8XXXU_MAX_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht40_max_power_offset[
+		RTL8XXXU_MAX_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht20_max_power_offset[
+		RTL8XXXU_MAX_CHANNEL_GROUPS];
 	u32 chip_cut:4;
 	u32 rom_rev:4;
 	u32 is_multi_func:1;
