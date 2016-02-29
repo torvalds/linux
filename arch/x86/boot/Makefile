@@ -9,7 +9,8 @@
 # Changed by many, many contributors over the years.
 #
 
-KASAN_SANITIZE := n
+KASAN_SANITIZE			:= n
+OBJECT_FILES_NON_STANDARD	:= y
 
 # If you want to preset the SVGA mode, uncomment the next line and
 # set SVGA_MODE to whatever number you want.

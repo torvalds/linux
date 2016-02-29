@@ -6,7 +6,8 @@
 # for more details.
 #
 #
-KASAN_SANITIZE := n
+KASAN_SANITIZE			:= n
+OBJECT_FILES_NON_STANDARD	:= y
 
 always := realmode.bin realmode.relocs
 
