@@ -171,6 +171,11 @@
 			status = "disabled";
 		};
 
+		syscfg: system-config@40013800 {
+			compatible = "syscon";
+			reg = <0x40013800 0x400>;
+		};
+
 		pin-controller {
 			#address-cells = <1>;
 			#size-cells = <1>;
