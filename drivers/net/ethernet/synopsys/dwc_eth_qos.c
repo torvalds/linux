@@ -2178,12 +2178,10 @@ static int dwceqos_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		((trans.initial_descriptor + trans.nr_descriptors) %
 		 DWCEQOS_TX_DCNT));
 
-	dwceqos_tx_finalize(skb, lp, &trans);
-
-	netdev_sent_queue(ndev, skb->len);
-
 	spin_lock_bh(&lp->tx_lock);
 	lp->tx_free -= trans.nr_descriptors;
+	dwceqos_tx_finalize(skb, lp, &trans);
+	netdev_sent_queue(ndev, skb->len);
 	spin_unlock_bh(&lp->tx_lock);
 
 	ndev->trans_start = jiffies;
