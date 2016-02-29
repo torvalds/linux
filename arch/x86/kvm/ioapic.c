@@ -94,7 +94,7 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 static void rtc_irq_eoi_tracking_reset(struct kvm_ioapic *ioapic)
 {
 	ioapic->rtc_status.pending_eoi = 0;
-	bitmap_zero(ioapic->rtc_status.dest_map, KVM_MAX_VCPUS);
+	bitmap_zero(ioapic->rtc_status.dest_map.map, KVM_MAX_VCPUS);
 }
 
 static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic);
@@ -117,16 +117,16 @@ static void __rtc_irq_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
 		return;
 
 	new_val = kvm_apic_pending_eoi(vcpu, e->fields.vector);
-	old_val = test_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+	old_val = test_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map.map);
 
 	if (new_val == old_val)
 		return;
 
 	if (new_val) {
-		__set_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+		__set_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map.map);
 		ioapic->rtc_status.pending_eoi++;
 	} else {
-		__clear_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+		__clear_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map.map);
 		ioapic->rtc_status.pending_eoi--;
 		rtc_status_pending_eoi_check_valid(ioapic);
 	}
@@ -156,7 +156,8 @@ static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
 
 static void rtc_irq_eoi(struct kvm_ioapic *ioapic, struct kvm_vcpu *vcpu)
 {
-	if (test_and_clear_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map)) {
+	if (test_and_clear_bit(vcpu->vcpu_id,
+			       ioapic->rtc_status.dest_map.map)) {
 		--ioapic->rtc_status.pending_eoi;
 		rtc_status_pending_eoi_check_valid(ioapic);
 	}
@@ -346,7 +347,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, int irq, bool line_status)
 		 */
 		BUG_ON(ioapic->rtc_status.pending_eoi != 0);
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe,
-				ioapic->rtc_status.dest_map);
+					       &ioapic->rtc_status.dest_map);
 		ioapic->rtc_status.pending_eoi = (ret < 0 ? 0 : ret);
 	} else
 		ret = kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe, NULL);
