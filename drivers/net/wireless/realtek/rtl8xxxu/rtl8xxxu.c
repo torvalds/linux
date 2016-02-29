@@ -7446,7 +7446,10 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 			c2h->bt_mp_info.ext_id, c2h->bt_mp_info.status);
 		break;
 	default:
-		dev_info(dev, "Unhandled C2H event %02x\n", c2h->id);
+		dev_info(dev, "Unhandled C2H event %02x seq %02x\n",
+			 c2h->id, c2h->seq);
+		print_hex_dump(KERN_INFO, "C2H content: ", DUMP_PREFIX_NONE,
+			       16, 1, c2h->raw.payload, len, false);
 		break;
 	}
 }
