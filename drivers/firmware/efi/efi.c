@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
+#include <linux/memblock.h>
 
 #include <asm/early_ioremap.h>
 
@@ -394,6 +395,35 @@ u64 __init efi_mem_desc_end(efi_memory_desc_t *md)
 	u64 size = md->num_pages << EFI_PAGE_SHIFT;
 	u64 end = md->phys_addr + size;
 	return end;
+}
+
+void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
+
+/**
+ * efi_mem_reserve - Reserve an EFI memory region
+ * @addr: Physical address to reserve
+ * @size: Size of reservation
+ *
+ * Mark a region as reserved from general kernel allocation and
+ * prevent it being released by efi_free_boot_services().
+ *
+ * This function should be called drivers once they've parsed EFI
+ * configuration tables to figure out where their data lives, e.g.
+ * efi_esrt_init().
+ */
+void __init efi_mem_reserve(phys_addr_t addr, u64 size)
+{
+	if (!memblock_is_region_reserved(addr, size))
+		memblock_reserve(addr, size);
+
+	/*
+	 * Some architectures (x86) reserve all boot services ranges
+	 * until efi_free_boot_services() because of buggy firmware
+	 * implementations. This means the above memblock_reserve() is
+	 * superfluous on x86 and instead what it needs to do is
+	 * ensure the @start, @size is not freed.
+	 */
+	efi_arch_mem_reserve(addr, size);
 }
 
 static __initdata efi_config_table_type_t common_tables[] = {
