@@ -5815,20 +5815,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* Init BT hw config. */
 	rtl8xxxu_init_bt(priv);
 
-	/*
-	 * Not sure if we really need to save these parameters, but the
-	 * vendor driver does
-	 */
-	val32 = rtl8xxxu_read32(priv, REG_FPGA0_XA_HSSI_PARM2);
-	if (val32 & FPGA0_HSSI_PARM2_CCK_HIGH_PWR)
-		priv->path_a_hi_power = 1;
-
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_TRX_PATH_ENABLE);
-	priv->path_a_rf_paths = val32 & OFDM_RF_PATH_RX_MASK;
-
-	val32 = rtl8xxxu_read32(priv, REG_OFDM0_XA_AGC_CORE1);
-	priv->path_a_ig_value = val32 & OFDM0_X_AGC_CORE1_IGI_MASK;
-
 	/* Set NAV_UPPER to 30000us */
 	val8 = ((30000 + NAV_UPPER_UNIT - 1) / NAV_UPPER_UNIT);
 	rtl8xxxu_write8(priv, REG_NAV_UPPER, val8);

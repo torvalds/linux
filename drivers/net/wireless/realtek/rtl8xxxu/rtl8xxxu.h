@@ -785,13 +785,10 @@ struct rtl8xxxu_priv {
 	u32 ep_tx_high_queue:1;
 	u32 ep_tx_normal_queue:1;
 	u32 ep_tx_low_queue:1;
-	u32 path_a_hi_power:1;
-	u32 path_a_rf_paths:4;
 	unsigned int pipe_interrupt;
 	unsigned int pipe_in;
 	unsigned int pipe_out[TXDESC_QUEUE_MAX];
 	u8 out_ep[RTL8XXXU_OUT_ENDPOINTS];
-	u8 path_a_ig_value;
 	u8 ep_tx_count;
 	u8 rf_paths;
 	u8 rx_paths;
