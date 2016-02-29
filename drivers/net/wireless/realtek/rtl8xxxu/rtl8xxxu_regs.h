@@ -155,6 +155,8 @@
 /*  RTL8723 WIFI/BT/GPS Multi-Function GPIO Select. */
 #define REG_GPIO_IO_SEL_2		0x0062
 
+/*  RTL8723B */
+#define REG_PAD_CTRL1			0x0064
 /*  RTL8723 only WIFI/BT/GPS Multi-Function control source. */
 #define REG_MULTI_FUNC_CTRL		0x0068
 
@@ -196,9 +198,11 @@
 #define REG_HMBOX_EXT_1			0x008a
 #define REG_HMBOX_EXT_2			0x008c
 #define REG_HMBOX_EXT_3			0x008e
-/* Interrupt registers for 8192e/8812 */
+/* Interrupt registers for 8192e/8723bu/8812 */
 #define REG_HIMR0			0x00b0
+#define REG_HISR0			0x00b4
 #define REG_HIMR1			0x00b8
+#define REG_HISR1			0x00bc
 
 /*  Host suspend counter on FPGA platform */
 #define REG_HOST_SUSP_CNT		0x00bc
@@ -337,6 +341,8 @@
 #define REG_MBIST_DONE			0x0178
 #define REG_MBIST_FAIL			0x017c
 #define REG_C2HEVT_MSG_NORMAL		0x01a0
+/* 8192EU/8723BU/8812 */
+#define REG_C2HEVT_CMD_ID_8723B		0x01ae
 #define REG_C2HEVT_CLEAR		0x01af
 #define REG_C2HEVT_MSG_TEST		0x01b8
 #define REG_MCUTST_1			0x01c0
