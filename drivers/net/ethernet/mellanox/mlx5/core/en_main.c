@@ -982,7 +982,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->cpu      = cpu;
 	c->pdev     = &priv->mdev->pdev->dev;
 	c->netdev   = priv->netdev;
-	c->mkey_be  = cpu_to_be32(priv->mr.key);
+	c->mkey_be  = cpu_to_be32(priv->mkey.key);
 	c->num_tc   = priv->params.num_tc;
 
 	mlx5e_build_channeltc_to_txq_map(priv, ix);
@@ -2194,7 +2194,7 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 }
 
 static int mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
-			     struct mlx5_core_mr *mr)
+			     struct mlx5_core_mkey *mkey)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_create_mkey_mbox_in *in;
@@ -2210,7 +2210,7 @@ static int mlx5e_create_mkey(struct mlx5e_priv *priv, u32 pdn,
 	in->seg.flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
 	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
 
-	err = mlx5_core_create_mkey(mdev, mr, in, sizeof(*in), NULL, NULL,
+	err = mlx5_core_create_mkey(mdev, mkey, in, sizeof(*in), NULL, NULL,
 				    NULL);
 
 	kvfree(in);
@@ -2259,7 +2259,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 		goto err_dealloc_pd;
 	}
 
-	err = mlx5e_create_mkey(priv, priv->pdn, &priv->mr);
+	err = mlx5e_create_mkey(priv, priv->pdn, &priv->mkey);
 	if (err) {
 		mlx5_core_err(mdev, "create mkey failed, %d\n", err);
 		goto err_dealloc_transport_domain;
@@ -2333,7 +2333,7 @@ err_destroy_tises:
 	mlx5e_destroy_tises(priv);
 
 err_destroy_mkey:
-	mlx5_core_destroy_mkey(mdev, &priv->mr);
+	mlx5_core_destroy_mkey(mdev, &priv->mkey);
 
 err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, priv->tdn);
@@ -2367,7 +2367,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_destroy_rqt(priv, MLX5E_INDIRECTION_RQT);
 	mlx5e_close_drop_rq(priv);
 	mlx5e_destroy_tises(priv);
-	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
+	mlx5_core_destroy_mkey(priv->mdev, &priv->mkey);
 	mlx5_core_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
 	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);

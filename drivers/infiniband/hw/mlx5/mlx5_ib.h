@@ -446,7 +446,7 @@ struct mlx5_ib_mr {
 	int			ndescs;
 	int			max_descs;
 	int			desc_size;
-	struct mlx5_core_mr	mmr;
+	struct mlx5_core_mkey	mmkey;
 	struct ib_umem	       *umem;
 	struct mlx5_shared_mr_info	*smr_info;
 	struct list_head	list;
@@ -603,9 +603,9 @@ static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 	return container_of(mqp, struct mlx5_ib_qp_base, mqp)->container_mibqp;
 }
 
-static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
+static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mkey *mmkey)
 {
-	return container_of(mmr, struct mlx5_ib_mr, mmr);
+	return container_of(mmkey, struct mlx5_ib_mr, mmkey);
 }
 
 static inline struct mlx5_ib_pd *to_mpd(struct ib_pd *ibpd)

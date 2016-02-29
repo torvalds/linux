@@ -434,7 +434,7 @@ static int mlx5_poll_one(struct mlx5_ib_cq *cq,
 	struct mlx5_core_qp *mqp;
 	struct mlx5_ib_wq *wq;
 	struct mlx5_sig_err_cqe *sig_err_cqe;
-	struct mlx5_core_mr *mmr;
+	struct mlx5_core_mkey *mmkey;
 	struct mlx5_ib_mr *mr;
 	uint8_t opcode;
 	uint32_t qpn;
@@ -539,17 +539,17 @@ repoll:
 	case MLX5_CQE_SIG_ERR:
 		sig_err_cqe = (struct mlx5_sig_err_cqe *)cqe64;
 
-		read_lock(&dev->mdev->priv.mr_table.lock);
-		mmr = __mlx5_mr_lookup(dev->mdev,
-				       mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
-		if (unlikely(!mmr)) {
-			read_unlock(&dev->mdev->priv.mr_table.lock);
+		read_lock(&dev->mdev->priv.mkey_table.lock);
+		mmkey = __mlx5_mr_lookup(dev->mdev,
+					 mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
+		if (unlikely(!mmkey)) {
+			read_unlock(&dev->mdev->priv.mkey_table.lock);
 			mlx5_ib_warn(dev, "CQE@CQ %06x for unknown MR %6x\n",
 				     cq->mcq.cqn, be32_to_cpu(sig_err_cqe->mkey));
 			return -EINVAL;
 		}
 
-		mr = to_mibmr(mmr);
+		mr = to_mibmr(mmkey);
 		get_sig_err_item(sig_err_cqe, &mr->sig->err_item);
 		mr->sig->sig_err_exists = true;
 		mr->sig->sigerr_count++;
@@ -561,7 +561,7 @@ repoll:
 			     mr->sig->err_item.expected,
 			     mr->sig->err_item.actual);
 
-		read_unlock(&dev->mdev->priv.mr_table.lock);
+		read_unlock(&dev->mdev->priv.mkey_table.lock);
 		goto repoll;
 	}
 
