@@ -3557,11 +3557,13 @@ static void rtl8xxxu_path_adda_on(struct rtl8xxxu_priv *priv, const u32 *regs,
 	u32 path_on;
 	int i;
 
-	path_on = path_a_on ? 0x04db25a4 : 0x0b1b25a4;
 	if (priv->tx_paths == 1) {
-		path_on = 0x0bdb25a0;
-		rtl8xxxu_write32(priv, regs[0], 0x0b1b25a0);
+		path_on = priv->fops->adda_1t_path_on;
+		rtl8xxxu_write32(priv, regs[0], priv->fops->adda_1t_init);
 	} else {
+		path_on = path_a_on ? priv->fops->adda_2t_path_on_a :
+			priv->fops->adda_2t_path_on_b;
+
 		rtl8xxxu_write32(priv, regs[0], path_on);
 	}
 
@@ -6537,6 +6539,10 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
+	.adda_1t_init = 0x0b1b25a0,
+	.adda_1t_path_on = 0x0bdb25a0,
+	.adda_2t_path_on_a = 0x04db25a4,
+	.adda_2t_path_on_b = 0x0b1b25a4,
 };
 
 static struct rtl8xxxu_fileops rtl8723bu_fops = {
@@ -6548,6 +6554,10 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
+	.adda_1t_init = 0x01c00014,
+	.adda_1t_path_on = 0x01c00014,
+	.adda_2t_path_on_a = 0x01c00014,
+	.adda_2t_path_on_b = 0x01c00014,
 };
 
 #ifdef CONFIG_RTL8XXXU_UNTESTED
@@ -6560,6 +6570,10 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
+	.adda_1t_init = 0x0b1b25a0,
+	.adda_1t_path_on = 0x0bdb25a0,
+	.adda_2t_path_on_a = 0x04db25a4,
+	.adda_2t_path_on_b = 0x0b1b25a4,
 };
 
 #endif
@@ -6572,6 +6586,10 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
+	.adda_1t_init = 0x0fc01616,
+	.adda_1t_path_on = 0x0fc01616,
+	.adda_2t_path_on_a = 0x0fc01616,
+	.adda_2t_path_on_b = 0x0fc01616,
 };
 
 static struct usb_device_id dev_table[] = {
