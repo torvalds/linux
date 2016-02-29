@@ -358,14 +358,14 @@ static inline u32 media_gobj_gen_id(enum media_gobj_type type, u64 local_id)
 }
 
 /**
- * is_media_entity_v4l2_io() - Check if the entity is a video_device
+ * is_media_entity_v4l2_video_device() - Check if the entity is a video_device
  * @entity:	pointer to entity
  *
  * Return: true if the entity is an instance of a video_device object and can
  * safely be cast to a struct video_device using the container_of() macro, or
  * false otherwise.
  */
-static inline bool is_media_entity_v4l2_io(struct media_entity *entity)
+static inline bool is_media_entity_v4l2_video_device(struct media_entity *entity)
 {
 	return entity && entity->obj_type == MEDIA_ENTITY_TYPE_VIDEO_DEVICE;
 }

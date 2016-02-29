@@ -1132,7 +1132,7 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	media_entity_graph_walk_start(graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(graph))) {
-		if (!is_media_entity_v4l2_io(entity))
+		if (!is_media_entity_v4l2_video_device(entity))
 			continue;
 
 		ret  = __fimc_md_modify_pipeline(entity, enable);
@@ -1147,7 +1147,7 @@ err:
 	media_entity_graph_walk_start(graph, entity_err);
 
 	while ((entity_err = media_entity_graph_walk_next(graph))) {
-		if (!is_media_entity_v4l2_io(entity_err))
+		if (!is_media_entity_v4l2_video_device(entity_err))
 			continue;
 
 		__fimc_md_modify_pipeline(entity_err, !enable);
