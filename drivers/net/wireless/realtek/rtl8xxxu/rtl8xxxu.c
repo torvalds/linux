@@ -7216,13 +7216,13 @@ error:
 
 static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 				       struct ieee80211_rx_status *rx_status,
-				       struct rtl8xxxu_rx_desc *rx_desc,
-				       struct rtl8723au_phy_stats *phy_stats)
+				       struct rtl8723au_phy_stats *phy_stats,
+				       u32 rxmcs)
 {
 	if (phy_stats->sgi_en)
 		rx_status->flag |= RX_FLAG_SHORT_GI;
 
-	if (rx_desc->rxmcs < DESC_RATE_6M) {
+	if (rxmcs < DESC_RATE_6M) {
 		/*
 		 * Handle PHY stats for CCK rates
 		 */
@@ -7350,7 +7350,8 @@ static int rtl8723au_parse_rx_desc(struct rtl8xxxu_priv *priv,
 	skb_pull(skb, drvinfo_sz + desc_shift);
 
 	if (rx_desc->phy_stats)
-		rtl8xxxu_rx_parse_phystats(priv, rx_status, rx_desc, phy_stats);
+		rtl8xxxu_rx_parse_phystats(priv, rx_status, phy_stats,
+					   rx_desc->rxmcs);
 
 	rx_status->mactime = le32_to_cpu(rx_desc->tsfl);
 	rx_status->flag |= RX_FLAG_MACTIME_START;
@@ -7394,6 +7395,10 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 		dev_dbg(dev, "%s: C2H packet\n", __func__);
 		return RX_TYPE_C2H;
 	}
+
+	if (rx_desc->phy_stats)
+		rtl8xxxu_rx_parse_phystats(priv, rx_status, phy_stats,
+					   rx_desc->rxmcs);
 
 	rx_status->mactime = le32_to_cpu(rx_desc->tsfl);
 	rx_status->flag |= RX_FLAG_MACTIME_START;
