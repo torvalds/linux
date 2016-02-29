@@ -829,7 +829,7 @@ static void ntb_transport_link_work(struct work_struct *work)
 	struct pci_dev *pdev = ndev->pdev;
 	resource_size_t size;
 	u32 val;
-	int rc, i, spad;
+	int rc = 0, i, spad;
 
 	/* send the local info, in the opposite order of the way we read it */
 	for (i = 0; i < nt->mw_count; i++) {
@@ -899,6 +899,13 @@ static void ntb_transport_link_work(struct work_struct *work)
 out1:
 	for (i = 0; i < nt->mw_count; i++)
 		ntb_free_mw(nt, i);
+
+	/* if there's an actual failure, we should just bail */
+	if (rc < 0) {
+		ntb_link_disable(ndev);
+		return;
+	}
+
 out:
 	if (ntb_link_is_up(ndev, NULL, NULL) == 1)
 		schedule_delayed_work(&nt->link_work,
