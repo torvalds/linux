@@ -467,8 +467,8 @@ struct rtl8723bu_tx_desc {
 #define TXDESC_GID_8723B		BIT(24)
 
 /* Word 3 */
-#define TXDESC_SEQ_SHIFT		16
-#define TXDESC_SEQ_MASK			0x0fff0000
+#define TXDESC_SEQ_SHIFT_8723A		16
+#define TXDESC_SEQ_MASK_8723A		0x0fff0000
 
 /* Word 4 */
 #define TXDESC_QOS			BIT(6)
@@ -497,6 +497,10 @@ struct rtl8723bu_tx_desc {
 
 /* Word 6 */
 #define TXDESC_MAX_AGG_SHIFT		11
+
+/* Word 9 */
+#define TXDESC_SEQ_SHIFT_8723B		12
+#define TXDESC_SEQ_MASK_8723B		0x00fff000
 
 struct phy_rx_agc_info {
 #ifdef __LITTLE_ENDIAN

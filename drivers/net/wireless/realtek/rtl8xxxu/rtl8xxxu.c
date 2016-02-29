@@ -6943,6 +6943,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct ieee80211_rate *tx_rate = ieee80211_get_tx_rate(hw, tx_info);
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct rtl8723au_tx_desc *tx_desc;
+	struct rtl8723bu_tx_desc *tx_desc40;
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
@@ -6953,7 +6954,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	u16 rate_flag = tx_info->control.rates[0].flags;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	int ret;
-	bool txdesc40, ampdu_enable;
+	bool usedesc40, ampdu_enable;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -6981,7 +6982,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	if (ieee80211_is_action(hdr->frame_control))
 		rtl8xxxu_dump_action(dev, hdr);
 
-	txdesc40 = (tx_desc_size == 40);
+	usedesc40 = (tx_desc_size == 40);
 	tx_info->rate_driver_data[0] = hw;
 
 	if (control && control->sta)
@@ -7017,9 +7018,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-	tx_desc->txdw3 = cpu_to_le32((u32)seq_number << TXDESC_SEQ_SHIFT);
-
 	if (rate_flag & IEEE80211_TX_RC_MCS)
 		rate = tx_info->control.rates[0].idx + DESC_RATE_MCS0;
 	else
@@ -7043,16 +7041,26 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (!txdesc40) {
+	seq_number = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	if (!usedesc40) {
+		tx_desc->txdw3 =
+			cpu_to_le32((u32)seq_number << TXDESC_SEQ_SHIFT_8723A);
+
 		if (ampdu_enable)
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723A);
 		else
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
 	} else {
+		tx_desc40 = (struct rtl8723bu_tx_desc *)tx_desc;
+
+		tx_desc40->txdw9 =
+			cpu_to_le32((u32)seq_number << TXDESC_SEQ_SHIFT_8723B);
+
 		if (ampdu_enable)
-			tx_desc->txdw2 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723B);
+			tx_desc40->txdw2 |=
+				cpu_to_le32(TXDESC_AGG_ENABLE_8723B);
 		else
-			tx_desc->txdw2 |= cpu_to_le32(TXDESC_AGG_BREAK_8723B);
+			tx_desc40->txdw2 |= cpu_to_le32(TXDESC_AGG_BREAK_8723B);
 	};
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
