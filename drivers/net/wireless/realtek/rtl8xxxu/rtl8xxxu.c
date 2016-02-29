@@ -6165,7 +6165,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		goto exit;
 
 	/* RFSW Control - clear bit 14 ?? */
-	rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
+	if (priv->rtlchip != 0x8723b)
+		rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
 	/* 0x07000760 */
 	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
 		FPGA0_RF_ANTSWB | FPGA0_RF_PAPE |
@@ -6185,8 +6186,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Transfer page size is always 128
 	 */
-	val8 = (PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_RX_SHIFT) |
-		(PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_TX_SHIFT);
+	if (priv->rtlchip == 0x8723b)
+		val8 = (PBP_PAGE_SIZE_256 << PBP_PAGE_SIZE_RX_SHIFT) |
+			(PBP_PAGE_SIZE_256 << PBP_PAGE_SIZE_TX_SHIFT);
+	else
+		val8 = (PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_RX_SHIFT) |
+			(PBP_PAGE_SIZE_128 << PBP_PAGE_SIZE_TX_SHIFT);
 	rtl8xxxu_write8(priv, REG_PBP, val8);
 
 	/*
