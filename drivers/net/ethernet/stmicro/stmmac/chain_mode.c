@@ -150,8 +150,9 @@ static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 {
 	struct stmmac_priv *priv = (struct stmmac_priv *)priv_ptr;
+	unsigned int entry = priv->dirty_tx;
 
-	if (priv->hw->desc->get_tx_ls(p) && !priv->extend_desc)
+	if (priv->tx_skbuff_dma[entry].last_segment && !priv->extend_desc)
 		/* NOTE: Device will overwrite des3 with timestamp value if
 		 * 1588-2002 time stamping is enabled, hence reinitialize it
 		 * to keep explicit chaining in the descriptor.
