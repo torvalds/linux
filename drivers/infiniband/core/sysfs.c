@@ -720,12 +720,11 @@ static struct attribute_group *get_counter_table(struct ib_device *dev,
 
 	if (get_perf_mad(dev, port_num, IB_PMA_CLASS_PORT_INFO,
 				&cpi, 40, sizeof(cpi)) >= 0) {
-
-		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH)
+		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH)
 			/* We have extended counters */
 			return &pma_group_ext;
 
-		if (cpi.capability_mask && IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
+		if (cpi.capability_mask & IB_PMA_CLASS_CAP_EXT_WIDTH_NOIETF)
 			/* But not the IETF ones */
 			return &pma_group_noietf;
 	}

@@ -1054,8 +1054,9 @@ static const struct net_device_ops gre_tap_netdev_ops = {
 static void ipgre_tap_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->netdev_ops		= &gre_tap_netdev_ops;
-	dev->priv_flags 	|= IFF_LIVE_ADDR_CHANGE;
+	dev->netdev_ops	= &gre_tap_netdev_ops;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags	|= IFF_LIVE_ADDR_CHANGE;
 	ip_tunnel_setup(dev, gre_tap_net_id);
 }
 

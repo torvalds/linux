@@ -39,7 +39,6 @@ struct deadline_data {
 	 */
 	struct request *next_rq[2];
 	unsigned int batching;		/* number of sequential requests made */
-	sector_t last_sector;		/* head position */
 	unsigned int starved;		/* times reads have starved writes */
 
 	/*
@@ -209,8 +208,6 @@ deadline_move_request(struct deadline_data *dd, struct request *rq)
 	dd->next_rq[READ] = NULL;
 	dd->next_rq[WRITE] = NULL;
 	dd->next_rq[data_dir] = deadline_latter_request(rq);
-
-	dd->last_sector = rq_end_sector(rq);
 
 	/*
 	 * take it off the sort and fifo list, move
