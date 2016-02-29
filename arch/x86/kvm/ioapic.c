@@ -237,10 +237,17 @@ static void kvm_ioapic_inject_all(struct kvm_ioapic *ioapic, unsigned long irr)
 void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, ulong *ioapic_handled_vectors)
 {
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
+	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
 	union kvm_ioapic_redirect_entry *e;
 	int index;
 
 	spin_lock(&ioapic->lock);
+
+	/* Make sure we see any missing RTC EOI */
+	if (test_bit(vcpu->vcpu_id, dest_map->map))
+		__set_bit(dest_map->vectors[vcpu->vcpu_id],
+			  ioapic_handled_vectors);
+
 	for (index = 0; index < IOAPIC_NUM_PINS; index++) {
 		e = &ioapic->redirtbl[index];
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
@@ -408,8 +415,14 @@ static void kvm_ioapic_eoi_inject_work(struct work_struct *work)
 static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 			struct kvm_ioapic *ioapic, int vector, int trigger_mode)
 {
-	int i;
+	struct dest_map *dest_map = &ioapic->rtc_status.dest_map;
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	int i;
+
+	/* RTC special handling */
+	if (test_bit(vcpu->vcpu_id, dest_map->map) &&
+	    vector == dest_map->vectors[vcpu->vcpu_id])
+		rtc_irq_eoi(ioapic, vcpu);
 
 	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
 		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
@@ -417,8 +430,6 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 		if (ent->fields.vector != vector)
 			continue;
 
-		if (i == RTC_GSI)
-			rtc_irq_eoi(ioapic, vcpu);
 		/*
 		 * We are dropping lock while calling ack notifiers because ack
 		 * notifier callbacks for assigned devices call into IOAPIC
