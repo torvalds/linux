@@ -628,12 +628,16 @@ struct h2c_cmd {
 	union {
 		struct {
 			u8 cmd;
-			u8 data[5];
+			u8 data[7];
 		} __packed cmd;
 		struct {
 			__le32 data;
 			__le16 ext;
 		} __packed raw;
+		struct {
+			__le32 data;
+			__le32 ext;
+		} __packed raw_wide;
 		struct {
 			u8 cmd;
 			u8 data;
@@ -766,4 +770,6 @@ struct rtl8xxxu_fileops {
 	int (*llt_init) (struct rtl8xxxu_priv *priv, u8 last_tx_page);
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	int writeN_block_size;
+	u16 mbox_ext_reg;
+	char mbox_ext_width;
 };
