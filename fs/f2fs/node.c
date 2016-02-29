@@ -1084,12 +1084,11 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 		return;
 	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
 
-	apage = find_get_page(NODE_MAPPING(sbi), nid);
-	if (apage && PageUptodate(apage)) {
-		f2fs_put_page(apage, 0);
+	rcu_read_lock();
+	apage = radix_tree_lookup(&NODE_MAPPING(sbi)->page_tree, nid);
+	rcu_read_unlock();
+	if (apage)
 		return;
-	}
-	f2fs_put_page(apage, 0);
 
 	apage = grab_cache_page(NODE_MAPPING(sbi), nid);
 	if (!apage)
