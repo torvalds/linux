@@ -510,7 +510,9 @@ struct mlx5_mr_cache {
 struct mlx5_ib_gsi_qp;
 
 struct mlx5_ib_port_resources {
+	struct mlx5_ib_resources *devr;
 	struct mlx5_ib_gsi_qp *gsi;
+	struct work_struct pkey_change_work;
 };
 
 struct mlx5_ib_resources {
@@ -781,6 +783,7 @@ int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr);
 int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
 			  struct ib_recv_wr **bad_wr);
+void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {

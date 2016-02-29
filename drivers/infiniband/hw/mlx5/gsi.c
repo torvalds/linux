@@ -341,3 +341,13 @@ int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
 
 	return ib_post_recv(gsi->rx_qp, wr, bad_wr);
 }
+
+void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi)
+{
+	if (!gsi)
+		return;
+
+	mutex_lock(&gsi->mutex);
+	setup_qps(gsi);
+	mutex_unlock(&gsi->mutex);
+}
