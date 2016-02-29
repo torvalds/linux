@@ -111,7 +111,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 
 	set_bit(chip->dev_num, dev_mask);
 
-	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
+	device_initialize(&chip->dev);
 
 	dev_set_drvdata(dev, chip);
 
@@ -127,9 +127,9 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	else
 		chip->dev.devt = MKDEV(MAJOR(tpm_devt), chip->dev_num);
 
-	dev_set_name(&chip->dev, "%s", chip->devname);
-
-	device_initialize(&chip->dev);
+	rc = dev_set_name(&chip->dev, "tpm%d", chip->dev_num);
+	if (rc)
+		goto out;
 
 	cdev_init(&chip->cdev, &tpm_fops);
 	chip->cdev.owner = dev->driver->owner;
@@ -142,6 +142,10 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	}
 
 	return chip;
+
+out:
+	put_device(&chip->dev);
+	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL_GPL(tpmm_chip_alloc);
 
@@ -153,7 +157,7 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 	if (rc) {
 		dev_err(&chip->dev,
 			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
-			chip->devname, MAJOR(chip->dev.devt),
+			dev_name(&chip->dev), MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
 		return rc;
@@ -163,7 +167,7 @@ static int tpm_add_char_device(struct tpm_chip *chip)
 	if (rc) {
 		dev_err(&chip->dev,
 			"unable to device_register() %s, major %d, minor %d, err=%d\n",
-			chip->devname, MAJOR(chip->dev.devt),
+			dev_name(&chip->dev), MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
 		cdev_del(&chip->cdev);
@@ -190,7 +194,7 @@ static int tpm1_chip_register(struct tpm_chip *chip)
 	if (rc)
 		return rc;
 
-	chip->bios_dir = tpm_bios_log_setup(chip->devname);
+	chip->bios_dir = tpm_bios_log_setup(dev_name(&chip->dev));
 
 	return 0;
 }
