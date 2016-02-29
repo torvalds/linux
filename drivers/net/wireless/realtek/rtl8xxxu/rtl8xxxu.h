@@ -893,7 +893,7 @@ enum h2c_cmd_8723b {
 	/*
 	 * Dynamic Mechanism Class: 010
 	 */
-	H2C_8723B_MACID_CFG = 0x40,
+	H2C_8723B_MACID_CFG_RAID = 0x40,
 	H2C_8723B_TXBF = 0x41,
 	H2C_8723B_RSSI_SETTING = 0x42,
 	H2C_8723B_AP_REQ_TXRPT = 0x43,
@@ -956,6 +956,15 @@ struct h2c_cmd {
 			u8 arg;
 			__le16 mask_lo;
 		} __packed ramask;
+		struct {
+			u8 cmd;
+			u8 data1;
+			u8 data2;
+			u8 ramask1;
+			u8 ramask2;
+			u8 ramask3;
+			u8 ramask4;
+		} __packed b_macid_cfg;
 		struct {
 			u8 cmd;
 			u8 data1;
