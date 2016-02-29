@@ -543,7 +543,7 @@
 		};
 
 		mmc0: mmc@01c0f000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c0f000 0x1000>;
 			clocks = <&mmc_config_clk 0>, <&mmc0_clk 0>,
 				 <&mmc0_clk 1>, <&mmc0_clk 2>;
@@ -557,7 +557,7 @@
 		};
 
 		mmc1: mmc@01c10000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c10000 0x1000>;
 			clocks = <&mmc_config_clk 1>, <&mmc1_clk 0>,
 				 <&mmc1_clk 1>, <&mmc1_clk 2>;
@@ -571,7 +571,7 @@
 		};
 
 		mmc2: mmc@01c11000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c11000 0x1000>;
 			clocks = <&mmc_config_clk 2>, <&mmc2_clk 0>,
 				 <&mmc2_clk 1>, <&mmc2_clk 2>;
@@ -585,7 +585,7 @@
 		};
 
 		mmc3: mmc@01c12000 {
-			compatible = "allwinner,sun5i-a13-mmc";
+			compatible = "allwinner,sun9i-a80-mmc";
 			reg = <0x01c12000 0x1000>;
 			clocks = <&mmc_config_clk 3>, <&mmc3_clk 0>,
 				 <&mmc3_clk 1>, <&mmc3_clk 2>;
@@ -704,7 +704,8 @@
 			mmc2_8bit_pins: mmc2_8bit {
 				allwinner,pins = "PC6", "PC7", "PC8", "PC9",
 						 "PC10", "PC11", "PC12",
-						 "PC13", "PC14", "PC15";
+						 "PC13", "PC14", "PC15",
+						 "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;

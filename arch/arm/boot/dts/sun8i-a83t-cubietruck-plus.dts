@@ -1,6 +1,7 @@
 /*
- * Copyright 2015 Josef Gajdusek <atx@atx.name>
- * Copyright 2015 - Marcus Cooper <codekipper@gmail.com>
+ * Copyright 2015 Chen-Yu Tsai
+ *
+ * Chen-Yu Tsai <wens@csie.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -42,79 +43,23 @@
  */
 
 /dts-v1/;
-#include "sun4i-a10.dtsi"
-#include "sunxi-itead-core-common.dtsi"
+#include "sun8i-a83t.dtsi"
 
 / {
-	model = "Iteaduino Plus A10";
-	compatible = "itead,iteaduino-plus-a10", "allwinner,sun4i-a10";
-};
+	model = "Cubietech Cubietruck Plus";
+	compatible = "cubietech,cubietruck-plus", "allwinner,sun8i-a83t";
 
-&ahci {
-	target-supply = <&reg_ahci_5v>;
-	status = "okay";
-};
+	aliases {
+		serial0 = &uart0;
+	};
 
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
-	phy = <&phy1>;
-	status = "okay";
-};
-
-&emac_sram {
-	status = "okay";
-};
-
-&i2c0 {
-	axp209: pmic@34 {
-		interrupts = <0>;
+	chosen {
+		stdout-path = "serial0:115200n8";
 	};
 };
 
-&i2c1 {
+&uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
-};
-
-&ir0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
-	status = "okay";
-};
-
-&mdio {
-	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
-};
-
-&mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
-	status = "okay";
-};
-
-&reg_ahci_5v {
-	status = "okay";
-};
-
-&spi0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>,
-		    <&spi0_cs0_pins_a>;
+	pinctrl-0 = <&uart0_pins_b>;
 	status = "okay";
 };
