@@ -1680,6 +1680,24 @@ static int rtl8723a_channel_to_group(int channel)
 	return group;
 }
 
+static int rtl8723b_channel_to_group(int channel)
+{
+	int group;
+
+	if (channel < 3)
+		group = 0;
+	else if (channel < 6)
+		group = 1;
+	else if (channel < 9)
+		group = 2;
+	else if (channel < 12)
+		group = 3;
+	else
+		group = 4;
+
+	return group;
+}
+
 static void rtl8723au_config_channel(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
@@ -2039,6 +2057,14 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 			val8 = (mcsbase[1] > 6) ? (mcsbase[1] - 6) : 0;
 		rtl8xxxu_write8(priv, REG_OFDM0_XD_TX_IQ_IMBALANCE + i, val8);
 	}
+}
+
+static void
+rtl8723b_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
+{
+	int group;
+
+	group = rtl8723b_channel_to_group(channel);
 }
 
 static void rtl8xxxu_set_linktype(struct rtl8xxxu_priv *priv,
@@ -6378,7 +6404,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Start out with default power levels for channel 6, 20MHz
 	 */
-	rtl8723a_set_tx_power(priv, 1, false);
+	priv->fops->set_tx_power(priv, 1, false);
 
 	/* Let the 8051 take control of antenna setting */
 	val8 = rtl8xxxu_read8(priv, REG_LEDCFG2);
@@ -7401,7 +7427,7 @@ static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
 
 		channel = hw->conf.chandef.chan->hw_value;
 
-		rtl8723a_set_tx_power(priv, channel, ht40);
+		priv->fops->set_tx_power(priv, channel, ht40);
 
 		priv->fops->config_channel(hw);
 	}
@@ -8026,6 +8052,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.config_channel = rtl8723au_config_channel,
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
+	.set_tx_power = rtl8723a_set_tx_power,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8048,6 +8075,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_aggregation = rtl8723bu_init_aggregation,
 	.init_statistics = rtl8723bu_init_statistics,
 	.enable_rf = rtl8723b_enable_rf,
+	.set_tx_power = rtl8723b_set_tx_power,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
@@ -8069,6 +8097,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.config_channel = rtl8723au_config_channel,
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
+	.set_tx_power = rtl8723a_set_tx_power,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8089,6 +8118,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.config_channel = rtl8723bu_config_channel,
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
 	.enable_rf = rtl8723b_enable_rf,
+	.set_tx_power = rtl8723b_set_tx_power,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,

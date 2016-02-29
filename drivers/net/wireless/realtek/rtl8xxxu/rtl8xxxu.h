@@ -1149,6 +1149,8 @@ struct rtl8xxxu_fileops {
 	void (*init_aggregation) (struct rtl8xxxu_priv *priv);
 	void (*init_statistics) (struct rtl8xxxu_priv *priv);
 	void (*enable_rf) (struct rtl8xxxu_priv *priv);
+	void (*set_tx_power) (struct rtl8xxxu_priv *priv, int channel,
+			      bool ht40);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
