@@ -1371,6 +1371,22 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.load_mask = CM_PLLA_LOADPER,
 		.hold_mask = CM_PLLA_HOLDPER,
 		.fixed_divider = 1),
+	[BCM2835_PLLA_DSI0]	= REGISTER_PLL_DIV(
+		.name = "plla_dsi0",
+		.source_pll = "plla",
+		.cm_reg = CM_PLLA,
+		.a2w_reg = A2W_PLLA_DSI0,
+		.load_mask = CM_PLLA_LOADDSI0,
+		.hold_mask = CM_PLLA_HOLDDSI0,
+		.fixed_divider = 1),
+	[BCM2835_PLLA_CCP2]	= REGISTER_PLL_DIV(
+		.name = "plla_ccp2",
+		.source_pll = "plla",
+		.cm_reg = CM_PLLA,
+		.a2w_reg = A2W_PLLA_CCP2,
+		.load_mask = CM_PLLA_LOADCCP2,
+		.hold_mask = CM_PLLA_HOLDCCP2,
+		.fixed_divider = 1),
 
 	/* PLLB is used for the ARM's clock. */
 	[BCM2835_PLLB]		= REGISTER_PLL(
@@ -1484,6 +1500,22 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.a2w_reg = A2W_PLLD_PER,
 		.load_mask = CM_PLLD_LOADPER,
 		.hold_mask = CM_PLLD_HOLDPER,
+		.fixed_divider = 1),
+	[BCM2835_PLLD_DSI0]	= REGISTER_PLL_DIV(
+		.name = "plld_dsi0",
+		.source_pll = "plld",
+		.cm_reg = CM_PLLD,
+		.a2w_reg = A2W_PLLD_DSI0,
+		.load_mask = CM_PLLD_LOADDSI0,
+		.hold_mask = CM_PLLD_HOLDDSI0,
+		.fixed_divider = 1),
+	[BCM2835_PLLD_DSI1]	= REGISTER_PLL_DIV(
+		.name = "plld_dsi1",
+		.source_pll = "plld",
+		.cm_reg = CM_PLLD,
+		.a2w_reg = A2W_PLLD_DSI1,
+		.load_mask = CM_PLLD_LOADDSI1,
+		.hold_mask = CM_PLLD_HOLDDSI1,
 		.fixed_divider = 1),
 
 	/*
