@@ -1127,6 +1127,7 @@ static int __init tpm_init(void)
 
 static void __exit tpm_exit(void)
 {
+	idr_destroy(&dev_nums_idr);
 	class_destroy(tpm_class);
 	unregister_chrdev_region(tpm_devt, TPM_NUM_DEVICES);
 }
