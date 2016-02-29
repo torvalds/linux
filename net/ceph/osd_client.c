@@ -1770,6 +1770,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	u32 osdmap_epoch;
 	int already_completed;
 	u32 bytes;
+	u8 decode_redir;
 	unsigned int i;
 
 	tid = le64_to_cpu(msg->hdr.tid);
@@ -1841,6 +1842,15 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 		p += 8 + 4; /* skip replay_version */
 		p += 8; /* skip user_version */
 
+		if (le16_to_cpu(msg->hdr.version) >= 7)
+			ceph_decode_8_safe(&p, end, decode_redir, bad_put);
+		else
+			decode_redir = 1;
+	} else {
+		decode_redir = 0;
+	}
+
+	if (decode_redir) {
 		err = ceph_redirect_decode(&p, end, &redir);
 		if (err)
 			goto bad_put;
@@ -2843,8 +2853,8 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	mutex_lock(&osdc->request_mutex);
 	req = __lookup_request(osdc, tid);
 	if (!req) {
-		pr_warn("%s osd%d tid %llu unknown, skipping\n",
-			__func__, osd->o_osd, tid);
+		dout("%s osd%d tid %llu unknown, skipping\n", __func__,
+		     osd->o_osd, tid);
 		m = NULL;
 		*skip = 1;
 		goto out;

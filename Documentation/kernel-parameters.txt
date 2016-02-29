@@ -4240,6 +4240,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The default value of this parameter is determined by
 			the config option CONFIG_WQ_POWER_EFFICIENT_DEFAULT.
 
+	workqueue.debug_force_rr_cpu
+			Workqueue used to implicitly guarantee that work
+			items queued without explicit CPU specified are put
+			on the local CPU.  This guarantee is no longer true
+			and while local CPU is still preferred work items
+			may be put on foreign CPUs.  This debug option
+			forces round-robin CPU selection to flush out
+			usages which depend on the now broken guarantee.
+			When enabled, memory and cache locality will be
+			impacted.
+
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
 			supporting x2apic.

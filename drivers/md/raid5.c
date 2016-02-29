@@ -2496,7 +2496,7 @@ static void raid5_build_block(struct stripe_head *sh, int i, int previous)
 	dev->sector = raid5_compute_blocknr(sh, i, previous);
 }
 
-static void error(struct mddev *mddev, struct md_rdev *rdev)
+static void raid5_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	struct r5conf *conf = mddev->private;
@@ -2958,7 +2958,7 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 	 * If several bio share a stripe. The bio bi_phys_segments acts as a
 	 * reference count to avoid race. The reference count should already be
 	 * increased before this function is called (for example, in
-	 * make_request()), so other bio sharing this stripe will not free the
+	 * raid5_make_request()), so other bio sharing this stripe will not free the
 	 * stripe. If a stripe is owned by one stripe, the stripe lock will
 	 * protect it.
 	 */
@@ -5135,7 +5135,7 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 	}
 }
 
-static void make_request(struct mddev *mddev, struct bio * bi)
+static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 {
 	struct r5conf *conf = mddev->private;
 	int dd_idx;
@@ -5225,7 +5225,7 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 		new_sector = raid5_compute_sector(conf, logical_sector,
 						  previous,
 						  &dd_idx, NULL);
-		pr_debug("raid456: make_request, sector %llu logical %llu\n",
+		pr_debug("raid456: raid5_make_request, sector %llu logical %llu\n",
 			(unsigned long long)new_sector,
 			(unsigned long long)logical_sector);
 
@@ -5575,7 +5575,8 @@ ret:
 	return retn;
 }
 
-static inline sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipped)
+static inline sector_t raid5_sync_request(struct mddev *mddev, sector_t sector_nr,
+					  int *skipped)
 {
 	struct r5conf *conf = mddev->private;
 	struct stripe_head *sh;
@@ -6674,7 +6675,7 @@ static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded
 	return 0;
 }
 
-static int run(struct mddev *mddev)
+static int raid5_run(struct mddev *mddev)
 {
 	struct r5conf *conf;
 	int working_disks = 0;
@@ -7048,7 +7049,7 @@ static void raid5_free(struct mddev *mddev, void *priv)
 	mddev->to_remove = &raid5_attrs_group;
 }
 
-static void status(struct seq_file *seq, struct mddev *mddev)
+static void raid5_status(struct seq_file *seq, struct mddev *mddev)
 {
 	struct r5conf *conf = mddev->private;
 	int i;
@@ -7864,15 +7865,15 @@ static struct md_personality raid6_personality =
 	.name		= "raid6",
 	.level		= 6,
 	.owner		= THIS_MODULE,
-	.make_request	= make_request,
-	.run		= run,
+	.make_request	= raid5_make_request,
+	.run		= raid5_run,
 	.free		= raid5_free,
-	.status		= status,
-	.error_handler	= error,
+	.status		= raid5_status,
+	.error_handler	= raid5_error,
 	.hot_add_disk	= raid5_add_disk,
 	.hot_remove_disk= raid5_remove_disk,
 	.spare_active	= raid5_spare_active,
-	.sync_request	= sync_request,
+	.sync_request	= raid5_sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
 	.check_reshape	= raid6_check_reshape,
@@ -7887,15 +7888,15 @@ static struct md_personality raid5_personality =
 	.name		= "raid5",
 	.level		= 5,
 	.owner		= THIS_MODULE,
-	.make_request	= make_request,
-	.run		= run,
+	.make_request	= raid5_make_request,
+	.run		= raid5_run,
 	.free		= raid5_free,
-	.status		= status,
-	.error_handler	= error,
+	.status		= raid5_status,
+	.error_handler	= raid5_error,
 	.hot_add_disk	= raid5_add_disk,
 	.hot_remove_disk= raid5_remove_disk,
 	.spare_active	= raid5_spare_active,
-	.sync_request	= sync_request,
+	.sync_request	= raid5_sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
 	.check_reshape	= raid5_check_reshape,
@@ -7911,15 +7912,15 @@ static struct md_personality raid4_personality =
 	.name		= "raid4",
 	.level		= 4,
 	.owner		= THIS_MODULE,
-	.make_request	= make_request,
-	.run		= run,
+	.make_request	= raid5_make_request,
+	.run		= raid5_run,
 	.free		= raid5_free,
-	.status		= status,
-	.error_handler	= error,
+	.status		= raid5_status,
+	.error_handler	= raid5_error,
 	.hot_add_disk	= raid5_add_disk,
 	.hot_remove_disk= raid5_remove_disk,
 	.spare_active	= raid5_spare_active,
-	.sync_request	= sync_request,
+	.sync_request	= raid5_sync_request,
 	.resize		= raid5_resize,
 	.size		= raid5_size,
 	.check_reshape	= raid5_check_reshape,

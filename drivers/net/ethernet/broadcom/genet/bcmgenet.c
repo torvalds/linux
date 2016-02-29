@@ -2445,8 +2445,7 @@ static void bcmgenet_irq_task(struct work_struct *work)
 	}
 
 	/* Link UP/DOWN event */
-	if ((priv->hw_params->flags & GENET_HAS_MDIO_INTR) &&
-	    (priv->irq0_stat & UMAC_IRQ_LINK_EVENT)) {
+	if (priv->irq0_stat & UMAC_IRQ_LINK_EVENT) {
 		phy_mac_interrupt(priv->phydev,
 				  !!(priv->irq0_stat & UMAC_IRQ_LINK_UP));
 		priv->irq0_stat &= ~UMAC_IRQ_LINK_EVENT;

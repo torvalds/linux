@@ -87,7 +87,7 @@ static int lidar_i2c_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 
-	return (ret == 2) ? 0 : ret;
+	return (ret == 2) ? 0 : -EIO;
 }
 
 static int lidar_smbus_xfer(struct lidar_data *data, u8 reg, u8 *val, int len)

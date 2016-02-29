@@ -117,21 +117,17 @@ static void get_pkt_info(dma_addr_t *buff, u32 *buff_len, dma_addr_t *ndesc,
 	*ndesc = le32_to_cpu(desc->next_desc);
 }
 
-static void get_pad_info(u32 *pad0, u32 *pad1, u32 *pad2, struct knav_dma_desc *desc)
+static u32 get_sw_data(int index, struct knav_dma_desc *desc)
 {
-	*pad0 = le32_to_cpu(desc->pad[0]);
-	*pad1 = le32_to_cpu(desc->pad[1]);
-	*pad2 = le32_to_cpu(desc->pad[2]);
+	/* No Endian conversion needed as this data is untouched by hw */
+	return desc->sw_data[index];
 }
 
-static void get_pad_ptr(void **padptr, struct knav_dma_desc *desc)
-{
-	u64 pad64;
-
-	pad64 = le32_to_cpu(desc->pad[0]) +
-		((u64)le32_to_cpu(desc->pad[1]) << 32);
-	*padptr = (void *)(uintptr_t)pad64;
-}
+/* use these macros to get sw data */
+#define GET_SW_DATA0(desc) get_sw_data(0, desc)
+#define GET_SW_DATA1(desc) get_sw_data(1, desc)
+#define GET_SW_DATA2(desc) get_sw_data(2, desc)
+#define GET_SW_DATA3(desc) get_sw_data(3, desc)
 
 static void get_org_pkt_info(dma_addr_t *buff, u32 *buff_len,
 			     struct knav_dma_desc *desc)
@@ -163,12 +159,17 @@ static void set_desc_info(u32 desc_info, u32 pkt_info,
 	desc->packet_info = cpu_to_le32(pkt_info);
 }
 
-static void set_pad_info(u32 pad0, u32 pad1, u32 pad2, struct knav_dma_desc *desc)
+static void set_sw_data(int index, u32 data, struct knav_dma_desc *desc)
 {
-	desc->pad[0] = cpu_to_le32(pad0);
-	desc->pad[1] = cpu_to_le32(pad1);
-	desc->pad[2] = cpu_to_le32(pad1);
+	/* No Endian conversion needed as this data is untouched by hw */
+	desc->sw_data[index] = data;
 }
+
+/* use these macros to set sw data */
+#define SET_SW_DATA0(data, desc) set_sw_data(0, data, desc)
+#define SET_SW_DATA1(data, desc) set_sw_data(1, data, desc)
+#define SET_SW_DATA2(data, desc) set_sw_data(2, data, desc)
+#define SET_SW_DATA3(data, desc) set_sw_data(3, data, desc)
 
 static void set_org_pkt_info(dma_addr_t buff, u32 buff_len,
 			     struct knav_dma_desc *desc)
@@ -581,7 +582,6 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 	dma_addr_t dma_desc, dma_buf;
 	unsigned int buf_len, dma_sz = sizeof(*ndesc);
 	void *buf_ptr;
-	u32 pad[2];
 	u32 tmp;
 
 	get_words(&dma_desc, 1, &desc->next_desc);
@@ -593,14 +593,20 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 			break;
 		}
 		get_pkt_info(&dma_buf, &tmp, &dma_desc, ndesc);
-		get_pad_ptr(&buf_ptr, ndesc);
+		/* warning!!!! We are retrieving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		buf_ptr = (void *)GET_SW_DATA0(ndesc);
+		buf_len = (int)GET_SW_DATA1(desc);
 		dma_unmap_page(netcp->dev, dma_buf, PAGE_SIZE, DMA_FROM_DEVICE);
 		__free_page(buf_ptr);
 		knav_pool_desc_put(netcp->rx_pool, desc);
 	}
-
-	get_pad_info(&pad[0], &pad[1], &buf_len, desc);
-	buf_ptr = (void *)(uintptr_t)(pad[0] + ((u64)pad[1] << 32));
+	/* warning!!!! We are retrieving the virtual ptr in the sw_data
+	 * field as a 32bit value. Will not work on 64bit machines
+	 */
+	buf_ptr = (void *)GET_SW_DATA0(desc);
+	buf_len = (int)GET_SW_DATA1(desc);
 
 	if (buf_ptr)
 		netcp_frag_free(buf_len <= PAGE_SIZE, buf_ptr);
@@ -639,7 +645,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	dma_addr_t dma_desc, dma_buff;
 	struct netcp_packet p_info;
 	struct sk_buff *skb;
-	u32 pad[2];
 	void *org_buf_ptr;
 
 	dma_desc = knav_queue_pop(netcp->rx_queue, &dma_sz);
@@ -653,8 +658,11 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	}
 
 	get_pkt_info(&dma_buff, &buf_len, &dma_desc, desc);
-	get_pad_info(&pad[0], &pad[1], &org_buf_len, desc);
-	org_buf_ptr = (void *)(uintptr_t)(pad[0] + ((u64)pad[1] << 32));
+	/* warning!!!! We are retrieving the virtual ptr in the sw_data
+	 * field as a 32bit value. Will not work on 64bit machines
+	 */
+	org_buf_ptr = (void *)GET_SW_DATA0(desc);
+	org_buf_len = (int)GET_SW_DATA1(desc);
 
 	if (unlikely(!org_buf_ptr)) {
 		dev_err(netcp->ndev_dev, "NULL bufptr in desc\n");
@@ -679,7 +687,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	/* Fill in the page fragment list */
 	while (dma_desc) {
 		struct page *page;
-		void *ptr;
 
 		ndesc = knav_pool_desc_unmap(netcp->rx_pool, dma_desc, dma_sz);
 		if (unlikely(!ndesc)) {
@@ -688,8 +695,10 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		}
 
 		get_pkt_info(&dma_buff, &buf_len, &dma_desc, ndesc);
-		get_pad_ptr(&ptr, ndesc);
-		page = ptr;
+		/* warning!!!! We are retrieving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		page = (struct page *)GET_SW_DATA0(desc);
 
 		if (likely(dma_buff && buf_len && page)) {
 			dma_unmap_page(netcp->dev, dma_buff, PAGE_SIZE,
@@ -777,7 +786,10 @@ static void netcp_free_rx_buf(struct netcp_intf *netcp, int fdq)
 		}
 
 		get_org_pkt_info(&dma, &buf_len, desc);
-		get_pad_ptr(&buf_ptr, desc);
+		/* warning!!!! We are retrieving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		buf_ptr = (void *)GET_SW_DATA0(desc);
 
 		if (unlikely(!dma)) {
 			dev_err(netcp->ndev_dev, "NULL orig_buff in desc\n");
@@ -829,7 +841,7 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	struct page *page;
 	dma_addr_t dma;
 	void *bufptr;
-	u32 pad[3];
+	u32 sw_data[2];
 
 	/* Allocate descriptor */
 	hwdesc = knav_pool_desc_get(netcp->rx_pool);
@@ -846,7 +858,7 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 				SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 		bufptr = netdev_alloc_frag(primary_buf_len);
-		pad[2] = primary_buf_len;
+		sw_data[1] = primary_buf_len;
 
 		if (unlikely(!bufptr)) {
 			dev_warn_ratelimited(netcp->ndev_dev,
@@ -858,9 +870,10 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 		if (unlikely(dma_mapping_error(netcp->dev, dma)))
 			goto fail;
 
-		pad[0] = lower_32_bits((uintptr_t)bufptr);
-		pad[1] = upper_32_bits((uintptr_t)bufptr);
-
+		/* warning!!!! We are saving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		sw_data[0] = (u32)bufptr;
 	} else {
 		/* Allocate a secondary receive queue entry */
 		page = alloc_page(GFP_ATOMIC | GFP_DMA | __GFP_COLD);
@@ -870,9 +883,11 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 		}
 		buf_len = PAGE_SIZE;
 		dma = dma_map_page(netcp->dev, page, 0, buf_len, DMA_TO_DEVICE);
-		pad[0] = lower_32_bits(dma);
-		pad[1] = upper_32_bits(dma);
-		pad[2] = 0;
+		/* warning!!!! We are saving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		sw_data[0] = (u32)page;
+		sw_data[1] = 0;
 	}
 
 	desc_info =  KNAV_DMA_DESC_PS_INFO_IN_DESC;
@@ -882,7 +897,8 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 	pkt_info |= (netcp->rx_queue_id & KNAV_DMA_DESC_RETQ_MASK) <<
 		    KNAV_DMA_DESC_RETQ_SHIFT;
 	set_org_pkt_info(dma, buf_len, hwdesc);
-	set_pad_info(pad[0], pad[1], pad[2], hwdesc);
+	SET_SW_DATA0(sw_data[0], hwdesc);
+	SET_SW_DATA1(sw_data[1], hwdesc);
 	set_desc_info(desc_info, pkt_info, hwdesc);
 
 	/* Push to FDQs */
@@ -971,7 +987,6 @@ static int netcp_process_tx_compl_packets(struct netcp_intf *netcp,
 					  unsigned int budget)
 {
 	struct knav_dma_desc *desc;
-	void *ptr;
 	struct sk_buff *skb;
 	unsigned int dma_sz;
 	dma_addr_t dma;
@@ -988,8 +1003,10 @@ static int netcp_process_tx_compl_packets(struct netcp_intf *netcp,
 			continue;
 		}
 
-		get_pad_ptr(&ptr, desc);
-		skb = ptr;
+		/* warning!!!! We are retrieving the virtual ptr in the sw_data
+		 * field as a 32bit value. Will not work on 64bit machines
+		 */
+		skb = (struct sk_buff *)GET_SW_DATA0(desc);
 		netcp_free_tx_desc_chain(netcp, desc, dma_sz);
 		if (!skb) {
 			dev_err(netcp->ndev_dev, "No skb in Tx desc\n");
@@ -1194,10 +1211,10 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 	}
 
 	set_words(&tmp, 1, &desc->packet_info);
-	tmp = lower_32_bits((uintptr_t)&skb);
-	set_words(&tmp, 1, &desc->pad[0]);
-	tmp = upper_32_bits((uintptr_t)&skb);
-	set_words(&tmp, 1, &desc->pad[1]);
+	/* warning!!!! We are saving the virtual ptr in the sw_data
+	 * field as a 32bit value. Will not work on 64bit machines
+	 */
+	SET_SW_DATA0((u32)skb, desc);
 
 	if (tx_pipe->flags & SWITCH_TO_PORT_IN_TAGINFO) {
 		tmp = tx_pipe->switch_to_port;

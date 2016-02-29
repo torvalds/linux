@@ -35,4 +35,13 @@
 
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 
+static inline bool drm_arch_can_wc_memory(void)
+{
+#if defined(CONFIG_PPC) && !defined(CONFIG_NOT_COHERENT_CACHE)
+	return false;
+#else
+	return true;
+#endif
+}
+
 #endif
