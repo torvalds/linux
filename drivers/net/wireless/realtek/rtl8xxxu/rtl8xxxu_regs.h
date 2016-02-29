@@ -404,6 +404,8 @@
 #define REG_RXDMA_AGG_PG_TH		0x0280
 #define  RXDMA_USB_AGG_ENABLE		BIT(31)
 #define REG_RXPKT_NUM			0x0284
+#define  RXPKT_NUM_RXDMA_IDLE		BIT(17)
+#define  RXPKT_NUM_RW_RELEASE_EN	BIT(18)
 #define REG_RXDMA_STATUS		0x0288
 
 /* Presumably only found on newer chips such as 8723bu */

@@ -5687,6 +5687,36 @@ static int rtl8xxxu_emu_to_disabled(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+static int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv)
+{
+	u32 val32;
+	int retry, retval;
+
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
+
+	val32 = rtl8xxxu_read32(priv, REG_RXPKT_NUM);
+	val32 |= RXPKT_NUM_RW_RELEASE_EN;
+	rtl8xxxu_write32(priv, REG_RXPKT_NUM, val32);
+
+	retry = 100;
+	retval = -EBUSY;
+
+	do {
+		val32 = rtl8xxxu_read32(priv, REG_RXPKT_NUM);
+		if (val32 & RXPKT_NUM_RXDMA_IDLE) {
+			retval = 0;
+			break;
+		}
+	} while (retry--);
+
+	rtl8xxxu_write16(priv, REG_RQPN_NPQ, 0);
+	rtl8xxxu_write32(priv, REG_RQPN, 0x80000000);
+	mdelay(2);
+	pr_info("%s: retry %i\n", __func__, retry);
+
+	return retval;
+}
+
 static int rtl8723au_power_on(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
@@ -5957,6 +5987,8 @@ static void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_PARM, val32);
 	}
 
+	rtl8xxxu_flush_fifo(priv);
+
 	rtl8xxxu_active_to_lps(priv);
 
 	/* Turn off RF */
@@ -5994,6 +6026,8 @@ static void rtl8723bu_power_off(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 	u16 val16;
+
+	rtl8xxxu_flush_fifo(priv);
 
 	/*
 	 * Disable TX report timer
