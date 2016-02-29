@@ -61,6 +61,12 @@
 #define EFUSE_BT_MAP_LEN_8723A		1024
 #define EFUSE_MAX_WORD_UNIT		4
 
+enum rtl8xxxu_rx_type {
+	RX_TYPE_DATA_PKT = 0,
+	RX_TYPE_C2H = 1,
+	RX_TYPE_ERROR = -1
+};
+
 struct rtl8xxxu_rx_desc {
 #ifdef __LITTLE_ENDIAN
 	u32 pktlen:14;
@@ -1010,6 +1016,8 @@ struct rtl8xxxu_fileops {
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
 	void (*init_bt) (struct rtl8xxxu_priv *priv);
+	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb,
+			      struct ieee80211_rx_status *rx_status);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
