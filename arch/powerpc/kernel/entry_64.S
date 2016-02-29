@@ -210,7 +210,20 @@ system_call:			/* label this so stack traces look sane */
 	li	r11,-MAX_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
-	cmpld	r3,r11
+
+	andi.	r0,r8,MSR_FP
+	beq 2f
+#ifdef CONFIG_ALTIVEC
+	andis.	r0,r8,MSR_VEC@h
+	bne	3f
+#endif
+2:	addi    r3,r1,STACK_FRAME_OVERHEAD
+	bl	restore_math
+	ld	r8,_MSR(r1)
+	ld	r3,RESULT(r1)
+	li	r11,-MAX_ERRNO
+
+3:	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	syscall_error
 .Lsyscall_error_cont:
@@ -602,8 +615,8 @@ _GLOBAL(ret_from_except_lite)
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
-#ifdef CONFIG_PPC_BOOK3E
 	bne	1f
+#ifdef CONFIG_PPC_BOOK3E
 	/*
 	 * Check to see if the dbcr0 register is set up to debug.
 	 * Use the internal debug mode bit to do this.
@@ -618,7 +631,9 @@ _GLOBAL(ret_from_except_lite)
 	mtspr	SPRN_DBSR,r10
 	b	restore
 #else
-	beq	restore
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	restore_math
+	b	restore
 #endif
 1:	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	2f
