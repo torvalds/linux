@@ -22,9 +22,9 @@
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
-	ssize_t list_size, size;
-	char *buf, *name, *value;
-	int error;
+	ssize_t list_size, size, value_size = 0;
+	char *buf, *name, *value = NULL;
+	int uninitialized_var(error);
 
 	if (!old->d_inode->i_op->getxattr ||
 	    !new->d_inode->i_op->getxattr)
@@ -41,29 +41,40 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	if (!buf)
 		return -ENOMEM;
 
-	error = -ENOMEM;
-	value = kmalloc(XATTR_SIZE_MAX, GFP_KERNEL);
-	if (!value)
-		goto out;
-
 	list_size = vfs_listxattr(old, buf, list_size);
 	if (list_size <= 0) {
 		error = list_size;
-		goto out_free_value;
+		goto out;
 	}
 
 	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
-		size = vfs_getxattr(old, name, value, XATTR_SIZE_MAX);
-		if (size <= 0) {
+retry:
+		size = vfs_getxattr(old, name, value, value_size);
+		if (size == -ERANGE)
+			size = vfs_getxattr(old, name, NULL, 0);
+
+		if (size < 0) {
 			error = size;
-			goto out_free_value;
+			break;
 		}
+
+		if (size > value_size) {
+			void *new;
+
+			new = krealloc(value, size, GFP_KERNEL);
+			if (!new) {
+				error = -ENOMEM;
+				break;
+			}
+			value = new;
+			value_size = size;
+			goto retry;
+		}
+
 		error = vfs_setxattr(new, name, value, size, 0);
 		if (error)
-			goto out_free_value;
+			break;
 	}
-
-out_free_value:
 	kfree(value);
 out:
 	kfree(buf);
