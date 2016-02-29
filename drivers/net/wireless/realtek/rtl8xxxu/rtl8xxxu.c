@@ -2562,6 +2562,10 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 				 raw[i + 6], raw[i + 7]);
 		}
 	}
+	/*
+	 * Temporarily disable 8192eu support
+	 */
+	return -EINVAL;
 	return 0;
 }
 
