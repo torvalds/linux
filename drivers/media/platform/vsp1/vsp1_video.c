@@ -175,31 +175,30 @@ static int vsp1_video_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 					       struct vsp1_rwpf *input,
 					       struct vsp1_rwpf *output)
 {
-	struct vsp1_entity *entity;
 	struct media_entity_enum ent_enum;
+	struct vsp1_entity *entity;
 	struct media_pad *pad;
-	int rval;
 	bool bru_found = false;
+	int ret;
 
 	input->location.left = 0;
 	input->location.top = 0;
 
-	rval = media_entity_enum_init(
-		&ent_enum, input->entity.pads[RWPF_PAD_SOURCE].graph_obj.mdev);
-	if (rval)
-		return rval;
+	ret = media_entity_enum_init(&ent_enum, &input->entity.vsp1->media_dev);
+	if (ret < 0)
+		return ret;
 
 	pad = media_entity_remote_pad(&input->entity.pads[RWPF_PAD_SOURCE]);
 
 	while (1) {
 		if (pad == NULL) {
-			rval = -EPIPE;
+			ret = -EPIPE;
 			goto out;
 		}
 
 		/* We've reached a video node, that shouldn't have happened. */
 		if (!is_media_entity_v4l2_subdev(pad->entity)) {
-			rval = -EPIPE;
+			ret = -EPIPE;
 			goto out;
 		}
 
@@ -229,14 +228,14 @@ static int vsp1_video_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 		/* Ensure the branch has no loop. */
 		if (media_entity_enum_test_and_set(&ent_enum,
 						   &entity->subdev.entity)) {
-			rval = -EPIPE;
+			ret = -EPIPE;
 			goto out;
 		}
 
 		/* UDS can't be chained. */
 		if (entity->type == VSP1_ENTITY_UDS) {
 			if (pipe->uds) {
-				rval = -EPIPE;
+				ret = -EPIPE;
 				goto out;
 			}
 
@@ -256,12 +255,12 @@ static int vsp1_video_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 
 	/* The last entity must be the output WPF. */
 	if (entity != &output->entity)
-		rval = -EPIPE;
+		ret = -EPIPE;
 
 out:
 	media_entity_enum_cleanup(&ent_enum);
 
-	return rval;
+	return ret;
 }
 
 static int vsp1_video_pipeline_validate(struct vsp1_pipeline *pipe,
