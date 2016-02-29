@@ -77,6 +77,34 @@ static int order2idx(struct mlx5_ib_dev *dev, int order)
 		return order - cache->ent[0].order;
 }
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+static void update_odp_mr(struct mlx5_ib_mr *mr)
+{
+	if (mr->umem->odp_data) {
+		/*
+		 * This barrier prevents the compiler from moving the
+		 * setting of umem->odp_data->private to point to our
+		 * MR, before reg_umr finished, to ensure that the MR
+		 * initialization have finished before starting to
+		 * handle invalidations.
+		 */
+		smp_wmb();
+		mr->umem->odp_data->private = mr;
+		/*
+		 * Make sure we will see the new
+		 * umem->odp_data->private value in the invalidation
+		 * routines, before we can get page faults on the
+		 * MR. Page faults can happen once we put the MR in
+		 * the tree, below this line. Without the barrier,
+		 * there can be a fault handling and an invalidation
+		 * before umem->odp_data->private == mr is visible to
+		 * the invalidation handler.
+		 */
+		smp_wmb();
+	}
+}
+#endif
+
 static void reg_mr_callback(int status, void *context)
 {
 	struct mlx5_ib_mr *mr = context;
@@ -693,10 +721,40 @@ static int use_umr(int order)
 	return order <= MLX5_MAX_UMR_SHIFT;
 }
 
-static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
-			     struct ib_sge *sg, u64 dma, int n, u32 key,
-			     int page_shift, u64 virt_addr, u64 len,
-			     int access_flags)
+static int dma_map_mr_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
+			  int npages, int page_shift, int *size,
+			  __be64 **mr_pas, dma_addr_t *dma)
+{
+	__be64 *pas;
+	struct device *ddev = dev->ib_dev.dma_device;
+
+	/*
+	 * UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
+	 * To avoid copying garbage after the pas array, we allocate
+	 * a little more.
+	 */
+	*size = ALIGN(sizeof(u64) * npages, MLX5_UMR_MTT_ALIGNMENT);
+	*mr_pas = kmalloc(*size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
+	if (!(*mr_pas))
+		return -ENOMEM;
+
+	pas = PTR_ALIGN(*mr_pas, MLX5_UMR_ALIGN);
+	mlx5_ib_populate_pas(dev, umem, page_shift, pas, MLX5_IB_MTT_PRESENT);
+	/* Clear padding after the actual pages. */
+	memset(pas + npages, 0, *size - npages * sizeof(u64));
+
+	*dma = dma_map_single(ddev, pas, *size, DMA_TO_DEVICE);
+	if (dma_mapping_error(ddev, *dma)) {
+		kfree(*mr_pas);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void prep_umr_wqe_common(struct ib_pd *pd, struct ib_send_wr *wr,
+				struct ib_sge *sg, u64 dma, int n, u32 key,
+				int page_shift)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_umr_wr *umrwr = umr_wr(wr);
@@ -706,7 +764,6 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 	sg->lkey = dev->umrc.pd->local_dma_lkey;
 
 	wr->next = NULL;
-	wr->send_flags = 0;
 	wr->sg_list = sg;
 	if (n)
 		wr->num_sge = 1;
@@ -718,6 +775,19 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 	umrwr->npages = n;
 	umrwr->page_shift = page_shift;
 	umrwr->mkey = key;
+}
+
+static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
+			     struct ib_sge *sg, u64 dma, int n, u32 key,
+			     int page_shift, u64 virt_addr, u64 len,
+			     int access_flags)
+{
+	struct mlx5_umr_wr *umrwr = umr_wr(wr);
+
+	prep_umr_wqe_common(pd, wr, sg, dma, n, key, page_shift);
+
+	wr->send_flags = 0;
+
 	umrwr->target.virt_addr = virt_addr;
 	umrwr->length = len;
 	umrwr->access_flags = access_flags;
@@ -732,6 +802,31 @@ static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 	wr->send_flags = MLX5_IB_SEND_UMR_UNREG | MLX5_IB_SEND_UMR_FAIL_IF_FREE;
 	wr->opcode = MLX5_IB_WR_UMR;
 	umrwr->mkey = key;
+}
+
+static struct ib_umem *mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
+				   int access_flags, int *npages,
+				   int *page_shift, int *ncont, int *order)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct ib_umem *umem = ib_umem_get(pd->uobject->context, start, length,
+					   access_flags, 0);
+	if (IS_ERR(umem)) {
+		mlx5_ib_err(dev, "umem get failed (%ld)\n", PTR_ERR(umem));
+		return (void *)umem;
+	}
+
+	mlx5_ib_cont_pages(umem, start, npages, page_shift, ncont, order);
+	if (!*npages) {
+		mlx5_ib_warn(dev, "avoid zero region\n");
+		ib_umem_release(umem);
+		return ERR_PTR(-EINVAL);
+	}
+
+	mlx5_ib_dbg(dev, "npages %d, ncont %d, order %d, page_shift %d\n",
+		    *npages, *ncont, *order, *page_shift);
+
+	return umem;
 }
 
 void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
@@ -770,7 +865,6 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct ib_sge sg;
 	int size;
 	__be64 *mr_pas;
-	__be64 *pas;
 	dma_addr_t dma;
 	int err = 0;
 	int i;
@@ -790,26 +884,10 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	if (!mr)
 		return ERR_PTR(-EAGAIN);
 
-	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
-	 * To avoid copying garbage after the pas array, we allocate
-	 * a little more. */
-	size = ALIGN(sizeof(u64) * npages, MLX5_UMR_MTT_ALIGNMENT);
-	mr_pas = kmalloc(size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
-	if (!mr_pas) {
-		err = -ENOMEM;
+	err = dma_map_mr_pas(dev, umem, npages, page_shift, &size, &mr_pas,
+			     &dma);
+	if (err)
 		goto free_mr;
-	}
-
-	pas = PTR_ALIGN(mr_pas, MLX5_UMR_ALIGN);
-	mlx5_ib_populate_pas(dev, umem, page_shift, pas, MLX5_IB_MTT_PRESENT);
-	/* Clear padding after the actual pages. */
-	memset(pas + npages, 0, size - npages * sizeof(u64));
-
-	dma = dma_map_single(ddev, pas, size, DMA_TO_DEVICE);
-	if (dma_mapping_error(ddev, dma)) {
-		err = -ENOMEM;
-		goto free_pas;
-	}
 
 	memset(&umrwr, 0, sizeof(umrwr));
 	umrwr.wr.wr_id = (u64)(unsigned long)&umr_context;
@@ -840,7 +918,6 @@ unmap_dma:
 	up(&umrc->sem);
 	dma_unmap_single(ddev, dma, size, DMA_TO_DEVICE);
 
-free_pas:
 	kfree(mr_pas);
 
 free_mr:
@@ -974,10 +1051,14 @@ free_pas:
 }
 #endif
 
-static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
-				     u64 length, struct ib_umem *umem,
-				     int npages, int page_shift,
-				     int access_flags)
+/*
+ * If ibmr is NULL it will be allocated by reg_create.
+ * Else, the given ibmr will be used.
+ */
+static struct mlx5_ib_mr *reg_create(struct ib_mr *ibmr, struct ib_pd *pd,
+				     u64 virt_addr, u64 length,
+				     struct ib_umem *umem, int npages,
+				     int page_shift, int access_flags)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_create_mkey_mbox_in *in;
@@ -986,7 +1067,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, u64 virt_addr,
 	int err;
 	bool pg_cap = !!(MLX5_CAP_GEN(dev->mdev, pg));
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = ibmr ? to_mmr(ibmr) : kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1032,9 +1113,20 @@ err_2:
 	kvfree(in);
 
 err_1:
-	kfree(mr);
+	if (!ibmr)
+		kfree(mr);
 
 	return ERR_PTR(err);
+}
+
+static void set_mr_fileds(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
+			  int npages, u64 length, int access_flags)
+{
+	mr->npages = npages;
+	atomic_add(npages, &dev->mdev->priv.reg_pages);
+	mr->ibmr.lkey = mr->mmr.key;
+	mr->ibmr.rkey = mr->mmr.key;
+	mr->ibmr.length = length;
 }
 
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -1052,22 +1144,11 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mlx5_ib_dbg(dev, "start 0x%llx, virt_addr 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, virt_addr, length, access_flags);
-	umem = ib_umem_get(pd->uobject->context, start, length, access_flags,
-			   0);
-	if (IS_ERR(umem)) {
-		mlx5_ib_dbg(dev, "umem get failed (%ld)\n", PTR_ERR(umem));
+	umem = mr_umem_get(pd, start, length, access_flags, &npages,
+			   &page_shift, &ncont, &order);
+
+	if (IS_ERR(umem))
 		return (void *)umem;
-	}
-
-	mlx5_ib_cont_pages(umem, start, &npages, &page_shift, &ncont, &order);
-	if (!npages) {
-		mlx5_ib_warn(dev, "avoid zero region\n");
-		err = -EINVAL;
-		goto error;
-	}
-
-	mlx5_ib_dbg(dev, "npages %d, ncont %d, order %d, page_shift %d\n",
-		    npages, ncont, order, page_shift);
 
 	if (use_umr(order)) {
 		mr = reg_umr(pd, umem, virt_addr, length, ncont, page_shift,
@@ -1083,8 +1164,8 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	if (!mr)
-		mr = reg_create(pd, virt_addr, length, umem, ncont, page_shift,
-				access_flags);
+		mr = reg_create(NULL, pd, virt_addr, length, umem, ncont,
+				page_shift, access_flags);
 
 	if (IS_ERR(mr)) {
 		err = PTR_ERR(mr);
@@ -1094,34 +1175,10 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	mlx5_ib_dbg(dev, "mkey 0x%x\n", mr->mmr.key);
 
 	mr->umem = umem;
-	mr->npages = npages;
-	atomic_add(npages, &dev->mdev->priv.reg_pages);
-	mr->ibmr.lkey = mr->mmr.key;
-	mr->ibmr.rkey = mr->mmr.key;
+	set_mr_fileds(dev, mr, npages, length, access_flags);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	if (umem->odp_data) {
-		/*
-		 * This barrier prevents the compiler from moving the
-		 * setting of umem->odp_data->private to point to our
-		 * MR, before reg_umr finished, to ensure that the MR
-		 * initialization have finished before starting to
-		 * handle invalidations.
-		 */
-		smp_wmb();
-		mr->umem->odp_data->private = mr;
-		/*
-		 * Make sure we will see the new
-		 * umem->odp_data->private value in the invalidation
-		 * routines, before we can get page faults on the
-		 * MR. Page faults can happen once we put the MR in
-		 * the tree, below this line. Without the barrier,
-		 * there can be a fault handling and an invalidation
-		 * before umem->odp_data->private == mr is visible to
-		 * the invalidation handler.
-		 */
-		smp_wmb();
-	}
+	update_odp_mr(mr);
 #endif
 
 	return &mr->ibmr;
