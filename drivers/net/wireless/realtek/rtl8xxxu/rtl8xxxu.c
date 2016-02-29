@@ -2685,6 +2685,11 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 		goto exit;
 	}
 
+	/*
+	 * Init H2C command
+	 */
+	if (priv->rtlchip == 0x8723b)
+		rtl8xxxu_write8(priv, REG_HMTFR, 0x0f);
 exit:
 	return ret;
 }
@@ -2927,12 +2932,18 @@ static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 
 	val32 = rtl8xxxu_read32(priv, REG_GPIO_MUXCFG);
 	val32 &= ~BIT(4);
+	rtl8xxxu_write32(priv, REG_GPIO_MUXCFG, val32);
+
+	val32 = rtl8xxxu_read32(priv, REG_GPIO_MUXCFG);
 	val32 |= BIT(3);
 	rtl8xxxu_write32(priv, REG_GPIO_MUXCFG, val32);
 
 	val32 = rtl8xxxu_read32(priv, REG_LEDCFG0);
-	val32 &= ~BIT(23);
 	val32 |= BIT(24);
+	rtl8xxxu_write32(priv, REG_LEDCFG0, val32);
+
+	val32 = rtl8xxxu_read32(priv, REG_LEDCFG0);
+	val32 &= ~BIT(23);
 	rtl8xxxu_write32(priv, REG_LEDCFG0, val32);
 
 	val32 = rtl8xxxu_read32(priv, 0x0944);
@@ -2943,6 +2954,10 @@ static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 	val32 &= 0xffffff00;
 	val32 |= 0x77;
 	rtl8xxxu_write32(priv, 0x0930, val32);
+
+	val32 = rtl8xxxu_read32(priv, REG_PWR_DATA);
+	val32 |= PWR_DATA_EEPRPAD_RFE_CTRL_EN;
+	rtl8xxxu_write32(priv, REG_PWR_DATA, val32);
 }
 
 static int
@@ -6079,7 +6094,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, 0xfe42, 0x80);
 	}
 
-	if (priv->rtlchip == 0x8192e || priv->rtlchip == 0x8723b) {
+	if (priv->rtlchip == 0x8192e) {
 		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
 		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
 	}
