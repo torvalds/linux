@@ -6151,11 +6151,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (ret)
 		goto exit;
 
-	/* Reduce 80M spur */
-	rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, 0x0381808d);
-	rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
-	rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff82);
-	rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
+	if (priv->rtlchip == 0x8723a) { /* Reduce 80M spur */
+		rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, 0x0381808d);
+		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
+		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff82);
+		rtl8xxxu_write32(priv, REG_AFE_PLL_CTRL, 0xf0ffff83);
+	}
 
 	/* RFSW Control - clear bit 14 ?? */
 	rtl8xxxu_write32(priv, REG_FPGA0_TX_INFO, 0x00000003);
