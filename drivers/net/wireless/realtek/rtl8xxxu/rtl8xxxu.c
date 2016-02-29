@@ -6502,7 +6502,11 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * This should enable thermal meter
 	 */
-	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
+	if (priv->fops->has_s0s1)
+		rtl8xxxu_write_rfreg(priv,
+				     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
+	else
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
 
 	/* Init BT hw config. */
 	if (priv->fops->init_bt)
