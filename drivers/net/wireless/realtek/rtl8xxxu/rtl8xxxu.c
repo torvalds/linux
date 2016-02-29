@@ -6056,6 +6056,17 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
 }
 
+static void rtl8723b_disable_rf(struct rtl8xxxu_priv *priv)
+{
+	u32 val32;
+
+	rtl8xxxu_write8(priv, REG_TXPAUSE, 0xff);
+
+	val32 = rtl8xxxu_read32(priv, REG_RX_WAIT_CCA);
+	val32 &= ~(BIT(22) | BIT(23));
+	rtl8xxxu_write32(priv, REG_RX_WAIT_CCA, val32);
+}
+
 static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
 {
 	u32 agg_rx;
@@ -7987,7 +7998,7 @@ static void rtl8xxxu_stop(struct ieee80211_hw *hw)
 	if (priv->usb_interrupts)
 		usb_kill_anchored_urbs(&priv->int_anchor);
 
-	rtl8723a_disable_rf(priv);
+	priv->fops->disable_rf(priv);
 
 	/*
 	 * Disable interrupts
@@ -8271,6 +8282,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.config_channel = rtl8723au_config_channel,
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
+	.disable_rf = rtl8723a_disable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
 	.report_connect = rtl8723au_report_connect,
@@ -8296,6 +8308,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_aggregation = rtl8723bu_init_aggregation,
 	.init_statistics = rtl8723bu_init_statistics,
 	.enable_rf = rtl8723b_enable_rf,
+	.disable_rf = rtl8723b_disable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8723bu_update_rate_mask,
 	.report_connect = rtl8723bu_report_connect,
@@ -8321,6 +8334,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.config_channel = rtl8723au_config_channel,
 	.parse_rx_desc = rtl8723au_parse_rx_desc,
 	.enable_rf = rtl8723a_enable_rf,
+	.disable_rf = rtl8723a_disable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
 	.report_connect = rtl8723au_report_connect,
@@ -8345,6 +8359,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.config_channel = rtl8723bu_config_channel,
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
 	.enable_rf = rtl8723b_enable_rf,
+	.disable_rf = rtl8723b_disable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
 	.report_connect = rtl8723au_report_connect,
