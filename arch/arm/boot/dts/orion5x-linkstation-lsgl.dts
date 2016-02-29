@@ -1,8 +1,12 @@
 /*
- * Device Tree file for Buffalo Linkstation LS-WTGL
+ * Device Tree file for Buffalo Linkstation LS-GL
+ *       (also known as Buffalo Linkstation Pro/Live)
  *
- * Copyright (C) 2015, 2016
+ * Copyright (C) 2016
  * Roger Shimizu <rogershimizu@gmail.com>
+ *
+ * Based on the board file arch/arm/mach-orion5x/kurobox_pro-setup.c
+ * Copyright (C) Ronen Shitrit <rshitrit@marvell.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -46,94 +50,26 @@
 /dts-v1/;
 
 #include "orion5x-linkstation.dtsi"
-#include "mvebu-linkstation-gpio-simple.dtsi"
-#include "mvebu-linkstation-fan.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Buffalo Linkstation LS-WTGL";
-	compatible = "buffalo,lswtgl", "marvell,orion5x-88f5182", "marvell,orion5x";
+	model = "Buffalo Linkstation Pro/Live";
+	compatible = "buffalo,lsgl", "marvell,orion5x-88f5182", "marvell,orion5x";
 
-	memory { /* 64 MB */
+	memory { /* 128 MB */
 		device_type = "memory";
-		reg = <0x00000000 0x4000000>;
-	};
-
-	gpio_keys {
-		power-on-switch {
-			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
-		};
-
-		power-auto-switch {
-			gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
-		};
-	};
-
-	gpio_leds {
-		blue-power-led {
-			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
-		};
-
-		red-alarm-led {
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
-		};
-
-		amber-info-led {
-			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
-		};
-	};
-
-	gpio_fan {
-		gpios = <&gpio0 14 GPIO_ACTIVE_LOW
-			 &gpio0 17 GPIO_ACTIVE_LOW>;
-
-		alarm-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+		reg = <0x00000000 0x8000000>;
 	};
 };
 
 &pinctrl {
-	pmx_led_power: pmx-leds {
-		marvell,pins = "mpp0";
-		marvell,function = "gpio";
-	};
-
 	pmx_power_hdd: pmx-power-hdd {
 		marvell,pins = "mpp1";
 		marvell,function = "gpio";
 	};
 
-	pmx_led_alarm: pmx-leds {
-		marvell,pins = "mpp2";
-		marvell,function = "gpio";
-	};
-
-	pmx_led_info: pmx-leds {
-		marvell,pins = "mpp3";
-		marvell,function = "gpio";
-	};
-
-	pmx_fan_lock: pmx-fan-lock {
-		marvell,pins = "mpp6";
-		marvell,function = "gpio";
-	};
-
-	pmx_power_switch: pmx-power-switch {
-		marvell,pins = "mpp8", "mpp10";
-		marvell,function = "gpio";
-	};
-
 	pmx_power_usb: pmx-power-usb {
 		marvell,pins = "mpp9";
-		marvell,function = "gpio";
-	};
-
-	pmx_fan_high: pmx-fan-high {
-		marvell,pins = "mpp14";
-		marvell,function = "gpio";
-	};
-
-	pmx_fan_low: pmx-fan-low {
-		marvell,pins = "mpp17";
 		marvell,function = "gpio";
 	};
 };
@@ -146,6 +82,6 @@
 	gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
 };
 
-&sata {
-	nr-ports = <2>;
+&ehci1 {
+	status = "okay";
 };
