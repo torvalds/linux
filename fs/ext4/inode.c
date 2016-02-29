@@ -2478,6 +2478,10 @@ static int ext4_writepages(struct address_space *mapping,
 
 	trace_ext4_writepages(inode, wbc);
 
+	if (dax_mapping(mapping))
+		return dax_writeback_mapping_range(mapping, inode->i_sb->s_bdev,
+						   wbc);
+
 	/*
 	 * No pages to write? This is mainly a kludge to avoid starting
 	 * a transaction for special inodes like journal inode on last iput()
@@ -4155,7 +4159,7 @@ void ext4_set_inode_flags(struct inode *inode)
 		new_fl |= S_NOATIME;
 	if (flags & EXT4_DIRSYNC_FL)
 		new_fl |= S_DIRSYNC;
-	if (test_opt(inode->i_sb, DAX))
+	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
 		new_fl |= S_DAX;
 	inode_set_flags(inode, new_fl,
 			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);

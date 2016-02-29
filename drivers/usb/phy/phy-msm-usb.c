@@ -757,14 +757,8 @@ static int msm_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	otg->host = host;
 	dev_dbg(otg->usb_phy->dev, "host driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if peripheral is not supported
-	 * or peripheral is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_HOST || otg->gadget) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
@@ -827,14 +821,8 @@ static int msm_otg_set_peripheral(struct usb_otg *otg,
 	dev_dbg(otg->usb_phy->dev,
 		"peripheral driver registered w/ tranceiver\n");
 
-	/*
-	 * Kick the state machine work, if host is not supported
-	 * or host is already registered with us.
-	 */
-	if (motg->pdata->mode == USB_DR_MODE_PERIPHERAL || otg->host) {
-		pm_runtime_get_sync(otg->usb_phy->dev);
-		schedule_work(&motg->sm_work);
-	}
+	pm_runtime_get_sync(otg->usb_phy->dev);
+	schedule_work(&motg->sm_work);
 
 	return 0;
 }
