@@ -32,7 +32,7 @@ config PHY_BERLIN_SATA
 config ARMADA375_USBCLUSTER_PHY
 	def_bool y
 	depends on MACH_ARMADA_375 || COMPILE_TEST
-	depends on OF
+	depends on OF && HAS_IOMEM
 	select GENERIC_PHY
 
 config PHY_DM816X_USB
