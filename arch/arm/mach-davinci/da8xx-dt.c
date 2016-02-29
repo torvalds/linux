@@ -54,9 +54,7 @@ static struct of_dev_auxdata da850_auxdata_lookup[] __initdata = {
 
 static void __init da850_init_machine(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     da850_auxdata_lookup, NULL);
-
+	of_platform_default_populate(NULL, da850_auxdata_lookup, NULL);
 }
 
 static const char *const da850_boards_compat[] __initconst = {
