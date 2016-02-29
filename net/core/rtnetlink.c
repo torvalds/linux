@@ -1391,15 +1391,6 @@ static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 	[IFLA_VF_TRUST]		= { .len = sizeof(struct ifla_vf_trust) },
 };
 
-static const struct nla_policy ifla_vf_stats_policy[IFLA_VF_STATS_MAX + 1] = {
-	[IFLA_VF_STATS_RX_PACKETS]	= { .type = NLA_U64 },
-	[IFLA_VF_STATS_TX_PACKETS]	= { .type = NLA_U64 },
-	[IFLA_VF_STATS_RX_BYTES]	= { .type = NLA_U64 },
-	[IFLA_VF_STATS_TX_BYTES]	= { .type = NLA_U64 },
-	[IFLA_VF_STATS_BROADCAST]	= { .type = NLA_U64 },
-	[IFLA_VF_STATS_MULTICAST]	= { .type = NLA_U64 },
-};
-
 static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
 	[IFLA_PORT_VF]		= { .type = NLA_U32 },
 	[IFLA_PORT_PROFILE]	= { .type = NLA_STRING,
