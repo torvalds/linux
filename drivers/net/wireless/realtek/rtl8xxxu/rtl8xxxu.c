@@ -6391,7 +6391,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 
 	if (untested) {
-		rtl8xxxu_debug = RTL8XXXU_DEBUG_EFUSE;
+		rtl8xxxu_debug |= RTL8XXXU_DEBUG_EFUSE;
 		dev_info(&udev->dev,
 			 "This Realtek USB WiFi dongle (0x%04x:0x%04x) is untested!\n",
 			 id->idVendor, id->idProduct);
