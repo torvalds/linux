@@ -151,23 +151,6 @@ _GLOBAL(load_up_vsx)
 	std	r12,_MSR(r1)
 	b	fast_exception_return
 
-/*
- * __giveup_vsx(tsk)
- * Disable VSX for the task given as the argument.
- * Does NOT save vsx registers.
- */
-_GLOBAL(__giveup_vsx)
-	addi	r3,r3,THREAD		/* want THREAD of task */
-	ld	r5,PT_REGS(r3)
-	cmpdi	0,r5,0
-	beq	1f
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r3,MSR_VSX@h
-	andc	r4,r4,r3		/* disable VSX for previous task */
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-	blr
-
 #endif /* CONFIG_VSX */
 
 

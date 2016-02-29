@@ -56,14 +56,10 @@ static inline void __giveup_altivec(struct task_struct *t) { }
 #ifdef CONFIG_VSX
 extern void enable_kernel_vsx(void);
 extern void flush_vsx_to_thread(struct task_struct *);
-extern void giveup_vsx(struct task_struct *);
-extern void __giveup_vsx(struct task_struct *);
 static inline void disable_kernel_vsx(void)
 {
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
 }
-#else
-static inline void __giveup_vsx(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_SPE
