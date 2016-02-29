@@ -238,10 +238,11 @@ struct stmmac_extra_stats {
 
 /* Rx IPC status */
 enum rx_frame_status {
-	good_frame = 0,
-	discard_frame = 1,
-	csum_none = 2,
-	llc_snap = 4,
+	good_frame = 0x0,
+	discard_frame = 0x1,
+	csum_none = 0x2,
+	llc_snap = 0x4,
+	dma_own = 0x8,
 };
 
 enum dma_irq_status {
@@ -356,7 +357,6 @@ struct stmmac_desc_ops {
 	/* Get the buffer size from the descriptor */
 	int (*get_tx_len) (struct dma_desc *p);
 	/* Handle extra events on specific interrupts hw dependent */
-	int (*get_rx_owner) (struct dma_desc *p);
 	void (*set_rx_owner) (struct dma_desc *p);
 	/* Get the receive frame size */
 	int (*get_rx_frame_len) (struct dma_desc *p, int rx_coe_type);

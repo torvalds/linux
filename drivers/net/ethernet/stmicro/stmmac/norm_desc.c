@@ -82,6 +82,9 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	unsigned int rdes0 = p->des0;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 
+	if (unlikely(rdes0 & RDES0_OWN))
+		return dma_own;
+
 	if (unlikely(!(rdes0 & RDES0_LAST_DESCRIPTOR))) {
 		pr_warn("%s: Oversized frame spanned multiple buffers\n",
 			__func__);
@@ -153,11 +156,6 @@ static void ndesc_init_tx_desc(struct dma_desc *p, int mode, int end)
 static int ndesc_get_tx_owner(struct dma_desc *p)
 {
 	return (p->des0 & TDES0_OWN) >> 31;
-}
-
-static int ndesc_get_rx_owner(struct dma_desc *p)
-{
-	return (p->des0 & RDES0_OWN) >> 31;
 }
 
 static void ndesc_set_tx_owner(struct dma_desc *p)
@@ -277,7 +275,6 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.init_rx_desc = ndesc_init_rx_desc,
 	.init_tx_desc = ndesc_init_tx_desc,
 	.get_tx_owner = ndesc_get_tx_owner,
-	.get_rx_owner = ndesc_get_rx_owner,
 	.release_tx_desc = ndesc_release_tx_desc,
 	.prepare_tx_desc = ndesc_prepare_tx_desc,
 	.clear_tx_ic = ndesc_clear_tx_ic,

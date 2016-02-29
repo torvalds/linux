@@ -186,6 +186,9 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	unsigned int rdes0 = p->des0;
 	int ret = good_frame;
 
+	if (unlikely(rdes0 & RDES0_OWN))
+		return dma_own;
+
 	if (unlikely(rdes0 & RDES0_ERROR_SUMMARY)) {
 		if (unlikely(rdes0 & RDES0_DESCRIPTOR_ERROR)) {
 			x->rx_desc++;
@@ -270,11 +273,6 @@ static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 static int enh_desc_get_tx_owner(struct dma_desc *p)
 {
 	return (p->des0 & ETDES0_OWN) >> 31;
-}
-
-static int enh_desc_get_rx_owner(struct dma_desc *p)
-{
-	return (p->des0 & RDES0_OWN) >> 31;
 }
 
 static void enh_desc_set_tx_owner(struct dma_desc *p)
@@ -402,7 +400,6 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.init_rx_desc = enh_desc_init_rx_desc,
 	.init_tx_desc = enh_desc_init_tx_desc,
 	.get_tx_owner = enh_desc_get_tx_owner,
-	.get_rx_owner = enh_desc_get_rx_owner,
 	.release_tx_desc = enh_desc_release_tx_desc,
 	.prepare_tx_desc = enh_desc_prepare_tx_desc,
 	.clear_tx_ic = enh_desc_clear_tx_ic,
