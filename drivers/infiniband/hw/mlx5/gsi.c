@@ -32,6 +32,13 @@
 
 #include "mlx5_ib.h"
 
+struct mlx5_ib_gsi_wr {
+	struct ib_cqe cqe;
+	struct ib_wc wc;
+	int send_flags;
+	bool completed:1;
+};
+
 struct mlx5_ib_gsi_qp {
 	struct ib_qp ibqp;
 	struct ib_qp *rx_qp;
@@ -40,9 +47,13 @@ struct mlx5_ib_gsi_qp {
 	enum ib_sig_type sq_sig_type;
 	/* Serialize qp state modifications */
 	struct mutex mutex;
+	struct ib_cq *cq;
+	struct mlx5_ib_gsi_wr *outstanding_wrs;
+	u32 outstanding_pi, outstanding_ci;
 	int num_qps;
 	/* Protects access to the tx_qps. Post send operations synchronize
-	 * with tx_qp creation in setup_qp().
+	 * with tx_qp creation in setup_qp(). Also protects the
+	 * outstanding_wrs array and indices.
 	 */
 	spinlock_t lock;
 	struct ib_qp **tx_qps;
@@ -56,6 +67,57 @@ static struct mlx5_ib_gsi_qp *gsi_qp(struct ib_qp *qp)
 static bool mlx5_ib_deth_sqpn_cap(struct mlx5_ib_dev *dev)
 {
 	return MLX5_CAP_GEN(dev->mdev, set_deth_sqpn);
+}
+
+static u32 next_outstanding(struct mlx5_ib_gsi_qp *gsi, u32 index)
+{
+	return ++index % gsi->cap.max_send_wr;
+}
+
+#define for_each_outstanding_wr(gsi, index) \
+	for (index = gsi->outstanding_ci; index != gsi->outstanding_pi; \
+	     index = next_outstanding(gsi, index))
+
+/* Call with gsi->lock locked */
+static void generate_completions(struct mlx5_ib_gsi_qp *gsi)
+{
+	struct ib_cq *gsi_cq = gsi->ibqp.send_cq;
+	struct mlx5_ib_gsi_wr *wr;
+	u32 index;
+
+	for_each_outstanding_wr(gsi, index) {
+		wr = &gsi->outstanding_wrs[index];
+
+		if (!wr->completed)
+			break;
+
+		if (gsi->sq_sig_type == IB_SIGNAL_ALL_WR ||
+		    wr->send_flags & IB_SEND_SIGNALED)
+			WARN_ON_ONCE(mlx5_ib_generate_wc(gsi_cq, &wr->wc));
+
+		wr->completed = false;
+	}
+
+	gsi->outstanding_ci = index;
+}
+
+static void handle_single_completion(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct mlx5_ib_gsi_qp *gsi = cq->cq_context;
+	struct mlx5_ib_gsi_wr *wr =
+		container_of(wc->wr_cqe, struct mlx5_ib_gsi_wr, cqe);
+	u64 wr_id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&gsi->lock, flags);
+	wr->completed = true;
+	wr_id = wr->wc.wr_id;
+	wr->wc = *wc;
+	wr->wc.wr_id = wr_id;
+	wr->wc.qp = &gsi->ibqp;
+
+	generate_completions(gsi);
+	spin_unlock_irqrestore(&gsi->lock, flags);
 }
 
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
@@ -88,6 +150,14 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 		goto err_free;
 	}
 
+	gsi->outstanding_wrs = kcalloc(init_attr->cap.max_send_wr,
+				       sizeof(*gsi->outstanding_wrs),
+				       GFP_KERNEL);
+	if (!gsi->outstanding_wrs) {
+		ret = -ENOMEM;
+		goto err_free_tx;
+	}
+
 	mutex_init(&gsi->mutex);
 
 	mutex_lock(&dev->devr.mutex);
@@ -96,7 +166,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 		mlx5_ib_warn(dev, "GSI QP already exists on port %d\n",
 			     port_num);
 		ret = -EBUSY;
-		goto err_free_tx;
+		goto err_free_wrs;
 	}
 	gsi->num_qps = num_qps;
 	spin_lock_init(&gsi->lock);
@@ -106,13 +176,23 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 	gsi->ibqp.qp_num = 1;
 	gsi->port_num = port_num;
 
+	gsi->cq = ib_alloc_cq(pd->device, gsi, init_attr->cap.max_send_wr, 0,
+			      IB_POLL_SOFTIRQ);
+	if (IS_ERR(gsi->cq)) {
+		mlx5_ib_warn(dev, "unable to create send CQ for GSI QP. error %ld\n",
+			     PTR_ERR(gsi->cq));
+		ret = PTR_ERR(gsi->cq);
+		goto err_free_wrs;
+	}
+
 	hw_init_attr.qp_type = MLX5_IB_QPT_HW_GSI;
+	hw_init_attr.send_cq = gsi->cq;
 	gsi->rx_qp = ib_create_qp(pd, &hw_init_attr);
 	if (IS_ERR(gsi->rx_qp)) {
 		mlx5_ib_warn(dev, "unable to create hardware GSI QP. error %ld\n",
 			     PTR_ERR(gsi->rx_qp));
 		ret = PTR_ERR(gsi->rx_qp);
-		goto err_free_tx;
+		goto err_destroy_cq;
 	}
 
 	dev->devr.ports[init_attr->port_num - 1].gsi = gsi;
@@ -121,8 +201,12 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 
 	return &gsi->ibqp;
 
-err_free_tx:
+err_destroy_cq:
+	ib_free_cq(gsi->cq);
+err_free_wrs:
 	mutex_unlock(&dev->devr.mutex);
+	kfree(gsi->outstanding_wrs);
+err_free_tx:
 	kfree(gsi->tx_qps);
 err_free:
 	kfree(gsi);
@@ -158,6 +242,9 @@ int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp)
 		gsi->tx_qps[qp_index] = NULL;
 	}
 
+	ib_free_cq(gsi->cq);
+
+	kfree(gsi->outstanding_wrs);
 	kfree(gsi->tx_qps);
 	kfree(gsi);
 
@@ -170,7 +257,7 @@ static struct ib_qp *create_gsi_ud_qp(struct mlx5_ib_gsi_qp *gsi)
 	struct ib_qp_init_attr init_attr = {
 		.event_handler = gsi->rx_qp->event_handler,
 		.qp_context = gsi->rx_qp->qp_context,
-		.send_cq = gsi->rx_qp->send_cq,
+		.send_cq = gsi->cq,
 		.recv_cq = gsi->rx_qp->recv_cq,
 		.cap = {
 			.max_send_wr = gsi->cap.max_send_wr,
@@ -326,12 +413,69 @@ int mlx5_ib_gsi_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 	return ret;
 }
 
+/* Call with gsi->lock locked */
+static int mlx5_ib_add_outstanding_wr(struct mlx5_ib_gsi_qp *gsi,
+				      struct ib_ud_wr *wr, struct ib_wc *wc)
+{
+	struct mlx5_ib_dev *dev = to_mdev(gsi->rx_qp->device);
+	struct mlx5_ib_gsi_wr *gsi_wr;
+
+	if (gsi->outstanding_pi == gsi->outstanding_ci + gsi->cap.max_send_wr) {
+		mlx5_ib_warn(dev, "no available GSI work request.\n");
+		return -ENOMEM;
+	}
+
+	gsi_wr = &gsi->outstanding_wrs[gsi->outstanding_pi];
+	gsi->outstanding_pi = next_outstanding(gsi, gsi->outstanding_pi);
+
+	if (!wc) {
+		memset(&gsi_wr->wc, 0, sizeof(gsi_wr->wc));
+		gsi_wr->wc.pkey_index = wr->pkey_index;
+		gsi_wr->wc.wr_id = wr->wr.wr_id;
+	} else {
+		gsi_wr->wc = *wc;
+		gsi_wr->completed = true;
+	}
+
+	gsi_wr->cqe.done = &handle_single_completion;
+	wr->wr.wr_cqe = &gsi_wr->cqe;
+
+	return 0;
+}
+
 int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr)
 {
 	struct mlx5_ib_gsi_qp *gsi = gsi_qp(qp);
+	unsigned long flags;
+	int ret;
 
-	return ib_post_send(gsi->rx_qp, wr, bad_wr);
+	for (; wr; wr = wr->next) {
+		struct ib_ud_wr cur_wr = *ud_wr(wr);
+
+		cur_wr.wr.next = NULL;
+
+		spin_lock_irqsave(&gsi->lock, flags);
+		ret = mlx5_ib_add_outstanding_wr(gsi, &cur_wr, NULL);
+		if (ret)
+			goto err;
+
+		ret = ib_post_send(gsi->rx_qp, &cur_wr.wr, bad_wr);
+		if (ret) {
+			/* Undo the effect of adding the outstanding wr */
+			gsi->outstanding_pi = (gsi->outstanding_pi - 1) %
+					      gsi->cap.max_send_wr;
+			goto err;
+		}
+		spin_unlock_irqrestore(&gsi->lock, flags);
+	}
+
+	return 0;
+
+err:
+	spin_unlock_irqrestore(&gsi->lock, flags);
+	*bad_wr = wr;
+	return ret;
 }
 
 int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
