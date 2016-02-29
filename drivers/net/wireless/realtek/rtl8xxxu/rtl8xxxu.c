@@ -4757,11 +4757,42 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		}
 	}
 
-	if (priv->rtlchip == 0x8192e) {
+	/* Fix USB interface interference issue */
+	if (priv->rtlchip == 0x8723a) {
+		rtl8xxxu_write8(priv, 0xfe40, 0xe0);
+		rtl8xxxu_write8(priv, 0xfe41, 0x8d);
+		rtl8xxxu_write8(priv, 0xfe42, 0x80);
+		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, 0xfd0320);
+	} else {
 		val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
 		val32 |= TXDMA_OFFSET_DROP_DATA_EN;
 		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
+	}
 
+	/* Solve too many protocol error on USB bus */
+	/* Can't do this for 8188/8192 UMC A cut parts */
+	if (priv->rtlchip == 0x8723a ||
+	    ((priv->rtlchip == 0x8192c || priv->rtlchip == 0x8191c ||
+	      priv->rtlchip == 0x8188c) &&
+	     (priv->chip_cut || !priv->vendor_umc))) {
+		rtl8xxxu_write8(priv, 0xfe40, 0xe6);
+		rtl8xxxu_write8(priv, 0xfe41, 0x94);
+		rtl8xxxu_write8(priv, 0xfe42, 0x80);
+
+		rtl8xxxu_write8(priv, 0xfe40, 0xe0);
+		rtl8xxxu_write8(priv, 0xfe41, 0x19);
+		rtl8xxxu_write8(priv, 0xfe42, 0x80);
+
+		rtl8xxxu_write8(priv, 0xfe40, 0xe5);
+		rtl8xxxu_write8(priv, 0xfe41, 0x91);
+		rtl8xxxu_write8(priv, 0xfe42, 0x80);
+
+		rtl8xxxu_write8(priv, 0xfe40, 0xe2);
+		rtl8xxxu_write8(priv, 0xfe41, 0x81);
+		rtl8xxxu_write8(priv, 0xfe42, 0x80);
+	}
+
+	if (priv->rtlchip == 0x8192e || priv->rtlchip == 0x8723b) {
 		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
 		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
 	}
@@ -4967,30 +4998,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
 
 	rtl8723a_phy_lc_calibrate(priv);
-
-	/* fix USB interface interference issue */
-	rtl8xxxu_write8(priv, 0xfe40, 0xe0);
-	rtl8xxxu_write8(priv, 0xfe41, 0x8d);
-	rtl8xxxu_write8(priv, 0xfe42, 0x80);
-	rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, 0xfd0320);
-
-	/* Solve too many protocol error on USB bus */
-	/* Can't do this for 8188/8192 UMC A cut parts */
-	rtl8xxxu_write8(priv, 0xfe40, 0xe6);
-	rtl8xxxu_write8(priv, 0xfe41, 0x94);
-	rtl8xxxu_write8(priv, 0xfe42, 0x80);
-
-	rtl8xxxu_write8(priv, 0xfe40, 0xe0);
-	rtl8xxxu_write8(priv, 0xfe41, 0x19);
-	rtl8xxxu_write8(priv, 0xfe42, 0x80);
-
-	rtl8xxxu_write8(priv, 0xfe40, 0xe5);
-	rtl8xxxu_write8(priv, 0xfe41, 0x91);
-	rtl8xxxu_write8(priv, 0xfe42, 0x80);
-
-	rtl8xxxu_write8(priv, 0xfe40, 0xe2);
-	rtl8xxxu_write8(priv, 0xfe41, 0x81);
-	rtl8xxxu_write8(priv, 0xfe42, 0x80);
 
 	/* Init BT hw config. */
 	rtl8xxxu_init_bt(priv);
