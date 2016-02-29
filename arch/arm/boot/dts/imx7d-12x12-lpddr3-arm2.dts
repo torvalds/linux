@@ -684,12 +684,6 @@
 			>;
 		};
 
-		pinctrl_pwm1: pwm1grp {
-			fsl,pins = <
-				MX7D_PAD_GPIO1_IO08__PWM1_OUT 0x110b0
-			>;
-		};
-
 		pinctrl_sai1: sai1grp {
 			fsl,pins = <
 				MX7D_PAD_SAI1_MCLK__SAI1_MCLK           0x1f
@@ -841,6 +835,14 @@
 };
 
 &iomuxc_lpsr {
+	imx7d-12x12-lpddr3-arm2 {
+		pinctrl_pwm1: pwm1grp {
+			fsl,pins = <
+				MX7D_PAD_GPIO1_IO01__PWM1_OUT	0x110b0
+			>;
+		};
+	};
+
 	imx7d-sdb {
 		pinctrl_usbotg1_vbus: usbotg1vbusgrp {
 			fsl,pins = <
