@@ -54,6 +54,7 @@
 #define RTL8723A_CHANNEL_GROUPS		3
 #define RTL8723A_MAX_RF_PATHS		2
 #define RTL8723B_CHANNEL_GROUPS		6
+#define RTL8723B_TX_COUNT		4
 #define RTL8723B_MAX_RF_PATHS		4
 #define RTL8XXXU_MAX_CHANNEL_GROUPS	6
 #define RF6052_MAX_TX_PWR		0x3f
@@ -634,16 +635,25 @@ struct rtl8192cu_efuse {
 	u8 customer_id;
 };
 
+struct rtl8723bu_pwr_idx {
+#ifdef __LITTLE_ENDIAN
+	int	ht20:4;
+	int	ht40:4;
+	int	ofdm:4;
+	int	cck:4;
+#else
+	int	cck:4;
+	int	ofdm:4;
+	int	ht40:4;
+	int	ht20:4;
+#endif
+} __attribute__((packed));
+
 struct rtl8723bu_efuse_tx_power {
 	u8 cck_base[6];
 	u8 ht40_base[5];
 	struct rtl8723au_idx ht20_ofdm_1s_diff;
-	struct rtl8723au_idx ht40_ht20_2s_diff;
-	struct rtl8723au_idx ofdm_cck_2s_diff; /* not used */
-	struct rtl8723au_idx ht40_ht20_3s_diff;
-	struct rtl8723au_idx ofdm_cck_3s_diff; /* not used */
-	struct rtl8723au_idx ht40_ht20_4s_diff;
-	struct rtl8723au_idx ofdm_cck_4s_diff; /* not used */
+	struct rtl8723bu_pwr_idx pwr_diff[3];
 	u8 dummy5g[24]; /* max channel group (14) + power diff offset (10) */
 };
 
@@ -1057,15 +1067,18 @@ struct rtl8xxxu_priv {
 	 * bits 0-3: path A, bits 4-7: path B, all values 4 bits signed
 	 */
 	struct rtl8723au_idx ht40_2s_tx_power_index_diff[
-		RTL8XXXU_MAX_CHANNEL_GROUPS];
-	struct rtl8723au_idx ht20_tx_power_index_diff[
-		RTL8XXXU_MAX_CHANNEL_GROUPS];
-	struct rtl8723au_idx ofdm_tx_power_index_diff[
-		RTL8XXXU_MAX_CHANNEL_GROUPS];
-	struct rtl8723au_idx ht40_max_power_offset[
-		RTL8XXXU_MAX_CHANNEL_GROUPS];
-	struct rtl8723au_idx ht20_max_power_offset[
-		RTL8XXXU_MAX_CHANNEL_GROUPS];
+		RTL8723A_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht20_tx_power_index_diff[RTL8723A_CHANNEL_GROUPS];
+	struct rtl8723au_idx ofdm_tx_power_index_diff[RTL8723A_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht40_max_power_offset[RTL8723A_CHANNEL_GROUPS];
+	struct rtl8723au_idx ht20_max_power_offset[RTL8723A_CHANNEL_GROUPS];
+	/*
+	 * Newer generation chips only keep power diffs per TX count,
+	 * not per channel group.
+	 */
+	struct rtl8723au_idx ofdm_tx_power_diff[RTL8723B_TX_COUNT];
+	struct rtl8723au_idx ht20_tx_power_diff[RTL8723B_TX_COUNT];
+	struct rtl8723au_idx ht40_tx_power_diff[RTL8723B_TX_COUNT];
 	u32 chip_cut:4;
 	u32 rom_rev:4;
 	u32 is_multi_func:1;
