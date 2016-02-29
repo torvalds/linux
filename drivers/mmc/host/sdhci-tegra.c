@@ -194,7 +194,7 @@ static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	unsigned long host_clk;
 
 	if (!clock)
-		return;
+		return sdhci_set_clock(host, clock);
 
 	host_clk = tegra_host->ddr_signaling ? clock * 2 : clock;
 	clk_set_rate(pltfm_host->clk, host_clk);
