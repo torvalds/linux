@@ -880,4 +880,6 @@ extern const struct cxl_backend_ops cxl_native_ops;
 extern const struct cxl_backend_ops cxl_guest_ops;
 extern const struct cxl_backend_ops *cxl_ops;
 
+/* check if the given pci_dev is on the the cxl vphb bus */
+bool cxl_pci_is_vphb_device(struct pci_dev *dev);
 #endif

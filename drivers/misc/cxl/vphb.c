@@ -272,6 +272,15 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	pcibios_free_controller(phb);
 }
 
+bool cxl_pci_is_vphb_device(struct pci_dev *dev)
+{
+	struct pci_controller *phb;
+
+	phb = pci_bus_to_host(dev->bus);
+
+	return (phb->ops == &cxl_pcie_pci_ops);
+}
+
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
