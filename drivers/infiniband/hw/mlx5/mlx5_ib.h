@@ -393,6 +393,14 @@ struct mlx5_ib_cq {
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
 	u32			create_flags;
+	struct list_head	wc_list;
+	enum ib_cq_notify_flags notify_flags;
+	struct work_struct	notify_work;
+};
+
+struct mlx5_ib_wc {
+	struct ib_wc wc;
+	struct list_head list;
 };
 
 struct mlx5_ib_srq {
@@ -784,6 +792,8 @@ int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
 int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
 			  struct ib_recv_wr **bad_wr);
 void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi);
+
+int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc);
 
 static inline void init_query_mad(struct ib_smp *mad)
 {
