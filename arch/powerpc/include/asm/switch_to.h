@@ -34,6 +34,7 @@ static inline void disable_kernel_fp(void)
 	msr_check_and_clear(MSR_FP);
 }
 #else
+static inline void __giveup_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 #endif
 
@@ -46,6 +47,8 @@ static inline void disable_kernel_altivec(void)
 {
 	msr_check_and_clear(MSR_VEC);
 }
+#else
+static inline void __giveup_altivec(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_VSX
@@ -57,6 +60,8 @@ static inline void disable_kernel_vsx(void)
 {
 	msr_check_and_clear(MSR_FP|MSR_VEC|MSR_VSX);
 }
+#else
+static inline void __giveup_vsx(struct task_struct *t) { }
 #endif
 
 #ifdef CONFIG_SPE
@@ -68,6 +73,8 @@ static inline void disable_kernel_spe(void)
 {
 	msr_check_and_clear(MSR_SPE);
 }
+#else
+static inline void __giveup_spe(struct task_struct *t) { }
 #endif
 
 static inline void clear_task_ebb(struct task_struct *t)

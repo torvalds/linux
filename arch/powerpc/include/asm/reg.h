@@ -75,6 +75,14 @@
 #define MSR_HV		0
 #endif
 
+/*
+ * To be used in shared book E/book S, this avoids needing to worry about
+ * book S/book E in shared code
+ */
+#ifndef MSR_SPE
+#define MSR_SPE 	0
+#endif
+
 #define MSR_VEC		__MASK(MSR_VEC_LG)	/* Enable AltiVec */
 #define MSR_VSX		__MASK(MSR_VSX_LG)	/* Enable VSX */
 #define MSR_POW		__MASK(MSR_POW_LG)	/* Enable Power Management */
