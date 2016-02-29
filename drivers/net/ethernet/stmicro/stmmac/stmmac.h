@@ -47,6 +47,7 @@ struct stmmac_tx_info {
 	bool map_as_page;
 	unsigned len;
 	bool last_segment;
+	bool is_jumbo;
 };
 
 struct stmmac_priv {

@@ -1361,6 +1361,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		}
 		priv->hw->mode->clean_desc3(priv, p);
 		priv->tx_skbuff_dma[entry].last_segment = false;
+		priv->tx_skbuff_dma[entry].is_jumbo = false;
 
 		if (likely(skb != NULL)) {
 			pkts_compl++;
