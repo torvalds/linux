@@ -2957,7 +2957,8 @@ rtl8xxxu_init_mac(struct rtl8xxxu_priv *priv, struct rtl8xxxu_reg8val *array)
 		}
 	}
 
-	rtl8xxxu_write8(priv, REG_MAX_AGGR_NUM, 0x0a);
+	if (priv->rtlchip != 0x8723b)
+		rtl8xxxu_write8(priv, REG_MAX_AGGR_NUM, 0x0a);
 
 	return 0;
 }
@@ -3003,6 +3004,11 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 	 */
 
 	if (priv->rtlchip == 0x8723b) {
+		val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+		val16 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB |
+			SYS_FUNC_DIO_RF;
+		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+
 		rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
 	} else {
 		val8 = rtl8xxxu_read8(priv, REG_AFE_PLL_CTRL);
@@ -3013,11 +3019,11 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 
 		rtl8xxxu_write8(priv, REG_AFE_PLL_CTRL + 1, 0xff);
 		udelay(2);
-	}
 
-	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
-	val16 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB;
-	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+		val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+		val16 |= SYS_FUNC_BB_GLB_RSTN | SYS_FUNC_BBRSTB;
+		rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+	}
 
 	if (priv->rtlchip != 0x8723b) {
 		/* AFE_XTAL_RF_GATE (bit 14) if addressing as 32 bit register */
@@ -3036,9 +3042,14 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_init_phy_regs(priv, rtl8188ru_phy_1t_highpa_table);
 	else if (priv->tx_paths == 2)
 		rtl8xxxu_init_phy_regs(priv, rtl8192cu_phy_2t_init_table);
-	else if (priv->rtlchip == 0x8723b)
+	else if (priv->rtlchip == 0x8723b) {
+		/*
+		 * Why?
+		 */
+		rtl8xxxu_write8(priv, REG_SYS_FUNC, 0xe3);
+		rtl8xxxu_write8(priv, REG_AFE_XTAL_CTRL + 1, 0x80);
 		rtl8xxxu_init_phy_regs(priv, rtl8723b_phy_1t_init_table);
-	else
+	} else
 		rtl8xxxu_init_phy_regs(priv, rtl8723a_phy_1t_init_table);
 
 
