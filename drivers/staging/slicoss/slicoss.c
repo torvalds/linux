@@ -1793,7 +1793,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	}
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
+	mcaddr = kmalloc(sizeof(*mcaddr), GFP_ATOMIC);
 	if (mcaddr == NULL)
 		return 1;
 
