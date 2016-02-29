@@ -405,7 +405,7 @@
 
 /* Presumably only found on newer chips such as 8723bu */
 #define REG_RX_DMA_CTRL_8723B		0x0286
-#define REG_RX_DMA_MODE_CTRL_8723B	0x0290
+#define REG_RXDMA_PRO_8723B		0x0290
 
 #define REG_RF_BB_CMD_ADDR		0x02c0
 #define REG_RF_BB_CMD_DATA		0x02c4
@@ -478,6 +478,7 @@
 #define REG_ARFR1			0x0448
 #define REG_ARFR2			0x044c
 #define REG_ARFR3			0x0450
+#define REG_AMPDU_MAX_TIME_8723B	0x0456
 #define REG_AGGLEN_LMT			0x0458
 #define REG_AMPDU_MIN_SPACE		0x045c
 #define REG_TXPKTBUF_WMAC_LBK_BF_HD	0x045d
@@ -496,6 +497,7 @@
 #define REG_PKT_VO_VI_LIFE_TIME		0x04c0
 #define REG_PKT_BE_BK_LIFE_TIME		0x04c2
 #define REG_STBC_SETTING		0x04c4
+#define REG_HT_SINGLE_AMPDU_8723B	0x04c7
 #define REG_PROT_MODE_CTRL		0x04c8
 #define REG_MAX_AGGR_NUM		0x04ca
 #define REG_RTS_MAX_AGGR_NUM		0x04cb
@@ -560,6 +562,7 @@
 #define  BEACON_DMA_ATIME_INT_TIME	2
 
 #define REG_ATIMWND			0x055a
+#define REG_USTIME_TSF_8723B		0x055c
 #define REG_BCN_MAX_ERR			0x055d
 #define REG_RXTSF_OFFSET_CCK		0x055e
 #define REG_RXTSF_OFFSET_OFDM		0x055f

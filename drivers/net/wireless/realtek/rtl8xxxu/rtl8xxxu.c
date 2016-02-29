@@ -6279,6 +6279,39 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write16(priv, REG_BEACON_TCFG, 0x660F);
 
 	/*
+	 * Initialize burst parameters
+	 */
+	if (priv->rtlchip == 0x8723b) {
+		/*
+		 * For USB high speed set 512B packets
+		 */
+		val8 = rtl8xxxu_read8(priv, REG_RXDMA_PRO_8723B);
+		val8 &= ~(BIT(4) | BIT(5));
+		val8 |= BIT(4);
+		val8 |= BIT(1) | BIT(2) | BIT(3);
+		rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, val8);
+
+		/*
+		 * For USB high speed set 512B packets
+		 */
+		val8 = rtl8xxxu_read8(priv, REG_HT_SINGLE_AMPDU_8723B);
+		val8 |= BIT(7);
+		rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
+
+		rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
+		rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, 0x5e);
+		rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
+		rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
+		rtl8xxxu_write8(priv, REG_PIFS, 0x00);
+		rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, 0x50);
+		rtl8xxxu_write8(priv, REG_USTIME_EDCA, 0x50);
+
+		val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
+		val8 |= BIT(5) | BIT(6);
+		rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
+	}
+
+	/*
 	 * Enable CCK and OFDM block
 	 */
 	val32 = rtl8xxxu_read32(priv, REG_FPGA0_RF_MODE);
