@@ -696,8 +696,9 @@ enum h2c_cmd_8723b {
 	H2C_8723B_BT_MP_OPER = 0x67,
 	H2C_8723B_BT_CONTROL = 0x68,
 	H2C_8723B_BT_WIFI_CTRL = 0x69,
-	H2C_8723B_BT_FW_PATCH = 0x6A,
-	H2C_8723B_BT_WLAN_CALIBRATION = 0x6D,
+	H2C_8723B_BT_FW_PATCH = 0x6a,
+	H2C_8723B_BT_WLAN_CALIBRATION = 0x6d,
+	H2C_8723B_BT_GRANT = 0x6e,
 
 	/*
 	 * WOWLAN Class: 100
@@ -743,6 +744,15 @@ struct h2c_cmd {
 			u8 cmd;
 			u8 data;
 		} __packed bt_wlan_calibration;
+		struct {
+			u8 cmd;
+			u8 ant_inverse;
+			u8 int_switch_type;
+		} __packed ant_sel_rsv;
+		struct {
+			u8 cmd;
+			u8 data;
+		} __packed bt_grant;
 	};
 };
 
@@ -862,6 +872,7 @@ struct rtl8xxxu_fileops {
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
+	void (*init_bt) (struct rtl8xxxu_priv *priv);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
