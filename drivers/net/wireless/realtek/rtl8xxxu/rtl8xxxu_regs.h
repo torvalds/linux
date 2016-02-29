@@ -473,6 +473,9 @@
 #define REG_FAST_EDCA_CTRL		0x0460
 #define REG_RD_RESP_PKT_TH		0x0463
 #define REG_INIRTS_RATE_SEL		0x0480
+/* 8723bu */
+#define REG_DATA_SUBCHANNEL		0x0483
+/* 8723au */
 #define REG_INIDATA_RATE_SEL		0x0484
 
 #define REG_POWER_STATUS		0x04a4
@@ -658,6 +661,10 @@
 #define REG_FWDLY			0x0661
 #define REG_RXERR_RPT			0x0664
 #define REG_WMAC_TRXPTCL_CTL		0x0668
+#define  WMAC_TRXPTCL_CTL_BW_MASK	(BIT(7) | BIT(8))
+#define  WMAC_TRXPTCL_CTL_BW_20		0
+#define  WMAC_TRXPTCL_CTL_BW_40		BIT(7)
+#define  WMAC_TRXPTCL_CTL_BW_80		BIT(8)
 
 /*  Security */
 #define REG_CAM_CMD			0x0670
@@ -872,6 +879,9 @@
 
 #define REG_OFDM0_RX_IQ_EXT_ANTA	0x0ca0
 
+/* 8723bu */
+#define REG_OFDM0_TX_PSDO_NOISE_WEIGHT	0x0ce4
+
 #define REG_OFDM1_LSTF			0x0d00
 #define  OFDM_LSTF_PRIME_CH_LOW		BIT(10)
 #define  OFDM_LSTF_PRIME_CH_HIGH	BIT(11)
@@ -1030,6 +1040,10 @@
 #define RF6052_REG_MODE_AG		0x18	/* RF channel and BW switch */
 #define  MODE_AG_CHANNEL_MASK		0x3ff
 #define  MODE_AG_CHANNEL_20MHZ		BIT(10)
+#define  MODE_AG_BW_MASK		(BIT(10) | BIT(11))
+#define  MODE_AG_BW_20MHZ_8723B		(BIT(10) | BIT(11))
+#define  MODE_AG_BW_40MHZ_8723B		BIT(10)
+#define  MODE_AG_BW_80MHZ_8723B		0
 
 #define RF6052_REG_TOP			0x19
 #define RF6052_REG_RX_G1		0x1a
