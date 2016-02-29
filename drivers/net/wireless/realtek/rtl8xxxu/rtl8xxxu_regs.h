@@ -70,6 +70,8 @@
 
 #define REG_EE_VPD			0x000c
 #define REG_AFE_MISC			0x0010
+#define  AFE_MISC_WL_XTAL_CTRL		BIT(6)
+
 #define REG_SPS0_CTRL			0x0011
 #define REG_SPS_OCP_CFG			0x0018
 #define REG_8192E_LDOV12_CTRL		0x0014
@@ -133,6 +135,8 @@
 #define  EFUSE_ACCESS_DISABLE		0x00	/* RTL8723 only */
 
 #define REG_PWR_DATA			0x0038
+#define PWR_DATA_EEPRPAD_RFE_CTRL_EN	BIT(11)
+
 #define REG_CAL_TIMER			0x003c
 #define REG_ACLK_MON			0x003e
 #define REG_GPIO_MUXCFG			0x0040
@@ -140,7 +144,10 @@
 #define REG_MAC_PINMUX_CFG		0x0043
 #define REG_GPIO_PIN_CTRL		0x0044
 #define REG_GPIO_INTM			0x0048
+#define  GPIO_INTM_EDGE_TRIG_IRQ	BIT(9)
+
 #define REG_LEDCFG0			0x004c
+#define  LEDCFG0_DPDT_SELECT		BIT(23)
 #define REG_LEDCFG1			0x004d
 #define REG_LEDCFG2			0x004e
 #define  LEDCFG2_DPDT_SELECT		BIT(7)
@@ -154,9 +161,13 @@
 #define REG_GPIO_PIN_CTRL_2		0x0060
 /*  RTL8723 WIFI/BT/GPS Multi-Function GPIO Select. */
 #define REG_GPIO_IO_SEL_2		0x0062
+#define  GPIO_IO_SEL_2_GPIO09_INPUT	BIT(1)
+#define  GPIO_IO_SEL_2_GPIO09_IRQ	BIT(9)
 
 /*  RTL8723B */
 #define REG_PAD_CTRL1			0x0064
+#define  PAD_CTRL1_SW_DPDT_SEL_DATA	BIT(0)
+
 /*  RTL8723 only WIFI/BT/GPS Multi-Function control source. */
 #define REG_MULTI_FUNC_CTRL		0x0068
 
