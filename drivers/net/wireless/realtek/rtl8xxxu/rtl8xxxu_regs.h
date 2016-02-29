@@ -512,6 +512,8 @@
 #define REG_PKT_LOSE_RPT		0x04e1
 #define REG_PTCL_ERR_STATUS		0x04e2
 #define REG_TX_REPORT_CTRL		0x04ec
+#define  TX_REPORT_CTRL_TIMER_ENABLE	BIT(1)
+
 #define REG_TX_REPORT_TIME		0x04f0
 #define REG_DUMMY			0x04fc
 
