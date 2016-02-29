@@ -72,6 +72,7 @@
 #define REG_AFE_MISC			0x0010
 #define REG_SPS0_CTRL			0x0011
 #define REG_SPS_OCP_CFG			0x0018
+#define REG_8192E_LDOV12_CTRL		0x0014
 #define REG_RSV_CTRL			0x001c
 
 #define REG_RF_CTRL			0x001f
@@ -178,6 +179,8 @@
 						   control */
 #define  MULTI_GPS_FUNC_EN		BIT(22)	/* GPS function enable */
 
+#define REG_LDO_SW_CTRL			0x007c	/* 8192eu */
+
 #define REG_MCU_FW_DL			0x0080
 #define  MCU_FW_DL_ENABLE		BIT(0)
 #define  MCU_FW_DL_READY		BIT(1)
@@ -229,6 +232,7 @@
 #define  SYS_CFG_PAD_HWPD_IDN		BIT(22)
 #define  SYS_CFG_TRP_VAUX_EN		BIT(23)
 #define  SYS_CFG_TRP_BT_EN		BIT(24)
+#define  SYS_CFG_SPS_LDO_SEL		BIT(24)	/* 8192eu */
 #define  SYS_CFG_BD_PKG_SEL		BIT(25)
 #define  SYS_CFG_BD_HCI_SEL		BIT(26)
 #define  SYS_CFG_TYPE_ID		BIT(27)
@@ -260,6 +264,8 @@
 #define  GPIO_PCI_SUSEN			BIT(22)
 #define  GPIO_USB_SUSEN			BIT(23)
 #define  GPIO_RF_RL_ID			(BIT(31) | BIT(30) | BIT(29) | BIT(28))
+
+#define REG_SYS_CFG2			0x00fc	/* 8192eu */
 
 /* 0x0100 ~ 0x01FF	MACTOP General Configuration */
 #define REG_CR				0x0100
