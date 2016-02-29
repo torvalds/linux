@@ -77,6 +77,12 @@ static int order2idx(struct mlx5_ib_dev *dev, int order)
 		return order - cache->ent[0].order;
 }
 
+static bool use_umr_mtt_update(struct mlx5_ib_mr *mr, u64 start, u64 length)
+{
+	return ((u64)1 << mr->order) * MLX5_ADAPTER_PAGE_SIZE >=
+		length + (start & (MLX5_ADAPTER_PAGE_SIZE - 1));
+}
+
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 static void update_odp_mr(struct mlx5_ib_mr *mr)
 {
@@ -1127,6 +1133,7 @@ static void set_mr_fileds(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	mr->ibmr.lkey = mr->mmr.key;
 	mr->ibmr.rkey = mr->mmr.key;
 	mr->ibmr.length = length;
+	mr->access_flags = access_flags;
 }
 
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -1220,6 +1227,167 @@ static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 
 error:
 	return err;
+}
+
+static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
+		     u64 length, int npages, int page_shift, int order,
+		     int access_flags, int flags)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct device *ddev = dev->ib_dev.dma_device;
+	struct mlx5_ib_umr_context umr_context;
+	struct ib_send_wr *bad;
+	struct mlx5_umr_wr umrwr = {};
+	struct ib_sge sg;
+	struct umr_common *umrc = &dev->umrc;
+	dma_addr_t dma = 0;
+	__be64 *mr_pas = NULL;
+	int size;
+	int err;
+
+	umrwr.wr.wr_id = (u64)(unsigned long)&umr_context;
+	umrwr.wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE;
+
+	if (flags & IB_MR_REREG_TRANS) {
+		err = dma_map_mr_pas(dev, mr->umem, npages, page_shift, &size,
+				     &mr_pas, &dma);
+		if (err)
+			return err;
+
+		umrwr.target.virt_addr = virt_addr;
+		umrwr.length = length;
+		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_TRANSLATION;
+	}
+
+	prep_umr_wqe_common(pd, &umrwr.wr, &sg, dma, npages, mr->mmr.key,
+			    page_shift);
+
+	if (flags & IB_MR_REREG_PD) {
+		umrwr.pd = pd;
+		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_PD;
+	}
+
+	if (flags & IB_MR_REREG_ACCESS) {
+		umrwr.access_flags = access_flags;
+		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_ACCESS;
+	}
+
+	mlx5_ib_init_umr_context(&umr_context);
+
+	/* post send request to UMR QP */
+	down(&umrc->sem);
+	err = ib_post_send(umrc->qp, &umrwr.wr, &bad);
+
+	if (err) {
+		mlx5_ib_warn(dev, "post send failed, err %d\n", err);
+	} else {
+		wait_for_completion(&umr_context.done);
+		if (umr_context.status != IB_WC_SUCCESS) {
+			mlx5_ib_warn(dev, "reg umr failed (%u)\n",
+				     umr_context.status);
+			err = -EFAULT;
+		}
+	}
+
+	up(&umrc->sem);
+	if (flags & IB_MR_REREG_TRANS) {
+		dma_unmap_single(ddev, dma, size, DMA_TO_DEVICE);
+		kfree(mr_pas);
+	}
+	return err;
+}
+
+int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
+			  u64 length, u64 virt_addr, int new_access_flags,
+			  struct ib_pd *new_pd, struct ib_udata *udata)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ib_mr->device);
+	struct mlx5_ib_mr *mr = to_mmr(ib_mr);
+	struct ib_pd *pd = (flags & IB_MR_REREG_PD) ? new_pd : ib_mr->pd;
+	int access_flags = flags & IB_MR_REREG_ACCESS ?
+			    new_access_flags :
+			    mr->access_flags;
+	u64 addr = (flags & IB_MR_REREG_TRANS) ? virt_addr : mr->umem->address;
+	u64 len = (flags & IB_MR_REREG_TRANS) ? length : mr->umem->length;
+	int page_shift = 0;
+	int npages = 0;
+	int ncont = 0;
+	int order = 0;
+	int err;
+
+	mlx5_ib_dbg(dev, "start 0x%llx, virt_addr 0x%llx, length 0x%llx, access_flags 0x%x\n",
+		    start, virt_addr, length, access_flags);
+
+	if (flags != IB_MR_REREG_PD) {
+		/*
+		 * Replace umem. This needs to be done whether or not UMR is
+		 * used.
+		 */
+		flags |= IB_MR_REREG_TRANS;
+		ib_umem_release(mr->umem);
+		mr->umem = mr_umem_get(pd, addr, len, access_flags, &npages,
+				       &page_shift, &ncont, &order);
+		if (IS_ERR(mr->umem)) {
+			err = PTR_ERR(mr->umem);
+			mr->umem = NULL;
+			return err;
+		}
+	}
+
+	if (flags & IB_MR_REREG_TRANS && !use_umr_mtt_update(mr, addr, len)) {
+		/*
+		 * UMR can't be used - MKey needs to be replaced.
+		 */
+		if (mr->umred) {
+			err = unreg_umr(dev, mr);
+			if (err)
+				mlx5_ib_warn(dev, "Failed to unregister MR\n");
+		} else {
+			err = destroy_mkey(dev, mr);
+			if (err)
+				mlx5_ib_warn(dev, "Failed to destroy MKey\n");
+		}
+		if (err)
+			return err;
+
+		mr = reg_create(ib_mr, pd, addr, len, mr->umem, ncont,
+				page_shift, access_flags);
+
+		if (IS_ERR(mr))
+			return PTR_ERR(mr);
+
+		mr->umred = 0;
+	} else {
+		/*
+		 * Send a UMR WQE
+		 */
+		err = rereg_umr(pd, mr, addr, len, npages, page_shift,
+				order, access_flags, flags);
+		if (err) {
+			mlx5_ib_warn(dev, "Failed to rereg UMR\n");
+			return err;
+		}
+	}
+
+	if (flags & IB_MR_REREG_PD) {
+		ib_mr->pd = pd;
+		mr->mmr.pd = to_mpd(pd)->pdn;
+	}
+
+	if (flags & IB_MR_REREG_ACCESS)
+		mr->access_flags = access_flags;
+
+	if (flags & IB_MR_REREG_TRANS) {
+		atomic_sub(mr->npages, &dev->mdev->priv.reg_pages);
+		set_mr_fileds(dev, mr, npages, len, access_flags);
+		mr->mmr.iova = addr;
+		mr->mmr.size = len;
+	}
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	update_odp_mr(mr);
+#endif
+
+	return 0;
 }
 
 static int

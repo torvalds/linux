@@ -2678,6 +2678,44 @@ static __be64 get_umr_update_mtt_mask(void)
 	return cpu_to_be64(result);
 }
 
+static __be64 get_umr_update_translation_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_LEN |
+		 MLX5_MKEY_MASK_PAGE_SIZE |
+		 MLX5_MKEY_MASK_START_ADDR |
+		 MLX5_MKEY_MASK_KEY |
+		 MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
+static __be64 get_umr_update_access_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_LW |
+		 MLX5_MKEY_MASK_RR |
+		 MLX5_MKEY_MASK_RW |
+		 MLX5_MKEY_MASK_A |
+		 MLX5_MKEY_MASK_KEY |
+		 MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
+static __be64 get_umr_update_pd_mask(void)
+{
+	u64 result;
+
+	result = MLX5_MKEY_MASK_PD |
+		 MLX5_MKEY_MASK_KEY |
+		 MLX5_MKEY_MASK_FREE;
+
+	return cpu_to_be64(result);
+}
+
 static void set_reg_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 				struct ib_send_wr *wr)
 {
@@ -2696,9 +2734,15 @@ static void set_reg_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 			umr->mkey_mask = get_umr_update_mtt_mask();
 			umr->bsf_octowords = get_klm_octo(umrwr->target.offset);
 			umr->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
-		} else {
-			umr->mkey_mask = get_umr_reg_mr_mask();
 		}
+		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION)
+			umr->mkey_mask |= get_umr_update_translation_mask();
+		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_ACCESS)
+			umr->mkey_mask |= get_umr_update_access_mask();
+		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_PD)
+			umr->mkey_mask |= get_umr_update_pd_mask();
+		if (!umr->mkey_mask)
+			umr->mkey_mask = get_umr_reg_mr_mask();
 	} else {
 		umr->mkey_mask = get_umr_unreg_mr_mask();
 	}
@@ -2750,7 +2794,8 @@ static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *w
 
 	seg->flags = convert_access(umrwr->access_flags);
 	if (!(wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_MTT)) {
-		seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
+		if (umrwr->pd)
+			seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
 		seg->start_addr = cpu_to_be64(umrwr->target.virt_addr);
 	}
 	seg->len = cpu_to_be64(umrwr->length);

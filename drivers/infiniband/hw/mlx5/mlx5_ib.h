@@ -162,6 +162,11 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_SEND_UMR_UNREG	IB_SEND_RESERVED_START
 #define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
 #define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
+
+#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION	(IB_SEND_RESERVED_START << 3)
+#define MLX5_IB_SEND_UMR_UPDATE_PD		(IB_SEND_RESERVED_START << 4)
+#define MLX5_IB_SEND_UMR_UPDATE_ACCESS		IB_SEND_RESERVED_END
+
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
 /*
  * IB_QPT_GSI creates the software wrapper around GSI, and MLX5_IB_QPT_HW_GSI
@@ -453,6 +458,7 @@ struct mlx5_ib_mr {
 	struct mlx5_core_sig_ctx    *sig;
 	int			live;
 	void			*descs_alloc;
+	int			access_flags; /* Needed for rereg MR */
 };
 
 struct mlx5_ib_umr_context {
@@ -689,6 +695,9 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  struct ib_udata *udata);
 int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
 		       int npages, int zap);
+int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
+			  u64 length, u64 virt_addr, int access_flags,
+			  struct ib_pd *pd, struct ib_udata *udata);
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
