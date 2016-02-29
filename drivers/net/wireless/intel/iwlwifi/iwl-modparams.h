@@ -115,6 +115,7 @@ enum iwl_amsdu_size {
  *	entering D0i3 (in msecs)
  * @lar_disable: disable LAR (regulatory), default = 0
  * @fw_monitor: allow to use firmware monitor
+ * @disable_11ac: disable VHT capabilities, default = false.
  */
 struct iwl_mod_params {
 	int sw_crypto;
@@ -135,6 +136,7 @@ struct iwl_mod_params {
 	unsigned int d0i3_entry_delay;
 	bool lar_disable;
 	bool fw_monitor;
+	bool disable_11ac;
 };
 
 #endif /* #__iwl_modparams_h__ */
