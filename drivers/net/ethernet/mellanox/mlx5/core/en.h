@@ -223,6 +223,7 @@ struct mlx5e_pport_stats {
 
 static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
+	"bytes",
 	"csum_none",
 	"csum_sw",
 	"lro_packets",
@@ -232,16 +233,18 @@ static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 
 struct mlx5e_rq_stats {
 	u64 packets;
+	u64 bytes;
 	u64 csum_none;
 	u64 csum_sw;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 wqe_err;
-#define NUM_RQ_STATS 6
+#define NUM_RQ_STATS 7
 };
 
 static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
+	"bytes",
 	"tso_packets",
 	"tso_bytes",
 	"csum_offload_none",
@@ -253,6 +256,7 @@ static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 
 struct mlx5e_sq_stats {
 	u64 packets;
+	u64 bytes;
 	u64 tso_packets;
 	u64 tso_bytes;
 	u64 csum_offload_none;
@@ -260,7 +264,7 @@ struct mlx5e_sq_stats {
 	u64 wake;
 	u64 dropped;
 	u64 nop;
-#define NUM_SQ_STATS 8
+#define NUM_SQ_STATS 9
 };
 
 struct mlx5e_stats {

@@ -263,6 +263,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 
 		mlx5e_build_rx_skb(cqe, rq, skb);
 		rq->stats.packets++;
+		rq->stats.bytes += be32_to_cpu(cqe->byte_cnt);
 		napi_gro_receive(cq->napi, skb);
 
 wq_ll_pop:
