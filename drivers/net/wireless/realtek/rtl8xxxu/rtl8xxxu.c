@@ -6182,7 +6182,10 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Set RX page boundary
 	 */
-	rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x27ff);
+	if (priv->rtlchip == 0x8723b)
+		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x3f7f);
+	else
+		rtl8xxxu_write16(priv, REG_TRXFF_BNDY + 2, 0x27ff);
 	/*
 	 * Transfer page size is always 128
 	 */
