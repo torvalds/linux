@@ -55,8 +55,8 @@
 #define RTL8723A_MAX_RF_PATHS		2
 #define RF6052_MAX_TX_PWR		0x3f
 
-#define EFUSE_MAP_LEN_8723A		256
-#define EFUSE_MAX_SECTION_8723A		32
+#define EFUSE_MAP_LEN			512
+#define EFUSE_MAX_SECTION_8723A		64
 #define EFUSE_REAL_CONTENT_LEN_8723A	512
 #define EFUSE_BT_MAP_LEN_8723A		1024
 #define EFUSE_MAX_WORD_UNIT		4
@@ -500,6 +500,49 @@ struct rtl8192cu_efuse {
 	u8 customer_id;
 };
 
+struct rtl8192eu_efuse {
+	__le16 rtl_id;
+	u8 res0[0x0e];
+	u8 cck_tx_power_index_A[3];	/* 0x10 */
+	u8 cck_tx_power_index_B[3];
+	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
+	u8 ht40_1s_tx_power_index_B[3];
+	u8 res1[0x9c];
+	u8 channel_plan;		/* 0xb8 */
+	u8 xtal_k;
+	u8 thermal_meter;
+	u8 iqk_lck;
+	u8 pa_type;			/* 0xbc */
+	u8 lna_type_2g;			/* 0xbd */
+	u8 res2[1];
+	u8 lna_type_5g;			/* 0xbf */
+	u8 res13[1];
+	u8 rf_board_option;
+	u8 rf_feature_option;
+	u8 rf_bt_setting;
+	u8 eeprom_version;
+	u8 eeprom_customer_id;
+	u8 res3[3];
+	u8 rf_antenna_option;		/* 0xc9 */
+	u8 res4[6];
+	u8 vid;				/* 0xd0 */
+	u8 res5[1];
+	u8 pid;				/* 0xd2 */
+	u8 res6[1];
+	u8 usb_optional_function;
+	u8 res7[2];
+	u8 mac_addr[ETH_ALEN];		/* 0xd7 */
+	u8 res8[2];
+	u8 vendor_name[7];
+	u8 res9[2];
+	u8 device_name[0x0b];		/* 0xe8 */
+	u8 res10[2];
+	u8 serial[0x0b];		/* 0xf5 */
+	u8 res11[0x30];
+	u8 unknown[0x0d];		/* 0x130 */
+	u8 res12[0xc3];
+};
+
 struct rtl8xxxu_reg8val {
 	u16 reg;
 	u8 val;
@@ -643,9 +686,10 @@ struct rtl8xxxu_priv {
 		u8 val8;
 	} usb_buf;
 	union {
-		u8 raw[EFUSE_MAP_LEN_8723A];
+		u8 raw[EFUSE_MAP_LEN];
 		struct rtl8723au_efuse efuse8723;
 		struct rtl8192cu_efuse efuse8192;
+		struct rtl8192eu_efuse efuse8192eu;
 	} efuse_wifi;
 	u32 adda_backup[RTL8XXXU_ADDA_REGS];
 	u32 mac_backup[RTL8XXXU_MAC_REGS];
