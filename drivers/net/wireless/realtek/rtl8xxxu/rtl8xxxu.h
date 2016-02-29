@@ -346,6 +346,22 @@ struct rtl8xxxu_tx_desc {
 	__le16 txdw7;
 };
 
+struct rtl8723bu_tx_desc {
+	__le16 pkt_size;
+	u8 pkt_offset;
+	u8 txdw0;
+	__le32 txdw1;
+	__le32 txdw2;
+	__le32 txdw3;
+	__le32 txdw4;
+	__le32 txdw5;
+	__le32 txdw6;
+	__le16 csum;
+	__le16 txdw7;
+	__le32 txdw8;
+	__le32 txdw9;
+};
+
 /*  CCK Rates, TxHT = 0 */
 #define DESC_RATE_1M			0x00
 #define DESC_RATE_2M			0x01
