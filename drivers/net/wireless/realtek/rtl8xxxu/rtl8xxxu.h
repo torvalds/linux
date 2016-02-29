@@ -407,8 +407,12 @@ struct rtl8723bu_tx_desc {
 #define TXDESC_OWN			BIT(31)
 #else
 #define TXDESC_BROADMULTICAST		BIT(0)
+#define TXDESC_HTC			BIT(1)
 #define TXDESC_LAST_SEGMENT		BIT(2)
 #define TXDESC_FIRST_SEGMENT		BIT(3)
+#define TXDESC_LINIP			BIT(4)
+#define TXDESC_NO_ACM			BIT(5)
+#define TXDESC_GF			BIT(6)
 #define TXDESC_OWN			BIT(7)
 #endif
 
