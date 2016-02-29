@@ -1918,15 +1918,17 @@ static int dwceqos_stop(struct net_device *ndev)
 	phy_stop(lp->phy_dev);
 
 	tasklet_disable(&lp->tx_bdreclaim_tasklet);
-	netif_stop_queue(ndev);
 	napi_disable(&lp->napi);
 
-	dwceqos_drain_dma(lp);
+	/* Stop all tx before we drain the tx dma. */
+	netif_tx_lock_bh(lp->ndev);
+	netif_stop_queue(ndev);
+	netif_tx_unlock_bh(lp->ndev);
 
-	netif_tx_lock(lp->ndev);
+	dwceqos_drain_dma(lp);
 	dwceqos_reset_hw(lp);
+
 	dwceqos_descriptor_free(lp);
-	netif_tx_unlock(lp->ndev);
 
 	return 0;
 }
