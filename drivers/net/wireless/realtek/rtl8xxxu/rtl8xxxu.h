@@ -727,6 +727,10 @@ struct h2c_cmd {
 			u8 arg;
 			__le16 mask_lo;
 		} __packed ramask;
+		struct {
+			u8 cmd;
+			u8 data;
+		} __packed bt_wlan_calibration;
 	};
 };
 

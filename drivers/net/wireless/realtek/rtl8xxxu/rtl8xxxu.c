@@ -1497,7 +1497,7 @@ static int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv,
 	} while (retry--);
 
 	if (!retry) {
-		dev_dbg(dev, "%s: Mailbox busy\n", __func__);
+		dev_info(dev, "%s: Mailbox busy\n", __func__);
 		retval = -EBUSY;
 		goto error;
 	}
@@ -3877,6 +3877,20 @@ static void rtl8xxxu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	}
 }
 
+static void rtl8xxxu_prepare_calibrate(struct rtl8xxxu_priv *priv, u8 start)
+{
+	struct h2c_cmd h2c;
+
+	if (priv->fops->mbox_ext_width < 4)
+		return;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.bt_wlan_calibration.cmd = H2C_8723B_BT_WLAN_CALIBRATION;
+	h2c.bt_wlan_calibration.data = start;
+
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_wlan_calibration));
+}
+
 static void rtl8723a_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 {
 	struct device *dev = &priv->udev->dev;
@@ -3887,6 +3901,8 @@ static void rtl8723a_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 	u32 reg_eb4, reg_ebc, reg_ec4, reg_ecc;
 	s32 reg_tmp = 0;
 	bool simu;
+
+	rtl8xxxu_prepare_calibrate(priv, 1);
 
 	memset(result, 0, sizeof(result));
 	candidate = -1;
@@ -3975,6 +3991,8 @@ static void rtl8723a_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_save_regs(priv, rtl8723au_iqk_phy_iq_bb_reg,
 			   priv->bb_recovery_backup, RTL8XXXU_BB_REGS);
+
+	rtl8xxxu_prepare_calibrate(priv, 0);
 }
 
 static void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
