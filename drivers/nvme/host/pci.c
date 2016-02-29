@@ -1156,9 +1156,6 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->qid = qid;
 	nvmeq->cq_vector = -1;
 	dev->queues[qid] = nvmeq;
-
-	/* make sure queue descriptor is set before queue count, for kthread */
-	mb();
 	dev->queue_count++;
 
 	return nvmeq;
@@ -1345,7 +1342,6 @@ static int nvme_kthread(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_lock(&dev_list_lock);
 		list_for_each_entry_safe(dev, next, &dev_list, node) {
-			int i;
 			u32 csts = readl(dev->bar + NVME_REG_CSTS);
 
 			/*
@@ -1362,14 +1358,6 @@ static int nvme_kthread(void *data)
 						readl(dev->bar + NVME_REG_CSTS));
 				}
 				continue;
-			}
-			for (i = 0; i < dev->queue_count; i++) {
-				struct nvme_queue *nvmeq = dev->queues[i];
-				if (!nvmeq)
-					continue;
-				spin_lock_irq(&nvmeq->q_lock);
-				nvme_process_cq(nvmeq);
-				spin_unlock_irq(&nvmeq->q_lock);
 			}
 		}
 		spin_unlock(&dev_list_lock);
