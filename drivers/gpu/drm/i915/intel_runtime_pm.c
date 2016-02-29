@@ -458,8 +458,6 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
-	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
-		"DC9 already programmed to be disabled.\n");
 	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		"DC5 still not disabled.\n");
 
@@ -602,18 +600,6 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * During initialization, the firmware may not be loaded yet.
-	 * We still want to make sure that the DC enabling flag is cleared.
-	 */
-	if (dev_priv->power_domains.initializing)
-		return;
-
-	assert_rpm_wakelock_held(dev_priv);
-}
-
 static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc5(dev_priv);
@@ -638,29 +624,6 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 	assert_csr_loaded(dev_priv);
 }
 
-static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * During initialization, the firmware may not be loaded yet.
-	 * We still want to make sure that the DC enabling flag is cleared.
-	 */
-	if (dev_priv->power_domains.initializing)
-		return;
-
-	WARN_ONCE(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		  "DC6 already programmed to be disabled.\n");
-}
-
-static void gen9_disable_dc5_dc6(struct drm_i915_private *dev_priv)
-{
-	assert_can_disable_dc5(dev_priv);
-
-	if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
-		assert_can_disable_dc6(dev_priv);
-
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
-}
-
 void skl_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc6(dev_priv);
@@ -673,8 +636,6 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 
 void skl_disable_dc6(struct drm_i915_private *dev_priv)
 {
-	assert_can_disable_dc6(dev_priv);
-
 	DRM_DEBUG_KMS("Disabling DC6\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -828,7 +789,7 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	gen9_disable_dc5_dc6(dev_priv);
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
