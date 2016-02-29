@@ -6155,7 +6155,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
 	}
 
-	if (!macpower){
+	if (!macpower) {
 		if (priv->ep_tx_normal_queue)
 			val8 = TX_PAGE_NUM_NORM_PQ;
 		else
