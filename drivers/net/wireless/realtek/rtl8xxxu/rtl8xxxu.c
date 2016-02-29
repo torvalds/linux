@@ -1471,7 +1471,8 @@ static int rtl8xxxu_write_rfreg(struct rtl8xxxu_priv *priv,
 	return retval;
 }
 
-static int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c)
+static int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv,
+			    struct h2c_cmd *h2c, int len)
 {
 	struct device *dev = &priv->udev->dev;
 	int mbox_nr, retry, retval = 0;
@@ -1504,7 +1505,7 @@ static int rtl8723a_h2c_cmd(struct rtl8xxxu_priv *priv, struct h2c_cmd *h2c)
 	/*
 	 * Need to swap as it's being swapped again by rtl8xxxu_write16/32()
 	 */
-	if (h2c->cmd.cmd & H2C_EXT) {
+	if (len > sizeof(u32)) {
 		if (priv->fops->mbox_ext_width == 4) {
 			rtl8xxxu_write32(priv, mbox_ext_reg,
 					 le32_to_cpu(h2c->raw_wide.ext));
@@ -5110,9 +5111,9 @@ static void rtl8xxxu_update_rate_mask(struct rtl8xxxu_priv *priv,
 	if (sgi)
 		h2c.ramask.arg |= 0x20;
 
-	dev_dbg(&priv->udev->dev, "%s: rate mask %08x, arg %02x\n", __func__,
-		ramask, h2c.ramask.arg);
-	rtl8723a_h2c_cmd(priv, &h2c);
+	dev_dbg(&priv->udev->dev, "%s: rate mask %08x, arg %02x, size %li\n",
+		__func__, ramask, h2c.ramask.arg, sizeof(h2c.ramask));
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ramask));
 }
 
 static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
@@ -5200,7 +5201,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			h2c.joinbss.data = H2C_JOIN_BSS_DISCONNECT;
 		}
 		h2c.joinbss.cmd = H2C_JOIN_BSS_REPORT;
-		rtl8723a_h2c_cmd(priv, &h2c);
+		rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.joinbss));
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {

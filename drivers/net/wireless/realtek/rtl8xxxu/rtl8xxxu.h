@@ -720,7 +720,6 @@ struct h2c_cmd {
 		struct {
 			u8 cmd;
 			u8 data;
-			u8 pad[4];
 		} __packed joinbss;
 		struct {
 			u8 cmd;
