@@ -335,10 +335,6 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 	u16 sqcc;
 	int i;
 
-	/* avoid accessing cq (dma coherent memory) if not needed */
-	if (!test_and_clear_bit(MLX5E_CQ_HAS_CQES, &cq->flags))
-		return false;
-
 	sq = container_of(cq, struct mlx5e_sq, cq);
 
 	npkts = 0;
@@ -422,10 +418,6 @@ bool mlx5e_poll_tx_cq(struct mlx5e_cq *cq)
 				netif_tx_wake_queue(sq->txq);
 				sq->stats.wake++;
 	}
-	if (i == MLX5E_TX_CQ_POLL_BUDGET) {
-		set_bit(MLX5E_CQ_HAS_CQES, &cq->flags);
-		return true;
-	}
 
-	return false;
+	return (i == MLX5E_TX_CQ_POLL_BUDGET);
 }

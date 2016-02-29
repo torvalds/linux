@@ -304,14 +304,9 @@ enum {
 	MLX5E_RQ_STATE_POST_WQES_ENABLE,
 };
 
-enum cq_flags {
-	MLX5E_CQ_HAS_CQES = 1,
-};
-
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
 	struct mlx5_cqwq           wq;
-	unsigned long              flags;
 
 	/* data path - accessed per napi poll */
 	struct napi_struct        *napi;
