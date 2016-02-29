@@ -2946,9 +2946,9 @@ static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 	val32 &= ~BIT(23);
 	rtl8xxxu_write32(priv, REG_LEDCFG0, val32);
 
-	val32 = rtl8xxxu_read32(priv, 0x0944);
+	val32 = rtl8xxxu_read32(priv, REG_RFE_BUFFER);
 	val32 |= (BIT(0) | BIT(1));
-	rtl8xxxu_write32(priv, 0x0944, val32);
+	rtl8xxxu_write32(priv, REG_RFE_BUFFER, val32);
 
 	val32 = rtl8xxxu_read32(priv, 0x0930);
 	val32 &= 0xffffff00;
@@ -5912,9 +5912,9 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	 */
 	rtl8xxxu_write8(priv, 0x0974, 0xff);
 
-	val32 = rtl8xxxu_read32(priv, 0x0944);
+	val32 = rtl8xxxu_read32(priv, REG_RFE_BUFFER);
 	val32 |= (BIT(0) | BIT(1));
-	rtl8xxxu_write32(priv, 0x0944, val32);
+	rtl8xxxu_write32(priv, REG_RFE_BUFFER, val32);
 
 	rtl8xxxu_write8(priv, REG_RFE_CTRL_ANTA_SRC, 0x77);
 
