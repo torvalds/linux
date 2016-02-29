@@ -159,7 +159,8 @@ static int thingm_init_rgb(struct thingm_rgb *rgb)
 	rgb->red.ldev.brightness_set_blocking = thingm_led_set;
 	rgb->red.rgb = rgb;
 
-	err = led_classdev_register(&rgb->tdev->hdev->dev, &rgb->red.ldev);
+	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
+					 &rgb->red.ldev);
 	if (err)
 		return err;
 
@@ -171,9 +172,10 @@ static int thingm_init_rgb(struct thingm_rgb *rgb)
 	rgb->green.ldev.brightness_set_blocking = thingm_led_set;
 	rgb->green.rgb = rgb;
 
-	err = led_classdev_register(&rgb->tdev->hdev->dev, &rgb->green.ldev);
+	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
+					 &rgb->green.ldev);
 	if (err)
-		goto unregister_red;
+		return err;
 
 	/* Register the blue diode */
 	snprintf(rgb->blue.name, sizeof(rgb->blue.name),
@@ -183,26 +185,9 @@ static int thingm_init_rgb(struct thingm_rgb *rgb)
 	rgb->blue.ldev.brightness_set_blocking = thingm_led_set;
 	rgb->blue.rgb = rgb;
 
-	err = led_classdev_register(&rgb->tdev->hdev->dev, &rgb->blue.ldev);
-	if (err)
-		goto unregister_green;
-
-	return 0;
-
-unregister_green:
-	led_classdev_unregister(&rgb->green.ldev);
-
-unregister_red:
-	led_classdev_unregister(&rgb->red.ldev);
-
+	err = devm_led_classdev_register(&rgb->tdev->hdev->dev,
+					 &rgb->blue.ldev);
 	return err;
-}
-
-static void thingm_remove_rgb(struct thingm_rgb *rgb)
-{
-	led_classdev_unregister(&rgb->red.ldev);
-	led_classdev_unregister(&rgb->green.ldev);
-	led_classdev_unregister(&rgb->blue.ldev);
 }
 
 static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
@@ -259,11 +244,8 @@ static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		rgb->tdev = tdev;
 		rgb->num = tdev->fwinfo->first + i;
 		err = thingm_init_rgb(rgb);
-		if (err) {
-			while (--i >= 0)
-				thingm_remove_rgb(tdev->rgb + i);
+		if (err)
 			goto stop;
-		}
 	}
 
 	return 0;
@@ -271,17 +253,6 @@ stop:
 	hid_hw_stop(hdev);
 error:
 	return err;
-}
-
-static void thingm_remove(struct hid_device *hdev)
-{
-	struct thingm_device *tdev = hid_get_drvdata(hdev);
-	int i;
-
-	hid_hw_stop(hdev);
-
-	for (i = 0; i < tdev->fwinfo->numrgb; ++i)
-		thingm_remove_rgb(tdev->rgb + i);
 }
 
 static const struct hid_device_id thingm_table[] = {
@@ -293,7 +264,6 @@ MODULE_DEVICE_TABLE(hid, thingm_table);
 static struct hid_driver thingm_driver = {
 	.name = "thingm",
 	.probe = thingm_probe,
-	.remove = thingm_remove,
 	.id_table = thingm_table,
 };
 
