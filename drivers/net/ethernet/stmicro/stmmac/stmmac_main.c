@@ -72,6 +72,7 @@ module_param(phyaddr, int, S_IRUGO);
 MODULE_PARM_DESC(phyaddr, "Physical device address");
 
 #define STMMAC_TX_THRESH	(DMA_TX_SIZE / 4)
+#define STMMAC_RX_THRESH	(DMA_RX_SIZE / 4)
 
 static int flow_ctrl = FLOW_OFF;
 module_param(flow_ctrl, int, S_IRUGO | S_IWUSR);
@@ -2138,6 +2139,14 @@ static void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 }
 
 
+static inline int stmmac_rx_threshold_count(struct stmmac_priv *priv)
+{
+	if (priv->rx_zeroc_thresh < STMMAC_RX_THRESH)
+		return 0;
+
+	return 1;
+}
+
 /**
  * stmmac_rx_refill - refill used skb preallocated buffers
  * @priv: driver private structure
@@ -2162,8 +2171,15 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			struct sk_buff *skb;
 
 			skb = netdev_alloc_skb_ip_align(priv->dev, bfsize);
-			if (unlikely(!skb))
+			if (unlikely(!skb)) {
+				/* so for a while no zero-copy! */
+				priv->rx_zeroc_thresh = STMMAC_RX_THRESH;
+				if (unlikely(net_ratelimit()))
+					dev_err(priv->device,
+						"fail to alloc skb entry %d\n",
+						entry);
 				break;
+			}
 
 			priv->rx_skbuff[entry] = skb;
 			priv->rx_skbuff_dma[entry] =
@@ -2179,9 +2195,13 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 
 			priv->hw->mode->refill_desc3(priv, p);
 
+			if (priv->rx_zeroc_thresh > 0)
+				priv->rx_zeroc_thresh--;
+
 			if (netif_msg_rx_status(priv))
 				pr_debug("\trefill entry #%d\n", entry);
 		}
+
 		wmb();
 		priv->hw->desc->set_rx_owner(p);
 		wmb();
@@ -2285,7 +2305,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 						 frame_len, status);
 			}
 
-			if (unlikely(frame_len < priv->rx_copybreak)) {
+			if (unlikely((frame_len < priv->rx_copybreak) ||
+				     stmmac_rx_threshold_count(priv))) {
 				skb = netdev_alloc_skb_ip_align(priv->dev,
 								frame_len);
 				if (unlikely(!skb)) {
@@ -2320,6 +2341,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 				}
 				prefetch(skb->data - NET_IP_ALIGN);
 				priv->rx_skbuff[entry] = NULL;
+				priv->rx_zeroc_thresh++;
 
 				skb_put(skb, frame_len);
 				dma_unmap_single(priv->device,

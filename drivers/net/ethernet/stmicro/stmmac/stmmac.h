@@ -75,6 +75,7 @@ struct stmmac_priv {
 	unsigned int dirty_rx;
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
+	unsigned int rx_zeroc_thresh;
 	u32 rx_riwt;
 	int hwts_rx_en;
 	dma_addr_t *rx_skbuff_dma;
