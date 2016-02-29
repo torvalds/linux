@@ -4342,6 +4342,15 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, REG_TDECTRL + 1, val8);
 	}
 
+	ret = rtl8xxxu_download_firmware(priv);
+	dev_dbg(dev, "%s: download_fiwmare %i\n", __func__, ret);
+	if (ret)
+		goto exit;
+	ret = rtl8xxxu_start_firmware(priv);
+	dev_dbg(dev, "%s: start_fiwmare %i\n", __func__, ret);
+	if (ret)
+		goto exit;
+
 	ret = rtl8xxxu_init_queue_priority(priv);
 	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
 	if (ret)
@@ -4355,15 +4364,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 			goto exit;
 		}
 	}
-
-	ret = rtl8xxxu_download_firmware(priv);
-	dev_dbg(dev, "%s: download_fiwmare %i\n", __func__, ret);
-	if (ret)
-		goto exit;
-	ret = rtl8xxxu_start_firmware(priv);
-	dev_dbg(dev, "%s: start_fiwmare %i\n", __func__, ret);
-	if (ret)
-		goto exit;
 
 	ret = rtl8xxxu_init_mac(priv, rtl8723a_mac_init_table);
 	dev_dbg(dev, "%s: init_mac %i\n", __func__, ret);
