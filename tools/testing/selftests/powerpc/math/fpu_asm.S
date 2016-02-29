@@ -159,3 +159,40 @@ FUNC_START(test_fpu)
 	POP_BASIC_STACK(256)
 	blr
 FUNC_END(test_fpu)
+
+# int preempt_fpu(double *darray, int *threads_running, int *running)
+# On starting will (atomically) decrement not_ready as a signal that the FPU
+# has been loaded with darray. Will proceed to check the validity of the FPU
+# registers while running is not zero.
+FUNC_START(preempt_fpu)
+	PUSH_BASIC_STACK(256)
+	std r3,STACK_FRAME_PARAM(0)(sp) # double *darray
+	std r4,STACK_FRAME_PARAM(1)(sp) # int *threads_starting
+	std r5,STACK_FRAME_PARAM(2)(sp) # int *running
+	PUSH_FPU(STACK_FRAME_LOCAL(3,0))
+
+	bl load_fpu
+	nop
+
+	sync
+	# Atomic DEC
+	ld r3,STACK_FRAME_PARAM(1)(sp)
+1:	lwarx r4,0,r3
+	addi r4,r4,-1
+	stwcx. r4,0,r3
+	bne- 1b
+
+2:	ld r3,STACK_FRAME_PARAM(0)(sp)
+	bl check_fpu
+	nop
+	cmpdi r3,0
+	bne 3f
+	ld r4,STACK_FRAME_PARAM(2)(sp)
+	ld r5,0(r4)
+	cmpwi r5,0
+	bne 2b
+
+3:	POP_FPU(STACK_FRAME_LOCAL(3,0))
+	POP_BASIC_STACK(256)
+	blr
+FUNC_END(preempt_fpu)

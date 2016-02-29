@@ -1,2 +1,4 @@
 fpu_syscall
 vmx_syscall
+fpu_preempt
+vmx_preempt
