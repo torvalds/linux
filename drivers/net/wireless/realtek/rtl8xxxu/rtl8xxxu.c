@@ -2950,10 +2950,10 @@ static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 	val32 |= (BIT(0) | BIT(1));
 	rtl8xxxu_write32(priv, REG_RFE_BUFFER, val32);
 
-	val32 = rtl8xxxu_read32(priv, 0x0930);
+	val32 = rtl8xxxu_read32(priv, REG_RFE_CTRL_ANTA_SRC);
 	val32 &= 0xffffff00;
 	val32 |= 0x77;
-	rtl8xxxu_write32(priv, 0x0930, val32);
+	rtl8xxxu_write32(priv, REG_RFE_CTRL_ANTA_SRC, val32);
 
 	val32 = rtl8xxxu_read32(priv, REG_PWR_DATA);
 	val32 |= PWR_DATA_EEPRPAD_RFE_CTRL_EN;
