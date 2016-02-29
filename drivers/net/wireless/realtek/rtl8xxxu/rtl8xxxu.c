@@ -6655,6 +6655,39 @@ static void rtl8723bu_update_rate_mask(struct rtl8xxxu_priv *priv,
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.b_macid_cfg));
 }
 
+static void rtl8723au_report_connect(struct rtl8xxxu_priv *priv,
+				     u8 macid, bool connect)
+{
+	struct h2c_cmd h2c;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+
+	h2c.joinbss.cmd = H2C_JOIN_BSS_REPORT;
+
+	if (connect)
+		h2c.joinbss.data = H2C_JOIN_BSS_CONNECT;
+	else
+		h2c.joinbss.data = H2C_JOIN_BSS_DISCONNECT;
+
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.joinbss));
+}
+
+static void rtl8723bu_report_connect(struct rtl8xxxu_priv *priv,
+				     u8 macid, bool connect)
+{
+	struct h2c_cmd h2c;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+
+	h2c.media_status_rpt.cmd = H2C_8723B_MEDIA_STATUS_RPT;
+	if (connect)
+		h2c.media_status_rpt.parm |= BIT(0);
+	else
+		h2c.media_status_rpt.parm &= ~BIT(0);
+
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.media_status_rpt));
+}
+
 static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
 {
 	u32 val32;
@@ -6687,11 +6720,8 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 val8;
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		struct h2c_cmd h2c;
-
 		dev_dbg(dev, "Changed ASSOC: %i!\n", bss_conf->assoc);
 
-		memset(&h2c, 0, sizeof(struct h2c_cmd));
 		rtl8xxxu_set_linktype(priv, vif->type);
 
 		if (bss_conf->assoc) {
@@ -6731,16 +6761,14 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			rtl8xxxu_write16(priv, REG_BCN_PSR_RPT,
 					 0xc000 | bss_conf->aid);
 
-			h2c.joinbss.data = H2C_JOIN_BSS_CONNECT;
+			priv->fops->report_connect(priv, 0, true);
 		} else {
 			val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
 			val8 |= BEACON_DISABLE_TSF_UPDATE;
 			rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
 
-			h2c.joinbss.data = H2C_JOIN_BSS_DISCONNECT;
+			priv->fops->report_connect(priv, 0, false);
 		}
-		h2c.joinbss.cmd = H2C_JOIN_BSS_REPORT;
-		rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.joinbss));
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
@@ -8239,6 +8267,7 @@ static struct rtl8xxxu_fileops rtl8723au_fops = {
 	.enable_rf = rtl8723a_enable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
+	.report_connect = rtl8723au_report_connect,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8264,6 +8293,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.enable_rf = rtl8723b_enable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8723bu_update_rate_mask,
+	.report_connect = rtl8723bu_report_connect,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
@@ -8288,6 +8318,7 @@ static struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.enable_rf = rtl8723a_enable_rf,
 	.set_tx_power = rtl8723a_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
+	.report_connect = rtl8723au_report_connect,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT_0,
 	.mbox_ext_width = 2,
@@ -8311,6 +8342,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.enable_rf = rtl8723b_enable_rf,
 	.set_tx_power = rtl8723b_set_tx_power,
 	.update_rate_mask = rtl8723au_update_rate_mask,
+	.report_connect = rtl8723au_report_connect,
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,

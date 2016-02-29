@@ -958,6 +958,12 @@ struct h2c_cmd {
 		} __packed ramask;
 		struct {
 			u8 cmd;
+			u8 parm;
+			u8 macid;
+			u8 macid_end;
+		} __packed media_status_rpt;
+		struct {
+			u8 cmd;
 			u8 macid;
 			/*
 			 * [0:4] - RAID
@@ -1254,6 +1260,8 @@ struct rtl8xxxu_fileops {
 			      bool ht40);
 	void (*update_rate_mask) (struct rtl8xxxu_priv *priv,
 				  u32 ramask, int sgi);
+	void (*report_connect) (struct rtl8xxxu_priv *priv,
+				u8 macid, bool connect);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
