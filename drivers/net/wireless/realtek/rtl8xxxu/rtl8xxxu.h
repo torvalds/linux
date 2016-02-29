@@ -1033,6 +1033,7 @@ enum c2h_evt_8723b {
 	C2H_8723B_BT_INFO = 9,
 	C2H_8723B_HW_INFO_EXCH = 0x0a,
 	C2H_8723B_BT_MP_INFO = 0x0b,
+	C2H_8723B_RA_REPORT = 0x0c,
 	C2H_8723B_FW_DEBUG = 0xff,
 };
 
@@ -1121,6 +1122,16 @@ struct rtl8723bu_c2h {
 			u8 a4;
 			u8 a5;
 		} __packed bt_info;
+		struct {
+			u8 rate:7;
+			u8 dummy0_0:1;
+			u8 macid;
+			u8 ldpc:1;
+			u8 txbf:1;
+			u8 noisy_state:1;
+			u8 dummy2_0:5;
+			u8 dummy3_0;
+		} __packed ra_report;
 	};
 };
 

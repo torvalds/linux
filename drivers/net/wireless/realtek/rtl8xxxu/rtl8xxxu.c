@@ -7445,6 +7445,12 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 		dev_dbg(dev, "C2H_MP_INFO ext ID %02x, status %02x\n",
 			c2h->bt_mp_info.ext_id, c2h->bt_mp_info.status);
 		break;
+	case C2H_8723B_RA_REPORT:
+		dev_dbg(dev,
+			"C2H RA RPT: rate %02x, unk %i, macid %02x, noise %i\n",
+			c2h->ra_report.rate, c2h->ra_report.dummy0_0,
+			c2h->ra_report.macid, c2h->ra_report.noisy_state);
+		break;
 	default:
 		dev_info(dev, "Unhandled C2H event %02x seq %02x\n",
 			 c2h->id, c2h->seq);
