@@ -2034,6 +2034,9 @@ static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		mask = 0;
 	}
 
+	if (!i915.disable_power_well)
+		max_dc = 0;
+
 	if (enable_dc >= 0 && enable_dc <= max_dc) {
 		requested_dc = enable_dc;
 	} else if (enable_dc == -1) {
