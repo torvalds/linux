@@ -18,8 +18,6 @@
 #include "cp_intc.h"
 #include <mach/da8xx.h>
 
-#define DA8XX_NUM_UARTS	3
-
 static const struct of_device_id const da8xx_irq_match[] __initconst = {
 	{ .compatible = "ti,cp-intc", .data = cp_intc_of_init, },
 	{ }
