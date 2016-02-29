@@ -40,6 +40,7 @@
 #include <rdma/ib_umem_odp.h>
 #include <rdma/ib_verbs.h>
 #include "mlx5_ib.h"
+#include "user.h"
 
 enum {
 	MAX_PENDING_REG_MR = 8,
@@ -1618,6 +1619,88 @@ err_free_in:
 err_free:
 	kfree(mr);
 	return ERR_PTR(err);
+}
+
+struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_create_mkey_mbox_in *in = NULL;
+	struct mlx5_ib_mw *mw = NULL;
+	int ndescs;
+	int err;
+	struct mlx5_ib_alloc_mw req = {};
+	struct {
+		__u32	comp_mask;
+		__u32	response_length;
+	} resp = {};
+
+	err = ib_copy_from_udata(&req, udata, min(udata->inlen, sizeof(req)));
+	if (err)
+		return ERR_PTR(err);
+
+	if (req.comp_mask || req.reserved1 || req.reserved2)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (udata->inlen > sizeof(req) &&
+	    !ib_is_udata_cleared(udata, sizeof(req),
+				 udata->inlen - sizeof(req)))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	ndescs = req.num_klms ? roundup(req.num_klms, 4) : roundup(1, 4);
+
+	mw = kzalloc(sizeof(*mw), GFP_KERNEL);
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!mw || !in) {
+		err = -ENOMEM;
+		goto free;
+	}
+
+	in->seg.status = MLX5_MKEY_STATUS_FREE;
+	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
+	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
+	in->seg.flags = MLX5_PERM_UMR_EN | MLX5_ACCESS_MODE_KLM |
+		MLX5_PERM_LOCAL_READ;
+	if (type == IB_MW_TYPE_2)
+		in->seg.flags_pd |= cpu_to_be32(MLX5_MKEY_REMOTE_INVAL);
+	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+
+	err = mlx5_core_create_mkey(dev->mdev, &mw->mmkey, in, sizeof(*in),
+				    NULL, NULL, NULL);
+	if (err)
+		goto free;
+
+	mw->ibmw.rkey = mw->mmkey.key;
+
+	resp.response_length = min(offsetof(typeof(resp), response_length) +
+				   sizeof(resp.response_length), udata->outlen);
+	if (resp.response_length) {
+		err = ib_copy_to_udata(udata, &resp, resp.response_length);
+		if (err) {
+			mlx5_core_destroy_mkey(dev->mdev, &mw->mmkey);
+			goto free;
+		}
+	}
+
+	kfree(in);
+	return &mw->ibmw;
+
+free:
+	kfree(mw);
+	kfree(in);
+	return ERR_PTR(err);
+}
+
+int mlx5_ib_dealloc_mw(struct ib_mw *mw)
+{
+	struct mlx5_ib_mw *mmw = to_mmw(mw);
+	int err;
+
+	err =  mlx5_core_destroy_mkey((to_mdev(mw->device))->mdev,
+				      &mmw->mmkey);
+	if (!err)
+		kfree(mmw);
+	return err;
 }
 
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,

@@ -43,6 +43,7 @@
 #include <linux/mlx5/srq.h>
 #include <linux/types.h>
 #include <linux/mlx5/transobj.h>
+#include <rdma/ib_user_verbs.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -461,6 +462,11 @@ struct mlx5_ib_mr {
 	int			access_flags; /* Needed for rereg MR */
 };
 
+struct mlx5_ib_mw {
+	struct ib_mw		ibmw;
+	struct mlx5_core_mkey	mmkey;
+};
+
 struct mlx5_ib_umr_context {
 	enum ib_wc_status	status;
 	struct completion	done;
@@ -633,6 +639,11 @@ static inline struct mlx5_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx5_ib_mr, ibmr);
 }
 
+static inline struct mlx5_ib_mw *to_mmw(struct ib_mw *ibmw)
+{
+	return container_of(ibmw, struct mlx5_ib_mw, ibmw);
+}
+
 struct mlx5_ib_ah {
 	struct ib_ah		ibah;
 	struct mlx5_av		av;
@@ -693,6 +704,9 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
+struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata);
+int mlx5_ib_dealloc_mw(struct ib_mw *mw);
 int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
 		       int npages, int zap);
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
