@@ -408,7 +408,7 @@ static const struct attribute_group *armv8_pmuv3_attr_groups[] = {
 #define ARMV8_PMCR_LC		(1 << 6) /* Overflow on 64 bit cycle counter */
 #define	ARMV8_PMCR_N_SHIFT	11	 /* Number of counters supported */
 #define	ARMV8_PMCR_N_MASK	0x1f
-#define	ARMV8_PMCR_MASK		0x3f	 /* Mask for writable bits */
+#define	ARMV8_PMCR_MASK		0x7f	 /* Mask for writable bits */
 
 /*
  * PMOVSR: counters overflow flag status reg
