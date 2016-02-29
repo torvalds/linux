@@ -31,7 +31,15 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 	unsigned int tdes0 = p->des0;
-	int ret = 0;
+	int ret = tx_done;
+
+	/* Get tx owner first */
+	if (unlikely(tdes0 & ETDES0_OWN))
+		return tx_dma_own;
+
+	/* Verify tx error by looking at the last segment. */
+	if (likely(!(tdes0 & ETDES0_LAST_SEGMENT)))
+		return tx_not_ls;
 
 	if (unlikely(tdes0 & ETDES0_ERROR_SUMMARY)) {
 		if (unlikely(tdes0 & ETDES0_JABBER_TIMEOUT))
@@ -71,7 +79,7 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 			dwmac_dma_flush_tx_fifo(ioaddr);
 		}
 
-		ret = -1;
+		ret = tx_err;
 	}
 
 	if (unlikely(tdes0 & ETDES0_DEFERRED))

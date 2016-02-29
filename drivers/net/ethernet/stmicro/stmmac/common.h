@@ -245,6 +245,14 @@ enum rx_frame_status {
 	dma_own = 0x8,
 };
 
+/* Tx status */
+enum tx_frame_status {
+	tx_done = 0x0,
+	tx_not_ls = 0x1,
+	tx_err = 0x2,
+	tx_dma_own = 0x4,
+};
+
 enum dma_irq_status {
 	tx_hard_error = 0x1,
 	tx_hard_error_bump_tc = 0x2,

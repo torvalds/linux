@@ -1313,32 +1313,31 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 	priv->xstats.tx_clean++;
 
 	while (entry != priv->cur_tx) {
-		int last;
 		struct sk_buff *skb = priv->tx_skbuff[entry];
 		struct dma_desc *p;
+		int status;
 
 		if (priv->extend_desc)
 			p = (struct dma_desc *)(priv->dma_etx + entry);
 		else
 			p = priv->dma_tx + entry;
 
-		/* Check if the descriptor is owned by the DMA. */
-		if (priv->hw->desc->get_tx_owner(p))
-			break;
-
-		/* Verify tx error by looking at the last segment. */
-		last = priv->tx_skbuff_dma[entry].last_segment;
-		if (likely(last)) {
-			int tx_error =
-			    priv->hw->desc->tx_status(&priv->dev->stats,
+		status = priv->hw->desc->tx_status(&priv->dev->stats,
 						      &priv->xstats, p,
 						      priv->ioaddr);
-			if (likely(tx_error == 0)) {
+		/* Check if the descriptor is owned by the DMA */
+		if (unlikely(status & tx_dma_own))
+			break;
+
+		/* Just consider the last segment and ...*/
+		if (likely(!(status & tx_not_ls))) {
+			/* ... verify the status error condition */
+			if (unlikely(status & tx_err)) {
+				priv->dev->stats.tx_errors++;
+			} else {
 				priv->dev->stats.tx_packets++;
 				priv->xstats.tx_pkt_n++;
-			} else
-				priv->dev->stats.tx_errors++;
-
+			}
 			stmmac_get_tx_hwtstamp(priv, entry, skb);
 		}
 		if (netif_msg_tx_done(priv))

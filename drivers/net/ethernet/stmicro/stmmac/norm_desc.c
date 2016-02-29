@@ -31,7 +31,16 @@ static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 	unsigned int tdes0 = p->des0;
-	int ret = 0;
+	unsigned int tdes1 = p->des1;
+	int ret = tx_done;
+
+	/* Get tx owner first */
+	if (unlikely(tdes0 & TDES0_OWN))
+		return tx_dma_own;
+
+	/* Verify tx error by looking at the last segment. */
+	if (likely(!(tdes1 & TDES1_LAST_SEGMENT)))
+		return tx_not_ls;
 
 	if (unlikely(tdes0 & TDES0_ERROR_SUMMARY)) {
 		if (unlikely(tdes0 & TDES0_UNDERFLOW_ERROR)) {
@@ -54,7 +63,7 @@ static int ndesc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 			collisions = (tdes0 & TDES0_COLLISION_COUNT_MASK) >> 3;
 			stats->collisions += collisions;
 		}
-		ret = -1;
+		ret = tx_err;
 	}
 
 	if (tdes0 & TDES0_VLAN_FRAME)
