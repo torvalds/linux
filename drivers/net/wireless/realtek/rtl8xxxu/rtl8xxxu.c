@@ -1707,6 +1707,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 			priv->rtlchip = 0x8723b;
 		} else {
 			sprintf(priv->chip_name, "8723AU");
+			priv->usb_interrupts = 1;
 			priv->rtlchip = 0x8723a;
 		}
 
@@ -1744,12 +1745,14 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 			priv->rf_paths = 2;
 			priv->rx_paths = 2;
 			priv->tx_paths = 1;
+			priv->usb_interrupts = 1;
 			priv->rtlchip = 0x8191c;
 		} else {
 			sprintf(priv->chip_name, "8192CU");
 			priv->rf_paths = 2;
 			priv->rx_paths = 2;
 			priv->tx_paths = 2;
+			priv->usb_interrupts = 1;
 			priv->rtlchip = 0x8192c;
 		}
 		priv->has_wifi = 1;
@@ -1759,6 +1762,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 		priv->rx_paths = 1;
 		priv->tx_paths = 1;
 		priv->rtlchip = 0x8188c;
+		priv->usb_interrupts = 1;
 		priv->has_wifi = 1;
 	}
 
@@ -5825,9 +5829,11 @@ static int rtl8xxxu_start(struct ieee80211_hw *hw)
 	init_usb_anchor(&priv->int_anchor);
 
 	rtl8723a_enable_rf(priv);
-	ret = rtl8xxxu_submit_int_urb(hw);
-	if (ret)
-		goto exit;
+	if (priv->usb_interrupts) {
+		ret = rtl8xxxu_submit_int_urb(hw);
+		if (ret)
+			goto exit;
+	}
 
 	for (i = 0; i < RTL8XXXU_TX_URBS; i++) {
 		tx_urb = kmalloc(sizeof(struct rtl8xxxu_tx_urb), GFP_KERNEL);
@@ -5902,14 +5908,16 @@ static void rtl8xxxu_stop(struct ieee80211_hw *hw)
 
 	usb_kill_anchored_urbs(&priv->rx_anchor);
 	usb_kill_anchored_urbs(&priv->tx_anchor);
-	usb_kill_anchored_urbs(&priv->int_anchor);
+	if (priv->usb_interrupts)
+		usb_kill_anchored_urbs(&priv->int_anchor);
 
 	rtl8723a_disable_rf(priv);
 
 	/*
 	 * Disable interrupts
 	 */
-	rtl8xxxu_write32(priv, REG_USB_HIMR, 0);
+	if (priv->usb_interrupts)
+		rtl8xxxu_write32(priv, REG_USB_HIMR, 0);
 
 	rtl8xxxu_free_rx_resources(priv);
 	rtl8xxxu_free_tx_resources(priv);
