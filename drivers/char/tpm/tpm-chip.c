@@ -49,7 +49,7 @@ struct tpm_chip *tpm_chip_find_get(int chip_num)
 		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
 			continue;
 
-		if (try_module_get(pos->pdev->driver->owner)) {
+		if (try_module_get(pos->dev.parent->driver->owner)) {
 			chip = pos;
 			break;
 		}
@@ -112,13 +112,11 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 
 	scnprintf(chip->devname, sizeof(chip->devname), "tpm%d", chip->dev_num);
 
-	chip->pdev = dev;
-
 	dev_set_drvdata(dev, chip);
 
 	chip->dev.class = tpm_class;
 	chip->dev.release = tpm_dev_release;
-	chip->dev.parent = chip->pdev;
+	chip->dev.parent = dev;
 #ifdef CONFIG_ACPI
 	chip->dev.groups = chip->groups;
 #endif
@@ -133,7 +131,7 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	device_initialize(&chip->dev);
 
 	cdev_init(&chip->cdev, &tpm_fops);
-	chip->cdev.owner = chip->pdev->driver->owner;
+	chip->cdev.owner = dev->driver->owner;
 	chip->cdev.kobj.parent = &chip->dev.kobj;
 
 	devm_add_action(dev, (void (*)(void *)) put_device, &chip->dev);
@@ -236,9 +234,8 @@ int tpm_chip_register(struct tpm_chip *chip)
 	chip->flags |= TPM_CHIP_FLAG_REGISTERED;
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2)) {
-		rc = __compat_only_sysfs_link_entry_to_kobj(&chip->pdev->kobj,
-							    &chip->dev.kobj,
-							    "ppi");
+		rc = __compat_only_sysfs_link_entry_to_kobj(
+		    &chip->dev.parent->kobj, &chip->dev.kobj, "ppi");
 		if (rc && rc != -ENOENT) {
 			tpm_chip_unregister(chip);
 			return rc;
@@ -273,7 +270,7 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 	synchronize_rcu();
 
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
-		sysfs_remove_link(&chip->pdev->kobj, "ppi");
+		sysfs_remove_link(&chip->dev.parent->kobj, "ppi");
 
 	tpm1_chip_unregister(chip);
 	tpm_del_char_device(chip);
