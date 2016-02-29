@@ -4366,6 +4366,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
 		val32 |= TXDMA_OFFSET_DROP_DATA_EN;
 		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
+
+		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
+		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
 	}
 
 	ret = rtl8xxxu_init_mac(priv, rtl8723a_mac_init_table);

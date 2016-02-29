@@ -196,6 +196,10 @@
 #define REG_HMBOX_EXT_1			0x008a
 #define REG_HMBOX_EXT_2			0x008c
 #define REG_HMBOX_EXT_3			0x008e
+/* Interrupt registers for 8192e/8812 */
+#define REG_HIMR0			0x00b0
+#define REG_HIMR1			0x00b8
+
 /*  Host suspend counter on FPGA platform */
 #define REG_HOST_SUSP_CNT		0x00bc
 /*  Efuse access protection for RTL8723 */
