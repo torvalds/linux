@@ -5996,6 +5996,11 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 			rtl8xxxu_write8(priv, REG_TX_REPORT_CTRL + 1, 0x02);
 			/* TX report Timer. Unit: 32us */
 			rtl8xxxu_write16(priv, REG_TX_REPORT_TIME, 0xcdf0);
+
+			/* tmp ps ? */
+			val8 = rtl8xxxu_read8(priv, 0xa3);
+			val8 &= 0xf8;
+			rtl8xxxu_write8(priv, 0xa3, val8);
 		}
 
 		if (priv->ep_tx_normal_queue)
