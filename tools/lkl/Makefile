@@ -41,12 +41,9 @@ export CFLAGS += -Iinclude -Wall -g -O2 -Wextra -Wno-unused-parameter \
 
 OUTPUT_FORMAT = $(shell $(LD) -r -print-output-format)
 
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd))
+ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm))
   CFLAGS   += -fPIC -pthread
   LDLIBS   += -lrt -lpthread
-  export CONFIG_AUTO_LKL_POSIX_HOST=y
-else ifneq (,$(filter $(OUTPUT_FORMAT),elf32-littlearm))
-  CFLAGS   += -fPIC
   export CONFIG_AUTO_LKL_POSIX_HOST=y
 else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
   KOPT      = "KALLSYMS_EXTRA_PASS=1"
