@@ -417,9 +417,15 @@ struct rtl8723bu_tx_desc {
 #endif
 
 /* Word 1 */
+/*
+ * Bits 0-7 differ dependent on chip generation. For 8723au bits 5/6 are
+ * aggregation enable and break respectively. For 8723bu, bits 0-7 are macid.
+ */
 #define TXDESC_PKT_OFFSET_SZ		0
-#define TXDESC_AGG_ENABLE		BIT(5)
-#define TXDESC_BK			BIT(6)
+#define TXDESC_AGG_ENABLE_8723A		BIT(5)
+#define TXDESC_AGG_BREAK_8723A		BIT(6)
+#define TXDESC_MACID_SHIFT_8723B	0
+#define TXDESC_MACID_MASK_8723B		0x00f0
 #define TXDESC_QUEUE_SHIFT		8
 #define TXDESC_QUEUE_MASK		0x1f00
 #define TXDESC_QUEUE_BK			0x2
@@ -431,6 +437,9 @@ struct rtl8723bu_tx_desc {
 #define TXDESC_QUEUE_MGNT		0x12
 #define TXDESC_QUEUE_CMD		0x13
 #define TXDESC_QUEUE_MAX		(TXDESC_QUEUE_CMD + 1)
+#define TXDESC_RDG_NAV_EXT_8723B	BIT(13)
+#define TXDESC_LSIG_TXOP_ENABLE_8723B	BIT(14)
+#define TXDESC_PIFS_8723B		BIT(15)
 
 #define DESC_RATE_ID_SHIFT		16
 #define DESC_RATE_ID_MASK		0xf
@@ -442,8 +451,20 @@ struct rtl8723bu_tx_desc {
 #define TXDESC_HWPC			BIT(31)
 
 /* Word 2 */
-#define TXDESC_ACK_REPORT		BIT(19)
+#define TXDESC_PAID_SHIFT_8723B		0
+#define TXDESC_PAID_MASK_8723B		0x1ff
+#define TXDESC_CCA_RTS_SHIFT_8723B	10
+#define TXDESC_CCA_RTS_MASK_8723B	0xc00
+#define TXDESC_AGG_ENABLE_8723B		BIT(12)
+#define TXDESC_RDG_ENABLE_8723B		BIT(13)
+#define TXDESC_AGG_BREAK_8723B		BIT(16)
+#define TXDESC_MORE_FRAG_8723B		BIT(17)
+#define TXDESC_RAW_8723B		BIT(18)
+#define TXDESC_ACK_REPORT_8723A		BIT(19)
+#define TXDESC_SPE_RPT_8723B		BIT(19)
 #define TXDESC_AMPDU_DENSITY_SHIFT	20
+#define TXDESC_BT_INT_8723B		BIT(23)
+#define TXDESC_GID_8723B		BIT(24)
 
 /* Word 3 */
 #define TXDESC_SEQ_SHIFT		16

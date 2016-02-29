@@ -7035,11 +7035,12 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			ampdu = (u32)sta->ht_cap.ampdu_density;
 			val32 = ampdu << TXDESC_AMPDU_DENSITY_SHIFT;
 			tx_desc->txdw2 |= cpu_to_le32(val32);
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_ENABLE);
+
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723A);
 		} else
-			tx_desc->txdw1 |= cpu_to_le32(TXDESC_BK);
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
 	} else
-		tx_desc->txdw1 |= cpu_to_le32(TXDESC_BK);
+		tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC_QOS);
