@@ -4315,6 +4315,40 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
 	if (!macpower) {
+		if (priv->ep_tx_normal_queue)
+			val8 = TX_PAGE_NUM_NORM_PQ;
+		else
+			val8 = 0;
+
+		rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
+
+		val32 = (TX_PAGE_NUM_PUBQ << RQPN_NORM_PQ_SHIFT) | RQPN_LOAD;
+
+		if (priv->ep_tx_high_queue)
+			val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
+		if (priv->ep_tx_low_queue)
+			val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
+
+		rtl8xxxu_write32(priv, REG_RQPN, val32);
+
+		/*
+		 * Set TX buffer boundary
+		 */
+		val8 = TX_TOTAL_PAGE_NUM + 1;
+		rtl8xxxu_write8(priv, REG_TXPKTBUF_BCNQ_BDNY, val8);
+		rtl8xxxu_write8(priv, REG_TXPKTBUF_MGQ_BDNY, val8);
+		rtl8xxxu_write8(priv, REG_TXPKTBUF_WMAC_LBK_BF_HD, val8);
+		rtl8xxxu_write8(priv, REG_TRXFF_BNDY, val8);
+		rtl8xxxu_write8(priv, REG_TDECTRL + 1, val8);
+	}
+
+	ret = rtl8xxxu_init_queue_priority(priv);
+	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
+	if (ret)
+		goto exit;
+
+	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
+	if (!macpower) {
 		ret = priv->fops->llt_init(priv, TX_TOTAL_PAGE_NUM);
 		if (ret) {
 			dev_warn(dev, "%s: LLT table init failed\n", __func__);
@@ -4391,40 +4425,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	priv->rf_mode_ag[0] = rtl8xxxu_read_rfreg(priv, RF_A,
 						  RF6052_REG_MODE_AG);
-
-	dev_dbg(dev, "%s: macpower %i\n", __func__, macpower);
-	if (!macpower) {
-		if (priv->ep_tx_normal_queue)
-			val8 = TX_PAGE_NUM_NORM_PQ;
-		else
-			val8 = 0;
-
-		rtl8xxxu_write8(priv, REG_RQPN_NPQ, val8);
-
-		val32 = (TX_PAGE_NUM_PUBQ << RQPN_NORM_PQ_SHIFT) | RQPN_LOAD;
-
-		if (priv->ep_tx_high_queue)
-			val32 |= (TX_PAGE_NUM_HI_PQ << RQPN_HI_PQ_SHIFT);
-		if (priv->ep_tx_low_queue)
-			val32 |= (TX_PAGE_NUM_LO_PQ << RQPN_LO_PQ_SHIFT);
-
-		rtl8xxxu_write32(priv, REG_RQPN, val32);
-
-		/*
-		 * Set TX buffer boundary
-		 */
-		val8 = TX_TOTAL_PAGE_NUM + 1;
-		rtl8xxxu_write8(priv, REG_TXPKTBUF_BCNQ_BDNY, val8);
-		rtl8xxxu_write8(priv, REG_TXPKTBUF_MGQ_BDNY, val8);
-		rtl8xxxu_write8(priv, REG_TXPKTBUF_WMAC_LBK_BF_HD, val8);
-		rtl8xxxu_write8(priv, REG_TRXFF_BNDY, val8);
-		rtl8xxxu_write8(priv, REG_TDECTRL + 1, val8);
-	}
-
-	ret = rtl8xxxu_init_queue_priority(priv);
-	dev_dbg(dev, "%s: init_queue_priority %i\n", __func__, ret);
-	if (ret)
-		goto exit;
 
 	/*
 	 * Set RX page boundary
