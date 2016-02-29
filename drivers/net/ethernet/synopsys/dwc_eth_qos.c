@@ -1113,7 +1113,7 @@ static int dwceqos_descriptor_init(struct net_local *lp)
 	/* Allocate DMA descriptors */
 	size = DWCEQOS_RX_DCNT * sizeof(struct dwceqos_dma_desc);
 	lp->rx_descs = dma_alloc_coherent(lp->ndev->dev.parent, size,
-			&lp->rx_descs_addr, 0);
+			&lp->rx_descs_addr, GFP_KERNEL);
 	if (!lp->rx_descs)
 		goto err_out;
 	lp->rx_descs_tail_addr = lp->rx_descs_addr +
@@ -1121,7 +1121,7 @@ static int dwceqos_descriptor_init(struct net_local *lp)
 
 	size = DWCEQOS_TX_DCNT * sizeof(struct dwceqos_dma_desc);
 	lp->tx_descs = dma_alloc_coherent(lp->ndev->dev.parent, size,
-			&lp->tx_descs_addr, 0);
+			&lp->tx_descs_addr, GFP_KERNEL);
 	if (!lp->tx_descs)
 		goto err_out;
 	lp->tx_descs_tail_addr = lp->tx_descs_addr +
