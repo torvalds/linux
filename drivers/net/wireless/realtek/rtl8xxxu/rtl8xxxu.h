@@ -543,14 +543,26 @@ struct rtl8723bu_efuse {
 	u8 res12[0x4];
 };
 
+struct rtl8192eu_efuse_tx_power {
+	u8 cck_base[6];
+	u8 ht40_base[5];
+	struct rtl8723au_idx ht20_ofdm_1s_diff;
+	struct rtl8723au_idx ht40_ht20_2s_diff;
+	struct rtl8723au_idx ofdm_cck_2s_diff; /* not used */
+	struct rtl8723au_idx ht40_ht20_3s_diff;
+	struct rtl8723au_idx ofdm_cck_3s_diff; /* not used */
+	struct rtl8723au_idx ht40_ht20_4s_diff;
+	struct rtl8723au_idx ofdm_cck_4s_diff; /* not used */
+};
+
 struct rtl8192eu_efuse {
 	__le16 rtl_id;
 	u8 res0[0x0e];
-	u8 cck_tx_power_index_A[3];	/* 0x10 */
-	u8 cck_tx_power_index_B[3];
-	u8 ht40_1s_tx_power_index_A[3];	/* 0x16 */
-	u8 ht40_1s_tx_power_index_B[3];
-	u8 res1[0x9c];
+	struct rtl8192eu_efuse_tx_power tx_power_index_A;	/* 0x10 */
+	struct rtl8192eu_efuse_tx_power tx_power_index_B;	/* 0x22 */
+	struct rtl8192eu_efuse_tx_power tx_power_index_C;	/* 0x34 */
+	struct rtl8192eu_efuse_tx_power tx_power_index_D;	/* 0x46 */
+	u8 res1[0x60];
 	u8 channel_plan;		/* 0xb8 */
 	u8 xtal_k;
 	u8 thermal_meter;
