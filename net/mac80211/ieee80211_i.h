@@ -696,6 +696,18 @@ struct ieee80211_if_mesh {
 
 	/* offset from skb->data while building IE */
 	int meshconf_offset;
+
+	struct mesh_table __rcu *mesh_paths;
+	struct mesh_table __rcu *mpp_paths; /* Store paths for MPP&MAP */
+	int mesh_paths_generation;
+	int mpp_paths_generation;
+
+	/* Protects assignment of the mesh_paths/mpp_paths table
+	 * pointer for resize against reading it for add/delete
+	 * of individual paths.  Pure readers (lookups) just use
+	 * RCU.
+	 */
+	rwlock_t pathtbl_resize_lock;
 };
 
 #ifdef CONFIG_MAC80211_MESH

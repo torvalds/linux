@@ -1499,7 +1499,7 @@ static void mpath_set_pinfo(struct mesh_path *mpath, u8 *next_hop,
 
 	memset(pinfo, 0, sizeof(*pinfo));
 
-	pinfo->generation = mesh_paths_generation;
+	pinfo->generation = mpath->sdata->u.mesh.mesh_paths_generation;
 
 	pinfo->filled = MPATH_INFO_FRAME_QLEN |
 			MPATH_INFO_SN |
@@ -1577,7 +1577,7 @@ static void mpp_set_pinfo(struct mesh_path *mpath, u8 *mpp,
 	memset(pinfo, 0, sizeof(*pinfo));
 	memcpy(mpp, mpath->mpp, ETH_ALEN);
 
-	pinfo->generation = mpp_paths_generation;
+	pinfo->generation = mpath->sdata->u.mesh.mpp_paths_generation;
 }
 
 static int ieee80211_get_mpp(struct wiphy *wiphy, struct net_device *dev,

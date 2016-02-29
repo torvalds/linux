@@ -300,8 +300,8 @@ void mesh_sta_cleanup(struct sta_info *sta);
 
 /* Private interfaces */
 /* Mesh tables */
-void mesh_mpath_table_grow(void);
-void mesh_mpp_table_grow(void);
+void mesh_mpath_table_grow(struct ieee80211_sub_if_data *sdata);
+void mesh_mpp_table_grow(struct ieee80211_sub_if_data *sdata);
 /* Mesh paths */
 int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 		       u8 ttl, const u8 *target, u32 target_sn,
@@ -309,8 +309,8 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
-int mesh_pathtbl_init(void);
-void mesh_pathtbl_unregister(void);
+int mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata);
+void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata);
 int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
@@ -319,8 +319,6 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
-extern int mesh_paths_generation;
-extern int mpp_paths_generation;
 
 #ifdef CONFIG_MAC80211_MESH
 static inline

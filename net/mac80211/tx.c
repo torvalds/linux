@@ -2212,7 +2212,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			}
 
 			if (mppath && mpath)
-				mesh_path_del(mpath->sdata, mpath->dst);
+				mesh_path_del(sdata, mpath->dst);
 		}
 
 		/*

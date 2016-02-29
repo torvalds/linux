@@ -25,7 +25,6 @@ bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt)
 
 void ieee80211s_init(void)
 {
-	mesh_pathtbl_init();
 	mesh_allocated = 1;
 	rm_cache = kmem_cache_create("mesh_rmc", sizeof(struct rmc_entry),
 				     0, 0, NULL);
@@ -35,7 +34,6 @@ void ieee80211s_stop(void)
 {
 	if (!mesh_allocated)
 		return;
-	mesh_pathtbl_unregister();
 	kmem_cache_destroy(rm_cache);
 }
 
@@ -902,6 +900,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	/* flush STAs and mpaths on this iface */
 	sta_info_flush(sdata);
 	mesh_path_flush_by_iface(sdata);
+	mesh_pathtbl_unregister(sdata);
 
 	/* free all potentially still buffered group-addressed frames */
 	local->total_ps_buffered -= skb_queue_len(&ifmsh->ps.bc_buf);
@@ -1349,10 +1348,10 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		mesh_path_start_discovery(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpath_table_grow();
+		mesh_mpath_table_grow(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_GROW_MPP_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpp_table_grow();
+		mesh_mpp_table_grow(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata);
@@ -1388,6 +1387,9 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
+
+	mesh_pathtbl_init(sdata);
+
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
 		    (unsigned long) sdata);
