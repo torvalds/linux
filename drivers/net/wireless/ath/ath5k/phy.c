@@ -1446,7 +1446,7 @@ ath5k_hw_channel(struct ath5k_hw *ah,
 			"channel frequency (%u MHz) out of supported "
 			"band range\n",
 			channel->center_freq);
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/*
