@@ -5981,6 +5981,29 @@ static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_RXDMA_AGG_PG_TH, agg_rx);
 }
 
+static void rtl8723bu_init_statistics(struct rtl8xxxu_priv *priv)
+{
+	u32 val32;
+
+	/* Time duration for NHM unit: 4us, 0x2710=40ms */
+	rtl8xxxu_write16(priv, REG_NHM_TIMER_8723B + 2, 0x2710);
+	rtl8xxxu_write16(priv, REG_NHM_TH9_TH10_8723B + 2, 0xffff);
+	rtl8xxxu_write32(priv, REG_NHM_TH3_TO_TH0_8723B, 0xffffff52);
+	rtl8xxxu_write32(priv, REG_NHM_TH7_TO_TH4_8723B, 0xffffffff);
+	/* TH8 */
+	val32 = rtl8xxxu_read32(priv, REG_FPGA0_IQK);
+	val32 |= 0xff;
+	rtl8xxxu_write32(priv, REG_FPGA0_IQK, val32);
+	/* Enable CCK */
+	val32 = rtl8xxxu_read32(priv, REG_NHM_TH9_TH10_8723B);
+	val32 |= BIT(8) | BIT(9) | BIT(10);
+	rtl8xxxu_write32(priv, REG_NHM_TH9_TH10_8723B, val32);
+	/* Max power amongst all RX antennas */
+	val32 = rtl8xxxu_read32(priv, REG_OFDM0_FA_RSTC);
+	val32 |= BIT(7);
+	rtl8xxxu_write32(priv, REG_OFDM0_FA_RSTC, val32);
+}
+
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
@@ -6370,6 +6393,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	rtl8xxxu_write32(priv, REG_BAR_MODE_CTRL, 0x0201ffff);
 
 	rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
+
+	if (priv->fops->init_statistics)
+		priv->fops->init_statistics(priv);
 
 	rtl8723a_phy_lc_calibrate(priv);
 
@@ -8021,6 +8047,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_bt = rtl8723bu_init_bt,
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
 	.init_aggregation = rtl8723bu_init_aggregation,
+	.init_statistics = rtl8723bu_init_statistics,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
