@@ -6815,6 +6815,36 @@ static int rtl8723bu_parse_rx_desc(struct rtl8xxxu_priv *priv,
 	return rx_type;
 }
 
+static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
+				 struct sk_buff *skb)
+{
+	struct rtl8723bu_c2h *c2h = (struct rtl8723bu_c2h *)skb->data;
+	struct device *dev = &priv->udev->dev;
+	int len;
+
+	len = skb->len - 2;
+
+	pr_info("%s: C2H ID %02x seq %02x, len %02x %02x\n", __func__,
+		c2h->id, c2h->seq, len, c2h->bt_info.response_source);
+
+	switch(c2h->id) {
+	case C2H_8723B_BT_INFO:
+		if (c2h->bt_info.response_source >
+		    BT_INFO_SRC_8723B_BT_ACTIVE_SEND)
+			dev_info(dev, "C2H_BT_INFO WiFi only firmware\n");
+		else
+			dev_info(dev, "C2H_BT_INFO BT/WiFi coexist firmware\n");
+
+		if (c2h->bt_info.bt_has_reset)
+			dev_info(dev, "BT has been reset\n");
+
+		break;
+	default:
+		pr_info("%s: Unhandled C2H event %02x\n", __func__, c2h->id);
+		break;
+	}
+}
+
 static void rtl8xxxu_rx_complete(struct urb *urb)
 {
 	struct rtl8xxxu_rx_urb *rx_urb =
@@ -6843,8 +6873,10 @@ static void rtl8xxxu_rx_complete(struct urb *urb)
 
 		if (rx_type == RX_TYPE_DATA_PKT)
 			ieee80211_rx_irqsafe(hw, skb);
-		else
+		else {
+			rtl8723bu_handle_c2h(priv, skb);
 			dev_kfree_skb(skb);
+		}
 
 		skb = NULL;
 		rx_urb->urb.context = NULL;

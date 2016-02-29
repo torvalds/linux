@@ -899,6 +899,60 @@ struct h2c_cmd {
 	};
 };
 
+enum c2h_evt_8723b {
+	C2H_8723B_DEBUG = 0,
+	C2H_8723B_TSF = 1,
+	C2H_8723B_AP_RPT_RSP = 2,
+	C2H_8723B_CCX_TX_RPT = 3,
+	C2H_8723B_BT_RSSI = 4,
+	C2H_8723B_BT_OP_MODE = 5,
+	C2H_8723B_EXT_RA_RPT = 6,
+	C2H_8723B_BT_INFO = 9,
+	C2H_8723B_HW_INFO_EXCH = 10,
+	C2H_8723B_BT_MP_INFO = 11,
+	C2H_8723B_FW_DEBUG = 0xff,
+};
+
+enum bt_info_src_8723b {
+	BT_INFO_SRC_8723B_WIFI_FW = 0x0,
+        BT_INFO_SRC_8723B_BT_RSP = 0x1,
+        BT_INFO_SRC_8723B_BT_ACTIVE_SEND = 0x2,
+};
+
+struct rtl8723bu_c2h {
+	u8 id;
+	u8 seq;
+	union {
+		struct {
+			u8 payload[0];
+		} __packed raw;
+		struct {
+			u8 response_source:4;
+			u8 dummy0_0:4;
+
+			u8 bt_info;
+
+			u8 retry_count:4;
+			u8 dummy2_0:1;
+			u8 bt_page:1;
+			u8 tx_rx_mask:1;
+			u8 dummy2_2:1;
+
+			u8 rssi;
+
+			u8 basic_rate:1;
+			u8 bt_has_reset:1;
+			u8 dummy4_1:1;;
+			u8 ignore_wlan:1;
+			u8 auto_report:1;
+			u8 dummy4_2:3;
+
+			u8 a4;
+			u8 a5;
+		} __packed bt_info;
+	};
+};
+
 struct rtl8xxxu_fileops;
 
 struct rtl8xxxu_priv {
