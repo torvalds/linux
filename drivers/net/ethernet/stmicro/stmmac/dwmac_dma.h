@@ -35,6 +35,10 @@
 #define DMA_CONTROL		0x00001018	/* Ctrl (Operational Mode) */
 #define DMA_INTR_ENA		0x0000101c	/* Interrupt Enable */
 #define DMA_MISSED_FRAME_CTR	0x00001020	/* Missed Frame Counter */
+
+/* SW Reset */
+#define DMA_BUS_MODE_SFT_RESET	0x00000001	/* Software Reset */
+
 /* Rx watchdog register */
 #define DMA_RX_WATCHDOG		0x00001024
 /* AXI Bus Mode */
@@ -112,5 +116,6 @@ void dwmac_dma_stop_tx(void __iomem *ioaddr);
 void dwmac_dma_start_rx(void __iomem *ioaddr);
 void dwmac_dma_stop_rx(void __iomem *ioaddr);
 int dwmac_dma_interrupt(void __iomem *ioaddr, struct stmmac_extra_stats *x);
+int dwmac_dma_reset(void __iomem *ioaddr);
 
 #endif /* __DWMAC_DMA_H__ */

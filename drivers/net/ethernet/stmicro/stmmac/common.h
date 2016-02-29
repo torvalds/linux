@@ -376,7 +376,8 @@ extern const struct stmmac_desc_ops ndesc_ops;
 /* Specific DMA helpers */
 struct stmmac_dma_ops {
 	/* DMA core initialization */
-	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
+	int (*reset)(void __iomem *ioaddr);
+	void (*init)(void __iomem *ioaddr, int pbl, int fb, int mb,
 		     int burst_len, u32 dma_tx, u32 dma_rx, int atds);
 	/* Dump DMA registers */
 	void (*dump_regs) (void __iomem *ioaddr);
