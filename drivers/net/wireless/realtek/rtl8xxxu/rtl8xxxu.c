@@ -7348,7 +7348,7 @@ static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
 
 		rtl8723a_set_tx_power(priv, channel, ht40);
 
-		rtl8723au_config_channel(hw);
+		priv->fops->config_channel(hw);
 	}
 
 exit:
