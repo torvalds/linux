@@ -54,43 +54,151 @@ static int __init cmp_fake_mem(const void *x1, const void *x2)
 	return 0;
 }
 
+/**
+ * efi_fake_memmap_split_count - Count number of additional EFI memmap entries
+ * @md: EFI memory descriptor to split
+ * @range: Address range (start, end) to split around
+ *
+ * Returns the number of additional EFI memmap entries required to
+ * accomodate @range.
+ */
+static int efi_fake_memmap_split_count(efi_memory_desc_t *md, struct range *range)
+{
+	u64 m_start, m_end;
+	u64 start, end;
+	int count = 0;
+
+	start = md->phys_addr;
+	end = start + (md->num_pages << EFI_PAGE_SHIFT) - 1;
+
+	/* modifying range */
+	m_start = range->start;
+	m_end = range->end;
+
+	if (m_start <= start) {
+		/* split into 2 parts */
+		if (start < m_end && m_end < end)
+			count++;
+	}
+
+	if (start < m_start && m_start < end) {
+		/* split into 3 parts */
+		if (m_end < end)
+			count += 2;
+		/* split into 2 parts */
+		if (end <= m_end)
+			count++;
+	}
+
+	return count;
+}
+
+/**
+ * efi_fake_memmap_insert - Insert a fake memory region in an EFI memmap
+ * @old_memmap: The existing EFI memory map structure
+ * @buf: Address of buffer to store new map
+ * @mem: Fake memory map entry to insert
+ *
+ * It is suggested that you call efi_fake_memmap_split_count() first
+ * to see how large @buf needs to be.
+ */
+static void efi_fake_memmap_insert(struct efi_memory_map *old_memmap,
+				   void *buf, struct fake_mem *mem)
+{
+	u64 m_start, m_end, m_attr;
+	efi_memory_desc_t *md;
+	u64 start, end;
+	void *old, *new;
+
+	/* modifying range */
+	m_start = mem->range.start;
+	m_end = mem->range.end;
+	m_attr = mem->attribute;
+
+	for (old = old_memmap->map, new = buf;
+	     old < old_memmap->map_end;
+	     old += old_memmap->desc_size, new += old_memmap->desc_size) {
+
+		/* copy original EFI memory descriptor */
+		memcpy(new, old, old_memmap->desc_size);
+		md = new;
+		start = md->phys_addr;
+		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1;
+
+		if (m_start <= start && end <= m_end)
+			md->attribute |= m_attr;
+
+		if (m_start <= start &&
+		    (start < m_end && m_end < end)) {
+			/* first part */
+			md->attribute |= m_attr;
+			md->num_pages = (m_end - md->phys_addr + 1) >>
+				EFI_PAGE_SHIFT;
+			/* latter part */
+			new += old_memmap->desc_size;
+			memcpy(new, old, old_memmap->desc_size);
+			md = new;
+			md->phys_addr = m_end + 1;
+			md->num_pages = (end - md->phys_addr + 1) >>
+				EFI_PAGE_SHIFT;
+		}
+
+		if ((start < m_start && m_start < end) && m_end < end) {
+			/* first part */
+			md->num_pages = (m_start - md->phys_addr) >>
+				EFI_PAGE_SHIFT;
+			/* middle part */
+			new += old_memmap->desc_size;
+			memcpy(new, old, old_memmap->desc_size);
+			md = new;
+			md->attribute |= m_attr;
+			md->phys_addr = m_start;
+			md->num_pages = (m_end - m_start + 1) >>
+				EFI_PAGE_SHIFT;
+			/* last part */
+			new += old_memmap->desc_size;
+			memcpy(new, old, old_memmap->desc_size);
+			md = new;
+			md->phys_addr = m_end + 1;
+			md->num_pages = (end - m_end) >>
+				EFI_PAGE_SHIFT;
+		}
+
+		if ((start < m_start && m_start < end) &&
+		    (end <= m_end)) {
+			/* first part */
+			md->num_pages = (m_start - md->phys_addr) >>
+				EFI_PAGE_SHIFT;
+			/* latter part */
+			new += old_memmap->desc_size;
+			memcpy(new, old, old_memmap->desc_size);
+			md = new;
+			md->phys_addr = m_start;
+			md->num_pages = (end - md->phys_addr + 1) >>
+				EFI_PAGE_SHIFT;
+			md->attribute |= m_attr;
+		}
+	}
+}
+
 void __init efi_fake_memmap(void)
 {
-	u64 start, end, m_start, m_end, m_attr;
 	struct efi_memory_map_data data;
 	int new_nr_map = efi.memmap.nr_map;
 	efi_memory_desc_t *md;
 	phys_addr_t new_memmap_phy;
 	void *new_memmap;
-	void *old, *new;
 	int i;
 
 	if (!nr_fake_mem)
 		return;
 
 	/* count up the number of EFI memory descriptor */
-	for_each_efi_memory_desc(md) {
-		start = md->phys_addr;
-		end = start + (md->num_pages << EFI_PAGE_SHIFT) - 1;
+	for (i = 0; i < nr_fake_mem; i++) {
+		for_each_efi_memory_desc(md) {
+			struct range *r = &fake_mems[i].range;
 
-		for (i = 0; i < nr_fake_mem; i++) {
-			/* modifying range */
-			m_start = fake_mems[i].range.start;
-			m_end = fake_mems[i].range.end;
-
-			if (m_start <= start) {
-				/* split into 2 parts */
-				if (start < m_end && m_end < end)
-					new_nr_map++;
-			}
-			if (start < m_start && m_start < end) {
-				/* split into 3 parts */
-				if (m_end < end)
-					new_nr_map += 2;
-				/* split into 2 parts */
-				if (end <= m_end)
-					new_nr_map++;
-			}
+			new_nr_map += efi_fake_memmap_split_count(md, r);
 		}
 	}
 
@@ -108,77 +216,8 @@ void __init efi_fake_memmap(void)
 		return;
 	}
 
-	for (old = efi.memmap.map, new = new_memmap;
-	     old < efi.memmap.map_end;
-	     old += efi.memmap.desc_size, new += efi.memmap.desc_size) {
-
-		/* copy original EFI memory descriptor */
-		memcpy(new, old, efi.memmap.desc_size);
-		md = new;
-		start = md->phys_addr;
-		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT) - 1;
-
-		for (i = 0; i < nr_fake_mem; i++) {
-			/* modifying range */
-			m_start = fake_mems[i].range.start;
-			m_end = fake_mems[i].range.end;
-			m_attr = fake_mems[i].attribute;
-
-			if (m_start <= start && end <= m_end)
-				md->attribute |= m_attr;
-
-			if (m_start <= start &&
-			    (start < m_end && m_end < end)) {
-				/* first part */
-				md->attribute |= m_attr;
-				md->num_pages = (m_end - md->phys_addr + 1) >>
-					EFI_PAGE_SHIFT;
-				/* latter part */
-				new += efi.memmap.desc_size;
-				memcpy(new, old, efi.memmap.desc_size);
-				md = new;
-				md->phys_addr = m_end + 1;
-				md->num_pages = (end - md->phys_addr + 1) >>
-					EFI_PAGE_SHIFT;
-			}
-
-			if ((start < m_start && m_start < end) && m_end < end) {
-				/* first part */
-				md->num_pages = (m_start - md->phys_addr) >>
-					EFI_PAGE_SHIFT;
-				/* middle part */
-				new += efi.memmap.desc_size;
-				memcpy(new, old, efi.memmap.desc_size);
-				md = new;
-				md->attribute |= m_attr;
-				md->phys_addr = m_start;
-				md->num_pages = (m_end - m_start + 1) >>
-					EFI_PAGE_SHIFT;
-				/* last part */
-				new += efi.memmap.desc_size;
-				memcpy(new, old, efi.memmap.desc_size);
-				md = new;
-				md->phys_addr = m_end + 1;
-				md->num_pages = (end - m_end) >>
-					EFI_PAGE_SHIFT;
-			}
-
-			if ((start < m_start && m_start < end) &&
-			    (end <= m_end)) {
-				/* first part */
-				md->num_pages = (m_start - md->phys_addr) >>
-					EFI_PAGE_SHIFT;
-				/* latter part */
-				new += efi.memmap.desc_size;
-				memcpy(new, old, efi.memmap.desc_size);
-				md = new;
-				md->phys_addr = m_start;
-				md->num_pages = (end - md->phys_addr + 1) >>
-					EFI_PAGE_SHIFT;
-				md->attribute |= m_attr;
-			}
-		}
-	}
+	for (i = 0; i < nr_fake_mem; i++)
+		efi_fake_memmap_insert(&efi.memmap, new_memmap, &fake_mems[i]);
 
 	/* swap into new EFI memmap */
 	early_memunmap(new_memmap, efi.memmap.desc_size * new_nr_map);
