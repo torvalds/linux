@@ -5962,6 +5962,25 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
 }
 
+static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
+{
+	u32 agg_rx;
+	u8 agg_ctrl;
+
+	/*
+	 * For now simply disable RX aggregation
+	 */
+	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
+	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
+
+	agg_rx = rtl8xxxu_read32(priv, REG_RXDMA_AGG_PG_TH);
+	agg_rx &= ~RXDMA_USB_AGG_ENABLE;
+	agg_rx &= ~0xff0f;
+
+	rtl8xxxu_write8(priv, REG_TRXDMA_CTRL, agg_ctrl);
+	rtl8xxxu_write32(priv, REG_RXDMA_AGG_PG_TH, agg_rx);
+}
+
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
@@ -6319,6 +6338,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		val8 |= BIT(5) | BIT(6);
 		rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
 	}
+
+	if (priv->fops->init_aggregation)
+		priv->fops->init_aggregation(priv);
 
 	/*
 	 * Enable CCK and OFDM block
@@ -7998,6 +8020,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.config_channel = rtl8723bu_config_channel,
 	.init_bt = rtl8723bu_init_bt,
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
+	.init_aggregation = rtl8723bu_init_aggregation,
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
