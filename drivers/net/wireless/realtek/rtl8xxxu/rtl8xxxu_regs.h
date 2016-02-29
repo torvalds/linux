@@ -388,8 +388,13 @@
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280
+#define  RXDMA_USB_AGG_ENABLE		BIT(31)
 #define REG_RXPKT_NUM			0x0284
 #define REG_RXDMA_STATUS		0x0288
+
+/* Presumably only found on newer chips such as 8723bu */
+#define REG_RX_DMA_CTRL_8723B		0x0286
+#define REG_RX_DMA_MODE_CTRL_8723B	0x0290
 
 #define REG_RF_BB_CMD_ADDR		0x02c0
 #define REG_RF_BB_CMD_DATA		0x02c4
@@ -473,6 +478,7 @@
 #define REG_POWER_STATUS		0x04a4
 #define REG_POWER_STAGE1		0x04b4
 #define REG_POWER_STAGE2		0x04b8
+#define REG_AMPDU_BURST_MODE_8723B	0x04bc
 #define REG_PKT_VO_VI_LIFE_TIME		0x04c0
 #define REG_PKT_BE_BK_LIFE_TIME		0x04c2
 #define REG_STBC_SETTING		0x04c4
