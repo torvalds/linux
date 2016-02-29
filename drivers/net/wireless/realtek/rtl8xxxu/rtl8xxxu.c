@@ -2127,43 +2127,45 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 
 static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 {
-	if (priv->efuse_wifi.efuse8723.rtl_id != cpu_to_le16(0x8129))
+	struct rtl8723au_efuse *efuse = &priv->efuse_wifi.efuse8723;
+
+	if (efuse->rtl_id != cpu_to_le16(0x8129))
 		return -EINVAL;
 
-	ether_addr_copy(priv->mac_addr, priv->efuse_wifi.efuse8723.mac_addr);
+	ether_addr_copy(priv->mac_addr, efuse->mac_addr);
 
 	memcpy(priv->cck_tx_power_index_A,
-	       priv->efuse_wifi.efuse8723.cck_tx_power_index_A,
+	       efuse->cck_tx_power_index_A,
 	       sizeof(priv->cck_tx_power_index_A));
 	memcpy(priv->cck_tx_power_index_B,
-	       priv->efuse_wifi.efuse8723.cck_tx_power_index_B,
+	       efuse->cck_tx_power_index_B,
 	       sizeof(priv->cck_tx_power_index_B));
 
 	memcpy(priv->ht40_1s_tx_power_index_A,
-	       priv->efuse_wifi.efuse8723.ht40_1s_tx_power_index_A,
+	       efuse->ht40_1s_tx_power_index_A,
 	       sizeof(priv->ht40_1s_tx_power_index_A));
 	memcpy(priv->ht40_1s_tx_power_index_B,
-	       priv->efuse_wifi.efuse8723.ht40_1s_tx_power_index_B,
+	       efuse->ht40_1s_tx_power_index_B,
 	       sizeof(priv->ht40_1s_tx_power_index_B));
 
 	memcpy(priv->ht20_tx_power_index_diff,
-	       priv->efuse_wifi.efuse8723.ht20_tx_power_index_diff,
+	       efuse->ht20_tx_power_index_diff,
 	       sizeof(priv->ht20_tx_power_index_diff));
 	memcpy(priv->ofdm_tx_power_index_diff,
-	       priv->efuse_wifi.efuse8723.ofdm_tx_power_index_diff,
+	       efuse->ofdm_tx_power_index_diff,
 	       sizeof(priv->ofdm_tx_power_index_diff));
 
 	memcpy(priv->ht40_max_power_offset,
-	       priv->efuse_wifi.efuse8723.ht40_max_power_offset,
+	       efuse->ht40_max_power_offset,
 	       sizeof(priv->ht40_max_power_offset));
 	memcpy(priv->ht20_max_power_offset,
-	       priv->efuse_wifi.efuse8723.ht20_max_power_offset,
+	       efuse->ht20_max_power_offset,
 	       sizeof(priv->ht20_max_power_offset));
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n",
-		 priv->efuse_wifi.efuse8723.vendor_name);
+		 efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n",
-		 priv->efuse_wifi.efuse8723.device_name);
+		 efuse->device_name);
 	return 0;
 }
 
