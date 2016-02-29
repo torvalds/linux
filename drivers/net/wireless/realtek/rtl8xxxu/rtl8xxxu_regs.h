@@ -397,6 +397,8 @@
 #define REG_AUTO_LLT			0x0224
 #define  AUTO_LLT_INIT_LLT		BIT(16)
 
+#define REG_DWBCN1_CTRL_8723B		0x0228
+
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280
 #define  RXDMA_USB_AGG_ENABLE		BIT(31)
