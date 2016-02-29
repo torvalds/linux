@@ -2197,8 +2197,10 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	context = &in->ctx;
 	err = to_mlx5_st(ibqp->qp_type);
-	if (err < 0)
+	if (err < 0) {
+		mlx5_ib_dbg(dev, "unsupported qp type %d\n", ibqp->qp_type);
 		goto out;
+	}
 
 	context->flags = cpu_to_be32(err << 16);
 
@@ -2418,30 +2420,45 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (ibqp->qp_type != MLX5_IB_QPT_REG_UMR &&
 	    !ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask,
-				ll))
+				ll)) {
+		mlx5_ib_dbg(dev, "invalid QP state transition from %d to %d, qp_type %d, attr_mask 0x%x\n",
+			    cur_state, new_state, ibqp->qp_type, attr_mask);
 		goto out;
+	}
 
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 ||
-	     attr->port_num > MLX5_CAP_GEN(dev->mdev, num_ports)))
+	     attr->port_num > MLX5_CAP_GEN(dev->mdev, num_ports))) {
+		mlx5_ib_dbg(dev, "invalid port number %d. number of ports is %d\n",
+			    attr->port_num, dev->num_ports);
 		goto out;
+	}
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
 		if (attr->pkey_index >=
-		    dev->mdev->port_caps[port - 1].pkey_table_len)
+		    dev->mdev->port_caps[port - 1].pkey_table_len) {
+			mlx5_ib_dbg(dev, "invalid pkey index %d\n",
+				    attr->pkey_index);
 			goto out;
+		}
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
 	    attr->max_rd_atomic >
-	    (1 << MLX5_CAP_GEN(dev->mdev, log_max_ra_res_qp)))
+	    (1 << MLX5_CAP_GEN(dev->mdev, log_max_ra_res_qp))) {
+		mlx5_ib_dbg(dev, "invalid max_rd_atomic value %d\n",
+			    attr->max_rd_atomic);
 		goto out;
+	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
 	    attr->max_dest_rd_atomic >
-	    (1 << MLX5_CAP_GEN(dev->mdev, log_max_ra_req_qp)))
+	    (1 << MLX5_CAP_GEN(dev->mdev, log_max_ra_req_qp))) {
+		mlx5_ib_dbg(dev, "invalid max_dest_rd_atomic value %d\n",
+			    attr->max_dest_rd_atomic);
 		goto out;
+	}
 
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
 		err = 0;
