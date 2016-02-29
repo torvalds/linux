@@ -54,6 +54,7 @@ MODULE_FIRMWARE("rtlwifi/rtl8723aufw_B_NoBT.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_A.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_B.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192cufw_TMSC.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8192eu_nic.bin");
 
 module_param_named(debug, rtl8xxxu_debug, int, 0600);
 MODULE_PARM_DESC(debug, "Set debug mask");
