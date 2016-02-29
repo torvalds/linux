@@ -511,8 +511,6 @@ affs_do_readpage_ofs(struct page *page, unsigned to)
 	pr_debug("%s(%lu, %ld, 0, %d)\n", __func__, inode->i_ino,
 		 page->index, to);
 	BUG_ON(to > PAGE_CACHE_SIZE);
-	kmap(page);
-	data = page_address(page);
 	bsize = AFFS_SB(sb)->s_data_blksize;
 	tmp = page->index << PAGE_CACHE_SHIFT;
 	bidx = tmp / bsize;
@@ -524,14 +522,15 @@ affs_do_readpage_ofs(struct page *page, unsigned to)
 			return PTR_ERR(bh);
 		tmp = min(bsize - boff, to - pos);
 		BUG_ON(pos + tmp > to || tmp > bsize);
+		data = kmap_atomic(page);
 		memcpy(data + pos, AFFS_DATA(bh) + boff, tmp);
+		kunmap_atomic(data);
 		affs_brelse(bh);
 		bidx++;
 		pos += tmp;
 		boff = 0;
 	}
 	flush_dcache_page(page);
-	kunmap(page);
 	return 0;
 }
 
