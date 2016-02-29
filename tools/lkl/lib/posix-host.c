@@ -266,7 +266,7 @@ static void panic(void)
 	assert(0);
 }
 
-static long gettid(void)
+static long _gettid(void)
 {
 	return syscall(SYS_gettid);
 }
@@ -298,7 +298,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.ioremap = lkl_ioremap,
 	.iomem_access = lkl_iomem_access,
 	.virtio_devices = lkl_virtio_devs,
-	.gettid = gettid,
+	.gettid = _gettid,
 };
 
 static int fd_get_capacity(union lkl_disk disk, unsigned long long *res)
