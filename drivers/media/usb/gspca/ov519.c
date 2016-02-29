@@ -2042,6 +2042,9 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 	if (sd->gspca_dev.usb_err < 0)
 		return;
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
@@ -2103,6 +2106,8 @@ static int reg_r(struct sd *sd, u16 index)
 		req = 1;
 	}
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			req,
@@ -2131,6 +2136,8 @@ static int reg_r8(struct sd *sd,
 	if (sd->gspca_dev.usb_err < 0)
 		return -1;
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO */
@@ -2187,6 +2194,8 @@ static void ov518_reg_w32(struct sd *sd, u16 index, u32 value, int n)
 
 	*((__le32 *) sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			1 /* REG_IO */,
