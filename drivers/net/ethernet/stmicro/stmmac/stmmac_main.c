@@ -868,8 +868,9 @@ static int stmmac_init_phy(struct net_device *dev)
 	}
 
 	/* If attached to a switch, there is no reason to poll phy handler */
-	if (!strcmp(priv->plat->phy_bus_name, "fixed"))
-		phydev->irq = PHY_IGNORE_INTERRUPT;
+	if (priv->plat->phy_bus_name)
+		if (!strcmp(priv->plat->phy_bus_name, "fixed"))
+			phydev->irq = PHY_IGNORE_INTERRUPT;
 
 	pr_debug("stmmac_init_phy:  %s: attached to PHY (UID 0x%x)"
 		 " Link = %d\n", dev->name, phydev->phy_id, phydev->link);
