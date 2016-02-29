@@ -918,8 +918,6 @@ typedef enum {
 
 struct wilc;
 int wilc_wlan_init(struct net_device *dev);
-void wilc_bus_set_max_speed(void);
-void wilc_bus_set_default_speed(void);
 u32 wilc_get_chipid(struct wilc *wilc, bool update);
 
 #endif
