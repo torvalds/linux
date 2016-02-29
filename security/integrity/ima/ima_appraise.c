@@ -328,7 +328,7 @@ void ima_inode_post_setattr(struct dentry *dentry)
 	if (iint) {
 		iint->flags &= ~(IMA_APPRAISE | IMA_APPRAISED |
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
-				 IMA_ACTION_FLAGS);
+				 IMA_ACTION_RULE_FLAGS);
 		if (must_appraise)
 			iint->flags |= IMA_APPRAISE;
 	}
