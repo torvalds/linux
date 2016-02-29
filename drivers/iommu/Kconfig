@@ -341,6 +341,7 @@ config MTK_IOMMU
 	bool "MTK IOMMU Support"
 	depends on ARM || ARM64
 	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select ARM_DMA_USE_IOMMU
 	select IOMMU_API
 	select IOMMU_DMA
 	select IOMMU_IO_PGTABLE_ARMV7S
