@@ -2062,8 +2062,8 @@ rtl8723a_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 static void
 rtl8723b_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 {
-	u32 val32, ofdm;
-	u8 cck, ofdmbase;
+	u32 val32, ofdm, mcs;
+	u8 cck, ofdmbase, mcsbase;
 	int group, tx_idx;
 
 	tx_idx = 0;
@@ -2086,6 +2086,16 @@ rtl8723b_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 
 	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE18_06, ofdm);
 	rtl8xxxu_write32(priv, REG_TX_AGC_A_RATE54_24, ofdm);
+
+	mcsbase = priv->ht40_1s_tx_power_index_B[group];
+	if (ht40)
+		mcsbase += priv->ht40_tx_power_diff[tx_idx++].b;
+	else
+		mcsbase += priv->ht20_tx_power_diff[tx_idx++].b;
+	mcs = mcsbase | mcsbase << 8 | mcsbase << 16 | mcsbase << 24;
+
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS03_MCS00, mcs);
+	rtl8xxxu_write32(priv, REG_TX_AGC_A_MCS07_MCS04, mcs);
 }
 
 static void rtl8xxxu_set_linktype(struct rtl8xxxu_priv *priv,
