@@ -6093,6 +6093,13 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	case 0x8723b:
 		rftable = rtl8723bu_radioa_1t_init_table;
 		ret = rtl8xxxu_init_phy_rf(priv, rftable, RF_A);
+		/*
+		 * PHY LCK
+		 */
+		rtl8xxxu_write_rfreg(priv, RF_A, 0xb0, 0xdfbe0);
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_MODE_AG, 0x8c01);
+		msleep(200);
+		rtl8xxxu_write_rfreg(priv, RF_A, 0xb0, 0xdffe0);
 		break;
 	case 0x8188c:
 		if (priv->hi_pa)
