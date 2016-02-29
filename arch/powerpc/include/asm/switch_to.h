@@ -28,13 +28,14 @@ extern void giveup_all(struct task_struct *);
 extern void enable_kernel_fp(void);
 extern void flush_fp_to_thread(struct task_struct *);
 extern void giveup_fpu(struct task_struct *);
-extern void __giveup_fpu(struct task_struct *);
+extern void save_fpu(struct task_struct *);
 static inline void disable_kernel_fp(void)
 {
 	msr_check_and_clear(MSR_FP);
 }
 #else
 static inline void __giveup_fpu(struct task_struct *t) { }
+static inline void save_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
 #endif
 

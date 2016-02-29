@@ -133,6 +133,16 @@ void __msr_check_and_clear(unsigned long bits)
 EXPORT_SYMBOL(__msr_check_and_clear);
 
 #ifdef CONFIG_PPC_FPU
+void __giveup_fpu(struct task_struct *tsk)
+{
+	save_fpu(tsk);
+	tsk->thread.regs->msr &= ~MSR_FP;
+#ifdef CONFIG_VSX
+	if (cpu_has_feature(CPU_FTR_VSX))
+		tsk->thread.regs->msr &= ~MSR_VSX;
+#endif
+}
+
 void giveup_fpu(struct task_struct *tsk)
 {
 	check_if_tm_restore_required(tsk);
@@ -459,7 +469,7 @@ void save_all(struct task_struct *tsk)
 	msr_check_and_set(msr_all_available);
 
 	if (usermsr & MSR_FP)
-		__giveup_fpu(tsk);
+		save_fpu(tsk);
 
 	if (usermsr & MSR_VEC)
 		__giveup_altivec(tsk);
