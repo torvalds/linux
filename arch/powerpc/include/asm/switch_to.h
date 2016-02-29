@@ -43,12 +43,13 @@ static inline void flush_fp_to_thread(struct task_struct *t) { }
 extern void enable_kernel_altivec(void);
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
-extern void __giveup_altivec(struct task_struct *);
+extern void save_altivec(struct task_struct *);
 static inline void disable_kernel_altivec(void)
 {
 	msr_check_and_clear(MSR_VEC);
 }
 #else
+static inline void save_altivec(struct task_struct *t) { }
 static inline void __giveup_altivec(struct task_struct *t) { }
 #endif
 

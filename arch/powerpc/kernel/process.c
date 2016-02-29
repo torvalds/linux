@@ -213,6 +213,16 @@ static int restore_fp(struct task_struct *tsk) { return 0; }
 #ifdef CONFIG_ALTIVEC
 #define loadvec(thr) ((thr).load_vec)
 
+static void __giveup_altivec(struct task_struct *tsk)
+{
+	save_altivec(tsk);
+	tsk->thread.regs->msr &= ~MSR_VEC;
+#ifdef CONFIG_VSX
+	if (cpu_has_feature(CPU_FTR_VSX))
+		tsk->thread.regs->msr &= ~MSR_VSX;
+#endif
+}
+
 void giveup_altivec(struct task_struct *tsk)
 {
 	check_if_tm_restore_required(tsk);
@@ -472,7 +482,7 @@ void save_all(struct task_struct *tsk)
 		save_fpu(tsk);
 
 	if (usermsr & MSR_VEC)
-		__giveup_altivec(tsk);
+		save_altivec(tsk);
 
 	if (usermsr & MSR_VSX)
 		__giveup_vsx(tsk);
