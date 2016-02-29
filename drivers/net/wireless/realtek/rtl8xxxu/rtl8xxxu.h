@@ -537,8 +537,10 @@ struct rtl8723bu_efuse {
 	u8 res9[2];
 	u8 vendor_name[0x07];
 	u8 res10[2];
-	u8 device_name[0x14];		/* 0xe8 */
-	u8 res11[0xd4];
+	u8 device_name[0x14];
+	u8 res11[0xcf];
+	u8 package_type;		/* 0x1fb */
+	u8 res12[0x4];
 };
 
 struct rtl8192eu_efuse {
