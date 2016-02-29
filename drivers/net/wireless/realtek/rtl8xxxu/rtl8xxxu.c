@@ -2781,7 +2781,6 @@ static int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page)
 	int i;
 
 	val32 = rtl8xxxu_read32(priv, REG_AUTO_LLT);
-	pr_info("AUTO_LLT = %08x\n", val32);
 	val32 |= AUTO_LLT_INIT_LLT;
 	rtl8xxxu_write32(priv, REG_AUTO_LLT, val32);
 
@@ -2792,12 +2791,10 @@ static int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv, u8 last_tx_page)
 		usleep_range(2, 4);
 	}
 
-	if (i) {
+	if (!i) {
 		ret = -EBUSY;
 		dev_warn(&priv->udev->dev, "LLT table init failed\n");
 	}
-	else
-		dev_warn(&priv->udev->dev, "LLT table init success\n");
 
 	return ret;
 }
