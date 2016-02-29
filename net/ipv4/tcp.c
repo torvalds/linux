@@ -2950,7 +2950,7 @@ static void __tcp_alloc_md5sig_pool(void)
 			struct crypto_hash *hash;
 
 			hash = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
-			if (IS_ERR_OR_NULL(hash))
+			if (IS_ERR(hash))
 				return;
 			per_cpu(tcp_md5sig_pool, cpu).md5_desc.tfm = hash;
 		}

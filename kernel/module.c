@@ -984,6 +984,8 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		mod->exit();
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
+	ftrace_release_mod(mod);
+
 	async_synchronize_full();
 
 	/* Store the name of the last unloaded module for diagnostic purposes */
@@ -3313,6 +3315,7 @@ fail:
 	module_put(mod);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
+	ftrace_release_mod(mod);
 	free_module(mod);
 	wake_up_all(&module_wq);
 	return ret;
@@ -3389,6 +3392,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	mod->state = MODULE_STATE_COMING;
 	mutex_unlock(&module_mutex);
 
+	ftrace_module_enable(mod);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_COMING, mod);
 	return 0;

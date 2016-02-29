@@ -2285,7 +2285,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	if (group == 0)
 		seq_puts(seq, "#group: free  frags first ["
 			      " 2^0   2^1   2^2   2^3   2^4   2^5   2^6  "
-			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]");
+			      " 2^7   2^8   2^9   2^10  2^11  2^12  2^13  ]\n");
 
 	i = (sb->s_blocksize_bits + 2) * sizeof(sg.info.bb_counters[0]) +
 		sizeof(struct ext4_group_info);
