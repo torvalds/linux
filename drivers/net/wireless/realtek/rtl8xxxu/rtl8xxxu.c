@@ -7084,7 +7084,8 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 
 	if (rate_flag & IEEE80211_TX_RC_USE_RTS_CTS) {
 		/* Use RTS rate 24M - does the mac80211 tell us which to use? */
-		tx_desc->txdw4 |= cpu_to_le32(DESC_RATE_24M);
+		tx_desc->txdw4 |= cpu_to_le32(DESC_RATE_24M <<
+					      TXDESC_RTS_RATE_SHIFT_8723A);
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC_RTS_CTS_ENABLE_8723A);
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC_HW_RTS_ENABLE_8723A);
 	}
