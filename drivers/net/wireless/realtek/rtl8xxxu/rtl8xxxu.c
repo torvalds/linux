@@ -7195,7 +7195,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			tx_desc->txdw3 |=
 				cpu_to_le32(TXDESC_HW_RTS_ENABLE_8723B);
 		}
-	};
+	}
 
 	rtl8xxxu_calc_tx_desc_csum(tx_desc);
 
