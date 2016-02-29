@@ -82,6 +82,19 @@ int gb_audio_apbridgea_get_tx_delay(struct gb_connection *connection,
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_tx_delay);
 
+int gb_audio_apbridgea_prepare_tx(struct gb_connection *connection,
+				  __u16 i2s_port)
+{
+	struct audio_apbridgea_prepare_tx_request req;
+
+	req.hdr.type = AUDIO_APBRIDGEA_TYPE_PREPARE_TX;
+	req.hdr.i2s_port = cpu_to_le16(i2s_port);
+
+	return gb_hd_output(connection->hd, &req, sizeof(req),
+			    GB_APB_REQUEST_AUDIO_CONTROL, true);
+}
+EXPORT_SYMBOL_GPL(gb_audio_apbridgea_prepare_tx);
+
 int gb_audio_apbridgea_start_tx(struct gb_connection *connection,
 				__u16 i2s_port, __u64 timestamp)
 {
@@ -108,6 +121,19 @@ int gb_audio_apbridgea_stop_tx(struct gb_connection *connection, __u16 i2s_port)
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_stop_tx);
 
+int gb_audio_apbridgea_shutdown_tx(struct gb_connection *connection,
+				   __u16 i2s_port)
+{
+	struct audio_apbridgea_shutdown_tx_request req;
+
+	req.hdr.type = AUDIO_APBRIDGEA_TYPE_SHUTDOWN_TX;
+	req.hdr.i2s_port = cpu_to_le16(i2s_port);
+
+	return gb_hd_output(connection->hd, &req, sizeof(req),
+			    GB_APB_REQUEST_AUDIO_CONTROL, true);
+}
+EXPORT_SYMBOL_GPL(gb_audio_apbridgea_shutdown_tx);
+
 int gb_audio_apbridgea_set_rx_data_size(struct gb_connection *connection,
 					__u16 i2s_port, __u16 size)
 {
@@ -129,6 +155,19 @@ int gb_audio_apbridgea_get_rx_delay(struct gb_connection *connection,
 	return -ENOSYS;
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_get_rx_delay);
+
+int gb_audio_apbridgea_prepare_rx(struct gb_connection *connection,
+				  __u16 i2s_port)
+{
+	struct audio_apbridgea_prepare_rx_request req;
+
+	req.hdr.type = AUDIO_APBRIDGEA_TYPE_PREPARE_RX;
+	req.hdr.i2s_port = cpu_to_le16(i2s_port);
+
+	return gb_hd_output(connection->hd, &req, sizeof(req),
+			    GB_APB_REQUEST_AUDIO_CONTROL, true);
+}
+EXPORT_SYMBOL_GPL(gb_audio_apbridgea_prepare_rx);
 
 int gb_audio_apbridgea_start_rx(struct gb_connection *connection,
 				__u16 i2s_port)
@@ -154,6 +193,19 @@ int gb_audio_apbridgea_stop_rx(struct gb_connection *connection, __u16 i2s_port)
 			    GB_APB_REQUEST_AUDIO_CONTROL, true);
 }
 EXPORT_SYMBOL_GPL(gb_audio_apbridgea_stop_rx);
+
+int gb_audio_apbridgea_shutdown_rx(struct gb_connection *connection,
+				   __u16 i2s_port)
+{
+	struct audio_apbridgea_shutdown_rx_request req;
+
+	req.hdr.type = AUDIO_APBRIDGEA_TYPE_SHUTDOWN_RX;
+	req.hdr.i2s_port = cpu_to_le16(i2s_port);
+
+	return gb_hd_output(connection->hd, &req, sizeof(req),
+			    GB_APB_REQUEST_AUDIO_CONTROL, true);
+}
+EXPORT_SYMBOL_GPL(gb_audio_apbridgea_shutdown_rx);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("greybus:audio-apbridgea");

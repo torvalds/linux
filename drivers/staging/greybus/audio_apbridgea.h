@@ -48,12 +48,16 @@
 #define AUDIO_APBRIDGEA_TYPE_UNREGISTER_CPORT		0x03
 #define AUDIO_APBRIDGEA_TYPE_SET_TX_DATA_SIZE		0x04
 #define AUDIO_APBRIDGEA_TYPE_GET_TX_DELAY		0x05
-#define AUDIO_APBRIDGEA_TYPE_START_TX			0x06
-#define AUDIO_APBRIDGEA_TYPE_STOP_TX			0x07
-#define AUDIO_APBRIDGEA_TYPE_SET_RX_DATA_SIZE		0x08
-#define AUDIO_APBRIDGEA_TYPE_GET_RX_DELAY		0x09
-#define AUDIO_APBRIDGEA_TYPE_START_RX			0x0a
-#define AUDIO_APBRIDGEA_TYPE_STOP_RX			0x0b
+#define AUDIO_APBRIDGEA_TYPE_PREPARE_TX			0x06
+#define AUDIO_APBRIDGEA_TYPE_START_TX			0x07
+#define AUDIO_APBRIDGEA_TYPE_STOP_TX			0x08
+#define AUDIO_APBRIDGEA_TYPE_SHUTDOWN_TX		0x09
+#define AUDIO_APBRIDGEA_TYPE_SET_RX_DATA_SIZE		0x0a
+#define AUDIO_APBRIDGEA_TYPE_GET_RX_DELAY		0x0b
+#define AUDIO_APBRIDGEA_TYPE_PREPARE_RX			0x0c
+#define AUDIO_APBRIDGEA_TYPE_START_RX			0x0d
+#define AUDIO_APBRIDGEA_TYPE_STOP_RX			0x0e
+#define AUDIO_APBRIDGEA_TYPE_SHUTDOWN_RX		0x0f
 
 #define AUDIO_APBRIDGEA_PCM_FMT_8			BIT(0)
 #define AUDIO_APBRIDGEA_PCM_FMT_16			BIT(1)
@@ -120,12 +124,20 @@ struct audio_apbridgea_get_tx_delay_response {
 	__le16				delay;
 } __packed;
 
+struct audio_apbridgea_prepare_tx_request {
+	struct audio_apbridgea_hdr	hdr;
+} __packed;
+
 struct audio_apbridgea_start_tx_request {
 	struct audio_apbridgea_hdr	hdr;
 	__le64				timestamp;
 } __packed;
 
 struct audio_apbridgea_stop_tx_request {
+	struct audio_apbridgea_hdr	hdr;
+} __packed;
+
+struct audio_apbridgea_shutdown_tx_request {
 	struct audio_apbridgea_hdr	hdr;
 } __packed;
 
@@ -143,11 +155,19 @@ struct audio_apbridgea_get_rx_delay_response {
 	__le16				delay;
 } __packed;
 
+struct audio_apbridgea_prepare_rx_request {
+	struct audio_apbridgea_hdr	hdr;
+} __packed;
+
 struct audio_apbridgea_start_rx_request {
 	struct audio_apbridgea_hdr	hdr;
 } __packed;
 
 struct audio_apbridgea_stop_rx_request {
+	struct audio_apbridgea_hdr	hdr;
+} __packed;
+
+struct audio_apbridgea_shutdown_rx_request {
 	struct audio_apbridgea_hdr	hdr;
 } __packed;
 

@@ -345,17 +345,33 @@ static int gbcodec_trigger(struct snd_pcm_substream *substream, int cmd,
 		goto func_exit;
 	}
 
-	if (start && tx)
-		ret = gb_audio_apbridgea_start_tx(gb_dai->connection, 0, 0);
+	if (start && tx) {
+		ret = gb_audio_apbridgea_prepare_tx(gb_dai->connection, 0);
+		if (!ret)
+			ret = gb_audio_apbridgea_start_tx(gb_dai->connection, 0,
+							  0);
+	}
 
-	else if (start && rx)
-		ret = gb_audio_apbridgea_start_rx(gb_dai->connection, 0);
+	else if (start && rx) {
+		ret = gb_audio_apbridgea_prepare_rx(gb_dai->connection, 0);
+		if (!ret)
+			ret = gb_audio_apbridgea_start_rx(gb_dai->connection,
+							  0);
+	}
 
-	else if (stop && tx)
+	else if (stop && tx) {
 		ret = gb_audio_apbridgea_stop_tx(gb_dai->connection, 0);
+		if (!ret)
+			ret = gb_audio_apbridgea_shutdown_tx(gb_dai->connection,
+							     0);
+	}
 
-	else if (stop && rx)
+	else if (stop && rx) {
 		ret = gb_audio_apbridgea_stop_rx(gb_dai->connection, 0);
+		if (!ret)
+			ret = gb_audio_apbridgea_shutdown_rx(gb_dai->connection,
+							     0);
+	}
 
 	else
 		ret = -EINVAL;
@@ -487,6 +503,10 @@ static void gb_audio_cleanup(struct gbaudio_codec_info *gb)
 			ret = gb_audio_apbridgea_stop_tx(connection, 0);
 			if (ret)
 				dev_info(dev, "%d:Failed during APBridge stop_tx\n",
+					 ret);
+			ret = gb_audio_apbridgea_shutdown_tx(connection, 0);
+			if (ret)
+				dev_info(dev, "%d:Failed during APBridge shutdown_tx\n",
 					 ret);
 			cportid = connection->intf_cport_id;
 			ret = gb_audio_gb_deactivate_tx(gb->mgmt_connection,
