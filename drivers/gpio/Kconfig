@@ -270,6 +270,13 @@ config GPIO_MB86S7X
 	help
 	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
 
+config GPIO_MENZ127
+	tristate "MEN 16Z127 GPIO support"
+	depends on MCB
+	select GPIO_GENERIC
+	help
+	 Say yes here to support the MEN 16Z127 GPIO Controller
+
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
 	depends on LANTIQ && SOC_XWAY
