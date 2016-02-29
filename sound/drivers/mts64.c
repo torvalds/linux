@@ -964,11 +964,6 @@ static int snd_mts64_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto free_pardev;
 	}
-	err = mts64_probe(p);
-	if (err) {
-		err = -EIO;
-		goto release_pardev;
-	}
 
 	if ((err = snd_mts64_create(card, pardev, &mts)) < 0) {
 		snd_printd("Cannot create main component\n");
@@ -976,6 +971,12 @@ static int snd_mts64_probe(struct platform_device *pdev)
 	}
 	card->private_data = mts;
 	card->private_free = snd_mts64_card_private_free;
+
+	err = mts64_probe(p);
+	if (err) {
+		err = -EIO;
+		goto __err;
+	}
 	
 	if ((err = snd_mts64_rawmidi_create(card)) < 0) {
 		snd_printd("Creating Rawmidi component failed\n");
