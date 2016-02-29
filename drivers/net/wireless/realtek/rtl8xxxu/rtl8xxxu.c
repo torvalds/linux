@@ -4362,6 +4362,12 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		}
 	}
 
+	if (priv->rtlchip == 0x8192e) {
+		val32 = rtl8xxxu_read32(priv, REG_TXDMA_OFFSET_CHK);
+		val32 |= TXDMA_OFFSET_DROP_DATA_EN;
+		rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
+	}
+
 	ret = rtl8xxxu_init_mac(priv, rtl8723a_mac_init_table);
 	dev_dbg(dev, "%s: init_mac %i\n", __func__, ret);
 	if (ret)
