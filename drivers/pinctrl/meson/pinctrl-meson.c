@@ -49,7 +49,6 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/pinconf-generic.h>
@@ -546,7 +545,6 @@ static const struct of_device_id meson_pinctrl_dt_match[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, meson_pinctrl_dt_match);
 
 static int meson_gpiolib_register(struct meson_pinctrl *pc)
 {
@@ -754,8 +752,4 @@ static struct platform_driver meson_pinctrl_driver = {
 		.of_match_table = meson_pinctrl_dt_match,
 	},
 };
-module_platform_driver(meson_pinctrl_driver);
-
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
-MODULE_DESCRIPTION("Amlogic Meson pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(meson_pinctrl_driver);
