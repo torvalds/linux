@@ -202,6 +202,26 @@ config ARM_SP805_WATCHDOG
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
 	  the timeout is reached.
 
+config ARM_SBSA_WATCHDOG
+	tristate "ARM SBSA Generic Watchdog"
+	depends on ARM64
+	depends on ARM_ARCH_TIMER
+	select WATCHDOG_CORE
+	help
+	  ARM SBSA Generic Watchdog has two stage timeouts:
+	  the first signal (WS0) is for alerting the system by interrupt,
+	  the second one (WS1) is a real hardware reset.
+	  More details: ARM DEN0029B - Server Base System Architecture (SBSA)
+
+	  This driver can operate ARM SBSA Generic Watchdog as a single stage
+	  or a two stages watchdog, it depends on the module parameter "action".
+
+	  Note: the maximum timeout in the two stages mode is half of that in
+	  the single stage mode.
+
+	  To compile this driver as module, choose M here: The module
+	  will be called sbsa_gwdt.
+
 config ASM9260_WATCHDOG
 	tristate "Alphascale ASM9260 watchdog"
 	depends on MACH_ASM9260
