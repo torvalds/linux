@@ -84,6 +84,28 @@ struct clk;
 #define RK3368_EMMC_CON0		0x418
 #define RK3368_EMMC_CON1		0x41c
 
+#define RK3399_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3399_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3399_CLKGATE_CON(x)		((x) * 0x4 + 0x300)
+#define RK3399_SOFTRST_CON(x)		((x) * 0x4 + 0x400)
+#define RK3399_GLB_SRST_FST		0x500
+#define RK3399_GLB_SRST_SND		0x504
+#define RK3399_GLB_CNT_TH		0x508
+#define RK3399_MISC_CON			0x50c
+#define RK3399_RST_CON			0x510
+#define RK3399_RST_ST			0x514
+#define RK3399_SDMMC_CON0		0x580
+#define RK3399_SDMMC_CON1		0x584
+#define RK3399_SDIO_CON0		0x588
+#define RK3399_SDIO_CON1		0x58c
+
+#define RK3399_PMU_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3399_PMU_CLKSEL_CON(x)	((x) * 0x4 + 0x80)
+#define RK3399_PMU_CLKGATE_CON(x)	((x) * 0x4 + 0x100)
+#define RK3399_PMU_SOFTRST_CON(x)	((x) * 0x4 + 0x110)
+#define RK3399_PMU_RSTNHOLD_CON(x)	((x) * 0x4 + 0x120)
+#define RK3399_PMU_GATEDIS_CON(x)	((x) * 0x4 + 0x130)
+
 enum rockchip_pll_type {
 	pll_rk3036,
 	pll_rk3066,
@@ -119,18 +141,6 @@ enum rockchip_pll_type {
 	.nf = _nf,						\
 	.no = _no,						\
 	.nb = _nb,						\
-}
-
-#define RK3399_PLL_RATE(_rate, _refdiv, _fbdiv, _postdiv1,	\
-			_postdiv2, _dsmpd, _frac)		\
-{								\
-	.rate	= _rate##U,					\
-	.fbdiv = _fbdiv,					\
-	.postdiv1 = _postdiv1,					\
-	.refdiv = _refdiv,					\
-	.postdiv2 = _postdiv2,					\
-	.dsmpd = _dsmpd,					\
-	.frac = _frac,						\
 }
 
 /**
