@@ -115,6 +115,7 @@ config MTD_MAP_BANK_WIDTH_16
 
 config MTD_MAP_BANK_WIDTH_32
 	bool "Support 256-bit buswidth" if MTD_CFI_GEOMETRY
+	select MTD_COMPLEX_MAPPINGS if HAS_IOMEM
 	default n
 	help
 	  If you wish to support CFI devices on a physical bus which is
