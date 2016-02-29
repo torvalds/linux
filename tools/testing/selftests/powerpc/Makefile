@@ -22,7 +22,8 @@ SUB_DIRS = benchmarks 		\
 	   switch_endian	\
 	   syscalls		\
 	   tm			\
-	   vphn
+	   vphn         \
+	   math
 
 endif
 
