@@ -1423,6 +1423,9 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 {
 	u64 n;
 
+	if (snd_BUG_ON(rate <= 0))
+		return;
+
 	if (rate >= 112000)
 		rate /= 4;
 	else if (rate >= 56000)
@@ -2045,6 +2048,8 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 		} else {
 			/* slave mode, return external sample rate */
 			rate = hdspm_external_sample_rate(hdspm);
+			if (!rate)
+				rate = hdspm->system_sample_rate;
 		}
 	}
 
@@ -2090,7 +2095,10 @@ static int snd_hdspm_put_system_sample_rate(struct snd_kcontrol *kcontrol,
 					    ucontrol)
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	int rate = ucontrol->value.integer.value[0];
 
+	if (rate < 27000 || rate > 207000)
+		return -EINVAL;
 	hdspm_set_dds_value(hdspm, ucontrol->value.integer.value[0]);
 	return 0;
 }
