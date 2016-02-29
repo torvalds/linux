@@ -4835,11 +4835,16 @@ static void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 	}
 
 	/* Start LC calibration */
+	if (priv->fops->has_s0s1)
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_S0S1, 0xdfbe0);
 	val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_MODE_AG);
 	val32 |= 0x08000;
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_MODE_AG, val32);
 
 	msleep(100);
+
+	if (priv->fops->has_s0s1)
+		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_S0S1, 0xdffe0);
 
 	/* Restore original parameters */
 	if (lstf & OFDM_LSTF_MASK) {
@@ -7359,6 +7364,7 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.writeN_block_size = 1024,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
+	.has_s0s1 = 1,
 	.adda_1t_init = 0x01c00014,
 	.adda_1t_path_on = 0x01c00014,
 	.adda_2t_path_on_a = 0x01c00014,
@@ -7393,6 +7399,7 @@ static struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.writeN_block_size = 128,
 	.mbox_ext_reg = REG_HMBOX_EXT0_8723B,
 	.mbox_ext_width = 4,
+	.has_s0s1 = 1,
 	.adda_1t_init = 0x0fc01616,
 	.adda_1t_path_on = 0x0fc01616,
 	.adda_2t_path_on_a = 0x0fc01616,

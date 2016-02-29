@@ -855,6 +855,7 @@ struct rtl8xxxu_fileops {
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
+	char has_s0s1;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;
