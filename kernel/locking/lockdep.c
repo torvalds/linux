@@ -1982,6 +1982,53 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
 }
 
 /*
+ * Returns the index of the first held_lock of the current chain
+ */
+static inline int get_first_held_lock(struct task_struct *curr,
+					struct held_lock *hlock)
+{
+	int i;
+	struct held_lock *hlock_curr;
+
+	for (i = curr->lockdep_depth - 1; i >= 0; i--) {
+		hlock_curr = curr->held_locks + i;
+		if (hlock_curr->irq_context != hlock->irq_context)
+			break;
+
+	}
+
+	return ++i;
+}
+
+/*
+ * Checks whether the chain and the current held locks are consistent
+ * in depth and also in content. If they are not it most likely means
+ * that there was a collision during the calculation of the chain_key.
+ * Returns: 0 not passed, 1 passed
+ */
+static int check_no_collision(struct task_struct *curr,
+			struct held_lock *hlock,
+			struct lock_chain *chain)
+{
+#ifdef CONFIG_DEBUG_LOCKDEP
+	int i, j, id;
+
+	i = get_first_held_lock(curr, hlock);
+
+	if (DEBUG_LOCKS_WARN_ON(chain->depth != curr->lockdep_depth - (i - 1)))
+		return 0;
+
+	for (j = 0; j < chain->depth - 1; j++, i++) {
+		id = curr->held_locks[i].class_idx - 1;
+
+		if (DEBUG_LOCKS_WARN_ON(chain_hlocks[chain->base + j] != id))
+			return 0;
+	}
+#endif
+	return 1;
+}
+
+/*
  * Look up a dependency chain. If the key is not present yet then
  * add it and return 1 - in this case the new dependency chain is
  * validated. If the key is already hashed, return 0.
@@ -1994,7 +2041,6 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	struct lock_class *class = hlock_class(hlock);
 	struct hlist_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
-	struct held_lock *hlock_curr;
 	int i, j;
 
 	/*
@@ -2012,6 +2058,9 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 		if (chain->chain_key == chain_key) {
 cache_hit:
 			debug_atomic_inc(chain_lookup_hits);
+			if (!check_no_collision(curr, hlock, chain))
+				return 0;
+
 			if (very_verbose(class))
 				printk("\nhash chain already cached, key: "
 					"%016Lx tail class: [%p] %s\n",
@@ -2049,13 +2098,7 @@ cache_hit:
 	chain = lock_chains + nr_lock_chains++;
 	chain->chain_key = chain_key;
 	chain->irq_context = hlock->irq_context;
-	/* Find the first held_lock of current chain */
-	for (i = curr->lockdep_depth - 1; i >= 0; i--) {
-		hlock_curr = curr->held_locks + i;
-		if (hlock_curr->irq_context != hlock->irq_context)
-			break;
-	}
-	i++;
+	i = get_first_held_lock(curr, hlock);
 	chain->depth = curr->lockdep_depth + 1 - i;
 	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
 		chain->base = nr_chain_hlocks;
