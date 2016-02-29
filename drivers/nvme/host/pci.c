@@ -748,10 +748,8 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 		}
 
 		req = blk_mq_tag_to_rq(*nvmeq->tags, cqe.command_id);
-		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
-			u32 result = le32_to_cpu(cqe.result);
-			req->special = (void *)(uintptr_t)result;
-		}
+		if (req->cmd_type == REQ_TYPE_DRV_PRIV && req->special)
+			memcpy(req->special, &cqe, sizeof(cqe));
 		blk_mq_complete_request(req, status >> 1);
 
 	}
@@ -901,13 +899,10 @@ static void abort_endio(struct request *req, int error)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = iod->nvmeq;
-	u32 result = (u32)(uintptr_t)req->special;
 	u16 status = req->errors;
 
-	dev_warn(nvmeq->dev->ctrl.device,
-		"Abort status:%x result:%x", status, result);
+	dev_warn(nvmeq->dev->ctrl.device, "Abort status: 0x%x", status);
 	atomic_inc(&nvmeq->dev->ctrl.abort_limit);
-
 	blk_mq_free_request(req);
 }
 
