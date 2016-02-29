@@ -45,6 +45,7 @@ struct stmmac_resources {
 struct stmmac_tx_info {
 	dma_addr_t buf;
 	bool map_as_page;
+	unsigned len;
 };
 
 struct stmmac_priv {

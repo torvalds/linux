@@ -49,6 +49,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	if (dma_mapping_error(priv->device, desc->des2))
 		return -1;
 	priv->tx_skbuff_dma[entry].buf = desc->des2;
+	priv->tx_skbuff_dma[entry].len = bmax;
 	priv->hw->desc->prepare_tx_desc(desc, 1, bmax, csum, STMMAC_CHAIN_MODE);
 
 	while (len != 0) {
@@ -63,6 +64,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			if (dma_mapping_error(priv->device, desc->des2))
 				return -1;
 			priv->tx_skbuff_dma[entry].buf = desc->des2;
+			priv->tx_skbuff_dma[entry].len = bmax;
 			priv->hw->desc->prepare_tx_desc(desc, 0, bmax, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
@@ -75,6 +77,7 @@ static int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 			if (dma_mapping_error(priv->device, desc->des2))
 				return -1;
 			priv->tx_skbuff_dma[entry].buf = desc->des2;
+			priv->tx_skbuff_dma[entry].len = len;
 			priv->hw->desc->prepare_tx_desc(desc, 0, len, csum,
 							STMMAC_CHAIN_MODE);
 			priv->hw->desc->set_tx_owner(desc);
