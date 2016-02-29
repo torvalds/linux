@@ -1781,7 +1781,7 @@ static void rtl8723bu_config_channel(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 	u32 val32, rsr;
-	u8 val8, opmode, subchannel;
+	u8 val8, subchannel;
 	u16 rf_mode_bw;
 	bool ht = true;
 	int sec_ch_above, channel;
