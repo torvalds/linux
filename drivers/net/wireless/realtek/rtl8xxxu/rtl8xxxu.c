@@ -2417,6 +2417,8 @@ static int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
 
 	efuse_addr = 0;
 	while (efuse_addr < EFUSE_REAL_CONTENT_LEN_8723A) {
+		u16 map_addr;
+
 		ret = rtl8xxxu_read_efuse8(priv, efuse_addr++, &header);
 		if (ret || header == 0xff)
 			goto exit;
@@ -2439,44 +2441,35 @@ static int rtl8xxxu_read_efuse(struct rtl8xxxu_priv *priv)
 			word_mask = header & 0x0f;
 		}
 
-		if (offset < EFUSE_MAX_SECTION_8723A) {
-			u16 map_addr;
-			/* Get word enable value from PG header */
+		/* Get word enable value from PG header */
 
-			/* We have 8 bits to indicate validity */
-			map_addr = offset * 8;
-			if (map_addr >= EFUSE_MAP_LEN) {
-				dev_warn(dev, "%s: Illegal map_addr (%04x), "
-					 "efuse corrupt!\n",
-					 __func__, map_addr);
-				ret = -EINVAL;
-				goto exit;
-			}
-			for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
-				/* Check word enable condition in the section */
-				if (!(word_mask & BIT(i))) {
-					ret = rtl8xxxu_read_efuse8(priv,
-								   efuse_addr++,
-								   &val8);
-					if (ret)
-						goto exit;
-					priv->efuse_wifi.raw[map_addr++] = val8;
-
-					ret = rtl8xxxu_read_efuse8(priv,
-								   efuse_addr++,
-								   &val8);
-					if (ret)
-						goto exit;
-					priv->efuse_wifi.raw[map_addr++] = val8;
-				} else
-					map_addr += 2;
-			}
-		} else {
-			dev_warn(dev,
-				 "%s: Illegal offset (%04x), efuse corrupt!\n",
-				 __func__, offset);
+		/* We have 8 bits to indicate validity */
+		map_addr = offset * 8;
+		if (map_addr >= EFUSE_MAP_LEN) {
+			dev_warn(dev, "%s: Illegal map_addr (%04x), "
+				 "efuse corrupt!\n",
+				 __func__, map_addr);
 			ret = -EINVAL;
 			goto exit;
+		}
+		for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
+			/* Check word enable condition in the section */
+			if (!(word_mask & BIT(i))) {
+				ret = rtl8xxxu_read_efuse8(priv,
+							   efuse_addr++,
+							   &val8);
+				if (ret)
+					goto exit;
+				priv->efuse_wifi.raw[map_addr++] = val8;
+
+				ret = rtl8xxxu_read_efuse8(priv,
+							   efuse_addr++,
+							   &val8);
+				if (ret)
+					goto exit;
+				priv->efuse_wifi.raw[map_addr++] = val8;
+			} else
+				map_addr += 2;
 		}
 	}
 
