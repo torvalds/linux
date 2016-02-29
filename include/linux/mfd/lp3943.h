@@ -94,18 +94,12 @@ struct lp3943_reg_cfg {
  * @regmap: Used for I2C communication on accessing registers
  * @pdata: LP3943 platform specific data
  * @mux_cfg: Register configuration for pin MUX
- * @pin_used: Bit mask for output pin used.
- *	      This bitmask is used for pin assignment management.
- *	      1 = pin used, 0 = available.
- *	      Only LSB 16 bits are used, but it is unsigned long type
- *	      for atomic bitwise operations.
  */
 struct lp3943 {
 	struct device *dev;
 	struct regmap *regmap;
 	struct lp3943_platform_data *pdata;
 	const struct lp3943_reg_cfg *mux_cfg;
-	unsigned long pin_used;
 };
 
 int lp3943_read_byte(struct lp3943 *lp3943, u8 reg, u8 *read);
