@@ -1531,6 +1531,27 @@ error:
 	return retval;
 }
 
+static void rtl8723bu_write_btreg(struct rtl8xxxu_priv *priv, u8 reg, u8 data)
+{
+	struct h2c_cmd h2c;
+	int reqnum = 0;
+
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.bt_mp_oper.cmd = H2C_8723B_BT_MP_OPER;
+	h2c.bt_mp_oper.operreq = 0 | (reqnum << 4);
+	h2c.bt_mp_oper.opcode = BT_MP_OP_WRITE_REG_VALUE;
+	h2c.bt_mp_oper.data = data;
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
+
+	reqnum++;
+	memset(&h2c, 0, sizeof(struct h2c_cmd));
+	h2c.bt_mp_oper.cmd = H2C_8723B_BT_MP_OPER;
+	h2c.bt_mp_oper.operreq = 0 | (reqnum << 4);
+	h2c.bt_mp_oper.opcode = BT_MP_OP_WRITE_REG_VALUE;
+	h2c.bt_mp_oper.addr = reg;
+	rtl8723a_h2c_cmd(priv, &h2c, sizeof(h2c.bt_mp_oper));
+}
+
 static void rtl8723a_enable_rf(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
@@ -5646,6 +5667,8 @@ static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_IQADJ_G1, 0x780);
 
+	rtl8723bu_write_btreg(priv, 0x3c, 0x15); /* BT TRx Mask on */
+
 	/*
 	 * Set BT grant to low
 	 */
@@ -6824,8 +6847,9 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 
 	len = skb->len - 2;
 
-	pr_info("%s: C2H ID %02x seq %02x, len %02x %02x\n", __func__,
-		c2h->id, c2h->seq, len, c2h->bt_info.response_source);
+	dev_info(dev, "%s: C2H ID %02x seq %02x, len %02x source %02x\n",
+		 __func__,
+		 c2h->id, c2h->seq, len, c2h->bt_info.response_source);
 
 	switch(c2h->id) {
 	case C2H_8723B_BT_INFO:
@@ -6837,7 +6861,13 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 
 		if (c2h->bt_info.bt_has_reset)
 			dev_info(dev, "BT has been reset\n");
+		if (c2h->bt_info.tx_rx_mask)
+			dev_info(dev, "BT TRx mask\n");
 
+		break;
+	case C2H_8723B_BT_MP_INFO:
+		dev_info(dev, "C2H_MP_INFO ext ID %02x, status %02x\n",
+			 c2h->bt_mp_info.ext_id, c2h->bt_mp_info.status);
 		break;
 	default:
 		pr_info("%s: Unhandled C2H event %02x\n", __func__, c2h->id);

@@ -881,6 +881,13 @@ struct h2c_cmd {
 		} __packed b_type_dma;
 		struct {
 			u8 cmd;
+			u8 operreq;
+			u8 opcode;
+			u8 data;
+			u8 addr;
+		} __packed bt_mp_oper;
+		struct {
+			u8 cmd;
 			u8 data;
 		} __packed bt_wlan_calibration;
 		struct {
@@ -908,8 +915,8 @@ enum c2h_evt_8723b {
 	C2H_8723B_BT_OP_MODE = 5,
 	C2H_8723B_EXT_RA_RPT = 6,
 	C2H_8723B_BT_INFO = 9,
-	C2H_8723B_HW_INFO_EXCH = 10,
-	C2H_8723B_BT_MP_INFO = 11,
+	C2H_8723B_HW_INFO_EXCH = 0x0a,
+	C2H_8723B_BT_MP_INFO = 0x0b,
 	C2H_8723B_FW_DEBUG = 0xff,
 };
 
@@ -919,6 +926,46 @@ enum bt_info_src_8723b {
         BT_INFO_SRC_8723B_BT_ACTIVE_SEND = 0x2,
 };
 
+enum bt_mp_oper_opcode_8723b {
+	BT_MP_OP_GET_BT_VERSION	= 0x00,
+	BT_MP_OP_RESET = 0x01,
+	BT_MP_OP_TEST_CTRL = 0x02,
+	BT_MP_OP_SET_BT_MODE = 0x03,
+	BT_MP_OP_SET_CHNL_TX_GAIN = 0x04,
+	BT_MP_OP_SET_PKT_TYPE_LEN = 0x05,
+	BT_MP_OP_SET_PKT_CNT_L_PL_TYPE = 0x06,
+	BT_MP_OP_SET_PKT_CNT_H_PKT_INTV = 0x07,
+	BT_MP_OP_SET_PKT_HEADER = 0x08,
+	BT_MP_OP_SET_WHITENCOEFF = 0x09,
+	BT_MP_OP_SET_BD_ADDR_L = 0x0a,
+	BT_MP_OP_SET_BD_ADDR_H = 0x0b,
+	BT_MP_OP_WRITE_REG_ADDR = 0x0c,
+	BT_MP_OP_WRITE_REG_VALUE = 0x0d,
+	BT_MP_OP_GET_BT_STATUS = 0x0e,
+	BT_MP_OP_GET_BD_ADDR_L = 0x0f,
+	BT_MP_OP_GET_BD_ADDR_H = 0x10,
+	BT_MP_OP_READ_REG = 0x11,
+	BT_MP_OP_SET_TARGET_BD_ADDR_L = 0x12,
+	BT_MP_OP_SET_TARGET_BD_ADDR_H = 0x13,
+	BT_MP_OP_SET_TX_POWER_CALIBRATION = 0x14,
+	BT_MP_OP_GET_RX_PKT_CNT_L = 0x15,
+	BT_MP_OP_GET_RX_PKT_CNT_H = 0x16,
+	BT_MP_OP_GET_RX_ERROR_BITS_L = 0x17,
+	BT_MP_OP_GET_RX_ERROR_BITS_H = 0x18,
+	BT_MP_OP_GET_RSSI = 0x19,
+	BT_MP_OP_GET_CFO_HDR_QUALITY_L = 0x1a,
+	BT_MP_OP_GET_CFO_HDR_QUALITY_H = 0x1b,
+	BT_MP_OP_GET_TARGET_BD_ADDR_L = 0x1c,
+	BT_MP_OP_GET_TARGET_BD_ADDR_H = 0x1d,
+	BT_MP_OP_GET_AFH_MAP_L = 0x1e,
+	BT_MP_OP_GET_AFH_MAP_M = 0x1f,
+	BT_MP_OP_GET_AFH_MAP_H = 0x20,
+	BT_MP_OP_GET_AFH_STATUS = 0x21,
+	BT_MP_OP_SET_TRACKING_INTERVAL = 0x22,
+	BT_MP_OP_SET_THERMAL_METER = 0x23,
+	BT_MP_OP_ENABLE_CFO_TRACKING = 0x24,
+};
+
 struct rtl8723bu_c2h {
 	u8 id;
 	u8 seq;
@@ -926,6 +973,14 @@ struct rtl8723bu_c2h {
 		struct {
 			u8 payload[0];
 		} __packed raw;
+		struct {
+			u8 ext_id;
+			u8 status:4;
+			u8 retlen:4;
+			u8 opcode_ver:4;
+			u8 req_num:4;
+			u8 payload[2];
+		} __packed bt_mp_info;
 		struct {
 			u8 response_source:4;
 			u8 dummy0_0:4;
