@@ -231,6 +231,9 @@ static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
 	}
 }
 
+/*
+ * iwl_pcie_rxq_mq_restock - restock implementation for multi-queue rx
+ */
 static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
 				    struct iwl_rxq *rxq)
 {
@@ -277,17 +280,10 @@ static void iwl_pcie_rxq_mq_restock(struct iwl_trans *trans,
 }
 
 /*
- * iwl_pcie_rxq_restock - refill RX queue from pre-allocated pool
- *
- * If there are slots in the RX queue that need to be restocked,
- * and we have free pre-allocated buffers, fill the ranks as much
- * as we can, pulling from rx_free.
- *
- * This moves the 'write' index forward to catch up with 'processed', and
- * also updates the memory address in the firmware to reference the new
- * target buffer.
+ * iwl_pcie_rxq_sq_restock - restock implementation for single queue rx
  */
-static void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
+static void iwl_pcie_rxq_sq_restock(struct iwl_trans *trans,
+				    struct iwl_rxq *rxq)
 {
 	struct iwl_rx_mem_buffer *rxb;
 
@@ -329,6 +325,26 @@ static void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
 		iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
 		spin_unlock(&rxq->lock);
 	}
+}
+
+/*
+ * iwl_pcie_rxq_restock - refill RX queue from pre-allocated pool
+ *
+ * If there are slots in the RX queue that need to be restocked,
+ * and we have free pre-allocated buffers, fill the ranks as much
+ * as we can, pulling from rx_free.
+ *
+ * This moves the 'write' index forward to catch up with 'processed', and
+ * also updates the memory address in the firmware to reference the new
+ * target buffer.
+ */
+static
+void iwl_pcie_rxq_restock(struct iwl_trans *trans, struct iwl_rxq *rxq)
+{
+	if (trans->cfg->mq_rx_supported)
+		iwl_pcie_rxq_mq_restock(trans, rxq);
+	else
+		iwl_pcie_rxq_sq_restock(trans, rxq);
 }
 
 /*
@@ -907,7 +923,7 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	if (trans->cfg->mq_rx_supported) {
 		iwl_pcie_rx_mq_hw_init(trans);
 	} else {
-		iwl_pcie_rxq_restock(trans, def_rxq);
+		iwl_pcie_rxq_sq_restock(trans, def_rxq);
 		iwl_pcie_rx_hw_init(trans, def_rxq);
 	}
 
@@ -1222,24 +1238,13 @@ restart:
 				count = 0;
 				if (rxq->used_count < rxq->queue_size / 3)
 					emergency = false;
+
+				rxq->read = i;
 				spin_unlock(&rxq->lock);
 				iwl_pcie_rxq_alloc_rbs(trans, GFP_ATOMIC, rxq);
-				spin_lock(&rxq->lock);
-			}
-		}
-		/* handle restock for three cases, can be all of them at once:
-		* - we just pulled buffers from the allocator
-		* - we have 8+ unstolen pages accumulated
-		* - we are in emergency and allocated buffers
-		 */
-		if (rxq->free_count >=  RX_CLAIM_REQ_ALLOC) {
-			rxq->read = i;
-			spin_unlock(&rxq->lock);
-			if (trans->cfg->mq_rx_supported)
-				iwl_pcie_rxq_mq_restock(trans, rxq);
-			else
 				iwl_pcie_rxq_restock(trans, rxq);
-			goto restart;
+				goto restart;
+			}
 		}
 	}
 out:
@@ -1264,6 +1269,8 @@ out:
 
 	if (rxq->napi.poll)
 		napi_gro_flush(&rxq->napi, false);
+
+	iwl_pcie_rxq_restock(trans, rxq);
 }
 
 static struct iwl_trans_pcie *iwl_pcie_get_trans_pcie(struct msix_entry *entry)
