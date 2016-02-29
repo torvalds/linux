@@ -57,7 +57,7 @@ struct gpio_vbus_mach_info e7xx_udc_info = {
 	.gpio_pullup_inverted = 1
 };
 
-static struct platform_device e7xx_gpio_vbus = {
+static struct platform_device e7xx_gpio_vbus __maybe_unused = {
 	.name	= "gpio-vbus",
 	.id	= -1,
 	.dev	= {
@@ -126,7 +126,7 @@ struct resource eseries_tmio_resources[] = {
 };
 
 /* Some e-series hardware cannot control the 32K clock */
-static void __init eseries_register_clks(void)
+static void __init __maybe_unused eseries_register_clks(void)
 {
 	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, CLK_IS_ROOT, 32768);
 }
