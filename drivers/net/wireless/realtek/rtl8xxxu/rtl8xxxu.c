@@ -5689,6 +5689,7 @@ static int rtl8xxxu_emu_to_disabled(struct rtl8xxxu_priv *priv)
 
 static int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv)
 {
+	struct device *dev = &priv->udev->dev;
 	u32 val32;
 	int retry, retval;
 
@@ -5712,7 +5713,9 @@ static int rtl8xxxu_flush_fifo(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write16(priv, REG_RQPN_NPQ, 0);
 	rtl8xxxu_write32(priv, REG_RQPN, 0x80000000);
 	mdelay(2);
-	pr_info("%s: retry %i\n", __func__, retry);
+
+	if (!retry)
+		dev_warn(dev, "Failed to flush FIFO\n");
 
 	return retval;
 }
