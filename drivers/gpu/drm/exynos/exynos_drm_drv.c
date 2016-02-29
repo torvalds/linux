@@ -130,6 +130,8 @@ static void exynos_drm_atomic_work(struct work_struct *work)
 	exynos_atomic_commit_complete(commit);
 }
 
+static struct device *exynos_drm_get_dma_device(void);
+
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct exynos_drm_private *private;
@@ -146,6 +148,16 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev_set_drvdata(dev->dev, dev);
 	dev->dev_private = (void *)private;
+
+	/* the first real CRTC device is used for all dma mapping operations */
+	private->dma_dev = exynos_drm_get_dma_device();
+	if (!private->dma_dev) {
+		DRM_ERROR("no device found for DMA mapping operations.\n");
+		ret = -ENODEV;
+		goto err_free_private;
+	}
+	DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
+		 dev_name(private->dma_dev));
 
 	/*
 	 * create mapping to manage iommu table and set a pointer to iommu
@@ -488,6 +500,7 @@ struct exynos_drm_driver_info {
 
 #define DRM_COMPONENT_DRIVER	BIT(0)	/* supports component framework */
 #define DRM_VIRTUAL_DEVICE	BIT(1)	/* create virtual platform device */
+#define DRM_DMA_DEVICE		BIT(2)	/* can be used for dma allocations */
 
 #define DRV_PTR(drv, cond) (IS_ENABLED(cond) ? &drv : NULL)
 
@@ -498,16 +511,16 @@ struct exynos_drm_driver_info {
 static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 	{
 		DRV_PTR(fimd_driver, CONFIG_DRM_EXYNOS_FIMD),
-		DRM_COMPONENT_DRIVER
+		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
 	}, {
 		DRV_PTR(exynos5433_decon_driver, CONFIG_DRM_EXYNOS5433_DECON),
-		DRM_COMPONENT_DRIVER
+		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
 	}, {
 		DRV_PTR(decon_driver, CONFIG_DRM_EXYNOS7_DECON),
-		DRM_COMPONENT_DRIVER
+		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
 	}, {
 		DRV_PTR(mixer_driver, CONFIG_DRM_EXYNOS_MIXER),
-		DRM_COMPONENT_DRIVER
+		DRM_COMPONENT_DRIVER | DRM_DMA_DEVICE
 	}, {
 		DRV_PTR(mic_driver, CONFIG_DRM_EXYNOS_MIC),
 		DRM_COMPONENT_DRIVER
@@ -614,6 +627,27 @@ static struct platform_driver exynos_drm_platform_driver = {
 		.pm	= &exynos_drm_pm_ops,
 	},
 };
+
+static struct device *exynos_drm_get_dma_device(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
+		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+		struct device *dev;
+
+		if (!info->driver || !(info->flags & DRM_DMA_DEVICE))
+			continue;
+
+		while ((dev = bus_find_device(&platform_bus_type, NULL,
+					    &info->driver->driver,
+					    (void *)platform_bus_type.match))) {
+			put_device(dev);
+			return dev;
+		}
+	}
+	return NULL;
+}
 
 static void exynos_drm_unregister_devices(void)
 {

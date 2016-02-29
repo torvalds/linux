@@ -219,8 +219,10 @@ struct exynos_drm_private {
 	struct drm_crtc *crtc[MAX_CRTC];
 	struct drm_property *plane_zpos_property;
 
+	struct device *dma_dev;
 	unsigned long da_start;
 	unsigned long da_space_size;
+	void *mapping;
 
 	unsigned int pipe;
 
@@ -229,6 +231,13 @@ struct exynos_drm_private {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
 };
+
+static inline struct device *to_dma_dev(struct drm_device *dev)
+{
+	struct exynos_drm_private *priv = dev->dev_private;
+
+	return priv->dma_dev;
+}
 
 /*
  * Exynos drm sub driver structure.

@@ -259,7 +259,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	init_dma_attrs(&g2d->cmdlist_dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &g2d->cmdlist_dma_attrs);
 
-	g2d->cmdlist_pool_virt = dma_alloc_attrs(subdrv->drm_dev->dev,
+	g2d->cmdlist_pool_virt = dma_alloc_attrs(to_dma_dev(subdrv->drm_dev),
 						G2D_CMDLIST_POOL_SIZE,
 						&g2d->cmdlist_pool, GFP_KERNEL,
 						&g2d->cmdlist_dma_attrs);
@@ -293,7 +293,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	return 0;
 
 err:
-	dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
+	dma_free_attrs(to_dma_dev(subdrv->drm_dev), G2D_CMDLIST_POOL_SIZE,
 			g2d->cmdlist_pool_virt,
 			g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
 	return ret;
@@ -306,7 +306,8 @@ static void g2d_fini_cmdlist(struct g2d_data *g2d)
 	kfree(g2d->cmdlist_node);
 
 	if (g2d->cmdlist_pool_virt && g2d->cmdlist_pool) {
-		dma_free_attrs(subdrv->drm_dev->dev, G2D_CMDLIST_POOL_SIZE,
+		dma_free_attrs(to_dma_dev(subdrv->drm_dev),
+				G2D_CMDLIST_POOL_SIZE,
 				g2d->cmdlist_pool_virt,
 				g2d->cmdlist_pool, &g2d->cmdlist_dma_attrs);
 	}
