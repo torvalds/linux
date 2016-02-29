@@ -332,7 +332,7 @@ struct rtl8723bu_rx_desc {
 	__le32 tsfl;
 };
 
-struct rtl8xxxu_tx_desc {
+struct rtl8723au_tx_desc {
 	__le16 pkt_size;
 	u8 pkt_offset;
 	u8 txdw0;
@@ -1190,6 +1190,7 @@ struct rtl8xxxu_fileops {
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
+	char tx_desc_size;
 	char has_s0s1;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
