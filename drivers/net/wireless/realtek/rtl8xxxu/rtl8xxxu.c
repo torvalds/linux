@@ -3142,13 +3142,16 @@ static int rtl8xxxu_init_phy_bb(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write32(priv, REG_MAC_PHY_CTRL, val32);
 	}
 
-	ldoa15 = LDOA15_ENABLE | LDOA15_OBUF;
-	ldov12d = LDOV12D_ENABLE | BIT(2) | (2 << LDOV12D_VADJ_SHIFT);
-	ldohci12 = 0x57;
-	lpldo = 1;
-	val32 = (lpldo << 24) | (ldohci12 << 16) | (ldov12d << 8) | ldoa15;
+	if (priv->rtlchip != 0x8723bu) {
+		ldoa15 = LDOA15_ENABLE | LDOA15_OBUF;
+		ldov12d = LDOV12D_ENABLE | BIT(2) | (2 << LDOV12D_VADJ_SHIFT);
+		ldohci12 = 0x57;
+		lpldo = 1;
+		val32 = (lpldo << 24) | (ldohci12 << 16) |
+			(ldov12d << 8) | ldoa15;
 
-	rtl8xxxu_write32(priv, REG_LDOA15_CTRL, val32);
+		rtl8xxxu_write32(priv, REG_LDOA15_CTRL, val32);
+	}
 
 	return 0;
 }
