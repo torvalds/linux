@@ -269,6 +269,9 @@ static int orangefs_symlink(struct inode *dir,
 	if (!symname)
 		return -EINVAL;
 
+	if (strlen(symname)+1 > ORANGEFS_NAME_MAX)
+		return -ENAMETOOLONG;
+
 	new_op = op_alloc(ORANGEFS_VFS_OP_SYMLINK);
 	if (!new_op)
 		return -ENOMEM;
