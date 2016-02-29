@@ -262,6 +262,7 @@ static int spear_adc_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
+	struct resource *res;
 	struct iio_dev *indio_dev = NULL;
 	int ret = -ENODEV;
 	int irq;
@@ -280,24 +281,24 @@ static int spear_adc_probe(struct platform_device *pdev)
 	 * (e.g. SPEAr3xx). Let's provide two register base addresses
 	 * to support multi-arch kernels.
 	 */
-	st->adc_base_spear6xx = of_iomap(np, 0);
-	if (!st->adc_base_spear6xx) {
-		dev_err(dev, "failed mapping memory\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	st->adc_base_spear6xx = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(st->adc_base_spear6xx))
+		return PTR_ERR(st->adc_base_spear6xx);
+
 	st->adc_base_spear3xx =
 		(struct adc_regs_spear3xx __iomem *)st->adc_base_spear6xx;
 
 	st->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(st->clk)) {
 		dev_err(dev, "failed getting clock\n");
-		goto errout1;
+		return PTR_ERR(st->clk);
 	}
 
 	ret = clk_prepare_enable(st->clk);
 	if (ret) {
 		dev_err(dev, "failed enabling clock\n");
-		goto errout1;
+		return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -356,8 +357,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 errout2:
 	clk_disable_unprepare(st->clk);
-errout1:
-	iounmap(st->adc_base_spear6xx);
 	return ret;
 }
 
@@ -368,7 +367,6 @@ static int spear_adc_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	clk_disable_unprepare(st->clk);
-	iounmap(st->adc_base_spear6xx);
 
 	return 0;
 }
