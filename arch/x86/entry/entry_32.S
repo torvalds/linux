@@ -361,6 +361,8 @@ restore_all:
 	TRACE_IRQS_IRET
 restore_all_notrace:
 #ifdef CONFIG_X86_ESPFIX32
+	ALTERNATIVE	"jmp restore_nocheck", "", X86_BUG_ESPFIX
+
 	movl	PT_EFLAGS(%esp), %eax		# mix EFLAGS, SS and CS
 	/*
 	 * Warning: PT_OLDSS(%esp) contains the wrong/random values if we
@@ -387,19 +389,6 @@ ENTRY(iret_exc	)
 
 #ifdef CONFIG_X86_ESPFIX32
 ldt_ss:
-#ifdef CONFIG_PARAVIRT
-	/*
-	 * The kernel can't run on a non-flat stack if paravirt mode
-	 * is active.  Rather than try to fixup the high bits of
-	 * ESP, bypass this code entirely.  This may break DOSemu
-	 * and/or Wine support in a paravirt VM, although the option
-	 * is still available to implement the setting of the high
-	 * 16-bits in the INTERRUPT_RETURN paravirt-op.
-	 */
-	cmpl	$0, pv_info+PARAVIRT_enabled
-	jne	restore_nocheck
-#endif
-
 /*
  * Setup and switch to ESPFIX stack
  *
