@@ -1135,6 +1135,7 @@ struct rtl8xxxu_fileops {
 			      struct ieee80211_rx_status *rx_status);
 	void (*init_aggregation) (struct rtl8xxxu_priv *priv);
 	void (*init_statistics) (struct rtl8xxxu_priv *priv);
+	void (*enable_rf) (struct rtl8xxxu_priv *priv);
 	int writeN_block_size;
 	u16 mbox_ext_reg;
 	char mbox_ext_width;
