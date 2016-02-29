@@ -6953,6 +6953,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	u16 rate_flag = tx_info->control.rates[0].flags;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	int ret;
+	bool txdesc40, ampdu_enable;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -6980,6 +6981,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	if (ieee80211_is_action(hdr->frame_control))
 		rtl8xxxu_dump_action(dev, hdr);
 
+	txdesc40 = (tx_desc_size == 40);
 	tx_info->rate_driver_data[0] = hw;
 
 	if (control && control->sta)
@@ -7028,6 +7030,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		tx_desc->txdw5 |= cpu_to_le32(0x0001ff00);
 
 	/* (tx_info->flags & IEEE80211_TX_CTL_AMPDU) && */
+	ampdu_enable = false;
 	if (ieee80211_is_data_qos(hdr->frame_control) && sta) {
 		if (sta->ht_cap.ht_supported) {
 			u32 ampdu, val32;
@@ -7036,11 +7039,21 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			val32 = ampdu << TXDESC_AMPDU_DENSITY_SHIFT;
 			tx_desc->txdw2 |= cpu_to_le32(val32);
 
+			ampdu_enable = true;
+		}
+	}
+
+	if (!txdesc40) {
+		if (ampdu_enable)
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723A);
-		} else
+		else
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
-	} else
-		tx_desc->txdw1 |= cpu_to_le32(TXDESC_AGG_BREAK_8723A);
+	} else {
+		if (ampdu_enable)
+			tx_desc->txdw2 |= cpu_to_le32(TXDESC_AGG_ENABLE_8723B);
+		else
+			tx_desc->txdw2 |= cpu_to_le32(TXDESC_AGG_BREAK_8723B);
+	};
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
 		tx_desc->txdw4 |= cpu_to_le32(TXDESC_QOS);
