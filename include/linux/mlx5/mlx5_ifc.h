@@ -772,7 +772,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_22e[0x7];
 	u8         qkv[0x1];
 	u8         pkv[0x1];
-	u8         reserved_at_237[0x4];
+	u8         set_deth_sqpn[0x1];
+	u8         reserved_at_239[0x3];
 	u8         xrc[0x1];
 	u8         ud[0x1];
 	u8         uc[0x1];

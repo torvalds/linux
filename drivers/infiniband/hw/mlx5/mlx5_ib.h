@@ -165,6 +165,18 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
 
+/* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
+ *
+ * These flags are intended for internal use by the mlx5_ib driver, and they
+ * rely on the range reserved for that use in the ib_qp_create_flags enum.
+ */
+
+/* Create a UD QP whose source QP number is 1 */
+static inline enum ib_qp_create_flags mlx5_ib_create_qp_sqpn_qp1(void)
+{
+	return IB_QP_CREATE_RESERVED_START;
+}
+
 struct wr_list {
 	u16	opcode;
 	u16	next;
@@ -331,6 +343,8 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_MANAGED_SEND             = IB_QP_CREATE_MANAGED_SEND,
 	MLX5_IB_QP_MANAGED_RECV             = IB_QP_CREATE_MANAGED_RECV,
 	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 5,
+	/* QP uses 1 as its source QP number */
+	MLX5_IB_QP_SQPN_QP1			= 1 << 6,
 };
 
 struct mlx5_umr_wr {

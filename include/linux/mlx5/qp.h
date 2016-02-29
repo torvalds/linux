@@ -499,7 +499,8 @@ struct mlx5_qp_context {
 	u8			reserved2[4];
 	__be32			next_send_psn;
 	__be32			cqn_send;
-	u8			reserved3[8];
+	__be32			deth_sqpn;
+	u8			reserved3[4];
 	__be32			last_acked_psn;
 	__be32			ssn;
 	__be32			params2;
