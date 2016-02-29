@@ -163,6 +163,11 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
 #define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
+/*
+ * IB_QPT_GSI creates the software wrapper around GSI, and MLX5_IB_QPT_HW_GSI
+ * creates the actual hardware QP.
+ */
+#define MLX5_IB_QPT_HW_GSI	IB_QPT_RESERVED2
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
 
 /* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
@@ -502,6 +507,12 @@ struct mlx5_mr_cache {
 	unsigned long		last_add;
 };
 
+struct mlx5_ib_gsi_qp;
+
+struct mlx5_ib_port_resources {
+	struct mlx5_ib_gsi_qp *gsi;
+};
+
 struct mlx5_ib_resources {
 	struct ib_cq	*c0;
 	struct ib_xrcd	*x0;
@@ -509,6 +520,9 @@ struct mlx5_ib_resources {
 	struct ib_pd	*p0;
 	struct ib_srq	*s0;
 	struct ib_srq	*s1;
+	struct mlx5_ib_port_resources ports[2];
+	/* Protects changes to the port resources */
+	struct mutex	mutex;
 };
 
 struct mlx5_roce {
@@ -754,6 +768,20 @@ static inline void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp)  {}
 __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 			       int index);
 
+/* GSI QP helper functions */
+struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
+				    struct ib_qp_init_attr *init_attr);
+int mlx5_ib_gsi_destroy_qp(struct ib_qp *qp);
+int mlx5_ib_gsi_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
+			  int attr_mask);
+int mlx5_ib_gsi_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
+			 int qp_attr_mask,
+			 struct ib_qp_init_attr *qp_init_attr);
+int mlx5_ib_gsi_post_send(struct ib_qp *qp, struct ib_send_wr *wr,
+			  struct ib_send_wr **bad_wr);
+int mlx5_ib_gsi_post_recv(struct ib_qp *qp, struct ib_recv_wr *wr,
+			  struct ib_recv_wr **bad_wr);
+
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;
@@ -773,7 +801,7 @@ static inline u8 convert_access(int acc)
 
 static inline int is_qp1(enum ib_qp_type qp_type)
 {
-	return qp_type == IB_QPT_GSI;
+	return qp_type == MLX5_IB_QPT_HW_GSI;
 }
 
 #define MLX5_MAX_UMR_SHIFT 16

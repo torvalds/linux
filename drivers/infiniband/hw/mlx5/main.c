@@ -1970,6 +1970,8 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 
 	dev = container_of(devr, struct mlx5_ib_dev, devr);
 
+	mutex_init(&devr->mutex);
+
 	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->p0)) {
 		ret = PTR_ERR(devr->p0);
