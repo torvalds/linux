@@ -24,7 +24,7 @@
 #define __STMMAC_H__
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"March_2013"
+#define DRV_MODULE_VERSION	"Oct_2015"
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
