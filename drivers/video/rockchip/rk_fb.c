@@ -1940,8 +1940,8 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 	mutex_unlock(&dev_drv->update_regs_list_lock);
 
 	list_for_each_entry_safe(data, next, &dev_drv->saved_list, list) {
-		rk_fb_update_reg(dev_drv, data);
 		list_del(&data->list);
+		rk_fb_update_reg(dev_drv, data);
 	}
 
 	if (dev_drv->wait_fs && list_empty(&dev_drv->update_regs_list))
