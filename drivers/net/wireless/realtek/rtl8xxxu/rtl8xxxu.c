@@ -1596,10 +1596,6 @@ static void rtl8723a_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
-static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
-{
-}
-
 static void rtl8723a_disable_rf(struct rtl8xxxu_priv *priv)
 {
 	u8 sps0;
@@ -5953,7 +5949,7 @@ static void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 }
 #endif
 
-static void rtl8723bu_init_bt(struct rtl8xxxu_priv *priv)
+static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 {
 	struct h2c_cmd h2c;
 	u32 val32;
@@ -6507,10 +6503,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 				     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
 	else
 		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
-
-	/* Init BT hw config. */
-	if (priv->fops->init_bt)
-		priv->fops->init_bt(priv);
 
 	/* Set NAV_UPPER to 30000us */
 	val8 = ((30000 + NAV_UPPER_UNIT - 1) / NAV_UPPER_UNIT);
@@ -8300,7 +8292,6 @@ static struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.phy_init_antenna_selection = rtl8723bu_phy_init_antenna_selection,
 	.phy_iq_calibrate = rtl8723bu_phy_iq_calibrate,
 	.config_channel = rtl8723bu_config_channel,
-	.init_bt = rtl8723bu_init_bt,
 	.parse_rx_desc = rtl8723bu_parse_rx_desc,
 	.init_aggregation = rtl8723bu_init_aggregation,
 	.init_statistics = rtl8723bu_init_statistics,

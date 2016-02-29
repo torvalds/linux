@@ -1261,7 +1261,6 @@ struct rtl8xxxu_fileops {
 	void (*phy_init_antenna_selection) (struct rtl8xxxu_priv *priv);
 	void (*phy_iq_calibrate) (struct rtl8xxxu_priv *priv);
 	void (*config_channel) (struct ieee80211_hw *hw);
-	void (*init_bt) (struct rtl8xxxu_priv *priv);
 	int (*parse_rx_desc) (struct rtl8xxxu_priv *priv, struct sk_buff *skb,
 			      struct ieee80211_rx_status *rx_status);
 	void (*init_aggregation) (struct rtl8xxxu_priv *priv);
