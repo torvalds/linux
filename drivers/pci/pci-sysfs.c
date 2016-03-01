@@ -1405,7 +1405,7 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	return 0;
 
 err_rom_file:
-	if (rom_size) {
+	if (pdev->rom_attr) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 		kfree(pdev->rom_attr);
 		pdev->rom_attr = NULL;
@@ -1443,8 +1443,6 @@ static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
  */
 void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
-	int rom_size = 0;
-
 	if (!sysfs_initialized)
 		return;
 
@@ -1457,18 +1455,13 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 	pci_remove_resource_files(pdev);
 
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
-		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
-		rom_size = 0x20000;
-
-	if (rom_size && pdev->rom_attr) {
+	if (pdev->rom_attr) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 		kfree(pdev->rom_attr);
+		pdev->rom_attr = NULL;
 	}
 
 	pci_remove_firmware_label_files(pdev);
-
 }
 
 static int __init pci_sysfs_init(void)
