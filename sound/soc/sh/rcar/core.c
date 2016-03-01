@@ -1119,7 +1119,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct rsnd_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct rsnd_dai *rdai;
-	const struct of_device_id *of_id = of_match_device(rsnd_of_match, dev);
 	int (*probe_func[])(struct rsnd_priv *priv) = {
 		rsnd_gen_probe,
 		rsnd_dma_probe,
@@ -1145,7 +1144,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	}
 
 	priv->pdev	= pdev;
-	priv->flags	= (unsigned long)of_id->data;
+	priv->flags	= (unsigned long)of_device_get_match_data(dev);
 	spin_lock_init(&priv->lock);
 
 	/*
