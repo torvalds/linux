@@ -548,7 +548,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	int txq_ix;
 	int err;
 
-	err = mlx5_alloc_map_uar(mdev, &sq->uar);
+	err = mlx5_alloc_map_uar(mdev, &sq->uar, true);
 	if (err)
 		return err;
 
@@ -560,8 +560,12 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 		goto err_unmap_free_uar;
 
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
-	sq->uar_map     = sq->uar.map;
-	sq->uar_bf_map  = sq->uar.bf_map;
+	if (sq->uar.bf_map) {
+		set_bit(MLX5E_SQ_STATE_BF_ENABLE, &sq->state);
+		sq->uar_map = sq->uar.bf_map;
+	} else {
+		sq->uar_map = sq->uar.map;
+	}
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
 	sq->max_inline  = param->max_inline;
 
@@ -2418,7 +2422,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	priv = netdev_priv(netdev);
 
-	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
+	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar, false);
 	if (err) {
 		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
 		goto err_free_netdev;

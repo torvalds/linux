@@ -388,6 +388,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_WAKE_TXQ_ENABLE,
+	MLX5E_SQ_STATE_BF_ENABLE,
 };
 
 struct mlx5e_sq {
@@ -416,7 +417,6 @@ struct mlx5e_sq {
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
 	void __iomem              *uar_map;
-	void __iomem              *uar_bf_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        bf_buf_size;
@@ -664,16 +664,12 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 * doorbell
 	 */
 	wmb();
-
-	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
-
-		/* flush the write-combining mapped buffer */
-		wmb();
-
-	} else {
+	if (bf_sz)
+		__iowrite64_copy(sq->uar_map + ofst, &wqe->ctrl, bf_sz);
+	else
 		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
-	}
+	/* flush the write-combining mapped buffer */
+	wmb();
 
 	sq->bf_offset ^= sq->bf_buf_size;
 }
