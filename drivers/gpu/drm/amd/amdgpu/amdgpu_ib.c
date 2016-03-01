@@ -150,13 +150,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (vm) {
 		/* do context switch */
-		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr);
-
-		if (ring->funcs->emit_gds_switch)
-			amdgpu_ring_emit_gds_switch(ring, ib->vm_id,
-						    ib->gds_base, ib->gds_size,
-						    ib->gws_base, ib->gws_size,
-						    ib->oa_base, ib->oa_size);
+		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
+				ib->gds_base, ib->gds_size,
+				ib->gws_base, ib->gws_size,
+				ib->oa_base, ib->oa_size);
 
 		if (ring->funcs->emit_hdp_flush)
 			amdgpu_ring_emit_hdp_flush(ring);

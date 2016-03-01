@@ -957,8 +957,10 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence,
 		      unsigned *vm_id, uint64_t *vm_pd_addr);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     unsigned vmid,
-		     uint64_t pd_addr);
+		     unsigned vm_id, uint64_t pd_addr,
+		     uint32_t gds_base, uint32_t gds_size,
+		     uint32_t gws_base, uint32_t gws_size,
+		     uint32_t oa_base, uint32_t oa_size);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);

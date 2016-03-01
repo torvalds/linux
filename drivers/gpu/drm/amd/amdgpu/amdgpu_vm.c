@@ -241,19 +241,27 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
  * amdgpu_vm_flush - hardware flush the vm
  *
  * @ring: ring to use for flush
- * @vmid: vmid number to use
+ * @vm_id: vmid number to use
  * @pd_addr: address of the page directory
  *
  * Emit a VM flush when it is necessary.
  */
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     unsigned vmid,
-		     uint64_t pd_addr)
+		     unsigned vm_id, uint64_t pd_addr,
+		     uint32_t gds_base, uint32_t gds_size,
+		     uint32_t gws_base, uint32_t gws_size,
+		     uint32_t oa_base, uint32_t oa_size)
 {
 	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
-		trace_amdgpu_vm_flush(pd_addr, ring->idx, vmid);
-		amdgpu_ring_emit_vm_flush(ring, vmid, pd_addr);
+		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
+		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
 	}
+
+	if (ring->funcs->emit_gds_switch)
+		amdgpu_ring_emit_gds_switch(ring, vm_id,
+					    gds_base, gds_size,
+					    gws_base, gws_size,
+					    oa_base, oa_size);
 }
 
 /**
