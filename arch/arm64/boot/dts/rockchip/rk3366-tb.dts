@@ -510,7 +510,8 @@
 
 &rk_screen {
 	status = "okay";
-	#include <dt-bindings/display/screen-timing/lcd-b101ew05.dtsi>
+	#include <dt-bindings/display/screen-timing/lcd-tv080wum-mipi.dtsi>
+	/* #include <dt-bindings/display/screen-timing/lcd-b101ew05.dtsi> */
 };
 
 &lvds {
@@ -518,6 +519,10 @@
 	pinctrl-0 = <&lcdc_lcdc>;
 	pinctrl-1 = <&lcdc_gpio>;
 	status = "disabled";
+};
+
+&dsihost0 {
+	status = "okay";
 };
 
 &vop_lite {
