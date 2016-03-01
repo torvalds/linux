@@ -7,6 +7,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/ctype.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -19,6 +20,8 @@
 #include "bnxt_nvm_defs.h"	/* NVRAM content constant and structure defs */
 #include "bnxt_fw_hdr.h"	/* Firmware hdr constant and structure defs */
 #define FLASH_NVRAM_TIMEOUT	((HWRM_CMD_TIMEOUT) * 100)
+
+static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen);
 
 static u32 bnxt_get_msglevel(struct net_device *dev)
 {
@@ -41,12 +44,16 @@ static int bnxt_get_coalesce(struct net_device *dev,
 
 	memset(coal, 0, sizeof(*coal));
 
-	coal->rx_coalesce_usecs =
-		max_t(u16, BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks), 1);
-	coal->rx_max_coalesced_frames = bp->coal_bufs / 2;
-	coal->rx_coalesce_usecs_irq =
-		max_t(u16, BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks_irq), 1);
-	coal->rx_max_coalesced_frames_irq = bp->coal_bufs_irq / 2;
+	coal->rx_coalesce_usecs = bp->rx_coal_ticks;
+	/* 2 completion records per rx packet */
+	coal->rx_max_coalesced_frames = bp->rx_coal_bufs / 2;
+	coal->rx_coalesce_usecs_irq = bp->rx_coal_ticks_irq;
+	coal->rx_max_coalesced_frames_irq = bp->rx_coal_bufs_irq / 2;
+
+	coal->tx_coalesce_usecs = bp->tx_coal_ticks;
+	coal->tx_max_coalesced_frames = bp->tx_coal_bufs;
+	coal->tx_coalesce_usecs_irq = bp->tx_coal_ticks_irq;
+	coal->tx_max_coalesced_frames_irq = bp->tx_coal_bufs_irq;
 
 	return 0;
 }
@@ -57,11 +64,16 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	int rc = 0;
 
-	bp->coal_ticks = BNXT_USEC_TO_COAL_TIMER(coal->rx_coalesce_usecs);
-	bp->coal_bufs = coal->rx_max_coalesced_frames * 2;
-	bp->coal_ticks_irq =
-		BNXT_USEC_TO_COAL_TIMER(coal->rx_coalesce_usecs_irq);
-	bp->coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
+	bp->rx_coal_ticks = coal->rx_coalesce_usecs;
+	/* 2 completion records per rx packet */
+	bp->rx_coal_bufs = coal->rx_max_coalesced_frames * 2;
+	bp->rx_coal_ticks_irq = coal->rx_coalesce_usecs_irq;
+	bp->rx_coal_bufs_irq = coal->rx_max_coalesced_frames_irq * 2;
+
+	bp->tx_coal_ticks = coal->tx_coalesce_usecs;
+	bp->tx_coal_bufs = coal->tx_max_coalesced_frames;
+	bp->tx_coal_ticks_irq = coal->tx_coalesce_usecs_irq;
+	bp->tx_coal_bufs_irq = coal->tx_max_coalesced_frames_irq;
 
 	if (netif_running(dev))
 		rc = bnxt_hwrm_set_coal(bp);
@@ -460,10 +472,20 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	char *pkglog;
+	char *pkgver = NULL;
 
+	pkglog = kmalloc(BNX_PKG_LOG_MAX_LENGTH, GFP_KERNEL);
+	if (pkglog)
+		pkgver = bnxt_get_pkgver(dev, pkglog, BNX_PKG_LOG_MAX_LENGTH);
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, bp->fw_ver_str, sizeof(info->fw_version));
+	if (pkgver && *pkgver != 0 && isdigit(*pkgver))
+		snprintf(info->fw_version, sizeof(info->fw_version) - 1,
+			 "%s pkg %s", bp->fw_ver_str, pkgver);
+	else
+		strlcpy(info->fw_version, bp->fw_ver_str,
+			sizeof(info->fw_version));
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
 	info->testinfo_len = BNXT_NUM_TESTS(bp);
@@ -471,6 +493,7 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	info->eedump_len = 0;
 	/* TODO CHIMP FW: reg dump details */
 	info->regdump_len = 0;
+	kfree(pkglog);
 }
 
 static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
@@ -1100,6 +1123,85 @@ static int bnxt_get_nvram_item(struct net_device *dev, u32 index, u32 offset,
 		memcpy(data, buf, length);
 	dma_free_coherent(&bp->pdev->dev, length, buf, dma_handle);
 	return rc;
+}
+
+static int bnxt_find_nvram_item(struct net_device *dev, u16 type, u16 ordinal,
+				u16 ext, u16 *index, u32 *item_length,
+				u32 *data_length)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+	struct hwrm_nvm_find_dir_entry_input req = {0};
+	struct hwrm_nvm_find_dir_entry_output *output = bp->hwrm_cmd_resp_addr;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_NVM_FIND_DIR_ENTRY, -1, -1);
+	req.enables = 0;
+	req.dir_idx = 0;
+	req.dir_type = cpu_to_le16(type);
+	req.dir_ordinal = cpu_to_le16(ordinal);
+	req.dir_ext = cpu_to_le16(ext);
+	req.opt_ordinal = NVM_FIND_DIR_ENTRY_REQ_OPT_ORDINAL_EQ;
+	rc = hwrm_send_message_silent(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc == 0) {
+		if (index)
+			*index = le16_to_cpu(output->dir_idx);
+		if (item_length)
+			*item_length = le32_to_cpu(output->dir_item_length);
+		if (data_length)
+			*data_length = le32_to_cpu(output->dir_data_length);
+	}
+	return rc;
+}
+
+static char *bnxt_parse_pkglog(int desired_field, u8 *data, size_t datalen)
+{
+	char	*retval = NULL;
+	char	*p;
+	char	*value;
+	int	field = 0;
+
+	if (datalen < 1)
+		return NULL;
+	/* null-terminate the log data (removing last '\n'): */
+	data[datalen - 1] = 0;
+	for (p = data; *p != 0; p++) {
+		field = 0;
+		retval = NULL;
+		while (*p != 0 && *p != '\n') {
+			value = p;
+			while (*p != 0 && *p != '\t' && *p != '\n')
+				p++;
+			if (field == desired_field)
+				retval = value;
+			if (*p != '\t')
+				break;
+			*p = 0;
+			field++;
+			p++;
+		}
+		if (*p == 0)
+			break;
+		*p = 0;
+	}
+	return retval;
+}
+
+static char *bnxt_get_pkgver(struct net_device *dev, char *buf, size_t buflen)
+{
+	u16 index = 0;
+	u32 datalen;
+
+	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_PKG_LOG,
+				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				 &index, NULL, &datalen) != 0)
+		return NULL;
+
+	memset(buf, 0, buflen);
+	if (bnxt_get_nvram_item(dev, index, 0, datalen, buf) != 0)
+		return NULL;
+
+	return bnxt_parse_pkglog(BNX_PKG_LOG_FIELD_IDX_PKG_VERSION, buf,
+		datalen);
 }
 
 static int bnxt_get_eeprom(struct net_device *dev,
