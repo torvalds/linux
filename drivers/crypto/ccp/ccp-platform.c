@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2014 Advanced Micro Devices, Inc.
+ * Copyright (C) 2014,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -43,7 +43,7 @@ static int ccp_get_irq(struct ccp_device *ccp)
 		return ret;
 
 	ccp->irq = ret;
-	ret = request_irq(ccp->irq, ccp_irq_handler, 0, "ccp", dev);
+	ret = request_irq(ccp->irq, ccp_irq_handler, 0, ccp->name, dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate IRQ (%d)\n", ret);
 		return ret;

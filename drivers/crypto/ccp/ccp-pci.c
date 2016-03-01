@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -59,7 +59,8 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 	ccp_pci->msix_count = ret;
 	for (v = 0; v < ccp_pci->msix_count; v++) {
 		/* Set the interrupt names and request the irqs */
-		snprintf(ccp_pci->msix[v].name, name_len, "ccp-%u", v);
+		snprintf(ccp_pci->msix[v].name, name_len, "%s-%u",
+			 ccp->name, v);
 		ccp_pci->msix[v].vector = msix_entry[v].vector;
 		ret = request_irq(ccp_pci->msix[v].vector, ccp_irq_handler,
 				  0, ccp_pci->msix[v].name, dev);
@@ -94,7 +95,7 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 		return ret;
 
 	ccp->irq = pdev->irq;
-	ret = request_irq(ccp->irq, ccp_irq_handler, 0, "ccp", dev);
+	ret = request_irq(ccp->irq, ccp_irq_handler, 0, ccp->name, dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
 		goto e_msi;

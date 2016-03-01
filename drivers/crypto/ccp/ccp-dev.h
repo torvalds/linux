@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -23,6 +23,7 @@
 #include <linux/hw_random.h>
 #include <linux/bitops.h>
 
+#define MAX_CCP_NAME_LEN		16
 #define MAX_DMAPOOL_NAME_LEN		32
 
 #define MAX_HW_QUEUES			5
@@ -184,6 +185,12 @@ struct ccp_cmd_queue {
 } ____cacheline_aligned;
 
 struct ccp_device {
+	struct list_head entry;
+
+	unsigned int ord;
+	char name[MAX_CCP_NAME_LEN];
+	char rngname[MAX_CCP_NAME_LEN];
+
 	struct device *dev;
 
 	/*

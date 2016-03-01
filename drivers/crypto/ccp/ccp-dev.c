@@ -16,6 +16,8 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/rwlock_types.h>
+#include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/hw_random.h>
@@ -37,20 +39,96 @@ struct ccp_tasklet_data {
 	struct ccp_cmd *cmd;
 };
 
-static struct ccp_device *ccp_dev;
-static inline struct ccp_device *ccp_get_device(void)
+/* List of CCPs, CCP count, read-write access lock, and access functions
+ *
+ * Lock structure: get ccp_unit_lock for reading whenever we need to
+ * examine the CCP list. While holding it for reading we can acquire
+ * the RR lock to update the round-robin next-CCP pointer. The unit lock
+ * must be acquired before the RR lock.
+ *
+ * If the unit-lock is acquired for writing, we have total control over
+ * the list, so there's no value in getting the RR lock.
+ */
+static DEFINE_RWLOCK(ccp_unit_lock);
+static LIST_HEAD(ccp_units);
+
+/* Round-robin counter */
+static DEFINE_RWLOCK(ccp_rr_lock);
+static struct ccp_device *ccp_rr;
+
+/* Ever-increasing value to produce unique unit numbers */
+static atomic_t ccp_unit_ordinal;
+unsigned int ccp_increment_unit_ordinal(void)
 {
-	return ccp_dev;
+	return atomic_inc_return(&ccp_unit_ordinal);
 }
 
+/*
+ * Put this CCP on the unit list, which makes it available
+ * for use.
+ */
 static inline void ccp_add_device(struct ccp_device *ccp)
 {
-	ccp_dev = ccp;
+	unsigned long flags;
+
+	write_lock_irqsave(&ccp_unit_lock, flags);
+	list_add_tail(&ccp->entry, &ccp_units);
+	if (!ccp_rr)
+		/* We already have the list lock (we're first) so this
+		 * pointer can't change on us. Set its initial value.
+		 */
+		ccp_rr = ccp;
+	write_unlock_irqrestore(&ccp_unit_lock, flags);
 }
 
+/* Remove this unit from the list of devices. If the next device
+ * up for use is this one, adjust the pointer. If this is the last
+ * device, NULL the pointer.
+ */
 static inline void ccp_del_device(struct ccp_device *ccp)
 {
-	ccp_dev = NULL;
+	unsigned long flags;
+
+	write_lock_irqsave(&ccp_unit_lock, flags);
+	if (ccp_rr == ccp) {
+		/* ccp_unit_lock is read/write; any read access
+		 * will be suspended while we make changes to the
+		 * list and RR pointer.
+		 */
+		if (list_is_last(&ccp_rr->entry, &ccp_units))
+			ccp_rr = list_first_entry(&ccp_units, struct ccp_device,
+						  entry);
+		else
+			ccp_rr = list_next_entry(ccp_rr, entry);
+	}
+	list_del(&ccp->entry);
+	if (list_empty(&ccp_units))
+		ccp_rr = NULL;
+	write_unlock_irqrestore(&ccp_unit_lock, flags);
+}
+
+static struct ccp_device *ccp_get_device(void)
+{
+	unsigned long flags;
+	struct ccp_device *dp = NULL;
+
+	/* We round-robin through the unit list.
+	 * The (ccp_rr) pointer refers to the next unit to use.
+	 */
+	read_lock_irqsave(&ccp_unit_lock, flags);
+	if (!list_empty(&ccp_units)) {
+		write_lock_irqsave(&ccp_rr_lock, flags);
+		dp = ccp_rr;
+		if (list_is_last(&ccp_rr->entry, &ccp_units))
+			ccp_rr = list_first_entry(&ccp_units, struct ccp_device,
+						  entry);
+		else
+			ccp_rr = list_next_entry(ccp_rr, entry);
+		write_unlock_irqrestore(&ccp_rr_lock, flags);
+	}
+	read_unlock_irqrestore(&ccp_unit_lock, flags);
+
+	return dp;
 }
 
 /**
@@ -60,10 +138,14 @@ static inline void ccp_del_device(struct ccp_device *ccp)
  */
 int ccp_present(void)
 {
-	if (ccp_get_device())
-		return 0;
+	unsigned long flags;
+	int ret;
 
-	return -ENODEV;
+	read_lock_irqsave(&ccp_unit_lock, flags);
+	ret = list_empty(&ccp_units);
+	read_unlock_irqrestore(&ccp_unit_lock, flags);
+
+	return ret ? -ENODEV : 0;
 }
 EXPORT_SYMBOL_GPL(ccp_present);
 
@@ -309,6 +391,10 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 	ccp->ksb_count = KSB_COUNT;
 	ccp->ksb_start = 0;
 
+	ccp->ord = ccp_increment_unit_ordinal();
+	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", ccp->ord);
+	snprintf(ccp->rngname, MAX_CCP_NAME_LEN, "ccp-%u-rng", ccp->ord);
+
 	return ccp;
 }
 
@@ -334,7 +420,8 @@ int ccp_init(struct ccp_device *ccp)
 			continue;
 
 		/* Allocate a dma pool for this queue */
-		snprintf(dma_pool_name, sizeof(dma_pool_name), "ccp_q%d", i);
+		snprintf(dma_pool_name, sizeof(dma_pool_name), "%s_q%d",
+			 ccp->name, i);
 		dma_pool = dma_pool_create(dma_pool_name, dev,
 					   CCP_DMAPOOL_MAX_SIZE,
 					   CCP_DMAPOOL_ALIGN, 0);
@@ -416,7 +503,7 @@ int ccp_init(struct ccp_device *ccp)
 		cmd_q = &ccp->cmd_q[i];
 
 		kthread = kthread_create(ccp_cmd_queue_thread, cmd_q,
-					 "ccp-q%u", cmd_q->id);
+					 "%s-q%u", ccp->name, cmd_q->id);
 		if (IS_ERR(kthread)) {
 			dev_err(dev, "error creating queue thread (%ld)\n",
 				PTR_ERR(kthread));
@@ -429,7 +516,7 @@ int ccp_init(struct ccp_device *ccp)
 	}
 
 	/* Register the RNG */
-	ccp->hwrng.name = "ccp-rng";
+	ccp->hwrng.name = ccp->rngname;
 	ccp->hwrng.read = ccp_trng_read;
 	ret = hwrng_register(&ccp->hwrng);
 	if (ret) {
@@ -587,7 +674,7 @@ static int __init ccp_mod_init(void)
 		return ret;
 
 	/* Don't leave the driver loaded if init failed */
-	if (!ccp_get_device()) {
+	if (ccp_present() != 0) {
 		ccp_pci_exit();
 		return -ENODEV;
 	}
@@ -603,7 +690,7 @@ static int __init ccp_mod_init(void)
 		return ret;
 
 	/* Don't leave the driver loaded if init failed */
-	if (!ccp_get_device()) {
+	if (ccp_present() != 0) {
 		ccp_platform_exit();
 		return -ENODEV;
 	}
