@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "dra62x.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "DRA62x J5 Eco EVM";
@@ -39,8 +40,12 @@
 	ranges = <0 0 0x04000000 0x01000000>;	/* CS0: 16MB for NAND */
 
 	nand@0,0 {
-		linux,mtd-name= "micron,mt29f2g16aadwp";
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>; /* termcount */
+		linux,mtd-name= "micron,mt29f2g16aadwp";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ti,nand-ecc-opt = "bch8";
