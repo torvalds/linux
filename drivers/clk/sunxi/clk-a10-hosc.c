@@ -54,8 +54,7 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 			NULL, 0,
 			NULL, NULL,
 			&fixed->hw, &clk_fixed_rate_ops,
-			&gate->hw, &clk_gate_ops,
-			CLK_IS_ROOT);
+			&gate->hw, &clk_gate_ops, 0);
 
 	if (IS_ERR(clk))
 		goto err_free_gate;
