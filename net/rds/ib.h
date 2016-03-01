@@ -14,6 +14,7 @@
 
 #define RDS_IB_DEFAULT_RECV_WR		1024
 #define RDS_IB_DEFAULT_SEND_WR		256
+#define RDS_IB_DEFAULT_FR_WR		512
 
 #define RDS_IB_DEFAULT_RETRY_COUNT	2
 
@@ -121,6 +122,9 @@ struct rds_ib_connection {
 	struct ib_cq		*i_recv_cq;
 	struct ib_wc		i_send_wc[RDS_IB_WC_MAX];
 	struct ib_wc		i_recv_wc[RDS_IB_WC_MAX];
+
+	/* To control the number of wrs from fastreg */
+	atomic_t		i_fastreg_wrs;
 
 	/* interrupt handling */
 	struct tasklet_struct	i_send_tasklet;

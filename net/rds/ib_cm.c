@@ -363,7 +363,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct ib_qp_init_attr attr;
 	struct ib_cq_init_attr cq_attr = {};
 	struct rds_ib_device *rds_ibdev;
-	int ret;
+	int ret, fr_queue_space;
 
 	/*
 	 * It's normal to see a null device if an incoming connection races
@@ -372,6 +372,12 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	rds_ibdev = rds_ib_get_client_data(dev);
 	if (!rds_ibdev)
 		return -EOPNOTSUPP;
+
+	/* The fr_queue_space is currently set to 512, to add extra space on
+	 * completion queue and send queue. This extra space is used for FRMR
+	 * registration and invalidation work requests
+	 */
+	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
 
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
@@ -384,7 +390,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	/* Protection domain and memory range */
 	ic->i_pd = rds_ibdev->pd;
 
-	cq_attr.cqe = ic->i_send_ring.w_nr + 1;
+	cq_attr.cqe = ic->i_send_ring.w_nr + fr_queue_space + 1;
 
 	ic->i_send_cq = ib_create_cq(dev, rds_ib_cq_comp_handler_send,
 				     rds_ib_cq_event_handler, conn,
@@ -424,7 +430,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.event_handler = rds_ib_qp_event_handler;
 	attr.qp_context = conn;
 	/* + 1 to allow for the single ack message */
-	attr.cap.max_send_wr = ic->i_send_ring.w_nr + 1;
+	attr.cap.max_send_wr = ic->i_send_ring.w_nr + fr_queue_space + 1;
 	attr.cap.max_recv_wr = ic->i_recv_ring.w_nr + 1;
 	attr.cap.max_send_sge = rds_ibdev->max_sge;
 	attr.cap.max_recv_sge = RDS_IB_RECV_SGE;
@@ -432,6 +438,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	attr.qp_type = IB_QPT_RC;
 	attr.send_cq = ic->i_send_cq;
 	attr.recv_cq = ic->i_recv_cq;
+	atomic_set(&ic->i_fastreg_wrs, RDS_IB_DEFAULT_FR_WR);
 
 	/*
 	 * XXX this can fail if max_*_wr is too large?  Are we supposed
@@ -751,7 +758,8 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		 */
 		wait_event(rds_ib_ring_empty_wait,
 			   rds_ib_ring_empty(&ic->i_recv_ring) &&
-			   (atomic_read(&ic->i_signaled_sends) == 0));
+			   (atomic_read(&ic->i_signaled_sends) == 0) &&
+			   (atomic_read(&ic->i_fastreg_wrs) == RDS_IB_DEFAULT_FR_WR));
 		tasklet_kill(&ic->i_send_tasklet);
 		tasklet_kill(&ic->i_recv_tasklet);
 
