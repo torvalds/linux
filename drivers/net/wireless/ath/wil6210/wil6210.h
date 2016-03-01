@@ -615,6 +615,7 @@ struct wil6210_priv {
 	/* debugfs */
 	struct dentry *debug;
 	struct debugfs_blob_wrapper blobs[ARRAY_SIZE(fw_mapping)];
+	u8 discovery_mode;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;

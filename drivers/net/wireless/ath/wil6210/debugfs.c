@@ -37,6 +37,7 @@ enum dbg_off_type {
 	doff_x32 = 1,
 	doff_ulong = 2,
 	doff_io32 = 3,
+	doff_u8 = 4
 };
 
 /* offset to "wil" */
@@ -345,6 +346,10 @@ static void wil6210_debugfs_init_offset(struct wil6210_priv *wil,
 			f = wil_debugfs_create_iomem_x32(tbl[i].name,
 							 tbl[i].mode, dbg,
 							 base + tbl[i].off);
+			break;
+		case doff_u8:
+			f = debugfs_create_u8(tbl[i].name, tbl[i].mode, dbg,
+					      base + tbl[i].off);
 			break;
 		default:
 			f = ERR_PTR(-EINVAL);
@@ -1522,6 +1527,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(hw_version,	S_IRUGO,		doff_x32),
 	WIL_FIELD(recovery_count, S_IRUGO,		doff_u32),
 	WIL_FIELD(ap_isolate,	S_IRUGO,		doff_u32),
+	WIL_FIELD(discovery_mode, S_IRUGO | S_IWUSR,	doff_u8),
 	{},
 };
 

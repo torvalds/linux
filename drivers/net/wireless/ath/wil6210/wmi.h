@@ -286,16 +286,17 @@ struct wmi_delete_cipher_key_cmd {
  * - WMI_SCAN_COMPLETE_EVENTID
  */
 enum wmi_scan_type {
-	WMI_LONG_SCAN		= 0,
+	WMI_ACTIVE_SCAN		= 0,
 	WMI_SHORT_SCAN		= 1,
 	WMI_PBC_SCAN		= 2,
 	WMI_DIRECT_SCAN		= 3,
-	WMI_ACTIVE_SCAN		= 4,
+	WMI_LONG_SCAN		= 4,
 };
 
 struct wmi_start_scan_cmd {
 	u8 direct_scan_mac_addr[6];
-	u8 reserved[2];
+	u8 discovery_mode;
+	u8 reserved;
 	__le32 home_dwell_time;	/* Max duration in the home channel(ms) */
 	__le32 force_scan_interval;	/* Time interval between scans (ms)*/
 	u8 scan_type;		/* wmi_scan_type */
