@@ -561,6 +561,8 @@ struct drm_i915_error_state {
 			u32 *pages[0];
 		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
 
+		struct drm_i915_error_object *wa_ctx;
+
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;
