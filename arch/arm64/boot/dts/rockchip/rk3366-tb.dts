@@ -124,7 +124,7 @@
 		};
 
 		power-key {
-			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
 			linux,code = <116>;
 			label = "power";
 			gpio-key,wakeup;
