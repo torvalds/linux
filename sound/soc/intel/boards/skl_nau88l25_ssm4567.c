@@ -132,6 +132,8 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 
 	/* IV feedback path */
 	{ "codec0_lp_in", NULL, "ssp0 Rx"},
+	{ "ssp0 Rx", NULL, "Left Capture Sense" },
+	{ "ssp0 Rx", NULL, "Right Capture Sense" },
 
 	{ "Playback", NULL, "ssp1 Tx"},
 	{ "ssp1 Tx", NULL, "codec1_out"},
@@ -534,6 +536,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.ignore_pmdown_time = 1,
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.dpcm_playback = 1,
+		.dpcm_capture = 1,
 	},
 	{
 		/* SSP1 - Codec */
