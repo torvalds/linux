@@ -962,7 +962,7 @@ int wmi_set_mac_address(struct wil6210_priv *wil, void *addr)
 }
 
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
-		  u8 chan, u8 hidden_ssid)
+		  u8 chan, u8 hidden_ssid, u8 is_go)
 {
 	int rc;
 
@@ -973,6 +973,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
 		.channel = chan - 1,
 		.pcp_max_assoc_sta = max_assoc_sta,
 		.hidden_ssid = hidden_ssid,
+		.is_go = is_go,
 	};
 	struct {
 		struct wmi_cmd_hdr wmi;
