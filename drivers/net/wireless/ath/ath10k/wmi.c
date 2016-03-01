@@ -4617,10 +4617,16 @@ static void ath10k_wmi_event_service_ready_work(struct work_struct *work)
 	}
 
 	if (test_bit(WMI_SERVICE_PEER_CACHING, ar->wmi.svc_map)) {
+		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+			     ar->fw_features))
+			ar->num_active_peers = TARGET_10_4_QCACHE_ACTIVE_PEERS_PFC +
+					       ar->max_num_vdevs;
+		else
+			ar->num_active_peers = TARGET_10_4_QCACHE_ACTIVE_PEERS +
+					       ar->max_num_vdevs;
+
 		ar->max_num_peers = TARGET_10_4_NUM_QCACHE_PEERS_MAX +
 				    ar->max_num_vdevs;
-		ar->num_active_peers = ar->hw_params.qcache_active_peers +
-				       ar->max_num_vdevs;
 		ar->num_tids = ar->num_active_peers * 2;
 		ar->max_num_stations = TARGET_10_4_NUM_QCACHE_PEERS_MAX;
 	}

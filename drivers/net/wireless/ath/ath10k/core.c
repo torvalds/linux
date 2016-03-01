@@ -156,8 +156,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
-		.num_msdu_desc = 1424,
-		.qcache_active_peers = 50,
 		.tx_chain_mask = 0xf,
 		.rx_chain_mask = 0xf,
 		.max_spatial_stream = 4,
@@ -217,8 +215,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.channel_counters_freq_hz = 125000,
 		.max_probe_resp_desc_thres = 24,
 		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
-		.num_msdu_desc = 2500,
-		.qcache_active_peers = 35,
 		.tx_chain_mask = 0x3,
 		.rx_chain_mask = 0x3,
 		.max_spatial_stream = 2,
@@ -1538,9 +1534,14 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
 		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
 		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
-		ar->htt.max_num_pending_tx = ar->hw_params.num_msdu_desc;
 		ar->fw_stats_req_mask = WMI_STAT_PEER;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
+
+		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
+			     ar->fw_features))
+			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC_PFC;
+		else
+			ar->htt.max_num_pending_tx = TARGET_10_4_NUM_MSDU_DESC;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_UNSET:
 	case ATH10K_FW_WMI_OP_VERSION_MAX:
