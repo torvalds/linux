@@ -862,52 +862,6 @@ static struct net_device_stats *cxgb4vf_get_stats(struct net_device *dev)
 	return ns;
 }
 
-/*
- * Collect up to maxaddrs worth of a netdevice's unicast addresses, starting
- * at a specified offset within the list, into an array of addrss pointers and
- * return the number collected.
- */
-static inline unsigned int collect_netdev_uc_list_addrs(const struct net_device *dev,
-							const u8 **addr,
-							unsigned int offset,
-							unsigned int maxaddrs)
-{
-	unsigned int index = 0;
-	unsigned int naddr = 0;
-	const struct netdev_hw_addr *ha;
-
-	for_each_dev_addr(dev, ha)
-		if (index++ >= offset) {
-			addr[naddr++] = ha->addr;
-			if (naddr >= maxaddrs)
-				break;
-		}
-	return naddr;
-}
-
-/*
- * Collect up to maxaddrs worth of a netdevice's multicast addresses, starting
- * at a specified offset within the list, into an array of addrss pointers and
- * return the number collected.
- */
-static inline unsigned int collect_netdev_mc_list_addrs(const struct net_device *dev,
-							const u8 **addr,
-							unsigned int offset,
-							unsigned int maxaddrs)
-{
-	unsigned int index = 0;
-	unsigned int naddr = 0;
-	const struct netdev_hw_addr *ha;
-
-	netdev_for_each_mc_addr(ha, dev)
-		if (index++ >= offset) {
-			addr[naddr++] = ha->addr;
-			if (naddr >= maxaddrs)
-				break;
-		}
-	return naddr;
-}
-
 static inline int cxgb4vf_set_addr_hash(struct port_info *pi)
 {
 	struct adapter *adapter = pi->adapter;
