@@ -186,6 +186,8 @@ struct mlxsw_driver {
 	int (*init)(void *driver_priv, struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_bus_info *mlxsw_bus_info);
 	void (*fini)(void *driver_priv);
+	int (*port_split)(void *driver_priv, u8 local_port, unsigned int count);
+	int (*port_unsplit)(void *driver_priv, u8 local_port);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	u8 txhdr_len;
