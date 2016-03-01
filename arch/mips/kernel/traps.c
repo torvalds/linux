@@ -1498,16 +1498,13 @@ asmlinkage void do_watch(struct pt_regs *regs)
 {
 	siginfo_t info = { .si_signo = SIGTRAP, .si_code = TRAP_HWBKPT };
 	enum ctx_state prev_state;
-	u32 cause;
 
 	prev_state = exception_enter();
 	/*
 	 * Clear WP (bit 22) bit of cause register so we don't loop
 	 * forever.
 	 */
-	cause = read_c0_cause();
-	cause &= ~(1 << 22);
-	write_c0_cause(cause);
+	clear_c0_cause(CAUSEF_WP);
 
 	/*
 	 * If the current thread has the watch registers loaded, save
