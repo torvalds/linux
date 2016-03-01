@@ -336,7 +336,8 @@ static void pci_fixup_video(struct pci_dev *pdev)
 	if (!vga_default_device() || pdev == vga_default_device()) {
 		pci_read_config_word(pdev, PCI_COMMAND, &config);
 		if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-			pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
+			pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW |
+				IORESOURCE_PCI_FIXED;
 			dev_printk(KERN_DEBUG, &pdev->dev, "Video device with shadowed ROM\n");
 		}
 	}
