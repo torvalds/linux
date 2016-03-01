@@ -1,9 +1,7 @@
 TI SOC based PWM Subsystem
 
 Required properties:
-- compatible: Must be "ti,<soc>-pwmss".
-  for am33xx - compatible = "ti,am33xx-pwmss"
-  for dra7xx - compatible = "ti,dra7xx-pwmss", "ti,am33xx-pwmss"
+- compatible: Must be "ti,am33xx-pwmss";
 - reg: physical base address and size of the registers map.
 - address-cells: Specify the number of u32 entries needed in child nodes.
 		  Should set to 1.
@@ -28,19 +26,6 @@ pwmss0: pwmss@48300000 {
 	ranges = <0x48300100 0x48300100 0x80   /* ECAP */
 		  0x48300180 0x48300180 0x80   /* EQEP */
 		  0x48300200 0x48300200 0x80>; /* EHRPWM */
-
-	/* child nodes go here */
-};
-
-epwmss0: epwmss@4843e000 { /* On DRA7xx */
-	compatible = "ti,dra7xx-pwmss", "ti,am33xx-pwmss";
-	reg = <0x4843e000 0x30>;
-	ti,hwmods = "epwmss0";
-	#address-cells = <1>;
-	#size-cells = <1>;
-	ranges = <0x4843e100  0x4843e100 0x80	/* ECAP */
-		  0x4843e180  0x4843e180 0x80	/* EQEP */
-		  0x4843e200  0x4843e200 0x80>; /* EHRPWM */
 
 	/* child nodes go here */
 };

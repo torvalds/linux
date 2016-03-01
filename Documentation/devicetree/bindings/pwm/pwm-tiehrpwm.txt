@@ -4,7 +4,6 @@ Required properties:
 - compatible: Must be "ti,<soc>-ehrpwm".
   for am33xx - compatible = "ti,am33xx-ehrpwm";
   for da850  - compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
-  for dra7xx - compatible = "ti,dra7xx-ehrpwm", "ti,am33xx-ehrpwm";
 - #pwm-cells: should be 3. See pwm.txt in this directory for a description of
   the cells format. The only third cell flag supported by this binding is
   PWM_POLARITY_INVERTED.
@@ -27,11 +26,4 @@ ehrpwm0: ehrpwm@0 { /* EHRPWM on da850 */
 	compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
 	#pwm-cells = <3>;
 	reg = <0x300000 0x2000>;
-};
-
-ehrpwm0: ehrpwm@0 { /* EHRPWM on dra7xx */
-	compatible = "ti,dra7xx-ehrpwm", "ti,am33xx-ehrpwm";
-	#pwm-cells = <3>;
-	reg = <0x48440200 0x80>;
-	ti,hwmods = "ehrpwm0";
 };
