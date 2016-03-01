@@ -166,10 +166,10 @@ svc_rdma_get_write_array(struct rpcrdma_msg *rmsgp)
  * reply array is present
  */
 static struct rpcrdma_write_array *
-svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp)
+svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp,
+			 struct rpcrdma_write_array *wr_ary)
 {
 	struct rpcrdma_read_chunk *rch;
-	struct rpcrdma_write_array *wr_ary;
 	struct rpcrdma_write_array *rp_ary;
 
 	/* XXX: Need to fix when reply chunk may occur with read list
@@ -191,7 +191,6 @@ svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp)
 		goto found_it;
 	}
 
-	wr_ary = svc_rdma_get_write_array(rmsgp);
 	if (wr_ary) {
 		int chunk = be32_to_cpu(wr_ary->wc_nchunks);
 
@@ -302,8 +301,9 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 	return -EIO;
 }
 
+noinline
 static int send_write_chunks(struct svcxprt_rdma *xprt,
-			     struct rpcrdma_msg *rdma_argp,
+			     struct rpcrdma_write_array *wr_ary,
 			     struct rpcrdma_msg *rdma_resp,
 			     struct svc_rqst *rqstp,
 			     struct svc_rdma_req_map *vec)
@@ -314,25 +314,21 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 	int chunk_off;
 	int chunk_no;
 	int nchunks;
-	struct rpcrdma_write_array *arg_ary;
 	struct rpcrdma_write_array *res_ary;
 	int ret;
 
-	arg_ary = svc_rdma_get_write_array(rdma_argp);
-	if (!arg_ary)
-		return 0;
 	res_ary = (struct rpcrdma_write_array *)
 		&rdma_resp->rm_body.rm_chunks[1];
 
 	/* Write chunks start at the pagelist */
-	nchunks = be32_to_cpu(arg_ary->wc_nchunks);
+	nchunks = be32_to_cpu(wr_ary->wc_nchunks);
 	for (xdr_off = rqstp->rq_res.head[0].iov_len, chunk_no = 0;
 	     xfer_len && chunk_no < nchunks;
 	     chunk_no++) {
 		struct rpcrdma_segment *arg_ch;
 		u64 rs_offset;
 
-		arg_ch = &arg_ary->wc_array[chunk_no].wc_target;
+		arg_ch = &wr_ary->wc_array[chunk_no].wc_target;
 		write_len = min(xfer_len, be32_to_cpu(arg_ch->rs_length));
 
 		/* Prepare the response chunk given the length actually
@@ -350,11 +346,8 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 					 xdr_off,
 					 write_len,
 					 vec);
-			if (ret <= 0) {
-				dprintk("svcrdma: RDMA_WRITE failed, ret=%d\n",
-					ret);
-				return -EIO;
-			}
+			if (ret <= 0)
+				goto out_err;
 			chunk_off += ret;
 			xdr_off += ret;
 			xfer_len -= ret;
@@ -365,10 +358,15 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 	svc_rdma_xdr_encode_write_list(rdma_resp, chunk_no);
 
 	return rqstp->rq_res.page_len + rqstp->rq_res.tail[0].iov_len;
+
+out_err:
+	pr_err("svcrdma: failed to send write chunks, rc=%d\n", ret);
+	return -EIO;
 }
 
+noinline
 static int send_reply_chunks(struct svcxprt_rdma *xprt,
-			     struct rpcrdma_msg *rdma_argp,
+			     struct rpcrdma_write_array *rp_ary,
 			     struct rpcrdma_msg *rdma_resp,
 			     struct svc_rqst *rqstp,
 			     struct svc_rdma_req_map *vec)
@@ -380,25 +378,21 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 	int chunk_off;
 	int nchunks;
 	struct rpcrdma_segment *ch;
-	struct rpcrdma_write_array *arg_ary;
 	struct rpcrdma_write_array *res_ary;
 	int ret;
 
-	arg_ary = svc_rdma_get_reply_array(rdma_argp);
-	if (!arg_ary)
-		return 0;
 	/* XXX: need to fix when reply lists occur with read-list and or
 	 * write-list */
 	res_ary = (struct rpcrdma_write_array *)
 		&rdma_resp->rm_body.rm_chunks[2];
 
 	/* xdr offset starts at RPC message */
-	nchunks = be32_to_cpu(arg_ary->wc_nchunks);
+	nchunks = be32_to_cpu(rp_ary->wc_nchunks);
 	for (xdr_off = 0, chunk_no = 0;
 	     xfer_len && chunk_no < nchunks;
 	     chunk_no++) {
 		u64 rs_offset;
-		ch = &arg_ary->wc_array[chunk_no].wc_target;
+		ch = &rp_ary->wc_array[chunk_no].wc_target;
 		write_len = min(xfer_len, be32_to_cpu(ch->rs_length));
 
 		/* Prepare the reply chunk given the length actually
@@ -415,11 +409,8 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 					 xdr_off,
 					 write_len,
 					 vec);
-			if (ret <= 0) {
-				dprintk("svcrdma: RDMA_WRITE failed, ret=%d\n",
-					ret);
-				return -EIO;
-			}
+			if (ret <= 0)
+				goto out_err;
 			chunk_off += ret;
 			xdr_off += ret;
 			xfer_len -= ret;
@@ -430,6 +421,10 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 	svc_rdma_xdr_encode_reply_array(res_ary, chunk_no);
 
 	return rqstp->rq_res.len;
+
+out_err:
+	pr_err("svcrdma: failed to send reply chunks, rc=%d\n", ret);
+	return -EIO;
 }
 
 /* This function prepares the portion of the RPCRDMA message to be
@@ -573,7 +568,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		container_of(xprt, struct svcxprt_rdma, sc_xprt);
 	struct rpcrdma_msg *rdma_argp;
 	struct rpcrdma_msg *rdma_resp;
-	struct rpcrdma_write_array *reply_ary;
+	struct rpcrdma_write_array *wr_ary, *rp_ary;
 	enum rpcrdma_proc reply_type;
 	int ret;
 	int inline_bytes;
@@ -587,6 +582,8 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	 * places this at the start of page 0.
 	 */
 	rdma_argp = page_address(rqstp->rq_pages[0]);
+	wr_ary = svc_rdma_get_write_array(rdma_argp);
+	rp_ary = svc_rdma_get_reply_array(rdma_argp, wr_ary);
 
 	/* Build an req vec for the XDR */
 	ctxt = svc_rdma_get_context(rdma);
@@ -603,8 +600,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	if (!res_page)
 		goto err0;
 	rdma_resp = page_address(res_page);
-	reply_ary = svc_rdma_get_reply_array(rdma_argp);
-	if (reply_ary)
+	if (rp_ary)
 		reply_type = RDMA_NOMSG;
 	else
 		reply_type = RDMA_MSG;
@@ -612,24 +608,20 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 					 rdma_resp, reply_type);
 
 	/* Send any write-chunk data and build resp write-list */
-	ret = send_write_chunks(rdma, rdma_argp, rdma_resp,
-				rqstp, vec);
-	if (ret < 0) {
-		printk(KERN_ERR "svcrdma: failed to send write chunks, rc=%d\n",
-		       ret);
-		goto err1;
+	if (wr_ary) {
+		ret = send_write_chunks(rdma, wr_ary, rdma_resp, rqstp, vec);
+		if (ret < 0)
+			goto err1;
+		inline_bytes -= ret;
 	}
-	inline_bytes -= ret;
 
 	/* Send any reply-list data and update resp reply-list */
-	ret = send_reply_chunks(rdma, rdma_argp, rdma_resp,
-				rqstp, vec);
-	if (ret < 0) {
-		printk(KERN_ERR "svcrdma: failed to send reply chunks, rc=%d\n",
-		       ret);
-		goto err1;
+	if (rp_ary) {
+		ret = send_reply_chunks(rdma, rp_ary, rdma_resp, rqstp, vec);
+		if (ret < 0)
+			goto err1;
+		inline_bytes -= ret;
 	}
-	inline_bytes -= ret;
 
 	ret = send_reply(rdma, rqstp, res_page, rdma_resp, ctxt, vec,
 			 inline_bytes);
