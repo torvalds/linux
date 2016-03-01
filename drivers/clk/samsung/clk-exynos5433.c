@@ -224,18 +224,18 @@ static struct samsung_fixed_factor_clock top_fixed_factor_clks[] __initdata = {
 
 static struct samsung_fixed_rate_clock top_fixed_clks[] __initdata = {
 	/* Xi2s{0|1}CDCLK input clock for I2S/PCM */
-	FRATE(0, "ioclk_audiocdclk1", NULL, CLK_IS_ROOT, 100000000),
-	FRATE(0, "ioclk_audiocdclk0", NULL, CLK_IS_ROOT, 100000000),
+	FRATE(0, "ioclk_audiocdclk1", NULL, 0, 100000000),
+	FRATE(0, "ioclk_audiocdclk0", NULL, 0, 100000000),
 	/* Xi2s1SDI input clock for SPDIF */
-	FRATE(0, "ioclk_spdif_extclk", NULL, CLK_IS_ROOT, 100000000),
+	FRATE(0, "ioclk_spdif_extclk", NULL, 0, 100000000),
 	/* XspiCLK[4:0] input clock for SPI */
-	FRATE(0, "ioclk_spi4_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi3_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi2_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi1_clk_in", NULL, CLK_IS_ROOT, 50000000),
-	FRATE(0, "ioclk_spi0_clk_in", NULL, CLK_IS_ROOT, 50000000),
+	FRATE(0, "ioclk_spi4_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi3_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi2_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi1_clk_in", NULL, 0, 50000000),
+	FRATE(0, "ioclk_spi0_clk_in", NULL, 0, 50000000),
 	/* Xi2s1SCLK input clock for I2S1_BCLK */
-	FRATE(0, "ioclk_i2s1_bclk_in", NULL, CLK_IS_ROOT, 12288000),
+	FRATE(0, "ioclk_i2s1_bclk_in", NULL, 0, 12288000),
 };
 
 static struct samsung_mux_clock top_mux_clks[] __initdata = {
@@ -1984,42 +1984,40 @@ static struct samsung_fixed_rate_clock fsys_fixed_clks[] __initdata = {
 	/* PHY clocks from USBDRD30_PHY */
 	FRATE(CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY,
 			"phyclk_usbdrd30_udrd30_phyclock_phy", NULL,
-			CLK_IS_ROOT, 60000000),
+			0, 60000000),
 	FRATE(CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY,
 			"phyclk_usbdrd30_udrd30_pipe_pclk_phy", NULL,
-			CLK_IS_ROOT, 125000000),
+			0, 125000000),
 	/* PHY clocks from USBHOST30_PHY */
 	FRATE(CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY,
 			"phyclk_usbhost30_uhost30_phyclock_phy", NULL,
-			CLK_IS_ROOT, 60000000),
+			0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY,
 			"phyclk_usbhost30_uhost30_pipe_pclk_phy", NULL,
-			CLK_IS_ROOT, 125000000),
+			0, 125000000),
 	/* PHY clocks from USBHOST20_PHY */
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_FREECLK_PHY,
-			"phyclk_usbhost20_phy_freeclk_phy", NULL, CLK_IS_ROOT,
-			60000000),
+			"phyclk_usbhost20_phy_freeclk_phy", NULL, 0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_PHYCLOCK_PHY,
-			"phyclk_usbhost20_phy_phyclock_phy", NULL, CLK_IS_ROOT,
-			60000000),
+			"phyclk_usbhost20_phy_phyclock_phy", NULL, 0, 60000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_CLK48MOHCI_PHY,
 			"phyclk_usbhost20_phy_clk48mohci_phy", NULL,
-			CLK_IS_ROOT, 48000000),
+			0, 48000000),
 	FRATE(CLK_PHYCLK_USBHOST20_PHY_HSIC1_PHY,
-			"phyclk_usbhost20_phy_hsic1_phy", NULL, CLK_IS_ROOT,
+			"phyclk_usbhost20_phy_hsic1_phy", NULL, 0,
 			60000000),
 	/* PHY clocks from UFS_PHY */
 	FRATE(CLK_PHYCLK_UFS_TX0_SYMBOL_PHY, "phyclk_ufs_tx0_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_RX0_SYMBOL_PHY, "phyclk_ufs_rx0_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_TX1_SYMBOL_PHY, "phyclk_ufs_tx1_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_UFS_RX1_SYMBOL_PHY, "phyclk_ufs_rx1_symbol_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	/* PHY clocks from LLI_PHY */
 	FRATE(CLK_PHYCLK_LLI_MPHY_TO_UFS_PHY, "phyclk_lli_mphy_to_ufs_phy",
-			NULL, CLK_IS_ROOT, 26000000),
+			NULL, 0, 26000000),
 };
 
 static struct samsung_mux_clock fsys_mux_clks[] __initdata = {
@@ -2548,20 +2546,16 @@ static struct samsung_fixed_factor_clock disp_fixed_factor_clks[] __initdata = {
 
 static struct samsung_fixed_rate_clock disp_fixed_clks[] __initdata = {
 	/* PHY clocks from MIPI_DPHY1 */
-	FRATE(0, "phyclk_mipidphy1_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
-			188000000),
-	FRATE(0, "phyclk_mipidphy1_rxclkesc0_phy", NULL, CLK_IS_ROOT,
-			100000000),
+	FRATE(0, "phyclk_mipidphy1_bitclkdiv8_phy", NULL, 0, 188000000),
+	FRATE(0, "phyclk_mipidphy1_rxclkesc0_phy", NULL, 0, 100000000),
 	/* PHY clocks from MIPI_DPHY0 */
-	FRATE(0, "phyclk_mipidphy0_bitclkdiv8_phy", NULL, CLK_IS_ROOT,
-			188000000),
-	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, CLK_IS_ROOT,
-			100000000),
+	FRATE(0, "phyclk_mipidphy0_bitclkdiv8_phy", NULL, 0, 188000000),
+	FRATE(0, "phyclk_mipidphy0_rxclkesc0_phy", NULL, 0, 100000000),
 	/* PHY clocks from HDMI_PHY */
 	FRATE(CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY, "phyclk_hdmiphy_tmds_clko_phy",
-			NULL, CLK_IS_ROOT, 300000000),
+			NULL, 0, 300000000),
 	FRATE(CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY, "phyclk_hdmiphy_pixel_clko_phy",
-			NULL, CLK_IS_ROOT, 166000000),
+			NULL, 0, 166000000),
 };
 
 static struct samsung_mux_clock disp_mux_clks[] __initdata = {
@@ -2882,9 +2876,9 @@ PNAME(mout_aud_pll_user_aud_p)	= { "oscclk", "fout_aud_pll", };
 PNAME(mout_sclk_aud_pcm_p)	= { "mout_aud_pll_user", "ioclk_audiocdclk0",};
 
 static struct samsung_fixed_rate_clock aud_fixed_clks[] __initdata = {
-	FRATE(0, "ioclk_jtag_tclk", NULL, CLK_IS_ROOT, 33000000),
-	FRATE(0, "ioclk_slimbus_clk", NULL, CLK_IS_ROOT, 25000000),
-	FRATE(0, "ioclk_i2s_bclk", NULL, CLK_IS_ROOT, 50000000),
+	FRATE(0, "ioclk_jtag_tclk", NULL, 0, 33000000),
+	FRATE(0, "ioclk_slimbus_clk", NULL, 0, 25000000),
+	FRATE(0, "ioclk_i2s_bclk", NULL, 0, 50000000),
 };
 
 static struct samsung_mux_clock aud_mux_clks[] __initdata = {
@@ -4596,9 +4590,9 @@ PNAME(mout_sclk_pixelasync_lite_c_init_a_p) = {
 
 static struct samsung_fixed_rate_clock cam0_fixed_clks[] __initdata = {
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S4_PHY, "phyclk_rxbyteclkhs0_s4_phy",
-			NULL, CLK_IS_ROOT, 100000000),
+			NULL, 0, 100000000),
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S2A_PHY, "phyclk_rxbyteclkhs0_s2a_phy",
-			NULL, CLK_IS_ROOT, 100000000),
+			NULL, 0, 100000000),
 };
 
 static struct samsung_mux_clock cam0_mux_clks[] __initdata = {
@@ -5024,7 +5018,7 @@ PNAME(mout_aclk_lite_c_a_p)		= { "mout_aclk_cam1_552_user",
 
 static struct samsung_fixed_rate_clock cam1_fixed_clks[] __initdata = {
 	FRATE(CLK_PHYCLK_RXBYTEECLKHS0_S2B, "phyclk_rxbyteclkhs0_s2b_phy", NULL,
-			CLK_IS_ROOT, 100000000),
+			0, 100000000),
 };
 
 static struct samsung_mux_clock cam1_mux_clks[] __initdata = {
