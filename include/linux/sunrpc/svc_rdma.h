@@ -75,6 +75,7 @@ struct svc_rdma_op_ctxt {
 	struct svc_rdma_fastreg_mr *frmr;
 	int hdr_count;
 	struct xdr_buf arg;
+	struct ib_cqe cqe;
 	struct list_head dto_q;
 	enum ib_wr_opcode wr_op;
 	enum ib_wc_status wc_status;
@@ -174,7 +175,6 @@ struct svcxprt_rdma {
 	struct work_struct   sc_work;
 };
 /* sc_flags */
-#define RDMAXPRT_RQ_PENDING	1
 #define RDMAXPRT_SQ_PENDING	2
 #define RDMAXPRT_CONN_PENDING	3
 
