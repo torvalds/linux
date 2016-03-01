@@ -346,7 +346,7 @@ void rtw_free_all_stainfo23a(struct rtw_adapter *padapter)
 struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
 	struct list_head *phead;
-	struct sta_info *psta = NULL;
+	struct sta_info *pos, *psta = NULL;
 	u32 index;
 	const u8 *addr;
 
@@ -362,7 +362,9 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 
 	spin_lock_bh(&pstapriv->sta_hash_lock);
 	phead = &pstapriv->sta_hash[index];
-	list_for_each_entry(psta, phead, hash_list) {
+	list_for_each_entry(pos, phead, hash_list) {
+		psta = pos;
+
 		/*  if found the matched address */
 		if (ether_addr_equal(psta->hwaddr, addr))
 			break;
