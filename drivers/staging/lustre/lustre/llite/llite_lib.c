@@ -1932,13 +1932,8 @@ void ll_open_cleanup(struct super_block *sb, struct ptlrpc_request *open_req)
 
 	body = req_capsule_server_get(&open_req->rq_pill, &RMF_MDT_BODY);
 	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
-	if (!op_data) {
-		CWARN("%s: cannot allocate op_data to release open handle for "
-		      DFID "\n",
-		      ll_get_fsname(sb, NULL, 0), PFID(&body->fid1));
-
+	if (!op_data)
 		return;
-	}
 
 	op_data->op_fid1 = body->fid1;
 	op_data->op_ioepoch = body->ioepoch;
