@@ -85,6 +85,11 @@ static void pgd_ctor(void *addr)
 	memset(addr, 0, PGD_TABLE_SIZE);
 }
 
+static void pud_ctor(void *addr)
+{
+	memset(addr, 0, PUD_TABLE_SIZE);
+}
+
 static void pmd_ctor(void *addr)
 {
 	memset(addr, 0, PMD_TABLE_SIZE);
@@ -138,14 +143,18 @@ void pgtable_cache_init(void)
 {
 	pgtable_cache_add(PGD_INDEX_SIZE, pgd_ctor);
 	pgtable_cache_add(PMD_CACHE_INDEX, pmd_ctor);
+	/*
+	 * In all current configs, when the PUD index exists it's the
+	 * same size as either the pgd or pmd index except with THP enabled
+	 * on book3s 64
+	 */
+	if (PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE))
+		pgtable_cache_add(PUD_INDEX_SIZE, pud_ctor);
+
 	if (!PGT_CACHE(PGD_INDEX_SIZE) || !PGT_CACHE(PMD_CACHE_INDEX))
 		panic("Couldn't allocate pgtable caches");
-	/* In all current configs, when the PUD index exists it's the
-	 * same size as either the pgd or pmd index.  Verify that the
-	 * initialization above has also created a PUD cache.  This
-	 * will need re-examiniation if we add new possibilities for
-	 * the pagetable layout. */
-	BUG_ON(PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE));
+	if (PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE))
+		panic("Couldn't allocate pud pgtable caches");
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP

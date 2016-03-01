@@ -303,7 +303,7 @@ config ZONE_DMA32
 config PGTABLE_LEVELS
 	int
 	default 2 if !PPC64
-	default 3 if PPC_64K_PAGES
+	default 3 if PPC_64K_PAGES && !PPC_BOOK3S_64
 	default 4
 
 source "init/Kconfig"

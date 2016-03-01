@@ -21,15 +21,18 @@ static inline unsigned long pmd_val(pmd_t x)
 	return x.pmd;
 }
 
-/* PUD level exusts only on 4k pages */
-#ifndef CONFIG_PPC_64K_PAGES
+/*
+ * 64 bit hash always use 4 level table. Everybody else use 4 level
+ * only for 4K page size.
+ */
+#if defined(CONFIG_PPC_BOOK3S_64) || !defined(CONFIG_PPC_64K_PAGES)
 typedef struct { unsigned long pud; } pud_t;
 #define __pud(x)	((pud_t) { (x) })
 static inline unsigned long pud_val(pud_t x)
 {
 	return x.pud;
 }
-#endif /* !CONFIG_PPC_64K_PAGES */
+#endif /* CONFIG_PPC_BOOK3S_64 || !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
@@ -66,14 +69,14 @@ static inline unsigned long pmd_val(pmd_t pmd)
 	return pmd;
 }
 
-#ifndef CONFIG_PPC_64K_PAGES
+#if defined(CONFIG_PPC_BOOK3S_64) || !defined(CONFIG_PPC_64K_PAGES)
 typedef unsigned long pud_t;
 #define __pud(x)	(x)
 static inline unsigned long pud_val(pud_t pud)
 {
 	return pud;
 }
-#endif /* !CONFIG_PPC_64K_PAGES */
+#endif /* CONFIG_PPC_BOOK3S_64 || !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 typedef unsigned long pgd_t;

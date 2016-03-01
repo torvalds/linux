@@ -106,6 +106,26 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 	*pgdp = __pgd(val);
 }
 
+static inline void pgd_clear(pgd_t *pgdp)
+{
+	*pgdp = __pgd(0);
+}
+
+#define pgd_none(pgd)		(!pgd_val(pgd))
+#define pgd_present(pgd)	(!pgd_none(pgd))
+
+static inline pte_t pgd_pte(pgd_t pgd)
+{
+	return __pte(pgd_val(pgd));
+}
+
+static inline pgd_t pte_pgd(pte_t pte)
+{
+	return __pgd(pte_val(pte));
+}
+
+extern struct page *pgd_page(pgd_t pgd);
+
 /*
  * Find an entry in a page-table-directory.  We combine the address region
  * (the high order N bits) and the pgd portion of the address.
@@ -113,9 +133,10 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 
 #define pgd_offset(mm, address)	 ((mm)->pgd + pgd_index(address))
 
+#define pud_offset(pgdp, addr)	\
+	(((pud_t *) pgd_page_vaddr(*(pgdp))) + pud_index(addr))
 #define pmd_offset(pudp,addr) \
 	(((pmd_t *) pud_page_vaddr(*(pudp))) + pmd_index(addr))
-
 #define pte_offset_kernel(dir,addr) \
 	(((pte_t *) pmd_page_vaddr(*(dir))) + pte_index(addr))
 
@@ -130,6 +151,8 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 	pr_err("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \
 	pr_err("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+#define pud_ERROR(e) \
+	pr_err("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
