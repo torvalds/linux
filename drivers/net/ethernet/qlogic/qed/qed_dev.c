@@ -1011,13 +1011,17 @@ static void qed_hw_get_resc(struct qed_hwfn *p_hwfn)
 {
 	u32 *resc_start = p_hwfn->hw_info.resc_start;
 	u32 *resc_num = p_hwfn->hw_info.resc_num;
+	struct qed_sb_cnt_info sb_cnt_info;
 	int num_funcs, i;
 
 	num_funcs = MAX_NUM_PFS_BB;
 
+	memset(&sb_cnt_info, 0, sizeof(sb_cnt_info));
+	qed_int_get_num_sbs(p_hwfn, &sb_cnt_info);
+
 	resc_num[QED_SB] = min_t(u32,
 				 (MAX_SB_PER_PATH_BB / num_funcs),
-				 qed_int_get_num_sbs(p_hwfn, NULL));
+				 sb_cnt_info.sb_cnt);
 	resc_num[QED_L2_QUEUE] = MAX_NUM_L2_QUEUES_BB / num_funcs;
 	resc_num[QED_VPORT] = MAX_NUM_VPORTS_BB / num_funcs;
 	resc_num[QED_RSS_ENG] = ETH_RSS_ENGINE_NUM_BB / num_funcs;
