@@ -847,6 +847,7 @@ static const struct drm_display_mode innolux_g121x1_l03_mode = {
 	.vsync_end = 768 + 38 + 1,
 	.vtotal = 768 + 38 + 1 + 0,
 	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
 static const struct panel_desc innolux_g121x1_l03 = {
