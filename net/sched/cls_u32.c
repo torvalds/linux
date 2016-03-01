@@ -59,6 +59,7 @@ struct tc_u_knode {
 #ifdef CONFIG_CLS_U32_PERF
 	struct tc_u32_pcnt __percpu *pf;
 #endif
+	u32			flags;
 #ifdef CONFIG_CLS_U32_MARK
 	u32			val;
 	u32			mask;
@@ -434,7 +435,7 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
-	if (dev->netdev_ops->ndo_setup_tc) {
+	if (tc_should_offload(dev, 0)) {
 		offload.cls_u32->command = TC_CLSU32_DELETE_KNODE;
 		offload.cls_u32->knode.handle = handle;
 		dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
@@ -442,7 +443,9 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 	}
 }
 
-static void u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
+static void u32_replace_hw_hnode(struct tcf_proto *tp,
+				 struct tc_u_hnode *h,
+				 u32 flags)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload u32_offload = {0};
@@ -451,7 +454,7 @@ static void u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
-	if (dev->netdev_ops->ndo_setup_tc) {
+	if (tc_should_offload(dev, flags)) {
 		offload.cls_u32->command = TC_CLSU32_NEW_HNODE;
 		offload.cls_u32->hnode.divisor = h->divisor;
 		offload.cls_u32->hnode.handle = h->handle;
@@ -471,7 +474,7 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
-	if (dev->netdev_ops->ndo_setup_tc) {
+	if (tc_should_offload(dev, 0)) {
 		offload.cls_u32->command = TC_CLSU32_DELETE_HNODE;
 		offload.cls_u32->hnode.divisor = h->divisor;
 		offload.cls_u32->hnode.handle = h->handle;
@@ -482,7 +485,9 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	}
 }
 
-static void u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n)
+static void u32_replace_hw_knode(struct tcf_proto *tp,
+				 struct tc_u_knode *n,
+				 u32 flags)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_u32_offload u32_offload = {0};
@@ -491,7 +496,7 @@ static void u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n)
 	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
-	if (dev->netdev_ops->ndo_setup_tc) {
+	if (tc_should_offload(dev, flags)) {
 		offload.cls_u32->command = TC_CLSU32_REPLACE_KNODE;
 		offload.cls_u32->knode.handle = n->handle;
 		offload.cls_u32->knode.fshift = n->fshift;
@@ -679,6 +684,7 @@ static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
 	[TCA_U32_SEL]		= { .len = sizeof(struct tc_u32_sel) },
 	[TCA_U32_INDEV]		= { .type = NLA_STRING, .len = IFNAMSIZ },
 	[TCA_U32_MARK]		= { .len = sizeof(struct tc_u32_mark) },
+	[TCA_U32_FLAGS]		= { .type = NLA_U32 },
 };
 
 static int u32_set_parms(struct net *net, struct tcf_proto *tp,
@@ -786,6 +792,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 #endif
 	new->fshift = n->fshift;
 	new->res = n->res;
+	new->flags = n->flags;
 	RCU_INIT_POINTER(new->ht_down, n->ht_down);
 
 	/* bump reference count as long as we hold pointer to structure */
@@ -825,7 +832,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	struct tc_u32_sel *s;
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_U32_MAX + 1];
-	u32 htid;
+	u32 htid, flags = 0;
 	int err;
 #ifdef CONFIG_CLS_U32_PERF
 	size_t size;
@@ -838,11 +845,17 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
+	if (tb[TCA_U32_FLAGS])
+		flags = nla_get_u32(tb[TCA_U32_FLAGS]);
+
 	n = (struct tc_u_knode *)*arg;
 	if (n) {
 		struct tc_u_knode *new;
 
 		if (TC_U32_KEY(n->handle) == 0)
+			return -EINVAL;
+
+		if (n->flags != flags)
 			return -EINVAL;
 
 		new = u32_init_knode(tp, n);
@@ -861,7 +874,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		u32_replace_knode(tp, tp_c, new);
 		tcf_unbind_filter(tp, &n->res);
 		call_rcu(&n->rcu, u32_delete_key_rcu);
-		u32_replace_hw_knode(tp, new);
+		u32_replace_hw_knode(tp, new, flags);
 		return 0;
 	}
 
@@ -889,7 +902,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		rcu_assign_pointer(tp_c->hlist, ht);
 		*arg = (unsigned long)ht;
 
-		u32_replace_hw_hnode(tp, ht);
+		u32_replace_hw_hnode(tp, ht, flags);
 		return 0;
 	}
 
@@ -940,6 +953,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	RCU_INIT_POINTER(n->ht_up, ht);
 	n->handle = handle;
 	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
+	n->flags = flags;
 	tcf_exts_init(&n->exts, TCA_U32_ACT, TCA_U32_POLICE);
 	n->tp = tp;
 
@@ -972,7 +986,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		RCU_INIT_POINTER(n->next, pins);
 		rcu_assign_pointer(*ins, n);
-		u32_replace_hw_knode(tp, n);
+		u32_replace_hw_knode(tp, n, flags);
 		*arg = (unsigned long)n;
 		return 0;
 	}
@@ -1075,6 +1089,9 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		ht_down = rtnl_dereference(n->ht_down);
 		if (ht_down &&
 		    nla_put_u32(skb, TCA_U32_LINK, ht_down->handle))
+			goto nla_put_failure;
+
+		if (n->flags && nla_put_u32(skb, TCA_U32_FLAGS, n->flags))
 			goto nla_put_failure;
 
 #ifdef CONFIG_CLS_U32_MARK
