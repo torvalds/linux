@@ -3041,6 +3041,26 @@ static int gfx_v7_0_cp_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
+/**
+ * gfx_v7_0_ring_emit_vm_flush - cik vm flush using the CP
+ *
+ * @ring: the ring to emmit the commands to
+ *
+ * Sync the command pipeline with the PFP. E.g. wait for everything
+ * to be completed.
+ */
+static void gfx_v7_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
+{
+	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	if (usepfp) {
+		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
+		amdgpu_ring_write(ring, 0);
+	}
+}
+
 /*
  * vm
  * VMID 0 is the physical GPU addresses as used by the kernel.
@@ -3059,13 +3079,6 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
-	if (usepfp) {
-		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
-		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
-		amdgpu_ring_write(ring, 0);
-		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
-		amdgpu_ring_write(ring, 0);
-	}
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -5147,6 +5160,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v7_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v7_0_ring_emit_fence_gfx,
+	.emit_pipeline_sync = gfx_v7_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v7_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v7_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
@@ -5164,6 +5178,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v7_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v7_0_ring_emit_fence_compute,
+	.emit_pipeline_sync = gfx_v7_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v7_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v7_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,

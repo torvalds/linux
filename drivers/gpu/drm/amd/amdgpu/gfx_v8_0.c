@@ -4692,8 +4692,7 @@ static void gfx_v8_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 
 }
 
-static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+static void gfx_v8_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
 	uint32_t seq = ring->fence_drv.sync_seq;
@@ -4715,6 +4714,12 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
 	}
+}
+
+static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
+					unsigned vm_id, uint64_t pd_addr)
+{
+	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -5037,6 +5042,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,
+	.emit_pipeline_sync = gfx_v8_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
@@ -5054,6 +5060,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.parse_cs = NULL,
 	.emit_ib = gfx_v8_0_ring_emit_ib_compute,
 	.emit_fence = gfx_v8_0_ring_emit_fence_compute,
+	.emit_pipeline_sync = gfx_v8_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
 	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
