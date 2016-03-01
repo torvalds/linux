@@ -310,6 +310,14 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
+	/*
+	 * Initialize amdkfd before starting radeon. If it was not loaded yet,
+	 * defer radeon probing
+	 */
+	ret = amdgpu_amdkfd_init();
+	if (ret == -EPROBE_DEFER)
+		return ret;
+
 	/* Get rid of things like offb */
 	ret = amdgpu_kick_out_firmware_fb(pdev);
 	if (ret)
@@ -551,8 +559,6 @@ static int __init amdgpu_init(void)
 	driver->driver_features |= DRIVER_MODESET;
 	driver->num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
-
-	amdgpu_amdkfd_init();
 
 	/* let modprobe override vga console setting */
 	return drm_pci_init(driver, pdriver);
