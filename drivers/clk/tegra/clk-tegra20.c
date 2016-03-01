@@ -837,15 +837,13 @@ static void __init tegra20_periph_clk_init(void)
 	clks[TEGRA20_CLK_PEX] = clk;
 
 	/* cdev1 */
-	clk = clk_register_fixed_rate(NULL, "cdev1_fixed", NULL, CLK_IS_ROOT,
-				      26000000);
+	clk = clk_register_fixed_rate(NULL, "cdev1_fixed", NULL, 0, 26000000);
 	clk = tegra_clk_register_periph_gate("cdev1", "cdev1_fixed", 0,
 				    clk_base, 0, 94, periph_clk_enb_refcnt);
 	clks[TEGRA20_CLK_CDEV1] = clk;
 
 	/* cdev2 */
-	clk = clk_register_fixed_rate(NULL, "cdev2_fixed", NULL, CLK_IS_ROOT,
-				      26000000);
+	clk = clk_register_fixed_rate(NULL, "cdev2_fixed", NULL, 0, 26000000);
 	clk = tegra_clk_register_periph_gate("cdev2", "cdev2_fixed", 0,
 				    clk_base, 0, 93, periph_clk_enb_refcnt);
 	clks[TEGRA20_CLK_CDEV2] = clk;
@@ -879,8 +877,8 @@ static void __init tegra20_osc_clk_init(void)
 	input_freq = tegra20_clk_measure_input_freq();
 
 	/* clk_m */
-	clk = clk_register_fixed_rate(NULL, "clk_m", NULL, CLK_IS_ROOT |
-				      CLK_IGNORE_UNUSED, input_freq);
+	clk = clk_register_fixed_rate(NULL, "clk_m", NULL, CLK_IGNORE_UNUSED,
+				      input_freq);
 	clks[TEGRA20_CLK_CLK_M] = clk;
 
 	/* pll_ref */
