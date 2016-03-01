@@ -1443,24 +1443,18 @@ Must be very very cautious...
 */
 static struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 {
-	struct xmit_frame *pxframe = NULL;
-	struct list_head *plist, *phead;
+	struct xmit_frame *pxframe;
 	struct rtw_queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 
 	spin_lock_bh(&pfree_xmit_queue->lock);
 
-	if (list_empty(&pfree_xmit_queue->queue)) {
+	pxframe = list_first_entry_or_null(&pfree_xmit_queue->queue,
+					   struct xmit_frame, list);
+	if (!pxframe) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 			 "rtw_alloc_xmitframe:%d\n",
 			 pxmitpriv->free_xmitframe_cnt);
-		pxframe =  NULL;
 	} else {
-		phead = get_list_head(pfree_xmit_queue);
-
-		plist = phead->next;
-
-		pxframe = container_of(plist, struct xmit_frame, list);
-
 		list_del_init(&pxframe->list);
 		pxmitpriv->free_xmitframe_cnt--;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
@@ -1477,22 +1471,18 @@ static struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 
 struct xmit_frame *rtw_alloc_xmitframe23a_ext(struct xmit_priv *pxmitpriv)
 {
-	struct xmit_frame *pxframe = NULL;
-	struct list_head *plist, *phead;
+	struct xmit_frame *pxframe;
 	struct rtw_queue *queue = &pxmitpriv->free_xframe_ext_queue;
 
 	spin_lock_bh(&queue->lock);
 
-	if (list_empty(&queue->queue)) {
+	pxframe = list_first_entry_or_null(&queue->queue,
+					   struct xmit_frame, list);
+	if (!pxframe) {
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
 			 "rtw_alloc_xmitframe23a_ext:%d\n",
 			 pxmitpriv->free_xframe_ext_cnt);
-		pxframe =  NULL;
 	} else {
-		phead = get_list_head(queue);
-		plist = phead->next;
-		pxframe = container_of(plist, struct xmit_frame, list);
-
 		list_del_init(&pxframe->list);
 		pxmitpriv->free_xframe_ext_cnt--;
 		RT_TRACE(_module_rtl871x_xmit_c_, _drv_info_,
