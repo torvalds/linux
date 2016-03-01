@@ -1,7 +1,7 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) SHA crypto API support
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
@@ -341,6 +341,7 @@ static void ccp_hmac_sha_cra_exit(struct crypto_tfm *tfm)
 }
 
 struct ccp_sha_def {
+	unsigned int version;
 	const char *name;
 	const char *drv_name;
 	enum ccp_sha_type type;
@@ -350,6 +351,7 @@ struct ccp_sha_def {
 
 static struct ccp_sha_def sha_algs[] = {
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha1",
 		.drv_name	= "sha1-ccp",
 		.type		= CCP_SHA_TYPE_1,
@@ -357,6 +359,7 @@ static struct ccp_sha_def sha_algs[] = {
 		.block_size	= SHA1_BLOCK_SIZE,
 	},
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha224",
 		.drv_name	= "sha224-ccp",
 		.type		= CCP_SHA_TYPE_224,
@@ -364,6 +367,7 @@ static struct ccp_sha_def sha_algs[] = {
 		.block_size	= SHA224_BLOCK_SIZE,
 	},
 	{
+		.version	= CCP_VERSION(3, 0),
 		.name		= "sha256",
 		.drv_name	= "sha256-ccp",
 		.type		= CCP_SHA_TYPE_256,
@@ -480,8 +484,11 @@ static int ccp_register_sha_alg(struct list_head *head,
 int ccp_register_sha_algs(struct list_head *head)
 {
 	int i, ret;
+	unsigned int ccpversion = ccp_version();
 
 	for (i = 0; i < ARRAY_SIZE(sha_algs); i++) {
+		if (sha_algs[i].version > ccpversion)
+			continue;
 		ret = ccp_register_sha_alg(head, &sha_algs[i]);
 		if (ret)
 			return ret;

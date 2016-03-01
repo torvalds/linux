@@ -180,6 +180,12 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto e_err;
 
 	ccp->dev_specific = ccp_pci;
+	ccp->vdata = (struct ccp_vdata *)id->driver_data;
+	if (!ccp->vdata || !ccp->vdata->version) {
+		ret = -ENODEV;
+		dev_err(dev, "missing driver data\n");
+		goto e_err;
+	}
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
@@ -313,7 +319,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id ccp_pci_table[] = {
-	{ PCI_VDEVICE(AMD, 0x1537), },
+	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
 	/* Last entry must be zero */
 	{ 0, }
 };

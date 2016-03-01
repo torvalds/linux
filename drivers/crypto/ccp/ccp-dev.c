@@ -150,6 +150,29 @@ int ccp_present(void)
 EXPORT_SYMBOL_GPL(ccp_present);
 
 /**
+ * ccp_version - get the version of the CCP device
+ *
+ * Returns the version from the first unit on the list;
+ * otherwise a zero if no CCP device is present
+ */
+unsigned int ccp_version(void)
+{
+	struct ccp_device *dp;
+	unsigned long flags;
+	int ret = 0;
+
+	read_lock_irqsave(&ccp_unit_lock, flags);
+	if (!list_empty(&ccp_units)) {
+		dp = list_first_entry(&ccp_units, struct ccp_device, entry);
+		ret = dp->vdata->version;
+	}
+	read_unlock_irqrestore(&ccp_unit_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ccp_version);
+
+/**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
  * @cmd: ccp_cmd struct to be processed
@@ -663,6 +686,10 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 	return ccp->cmd_q_count == suspended;
 }
 #endif
+
+struct ccp_vdata ccpv3 = {
+	.version = CCP_VERSION(3, 0),
+};
 
 static int __init ccp_mod_init(void)
 {

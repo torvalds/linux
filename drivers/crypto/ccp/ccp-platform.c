@@ -32,6 +32,33 @@ struct ccp_platform {
 	int coherent;
 };
 
+static const struct acpi_device_id ccp_acpi_match[];
+static const struct of_device_id ccp_of_match[];
+
+static struct ccp_vdata *ccp_get_of_version(struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	const struct of_device_id *match;
+
+	match = of_match_node(ccp_of_match, pdev->dev.of_node);
+	if (match && match->data)
+		return (struct ccp_vdata *)match->data;
+#endif
+	return 0;
+}
+
+static struct ccp_vdata *ccp_get_acpi_version(struct platform_device *pdev)
+{
+#ifdef CONFIG_ACPI
+	const struct acpi_device_id *match;
+
+	match = acpi_match_device(ccp_acpi_match, &pdev->dev);
+	if (match && match->driver_data)
+		return (struct ccp_vdata *)match->driver_data;
+#endif
+	return 0;
+}
+
 static int ccp_get_irq(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
@@ -106,6 +133,13 @@ static int ccp_platform_probe(struct platform_device *pdev)
 		goto e_err;
 
 	ccp->dev_specific = ccp_platform;
+	ccp->vdata = pdev->dev.of_node ? ccp_get_of_version(pdev)
+					 : ccp_get_acpi_version(pdev);
+	if (!ccp->vdata || !ccp->vdata->version) {
+		ret = -ENODEV;
+		dev_err(dev, "missing driver data\n");
+		goto e_err;
+	}
 	ccp->get_irq = ccp_get_irqs;
 	ccp->free_irq = ccp_free_irqs;
 
@@ -214,7 +248,7 @@ static int ccp_platform_resume(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ccp_acpi_match[] = {
-	{ "AMDI0C00", 0 },
+	{ "AMDI0C00", (kernel_ulong_t)&ccpv3 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ccp_acpi_match);
@@ -222,7 +256,8 @@ MODULE_DEVICE_TABLE(acpi, ccp_acpi_match);
 
 #ifdef CONFIG_OF
 static const struct of_device_id ccp_of_match[] = {
-	{ .compatible = "amd,ccp-seattle-v1a" },
+	{ .compatible = "amd,ccp-seattle-v1a",
+	  .data = (const void *)&ccpv3 },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ccp_of_match);

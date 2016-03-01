@@ -141,6 +141,13 @@
 #define CCP_ECC_RESULT_OFFSET		60
 #define CCP_ECC_RESULT_SUCCESS		0x0001
 
+/* Structure to hold CCP version-specific values */
+struct ccp_vdata {
+	unsigned int version;
+};
+
+extern struct ccp_vdata ccpv3;
+
 struct ccp_device;
 struct ccp_cmd;
 
@@ -187,6 +194,7 @@ struct ccp_cmd_queue {
 struct ccp_device {
 	struct list_head entry;
 
+	struct ccp_vdata *vdata;
 	unsigned int ord;
 	char name[MAX_CCP_NAME_LEN];
 	char rngname[MAX_CCP_NAME_LEN];
