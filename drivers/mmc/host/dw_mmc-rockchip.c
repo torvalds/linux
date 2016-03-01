@@ -241,11 +241,12 @@ static int dw_mci_rockchip_init(struct dw_mci *host)
 
 /* Common capabilities of RK3288 SoC */
 static unsigned long dw_mci_rk3288_dwmmc_caps[4] = {
-	MMC_CAP_RUNTIME_RESUME, /* emmc */
-	MMC_CAP_RUNTIME_RESUME, /* sdmmc */
-	MMC_CAP_RUNTIME_RESUME, /* sdio0 */
-	MMC_CAP_RUNTIME_RESUME, /* sdio1 */
+	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE, /* emmc */
+	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE, /* sdmmc */
+	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE, /* sdio0 */
+	MMC_CAP_RUNTIME_RESUME | MMC_CAP_ERASE, /* sdio1 */
 };
+
 static const struct dw_mci_drv_data rk2928_drv_data = {
 	.prepare_command        = dw_mci_rockchip_prepare_command,
 	.init			= dw_mci_rockchip_init,
