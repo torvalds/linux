@@ -30,7 +30,7 @@ static int lpt_clk_probe(struct platform_device *pdev)
 	/* LPSS free running clock */
 	drvdata->name = "lpss_clk";
 	clk = clk_register_fixed_rate(&pdev->dev, drvdata->name, NULL,
-				      CLK_IS_ROOT, 100000000);
+				      0, 100000000);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
