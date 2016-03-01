@@ -303,7 +303,7 @@ static netdev_tx_t mlx5e_sq_xmit(struct mlx5e_sq *sq, struct sk_buff *skb)
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq)) {
 		int bf_sz = 0;
 
-		if (bf && sq->uar_bf_map)
+		if (bf && test_bit(MLX5E_SQ_STATE_BF_ENABLE, &sq->state))
 			bf_sz = wi->num_wqebbs << 3;
 
 		cseg->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;

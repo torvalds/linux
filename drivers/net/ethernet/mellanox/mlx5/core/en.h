@@ -260,26 +260,28 @@ static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 	"tso_bytes",
 	"tso_inner_packets",
 	"tso_inner_bytes",
-	"csum_offload_none",
 	"csum_offload_inner",
+	"nop",
+	"csum_offload_none",
 	"stopped",
 	"wake",
 	"dropped",
-	"nop"
 };
 
 struct mlx5e_sq_stats {
+	/* commonly accessed in data path */
 	u64 packets;
 	u64 tso_packets;
 	u64 tso_bytes;
 	u64 tso_inner_packets;
 	u64 tso_inner_bytes;
-	u64 csum_offload_none;
 	u64 csum_offload_inner;
+	u64 nop;
+	/* less likely accessed in data path */
+	u64 csum_offload_none;
 	u64 stopped;
 	u64 wake;
 	u64 dropped;
-	u64 nop;
 #define NUM_SQ_STATS 11
 };
 
@@ -386,6 +388,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_WAKE_TXQ_ENABLE,
+	MLX5E_SQ_STATE_BF_ENABLE,
 };
 
 struct mlx5e_sq {
@@ -414,7 +417,6 @@ struct mlx5e_sq {
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
 	void __iomem              *uar_map;
-	void __iomem              *uar_bf_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        bf_buf_size;
@@ -555,7 +557,6 @@ struct mlx5e_priv {
 	struct mlx5e_vxlan_db      vxlan;
 
 	struct mlx5e_params        params;
-	spinlock_t                 async_events_spinlock; /* sync hw events */
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;
@@ -663,16 +664,12 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 * doorbell
 	 */
 	wmb();
-
-	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
-
-		/* flush the write-combining mapped buffer */
-		wmb();
-
-	} else {
+	if (bf_sz)
+		__iowrite64_copy(sq->uar_map + ofst, &wqe->ctrl, bf_sz);
+	else
 		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
-	}
+	/* flush the write-combining mapped buffer */
+	wmb();
 
 	sq->bf_offset ^= sq->bf_buf_size;
 }

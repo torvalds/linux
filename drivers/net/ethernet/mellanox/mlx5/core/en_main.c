@@ -275,9 +275,14 @@ static void mlx5e_update_stats_work(struct work_struct *work)
 	mutex_unlock(&priv->state_lock);
 }
 
-static void __mlx5e_async_event(struct mlx5e_priv *priv,
-				enum mlx5_dev_event event)
+static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
+			      enum mlx5_dev_event event, unsigned long param)
 {
+	struct mlx5e_priv *priv = vpriv;
+
+	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state))
+		return;
+
 	switch (event) {
 	case MLX5_DEV_EVENT_PORT_UP:
 	case MLX5_DEV_EVENT_PORT_DOWN:
@@ -289,17 +294,6 @@ static void __mlx5e_async_event(struct mlx5e_priv *priv,
 	}
 }
 
-static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
-			      enum mlx5_dev_event event, unsigned long param)
-{
-	struct mlx5e_priv *priv = vpriv;
-
-	spin_lock(&priv->async_events_spinlock);
-	if (test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state))
-		__mlx5e_async_event(priv, event);
-	spin_unlock(&priv->async_events_spinlock);
-}
-
 static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 {
 	set_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
@@ -307,9 +301,8 @@ static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 
 static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 {
-	spin_lock_irq(&priv->async_events_spinlock);
 	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
-	spin_unlock_irq(&priv->async_events_spinlock);
+	synchronize_irq(mlx5_get_msix_vec(priv->mdev, MLX5_EQ_VEC_ASYNC));
 }
 
 #define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
@@ -555,7 +548,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	int txq_ix;
 	int err;
 
-	err = mlx5_alloc_map_uar(mdev, &sq->uar);
+	err = mlx5_alloc_map_uar(mdev, &sq->uar, true);
 	if (err)
 		return err;
 
@@ -567,8 +560,12 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 		goto err_unmap_free_uar;
 
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
-	sq->uar_map     = sq->uar.map;
-	sq->uar_bf_map  = sq->uar.bf_map;
+	if (sq->uar.bf_map) {
+		set_bit(MLX5E_SQ_STATE_BF_ENABLE, &sq->state);
+		sq->uar_map = sq->uar.bf_map;
+	} else {
+		sq->uar_map = sq->uar.map;
+	}
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
 	sq->max_inline  = param->max_inline;
 
@@ -877,12 +874,10 @@ static int mlx5e_open_cq(struct mlx5e_channel *c,
 	if (err)
 		goto err_destroy_cq;
 
-	err = mlx5_core_modify_cq_moderation(mdev, &cq->mcq,
-					     moderation_usecs,
-					     moderation_frames);
-	if (err)
-		goto err_destroy_cq;
-
+	if (MLX5_CAP_GEN(mdev, cq_moderation))
+		mlx5_core_modify_cq_moderation(mdev, &cq->mcq,
+					       moderation_usecs,
+					       moderation_frames);
 	return 0;
 
 err_destroy_cq:
@@ -1069,6 +1064,15 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 
 	param->wq.buf_numa_node = dev_to_node(&priv->mdev->pdev->dev);
 	param->wq.linear = 1;
+}
+
+static void mlx5e_build_drop_rq_param(struct mlx5e_rq_param *param)
+{
+	void *rqc = param->rqc;
+	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
+
+	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST);
+	MLX5_SET(wq, wq, log_wq_stride,    ilog2(sizeof(struct mlx5e_rx_wqe)));
 }
 
 static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
@@ -1458,8 +1462,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 		goto err_close_channels;
 	}
 
-	mlx5e_update_carrier(priv);
 	mlx5e_redirect_rqts(priv);
+	mlx5e_update_carrier(priv);
 	mlx5e_timestamp_init(priv);
 
 	schedule_delayed_work(&priv->update_stats_work, 0);
@@ -1498,8 +1502,8 @@ int mlx5e_close_locked(struct net_device *netdev)
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 
 	mlx5e_timestamp_cleanup(priv);
-	mlx5e_redirect_rqts(priv);
 	netif_carrier_off(priv->netdev);
+	mlx5e_redirect_rqts(priv);
 	mlx5e_close_channels(priv);
 
 	return 0;
@@ -1581,8 +1585,7 @@ static int mlx5e_open_drop_rq(struct mlx5e_priv *priv)
 
 	memset(&cq_param, 0, sizeof(cq_param));
 	memset(&rq_param, 0, sizeof(rq_param));
-	mlx5e_build_rx_cq_param(priv, &cq_param);
-	mlx5e_build_rq_param(priv, &rq_param);
+	mlx5e_build_drop_rq_param(&rq_param);
 
 	err = mlx5e_create_drop_cq(priv, cq, &cq_param);
 	if (err)
@@ -2217,6 +2220,8 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	}
 	if (!MLX5_CAP_ETH(mdev, self_lb_en_modifiable))
 		mlx5_core_warn(mdev, "Self loop back prevention is not supported\n");
+	if (!MLX5_CAP_GEN(mdev, cq_moderation))
+		mlx5_core_warn(mdev, "CQ modiration is not supported\n");
 
 	return 0;
 }
@@ -2290,7 +2295,6 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	mlx5e_ets_init(priv);
 #endif
 
-	spin_lock_init(&priv->async_events_spinlock);
 	mutex_init(&priv->state_lock);
 
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
@@ -2418,7 +2422,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	priv = netdev_priv(netdev);
 
-	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
+	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar, false);
 	if (err) {
 		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
 		goto err_free_netdev;

@@ -211,13 +211,14 @@ static void mlx5e_get_strings(struct net_device *dev,
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					"rx%d_%s", i, rq_stats_strings[j]);
 
-		for (i = 0; i < priv->params.num_channels; i++)
-			for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (tc = 0; tc < priv->params.num_tc; tc++)
+			for (i = 0; i < priv->params.num_channels; i++)
 				for (j = 0; j < NUM_SQ_STATS; j++)
 					sprintf(data +
-						(idx++) * ETH_GSTRING_LEN,
-						"tx%d_%d_%s", i, tc,
-						sq_stats_strings[j]);
+					      (idx++) * ETH_GSTRING_LEN,
+					      "tx%d_%s",
+					      priv->channeltc_to_txq_map[i][tc],
+					      sq_stats_strings[j]);
 		break;
 	}
 }
@@ -249,8 +250,8 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 						&priv->state) ? 0 :
 				       ((u64 *)&priv->channel[i]->rq.stats)[j];
 
-	for (i = 0; i < priv->params.num_channels; i++)
-		for (tc = 0; tc < priv->params.num_tc; tc++)
+	for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (i = 0; i < priv->params.num_channels; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] = !test_bit(MLX5E_STATE_OPENED,
 							&priv->state) ? 0 :
@@ -399,6 +400,9 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
+		return -ENOTSUPP;
+
 	coal->rx_coalesce_usecs       = priv->params.rx_cq_moderation_usec;
 	coal->rx_max_coalesced_frames = priv->params.rx_cq_moderation_pkts;
 	coal->tx_coalesce_usecs       = priv->params.tx_cq_moderation_usec;
@@ -416,10 +420,17 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	int tc;
 	int i;
 
+	if (!MLX5_CAP_GEN(mdev, cq_moderation))
+		return -ENOTSUPP;
+
+	mutex_lock(&priv->state_lock);
 	priv->params.tx_cq_moderation_usec = coal->tx_coalesce_usecs;
 	priv->params.tx_cq_moderation_pkts = coal->tx_max_coalesced_frames;
 	priv->params.rx_cq_moderation_usec = coal->rx_coalesce_usecs;
 	priv->params.rx_cq_moderation_pkts = coal->rx_max_coalesced_frames;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto out;
 
 	for (i = 0; i < priv->params.num_channels; ++i) {
 		c = priv->channel[i];
@@ -436,6 +447,8 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 					       coal->rx_max_coalesced_frames);
 	}
 
+out:
+	mutex_unlock(&priv->state_lock);
 	return 0;
 }
 
