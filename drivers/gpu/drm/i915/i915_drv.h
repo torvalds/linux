@@ -64,6 +64,7 @@
 #include "i915_gem_request.h"
 
 #include "intel_gvt.h"
+#include "hdmi_audio_if.h"
 
 /* General customization:
  */
@@ -1236,6 +1237,18 @@ struct intel_gen6_power_mgmt {
 	struct mutex hw_lock;
 };
 
+/* Runtime power management related */
+struct intel_gen7_rpm {
+	/* To track (num of get calls - num of put calls)
+	 * made by procfs
+	 */
+	atomic_t procfs_count;
+	/* To make sure ring get/put are in pair */
+	bool ring_active;
+	struct proc_dir_entry *i915_proc_dir;
+	struct proc_dir_entry *i915_proc_file;
+};
+
 /* defined intel_pm.c */
 extern spinlock_t mchdev_lock;
 
@@ -2078,6 +2091,19 @@ struct drm_i915_private {
 	bool chv_phy_assert[2];
 
 	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
+
+	/* Added for HDMI Audio */
+	had_event_call_back had_event_callbacks;
+	struct snd_intel_had_interface *had_interface;
+	void *had_pvt_data;
+	int tmds_clock_speed;
+	int hdmi_audio_interrupt_mask;
+	struct work_struct hdmi_audio_wq;
+
+	u32 hotplug_status;
+
+	/* Runtime power management related */
+	struct intel_gen7_rpm rpm;
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
@@ -3765,6 +3791,11 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val);
 		upper = I915_READ(upper_reg);				\
 	} while (upper != old_upper && loop++ < 2);			\
 	(u64)upper << 32 | lower; })
+
+int i915_rpm_get_disp(struct drm_device *dev);
+int i915_rpm_put_disp(struct drm_device *dev);
+
+bool i915_is_device_active(struct drm_device *dev);
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
