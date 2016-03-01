@@ -63,16 +63,10 @@ static struct svc_xprt *svc_rdma_create(struct svc_serv *serv,
 					int flags);
 static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt);
 static void svc_rdma_release_rqst(struct svc_rqst *);
-static void dto_tasklet_func(unsigned long data);
 static void svc_rdma_detach(struct svc_xprt *xprt);
 static void svc_rdma_free(struct svc_xprt *xprt);
 static int svc_rdma_has_wspace(struct svc_xprt *xprt);
 static int svc_rdma_secure_port(struct svc_rqst *);
-static void sq_cq_reap(struct svcxprt_rdma *xprt);
-
-static DECLARE_TASKLET(dto_tasklet, dto_tasklet_func, 0UL);
-static DEFINE_SPINLOCK(dto_lock);
-static LIST_HEAD(dto_xprt_q);
 
 static struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_create = svc_rdma_create,
@@ -351,15 +345,6 @@ static void svc_rdma_destroy_maps(struct svcxprt_rdma *xprt)
 	}
 }
 
-/* ib_cq event handler */
-static void cq_event_handler(struct ib_event *event, void *context)
-{
-	struct svc_xprt *xprt = context;
-	dprintk("svcrdma: received CQ event %s (%d), context=%p\n",
-		ib_event_msg(event->event), event->event, context);
-	set_bit(XPT_CLOSE, &xprt->xpt_flags);
-}
-
 /* QP event handler */
 static void qp_event_handler(struct ib_event *event, void *context)
 {
@@ -389,35 +374,6 @@ static void qp_event_handler(struct ib_event *event, void *context)
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		break;
 	}
-}
-
-/*
- * Data Transfer Operation Tasklet
- *
- * Walks a list of transports with I/O pending, removing entries as
- * they are added to the server's I/O pending list. Two bits indicate
- * if SQ, RQ, or both have I/O pending. The dto_lock is an irqsave
- * spinlock that serializes access to the transport list with the RQ
- * and SQ interrupt handlers.
- */
-static void dto_tasklet_func(unsigned long data)
-{
-	struct svcxprt_rdma *xprt;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dto_lock, flags);
-	while (!list_empty(&dto_xprt_q)) {
-		xprt = list_entry(dto_xprt_q.next,
-				  struct svcxprt_rdma, sc_dto_q);
-		list_del_init(&xprt->sc_dto_q);
-		spin_unlock_irqrestore(&dto_lock, flags);
-
-		sq_cq_reap(xprt);
-
-		svc_xprt_put(&xprt->sc_xprt);
-		spin_lock_irqsave(&dto_lock, flags);
-	}
-	spin_unlock_irqrestore(&dto_lock, flags);
 }
 
 /**
@@ -464,132 +420,127 @@ out:
 	svc_xprt_put(&xprt->sc_xprt);
 }
 
-/*
- * Process a completion context
- */
-static void process_context(struct svcxprt_rdma *xprt,
-			    struct svc_rdma_op_ctxt *ctxt)
+static void svc_rdma_send_wc_common(struct svcxprt_rdma *xprt,
+				    struct ib_wc *wc,
+				    const char *opname)
 {
-	struct svc_rdma_op_ctxt *read_hdr;
-	int free_pages = 0;
+	if (wc->status != IB_WC_SUCCESS)
+		goto err;
 
+out:
+	atomic_dec(&xprt->sc_sq_count);
+	wake_up(&xprt->sc_send_wait);
+	return;
+
+err:
+	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+	if (wc->status != IB_WC_WR_FLUSH_ERR)
+		pr_err("svcrdma: %s: %s (%u/0x%x)\n",
+		       opname, ib_wc_status_msg(wc->status),
+		       wc->status, wc->vendor_err);
+	goto out;
+}
+
+static void svc_rdma_send_wc_common_put(struct ib_cq *cq, struct ib_wc *wc,
+					const char *opname)
+{
+	struct svcxprt_rdma *xprt = cq->cq_context;
+
+	svc_rdma_send_wc_common(xprt, wc, opname);
+	svc_xprt_put(&xprt->sc_xprt);
+}
+
+/**
+ * svc_rdma_wc_send - Invoked by RDMA provider for each polled Send WC
+ * @cq:        completion queue
+ * @wc:        completed WR
+ *
+ */
+void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct svc_rdma_op_ctxt *ctxt;
+
+	svc_rdma_send_wc_common_put(cq, wc, "send");
+
+	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
 	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_context(ctxt, 1);
+}
 
-	switch (ctxt->wr_op) {
-	case IB_WR_SEND:
-		free_pages = 1;
-		break;
+/**
+ * svc_rdma_wc_write - Invoked by RDMA provider for each polled Write WC
+ * @cq:        completion queue
+ * @wc:        completed WR
+ *
+ */
+void svc_rdma_wc_write(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct svc_rdma_op_ctxt *ctxt;
 
-	case IB_WR_RDMA_WRITE:
-		break;
+	svc_rdma_send_wc_common_put(cq, wc, "write");
 
-	case IB_WR_RDMA_READ:
-	case IB_WR_RDMA_READ_WITH_INV:
-		svc_rdma_put_frmr(xprt, ctxt->frmr);
+	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
+	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_context(ctxt, 0);
+}
 
-		if (!test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags))
-			break;
+/**
+ * svc_rdma_wc_reg - Invoked by RDMA provider for each polled FASTREG WC
+ * @cq:        completion queue
+ * @wc:        completed WR
+ *
+ */
+void svc_rdma_wc_reg(struct ib_cq *cq, struct ib_wc *wc)
+{
+	svc_rdma_send_wc_common_put(cq, wc, "fastreg");
+}
+
+/**
+ * svc_rdma_wc_read - Invoked by RDMA provider for each polled Read WC
+ * @cq:        completion queue
+ * @wc:        completed WR
+ *
+ */
+void svc_rdma_wc_read(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct svcxprt_rdma *xprt = cq->cq_context;
+	struct ib_cqe *cqe = wc->wr_cqe;
+	struct svc_rdma_op_ctxt *ctxt;
+
+	svc_rdma_send_wc_common(xprt, wc, "read");
+
+	ctxt = container_of(cqe, struct svc_rdma_op_ctxt, cqe);
+	svc_rdma_unmap_dma(ctxt);
+	svc_rdma_put_frmr(xprt, ctxt->frmr);
+
+	if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
+		struct svc_rdma_op_ctxt *read_hdr;
 
 		read_hdr = ctxt->read_hdr;
-		svc_rdma_put_context(ctxt, 0);
-
-		spin_lock_bh(&xprt->sc_rq_dto_lock);
-		set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
+		spin_lock(&xprt->sc_rq_dto_lock);
 		list_add_tail(&read_hdr->dto_q,
 			      &xprt->sc_read_complete_q);
-		spin_unlock_bh(&xprt->sc_rq_dto_lock);
+		spin_unlock(&xprt->sc_rq_dto_lock);
+
+		set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 		svc_xprt_enqueue(&xprt->sc_xprt);
-		return;
-
-	default:
-		dprintk("svcrdma: unexpected completion opcode=%d\n",
-			ctxt->wr_op);
-		break;
 	}
 
-	svc_rdma_put_context(ctxt, free_pages);
+	svc_rdma_put_context(ctxt, 0);
+	svc_xprt_put(&xprt->sc_xprt);
 }
 
-/*
- * Send Queue Completion Handler - potentially called on interrupt context.
+/**
+ * svc_rdma_wc_inv - Invoked by RDMA provider for each polled LOCAL_INV WC
+ * @cq:        completion queue
+ * @wc:        completed WR
  *
- * Note that caller must hold a transport reference.
  */
-static void sq_cq_reap(struct svcxprt_rdma *xprt)
+void svc_rdma_wc_inv(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct svc_rdma_op_ctxt *ctxt = NULL;
-	struct ib_wc wc_a[6];
-	struct ib_wc *wc;
-	struct ib_cq *cq = xprt->sc_sq_cq;
-	int ret;
-
-	memset(wc_a, 0, sizeof(wc_a));
-
-	if (!test_and_clear_bit(RDMAXPRT_SQ_PENDING, &xprt->sc_flags))
-		return;
-
-	ib_req_notify_cq(xprt->sc_sq_cq, IB_CQ_NEXT_COMP);
-	atomic_inc(&rdma_stat_sq_poll);
-	while ((ret = ib_poll_cq(cq, ARRAY_SIZE(wc_a), wc_a)) > 0) {
-		int i;
-
-		for (i = 0; i < ret; i++) {
-			wc = &wc_a[i];
-			if (wc->status != IB_WC_SUCCESS) {
-				dprintk("svcrdma: sq wc err status %s (%d)\n",
-					ib_wc_status_msg(wc->status),
-					wc->status);
-
-				/* Close the transport */
-				set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
-			}
-
-			/* Decrement used SQ WR count */
-			atomic_dec(&xprt->sc_sq_count);
-			wake_up(&xprt->sc_send_wait);
-
-			ctxt = (struct svc_rdma_op_ctxt *)
-				(unsigned long)wc->wr_id;
-			if (ctxt)
-				process_context(xprt, ctxt);
-
-			svc_xprt_put(&xprt->sc_xprt);
-		}
-	}
-
-	if (ctxt)
-		atomic_inc(&rdma_stat_sq_prod);
-}
-
-static void sq_comp_handler(struct ib_cq *cq, void *cq_context)
-{
-	struct svcxprt_rdma *xprt = cq_context;
-	unsigned long flags;
-
-	/* Guard against unconditional flush call for destroyed QP */
-	if (atomic_read(&xprt->sc_xprt.xpt_ref.refcount)==0)
-		return;
-
-	/*
-	 * Set the bit regardless of whether or not it's on the list
-	 * because it may be on the list already due to an RQ
-	 * completion.
-	 */
-	set_bit(RDMAXPRT_SQ_PENDING, &xprt->sc_flags);
-
-	/*
-	 * If this transport is not already on the DTO transport queue,
-	 * add it
-	 */
-	spin_lock_irqsave(&dto_lock, flags);
-	if (list_empty(&xprt->sc_dto_q)) {
-		svc_xprt_get(&xprt->sc_xprt);
-		list_add_tail(&xprt->sc_dto_q, &dto_xprt_q);
-	}
-	spin_unlock_irqrestore(&dto_lock, flags);
-
-	/* Tasklet does all the work to avoid irqsave locks. */
-	tasklet_schedule(&dto_tasklet);
+	svc_rdma_send_wc_common_put(cq, wc, "localInv");
 }
 
 static struct svcxprt_rdma *rdma_create_xprt(struct svc_serv *serv,
@@ -980,7 +931,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct svcxprt_rdma *listen_rdma;
 	struct svcxprt_rdma *newxprt = NULL;
 	struct rdma_conn_param conn_param;
-	struct ib_cq_init_attr cq_attr = {};
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device *dev;
 	unsigned int i;
@@ -1038,12 +988,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		dprintk("svcrdma: error creating PD for connect request\n");
 		goto errout;
 	}
-	cq_attr.cqe = newxprt->sc_sq_depth;
-	newxprt->sc_sq_cq = ib_create_cq(dev,
-					 sq_comp_handler,
-					 cq_event_handler,
-					 newxprt,
-					 &cq_attr);
+	newxprt->sc_sq_cq = ib_alloc_cq(dev, newxprt, newxprt->sc_sq_depth,
+					0, IB_POLL_SOFTIRQ);
 	if (IS_ERR(newxprt->sc_sq_cq)) {
 		dprintk("svcrdma: error creating SQ CQ for connect request\n");
 		goto errout;
@@ -1137,12 +1083,6 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Swap out the handler */
 	newxprt->sc_cm_id->event_handler = rdma_cma_handler;
-
-	/*
-	 * Arm the CQs for the SQ and RQ before accepting so we can't
-	 * miss the first message
-	 */
-	ib_req_notify_cq(newxprt->sc_sq_cq, IB_CQ_NEXT_COMP);
 
 	/* Accept Connection */
 	set_bit(RDMAXPRT_CONN_PENDING, &newxprt->sc_flags);
@@ -1283,7 +1223,7 @@ static void __svc_rdma_free(struct work_struct *work)
 		ib_destroy_qp(rdma->sc_qp);
 
 	if (rdma->sc_sq_cq && !IS_ERR(rdma->sc_sq_cq))
-		ib_destroy_cq(rdma->sc_sq_cq);
+		ib_free_cq(rdma->sc_sq_cq);
 
 	if (rdma->sc_rq_cq && !IS_ERR(rdma->sc_rq_cq))
 		ib_free_cq(rdma->sc_rq_cq);
@@ -1346,9 +1286,6 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 		if (xprt->sc_sq_depth < atomic_read(&xprt->sc_sq_count) + wr_count) {
 			spin_unlock_bh(&xprt->sc_lock);
 			atomic_inc(&rdma_stat_sq_starve);
-
-			/* See if we can opportunistically reap SQ WR to make room */
-			sq_cq_reap(xprt);
 
 			/* Wait until SQ WR available if SQ still full */
 			wait_event(xprt->sc_send_wait,

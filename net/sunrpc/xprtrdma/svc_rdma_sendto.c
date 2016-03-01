@@ -297,8 +297,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 
 	/* Prepare WRITE WR */
 	memset(&write_wr, 0, sizeof write_wr);
-	ctxt->wr_op = IB_WR_RDMA_WRITE;
-	write_wr.wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_write;
+	write_wr.wr.wr_cqe = &ctxt->cqe;
 	write_wr.wr.sg_list = &sge[0];
 	write_wr.wr.num_sge = sge_no;
 	write_wr.wr.opcode = IB_WR_RDMA_WRITE;
@@ -549,8 +549,8 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		goto err;
 	}
 	memset(&send_wr, 0, sizeof send_wr);
-	ctxt->wr_op = IB_WR_SEND;
-	send_wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_send;
+	send_wr.wr_cqe = &ctxt->cqe;
 	send_wr.sg_list = ctxt->sge;
 	send_wr.num_sge = sge_no;
 	send_wr.opcode = IB_WR_SEND;
@@ -698,8 +698,8 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 
 	/* Prepare SEND WR */
 	memset(&err_wr, 0, sizeof(err_wr));
-	ctxt->wr_op = IB_WR_SEND;
-	err_wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_send;
+	err_wr.wr_cqe = &ctxt->cqe;
 	err_wr.sg_list = ctxt->sge;
 	err_wr.num_sge = 1;
 	err_wr.opcode = IB_WR_SEND;

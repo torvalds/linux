@@ -180,9 +180,9 @@ int rdma_read_chunk_lcl(struct svcxprt_rdma *xprt,
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
 
 	memset(&read_wr, 0, sizeof(read_wr));
-	read_wr.wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_read;
+	read_wr.wr.wr_cqe = &ctxt->cqe;
 	read_wr.wr.opcode = IB_WR_RDMA_READ;
-	ctxt->wr_op = read_wr.wr.opcode;
 	read_wr.wr.send_flags = IB_SEND_SIGNALED;
 	read_wr.rkey = rs_handle;
 	read_wr.remote_addr = rs_offset;
@@ -299,8 +299,9 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	ctxt->read_hdr = head;
 
 	/* Prepare REG WR */
+	ctxt->reg_cqe.done = svc_rdma_wc_reg;
+	reg_wr.wr.wr_cqe = &ctxt->reg_cqe;
 	reg_wr.wr.opcode = IB_WR_REG_MR;
-	reg_wr.wr.wr_id = 0;
 	reg_wr.wr.send_flags = IB_SEND_SIGNALED;
 	reg_wr.wr.num_sge = 0;
 	reg_wr.mr = frmr->mr;
@@ -310,6 +311,8 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 
 	/* Prepare RDMA_READ */
 	memset(&read_wr, 0, sizeof(read_wr));
+	ctxt->cqe.done = svc_rdma_wc_read;
+	read_wr.wr.wr_cqe = &ctxt->cqe;
 	read_wr.wr.send_flags = IB_SEND_SIGNALED;
 	read_wr.rkey = rs_handle;
 	read_wr.remote_addr = rs_offset;
@@ -317,19 +320,18 @@ int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 	read_wr.wr.num_sge = 1;
 	if (xprt->sc_dev_caps & SVCRDMA_DEVCAP_READ_W_INV) {
 		read_wr.wr.opcode = IB_WR_RDMA_READ_WITH_INV;
-		read_wr.wr.wr_id = (unsigned long)ctxt;
 		read_wr.wr.ex.invalidate_rkey = ctxt->frmr->mr->lkey;
 	} else {
 		read_wr.wr.opcode = IB_WR_RDMA_READ;
 		read_wr.wr.next = &inv_wr;
 		/* Prepare invalidate */
 		memset(&inv_wr, 0, sizeof(inv_wr));
-		inv_wr.wr_id = (unsigned long)ctxt;
+		ctxt->inv_cqe.done = svc_rdma_wc_inv;
+		inv_wr.wr_cqe = &ctxt->inv_cqe;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
 		inv_wr.send_flags = IB_SEND_SIGNALED | IB_SEND_FENCE;
 		inv_wr.ex.invalidate_rkey = frmr->mr->lkey;
 	}
-	ctxt->wr_op = read_wr.wr.opcode;
 
 	/* Post the chain */
 	ret = svc_rdma_send(xprt, &reg_wr.wr);

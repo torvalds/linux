@@ -119,7 +119,6 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	ctxt->pages[0] = virt_to_page(rqst->rq_buffer);
 	ctxt->count = 1;
 
-	ctxt->wr_op = IB_WR_SEND;
 	ctxt->direction = DMA_TO_DEVICE;
 	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = sndbuf->len;
@@ -133,7 +132,8 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	atomic_inc(&rdma->sc_dma_used);
 
 	memset(&send_wr, 0, sizeof(send_wr));
-	send_wr.wr_id = (unsigned long)ctxt;
+	ctxt->cqe.done = svc_rdma_wc_send;
+	send_wr.wr_cqe = &ctxt->cqe;
 	send_wr.sg_list = ctxt->sge;
 	send_wr.num_sge = 1;
 	send_wr.opcode = IB_WR_SEND;
