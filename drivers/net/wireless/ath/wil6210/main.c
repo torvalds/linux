@@ -27,6 +27,11 @@ bool debug_fw; /* = false; */
 module_param(debug_fw, bool, S_IRUGO);
 MODULE_PARM_DESC(debug_fw, " do not perform card reset. For FW debug");
 
+static bool oob_mode;
+module_param(oob_mode, bool, S_IRUGO);
+MODULE_PARM_DESC(oob_mode,
+		 " enable out of the box (OOB) mode in FW, for diagnostics and certification");
+
 bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
@@ -547,6 +552,16 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 	wil_w(wil, RGF_USER_USER_CPU_0, 1);
 }
 
+static void wil_set_oob_mode(struct wil6210_priv *wil, bool enable)
+{
+	wil_info(wil, "%s: enable=%d\n", __func__, enable);
+	if (enable) {
+		wil_s(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
+	} else {
+		wil_c(wil, RGF_USER_USAGE_6, BIT_USER_OOB_MODE);
+	}
+}
+
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
@@ -823,6 +838,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (rc)
 		return rc;
 
+	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
 		wil_info(wil, "Use firmware <%s> + board <%s>\n", WIL_FW_NAME,
 			 WIL_FW2_NAME);
