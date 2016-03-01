@@ -1540,11 +1540,6 @@ extern int vfs_rename(struct inode *, struct dentry *, struct inode *, struct de
 extern int vfs_whiteout(struct inode *, struct dentry *);
 
 /*
- * VFS dentry helper functions.
- */
-extern void dentry_unhash(struct dentry *dentry);
-
-/*
  * VFS file helper functions.
  */
 extern void inode_init_owner(struct inode *inode, const struct inode *dir,
