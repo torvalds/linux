@@ -2237,16 +2237,6 @@ static int adap_init0(struct adapter *adapter)
 	u32 param, val = 0;
 
 	/*
-	 * Wait for the device to become ready before proceeding ...
-	 */
-	err = t4vf_wait_dev_ready(adapter);
-	if (err) {
-		dev_err(adapter->pdev_dev, "device didn't become ready:"
-			" err=%d\n", err);
-		return err;
-	}
-
-	/*
 	 * Some environments do not properly handle PCIE FLRs -- e.g. in Linux
 	 * 2.6.31 and later we can't call pci_reset_function() in order to
 	 * issue an FLR because of a self- deadlock on the device semaphore.
