@@ -34,8 +34,11 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info,
 void btrfs_dev_replace_suspend_for_unmount(struct btrfs_fs_info *fs_info);
 int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info);
 int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace);
-void btrfs_dev_replace_lock(struct btrfs_dev_replace *dev_replace);
-void btrfs_dev_replace_unlock(struct btrfs_dev_replace *dev_replace);
+void btrfs_dev_replace_lock(struct btrfs_dev_replace *dev_replace, int rw);
+void btrfs_dev_replace_unlock(struct btrfs_dev_replace *dev_replace, int rw);
+void btrfs_dev_replace_set_lock_blocking(struct btrfs_dev_replace *dev_replace);
+void btrfs_dev_replace_clear_lock_blocking(
+					struct btrfs_dev_replace *dev_replace);
 
 static inline void btrfs_dev_replace_stats_inc(atomic64_t *stat_value)
 {

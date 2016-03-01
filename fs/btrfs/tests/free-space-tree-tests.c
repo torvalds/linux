@@ -485,6 +485,7 @@ static int run_test(test_func_t test_func, int bitmaps)
 	cache->bitmap_low_thresh = 0;
 	cache->bitmap_high_thresh = (u32)-1;
 	cache->needs_free_space = 1;
+	cache->fs_info = root->fs_info;
 
 	btrfs_init_dummy_trans(&trans);
 

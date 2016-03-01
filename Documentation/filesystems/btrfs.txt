@@ -168,10 +168,23 @@ Options with (*) are default options and will not show in the mount options.
   notreelog
 	Enable/disable the tree logging used for fsync and O_SYNC writes.
 
-  recovery
-	Enable autorecovery attempts if a bad tree root is found at mount time.
-	Currently this scans a list of several previous tree roots and tries to
+  nologreplay
+	Disable the log tree replay at mount time to prevent filesystem
+	from getting modified.
+	Must be used with 'ro' mount option.
+	A filesystem mounted with this option cannot transition to a
+	read-write mount via remount,rw - the filesystem must be unmounted
+	and mounted back again if read-write access is desired.
+
+  usebackuproot
+	Enable attempts to use backup tree roots if a bad tree root is found at
+	mount time.
+	Currently this scans a list of 4 previous tree roots and tries to
 	use the first readable.
+	And since the mount option doesn't affect any behavior after mount,
+	it won't be shown in mount info.
+	Prior to 4.6, this was done by 'recovery' option that has been
+	deprecated, but will work.
 
   rescan_uuid_tree
 	Force check and rebuild procedure of the UUID tree. This should not
