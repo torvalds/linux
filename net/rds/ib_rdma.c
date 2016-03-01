@@ -188,8 +188,13 @@ struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)
 	flag = this_cpu_ptr(&clean_list_grace);
 	set_bit(CLEAN_LIST_BUSY_BIT, flag);
 	ret = llist_del_first(&pool->clean_list);
-	if (ret)
+	if (ret) {
 		ibmr = llist_entry(ret, struct rds_ib_mr, llnode);
+		if (pool->pool_type == RDS_IB_MR_8K_POOL)
+			rds_ib_stats_inc(s_ib_rdma_mr_8k_reused);
+		else
+			rds_ib_stats_inc(s_ib_rdma_mr_1m_reused);
+	}
 
 	clear_bit(CLEAN_LIST_BUSY_BIT, flag);
 	preempt_enable();

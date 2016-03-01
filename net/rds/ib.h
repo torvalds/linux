@@ -259,6 +259,8 @@ struct rds_ib_statistics {
 	uint64_t	s_ib_rdma_mr_1m_pool_flush;
 	uint64_t	s_ib_rdma_mr_1m_pool_wait;
 	uint64_t	s_ib_rdma_mr_1m_pool_depleted;
+	uint64_t	s_ib_rdma_mr_8k_reused;
+	uint64_t	s_ib_rdma_mr_1m_reused;
 	uint64_t	s_ib_atomic_cswp;
 	uint64_t	s_ib_atomic_fadd;
 };
