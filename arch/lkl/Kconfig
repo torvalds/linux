@@ -1,6 +1,6 @@
 config LKL
        def_bool y
-       depends on !SMP && !MMU && !COREDUMP && !AUDITSYSCALL && !SECCOMP && !TRACEPOINTS && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER
+       depends on !SMP && !MMU && !COREDUMP && !AUDITSYSCALL && !SECCOMP && !TRACEPOINTS && !UPROBES && !COMPAT && !USER_RETURN_NOTIFIER && !VGA_CONSOLE
        select ARCH_THREAD_INFO_ALLOCATOR
        select RWSEM_GENERIC_SPINLOCK
        select GENERIC_ATOMIC64

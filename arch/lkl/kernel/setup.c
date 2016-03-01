@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/init_task.h>
+#include <linux/screen_info.h>
 #include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/start_kernel.h>
@@ -17,6 +18,20 @@ static void *halt_sem;
 static bool halt;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size;
+
+/*
+ * Prepare a screen_info structure when console is enabled.
+ */
+#if defined(CONFIG_DUMMY_CONSOLE)
+struct screen_info screen_info = {
+ .orig_video_lines	= CONFIG_DUMMY_CONSOLE_ROWS,
+ .orig_video_cols	= CONFIG_DUMMY_CONSOLE_COLUMNS,
+ .orig_video_mode	= 0,
+ .orig_video_ega_bx	= 0,
+ .orig_video_isVGA	= 1,
+ .orig_video_points	= 8
+};
+#endif
 
 long lkl_panic_blink(int state)
 {
