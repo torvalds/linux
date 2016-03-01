@@ -2680,7 +2680,7 @@ void i915_gem_request_free(struct kref *req_ref)
 
 	if (ctx) {
 		if (i915.enable_execlists && ctx != req->i915->kernel_context)
-			intel_lr_context_unpin(req);
+			intel_lr_context_unpin(ctx, req->ring);
 
 		i915_gem_context_unreference(ctx);
 	}
@@ -4465,6 +4465,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
+	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
 	.get_pages = i915_gem_object_get_pages_gtt,
 	.put_pages = i915_gem_object_put_pages_gtt,
 };
@@ -4912,7 +4913,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		req = i915_gem_request_alloc(ring, NULL);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -4925,7 +4926,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret && ret != -EIO) {
 			DRM_ERROR("PPGTT enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -4933,7 +4934,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret && ret != -EIO) {
 			DRM_ERROR("Context enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -5008,7 +5009,7 @@ out_unlock:
 }
 
 void
-i915_gem_cleanup_ringbuffer(struct drm_device *dev)
+i915_gem_cleanup_engines(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
@@ -5017,13 +5018,14 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	for_each_ring(ring, dev_priv, i)
 		dev_priv->gt.cleanup_ring(ring);
 
-    if (i915.enable_execlists)
-            /*
-             * Neither the BIOS, ourselves or any other kernel
-             * expects the system to be in execlists mode on startup,
-             * so we need to reset the GPU back to legacy mode.
-             */
-            intel_gpu_reset(dev);
+	if (i915.enable_execlists) {
+		/*
+		 * Neither the BIOS, ourselves or any other kernel
+		 * expects the system to be in execlists mode on startup,
+		 * so we need to reset the GPU back to legacy mode.
+		 */
+		intel_gpu_reset(dev);
+	}
 }
 
 static void
@@ -5034,7 +5036,7 @@ init_ring_lists(struct intel_engine_cs *ring)
 }
 
 void
-i915_gem_load(struct drm_device *dev)
+i915_gem_load_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
@@ -5100,9 +5102,16 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->mm.interruptible = true;
 
-	i915_gem_shrinker_init(dev_priv);
-
 	mutex_init(&dev_priv->fb_tracking.lock);
+}
+
+void i915_gem_load_cleanup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	kmem_cache_destroy(dev_priv->requests);
+	kmem_cache_destroy(dev_priv->vmas);
+	kmem_cache_destroy(dev_priv->objects);
 }
 
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)
@@ -5302,7 +5311,7 @@ i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n)
 	struct page *page;
 
 	/* Only default objects have per-page dirty tracking */
-	if (WARN_ON(obj->ops != &i915_gem_object_ops))
+	if (WARN_ON((obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE) == 0))
 		return NULL;
 
 	page = i915_gem_object_get_page(obj, n);

@@ -400,6 +400,8 @@ void intel_uncore_early_sanitize(struct drm_device *dev, bool restore_forcewake)
 
 void intel_uncore_sanitize(struct drm_device *dev)
 {
+	i915.enable_rc6 = sanitize_rc6_option(dev, i915.enable_rc6);
+
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_disable_gt_powersave(dev);
 }

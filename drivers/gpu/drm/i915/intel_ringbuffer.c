@@ -789,6 +789,22 @@ static int wa_add(struct drm_i915_private *dev_priv,
 
 #define WA_WRITE(addr, val) WA_REG(addr, 0xffffffff, val)
 
+static int wa_ring_whitelist_reg(struct intel_engine_cs *ring, i915_reg_t reg)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct i915_workarounds *wa = &dev_priv->workarounds;
+	const uint32_t index = wa->hw_whitelist_count[ring->id];
+
+	if (WARN_ON(index >= RING_MAX_NONPRIV_SLOTS))
+		return -EINVAL;
+
+	WA_WRITE(RING_FORCE_TO_NONPRIV(ring->mmio_base, index),
+		 i915_mmio_reg_offset(reg));
+	wa->hw_whitelist_count[ring->id]++;
+
+	return 0;
+}
+
 static int gen8_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -894,6 +910,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
+	int ret;
 
 	/* WaEnableLbsSlaRetryTimerDecrement:skl */
 	I915_WRITE(BDW_SCRATCH1, I915_READ(BDW_SCRATCH1) |
@@ -964,6 +981,20 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	/* WaDisableSTUnitPowerOptimization:skl,bxt */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN2, GEN8_ST_PO_DISABLE);
 
+	/* WaOCLCoherentLineFlush:skl,bxt */
+	I915_WRITE(GEN8_L3SQCREG4, (I915_READ(GEN8_L3SQCREG4) |
+				    GEN8_LQSC_FLUSH_COHERENT_LINES));
+
+	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt */
+	ret= wa_ring_whitelist_reg(ring, GEN8_CS_CHICKEN1);
+	if (ret)
+		return ret;
+
+	/* WaAllowUMDToModifyHDCChicken1:skl,bxt */
+	ret = wa_ring_whitelist_reg(ring, GEN8_HDC_CHICKEN1);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -1019,6 +1050,16 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
+	/*
+	 * Actual WA is to disable percontext preemption granularity control
+	 * until D0 which is the default case so this is equivalent to
+	 * !WaDisablePerCtxtPreemptionGranularityControl:skl
+	 */
+	if (IS_SKL_REVID(dev, SKL_REVID_E0, REVID_FOREVER)) {
+		I915_WRITE(GEN7_FF_SLICE_CS_CHICKEN1,
+			   _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL));
+	}
+
 	if (IS_SKL_REVID(dev, 0, SKL_REVID_D0)) {
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
@@ -1071,6 +1112,11 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 
+	/* WaDisableLSQCROPERFforOCL:skl */
+	ret = wa_ring_whitelist_reg(ring, GEN8_L3SQCREG4);
+	if (ret)
+		return ret;
+
 	return skl_tune_iz_hashing(ring);
 }
 
@@ -1106,6 +1152,20 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 	}
 
+	/* WaDisableObjectLevelPreemptionForTrifanOrPolygon:bxt */
+	/* WaDisableObjectLevelPreemptionForInstancedDraw:bxt */
+	/* WaDisableObjectLevelPreemtionForInstanceId:bxt */
+	/* WaDisableLSQCROPERFforOCL:bxt */
+	if (IS_BXT_REVID(dev, 0, BXT_REVID_A1)) {
+		ret = wa_ring_whitelist_reg(ring, GEN9_CS_DEBUG_MODE1);
+		if (ret)
+			return ret;
+
+		ret = wa_ring_whitelist_reg(ring, GEN8_L3SQCREG4);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -1117,6 +1177,7 @@ int init_workarounds_ring(struct intel_engine_cs *ring)
 	WARN_ON(ring->id != RCS);
 
 	dev_priv->workarounds.count = 0;
+	dev_priv->workarounds.hw_whitelist_count[RCS] = 0;
 
 	if (IS_BROADWELL(dev))
 		return bdw_init_workarounds(ring);
@@ -2057,6 +2118,9 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 			i915_gem_object_ggtt_unpin(obj);
 			return ret;
 		}
+
+		/* Access through the GTT requires the device to be awake. */
+		assert_rpm_wakelock_held(dev_priv);
 
 		ringbuf->virtual_start = ioremap_wc(dev_priv->gtt.mappable_base +
 						    i915_gem_obj_ggtt_offset(obj), ringbuf->size);

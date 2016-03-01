@@ -367,8 +367,20 @@ void i915_gem_shrinker_init(struct drm_i915_private *dev_priv)
 	dev_priv->mm.shrinker.scan_objects = i915_gem_shrinker_scan;
 	dev_priv->mm.shrinker.count_objects = i915_gem_shrinker_count;
 	dev_priv->mm.shrinker.seeks = DEFAULT_SEEKS;
-	register_shrinker(&dev_priv->mm.shrinker);
+	WARN_ON(register_shrinker(&dev_priv->mm.shrinker));
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
-	register_oom_notifier(&dev_priv->mm.oom_notifier);
+	WARN_ON(register_oom_notifier(&dev_priv->mm.oom_notifier));
+}
+
+/**
+ * i915_gem_shrinker_cleanup - Clean up i915 shrinker
+ * @dev_priv: i915 device
+ *
+ * This function unregisters the i915 shrinker and OOM handler.
+ */
+void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv)
+{
+	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
+	unregister_shrinker(&dev_priv->mm.shrinker);
 }

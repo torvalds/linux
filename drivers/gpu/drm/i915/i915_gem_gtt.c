@@ -2132,6 +2132,25 @@ static void i915_address_space_init(struct i915_address_space *vm,
 	list_add_tail(&vm->global_link, &dev_priv->vm_list);
 }
 
+static void gtt_write_workarounds(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* This function is for gtt related workarounds. This function is
+	 * called on driver load and after a GPU reset, so you can place
+	 * workarounds here even if they get overwritten by GPU reset.
+	 */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt */
+	if (IS_BROADWELL(dev))
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
+	else if (IS_CHERRYVIEW(dev))
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
+	else if (IS_SKYLAKE(dev))
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
+	else if (IS_BROXTON(dev))
+		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+}
+
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2148,6 +2167,8 @@ int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 int i915_ppgtt_init_hw(struct drm_device *dev)
 {
+	gtt_write_workarounds(dev);
+
 	/* In the case of execlists, PPGTT is enabled by the context descriptor
 	 * and the PDPs are contained within the context itself.  We don't
 	 * need to do anything here. */
@@ -2809,6 +2830,8 @@ void i915_global_gtt_cleanup(struct drm_device *dev)
 		ppgtt->base.cleanup(&ppgtt->base);
 	}
 
+	i915_gem_cleanup_stolen(dev);
+
 	if (drm_mm_initialized(&vm->mm)) {
 		if (intel_vgpu_active(dev))
 			intel_vgt_deballoon();
@@ -3181,6 +3204,14 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	/*
+	 * Initialise stolen early so that we may reserve preallocated
+	 * objects for the BIOS to KMS transition.
+	 */
+	ret = i915_gem_init_stolen(dev);
+	if (ret)
+		goto out_gtt_cleanup;
+
 	/* GMADR is the PCI mmio aperture into the global GTT. */
 	DRM_INFO("Memory usable by graphics device = %lluM\n",
 		 gtt->base.total >> 20);
@@ -3200,6 +3231,11 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	return 0;
+
+out_gtt_cleanup:
+	gtt->base.cleanup(&dev_priv->gtt.base);
+
+	return ret;
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_device *dev)
@@ -3333,6 +3369,7 @@ i915_gem_obj_lookup_or_create_ggtt_vma(struct drm_i915_gem_object *obj,
 static struct scatterlist *
 rotate_pages(const dma_addr_t *in, unsigned int offset,
 	     unsigned int width, unsigned int height,
+	     unsigned int stride,
 	     struct sg_table *st, struct scatterlist *sg)
 {
 	unsigned int column, row;
@@ -3344,7 +3381,7 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 	}
 
 	for (column = 0; column < width; column++) {
-		src_idx = width * (height - 1) + column;
+		src_idx = stride * (height - 1) + column;
 		for (row = 0; row < height; row++) {
 			st->nents++;
 			/* We don't need the pages, but need to initialize
@@ -3355,7 +3392,7 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 			sg_dma_address(sg) = in[offset + src_idx];
 			sg_dma_len(sg) = PAGE_SIZE;
 			sg = sg_next(sg);
-			src_idx -= width;
+			src_idx -= stride;
 		}
 	}
 
@@ -3363,10 +3400,9 @@ rotate_pages(const dma_addr_t *in, unsigned int offset,
 }
 
 static struct sg_table *
-intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
+intel_rotate_fb_obj_pages(struct intel_rotation_info *rot_info,
 			  struct drm_i915_gem_object *obj)
 {
-	struct intel_rotation_info *rot_info = &ggtt_view->params.rotation_info;
 	unsigned int size_pages = rot_info->size >> PAGE_SHIFT;
 	unsigned int size_pages_uv;
 	struct sg_page_iter sg_iter;
@@ -3408,6 +3444,7 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 	/* Rotate the pages. */
 	sg = rotate_pages(page_addr_list, 0,
 		     rot_info->width_pages, rot_info->height_pages,
+		     rot_info->width_pages,
 		     st, NULL);
 
 	/* Append the UV plane if NV12. */
@@ -3423,6 +3460,7 @@ intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 		rotate_pages(page_addr_list, uv_start_page,
 			     rot_info->width_pages_uv,
 			     rot_info->height_pages_uv,
+			     rot_info->width_pages_uv,
 			     st, sg);
 	}
 
@@ -3504,7 +3542,7 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 		vma->ggtt_view.pages = vma->obj->pages;
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
 		vma->ggtt_view.pages =
-			intel_rotate_fb_obj_pages(&vma->ggtt_view, vma->obj);
+			intel_rotate_fb_obj_pages(&vma->ggtt_view.params.rotated, vma->obj);
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
 		vma->ggtt_view.pages =
 			intel_partial_pages(&vma->ggtt_view, vma->obj);
@@ -3598,7 +3636,7 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 	if (view->type == I915_GGTT_VIEW_NORMAL) {
 		return obj->base.size;
 	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
-		return view->params.rotation_info.size;
+		return view->params.rotated.size;
 	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
 		return view->params.partial.size << PAGE_SHIFT;
 	} else {

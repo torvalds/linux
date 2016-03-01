@@ -772,10 +772,12 @@ struct drm_i915_gem_execbuffer2 {
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
 /** Used for switching BSD rings on the platforms with two BSD rings */
-#define I915_EXEC_BSD_MASK		(3<<13)
-#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
-#define I915_EXEC_BSD_RING1		(1<<13)
-#define I915_EXEC_BSD_RING2		(2<<13)
+#define I915_EXEC_BSD_SHIFT	 (13)
+#define I915_EXEC_BSD_MASK	 (3 << I915_EXEC_BSD_SHIFT)
+/* default ping-pong mode */
+#define I915_EXEC_BSD_DEFAULT	 (0 << I915_EXEC_BSD_SHIFT)
+#define I915_EXEC_BSD_RING1	 (1 << I915_EXEC_BSD_SHIFT)
+#define I915_EXEC_BSD_RING2	 (2 << I915_EXEC_BSD_SHIFT)
 
 /** Tell the kernel that the batchbuffer is processed by
  *  the resource streamer.

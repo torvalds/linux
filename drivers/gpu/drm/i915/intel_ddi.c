@@ -1531,7 +1531,8 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 			 DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
-	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
+	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+		   intel_encoder->type == INTEL_OUTPUT_DP_MST) {
 		switch (crtc_state->port_clock / 2) {
 		case 81000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, 0);
@@ -1545,8 +1546,10 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 		}
 
 		cfgcr1 = cfgcr2 = 0;
-	} else /* eDP */
+	} else if (intel_encoder->type == INTEL_OUTPUT_EDP) {
 		return true;
+	} else
+		return false;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -3281,7 +3284,6 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);
-	intel_dig_port->max_lanes = max_lanes;
 
 	/*
 	 * Bspec says that DDI_A_4_LANES is the only supported configuration
@@ -3294,8 +3296,11 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 		if (!(intel_dig_port->saved_port_bits & DDI_A_4_LANES)) {
 			DRM_DEBUG_KMS("BXT BIOS forgot to set DDI_A_4_LANES for port A; fixing\n");
 			intel_dig_port->saved_port_bits |= DDI_A_4_LANES;
+			max_lanes = 4;
 		}
 	}
+
+	intel_dig_port->max_lanes = max_lanes;
 
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

@@ -492,6 +492,8 @@ struct intel_crtc_state {
 
 	bool ips_enabled;
 
+	bool enable_fbc;
+
 	bool double_wide;
 
 	bool dp_encoder_is_mst;
@@ -542,16 +544,15 @@ struct intel_mmio_flip {
  */
 struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
-	bool disable_fbc;
-	bool disable_ips;
-	bool pre_disable_primary;
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
 	bool wait_vblank;
-	bool update_fbc;
 	bool post_enable_primary;
 	unsigned update_sprite_watermarks;
+
+	/* Sleepable operations to perform before and after commit */
+	bool update_fbc;
 };
 
 struct intel_crtc {
@@ -575,7 +576,7 @@ struct intel_crtc {
 	/* Display surface base address adjustement for pageflips. Note that on
 	 * gen4+ this only adjusts up to a tile, offsets within a tile are
 	 * handled in the hw itself (with the TILEOFF register). */
-	unsigned long dspaddr_offset;
+	u32 dspaddr_offset;
 	int adjusted_x;
 	int adjusted_y;
 
@@ -770,9 +771,9 @@ struct intel_dp {
 	int backlight_off_delay;
 	struct delayed_work panel_vdd_work;
 	bool want_panel_vdd;
-	unsigned long last_power_cycle;
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
+	ktime_t panel_power_off_time;
 
 	struct notifier_block edp_notifier;
 
@@ -1172,11 +1173,11 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
-unsigned long intel_compute_tile_offset(struct drm_i915_private *dev_priv,
-					int *x, int *y,
-					uint64_t fb_modifier,
-					unsigned int cpp,
-					unsigned int pitch);
+u32 intel_compute_tile_offset(struct drm_i915_private *dev_priv,
+			      int *x, int *y,
+			      uint64_t fb_modifier,
+			      unsigned int cpp,
+			      unsigned int pitch);
 void intel_prepare_reset(struct drm_device *dev);
 void intel_finish_reset(struct drm_device *dev);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
@@ -1327,13 +1328,16 @@ static inline void intel_fbdev_restore_mode(struct drm_device *dev)
 #endif
 
 /* intel_fbc.c */
+void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
+			   struct drm_atomic_state *state);
 bool intel_fbc_is_active(struct drm_i915_private *dev_priv);
-void intel_fbc_deactivate(struct intel_crtc *crtc);
-void intel_fbc_update(struct intel_crtc *crtc);
+void intel_fbc_pre_update(struct intel_crtc *crtc);
+void intel_fbc_post_update(struct intel_crtc *crtc);
 void intel_fbc_init(struct drm_i915_private *dev_priv);
+void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv);
 void intel_fbc_enable(struct intel_crtc *crtc);
-void intel_fbc_disable(struct drm_i915_private *dev_priv);
-void intel_fbc_disable_crtc(struct intel_crtc *crtc);
+void intel_fbc_disable(struct intel_crtc *crtc);
+void intel_fbc_global_disable(struct drm_i915_private *dev_priv);
 void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin);
@@ -1559,6 +1563,7 @@ void skl_wm_get_hw_state(struct drm_device *dev);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 uint32_t ilk_pipe_pixel_rate(const struct intel_crtc_state *pipe_config);
+int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6);
 
 /* intel_sdvo.c */
 bool intel_sdvo_init(struct drm_device *dev,

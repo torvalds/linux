@@ -1401,6 +1401,7 @@ eb_select_ring(struct drm_i915_private *dev_priv,
 			bsd_idx = gen8_dispatch_bsd_ring(dev_priv, file);
 		} else if (bsd_idx >= I915_EXEC_BSD_RING1 &&
 			   bsd_idx <= I915_EXEC_BSD_RING2) {
+			bsd_idx >>= I915_EXEC_BSD_SHIFT;
 			bsd_idx--;
 		} else {
 			DRM_DEBUG("execbuf with unknown bsd ring: %u\n",
@@ -1654,7 +1655,7 @@ err:
 	 * must be freed again. If it was submitted then it is being tracked
 	 * on the active request list and no clean up is required here.
 	 */
-	if (ret && req)
+	if (ret && !IS_ERR_OR_NULL(req))
 		i915_gem_request_cancel(req);
 
 	mutex_unlock(&dev->struct_mutex);

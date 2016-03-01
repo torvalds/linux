@@ -478,8 +478,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_dsi_prepare(encoder);
 	intel_enable_dsi_pll(encoder);
+	intel_dsi_prepare(encoder);
 
 	/* Panel Enable over CRC PMIC */
 	if (intel_dsi->gpio_panel)

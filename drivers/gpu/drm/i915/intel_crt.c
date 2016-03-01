@@ -216,6 +216,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
+	int max_dotclk = to_i915(dev)->max_dotclk_freq;
 
 	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -229,6 +230,9 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	else
 		max_clock = 400000;
 	if (mode->clock > max_clock)
+		return MODE_CLOCK_HIGH;
+
+	if (mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
 	/* The FDI receiver on LPT only supports 8bpc and only has 2 lanes. */

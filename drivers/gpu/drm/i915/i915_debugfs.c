@@ -2463,9 +2463,9 @@ static void i915_guc_client_info(struct seq_file *m,
 
 	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[i],
+				client->submissions[ring->guc_id],
 				ring->name);
-		tot += client->submissions[i];
+		tot += client->submissions[ring->guc_id];
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2502,10 +2502,10 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC submissions:\n");
 	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x %9d\n",
-			ring->name, guc.submissions[i],
-			guc.last_seqno[i], guc.last_seqno[i]);
-		total += guc.submissions[i];
+		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
+			ring->name, guc.submissions[ring->guc_id],
+			guc.last_seqno[ring->guc_id]);
+		total += guc.submissions[ring->guc_id];
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 
@@ -2583,6 +2583,10 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 				enabled = true;
 		}
 	}
+
+	seq_printf(m, "Main link in standby mode: %s\n",
+		   yesno(dev_priv->psr.link_standby));
+
 	seq_printf(m, "HW Enabled & Active bit: %s", yesno(enabled));
 
 	if (!HAS_DDI(dev))
@@ -3221,9 +3225,11 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	int i;
 	int ret;
+	struct intel_engine_cs *ring;
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_workarounds *workarounds = &dev_priv->workarounds;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -3231,15 +3237,18 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "Workarounds applied: %d\n", dev_priv->workarounds.count);
-	for (i = 0; i < dev_priv->workarounds.count; ++i) {
+	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
+	for_each_ring(ring, dev_priv, i)
+		seq_printf(m, "HW whitelist count for %s: %d\n",
+			   ring->name, workarounds->hw_whitelist_count[i]);
+	for (i = 0; i < workarounds->count; ++i) {
 		i915_reg_t addr;
 		u32 mask, value, read;
 		bool ok;
 
-		addr = dev_priv->workarounds.reg[i].addr;
-		mask = dev_priv->workarounds.reg[i].mask;
-		value = dev_priv->workarounds.reg[i].value;
+		addr = workarounds->reg[i].addr;
+		mask = workarounds->reg[i].mask;
+		value = workarounds->reg[i].value;
 		read = I915_READ(addr);
 		ok = (value & mask) == (read & mask);
 		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X, read: 0x%08x, status: %s\n",

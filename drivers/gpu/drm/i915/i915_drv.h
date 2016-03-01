@@ -59,7 +59,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160124"
+#define DRIVER_DATE		"20160214"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -900,16 +900,15 @@ enum fb_op_origin {
 	ORIGIN_DIRTYFB,
 };
 
-struct i915_fbc {
+struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
 	 * it's the outer lock when overlapping with stolen_lock. */
 	struct mutex lock;
 	unsigned threshold;
-	unsigned int fb_id;
 	unsigned int possible_framebuffer_bits;
 	unsigned int busy_bits;
+	unsigned int visible_pipes_mask;
 	struct intel_crtc *crtc;
-	int y;
 
 	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
@@ -919,18 +918,52 @@ struct i915_fbc {
 	bool enabled;
 	bool active;
 
+	struct intel_fbc_state_cache {
+		struct {
+			unsigned int mode_flags;
+			uint32_t hsw_bdw_pixel_rate;
+		} crtc;
+
+		struct {
+			unsigned int rotation;
+			int src_w;
+			int src_h;
+			bool visible;
+		} plane;
+
+		struct {
+			u64 ilk_ggtt_offset;
+			uint32_t pixel_format;
+			unsigned int stride;
+			int fence_reg;
+			unsigned int tiling_mode;
+		} fb;
+	} state_cache;
+
+	struct intel_fbc_reg_params {
+		struct {
+			enum pipe pipe;
+			enum plane plane;
+			unsigned int fence_y_offset;
+		} crtc;
+
+		struct {
+			u64 ggtt_offset;
+			uint32_t pixel_format;
+			unsigned int stride;
+			int fence_reg;
+		} fb;
+
+		int cfb_size;
+	} params;
+
 	struct intel_fbc_work {
 		bool scheduled;
+		u32 scheduled_vblank;
 		struct work_struct work;
-		struct drm_framebuffer *fb;
-		unsigned long enable_jiffies;
 	} work;
 
 	const char *no_fbc_reason;
-
-	bool (*is_active)(struct drm_i915_private *dev_priv);
-	void (*activate)(struct intel_crtc *crtc);
-	void (*deactivate)(struct drm_i915_private *dev_priv);
 };
 
 /**
@@ -970,6 +1003,7 @@ struct i915_psr {
 	unsigned busy_frontbuffer_bits;
 	bool psr2_support;
 	bool aux_frame_sync;
+	bool link_standby;
 };
 
 enum intel_pch {
@@ -1657,11 +1691,18 @@ struct i915_wa_reg {
 	u32 mask;
 };
 
-#define I915_MAX_WA_REGS 16
+/*
+ * RING_MAX_NONPRIV_SLOTS is per-engine but at this point we are only
+ * allowing it for RCS as we don't foresee any requirement of having
+ * a whitelist for other engines. When it is really required for
+ * other engines then the limit need to be increased.
+ */
+#define I915_MAX_WA_REGS (16 + RING_MAX_NONPRIV_SLOTS)
 
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
 	u32 count;
+	u32 hw_whitelist_count[I915_NUM_RINGS];
 };
 
 struct i915_virtual_gpu {
@@ -1758,7 +1799,7 @@ struct drm_i915_private {
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct i915_hotplug hotplug;
-	struct i915_fbc fbc;
+	struct intel_fbc fbc;
 	struct i915_drrs drrs;
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
@@ -1993,6 +2034,9 @@ enum hdmi_force_audio {
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 struct drm_i915_gem_object_ops {
+	unsigned int flags;
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
+
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
 	 * of pages before to binding them into the GTT, and put_pages() is
@@ -2008,6 +2052,7 @@ struct drm_i915_gem_object_ops {
 	 */
 	int (*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *);
+
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
 };
@@ -2841,7 +2886,8 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-void i915_gem_load(struct drm_device *dev);
+void i915_gem_load_init(struct drm_device *dev);
+void i915_gem_load_cleanup(struct drm_device *dev);
 void *i915_gem_object_alloc(struct drm_device *dev);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
@@ -3012,7 +3058,7 @@ int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
-void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
+void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,
@@ -3254,6 +3300,7 @@ unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
 #define I915_SHRINK_ACTIVE 0x8
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 void i915_gem_shrinker_init(struct drm_i915_private *dev_priv);
+void i915_gem_shrinker_cleanup(struct drm_i915_private *dev_priv);
 
 
 /* i915_gem_tiling.c */
@@ -3424,16 +3471,14 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u32 mbox, u32 val
 u32 vlv_punit_read(struct drm_i915_private *dev_priv, u32 addr);
 void vlv_punit_write(struct drm_i915_private *dev_priv, u32 addr, u32 val);
 u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr);
-u32 vlv_gpio_nc_read(struct drm_i915_private *dev_priv, u32 reg);
-void vlv_gpio_nc_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
+u32 vlv_iosf_sb_read(struct drm_i915_private *dev_priv, u8 port, u32 reg);
+void vlv_iosf_sb_write(struct drm_i915_private *dev_priv, u8 port, u32 reg, u32 val);
 u32 vlv_cck_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_cck_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 u32 vlv_ccu_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_ccu_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 u32 vlv_bunit_read(struct drm_i915_private *dev_priv, u32 reg);
 void vlv_bunit_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
-u32 vlv_gps_core_read(struct drm_i915_private *dev_priv, u32 reg);
-void vlv_gps_core_write(struct drm_i915_private *dev_priv, u32 reg, u32 val);
 u32 vlv_dpio_read(struct drm_i915_private *dev_priv, enum pipe pipe, int reg);
 void vlv_dpio_write(struct drm_i915_private *dev_priv, enum pipe pipe, int reg, u32 val);
 u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
