@@ -305,6 +305,11 @@ void wil_set_recovery_state(struct wil6210_priv *wil, int state)
 	wake_up_interruptible(&wil->wq);
 }
 
+bool wil_is_recovery_blocked(struct wil6210_priv *wil)
+{
+	return no_fw_recovery && (wil->recovery_state == fw_recovery_pending);
+}
+
 static void wil_fw_error_worker(struct work_struct *work)
 {
 	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,

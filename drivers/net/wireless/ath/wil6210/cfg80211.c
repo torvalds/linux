@@ -306,7 +306,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s() type=%d\n", __func__, type);
 
-	if (netif_running(wil_to_ndev(wil))) {
+	if (netif_running(wil_to_ndev(wil)) && !wil_is_recovery_blocked(wil)) {
 		wil_dbg_misc(wil, "interface is up. resetting...\n");
 		mutex_lock(&wil->mutex);
 		__wil_down(wil);
