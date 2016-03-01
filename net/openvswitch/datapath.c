@@ -1908,6 +1908,29 @@ static struct vport *lookup_vport(struct net *net,
 		return ERR_PTR(-EINVAL);
 }
 
+/* Called with ovs_mutex */
+static void update_headroom(struct datapath *dp)
+{
+	unsigned dev_headroom, max_headroom = 0;
+	struct net_device *dev;
+	struct vport *vport;
+	int i;
+
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node) {
+			dev = vport->dev;
+			dev_headroom = netdev_get_fwd_headroom(dev);
+			if (dev_headroom > max_headroom)
+				max_headroom = dev_headroom;
+		}
+	}
+
+	dp->max_headroom = max_headroom;
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node)
+			netdev_set_rx_headroom(vport->dev, max_headroom);
+}
+
 static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr **a = info->attrs;
@@ -1973,6 +1996,12 @@ restart:
 
 	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
 				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
+
+	if (netdev_get_fwd_headroom(vport->dev) > dp->max_headroom)
+		update_headroom(dp);
+	else
+		netdev_set_rx_headroom(vport->dev, dp->max_headroom);
+
 	BUG_ON(err < 0);
 	ovs_unlock();
 
@@ -2039,8 +2068,10 @@ exit_unlock_free:
 
 static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 {
+	bool must_update_headroom = false;
 	struct nlattr **a = info->attrs;
 	struct sk_buff *reply;
+	struct datapath *dp;
 	struct vport *vport;
 	int err;
 
@@ -2062,7 +2093,16 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
 				      info->snd_seq, 0, OVS_VPORT_CMD_DEL);
 	BUG_ON(err < 0);
+
+	/* the vport deletion may trigger dp headroom update */
+	dp = vport->dp;
+	if (netdev_get_fwd_headroom(vport->dev) == dp->max_headroom)
+		must_update_headroom = true;
+	netdev_reset_rx_headroom(vport->dev);
 	ovs_dp_detach_port(vport);
+
+	if (must_update_headroom)
+		update_headroom(dp);
 	ovs_unlock();
 
 	ovs_notify(&dp_vport_genl_family, reply, info);
