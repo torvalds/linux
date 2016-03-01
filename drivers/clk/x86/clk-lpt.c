@@ -10,8 +10,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/module.h>
