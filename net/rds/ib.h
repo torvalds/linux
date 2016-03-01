@@ -9,12 +9,6 @@
 #include "rds.h"
 #include "rdma_transport.h"
 
-#define RDS_FMR_1M_POOL_SIZE		(8192 / 2)
-#define RDS_FMR_1M_MSG_SIZE		256
-#define RDS_FMR_8K_MSG_SIZE		2
-#define RDS_MR_8K_SCALE			(256 / (RDS_FMR_8K_MSG_SIZE + 1))
-#define RDS_FMR_8K_POOL_SIZE		(RDS_MR_8K_SCALE * (8192 / 2))
-
 #define RDS_IB_MAX_SGE			8
 #define RDS_IB_RECV_SGE 		2
 
@@ -206,12 +200,12 @@ struct rds_ib_device {
 	struct list_head	conn_list;
 	struct ib_device	*dev;
 	struct ib_pd		*pd;
-	unsigned int		max_fmrs;
+	unsigned int		max_mrs;
 	struct rds_ib_mr_pool	*mr_1m_pool;
 	struct rds_ib_mr_pool   *mr_8k_pool;
 	unsigned int		fmr_max_remaps;
-	unsigned int		max_8k_fmrs;
-	unsigned int		max_1m_fmrs;
+	unsigned int		max_8k_mrs;
+	unsigned int		max_1m_mrs;
 	int			max_sge;
 	unsigned int		max_wrs;
 	unsigned int		max_initiator_depth;
@@ -316,8 +310,6 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device);
 void rds_ib_dev_put(struct rds_ib_device *rds_ibdev);
 extern struct ib_client rds_ib_client;
 
-extern unsigned int rds_ib_fmr_1m_pool_size;
-extern unsigned int rds_ib_fmr_8k_pool_size;
 extern unsigned int rds_ib_retry_count;
 
 extern spinlock_t ib_nodev_conns_lock;
@@ -347,17 +339,6 @@ int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr);
 void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_destroy_nodev_conns(void);
-struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_dev,
-					     int npages);
-void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_connection *iinfo);
-void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);
-void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
-		    struct rds_sock *rs, u32 *key_ret);
-void rds_ib_sync_mr(void *trans_private, int dir);
-void rds_ib_free_mr(void *trans_private, int invalidate);
-void rds_ib_flush_mrs(void);
-int rds_ib_fmr_init(void);
-void rds_ib_fmr_exit(void);
 
 /* ib_recv.c */
 int rds_ib_recv_init(void);
