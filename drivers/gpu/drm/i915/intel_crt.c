@@ -656,6 +656,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		else if (INTEL_INFO(dev)->gen < 4)
 			status = intel_crt_load_detect(crt,
 				to_intel_crtc(connector->state->crtc)->pipe);
+		else if (i915.load_detect_test)
+			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, &ctx);
