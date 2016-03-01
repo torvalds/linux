@@ -50,18 +50,19 @@ struct rds_ib_fmr {
 
 /* This is stored as mr->r_trans_private. */
 struct rds_ib_mr {
-	struct rds_ib_device	*device;
-	struct rds_ib_mr_pool	*pool;
+	struct rds_ib_device		*device;
+	struct rds_ib_mr_pool		*pool;
+	struct rds_ib_connection	*ic;
 
-	struct llist_node	llnode;
+	struct llist_node		llnode;
 
 	/* unmap_list is for freeing */
-	struct list_head	unmap_list;
-	unsigned int		remap_count;
+	struct list_head		unmap_list;
+	unsigned int			remap_count;
 
-	struct scatterlist	*sg;
-	unsigned int		sg_len;
-	int			sg_dma_len;
+	struct scatterlist		*sg;
+	unsigned int			sg_len;
+	int				sg_dma_len;
 
 	union {
 		struct rds_ib_fmr	fmr;
