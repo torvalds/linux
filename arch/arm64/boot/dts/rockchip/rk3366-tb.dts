@@ -749,3 +749,8 @@
 &cpu0 {
 	cpu-supply = <&syr827>;
 };
+
+&gpu {
+	mali-supply = <&vdd_logic>;
+	status = "okay";
+};

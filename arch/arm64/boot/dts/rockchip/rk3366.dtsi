@@ -1373,4 +1373,30 @@
 			};
 		};
 	};
+
+	gpu: gpu@ffa30000 {
+		compatible = "arm,malit764",
+			     "arm,malit76x",
+			     "arm,malit7xx",
+			     "arm,mali-midgard";
+
+		reg = <0x0 0xffa30000 0 0x10000>;
+
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "GPU", "MMU", "JOB";
+
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
+
+		operating-points = <
+			/* KHz    uV */
+			500000 1150000
+			420000 1050000
+			300000 950000
+			200000 900000
+			100000 900000 >;
+		status = "disabled";
+	};
 };
