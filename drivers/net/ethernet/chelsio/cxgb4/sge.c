@@ -2226,7 +2226,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 		budget_left--;
 	}
 
-	if (q->offset >= 0 && rxq->fl.size - rxq->fl.avail >= 16)
+	if (q->offset >= 0 && fl_cap(&rxq->fl) - rxq->fl.avail >= 16)
 		__refill_fl(q->adap, &rxq->fl);
 	return budget - budget_left;
 }

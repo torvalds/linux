@@ -1864,7 +1864,7 @@ static int process_responses(struct sge_rspq *rspq, int budget)
 	 * for new buffer pointers, refill the Free List.
 	 */
 	if (rspq->offset >= 0 &&
-	    rxq->fl.size - rxq->fl.avail >= 2*FL_PER_EQ_UNIT)
+	    fl_cap(&rxq->fl) - rxq->fl.avail >= 2*FL_PER_EQ_UNIT)
 		__refill_fl(rspq->adapter, &rxq->fl);
 	return budget - budget_left;
 }
