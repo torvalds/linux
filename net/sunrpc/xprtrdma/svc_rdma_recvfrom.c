@@ -653,7 +653,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rdma_build_arg_xdr(rqstp, ctxt, ctxt->byte_len);
 
 	/* Decode the RDMA header. */
-	ret = svc_rdma_xdr_decode_req(&rmsgp, rqstp);
+	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
+	ret = svc_rdma_xdr_decode_req(rmsgp, rqstp);
 	if (ret < 0)
 		goto out_err;
 	rqstp->rq_xprt_hlen = ret;

@@ -145,14 +145,10 @@ static __be32 *decode_reply_array(__be32 *va, __be32 *vaend)
 	return (__be32 *)&ary->wc_array[nchunks];
 }
 
-int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
-			    struct svc_rqst *rqstp)
+int svc_rdma_xdr_decode_req(struct rpcrdma_msg *rmsgp, struct svc_rqst *rqstp)
 {
-	struct rpcrdma_msg *rmsgp = NULL;
 	__be32 *va, *vaend;
 	u32 hdr_len;
-
-	rmsgp = (struct rpcrdma_msg *)rqstp->rq_arg.head[0].iov_base;
 
 	/* Verify that there's enough bytes for header + something */
 	if (rqstp->rq_arg.len <= RPCRDMA_HDRLEN_MIN) {
@@ -201,7 +197,6 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 	hdr_len = (unsigned long)va - (unsigned long)rmsgp;
 	rqstp->rq_arg.head[0].iov_len -= hdr_len;
 
-	*rdma_req = rmsgp;
 	return hdr_len;
 }
 
