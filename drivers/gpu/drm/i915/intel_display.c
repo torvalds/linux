@@ -12106,7 +12106,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 
 	ret = 0;
 	if (dev_priv->display.compute_pipe_wm) {
-		ret = dev_priv->display.compute_pipe_wm(intel_crtc, state);
+		ret = dev_priv->display.compute_pipe_wm(pipe_config);
 		if (ret) {
 			DRM_DEBUG_KMS("Target pipe watermarks are invalid\n");
 			return ret;

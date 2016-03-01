@@ -631,8 +631,7 @@ struct drm_i915_display_funcs {
 			  int target, int refclk,
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
-	int (*compute_pipe_wm)(struct intel_crtc *crtc,
-			       struct drm_atomic_state *state);
+	int (*compute_pipe_wm)(struct intel_crtc_state *cstate);
 	int (*compute_intermediate_wm)(struct drm_device *dev,
 				       struct intel_crtc *intel_crtc,
 				       struct intel_crtc_state *newstate);

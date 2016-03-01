@@ -1628,6 +1628,18 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 
 	return to_intel_crtc_state(crtc_state);
 }
+
+static inline struct intel_plane_state *
+intel_atomic_get_existing_plane_state(struct drm_atomic_state *state,
+				      struct intel_plane *plane)
+{
+	struct drm_plane_state *plane_state;
+
+	plane_state = drm_atomic_get_existing_plane_state(state, &plane->base);
+
+	return to_intel_plane_state(plane_state);
+}
+
 int intel_atomic_setup_scalers(struct drm_device *dev,
 	struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
