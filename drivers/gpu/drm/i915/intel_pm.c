@@ -32,6 +32,17 @@
 #include "../../../platform/x86/intel_ips.h"
 #include <linux/module.h>
 
+typedef enum _UHBUsage {
+	OSPM_UHB_ONLY_IF_ON = 0,
+	OSPM_UHB_FORCE_POWER_ON,
+} UHBUsage;
+
+static struct drm_device *gdev;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	#include <linux/earlysuspend.h>
+#endif
+
 /**
  * DOC: RC6
  *
@@ -7752,6 +7763,7 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 void intel_init_pm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	gdev = dev;
 
 	intel_fbc_init(dev_priv);
 
@@ -8139,3 +8151,44 @@ void intel_pm_setup(struct drm_device *dev)
 	atomic_set(&dev_priv->pm.wakeref_count, 0);
 	atomic_set(&dev_priv->pm.atomic_seq, 0);
 }
+
+bool ospm_power_is_hw_on(int hw_islands)
+{
+#if 0
+	struct drm_device *drm_dev = gdev;
+	unsigned long flags;
+	bool ret = false;
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	u32 data = vlv_punit_read(dev_priv, VLV_IOSFSB_PWRGT_STATUS);
+
+	if ((VLV_POWER_GATE_DISPLAY_MASK & data)
+			== VLV_POWER_GATE_DISPLAY_MASK) {
+		DRM_ERROR("Display Island not ON\n");
+		return false;
+	} else {
+		return true;
+	}
+#endif
+	return true;
+}
+EXPORT_SYMBOL(ospm_power_is_hw_on);
+
+/* Dummy Function for HDMI Audio Power management.
+ * Will be updated once S0iX code is integrated
+ */
+bool ospm_power_using_hw_begin(int hw_island, UHBUsage usage)
+{
+	struct drm_device *drm_dev = gdev;
+
+	i915_rpm_get_disp(drm_dev);
+	return i915_is_device_active(drm_dev);
+}
+EXPORT_SYMBOL(ospm_power_using_hw_begin);
+
+void ospm_power_using_hw_end(int hw_island)
+{
+	struct drm_device *drm_dev = gdev;
+
+	i915_rpm_put_disp(drm_dev);
+}
+EXPORT_SYMBOL(ospm_power_using_hw_end);
