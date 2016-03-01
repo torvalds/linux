@@ -236,12 +236,10 @@ static void rds_ib_cq_comp_handler_recv(struct ib_cq *cq, void *context)
 	tasklet_schedule(&ic->i_recv_tasklet);
 }
 
-static void poll_cq(struct rds_ib_connection *ic, struct ib_cq *cq,
-		    struct ib_wc *wcs,
-		    struct rds_ib_ack_state *ack_state)
+static void poll_scq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs)
 {
-	int nr;
-	int i;
+	int nr, i;
 	struct ib_wc *wc;
 
 	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
@@ -251,10 +249,7 @@ static void poll_cq(struct rds_ib_connection *ic, struct ib_cq *cq,
 				 (unsigned long long)wc->wr_id, wc->status,
 				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
 
-			if (wc->wr_id & RDS_IB_SEND_OP)
-				rds_ib_send_cqe_handler(ic, wc);
-			else
-				rds_ib_recv_cqe_handler(ic, wc, ack_state);
+			rds_ib_send_cqe_handler(ic, wc);
 		}
 	}
 }
@@ -263,19 +258,36 @@ static void rds_ib_tasklet_fn_send(unsigned long data)
 {
 	struct rds_ib_connection *ic = (struct rds_ib_connection *)data;
 	struct rds_connection *conn = ic->conn;
-	struct rds_ib_ack_state state;
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
-	memset(&state, 0, sizeof(state));
-	poll_cq(ic, ic->i_send_cq, ic->i_send_wc, &state);
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 	ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
-	poll_cq(ic, ic->i_send_cq, ic->i_send_wc, &state);
+	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 
 	if (rds_conn_up(conn) &&
 	    (!test_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
 	    test_bit(0, &conn->c_map_queued)))
 		rds_send_xmit(ic->conn);
+}
+
+static void poll_rcq(struct rds_ib_connection *ic, struct ib_cq *cq,
+		     struct ib_wc *wcs,
+		     struct rds_ib_ack_state *ack_state)
+{
+	int nr, i;
+	struct ib_wc *wc;
+
+	while ((nr = ib_poll_cq(cq, RDS_IB_WC_MAX, wcs)) > 0) {
+		for (i = 0; i < nr; i++) {
+			wc = wcs + i;
+			rdsdebug("wc wr_id 0x%llx status %u byte_len %u imm_data %u\n",
+				 (unsigned long long)wc->wr_id, wc->status,
+				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
+
+			rds_ib_recv_cqe_handler(ic, wc, ack_state);
+		}
+	}
 }
 
 static void rds_ib_tasklet_fn_recv(unsigned long data)
@@ -291,9 +303,9 @@ static void rds_ib_tasklet_fn_recv(unsigned long data)
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
 	memset(&state, 0, sizeof(state));
-	poll_cq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
 	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
-	poll_cq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
+	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
 
 	if (state.ack_next_valid)
 		rds_ib_set_ack(ic, state.ack_next, state.ack_required);
