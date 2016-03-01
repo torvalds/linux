@@ -325,6 +325,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_MSAA_OQ_FIX,
 
     gcvFEATURE_PE_ENHANCEMENTS2,
+    gcvFEATURE_FE_NEED_DUMMYDRAW,
 
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */

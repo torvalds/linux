@@ -68,6 +68,7 @@ typedef enum {
     gcvHARDWARE_FUNCTION_MMU,
     gcvHARDWARE_FUNCTION_FLUSH,
 
+    gcvHARDWARE_FUNCTION_DUMMY_DRAW,
     gcvHARDWARE_FUNCTION_NUM,
 }
 gceHARDWARE_FUNCTION;
@@ -204,6 +205,14 @@ gceSTATUS
 gckHARDWARE_GetFrameInfo(
     IN gckHARDWARE Hardware,
     OUT gcsHAL_FRAME_INFO * FrameInfo
+    );
+
+gceSTATUS
+gckHARDWARE_DummyDraw(
+    IN gckHARDWARE Hardware,
+    IN gctPOINTER Logical,
+    IN gctUINT32 Address,
+    IN OUT gctUINT32 * Bytes
     );
 
 #ifdef __cplusplus
