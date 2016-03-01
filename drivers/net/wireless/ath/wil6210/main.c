@@ -984,7 +984,7 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	wil_enable_irq(wil);
 
-	wil_p2p_stop_discovery(wil);
+	(void)wil_p2p_stop_discovery(wil);
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",

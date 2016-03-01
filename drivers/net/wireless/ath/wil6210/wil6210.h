@@ -775,8 +775,8 @@ int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
 int wil_p2p_listen(struct wil6210_priv *wil, unsigned int duration,
 		   struct ieee80211_channel *chan, u64 *cookie);
-void wil_p2p_stop_discovery(struct wil6210_priv *wil);
-void wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie);
+u8 wil_p2p_stop_discovery(struct wil6210_priv *wil);
+int wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie);
 void wil_p2p_listen_expired(struct work_struct *work);
 void wil_p2p_search_expired(struct work_struct *work);
 

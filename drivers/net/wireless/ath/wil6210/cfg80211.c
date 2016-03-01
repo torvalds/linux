@@ -387,7 +387,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 		return rc;
 	}
 
-	wil_p2p_stop_discovery(wil);
+	(void)wil_p2p_stop_discovery(wil);
 
 	wil_dbg_misc(wil, "Start scan_request 0x%p\n", request);
 	wil_dbg_misc(wil, "SSID count: %d", request->n_ssids);
@@ -868,6 +868,9 @@ static int wil_cfg80211_set_default_key(struct wiphy *wiphy,
 					u8 key_index, bool unicast,
 					bool multicast)
 {
+	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+
+	wil_dbg_misc(wil, "%s: entered\n", __func__);
 	return 0;
 }
 
@@ -903,9 +906,7 @@ static int wil_cancel_remain_on_channel(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	wil_p2p_cancel_listen(wil, cookie);
-
-	return 0;
+	return wil_p2p_cancel_listen(wil, cookie);
 }
 
 /**
