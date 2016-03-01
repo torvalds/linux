@@ -54,6 +54,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *cur;
 	int nr = 0;
+	int target;
 
 	mutex_lock(&subdev->mutex);
 	cur = fifo->runlist.mem[fifo->runlist.active];
@@ -67,7 +68,10 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	}
 	nvkm_done(cur);
 
-	nvkm_wr32(device, 0x002270, nvkm_memory_addr(cur) >> 12);
+	target = (nvkm_memory_target(cur) == NVKM_MEM_TARGET_HOST) ? 0x3 : 0x0;
+
+	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(cur) >> 12) |
+				    (target << 28));
 	nvkm_wr32(device, 0x002274, 0x01f00000 | nr);
 
 	if (wait_event_timeout(fifo->runlist.wait,
