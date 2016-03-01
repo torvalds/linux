@@ -1371,11 +1371,13 @@ static void rtl_op_sta_notify(struct ieee80211_hw *hw,
 
 static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
-			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			       u8 buf_size, bool amsdu)
+			       struct ieee80211_ampdu_params *params)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
 
 	switch (action) {
 	case IEEE80211_AMPDU_TX_START:

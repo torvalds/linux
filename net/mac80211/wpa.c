@@ -1,6 +1,7 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2008, Jouni Malinen <j@w1.fi>
+ * Copyright (C) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -183,7 +184,6 @@ mic_fail_no_key:
 	return RX_DROP_UNUSABLE;
 }
 
-
 static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -191,6 +191,7 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	unsigned int hdrlen;
 	int len, tail;
+	u64 pn;
 	u8 *pos;
 
 	if (info->control.hw_key &&
@@ -222,12 +223,8 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		return 0;
 
 	/* Increase IV for the frame */
-	spin_lock(&key->u.tkip.txlock);
-	key->u.tkip.tx.iv16++;
-	if (key->u.tkip.tx.iv16 == 0)
-		key->u.tkip.tx.iv32++;
-	pos = ieee80211_tkip_add_iv(pos, key);
-	spin_unlock(&key->u.tkip.txlock);
+	pn = atomic64_inc_return(&key->conf.tx_pn);
+	pos = ieee80211_tkip_add_iv(pos, &key->conf, pn);
 
 	/* hwaccel - with software IV */
 	if (info->control.hw_key)

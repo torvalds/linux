@@ -83,6 +83,8 @@ rfkill drivers that control devices that can be hard-blocked unless they also
 assign the poll_hw_block() callback (then the rfkill core will poll the
 device). Don't do this unless you cannot get the event in any other way.
 
+RFKill provides per-switch LED triggers, which can be used to drive LEDs
+according to the switch state (LED_FULL when blocked, LED_OFF otherwise).
 
 
 5. Userspace support
