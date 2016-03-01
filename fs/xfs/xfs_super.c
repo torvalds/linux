@@ -172,13 +172,17 @@ suffix_kstrtoint(const substring_t *s, unsigned int base, int *res)
  *
  * Note that this function leaks the various device name allocations on
  * failure.  The caller takes care of them.
+ *
+ * *sb is const because this is also used to test options on the remount
+ * path, and we don't want this to have any side effects at remount time.
+ * Today this function does not change *sb, but just to future-proof...
  */
 STATIC int
 xfs_parseargs(
 	struct xfs_mount	*mp,
 	char			*options)
 {
-	struct super_block	*sb = mp->m_super;
+	const struct super_block *sb = mp->m_super;
 	char			*p;
 	substring_t		args[MAX_OPT_ARGS];
 	int			dsunit = 0;
@@ -1170,6 +1174,27 @@ xfs_quiesce_attr(
 }
 
 STATIC int
+xfs_test_remount_options(
+	struct super_block	*sb,
+	struct xfs_mount	*mp,
+	char			*options)
+{
+	int			error = 0;
+	struct xfs_mount	*tmp_mp;
+
+	tmp_mp = kmem_zalloc(sizeof(*tmp_mp), KM_MAYFAIL);
+	if (!tmp_mp)
+		return -ENOMEM;
+
+	tmp_mp->m_super = sb;
+	error = xfs_parseargs(tmp_mp, options);
+	xfs_free_fsname(tmp_mp);
+	kfree(tmp_mp);
+
+	return error;
+}
+
+STATIC int
 xfs_fs_remount(
 	struct super_block	*sb,
 	int			*flags,
@@ -1180,6 +1205,11 @@ xfs_fs_remount(
 	substring_t		args[MAX_OPT_ARGS];
 	char			*p;
 	int			error;
+
+	/* First, check for complete junk; i.e. invalid options */
+	error = xfs_test_remount_options(sb, mp, options);
+	if (error)
+		return error;
 
 	sync_filesystem(sb);
 	while ((p = strsep(&options, ",")) != NULL) {
