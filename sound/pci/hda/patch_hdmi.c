@@ -1758,7 +1758,7 @@ static void hdmi_attach_hda_pcm(struct hdmi_spec *spec,
 	if (per_pin->pcm)
 		return;
 	idx = hdmi_find_pcm_slot(spec, per_pin);
-	if (idx == -ENODEV)
+	if (idx == -EBUSY)
 		return;
 	per_pin->pcm_idx = idx;
 	per_pin->pcm = get_hdmi_pcm(spec, idx);
