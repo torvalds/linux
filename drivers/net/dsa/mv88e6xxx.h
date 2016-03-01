@@ -133,7 +133,9 @@
 #define PORT_CONTROL_STATE_LEARNING	0x02
 #define PORT_CONTROL_STATE_FORWARDING	0x03
 #define PORT_CONTROL_1		0x05
+#define PORT_CONTROL_1_FID_11_4_MASK	(0xff << 0)
 #define PORT_BASE_VLAN		0x06
+#define PORT_BASE_VLAN_FID_3_0_MASK	(0xf << 12)
 #define PORT_DEFAULT_VLAN	0x07
 #define PORT_DEFAULT_VLAN_MASK	0xfff
 #define PORT_CONTROL_2		0x08
@@ -355,6 +357,8 @@
 #define GLOBAL2_QOS_WEIGHT	0x1c
 #define GLOBAL2_MISC		0x1d
 
+#define MV88E6XXX_N_FID		4096
+
 struct mv88e6xxx_switch_id {
 	u16 id;
 	char *name;
@@ -486,6 +490,8 @@ int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *bridge);
 int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
+int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
+				  bool vlan_filtering);
 int mv88e6xxx_port_vlan_prepare(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_vlan *vlan,
 				struct switchdev_trans *trans);

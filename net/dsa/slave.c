@@ -317,6 +317,24 @@ static int dsa_slave_stp_update(struct net_device *dev, u8 state)
 	return ret;
 }
 
+static int dsa_slave_vlan_filtering(struct net_device *dev,
+				    const struct switchdev_attr *attr,
+				    struct switchdev_trans *trans)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	/* bridge skips -EOPNOTSUPP, so skip the prepare phase */
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (ds->drv->port_vlan_filtering)
+		return ds->drv->port_vlan_filtering(ds, p->port,
+						    attr->u.vlan_filtering);
+
+	return 0;
+}
+
 static int dsa_slave_port_attr_set(struct net_device *dev,
 				   const struct switchdev_attr *attr,
 				   struct switchdev_trans *trans)
@@ -332,6 +350,9 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 		else
 			ret = ds->drv->port_stp_update(ds, p->port,
 						       attr->u.stp_state);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_FILTERING:
+		ret = dsa_slave_vlan_filtering(dev, attr, trans);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
