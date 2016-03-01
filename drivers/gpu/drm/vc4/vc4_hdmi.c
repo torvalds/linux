@@ -166,7 +166,7 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (vc4->hdmi->hpd_gpio) {
-		if (gpio_get_value(vc4->hdmi->hpd_gpio))
+		if (gpio_get_value_cansleep(vc4->hdmi->hpd_gpio))
 			return connector_status_connected;
 		else
 			return connector_status_disconnected;
