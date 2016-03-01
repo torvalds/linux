@@ -254,22 +254,24 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vm_manager_id *mgr_id = &adev->vm_manager.ids[vm_id];
+	bool gds_switch_needed = ring->funcs->emit_gds_switch && (
+		mgr_id->gds_base != gds_base ||
+		mgr_id->gds_size != gds_size ||
+		mgr_id->gws_base != gws_base ||
+		mgr_id->gws_size != gws_size ||
+		mgr_id->oa_base != oa_base ||
+		mgr_id->oa_size != oa_size);
+
+	if (ring->funcs->emit_pipeline_sync && (
+	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed))
+		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
-		if (ring->funcs->emit_pipeline_sync)
-			amdgpu_ring_emit_pipeline_sync(ring);
 		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
 	}
 
-	if (ring->funcs->emit_gds_switch && (
-	    mgr_id->gds_base != gds_base ||
-	    mgr_id->gds_size != gds_size ||
-	    mgr_id->gws_base != gws_base ||
-	    mgr_id->gws_size != gws_size ||
-	    mgr_id->oa_base != oa_base ||
-	    mgr_id->oa_size != oa_size)) {
-
+	if (gds_switch_needed) {
 		mgr_id->gds_base = gds_base;
 		mgr_id->gds_size = gds_size;
 		mgr_id->gws_base = gws_base;
