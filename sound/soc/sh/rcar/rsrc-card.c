@@ -71,7 +71,6 @@ struct rsrc_card_priv {
 #define rsrc_priv_to_dev(priv) ((priv)->snd_card.dev)
 #define rsrc_priv_to_link(priv, i) ((priv)->snd_card.dai_link + (i))
 #define rsrc_priv_to_props(priv, i) ((priv)->dai_props + (i))
-#define rsrc_dev_to_of_data(dev) (of_match_device(rsrc_card_of_match, (dev))->data)
 
 static int rsrc_card_startup(struct snd_pcm_substream *substream)
 {
@@ -246,7 +245,7 @@ static int rsrc_card_parse_links(struct device_node *np,
 		struct device *dev = rsrc_priv_to_dev(priv);
 		const struct rsrc_card_of_data *of_data;
 
-		of_data = rsrc_dev_to_of_data(dev);
+		of_data = of_device_get_match_data(dev);
 
 		/* FE is dummy */
 		dai_link->cpu_of_node		= NULL;
@@ -396,7 +395,7 @@ static int rsrc_card_parse_of(struct device_node *node,
 			      struct rsrc_card_priv *priv,
 			      struct device *dev)
 {
-	const struct rsrc_card_of_data *of_data = rsrc_dev_to_of_data(dev);
+	const struct rsrc_card_of_data *of_data = of_device_get_match_data(dev);
 	struct rsrc_card_dai *props;
 	struct snd_soc_dai_link *links;
 	int ret;
