@@ -70,7 +70,8 @@ static int ccp_get_irq(struct ccp_device *ccp)
 		return ret;
 
 	ccp->irq = ret;
-	ret = request_irq(ccp->irq, ccp_irq_handler, 0, ccp->name, dev);
+	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
+			  ccp->name, dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate IRQ (%d)\n", ret);
 		return ret;
@@ -171,7 +172,7 @@ static int ccp_platform_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, ccp);
 
-	ret = ccp_init(ccp);
+	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
 		goto e_err;
 
@@ -189,7 +190,7 @@ static int ccp_platform_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ccp_device *ccp = dev_get_drvdata(dev);
 
-	ccp_destroy(ccp);
+	ccp->vdata->perform->destroy(ccp);
 
 	dev_notice(dev, "disabled\n");
 

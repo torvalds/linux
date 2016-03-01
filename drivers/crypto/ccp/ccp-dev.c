@@ -63,11 +63,17 @@ unsigned int ccp_increment_unit_ordinal(void)
 	return atomic_inc_return(&ccp_unit_ordinal);
 }
 
-/*
+/**
+ * ccp_add_device - add a CCP device to the list
+ *
+ * @ccp: ccp_device struct pointer
+ *
  * Put this CCP on the unit list, which makes it available
  * for use.
+ *
+ * Returns zero if a CCP device is present, -ENODEV otherwise.
  */
-static inline void ccp_add_device(struct ccp_device *ccp)
+void ccp_add_device(struct ccp_device *ccp)
 {
 	unsigned long flags;
 
@@ -81,11 +87,16 @@ static inline void ccp_add_device(struct ccp_device *ccp)
 	write_unlock_irqrestore(&ccp_unit_lock, flags);
 }
 
-/* Remove this unit from the list of devices. If the next device
+/**
+ * ccp_del_device - remove a CCP device from the list
+ *
+ * @ccp: ccp_device struct pointer
+ *
+ * Remove this unit from the list of devices. If the next device
  * up for use is this one, adjust the pointer. If this is the last
  * device, NULL the pointer.
  */
-static inline void ccp_del_device(struct ccp_device *ccp)
+void ccp_del_device(struct ccp_device *ccp)
 {
 	unsigned long flags;
 
@@ -326,7 +337,12 @@ static void ccp_do_cmd_complete(unsigned long data)
 	complete(&tdata->completion);
 }
 
-static int ccp_cmd_queue_thread(void *data)
+/**
+ * ccp_cmd_queue_thread - create a kernel thread to manage a CCP queue
+ *
+ * @data: thread-specific data
+ */
+int ccp_cmd_queue_thread(void *data)
 {
 	struct ccp_cmd_queue *cmd_q = (struct ccp_cmd_queue *)data;
 	struct ccp_cmd *cmd;
@@ -362,35 +378,6 @@ static int ccp_cmd_queue_thread(void *data)
 	return 0;
 }
 
-static int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
-{
-	struct ccp_device *ccp = container_of(rng, struct ccp_device, hwrng);
-	u32 trng_value;
-	int len = min_t(int, sizeof(trng_value), max);
-
-	/*
-	 * Locking is provided by the caller so we can update device
-	 * hwrng-related fields safely
-	 */
-	trng_value = ioread32(ccp->io_regs + TRNG_OUT_REG);
-	if (!trng_value) {
-		/* Zero is returned if not data is available or if a
-		 * bad-entropy error is present. Assume an error if
-		 * we exceed TRNG_RETRIES reads of zero.
-		 */
-		if (ccp->hwrng_retries++ > TRNG_RETRIES)
-			return -EIO;
-
-		return 0;
-	}
-
-	/* Reset the counter and save the rng value */
-	ccp->hwrng_retries = 0;
-	memcpy(data, &trng_value, len);
-
-	return len;
-}
-
 /**
  * ccp_alloc_struct - allocate and initialize the ccp_device struct
  *
@@ -421,253 +408,6 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 	return ccp;
 }
 
-/**
- * ccp_init - initialize the CCP device
- *
- * @ccp: ccp_device struct
- */
-int ccp_init(struct ccp_device *ccp)
-{
-	struct device *dev = ccp->dev;
-	struct ccp_cmd_queue *cmd_q;
-	struct dma_pool *dma_pool;
-	char dma_pool_name[MAX_DMAPOOL_NAME_LEN];
-	unsigned int qmr, qim, i;
-	int ret;
-
-	/* Find available queues */
-	qim = 0;
-	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
-	for (i = 0; i < MAX_HW_QUEUES; i++) {
-		if (!(qmr & (1 << i)))
-			continue;
-
-		/* Allocate a dma pool for this queue */
-		snprintf(dma_pool_name, sizeof(dma_pool_name), "%s_q%d",
-			 ccp->name, i);
-		dma_pool = dma_pool_create(dma_pool_name, dev,
-					   CCP_DMAPOOL_MAX_SIZE,
-					   CCP_DMAPOOL_ALIGN, 0);
-		if (!dma_pool) {
-			dev_err(dev, "unable to allocate dma pool\n");
-			ret = -ENOMEM;
-			goto e_pool;
-		}
-
-		cmd_q = &ccp->cmd_q[ccp->cmd_q_count];
-		ccp->cmd_q_count++;
-
-		cmd_q->ccp = ccp;
-		cmd_q->id = i;
-		cmd_q->dma_pool = dma_pool;
-
-		/* Reserve 2 KSB regions for the queue */
-		cmd_q->ksb_key = KSB_START + ccp->ksb_start++;
-		cmd_q->ksb_ctx = KSB_START + ccp->ksb_start++;
-		ccp->ksb_count -= 2;
-
-		/* Preset some register values and masks that are queue
-		 * number dependent
-		 */
-		cmd_q->reg_status = ccp->io_regs + CMD_Q_STATUS_BASE +
-				    (CMD_Q_STATUS_INCR * i);
-		cmd_q->reg_int_status = ccp->io_regs + CMD_Q_INT_STATUS_BASE +
-					(CMD_Q_STATUS_INCR * i);
-		cmd_q->int_ok = 1 << (i * 2);
-		cmd_q->int_err = 1 << ((i * 2) + 1);
-
-		cmd_q->free_slots = CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
-
-		init_waitqueue_head(&cmd_q->int_queue);
-
-		/* Build queue interrupt mask (two interrupts per queue) */
-		qim |= cmd_q->int_ok | cmd_q->int_err;
-
-#ifdef CONFIG_ARM64
-		/* For arm64 set the recommended queue cache settings */
-		iowrite32(ccp->axcache, ccp->io_regs + CMD_Q_CACHE_BASE +
-			  (CMD_Q_CACHE_INC * i));
-#endif
-
-		dev_dbg(dev, "queue #%u available\n", i);
-	}
-	if (ccp->cmd_q_count == 0) {
-		dev_notice(dev, "no command queues available\n");
-		ret = -EIO;
-		goto e_pool;
-	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
-
-	/* Disable and clear interrupts until ready */
-	iowrite32(0x00, ccp->io_regs + IRQ_MASK_REG);
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-
-		ioread32(cmd_q->reg_int_status);
-		ioread32(cmd_q->reg_status);
-	}
-	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
-
-	/* Request an irq */
-	ret = ccp->get_irq(ccp);
-	if (ret) {
-		dev_err(dev, "unable to allocate an IRQ\n");
-		goto e_pool;
-	}
-
-	/* Initialize the queues used to wait for KSB space and suspend */
-	init_waitqueue_head(&ccp->ksb_queue);
-	init_waitqueue_head(&ccp->suspend_queue);
-
-	/* Create a kthread for each queue */
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		struct task_struct *kthread;
-
-		cmd_q = &ccp->cmd_q[i];
-
-		kthread = kthread_create(ccp_cmd_queue_thread, cmd_q,
-					 "%s-q%u", ccp->name, cmd_q->id);
-		if (IS_ERR(kthread)) {
-			dev_err(dev, "error creating queue thread (%ld)\n",
-				PTR_ERR(kthread));
-			ret = PTR_ERR(kthread);
-			goto e_kthread;
-		}
-
-		cmd_q->kthread = kthread;
-		wake_up_process(kthread);
-	}
-
-	/* Register the RNG */
-	ccp->hwrng.name = ccp->rngname;
-	ccp->hwrng.read = ccp_trng_read;
-	ret = hwrng_register(&ccp->hwrng);
-	if (ret) {
-		dev_err(dev, "error registering hwrng (%d)\n", ret);
-		goto e_kthread;
-	}
-
-	/* Make the device struct available before enabling interrupts */
-	ccp_add_device(ccp);
-
-	/* Enable interrupts */
-	iowrite32(qim, ccp->io_regs + IRQ_MASK_REG);
-
-	return 0;
-
-e_kthread:
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		if (ccp->cmd_q[i].kthread)
-			kthread_stop(ccp->cmd_q[i].kthread);
-
-	ccp->free_irq(ccp);
-
-e_pool:
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
-
-	return ret;
-}
-
-/**
- * ccp_destroy - tear down the CCP device
- *
- * @ccp: ccp_device struct
- */
-void ccp_destroy(struct ccp_device *ccp)
-{
-	struct ccp_cmd_queue *cmd_q;
-	struct ccp_cmd *cmd;
-	unsigned int qim, i;
-
-	/* Remove general access to the device struct */
-	ccp_del_device(ccp);
-
-	/* Unregister the RNG */
-	hwrng_unregister(&ccp->hwrng);
-
-	/* Stop the queue kthreads */
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		if (ccp->cmd_q[i].kthread)
-			kthread_stop(ccp->cmd_q[i].kthread);
-
-	/* Build queue interrupt mask (two interrupt masks per queue) */
-	qim = 0;
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-		qim |= cmd_q->int_ok | cmd_q->int_err;
-	}
-
-	/* Disable and clear interrupts */
-	iowrite32(0x00, ccp->io_regs + IRQ_MASK_REG);
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-
-		ioread32(cmd_q->reg_int_status);
-		ioread32(cmd_q->reg_status);
-	}
-	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
-
-	ccp->free_irq(ccp);
-
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
-
-	/* Flush the cmd and backlog queue */
-	while (!list_empty(&ccp->cmd)) {
-		/* Invoke the callback directly with an error code */
-		cmd = list_first_entry(&ccp->cmd, struct ccp_cmd, entry);
-		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
-	}
-	while (!list_empty(&ccp->backlog)) {
-		/* Invoke the callback directly with an error code */
-		cmd = list_first_entry(&ccp->backlog, struct ccp_cmd, entry);
-		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
-	}
-}
-
-/**
- * ccp_irq_handler - handle interrupts generated by the CCP device
- *
- * @irq: the irq associated with the interrupt
- * @data: the data value supplied when the irq was created
- */
-irqreturn_t ccp_irq_handler(int irq, void *data)
-{
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
-	struct ccp_cmd_queue *cmd_q;
-	u32 q_int, status;
-	unsigned int i;
-
-	status = ioread32(ccp->io_regs + IRQ_STATUS_REG);
-
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-
-		q_int = status & (cmd_q->int_ok | cmd_q->int_err);
-		if (q_int) {
-			cmd_q->int_status = status;
-			cmd_q->q_status = ioread32(cmd_q->reg_status);
-			cmd_q->q_int_status = ioread32(cmd_q->reg_int_status);
-
-			/* On error, only save the first error value */
-			if ((q_int & cmd_q->int_err) && !cmd_q->cmd_error)
-				cmd_q->cmd_error = CMD_Q_ERROR(cmd_q->q_status);
-
-			cmd_q->int_rcvd = 1;
-
-			/* Acknowledge the interrupt and wake the kthread */
-			iowrite32(q_int, ccp->io_regs + IRQ_STATUS_REG);
-			wake_up_interruptible(&cmd_q->int_queue);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
 #ifdef CONFIG_PM
 bool ccp_queues_suspended(struct ccp_device *ccp)
 {
@@ -686,10 +426,6 @@ bool ccp_queues_suspended(struct ccp_device *ccp)
 	return ccp->cmd_q_count == suspended;
 }
 #endif
-
-struct ccp_vdata ccpv3 = {
-	.version = CCP_VERSION(3, 0),
-};
 
 static int __init ccp_mod_init(void)
 {

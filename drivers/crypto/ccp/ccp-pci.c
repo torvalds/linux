@@ -62,7 +62,8 @@ static int ccp_get_msix_irqs(struct ccp_device *ccp)
 		snprintf(ccp_pci->msix[v].name, name_len, "%s-%u",
 			 ccp->name, v);
 		ccp_pci->msix[v].vector = msix_entry[v].vector;
-		ret = request_irq(ccp_pci->msix[v].vector, ccp_irq_handler,
+		ret = request_irq(ccp_pci->msix[v].vector,
+				  ccp->vdata->perform->irqhandler,
 				  0, ccp_pci->msix[v].name, dev);
 		if (ret) {
 			dev_notice(dev, "unable to allocate MSI-X IRQ (%d)\n",
@@ -95,7 +96,8 @@ static int ccp_get_msi_irq(struct ccp_device *ccp)
 		return ret;
 
 	ccp->irq = pdev->irq;
-	ret = request_irq(ccp->irq, ccp_irq_handler, 0, ccp->name, dev);
+	ret = request_irq(ccp->irq, ccp->vdata->perform->irqhandler, 0,
+			  ccp->name, dev);
 	if (ret) {
 		dev_notice(dev, "unable to allocate MSI IRQ (%d)\n", ret);
 		goto e_msi;
@@ -228,7 +230,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dev_set_drvdata(dev, ccp);
 
-	ret = ccp_init(ccp);
+	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
 		goto e_iomap;
 
@@ -258,7 +260,7 @@ static void ccp_pci_remove(struct pci_dev *pdev)
 	if (!ccp)
 		return;
 
-	ccp_destroy(ccp);
+	ccp->vdata->perform->destroy(ccp);
 
 	pci_iounmap(pdev, ccp->io_map);
 
