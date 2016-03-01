@@ -236,6 +236,9 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	fence_put(id->first);
 	id->first = fence_get(fence);
 
+	fence_put(id->last_flush);
+	id->last_flush = NULL;
+
 	fence_put(id->flushed_updates);
 	id->flushed_updates = fence_get(updates);
 
@@ -263,11 +266,11 @@ error:
  *
  * Emit a VM flush when it is necessary.
  */
-void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     unsigned vm_id, uint64_t pd_addr,
-		     uint32_t gds_base, uint32_t gds_size,
-		     uint32_t gws_base, uint32_t gws_size,
-		     uint32_t oa_base, uint32_t oa_size)
+int amdgpu_vm_flush(struct amdgpu_ring *ring,
+		    unsigned vm_id, uint64_t pd_addr,
+		    uint32_t gds_base, uint32_t gds_size,
+		    uint32_t gws_base, uint32_t gws_size,
+		    uint32_t oa_base, uint32_t oa_size)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_vm_id *id = &adev->vm_manager.ids[vm_id];
@@ -278,14 +281,25 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		id->gws_size != gws_size ||
 		id->oa_base != oa_base ||
 		id->oa_size != oa_size);
+	int r;
 
 	if (ring->funcs->emit_pipeline_sync && (
 	    pd_addr != AMDGPU_VM_NO_FLUSH || gds_switch_needed))
 		amdgpu_ring_emit_pipeline_sync(ring);
 
 	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
+		struct fence *fence;
+
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
 		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
+		r = amdgpu_fence_emit(ring, &fence);
+		if (r)
+			return r;
+
+		mutex_lock(&adev->vm_manager.lock);
+		fence_put(id->last_flush);
+		id->last_flush = fence;
+		mutex_unlock(&adev->vm_manager.lock);
 	}
 
 	if (gds_switch_needed) {
@@ -300,6 +314,8 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 					    gws_base, gws_size,
 					    oa_base, oa_size);
 	}
+
+	return 0;
 }
 
 /**
