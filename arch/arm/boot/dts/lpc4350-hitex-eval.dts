@@ -119,9 +119,25 @@
 			gpios = <&pca_gpio 3 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	vcc: vcc_fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3io";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &pinctrl {
+	adc1_pins: adc1-pins {
+		adc1_pins_cfg {
+			pins = "pf_9";
+			function = "adc";
+			input-disable;
+			bias-disable;
+		};
+	};
+
 	emc_pins: emc-pins {
 		emc_addr0_23_cfg {
 			pins =	"p2_9",  "p2_10", "p2_11", "p2_12",
@@ -323,6 +339,13 @@
 			bias-pull-down;
 		};
 	};
+};
+
+&adc1 {
+	status = "okay";
+	vref-supply = <&vcc>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&adc1_pins>;
 };
 
 &emc {
