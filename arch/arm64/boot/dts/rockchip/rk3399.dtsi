@@ -40,8 +40,9 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <dt-bindings/clock/rk3399-cru.h>
-#include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 / {
@@ -55,11 +56,6 @@
 		serial1 = &uart1;
 		serial2 = &uart2;
 		serial3 = &uart3;
-	};
-
-	psci {
-		compatible = "arm,psci";
-		method = "smc";
 	};
 
 	cpus {
@@ -92,82 +88,49 @@
 			};
 		};
 
-		idle-states {
-			entry-method = "psci";
-
-			cpu_sleep: cpu-sleep-0 {
-				compatible = "arm,idle-state";
-			};
-		};
-
 		cpu_l0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
 
 		cpu_l1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
 
 		cpu_l2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
 
 		cpu_l3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
 
 		cpu_b0: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x100>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
 
 		cpu_b1: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x101>;
-			cpu-idle-states = <&cpu_sleep>;
-			enable-method = "psci";
 		};
-	};
-
-	pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-affinity = <&cpu_l0>, <&cpu_l1>, <&cpu_l2>,
-				     <&cpu_l3>, <&cpu_b0>, <&cpu_b1>;
 	};
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts =
-			<GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 14
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 11
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 10
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
-		clock-frequency = <24000000>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	xin24m: xin24m {
@@ -190,9 +153,7 @@
 		      <0x0 0xfff00000 0 0x10000>, /* GICC */
 		      <0x0 0xfff10000 0 0x10000>, /* GICH */
 		      <0x0 0xfff20000 0 0x10000>; /* GICV */
-		interrupts =
-			<GIC_PPI 9
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		its: interrupt-controller@fee20000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
@@ -209,8 +170,8 @@
 		dmac_bus: dma-controller@ff6d0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff6d0000 0x0 0x4000>;
-			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC0_PERILP>;
 			clock-names = "apb_pclk";
@@ -219,8 +180,8 @@
 		dmac_peri: dma-controller@ff6e0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff6e0000 0x0 0x4000>;
-			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC1_PERILP>;
 			clock-names = "apb_pclk";
@@ -271,9 +232,87 @@
 		status = "disabled";
 	};
 
+	spi0: spi@ff1c0000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff110000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_clk &spi0_tx &spi0_rx &spi0_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi1: spi@ff1d0000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff120000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI1>, <&cru PCLK_SPI1>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi2: spi@ff1e0000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff130000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI2>, <&cru PCLK_SPI2>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi2_clk &spi2_tx &spi2_rx &spi2_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi4: spi@ff1f0000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff120000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI4>, <&cru PCLK_SPI4>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi4_clk &spi4_tx &spi4_rx &spi4_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi5: spi@ff200000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff130000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI5>, <&cru PCLK_SPI5>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi5_clk &spi5_tx &spi5_rx &spi5_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	pmugrf: syscon@ff320000 {
 		compatible = "rockchip,rk3399-pmugrf", "syscon";
 		reg = <0x0 0xff320000 0x0 0x1000>;
+	};
+
+	spi3: spi@ff350000 {
+		compatible = "rockchip,rk3399-spi", "rockchip,rk3066-spi";
+		reg = <0x0 0xff110000 0x0 0x1000>;
+		clocks = <&cru SCLK_SPI3_PMU>, <&cru PCLK_SPI3_PMU>;
+		clock-names = "spiclk", "apb_pclk";
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi3_clk &spi3_tx &spi3_rx &spi3_cs0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 
 	uart4: serial@ff370000 {
@@ -287,9 +326,10 @@
 		status = "disabled";
 	};
 
-	cru_pmu: pmu-clock-controller@ff750000 {
-		compatible = "rockchip,rk3399-pmu-cru";
+	pmucru: pmu-clock-controller@ff750000 {
+		compatible = "rockchip,rk3399-pmucru";
 		reg = <0x0 0xff750000 0x0 0x1000>;
+		rockchip,grf = <&pmugrf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 	};
