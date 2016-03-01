@@ -87,7 +87,7 @@ struct clk *imx_clk_fixup_mux(const char *name, void __iomem *reg,
 
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
 {
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static inline struct clk *imx_clk_divider(const char *name, const char *parent,
