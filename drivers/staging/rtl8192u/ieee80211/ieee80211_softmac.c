@@ -2287,12 +2287,6 @@ void ieee80211_stop_queue(struct ieee80211_device *ieee)
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
 
-inline void ieee80211_randomize_cell(struct ieee80211_device *ieee)
-{
-
-	random_ether_addr(ieee->current_network.bssid);
-}
-
 /* called in user context only */
 void ieee80211_start_master_bss(struct ieee80211_device *ieee)
 {
@@ -2382,7 +2376,7 @@ static void ieee80211_start_ibss_wq(struct work_struct *work)
 	if (ieee->state == IEEE80211_NOLINK) {
 		printk("creating new IBSS cell\n");
 		if(!ieee->wap_set)
-			ieee80211_randomize_cell(ieee);
+			random_ether_addr(ieee->current_network.bssid);
 
 		if(ieee->modulation & IEEE80211_CCK_MODULATION){
 
