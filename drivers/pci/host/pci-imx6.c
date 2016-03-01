@@ -502,6 +502,7 @@ static void imx6_pcie_init_phy(struct pcie_port *pp)
 static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 {
 	int count = 20000;
+	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 
 	while (!dw_pcie_link_up(pp)) {
 		udelay(10);
@@ -512,6 +513,17 @@ static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 		dev_dbg(pp->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
 			readl(pp->dbi_base + PCIE_PHY_DEBUG_R0),
 			readl(pp->dbi_base + PCIE_PHY_DEBUG_R1));
+
+		if (!IS_ENABLED(CONFIG_PCI_IMX6_COMPLIANCE_TEST)) {
+			clk_disable_unprepare(imx6_pcie->pcie);
+			clk_disable_unprepare(imx6_pcie->pcie_bus);
+			clk_disable_unprepare(imx6_pcie->pcie_phy);
+			if (is_imx6sx_pcie(imx6_pcie))
+				clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
+			release_bus_freq(BUS_FREQ_HIGH);
+			if (imx6_pcie->pcie_phy_regulator != NULL)
+				regulator_disable(imx6_pcie->pcie_phy_regulator);
+		}
 		return -EINVAL;
 	}
 
@@ -585,16 +597,6 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 
 	if (ret) {
 		dev_err(pp->dev, "Failed to bring link up!\n");
-		if (!IS_ENABLED(CONFIG_PCI_IMX6_COMPLIANCE_TEST)) {
-			clk_disable_unprepare(imx6_pcie->pcie);
-			clk_disable_unprepare(imx6_pcie->pcie_bus);
-			clk_disable_unprepare(imx6_pcie->pcie_phy);
-			if (is_imx6sx_pcie(imx6_pcie))
-				clk_disable_unprepare(imx6_pcie->pcie_inbound_axi);
-			release_bus_freq(BUS_FREQ_HIGH);
-			if (imx6_pcie->pcie_phy_regulator != NULL)
-				regulator_disable(imx6_pcie->pcie_phy_regulator);
-		}
 	} else {
 		tmp = readl(pp->dbi_base + 0x80);
 		dev_dbg(pp->dev, "Link up, Gen=%i\n", (tmp >> 16) & 0xf);
@@ -603,8 +605,9 @@ static int imx6_pcie_start_link(struct pcie_port *pp)
 	return ret;
 }
 
-static void imx6_pcie_host_init(struct pcie_port *pp)
+static int imx6_pcie_host_init(struct pcie_port *pp)
 {
+	int ret;
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pp);
 
 	/* enable disp_mix power domain */
@@ -619,10 +622,14 @@ static void imx6_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
-	imx6_pcie_start_link(pp);
+	ret = imx6_pcie_start_link(pp);
+	if (ret < 0)
+		return ret;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		dw_pcie_msi_init(pp);
+
+	return 0;
 }
 
 static void imx6_pcie_reset_phy(struct pcie_port *pp)
