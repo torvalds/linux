@@ -182,8 +182,9 @@ struct kvmppc_spapr_tce_table {
 	struct list_head list;
 	struct kvm *kvm;
 	u64 liobn;
-	u32 window_size;
 	struct rcu_head rcu;
+	u32 page_shift;
+	u64 size;		/* window size in pages */
 	struct page *pages[0];
 };
 

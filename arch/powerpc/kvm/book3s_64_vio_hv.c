@@ -72,11 +72,10 @@ EXPORT_SYMBOL_GPL(kvmppc_find_table);
 long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
 		unsigned long ioba, unsigned long npages)
 {
-	unsigned long mask = (1ULL << IOMMU_PAGE_SHIFT_4K) - 1;
-	unsigned long idx = ioba >> IOMMU_PAGE_SHIFT_4K;
-	unsigned long size = stt->window_size >> IOMMU_PAGE_SHIFT_4K;
+	unsigned long mask = (1ULL << stt->page_shift) - 1;
+	unsigned long idx = ioba >> stt->page_shift;
 
-	if ((ioba & mask) || (idx + npages > size) || (idx + npages < idx))
+	if ((ioba & mask) || (idx + npages > stt->size) || (idx + npages < idx))
 		return H_PARAMETER;
 
 	return H_SUCCESS;
@@ -96,8 +95,8 @@ EXPORT_SYMBOL_GPL(kvmppc_ioba_validate);
  */
 long kvmppc_tce_validate(struct kvmppc_spapr_tce_table *stt, unsigned long tce)
 {
-	unsigned long mask =
-			~(IOMMU_PAGE_MASK_4K | TCE_PCI_WRITE | TCE_PCI_READ);
+	unsigned long page_mask = ~((1ULL << stt->page_shift) - 1);
+	unsigned long mask = ~(page_mask | TCE_PCI_WRITE | TCE_PCI_READ);
 
 	if (tce & mask)
 		return H_PARAMETER;
@@ -198,7 +197,7 @@ long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	kvmppc_tce_put(stt, ioba >> IOMMU_PAGE_SHIFT_4K, tce);
+	kvmppc_tce_put(stt, ioba >> stt->page_shift, tce);
 
 	return H_SUCCESS;
 }
@@ -244,7 +243,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	if (!stt)
 		return H_TOO_HARD;
 
-	entry = ioba >> IOMMU_PAGE_SHIFT_4K;
+	entry = ioba >> stt->page_shift;
 	/*
 	 * The spec says that the maximum size of the list is 512 TCEs
 	 * so the whole table addressed resides in 4K page
@@ -313,8 +312,8 @@ long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 	if (tce_value & (TCE_PCI_WRITE | TCE_PCI_READ))
 		return H_PARAMETER;
 
-	for (i = 0; i < npages; ++i, ioba += IOMMU_PAGE_SIZE_4K)
-		kvmppc_tce_put(stt, ioba >> IOMMU_PAGE_SHIFT_4K, tce_value);
+	for (i = 0; i < npages; ++i, ioba += (1ULL << stt->page_shift))
+		kvmppc_tce_put(stt, ioba >> stt->page_shift, tce_value);
 
 	return H_SUCCESS;
 }
@@ -336,7 +335,7 @@ long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	idx = ioba >> IOMMU_PAGE_SHIFT_4K;
+	idx = ioba >> stt->page_shift;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = (u64 *)page_address(page);
 

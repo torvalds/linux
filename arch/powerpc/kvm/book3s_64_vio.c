@@ -40,10 +40,9 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 
-static unsigned long kvmppc_tce_pages(unsigned long window_size)
+static unsigned long kvmppc_tce_pages(unsigned long iommu_pages)
 {
-	return ALIGN((window_size >> IOMMU_PAGE_SHIFT_4K)
-		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
+	return ALIGN(iommu_pages * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
 }
 
 static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
@@ -95,8 +94,7 @@ static void release_spapr_tce_table(struct rcu_head *head)
 {
 	struct kvmppc_spapr_tce_table *stt = container_of(head,
 			struct kvmppc_spapr_tce_table, rcu);
-	int i;
-	unsigned long npages = kvmppc_tce_pages(stt->window_size);
+	unsigned long i, npages = kvmppc_tce_pages(stt->size);
 
 	for (i = 0; i < npages; i++)
 		__free_page(stt->pages[i]);
@@ -109,7 +107,7 @@ static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct kvmppc_spapr_tce_table *stt = vma->vm_file->private_data;
 	struct page *page;
 
-	if (vmf->pgoff >= kvmppc_tce_pages(stt->window_size))
+	if (vmf->pgoff >= kvmppc_tce_pages(stt->size))
 		return VM_FAULT_SIGBUS;
 
 	page = stt->pages[vmf->pgoff];
@@ -137,7 +135,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
 	kvm_put_kvm(stt->kvm);
 
 	kvmppc_account_memlimit(
-		kvmppc_stt_pages(kvmppc_tce_pages(stt->window_size)), false);
+		kvmppc_stt_pages(kvmppc_tce_pages(stt->size)), false);
 	call_rcu(&stt->rcu, release_spapr_tce_table);
 
 	return 0;
@@ -152,7 +150,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				   struct kvm_create_spapr_tce *args)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
-	unsigned long npages;
+	unsigned long npages, size;
 	int ret = -ENOMEM;
 	int i;
 
@@ -162,7 +160,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 			return -EBUSY;
 	}
 
-	npages = kvmppc_tce_pages(args->window_size);
+	size = args->window_size >> IOMMU_PAGE_SHIFT_4K;
+	npages = kvmppc_tce_pages(size);
 	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
 	if (ret) {
 		stt = NULL;
@@ -175,7 +174,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		goto fail;
 
 	stt->liobn = args->liobn;
-	stt->window_size = args->window_size;
+	stt->page_shift = IOMMU_PAGE_SHIFT_4K;
+	stt->size = size;
 	stt->kvm = kvm;
 
 	for (i = 0; i < npages; i++) {
@@ -218,7 +218,7 @@ long kvmppc_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	if (!stt)
 		return H_TOO_HARD;
 
-	entry = ioba >> IOMMU_PAGE_SHIFT_4K;
+	entry = ioba >> stt->page_shift;
 	/*
 	 * SPAPR spec says that the maximum size of the list is 512 TCEs
 	 * so the whole table fits in 4K page
