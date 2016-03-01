@@ -107,7 +107,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	int ret;
 
 	vec = svc_rdma_get_req_map(rdma);
-	ret = svc_rdma_map_xdr(rdma, sndbuf, vec);
+	ret = svc_rdma_map_xdr(rdma, sndbuf, vec, false);
 	if (ret)
 		goto out_err;
 
