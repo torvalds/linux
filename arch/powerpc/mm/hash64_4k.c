@@ -106,7 +106,7 @@ repeat:
 			}
 		}
 		/*
-		 * Hypervisor failure. Restore old pmd and return -1
+		 * Hypervisor failure. Restore old pte and return -1
 		 * similar to __hash_page_*
 		 */
 		if (unlikely(slot == -2)) {
