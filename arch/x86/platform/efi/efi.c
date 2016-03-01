@@ -592,42 +592,6 @@ static void __init get_systab_virt_addr(efi_memory_desc_t *md)
 	}
 }
 
-static void __init save_runtime_map(void)
-{
-#ifdef CONFIG_KEXEC_CORE
-	unsigned long desc_size;
-	efi_memory_desc_t *md;
-	void *tmp, *q = NULL;
-	int count = 0;
-
-	if (efi_enabled(EFI_OLD_MEMMAP))
-		return;
-
-	desc_size = efi.memmap.desc_size;
-
-	for_each_efi_memory_desc(md) {
-		if (!(md->attribute & EFI_MEMORY_RUNTIME) ||
-		    (md->type == EFI_BOOT_SERVICES_CODE) ||
-		    (md->type == EFI_BOOT_SERVICES_DATA))
-			continue;
-		tmp = krealloc(q, (count + 1) * desc_size, GFP_KERNEL);
-		if (!tmp)
-			goto out;
-		q = tmp;
-
-		memcpy(q + count * desc_size, md, desc_size);
-		count++;
-	}
-
-	efi_runtime_map_setup(q, count, desc_size);
-	return;
-
-out:
-	kfree(q);
-	pr_err("Error saving runtime map, efi runtime on kexec non-functional!!\n");
-#endif
-}
-
 static void *realloc_pages(void *old_memmap, int old_shift)
 {
 	void *ret;
@@ -840,8 +804,6 @@ static void __init kexec_enter_virtual_mode(void)
 		return;
 	}
 
-	save_runtime_map();
-
 	BUG_ON(!efi.systab);
 
 	num_pages = ALIGN(efi.memmap.nr_map * efi.memmap.desc_size, PAGE_SIZE);
@@ -933,8 +895,6 @@ static void __init __efi_enter_virtual_mode(void)
 		clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 		return;
 	}
-
-	save_runtime_map();
 
 	BUG_ON(!efi.systab);
 

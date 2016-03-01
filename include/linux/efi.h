@@ -1357,7 +1357,6 @@ extern int efi_capsule_update(efi_capsule_header_t *capsule,
 
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);
-void efi_runtime_map_setup(void *, int, u32);
 int efi_get_runtime_map_size(void);
 int efi_get_runtime_map_desc_size(void);
 int efi_runtime_map_copy(void *buf, size_t bufsz);
@@ -1366,9 +1365,6 @@ static inline int efi_runtime_map_init(struct kobject *kobj)
 {
 	return 0;
 }
-
-static inline void
-efi_runtime_map_setup(void *map, int nr_entries, u32 desc_size) {}
 
 static inline int efi_get_runtime_map_size(void)
 {
