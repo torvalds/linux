@@ -77,8 +77,12 @@ static int thingm_send(struct thingm_device *tdev, u8 buf[REPORT_SIZE])
 			buf[0], buf[1], buf[2], buf[3], buf[4],
 			buf[5], buf[6], buf[7], buf[8]);
 
+	mutex_lock(&tdev->lock);
+
 	ret = hid_hw_raw_request(tdev->hdev, buf[0], buf, REPORT_SIZE,
 			HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+
+	mutex_unlock(&tdev->lock);
 
 	return ret < 0 ? ret : 0;
 }
@@ -87,26 +91,37 @@ static int thingm_recv(struct thingm_device *tdev, u8 buf[REPORT_SIZE])
 {
 	int ret;
 
+	/*
+	 * A read consists of two operations: sending the read command
+	 * and the actual read from the device. Use the mutex to protect
+	 * the full sequence of both operations.
+	 */
+	mutex_lock(&tdev->lock);
+
+	ret = hid_hw_raw_request(tdev->hdev, buf[0], buf, REPORT_SIZE,
+			HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
+	if (ret < 0)
+		goto err;
+
 	ret = hid_hw_raw_request(tdev->hdev, buf[0], buf, REPORT_SIZE,
 			HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
 	if (ret < 0)
-		return ret;
+		goto err;
+
+	ret = 0;
 
 	hid_dbg(tdev->hdev, "<- %d %c %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx\n",
 			buf[0], buf[1], buf[2], buf[3], buf[4],
 			buf[5], buf[6], buf[7], buf[8]);
-
-	return 0;
+err:
+	mutex_unlock(&tdev->lock);
+	return ret;
 }
 
 static int thingm_version(struct thingm_device *tdev)
 {
 	u8 buf[REPORT_SIZE] = { REPORT_ID, 'v', 0, 0, 0, 0, 0, 0, 0 };
 	int err;
-
-	err = thingm_send(tdev, buf);
-	if (err)
-		return err;
 
 	err = thingm_recv(tdev, buf);
 	if (err)
@@ -135,13 +150,9 @@ static int thingm_led_set(struct led_classdev *ldev,
 	struct thingm_led *led = container_of(ldev, struct thingm_led, ldev);
 	int ret;
 
-	mutex_lock(&led->rgb->tdev->lock);
-
 	ret = thingm_write_color(led->rgb);
 	if (ret)
 		hid_err(led->rgb->tdev->hdev, "failed to write color\n");
-
-	mutex_unlock(&led->rgb->tdev->lock);
 
 	return ret;
 }
