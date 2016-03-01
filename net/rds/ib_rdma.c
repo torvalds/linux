@@ -397,7 +397,10 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 	if (list_empty(&unmap_list))
 		goto out;
 
-	rds_ib_unreg_fmr(&unmap_list, &nfreed, &unpinned, free_goal);
+	if (pool->use_fastreg)
+		rds_ib_unreg_frmr(&unmap_list, &nfreed, &unpinned, free_goal);
+	else
+		rds_ib_unreg_fmr(&unmap_list, &nfreed, &unpinned, free_goal);
 
 	if (!list_empty(&unmap_list)) {
 		/* we have to make sure that none of the things we're about
@@ -489,7 +492,10 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	rdsdebug("RDS/IB: free_mr nents %u\n", ibmr->sg_len);
 
 	/* Return it to the pool's free list */
-	rds_ib_free_fmr_list(ibmr);
+	if (rds_ibdev->use_fastreg)
+		rds_ib_free_frmr_list(ibmr);
+	else
+		rds_ib_free_fmr_list(ibmr);
 
 	atomic_add(ibmr->sg_len, &pool->free_pinned);
 	atomic_inc(&pool->dirty_count);
@@ -534,6 +540,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
+	struct rds_ib_connection *ic = rs->rs_conn->c_transport_data;
 	int ret;
 
 	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr);
@@ -547,7 +554,10 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		goto out;
 	}
 
-	ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
+	if (rds_ibdev->use_fastreg)
+		ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
+	else
+		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
 	if (ibmr)
 		rds_ibdev = NULL;
 
@@ -601,6 +611,7 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev,
 	pool->fmr_attr.max_maps = rds_ibdev->fmr_max_remaps;
 	pool->fmr_attr.page_shift = PAGE_SHIFT;
 	pool->max_items_soft = rds_ibdev->max_mrs * 3 / 4;
+	pool->use_fastreg = rds_ibdev->use_fastreg;
 
 	return pool;
 }

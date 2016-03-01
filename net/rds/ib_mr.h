@@ -48,6 +48,21 @@ struct rds_ib_fmr {
 	u64			*dma;
 };
 
+enum rds_ib_fr_state {
+	FRMR_IS_FREE,	/* mr invalidated & ready for use */
+	FRMR_IS_INUSE,	/* mr is in use or used & can be invalidated */
+	FRMR_IS_STALE,	/* Stale MR and needs to be dropped  */
+};
+
+struct rds_ib_frmr {
+	struct ib_mr		*mr;
+	enum rds_ib_fr_state	fr_state;
+	bool			fr_inv;
+	struct ib_send_wr	fr_wr;
+	unsigned int		dma_npages;
+	unsigned int		sg_byte_len;
+};
+
 /* This is stored as mr->r_trans_private. */
 struct rds_ib_mr {
 	struct rds_ib_device		*device;
@@ -66,6 +81,7 @@ struct rds_ib_mr {
 
 	union {
 		struct rds_ib_fmr	fmr;
+		struct rds_ib_frmr	frmr;
 	} u;
 };
 
@@ -88,6 +104,7 @@ struct rds_ib_mr_pool {
 	unsigned long		max_items_soft;
 	unsigned long		max_free_pinned;
 	struct ib_fmr_attr	fmr_attr;
+	bool			use_fastreg;
 };
 
 extern struct workqueue_struct *rds_ib_mr_wq;
@@ -121,4 +138,11 @@ struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *);
 void rds_ib_unreg_fmr(struct list_head *, unsigned int *,
 		      unsigned long *, unsigned int);
 void rds_ib_free_fmr_list(struct rds_ib_mr *);
+struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
+				  struct rds_ib_connection *ic,
+				  struct scatterlist *sg,
+				  unsigned long nents, u32 *key);
+void rds_ib_unreg_frmr(struct list_head *list, unsigned int *nfreed,
+		       unsigned long *unpinned, unsigned int goal);
+void rds_ib_free_frmr_list(struct rds_ib_mr *);
 #endif

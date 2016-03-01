@@ -349,6 +349,7 @@ int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr);
 void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_destroy_nodev_conns(void);
+void rds_ib_mr_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc);
 
 /* ib_recv.c */
 int rds_ib_recv_init(void);

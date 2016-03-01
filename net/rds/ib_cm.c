@@ -249,7 +249,12 @@ static void poll_scq(struct rds_ib_connection *ic, struct ib_cq *cq,
 				 (unsigned long long)wc->wr_id, wc->status,
 				 wc->byte_len, be32_to_cpu(wc->ex.imm_data));
 
-			rds_ib_send_cqe_handler(ic, wc);
+			if (wc->wr_id <= ic->i_send_ring.w_nr ||
+			    wc->wr_id == RDS_IB_ACK_WR_ID)
+				rds_ib_send_cqe_handler(ic, wc);
+			else
+				rds_ib_mr_cqe_handler(ic, wc);
+
 		}
 	}
 }
