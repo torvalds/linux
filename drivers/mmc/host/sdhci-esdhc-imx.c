@@ -150,10 +150,12 @@ static struct mmc_host *wifi_mmc_host;
 void wifi_card_detect(bool on)
 {
 	WARN_ON(!wifi_mmc_host);
-	if (on)
+	if (on) {
 		mmc_detect_change(wifi_mmc_host, 0);
-	else
-		mmc_sdio_force_remove(wifi_mmc_host);
+	} else {
+		if (wifi_mmc_host->card)
+			mmc_sdio_force_remove(wifi_mmc_host);
+	}
 }
 EXPORT_SYMBOL(wifi_card_detect);
 
