@@ -210,7 +210,8 @@ int ptrace_get_watch_regs(struct task_struct *child,
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		__put_user(child->thread.watch.mips3264.watchlo[i],
 			   &addr->WATCH_STYLE.watchlo[i]);
-		__put_user(child->thread.watch.mips3264.watchhi[i] & 0xfff,
+		__put_user(child->thread.watch.mips3264.watchhi[i] &
+				(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW),
 			   &addr->WATCH_STYLE.watchhi[i]);
 		__put_user(boot_cpu_data.watch_reg_masks[i],
 			   &addr->WATCH_STYLE.watch_masks[i]);
@@ -252,12 +253,12 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		}
 #endif
 		__get_user(ht[i], &addr->WATCH_STYLE.watchhi[i]);
-		if (ht[i] & ~0xff8)
+		if (ht[i] & ~MIPS_WATCHHI_MASK)
 			return -EINVAL;
 	}
 	/* Install them. */
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
-		if (lt[i] & 7)
+		if (lt[i] & MIPS_WATCHLO_IRW)
 			watch_active = 1;
 		child->thread.watch.mips3264.watchlo[i] = lt[i];
 		/* Set the G bit. */

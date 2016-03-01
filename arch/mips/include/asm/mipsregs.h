@@ -648,6 +648,24 @@
 /* FTLB probability bits for R6 */
 #define MIPS_CONF7_FTLBP_SHIFT	(18)
 
+/* WatchLo* register definitions */
+#define MIPS_WATCHLO_IRW	(_ULCAST_(0x7) << 0)
+
+/* WatchHi* register definitions */
+#define MIPS_WATCHHI_M		(_ULCAST_(1) << 31)
+#define MIPS_WATCHHI_G		(_ULCAST_(1) << 30)
+#define MIPS_WATCHHI_WM		(_ULCAST_(0x3) << 28)
+#define MIPS_WATCHHI_WM_R_RVA	(_ULCAST_(0) << 28)
+#define MIPS_WATCHHI_WM_R_GPA	(_ULCAST_(1) << 28)
+#define MIPS_WATCHHI_WM_G_GVA	(_ULCAST_(2) << 28)
+#define MIPS_WATCHHI_EAS	(_ULCAST_(0x3) << 24)
+#define MIPS_WATCHHI_ASID	(_ULCAST_(0xff) << 16)
+#define MIPS_WATCHHI_MASK	(_ULCAST_(0x1ff) << 3)
+#define MIPS_WATCHHI_I		(_ULCAST_(1) << 2)
+#define MIPS_WATCHHI_R		(_ULCAST_(1) << 1)
+#define MIPS_WATCHHI_W		(_ULCAST_(1) << 0)
+#define MIPS_WATCHHI_IRW	(_ULCAST_(0x7) << 0)
+
 /* MAAR bit definitions */
 #define MIPS_MAAR_ADDR		((BIT_ULL(BITS_PER_LONG - 12) - 1) << 12)
 #define MIPS_MAAR_ADDR_SHIFT	12
