@@ -2167,8 +2167,10 @@ static int ath10k_wmi_op_pull_mgmt_rx_ev(struct ath10k *ar, struct sk_buff *skb,
 	struct wmi_mgmt_rx_event_v1 *ev_v1;
 	struct wmi_mgmt_rx_event_v2 *ev_v2;
 	struct wmi_mgmt_rx_hdr_v1 *ev_hdr;
+	struct wmi_mgmt_rx_ext_info *ext_info;
 	size_t pull_len;
 	u32 msdu_len;
+	u32 len;
 
 	if (test_bit(ATH10K_FW_FEATURE_EXT_WMI_MGMT_RX, ar->fw_features)) {
 		ev_v2 = (struct wmi_mgmt_rx_event_v2 *)skb->data;
@@ -2195,6 +2197,12 @@ static int ath10k_wmi_op_pull_mgmt_rx_ev(struct ath10k *ar, struct sk_buff *skb,
 	if (skb->len < msdu_len)
 		return -EPROTO;
 
+	if (le32_to_cpu(arg->status) & WMI_RX_STATUS_EXT_INFO) {
+		len = ALIGN(le32_to_cpu(arg->buf_len), 4);
+		ext_info = (struct wmi_mgmt_rx_ext_info *)(skb->data + len);
+		memcpy(&arg->ext_info, ext_info,
+		       sizeof(struct wmi_mgmt_rx_ext_info));
+	}
 	/* the WMI buffer might've ended up being padded to 4 bytes due to HTC
 	 * trailer with credit update. Trim the excess garbage.
 	 */
@@ -2281,6 +2289,11 @@ int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	if (rx_status & WMI_RX_STATUS_ERR_MIC)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
+	if (rx_status & WMI_RX_STATUS_EXT_INFO) {
+		status->mactime =
+			__le64_to_cpu(arg.ext_info.rx_mac_timestamp);
+		status->flag |= RX_FLAG_MACTIME_END;
+	}
 	/* Hardware can Rx CCK rates on 5GHz. In that case phy_mode is set to
 	 * MODE_11B. This means phy_mode is not a reliable source for the band
 	 * of mgmt rx.
