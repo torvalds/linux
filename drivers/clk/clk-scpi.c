@@ -155,7 +155,7 @@ scpi_clk_ops_init(struct device *dev, const struct of_device_id *match,
 	unsigned long min = 0, max = 0;
 
 	init.name = name;
-	init.flags = CLK_IS_ROOT;
+	init.flags = 0;
 	init.num_parents = 0;
 	init.ops = match->data;
 	sclk->hw.init = &init;
