@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <keys/system_keyring.h>
 #include <crypto/public_key.h>
 #include "module-internal.h"
