@@ -930,6 +930,7 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	mb = udev->mb_addr;
 	mb->version = TCMU_MAILBOX_VERSION;
+	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
