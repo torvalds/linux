@@ -2537,12 +2537,6 @@ void rtllib_wake_all_queues(struct rtllib_device *ieee)
 	netif_tx_wake_all_queues(ieee->dev);
 }
 
-inline void rtllib_randomize_cell(struct rtllib_device *ieee)
-{
-
-	random_ether_addr(ieee->current_network.bssid);
-}
-
 /* called in user context only */
 static void rtllib_start_master_bss(struct rtllib_device *ieee)
 {
@@ -2633,7 +2627,7 @@ static void rtllib_start_ibss_wq(void *data)
 		netdev_info(ieee->dev, "creating new IBSS cell\n");
 		ieee->current_network.channel = ieee->IbssStartChnl;
 		if (!ieee->wap_set)
-			rtllib_randomize_cell(ieee);
+			eth_random_addr(ieee->current_network.bssid);
 
 		if (ieee->modulation & RTLLIB_CCK_MODULATION) {
 
