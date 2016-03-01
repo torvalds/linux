@@ -5170,7 +5170,6 @@ tonga_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 	mclk = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
 	seq_printf(m, "\n [  mclk  ]: %u MHz\n\n [  sclk  ]: %u MHz\n", mclk/100, sclk/100);
 
-
 	offset = data->soft_regs_start + offsetof(SMU72_SoftRegisters, AverageGraphicsActivity);
 	activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
 	activity_percent += 0x80;
@@ -5178,6 +5177,9 @@ tonga_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 
 	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
 
+	seq_printf(m, "uvd    %sabled\n", data->uvd_power_gated ? "dis" : "en");
+
+	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
 }
 
 static int tonga_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
