@@ -308,9 +308,6 @@ static int skeleton_querycap(struct file *file, void *priv,
 	strlcpy(cap->card, "V4L2 PCI Skeleton", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(skel->pdev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
-			   V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -872,6 +869,8 @@ static int skeleton_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vdev->release = video_device_release_empty;
 	vdev->fops = &skel_fops,
 	vdev->ioctl_ops = &skel_ioctl_ops,
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			    V4L2_CAP_STREAMING;
 	/*
 	 * The main serialization lock. All ioctls are serialized by this
 	 * lock. Exception: if q->lock is set, then the streaming ioctls
