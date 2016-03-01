@@ -198,7 +198,7 @@ static void xgene_pllclk_init(struct device_node *np, enum xgene_pll_type pll_ty
 	of_property_read_string(np, "clock-output-names", &clk_name);
 	clk = xgene_register_clk_pll(NULL,
 			clk_name, of_clk_get_parent_name(np, 0),
-			CLK_IS_ROOT, reg, 0, pll_type, &clk_lock,
+			0, reg, 0, pll_type, &clk_lock,
 			version);
 	if (!IS_ERR(clk)) {
 		of_clk_add_provider(np, of_clk_src_simple_get, clk);
