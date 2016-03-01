@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 
 #include "ms5611.h"
 
@@ -113,6 +114,17 @@ static int ms5611_i2c_remove(struct i2c_client *client)
 	return ms5611_remove(i2c_get_clientdata(client));
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id ms5611_i2c_matches[] = {
+	{ .compatible = "meas,ms5611" },
+	{ .compatible = "ms5611" },
+	{ .compatible = "meas,ms5607" },
+	{ .compatible = "ms5607" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ms5611_i2c_matches);
+#endif
+
 static const struct i2c_device_id ms5611_id[] = {
 	{ "ms5611", MS5611 },
 	{ "ms5607", MS5607 },
@@ -123,6 +135,7 @@ MODULE_DEVICE_TABLE(i2c, ms5611_id);
 static struct i2c_driver ms5611_driver = {
 	.driver = {
 		.name = "ms5611",
+		.of_match_table = of_match_ptr(ms5611_i2c_matches)
 	},
 	.id_table = ms5611_id,
 	.probe = ms5611_i2c_probe,
