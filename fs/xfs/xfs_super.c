@@ -580,23 +580,35 @@ xfs_max_file_offset(
 }
 
 /*
- * xfs_set_inode32() and xfs_set_inode64() are passed an agcount
- * because in the growfs case, mp->m_sb.sb_agcount is not updated
- * yet to the potentially higher ag count.
+ * Set parameters for inode allocation heuristics, taking into account
+ * filesystem size and inode32/inode64 mount options; i.e. specifically
+ * whether or not XFS_MOUNT_SMALL_INUMS is set.
+ *
+ * Inode allocation patterns are altered only if inode32 is requested
+ * (XFS_MOUNT_SMALL_INUMS), and the filesystem is sufficiently large.
+ * If altered, XFS_MOUNT_32BITINODES is set as well.
+ *
+ * An agcount independent of that in the mount structure is provided
+ * because in the growfs case, mp->m_sb.sb_agcount is not yet updated
+ * to the potentially higher ag count.
+ *
+ * Returns the maximum AG index which may contain inodes.
  */
 xfs_agnumber_t
-xfs_set_inode32(struct xfs_mount *mp, xfs_agnumber_t agcount)
+xfs_set_inode_alloc(
+	struct xfs_mount *mp,
+	xfs_agnumber_t	agcount)
 {
-	xfs_agnumber_t	index = 0;
+	xfs_agnumber_t	index;
 	xfs_agnumber_t	maxagi = 0;
 	xfs_sb_t	*sbp = &mp->m_sb;
 	xfs_agnumber_t	max_metadata;
 	xfs_agino_t	agino;
 	xfs_ino_t	ino;
-	xfs_perag_t	*pag;
 
-	/* Calculate how much should be reserved for inodes to meet
-	 * the max inode percentage.
+	/*
+	 * Calculate how much should be reserved for inodes to meet
+	 * the max inode percentage.  Used only for inode32.
 	 */
 	if (mp->m_maxicount) {
 		__uint64_t	icount;
@@ -610,54 +622,48 @@ xfs_set_inode32(struct xfs_mount *mp, xfs_agnumber_t agcount)
 		max_metadata = agcount;
 	}
 
+	/* Get the last possible inode in the filesystem */
 	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
+	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
 
-	for (index = 0; index < agcount; index++) {
-		ino = XFS_AGINO_TO_INO(mp, index, agino);
-
-		if (ino > XFS_MAXINUMBER_32) {
-			pag = xfs_perag_get(mp, index);
-			pag->pagi_inodeok = 0;
-			pag->pagf_metadata = 0;
-			xfs_perag_put(pag);
-			continue;
-		}
-
-		pag = xfs_perag_get(mp, index);
-		pag->pagi_inodeok = 1;
-		maxagi++;
-		if (index < max_metadata)
-			pag->pagf_metadata = 1;
-		xfs_perag_put(pag);
-	}
-	mp->m_flags |= (XFS_MOUNT_32BITINODES |
-			XFS_MOUNT_SMALL_INUMS);
-
-	return maxagi;
-}
-
-xfs_agnumber_t
-xfs_set_inode64(struct xfs_mount *mp, xfs_agnumber_t agcount)
-{
-	xfs_agnumber_t index = 0;
+	/*
+	 * If user asked for no more than 32-bit inodes, and the fs is
+	 * sufficiently large, set XFS_MOUNT_32BITINODES if we must alter
+	 * the allocator to accommodate the request.
+	 */
+	if ((mp->m_flags & XFS_MOUNT_SMALL_INUMS) && ino > XFS_MAXINUMBER_32)
+		mp->m_flags |= XFS_MOUNT_32BITINODES;
+	else
+		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
 
 	for (index = 0; index < agcount; index++) {
 		struct xfs_perag	*pag;
 
+		ino = XFS_AGINO_TO_INO(mp, index, agino);
+
 		pag = xfs_perag_get(mp, index);
-		pag->pagi_inodeok = 1;
-		pag->pagf_metadata = 0;
+
+		if (mp->m_flags & XFS_MOUNT_32BITINODES) {
+			if (ino > XFS_MAXINUMBER_32) {
+				pag->pagi_inodeok = 0;
+				pag->pagf_metadata = 0;
+			} else {
+				pag->pagi_inodeok = 1;
+				maxagi++;
+				if (index < max_metadata)
+					pag->pagf_metadata = 1;
+				else
+					pag->pagf_metadata = 0;
+			}
+		} else {
+			pag->pagi_inodeok = 1;
+			pag->pagf_metadata = 0;
+		}
+
 		xfs_perag_put(pag);
 	}
 
-	/* There is no need for lock protection on m_flags,
-	 * the rw_semaphore of the VFS superblock is locked
-	 * during mount/umount/remount operations, so this is
-	 * enough to avoid concurency on the m_flags field
-	 */
-	mp->m_flags &= ~(XFS_MOUNT_32BITINODES |
-			 XFS_MOUNT_SMALL_INUMS);
-	return index;
+	return (mp->m_flags & XFS_MOUNT_32BITINODES) ? maxagi : agcount;
 }
 
 STATIC int
@@ -1227,10 +1233,12 @@ xfs_fs_remount(
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 			break;
 		case Opt_inode64:
-			mp->m_maxagi = xfs_set_inode64(mp, sbp->sb_agcount);
+			mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
+			mp->m_maxagi = xfs_set_inode_alloc(mp, sbp->sb_agcount);
 			break;
 		case Opt_inode32:
-			mp->m_maxagi = xfs_set_inode32(mp, sbp->sb_agcount);
+			mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
+			mp->m_maxagi = xfs_set_inode_alloc(mp, sbp->sb_agcount);
 			break;
 		default:
 			/*
