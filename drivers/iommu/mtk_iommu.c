@@ -578,8 +578,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 	struct resource         *res;
 	struct component_match  *match = NULL;
 	void                    *protect;
-	unsigned int            i, larb_nr;
-	int                     ret;
+	int                     i, larb_nr, ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
