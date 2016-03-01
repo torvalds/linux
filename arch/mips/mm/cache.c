@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 
 #include <asm/cacheflush.h>
+#include <asm/highmem.h>
 #include <asm/processor.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -83,8 +84,6 @@ void __flush_dcache_page(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 	unsigned long addr;
 
-	if (PageHighMem(page))
-		return;
 	if (mapping && !mapping_mapped(mapping)) {
 		SetPageDcacheDirty(page);
 		return;
@@ -95,8 +94,15 @@ void __flush_dcache_page(struct page *page)
 	 * case is for exec env/arg pages and those are %99 certainly going to
 	 * get faulted into the tlb (and thus flushed) anyways.
 	 */
-	addr = (unsigned long) page_address(page);
+	if (PageHighMem(page))
+		addr = (unsigned long)kmap_atomic(page);
+	else
+		addr = (unsigned long)page_address(page);
+
 	flush_data_cache_page(addr);
+
+	if (PageHighMem(page))
+		__kunmap_atomic((void *)addr);
 }
 
 EXPORT_SYMBOL(__flush_dcache_page);
