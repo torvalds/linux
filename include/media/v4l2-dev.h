@@ -90,6 +90,9 @@ struct video_device
 	/* device ops */
 	const struct v4l2_file_operations *fops;
 
+	/* device capabilities as used in v4l2_capabilities */
+	u32 device_caps;
+
 	/* sysfs */
 	struct device dev;		/* v4l device */
 	struct cdev *cdev;		/* character device */
