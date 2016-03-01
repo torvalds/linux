@@ -423,10 +423,14 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(mdev, cq_moderation))
 		return -ENOTSUPP;
 
+	mutex_lock(&priv->state_lock);
 	priv->params.tx_cq_moderation_usec = coal->tx_coalesce_usecs;
 	priv->params.tx_cq_moderation_pkts = coal->tx_max_coalesced_frames;
 	priv->params.rx_cq_moderation_usec = coal->rx_coalesce_usecs;
 	priv->params.rx_cq_moderation_pkts = coal->rx_max_coalesced_frames;
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto out;
 
 	for (i = 0; i < priv->params.num_channels; ++i) {
 		c = priv->channel[i];
@@ -443,6 +447,8 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 					       coal->rx_max_coalesced_frames);
 	}
 
+out:
+	mutex_unlock(&priv->state_lock);
 	return 0;
 }
 
