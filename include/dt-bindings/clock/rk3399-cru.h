@@ -118,6 +118,10 @@
 #define SCLK_INTMEM3			151
 #define SCLK_INTMEM4			152
 #define SCLK_INTMEM5			153
+#define SCLK_SDMMC_DRV			154
+#define SCLK_SDMMC_SAMPLE		155
+#define SCLK_SDIO_DRV			156
+#define SCLK_SDIO_SAMPLE		157
 
 #define DCLK_VOP0			170
 #define DCLK_VOP1			171
