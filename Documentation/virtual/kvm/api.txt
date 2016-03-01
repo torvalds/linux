@@ -3060,6 +3060,38 @@ an implementation for these despite the in kernel acceleration.
 
 This capability is always enabled.
 
+4.98 KVM_CREATE_SPAPR_TCE_64
+
+Capability: KVM_CAP_SPAPR_TCE_64
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce_64 (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This is an extension for KVM_CAP_SPAPR_TCE which only supports 32bit
+windows, described in 4.62 KVM_CREATE_SPAPR_TCE
+
+This capability uses extended struct in ioctl interface:
+
+/* for KVM_CAP_SPAPR_TCE_64 */
+struct kvm_create_spapr_tce_64 {
+	__u64 liobn;
+	__u32 page_shift;
+	__u32 flags;
+	__u64 offset;	/* in pages */
+	__u64 size; 	/* in pages */
+};
+
+The aim of extension is to support an additional bigger DMA window with
+a variable page size.
+KVM_CREATE_SPAPR_TCE_64 receives a 64bit window size, an IOMMU page shift and
+a bus offset of the corresponding DMA window, @size and @offset are numbers
+of IOMMU pages.
+
+@flags are not used at the moment.
+
+The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+
 5. The kvm_run structure
 ------------------------
 

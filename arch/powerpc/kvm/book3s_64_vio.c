@@ -147,12 +147,15 @@ static const struct file_operations kvm_spapr_tce_fops = {
 };
 
 long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
-				   struct kvm_create_spapr_tce *args)
+				   struct kvm_create_spapr_tce_64 *args)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
 	unsigned long npages, size;
 	int ret = -ENOMEM;
 	int i;
+
+	if (!args->size)
+		return -EINVAL;
 
 	/* Check this LIOBN hasn't been previously allocated */
 	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
@@ -160,7 +163,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 			return -EBUSY;
 	}
 
-	size = args->window_size >> IOMMU_PAGE_SHIFT_4K;
+	size = args->size;
 	npages = kvmppc_tce_pages(size);
 	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
 	if (ret) {
@@ -174,7 +177,8 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		goto fail;
 
 	stt->liobn = args->liobn;
-	stt->page_shift = IOMMU_PAGE_SHIFT_4K;
+	stt->page_shift = args->page_shift;
+	stt->offset = args->offset;
 	stt->size = size;
 	stt->kvm = kvm;
 
