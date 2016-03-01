@@ -555,7 +555,6 @@ struct mlx5e_priv {
 	struct mlx5e_vxlan_db      vxlan;
 
 	struct mlx5e_params        params;
-	spinlock_t                 async_events_spinlock; /* sync hw events */
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;

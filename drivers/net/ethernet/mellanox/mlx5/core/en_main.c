@@ -275,9 +275,14 @@ static void mlx5e_update_stats_work(struct work_struct *work)
 	mutex_unlock(&priv->state_lock);
 }
 
-static void __mlx5e_async_event(struct mlx5e_priv *priv,
-				enum mlx5_dev_event event)
+static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
+			      enum mlx5_dev_event event, unsigned long param)
 {
+	struct mlx5e_priv *priv = vpriv;
+
+	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state))
+		return;
+
 	switch (event) {
 	case MLX5_DEV_EVENT_PORT_UP:
 	case MLX5_DEV_EVENT_PORT_DOWN:
@@ -289,17 +294,6 @@ static void __mlx5e_async_event(struct mlx5e_priv *priv,
 	}
 }
 
-static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
-			      enum mlx5_dev_event event, unsigned long param)
-{
-	struct mlx5e_priv *priv = vpriv;
-
-	spin_lock(&priv->async_events_spinlock);
-	if (test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state))
-		__mlx5e_async_event(priv, event);
-	spin_unlock(&priv->async_events_spinlock);
-}
-
 static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 {
 	set_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
@@ -307,9 +301,8 @@ static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 
 static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 {
-	spin_lock_irq(&priv->async_events_spinlock);
 	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLE, &priv->state);
-	spin_unlock_irq(&priv->async_events_spinlock);
+	synchronize_irq(mlx5_get_msix_vec(priv->mdev, MLX5_EQ_VEC_ASYNC));
 }
 
 #define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
@@ -2290,7 +2283,6 @@ static void mlx5e_build_netdev_priv(struct mlx5_core_dev *mdev,
 	mlx5e_ets_init(priv);
 #endif
 
-	spin_lock_init(&priv->async_events_spinlock);
 	mutex_init(&priv->state_lock);
 
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);

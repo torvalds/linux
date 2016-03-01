@@ -99,6 +99,7 @@ int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
 cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev);
+u32 mlx5_get_msix_vec(struct mlx5_core_dev *dev, int vecidx);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
