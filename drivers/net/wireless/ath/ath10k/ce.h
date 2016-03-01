@@ -22,7 +22,7 @@
 
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 12
-#define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
+#define CE_HTT_H2T_MSG_SRC_NENTRIES 8192
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
