@@ -872,7 +872,7 @@ static int slic_upr_queue_request(struct adapter *adapter,
 	struct slic_upr *upr;
 	struct slic_upr *uprqueue;
 
-	upr = kmalloc(sizeof(struct slic_upr), GFP_ATOMIC);
+	upr = kmalloc(sizeof(*upr), GFP_ATOMIC);
 	if (!upr)
 		return -ENOMEM;
 
