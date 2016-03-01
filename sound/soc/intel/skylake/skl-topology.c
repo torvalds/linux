@@ -273,10 +273,11 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 	if (m_cfg->formats_config.caps_size > 0)
 		return 0;
 
+	dev_dbg(ctx->dev, "Applying default cfg blob\n");
 	switch (m_cfg->dev_type) {
 	case SKL_DEVICE_DMIC:
 		link_type = NHLT_LINK_DMIC;
-		dir = 1;
+		dir = SNDRV_PCM_STREAM_CAPTURE;
 		s_freq = m_cfg->in_fmt[0].s_freq;
 		s_fmt = m_cfg->in_fmt[0].bit_depth;
 		ch = m_cfg->in_fmt[0].channels;
@@ -285,15 +286,15 @@ static int skl_tplg_update_be_blob(struct snd_soc_dapm_widget *w,
 	case SKL_DEVICE_I2S:
 		link_type = NHLT_LINK_SSP;
 		if (m_cfg->hw_conn_type == SKL_CONN_SOURCE) {
-			dir = 1;
-			s_freq = m_cfg->in_fmt[0].s_freq;
-			s_fmt = m_cfg->in_fmt[0].bit_depth;
-			ch = m_cfg->in_fmt[0].channels;
-		} else {
-			dir = 0;
+			dir = SNDRV_PCM_STREAM_PLAYBACK;
 			s_freq = m_cfg->out_fmt[0].s_freq;
 			s_fmt = m_cfg->out_fmt[0].bit_depth;
 			ch = m_cfg->out_fmt[0].channels;
+		} else {
+			dir = SNDRV_PCM_STREAM_CAPTURE;
+			s_freq = m_cfg->in_fmt[0].s_freq;
+			s_fmt = m_cfg->in_fmt[0].bit_depth;
+			ch = m_cfg->in_fmt[0].channels;
 		}
 		break;
 
