@@ -629,6 +629,10 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 			break;
 		}
 
+		rx_ctl_val &= ~FDI_RX_ENABLE;
+		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
+		POSTING_READ(FDI_RX_CTL(PIPE_A));
+
 		temp = I915_READ(DDI_BUF_CTL(PORT_E));
 		temp &= ~DDI_BUF_CTL_ENABLE;
 		I915_WRITE(DDI_BUF_CTL(PORT_E), temp);
@@ -642,10 +646,6 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(DP_TP_CTL(PORT_E));
 
 		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
-
-		rx_ctl_val &= ~FDI_RX_ENABLE;
-		I915_WRITE(FDI_RX_CTL(PIPE_A), rx_ctl_val);
-		POSTING_READ(FDI_RX_CTL(PIPE_A));
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
 		temp = I915_READ(FDI_RX_MISC(PIPE_A));
@@ -1911,11 +1911,17 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
 	uint32_t val;
 
-	intel_ddi_post_disable(intel_encoder);
-
+	/*
+	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
+	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
+	 * step 13 is the correct place for it. Step 18 is where it was
+	 * originally before the BUN.
+	 */
 	val = I915_READ(FDI_RX_CTL(PIPE_A));
 	val &= ~FDI_RX_ENABLE;
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
+
+	intel_ddi_post_disable(intel_encoder);
 
 	val = I915_READ(FDI_RX_MISC(PIPE_A));
 	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
