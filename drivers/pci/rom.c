@@ -128,25 +128,24 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	loff_t start;
 	void __iomem *rom;
 
-		if (res->flags &
-			(IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY)) {
-			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			return (void __iomem *)(unsigned long)
-				pci_resource_start(pdev, PCI_ROM_RESOURCE);
-		} else {
-			/* assign the ROM an address if it doesn't have one */
-			if (res->parent == NULL &&
-			    pci_assign_resource(pdev, PCI_ROM_RESOURCE))
-				return NULL;
-			start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
-			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			if (*size == 0)
-				return NULL;
+	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY)) {
+		*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+		return (void __iomem *)(unsigned long)
+			pci_resource_start(pdev, PCI_ROM_RESOURCE);
+	}
 
-			/* Enable ROM space decodes */
-			if (pci_enable_rom(pdev))
-				return NULL;
-		}
+	/* assign the ROM an address if it doesn't have one */
+	if (res->parent == NULL && pci_assign_resource(pdev, PCI_ROM_RESOURCE))
+		return NULL;
+
+	start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
+	*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+	if (*size == 0)
+		return NULL;
+
+	/* Enable ROM space decodes */
+	if (pci_enable_rom(pdev))
+		return NULL;
 
 	rom = ioremap(start, *size);
 	if (!rom) {
