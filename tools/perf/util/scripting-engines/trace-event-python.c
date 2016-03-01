@@ -1094,8 +1094,6 @@ static int python_start_script(const char *script, int argc, const char **argv)
 		goto error;
 	}
 
-	free(command_line);
-
 	set_table_handlers(tables);
 
 	if (tables->db_export_mode) {
@@ -1103,6 +1101,8 @@ static int python_start_script(const char *script, int argc, const char **argv)
 		if (err)
 			goto error;
 	}
+
+	free(command_line);
 
 	return err;
 error:
