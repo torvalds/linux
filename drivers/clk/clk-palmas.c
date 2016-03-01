@@ -132,7 +132,7 @@ static const struct palmas_clks_of_match_data palmas_of_clk32kg = {
 	.init = {
 		.name = "clk32kg",
 		.ops = &palmas_clks_ops,
-		.flags = CLK_IS_ROOT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 	.desc = {
 		.clk_name = "clk32kg",
@@ -148,7 +148,7 @@ static const struct palmas_clks_of_match_data palmas_of_clk32kgaudio = {
 	.init = {
 		.name = "clk32kgaudio",
 		.ops = &palmas_clks_ops,
-		.flags = CLK_IS_ROOT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 	.desc = {
 		.clk_name = "clk32kgaudio",
