@@ -604,6 +604,8 @@ struct wil6210_priv {
 	struct wil_platform_ops platform_ops;
 
 	struct pmc_ctx pmc;
+
+	bool pbss;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

@@ -402,6 +402,7 @@ static void wil_print_connect_params(struct wil6210_priv *wil,
 		print_hex_dump(KERN_INFO, "  SSID: ", DUMP_PREFIX_OFFSET,
 			       16, 1, sme->ssid, sme->ssid_len, true);
 	wil_info(wil, "  Privacy: %s\n", sme->privacy ? "secure" : "open");
+	wil_info(wil, "  PBSS: %d\n", sme->pbss);
 	wil_print_crypto(wil, &sme->crypto);
 }
 
@@ -416,6 +417,7 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	const u8 *rsn_eid;
 	int ch;
 	int rc = 0;
+	enum ieee80211_bss_type bss_type = IEEE80211_BSS_TYPE_ESS;
 
 	wil_print_connect_params(wil, sme);
 
@@ -434,14 +436,12 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (sme->privacy && !rsn_eid)
 		wil_info(wil, "WSC connection\n");
 
-	if (sme->pbss) {
-		wil_err(wil, "connect - PBSS not yet supported\n");
-		return -EOPNOTSUPP;
-	}
+	if (sme->pbss)
+		bss_type = IEEE80211_BSS_TYPE_PBSS;
 
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
-			       IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
+			       bss_type, IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		wil_err(wil, "Unable to find BSS\n");
 		return -ENOENT;
@@ -936,12 +936,15 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 				  const u8 *ssid, size_t ssid_len, u32 privacy,
 				  int bi, u8 chan,
 				  struct cfg80211_beacon_data *bcon,
-				  u8 hidden_ssid)
+				  u8 hidden_ssid, u32 pbss)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	u8 wmi_nettype = wil_iftype_nl2wmi(wdev->iftype);
+
+	if (pbss)
+		wmi_nettype = WMI_NETTYPE_P2P;
 
 	wil_set_recovery_state(wil, fw_recovery_idle);
 
@@ -963,6 +966,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	wil->privacy = privacy;
 	wil->channel = chan;
 	wil->hidden_ssid = hidden_ssid;
+	wil->pbss = pbss;
 
 	netif_carrier_on(ndev);
 
@@ -1012,7 +1016,8 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 					    wdev->ssid_len, privacy,
 					    wdev->beacon_interval,
 					    wil->channel, bcon,
-					    wil->hidden_ssid);
+					    wil->hidden_ssid,
+					    wil->pbss);
 	} else {
 		rc = _wil_cfg80211_set_ies(wiphy, bcon);
 	}
@@ -1036,11 +1041,6 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (!channel) {
 		wil_err(wil, "AP: No channel???\n");
 		return -EINVAL;
-	}
-
-	if (info->pbss) {
-		wil_err(wil, "AP: PBSS not yet supported\n");
-		return -EOPNOTSUPP;
 	}
 
 	switch (info->hidden_ssid) {
@@ -1068,6 +1068,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		     info->hidden_ssid);
 	wil_dbg_misc(wil, "BI %d DTIM %d\n", info->beacon_interval,
 		     info->dtim_period);
+	wil_dbg_misc(wil, "PBSS %d\n", info->pbss);
 	print_hex_dump_bytes("SSID ", DUMP_PREFIX_OFFSET,
 			     info->ssid, info->ssid_len);
 	wil_print_bcon_data(bcon);
@@ -1076,7 +1077,7 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	rc = _wil_cfg80211_start_ap(wiphy, ndev,
 				    info->ssid, info->ssid_len, info->privacy,
 				    info->beacon_interval, channel->hw_value,
-				    bcon, hidden_ssid);
+				    bcon, hidden_ssid, info->pbss);
 
 	return rc;
 }
