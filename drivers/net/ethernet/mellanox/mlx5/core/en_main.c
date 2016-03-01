@@ -1064,6 +1064,15 @@ static void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 	param->wq.linear = 1;
 }
 
+static void mlx5e_build_drop_rq_param(struct mlx5e_rq_param *param)
+{
+	void *rqc = param->rqc;
+	void *wq = MLX5_ADDR_OF(rqc, rqc, wq);
+
+	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_LINKED_LIST);
+	MLX5_SET(wq, wq, log_wq_stride,    ilog2(sizeof(struct mlx5e_rx_wqe)));
+}
+
 static void mlx5e_build_sq_param(struct mlx5e_priv *priv,
 				 struct mlx5e_sq_param *param)
 {
@@ -1574,8 +1583,7 @@ static int mlx5e_open_drop_rq(struct mlx5e_priv *priv)
 
 	memset(&cq_param, 0, sizeof(cq_param));
 	memset(&rq_param, 0, sizeof(rq_param));
-	mlx5e_build_rx_cq_param(priv, &cq_param);
-	mlx5e_build_rq_param(priv, &rq_param);
+	mlx5e_build_drop_rq_param(&rq_param);
 
 	err = mlx5e_create_drop_cq(priv, cq, &cq_param);
 	if (err)
