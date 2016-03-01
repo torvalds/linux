@@ -2618,7 +2618,6 @@ int t4vf_sge_init(struct adapter *adapter)
 	u32 fl0 = sge_params->sge_fl_buffer_size[0];
 	u32 fl1 = sge_params->sge_fl_buffer_size[1];
 	struct sge *s = &adapter->sge;
-	unsigned int ingpadboundary, ingpackboundary, ingpad_shift;
 
 	/*
 	 * Start by vetting the basic SGE parameters which have been set up by
@@ -2630,7 +2629,8 @@ int t4vf_sge_init(struct adapter *adapter)
 			fl0, fl1);
 		return -EINVAL;
 	}
-	if ((sge_params->sge_control & RXPKTCPLMODE_F) == 0) {
+	if ((sge_params->sge_control & RXPKTCPLMODE_F) !=
+	    RXPKTCPLMODE_V(RXPKTCPLMODE_SPLIT_X)) {
 		dev_err(adapter->pdev_dev, "bad SGE CPL MODE\n");
 		return -EINVAL;
 	}
@@ -2643,41 +2643,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	s->stat_len = ((sge_params->sge_control & EGRSTATUSPAGESIZE_F)
 			? 128 : 64);
 	s->pktshift = PKTSHIFT_G(sge_params->sge_control);
-
-	/* T4 uses a single control field to specify both the PCIe Padding and
-	 * Packing Boundary.  T5 introduced the ability to specify these
-	 * separately.  The actual Ingress Packet Data alignment boundary
-	 * within Packed Buffer Mode is the maximum of these two
-	 * specifications.  (Note that it makes no real practical sense to
-	 * have the Pading Boudary be larger than the Packing Boundary but you
-	 * could set the chip up that way and, in fact, legacy T4 code would
-	 * end doing this because it would initialize the Padding Boundary and
-	 * leave the Packing Boundary initialized to 0 (16 bytes).)
-	 * Padding Boundary values in T6 starts from 8B,
-	 * where as it is 32B for T4 and T5.
-	 */
-	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
-		ingpad_shift = INGPADBOUNDARY_SHIFT_X;
-	else
-		ingpad_shift = T6_INGPADBOUNDARY_SHIFT_X;
-
-	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_params->sge_control) +
-			       ingpad_shift);
-	if (is_t4(adapter->params.chip)) {
-		s->fl_align = ingpadboundary;
-	} else {
-		/* T5 has a different interpretation of one of the PCIe Packing
-		 * Boundary values.
-		 */
-		ingpackboundary = INGPACKBOUNDARY_G(sge_params->sge_control2);
-		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
-			ingpackboundary = 16;
-		else
-			ingpackboundary = 1 << (ingpackboundary +
-						INGPACKBOUNDARY_SHIFT_X);
-
-		s->fl_align = max(ingpadboundary, ingpackboundary);
-	}
+	s->fl_align = t4vf_fl_pkt_align(adapter);
 
 	/* A FL with <= fl_starve_thres buffers is starving and a periodic
 	 * timer will attempt to refill it.  This needs to be larger than the

@@ -309,6 +309,7 @@ int t4vf_port_init(struct adapter *, int);
 int t4vf_fw_reset(struct adapter *);
 int t4vf_set_params(struct adapter *, unsigned int, const u32 *, const u32 *);
 
+int t4vf_fl_pkt_align(struct adapter *adapter);
 enum t4_bar2_qtype { T4_BAR2_QTYPE_EGRESS, T4_BAR2_QTYPE_INGRESS };
 int t4vf_bar2_sge_qregs(struct adapter *adapter,
 			unsigned int qid,
