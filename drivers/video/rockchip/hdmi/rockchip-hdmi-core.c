@@ -307,6 +307,13 @@ static void hdmi_work_queue(struct work_struct *work)
 	    (event & 0xFF00) >> 8,
 	    event & 0xFF);
 
+	if ((!hdmi->enable || hdmi->sleep) &&
+	    (event != HDMI_ENABLE_CTL) &&
+	    (event != HDMI_RESUME_CTL) &&
+	    (event != HDMI_DISABLE_CTL) &&
+	    (event != HDMI_SUSPEND_CTL))
+		goto exit;
+
 	switch (event) {
 	case HDMI_ENABLE_CTL:
 		if (!hdmi->enable) {
@@ -369,24 +376,21 @@ static void hdmi_work_queue(struct work_struct *work)
 		}
 		break;
 	case HDMI_SET_VIDEO:
-		if (hdmi->enable && !hdmi->sleep) {
-			hdmi_wq_set_output(hdmi,
-					   HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE);
-			if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
-				msleep(2000);
-			else
-				msleep(1000);
-			hdmi_wq_set_video(hdmi);
-			hdmi_send_uevent(hdmi, KOBJ_CHANGE);
-			hdmi_wq_set_audio(hdmi);
-			hdmi_wq_set_output(hdmi, hdmi->mute);
-			if (hdmi->ops->hdcp_cb)
-				hdmi->ops->hdcp_cb(hdmi);
-		}
+		hdmi_wq_set_output(hdmi,
+				   HDMI_VIDEO_MUTE | HDMI_AUDIO_MUTE);
+		if (rk_fb_get_display_policy() == DISPLAY_POLICY_BOX)
+			msleep(2000);
+		else
+			msleep(1000);
+		hdmi_wq_set_video(hdmi);
+		hdmi_send_uevent(hdmi, KOBJ_CHANGE);
+		hdmi_wq_set_audio(hdmi);
+		hdmi_wq_set_output(hdmi, hdmi->mute);
+		if (hdmi->ops->hdcp_cb)
+			hdmi->ops->hdcp_cb(hdmi);
 		break;
 	case HDMI_SET_AUDIO:
-		if ((hdmi->mute & HDMI_AUDIO_MUTE) == 0 &&
-		    hdmi->enable && !hdmi->sleep) {
+		if ((hdmi->mute & HDMI_AUDIO_MUTE) == 0) {
 			hdmi_wq_set_output(hdmi, HDMI_AUDIO_MUTE);
 			hdmi_wq_set_audio(hdmi);
 			hdmi_wq_set_output(hdmi, hdmi->mute);
@@ -395,7 +399,6 @@ static void hdmi_work_queue(struct work_struct *work)
 	case HDMI_MUTE_AUDIO:
 	case HDMI_UNMUTE_AUDIO:
 		if (hdmi->mute & HDMI_AUDIO_MUTE ||
-		    !hdmi->enable || hdmi->sleep ||
 		    hdmi->hotplug != HDMI_HPD_ACTIVED)
 			break;
 		if (event == HDMI_MUTE_AUDIO)
@@ -445,7 +448,7 @@ static void hdmi_work_queue(struct work_struct *work)
 	default:
 		break;
 	}
-
+exit:
 	kfree(hdmi_w->data);
 	if (!hdmi_w->sync)
 		kfree(hdmi_w);
