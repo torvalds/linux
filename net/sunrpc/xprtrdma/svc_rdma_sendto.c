@@ -50,6 +50,11 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
+static u32 xdr_padsize(u32 len)
+{
+	return (len & 3) ? (4 - (len & 3)) : 0;
+}
+
 int svc_rdma_map_xdr(struct svcxprt_rdma *xprt,
 		     struct xdr_buf *xdr,
 		     struct svc_rdma_req_map *vec)
@@ -308,7 +313,7 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 			     struct svc_rqst *rqstp,
 			     struct svc_rdma_req_map *vec)
 {
-	u32 xfer_len = rqstp->rq_res.page_len + rqstp->rq_res.tail[0].iov_len;
+	u32 xfer_len = rqstp->rq_res.page_len;
 	int write_len;
 	u32 xdr_off;
 	int chunk_off;
@@ -357,7 +362,7 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 	/* Update the req with the number of chunks actually used */
 	svc_rdma_xdr_encode_write_list(rdma_resp, chunk_no);
 
-	return rqstp->rq_res.page_len + rqstp->rq_res.tail[0].iov_len;
+	return rqstp->rq_res.page_len;
 
 out_err:
 	pr_err("svcrdma: failed to send write chunks, rc=%d\n", ret);
@@ -612,7 +617,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		ret = send_write_chunks(rdma, wr_ary, rdma_resp, rqstp, vec);
 		if (ret < 0)
 			goto err1;
-		inline_bytes -= ret;
+		inline_bytes -= ret + xdr_padsize(ret);
 	}
 
 	/* Send any reply-list data and update resp reply-list */
