@@ -855,7 +855,7 @@ static void form_mac_address(u8 *dev_addr, u8 *nic_src, u8 *nic_dest,
 	/* Create random nic src and copy the first
 	 * 3 bytes to be the same as dev_addr
 	 */
-	random_ether_addr(nic_src);
+	eth_random_addr(nic_src);
 	memcpy(nic_src, dev_addr, 3);
 
 	/* Copy the nic_dest from dev_addr*/
