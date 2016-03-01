@@ -162,7 +162,7 @@ int svc_rdma_xdr_decode_req(struct rpcrdma_msg **rdma_req,
 	}
 
 	if (rmsgp->rm_vers != rpcrdma_version)
-		return -ENOSYS;
+		return -EPROTONOSUPPORT;
 
 	/* Pull in the extra for the padded case and bump our pointer */
 	if (rmsgp->rm_type == rdma_msgp) {

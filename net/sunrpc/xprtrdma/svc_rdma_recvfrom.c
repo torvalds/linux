@@ -612,7 +612,6 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	struct svc_rdma_op_ctxt *ctxt = NULL;
 	struct rpcrdma_msg *rmsgp;
 	int ret = 0;
-	int len;
 
 	dprintk("svcrdma: rqstp=%p\n", rqstp);
 
@@ -654,15 +653,10 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rdma_build_arg_xdr(rqstp, ctxt, ctxt->byte_len);
 
 	/* Decode the RDMA header. */
-	len = svc_rdma_xdr_decode_req(&rmsgp, rqstp);
-	rqstp->rq_xprt_hlen = len;
-
-	/* If the request is invalid, reply with an error */
-	if (len < 0) {
-		if (len == -ENOSYS)
-			svc_rdma_send_error(rdma_xprt, rmsgp, ERR_VERS);
-		goto close_out;
-	}
+	ret = svc_rdma_xdr_decode_req(&rmsgp, rqstp);
+	if (ret < 0)
+		goto out_err;
+	rqstp->rq_xprt_hlen = ret;
 
 	if (svc_rdma_is_backchannel_reply(xprt, rmsgp)) {
 		ret = svc_rdma_handle_bc_reply(xprt->xpt_bc_xprt, rmsgp,
@@ -697,6 +691,11 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_prot = IPPROTO_MAX;
 	svc_xprt_copy_addrs(rqstp, xprt);
 	return ret;
+
+out_err:
+	svc_rdma_send_error(rdma_xprt, rmsgp, ret);
+	svc_rdma_put_context(ctxt, 0);
+	return 0;
 
  close_out:
 	if (ctxt)
