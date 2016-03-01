@@ -113,4 +113,10 @@ int rds_ib_map_fmr(struct rds_ib_device *, struct rds_ib_mr *,
 		   struct scatterlist *, unsigned int);
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *);
 int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *, int, struct rds_ib_mr **);
+struct rds_ib_mr *rds_ib_reg_fmr(struct rds_ib_device *, struct scatterlist *,
+				 unsigned long, u32 *);
+struct rds_ib_mr *rds_ib_try_reuse_ibmr(struct rds_ib_mr_pool *);
+void rds_ib_unreg_fmr(struct list_head *, unsigned int *,
+		      unsigned long *, unsigned int);
+void rds_ib_free_fmr_list(struct rds_ib_mr *);
 #endif

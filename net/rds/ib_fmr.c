@@ -37,61 +37,16 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 	struct rds_ib_mr_pool *pool;
 	struct rds_ib_mr *ibmr = NULL;
 	struct rds_ib_fmr *fmr;
-	int err = 0, iter = 0;
+	int err = 0;
 
 	if (npages <= RDS_MR_8K_MSG_SIZE)
 		pool = rds_ibdev->mr_8k_pool;
 	else
 		pool = rds_ibdev->mr_1m_pool;
 
-	if (atomic_read(&pool->dirty_count) >= pool->max_items / 10)
-		queue_delayed_work(rds_ib_mr_wq, &pool->flush_worker, 10);
-
-	/* Switch pools if one of the pool is reaching upper limit */
-	if (atomic_read(&pool->dirty_count) >=  pool->max_items * 9 / 10) {
-		if (pool->pool_type == RDS_IB_MR_8K_POOL)
-			pool = rds_ibdev->mr_1m_pool;
-		else
-			pool = rds_ibdev->mr_8k_pool;
-	}
-
-	while (1) {
-		ibmr = rds_ib_reuse_mr(pool);
-		if (ibmr)
-			return ibmr;
-
-		/* No clean MRs - now we have the choice of either
-		 * allocating a fresh MR up to the limit imposed by the
-		 * driver, or flush any dirty unused MRs.
-		 * We try to avoid stalling in the send path if possible,
-		 * so we allocate as long as we're allowed to.
-		 *
-		 * We're fussy with enforcing the FMR limit, though. If the
-		 * driver tells us we can't use more than N fmrs, we shouldn't
-		 * start arguing with it
-		 */
-		if (atomic_inc_return(&pool->item_count) <= pool->max_items)
-			break;
-
-		atomic_dec(&pool->item_count);
-
-		if (++iter > 2) {
-			if (pool->pool_type == RDS_IB_MR_8K_POOL)
-				rds_ib_stats_inc(s_ib_rdma_mr_8k_pool_depleted);
-			else
-				rds_ib_stats_inc(s_ib_rdma_mr_1m_pool_depleted);
-			return ERR_PTR(-EAGAIN);
-		}
-
-		/* We do have some empty MRs. Flush them out. */
-		if (pool->pool_type == RDS_IB_MR_8K_POOL)
-			rds_ib_stats_inc(s_ib_rdma_mr_8k_pool_wait);
-		else
-			rds_ib_stats_inc(s_ib_rdma_mr_1m_pool_wait);
-		rds_ib_flush_mr_pool(pool, 0, &ibmr);
-		if (ibmr)
-			return ibmr;
-	}
+	ibmr = rds_ib_try_reuse_ibmr(pool);
+	if (ibmr)
+		return ibmr;
 
 	ibmr = kzalloc_node(sizeof(*ibmr), GFP_KERNEL,
 			    rdsibdev_to_node(rds_ibdev));
@@ -217,4 +172,77 @@ out:
 	kfree(dma_pages);
 
 	return ret;
+}
+
+struct rds_ib_mr *rds_ib_reg_fmr(struct rds_ib_device *rds_ibdev,
+				 struct scatterlist *sg,
+				 unsigned long nents,
+				 u32 *key)
+{
+	struct rds_ib_mr *ibmr = NULL;
+	struct rds_ib_fmr *fmr;
+	int ret;
+
+	ibmr = rds_ib_alloc_fmr(rds_ibdev, nents);
+	if (IS_ERR(ibmr))
+		return ibmr;
+
+	ibmr->device = rds_ibdev;
+	fmr = &ibmr->u.fmr;
+	ret = rds_ib_map_fmr(rds_ibdev, ibmr, sg, nents);
+	if (ret == 0)
+		*key = fmr->fmr->rkey;
+	else
+		rds_ib_free_mr(ibmr, 0);
+
+	return ibmr;
+}
+
+void rds_ib_unreg_fmr(struct list_head *list, unsigned int *nfreed,
+		      unsigned long *unpinned, unsigned int goal)
+{
+	struct rds_ib_mr *ibmr, *next;
+	struct rds_ib_fmr *fmr;
+	LIST_HEAD(fmr_list);
+	int ret = 0;
+	unsigned int freed = *nfreed;
+
+	/* String all ib_mr's onto one list and hand them to  ib_unmap_fmr */
+	list_for_each_entry(ibmr, list, unmap_list) {
+		fmr = &ibmr->u.fmr;
+		list_add(&fmr->fmr->list, &fmr_list);
+	}
+
+	ret = ib_unmap_fmr(&fmr_list);
+	if (ret)
+		pr_warn("RDS/IB: FMR invalidation failed (err=%d)\n", ret);
+
+	/* Now we can destroy the DMA mapping and unpin any pages */
+	list_for_each_entry_safe(ibmr, next, list, unmap_list) {
+		fmr = &ibmr->u.fmr;
+		*unpinned += ibmr->sg_len;
+		__rds_ib_teardown_mr(ibmr);
+		if (freed < goal ||
+		    ibmr->remap_count >= ibmr->pool->fmr_attr.max_maps) {
+			if (ibmr->pool->pool_type == RDS_IB_MR_8K_POOL)
+				rds_ib_stats_inc(s_ib_rdma_mr_8k_free);
+			else
+				rds_ib_stats_inc(s_ib_rdma_mr_1m_free);
+			list_del(&ibmr->unmap_list);
+			ib_dealloc_fmr(fmr->fmr);
+			kfree(ibmr);
+			freed++;
+		}
+	}
+	*nfreed = freed;
+}
+
+void rds_ib_free_fmr_list(struct rds_ib_mr *ibmr)
+{
+	struct rds_ib_mr_pool *pool = ibmr->pool;
+
+	if (ibmr->remap_count >= pool->fmr_attr.max_maps)
+		llist_add(&ibmr->llnode, &pool->drop_list);
+	else
+		llist_add(&ibmr->llnode, &pool->free_list);
 }
