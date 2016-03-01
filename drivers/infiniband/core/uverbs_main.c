@@ -1056,7 +1056,7 @@ static int find_overflow_devnum(void)
 		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UVERBS_MAX_DEVICES,
 					  "infiniband_verbs");
 		if (ret) {
-			printk(KERN_ERR "user_verbs: couldn't register dynamic device number\n");
+			pr_err("user_verbs: couldn't register dynamic device number\n");
 			return ret;
 		}
 	}
@@ -1277,14 +1277,14 @@ static int __init ib_uverbs_init(void)
 	ret = register_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES,
 				     "infiniband_verbs");
 	if (ret) {
-		printk(KERN_ERR "user_verbs: couldn't register device number\n");
+		pr_err("user_verbs: couldn't register device number\n");
 		goto out;
 	}
 
 	uverbs_class = class_create(THIS_MODULE, "infiniband_verbs");
 	if (IS_ERR(uverbs_class)) {
 		ret = PTR_ERR(uverbs_class);
-		printk(KERN_ERR "user_verbs: couldn't create class infiniband_verbs\n");
+		pr_err("user_verbs: couldn't create class infiniband_verbs\n");
 		goto out_chrdev;
 	}
 
@@ -1292,13 +1292,13 @@ static int __init ib_uverbs_init(void)
 
 	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {
-		printk(KERN_ERR "user_verbs: couldn't create abi_version attribute\n");
+		pr_err("user_verbs: couldn't create abi_version attribute\n");
 		goto out_class;
 	}
 
 	ret = ib_register_client(&uverbs_client);
 	if (ret) {
-		printk(KERN_ERR "user_verbs: couldn't register client\n");
+		pr_err("user_verbs: couldn't register client\n");
 		goto out_class;
 	}
 

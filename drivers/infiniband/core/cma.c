@@ -1713,7 +1713,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.param.conn.private_data_len = IB_CM_REJ_PRIVATE_DATA_SIZE;
 		break;
 	default:
-		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d\n",
+		pr_err("RDMA CMA: unexpected IB CM event: %d\n",
 		       ib_event->event);
 		goto out;
 	}
@@ -2186,8 +2186,8 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
-		printk(KERN_WARNING "RDMA CMA: cma_listen_on_dev, error %d, "
-		       "listening on device %s\n", ret, cma_dev->device->name);
+		pr_warn("RDMA CMA: cma_listen_on_dev, error %d, listening on device %s\n",
+			ret, cma_dev->device->name);
 }
 
 static void cma_listen_on_all(struct rdma_id_private *id_priv)
@@ -3239,7 +3239,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 		event.status = 0;
 		break;
 	default:
-		printk(KERN_ERR "RDMA CMA: unexpected IB CM event: %d\n",
+		pr_err("RDMA CMA: unexpected IB CM event: %d\n",
 		       ib_event->event);
 		goto out;
 	}
@@ -4003,8 +4003,8 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 	if ((dev_addr->bound_dev_if == ndev->ifindex) &&
 	    (net_eq(dev_net(ndev), dev_addr->net)) &&
 	    memcmp(dev_addr->src_dev_addr, ndev->dev_addr, ndev->addr_len)) {
-		printk(KERN_INFO "RDMA CM addr change for ndev %s used by id %p\n",
-		       ndev->name, &id_priv->id);
+		pr_info("RDMA CM addr change for ndev %s used by id %p\n",
+			ndev->name, &id_priv->id);
 		work = kzalloc(sizeof *work, GFP_KERNEL);
 		if (!work)
 			return -ENOMEM;
@@ -4287,7 +4287,7 @@ static int __init cma_init(void)
 		goto err;
 
 	if (ibnl_add_client(RDMA_NL_RDMA_CM, RDMA_NL_RDMA_CM_NUM_OPS, cma_cb_table))
-		printk(KERN_WARNING "RDMA CMA: failed to add netlink callback\n");
+		pr_warn("RDMA CMA: failed to add netlink callback\n");
 	cma_configfs_init();
 
 	return 0;
