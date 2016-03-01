@@ -315,7 +315,7 @@ at91_clk_register_main_rc_osc(struct at91_pmc *pmc,
 	init.ops = &main_rc_osc_ops;
 	init.parent_names = NULL;
 	init.num_parents = 0;
-	init.flags = CLK_IS_ROOT | CLK_IGNORE_UNUSED;
+	init.flags = CLK_IGNORE_UNUSED;
 
 	osc->hw.init = &init;
 	osc->pmc = pmc;

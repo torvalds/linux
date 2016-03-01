@@ -251,7 +251,7 @@ at91_clk_register_slow_rc_osc(void __iomem *sckcr,
 	init.ops = &slow_rc_osc_ops;
 	init.parent_names = NULL;
 	init.num_parents = 0;
-	init.flags = CLK_IS_ROOT | CLK_IGNORE_UNUSED;
+	init.flags = CLK_IGNORE_UNUSED;
 
 	osc->hw.init = &init;
 	osc->sckcr = sckcr;
