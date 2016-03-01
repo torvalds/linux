@@ -443,7 +443,6 @@ bool CARDbRadioPowerOff(struct vnt_private *priv)
 		MACvWordRegBitsOff(priv->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE2);
 		MACvWordRegBitsOff(priv->PortOffset, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 		break;
-
 	}
 
 	MACvRegBitsOff(priv->PortOffset, MAC_REG_HOSTCR, HOSTCR_RXON);
@@ -499,7 +498,6 @@ bool CARDbRadioPowerOn(struct vnt_private *priv)
 		MACvWordRegBitsOn(priv->PortOffset, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE2 |
 									    SOFTPWRCTL_SWPE3));
 		break;
-
 	}
 
 	priv->bRadioOff = false;
@@ -812,7 +810,6 @@ bool CARDbIsOFDMinBasicRate(struct vnt_private *priv)
 
 unsigned char CARDbyGetPktType(struct vnt_private *priv)
 {
-
 	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
 		return (unsigned char)priv->byBBType;
 	else if (CARDbIsOFDMinBasicRate((void *)priv))
@@ -861,7 +858,6 @@ void CARDvSetLoopbackMode(struct vnt_private *priv, unsigned short wLoopbackMode
  */
 bool CARDbSoftwareReset(struct vnt_private *priv)
 {
-
 	/* reset MAC */
 	if (!MACbSafeSoftwareReset(priv))
 		return false;
