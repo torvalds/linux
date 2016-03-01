@@ -394,9 +394,10 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 		wil_fw_core_dump(wil);
 		wil_notify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
-		if (wil->platform_ops.notify_crash) {
+		if (wil->platform_ops.notify) {
 			wil_err(wil, "notify platform driver about FW crash");
-			wil->platform_ops.notify_crash(wil->platform_handle);
+			wil->platform_ops.notify(wil->platform_handle,
+						 WIL_PLATFORM_EVT_FW_CRASH);
 		} else {
 			wil_fw_error_recovery(wil);
 		}

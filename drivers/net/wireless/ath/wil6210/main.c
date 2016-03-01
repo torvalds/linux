@@ -764,6 +764,15 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	if (wil->hw_version == HW_VER_UNKNOWN)
 		return -ENODEV;
 
+	if (wil->platform_ops.notify) {
+		rc = wil->platform_ops.notify(wil->platform_handle,
+					      WIL_PLATFORM_EVT_PRE_RESET);
+		if (rc)
+			wil_err(wil,
+				"%s: PRE_RESET platform notify failed, rc %d\n",
+				__func__, rc);
+	}
+
 	set_bit(wil_status_resetting, wil->status);
 
 	cancel_work_sync(&wil->disconnect_worker);
@@ -843,8 +852,27 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 		/* we just started MAC, wait for FW ready */
 		rc = wil_wait_for_fw_ready(wil);
-		if (rc == 0) /* check FW is responsive */
-			rc = wmi_echo(wil);
+		if (rc)
+			return rc;
+
+		/* check FW is responsive */
+		rc = wmi_echo(wil);
+		if (rc) {
+			wil_err(wil, "%s: wmi_echo failed, rc %d\n",
+				__func__, rc);
+			return rc;
+		}
+
+		if (wil->platform_ops.notify) {
+			rc = wil->platform_ops.notify(wil->platform_handle,
+						      WIL_PLATFORM_EVT_FW_RDY);
+			if (rc) {
+				wil_err(wil,
+					"%s: FW_RDY notify failed, rc %d\n",
+					__func__, rc);
+				rc = 0;
+			}
+		}
 	}
 
 	return rc;
