@@ -1792,7 +1792,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
 	mcaddr = kmalloc(sizeof(*mcaddr), GFP_ATOMIC);
-	if (mcaddr == NULL)
+	if (!mcaddr)
 		return 1;
 
 	ether_addr_copy(mcaddr->address, address);
@@ -1873,7 +1873,7 @@ static void slic_xmit_fail(struct adapter *adapter,
 {
 	if (adapter->xmitq_full)
 		netif_stop_queue(adapter->netdev);
-	if ((cmd == NULL) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
+	if ((!cmd) && (status <= XMIT_FAIL_HOSTCMD_FAIL)) {
 		switch (status) {
 		case XMIT_FAIL_LINK_STATE:
 			dev_err(&adapter->netdev->dev,
@@ -2983,7 +2983,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	/* Initialize a new card structure if need be */
 	if (card_hostid == SLIC_HOSTID_DEFAULT) {
 		card = kzalloc(sizeof(*card), GFP_KERNEL);
-		if (card == NULL)
+		if (!card)
 			return -ENOMEM;
 
 		card->next = slic_global.slic_card;
