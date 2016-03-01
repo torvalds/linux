@@ -334,6 +334,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 			 int free_all, struct rds_ib_mr **ibmr_ret)
 {
 	struct rds_ib_mr *ibmr, *next;
+	struct rds_ib_fmr *fmr;
 	struct llist_node *clean_nodes;
 	struct llist_node *clean_tail;
 	LIST_HEAD(unmap_list);
@@ -395,8 +396,10 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 		goto out;
 
 	/* String all ib_mr's onto one list and hand them to ib_unmap_fmr */
-	list_for_each_entry(ibmr, &unmap_list, unmap_list)
-		list_add(&ibmr->fmr->list, &fmr_list);
+	list_for_each_entry(ibmr, &unmap_list, unmap_list) {
+		fmr = &ibmr->u.fmr;
+		list_add(&fmr->fmr->list, &fmr_list);
+	}
 
 	ret = ib_unmap_fmr(&fmr_list);
 	if (ret)
@@ -405,6 +408,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 	/* Now we can destroy the DMA mapping and unpin any pages */
 	list_for_each_entry_safe(ibmr, next, &unmap_list, unmap_list) {
 		unpinned += ibmr->sg_len;
+		fmr = &ibmr->u.fmr;
 		__rds_ib_teardown_mr(ibmr);
 		if (nfreed < free_goal ||
 		    ibmr->remap_count >= pool->fmr_attr.max_maps) {
@@ -413,7 +417,7 @@ int rds_ib_flush_mr_pool(struct rds_ib_mr_pool *pool,
 			else
 				rds_ib_stats_inc(s_ib_rdma_mr_1m_free);
 			list_del(&ibmr->unmap_list);
-			ib_dealloc_fmr(ibmr->fmr);
+			ib_dealloc_fmr(fmr->fmr);
 			kfree(ibmr);
 			nfreed++;
 		}
@@ -517,6 +521,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
+	struct rds_ib_fmr *fmr;
 	int ret;
 
 	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr);
@@ -536,9 +541,10 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		return ibmr;
 	}
 
+	fmr = &ibmr->u.fmr;
 	ret = rds_ib_map_fmr(rds_ibdev, ibmr, sg, nents);
 	if (ret == 0)
-		*key_ret = ibmr->fmr->rkey;
+		*key_ret = fmr->fmr->rkey;
 	else
 		printk(KERN_WARNING "RDS/IB: map_fmr failed (errno=%d)\n", ret);
 

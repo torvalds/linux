@@ -43,11 +43,15 @@
 #define RDS_MR_8K_SCALE			(256 / (RDS_MR_8K_MSG_SIZE + 1))
 #define RDS_MR_8K_POOL_SIZE		(RDS_MR_8K_SCALE * (8192 / 2))
 
+struct rds_ib_fmr {
+	struct ib_fmr		*fmr;
+	u64			*dma;
+};
+
 /* This is stored as mr->r_trans_private. */
 struct rds_ib_mr {
 	struct rds_ib_device	*device;
 	struct rds_ib_mr_pool	*pool;
-	struct ib_fmr		*fmr;
 
 	struct llist_node	llnode;
 
@@ -57,8 +61,11 @@ struct rds_ib_mr {
 
 	struct scatterlist	*sg;
 	unsigned int		sg_len;
-	u64			*dma;
 	int			sg_dma_len;
+
+	union {
+		struct rds_ib_fmr	fmr;
+	} u;
 };
 
 /* Our own little MR pool */

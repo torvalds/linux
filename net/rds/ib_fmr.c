@@ -36,6 +36,7 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 {
 	struct rds_ib_mr_pool *pool;
 	struct rds_ib_mr *ibmr = NULL;
+	struct rds_ib_fmr *fmr;
 	int err = 0, iter = 0;
 
 	if (npages <= RDS_MR_8K_MSG_SIZE)
@@ -99,15 +100,16 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 		goto out_no_cigar;
 	}
 
-	ibmr->fmr = ib_alloc_fmr(rds_ibdev->pd,
+	fmr = &ibmr->u.fmr;
+	fmr->fmr = ib_alloc_fmr(rds_ibdev->pd,
 			(IB_ACCESS_LOCAL_WRITE |
 			 IB_ACCESS_REMOTE_READ |
 			 IB_ACCESS_REMOTE_WRITE |
 			 IB_ACCESS_REMOTE_ATOMIC),
 			&pool->fmr_attr);
-	if (IS_ERR(ibmr->fmr)) {
-		err = PTR_ERR(ibmr->fmr);
-		ibmr->fmr = NULL;
+	if (IS_ERR(fmr->fmr)) {
+		err = PTR_ERR(fmr->fmr);
+		fmr->fmr = NULL;
 		pr_warn("RDS/IB: %s failed (err=%d)\n", __func__, err);
 		goto out_no_cigar;
 	}
@@ -122,8 +124,8 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 
 out_no_cigar:
 	if (ibmr) {
-		if (ibmr->fmr)
-			ib_dealloc_fmr(ibmr->fmr);
+		if (fmr->fmr)
+			ib_dealloc_fmr(fmr->fmr);
 		kfree(ibmr);
 	}
 	atomic_dec(&pool->item_count);
@@ -134,6 +136,7 @@ int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
 		   struct scatterlist *sg, unsigned int nents)
 {
 	struct ib_device *dev = rds_ibdev->dev;
+	struct rds_ib_fmr *fmr = &ibmr->u.fmr;
 	struct scatterlist *scat = sg;
 	u64 io_addr = 0;
 	u64 *dma_pages;
@@ -190,7 +193,7 @@ int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
 				(dma_addr & PAGE_MASK) + j;
 	}
 
-	ret = ib_map_phys_fmr(ibmr->fmr, dma_pages, page_cnt, io_addr);
+	ret = ib_map_phys_fmr(fmr->fmr, dma_pages, page_cnt, io_addr);
 	if (ret)
 		goto out;
 
