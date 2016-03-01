@@ -1522,7 +1522,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 				    struct rtw_queue *defrag_q)
 {
-	struct list_head *plist, *phead;
+	struct list_head *phead;
 	u8 wlanhdr_offset;
 	u8 curfragnum;
 	struct recv_frame *pnfhdr, *ptmp;
@@ -1534,8 +1534,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 	pfree_recv_queue = &adapter->recvpriv.free_recv_queue;
 
 	phead = get_list_head(defrag_q);
-	plist = phead->next;
-	prframe = container_of(plist, struct recv_frame, list);
+	prframe = list_first_entry(phead, struct recv_frame, list);
 	list_del_init(&prframe->list);
 	skb = prframe->pkt;
 
