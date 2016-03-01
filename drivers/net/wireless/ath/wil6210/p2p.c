@@ -22,13 +22,6 @@
 #define P2P_SEARCH_DURATION_MS 500
 #define P2P_DEFAULT_BI 100
 
-int wil_scan_is_p2p_search(struct wil6210_priv *wil,
-			   struct cfg80211_scan_request *request)
-{
-	/* need P2P_DEVICE changes to make this work */
-	return 0;
-}
-
 void wil_p2p_discovery_timer_fn(ulong x)
 {
 	struct wil6210_priv *wil = (void *)x;
@@ -183,10 +176,14 @@ void wil_p2p_cancel_listen(struct wil6210_priv *wil, u64 cookie)
 			 __func__, p2p->cookie, cookie);
 
 	wil_p2p_stop_discovery(wil);
-	cfg80211_remain_on_channel_expired(wil->wdev,
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+	cfg80211_remain_on_channel_expired(wil->radio_wdev,
 					   p2p->cookie,
 					   &p2p->listen_chan,
 					   GFP_KERNEL);
+	wil->radio_wdev = wil->wdev;
+	mutex_unlock(&wil->p2p_wdev_mutex);
 }
 
 void wil_p2p_listen_expired(struct work_struct *work)
@@ -199,10 +196,15 @@ void wil_p2p_listen_expired(struct work_struct *work)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_p2p_stop_discovery(wil);
-	cfg80211_remain_on_channel_expired(wil->wdev,
+
+	mutex_lock(&wil->p2p_wdev_mutex);
+	cfg80211_remain_on_channel_expired(wil->radio_wdev,
 					   p2p->cookie,
 					   &p2p->listen_chan,
 					   GFP_KERNEL);
+	wil->radio_wdev = wil->wdev;
+	mutex_unlock(&wil->p2p_wdev_mutex);
+
 }
 
 void wil_p2p_search_expired(struct work_struct *work)
@@ -215,6 +217,10 @@ void wil_p2p_search_expired(struct work_struct *work)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	wil_p2p_stop_discovery(wil);
+
+	mutex_lock(&wil->p2p_wdev_mutex);
 	cfg80211_scan_done(wil->scan_request, 0);
 	wil->scan_request = NULL;
+	wil->radio_wdev = wil->wdev;
+	mutex_unlock(&wil->p2p_wdev_mutex);
 }

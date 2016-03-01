@@ -380,8 +380,10 @@ static void wmi_evt_rx_mgmt(struct wil6210_priv *wil, int id, void *d, int len)
 			wil_err(wil, "cfg80211_inform_bss_frame() failed\n");
 		}
 	} else {
-		cfg80211_rx_mgmt(wil->wdev, freq, signal,
+		mutex_lock(&wil->p2p_wdev_mutex);
+		cfg80211_rx_mgmt(wil->radio_wdev, freq, signal,
 				 (void *)rx_mgmt_frame, d_len, 0);
+		mutex_unlock(&wil->p2p_wdev_mutex);
 	}
 }
 
@@ -408,7 +410,10 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 			     wil->scan_request, aborted);
 
 		del_timer_sync(&wil->scan_timer);
+		mutex_lock(&wil->p2p_wdev_mutex);
 		cfg80211_scan_done(wil->scan_request, aborted);
+		wil->radio_wdev = wil->wdev;
+		mutex_unlock(&wil->p2p_wdev_mutex);
 		wil->scan_request = NULL;
 	} else {
 		wil_err(wil, "SCAN_COMPLETE while not scanning\n");

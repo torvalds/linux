@@ -149,6 +149,7 @@ void *wil_if_alloc(struct device *dev)
 
 	wil = wdev_to_wil(wdev);
 	wil->wdev = wdev;
+	wil->radio_wdev = wdev;
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 

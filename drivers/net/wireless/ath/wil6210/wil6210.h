@@ -616,6 +616,11 @@ struct wil6210_priv {
 	bool pbss;
 
 	struct wil_p2p_info p2p;
+
+	/* P2P_DEVICE vif */
+	struct wireless_dev *p2p_wdev;
+	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev */
+	struct wireless_dev *radio_wdev;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
@@ -765,8 +770,6 @@ void wil_disable_irq(struct wil6210_priv *wil);
 void wil_enable_irq(struct wil6210_priv *wil);
 
 /* P2P */
-int wil_scan_is_p2p_search(struct wil6210_priv *wil,
-			   struct cfg80211_scan_request *request);
 void wil_p2p_discovery_timer_fn(ulong x);
 int wil_p2p_search(struct wil6210_priv *wil,
 		   struct cfg80211_scan_request *request);
@@ -794,6 +797,7 @@ int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
+void wil_p2p_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
 int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype,
