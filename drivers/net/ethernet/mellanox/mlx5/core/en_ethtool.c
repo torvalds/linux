@@ -211,13 +211,14 @@ static void mlx5e_get_strings(struct net_device *dev,
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					"rx%d_%s", i, rq_stats_strings[j]);
 
-		for (i = 0; i < priv->params.num_channels; i++)
-			for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (tc = 0; tc < priv->params.num_tc; tc++)
+			for (i = 0; i < priv->params.num_channels; i++)
 				for (j = 0; j < NUM_SQ_STATS; j++)
 					sprintf(data +
-						(idx++) * ETH_GSTRING_LEN,
-						"tx%d_%d_%s", i, tc,
-						sq_stats_strings[j]);
+					      (idx++) * ETH_GSTRING_LEN,
+					      "tx%d_%s",
+					      priv->channeltc_to_txq_map[i][tc],
+					      sq_stats_strings[j]);
 		break;
 	}
 }
@@ -249,8 +250,8 @@ static void mlx5e_get_ethtool_stats(struct net_device *dev,
 						&priv->state) ? 0 :
 				       ((u64 *)&priv->channel[i]->rq.stats)[j];
 
-	for (i = 0; i < priv->params.num_channels; i++)
-		for (tc = 0; tc < priv->params.num_tc; tc++)
+	for (tc = 0; tc < priv->params.num_tc; tc++)
+		for (i = 0; i < priv->params.num_channels; i++)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				data[idx++] = !test_bit(MLX5E_STATE_OPENED,
 							&priv->state) ? 0 :
