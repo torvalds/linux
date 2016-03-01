@@ -1321,7 +1321,7 @@ static struct clk_branch gcc_mmss_bimc_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mmss_bimc_gfx_clk",
-			.flags = CLK_SET_RATE_PARENT | CLK_IS_ROOT,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2315,7 +2315,7 @@ static struct clk_branch gcc_bimc_gfx_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_bimc_gfx_clk",
-			.flags = CLK_SET_RATE_PARENT | CLK_IS_ROOT,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2815,7 +2815,6 @@ static struct clk_branch gcc_ufs_sys_clk_core_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_sys_clk_core_clk",
 			.ops = &clk_branch2_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };
@@ -2828,7 +2827,6 @@ static struct clk_branch gcc_ufs_tx_symbol_clk_core_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ufs_tx_symbol_clk_core_clk",
 			.ops = &clk_branch2_ops,
-			.flags = CLK_IS_ROOT,
 		},
 	},
 };

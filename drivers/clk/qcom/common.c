@@ -119,7 +119,6 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		fixed->hw.init = &init_data;
 
 		init_data.name = path;
-		init_data.flags = CLK_IS_ROOT;
 		init_data.ops = &clk_fixed_rate_ops;
 
 		clk = devm_clk_register(dev, &fixed->hw);
