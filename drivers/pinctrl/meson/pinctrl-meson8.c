@@ -16,7 +16,7 @@
 
 #define AO_OFF	120
 
-static const struct pinctrl_pin_desc meson8_pins[] = {
+static const struct pinctrl_pin_desc meson8_cbus_pins[] = {
 	MESON_PIN(GPIOX_0, 0),
 	MESON_PIN(GPIOX_1, 0),
 	MESON_PIN(GPIOX_2, 0),
@@ -137,6 +137,9 @@ static const struct pinctrl_pin_desc meson8_pins[] = {
 	MESON_PIN(BOOT_16, 0),
 	MESON_PIN(BOOT_17, 0),
 	MESON_PIN(BOOT_18, 0),
+};
+
+static const struct pinctrl_pin_desc meson8_aobus_pins[] = {
 	MESON_PIN(GPIOAO_0, AO_OFF),
 	MESON_PIN(GPIOAO_1, AO_OFF),
 	MESON_PIN(GPIOAO_2, AO_OFF),
@@ -379,7 +382,7 @@ static const unsigned int uart_rx_ao_b1_pins[] = { PIN(GPIOAO_5, AO_OFF) };
 static const unsigned int i2c_mst_sck_ao_pins[] = { PIN(GPIOAO_4, AO_OFF) };
 static const unsigned int i2c_mst_sda_ao_pins[] = { PIN(GPIOAO_5, AO_OFF) };
 
-static struct meson_pmx_group meson8_groups[] = {
+static struct meson_pmx_group meson8_cbus_groups[] = {
 	GPIO_GROUP(GPIOX_0, 0),
 	GPIO_GROUP(GPIOX_1, 0),
 	GPIO_GROUP(GPIOX_2, 0),
@@ -474,22 +477,6 @@ static struct meson_pmx_group meson8_groups[] = {
 	GPIO_GROUP(GPIOZ_12, 0),
 	GPIO_GROUP(GPIOZ_13, 0),
 	GPIO_GROUP(GPIOZ_14, 0),
-	GPIO_GROUP(GPIOAO_0, AO_OFF),
-	GPIO_GROUP(GPIOAO_1, AO_OFF),
-	GPIO_GROUP(GPIOAO_2, AO_OFF),
-	GPIO_GROUP(GPIOAO_3, AO_OFF),
-	GPIO_GROUP(GPIOAO_4, AO_OFF),
-	GPIO_GROUP(GPIOAO_5, AO_OFF),
-	GPIO_GROUP(GPIOAO_6, AO_OFF),
-	GPIO_GROUP(GPIOAO_7, AO_OFF),
-	GPIO_GROUP(GPIOAO_8, AO_OFF),
-	GPIO_GROUP(GPIOAO_9, AO_OFF),
-	GPIO_GROUP(GPIOAO_10, AO_OFF),
-	GPIO_GROUP(GPIOAO_11, AO_OFF),
-	GPIO_GROUP(GPIOAO_12, AO_OFF),
-	GPIO_GROUP(GPIOAO_13, AO_OFF),
-	GPIO_GROUP(GPIO_BSD_EN, AO_OFF),
-	GPIO_GROUP(GPIO_TEST_N, AO_OFF),
 
 	/* bank X */
 	GROUP(sd_d0_a,		8,	5),
@@ -675,26 +662,45 @@ static struct meson_pmx_group meson8_groups[] = {
 	GROUP(sdxc_d0_b,	2,	7),
 	GROUP(sdxc_clk_b,	2,	5),
 	GROUP(sdxc_cmd_b,	2,	4),
+};
+
+static struct meson_pmx_group meson8_aobus_groups[] = {
+	GPIO_GROUP(GPIOAO_0, AO_OFF),
+	GPIO_GROUP(GPIOAO_1, AO_OFF),
+	GPIO_GROUP(GPIOAO_2, AO_OFF),
+	GPIO_GROUP(GPIOAO_3, AO_OFF),
+	GPIO_GROUP(GPIOAO_4, AO_OFF),
+	GPIO_GROUP(GPIOAO_5, AO_OFF),
+	GPIO_GROUP(GPIOAO_6, AO_OFF),
+	GPIO_GROUP(GPIOAO_7, AO_OFF),
+	GPIO_GROUP(GPIOAO_8, AO_OFF),
+	GPIO_GROUP(GPIOAO_9, AO_OFF),
+	GPIO_GROUP(GPIOAO_10, AO_OFF),
+	GPIO_GROUP(GPIOAO_11, AO_OFF),
+	GPIO_GROUP(GPIOAO_12, AO_OFF),
+	GPIO_GROUP(GPIOAO_13, AO_OFF),
+	GPIO_GROUP(GPIO_BSD_EN, AO_OFF),
+	GPIO_GROUP(GPIO_TEST_N, AO_OFF),
 
 	/* bank AO */
-	GROUP_AO(uart_tx_ao_a,		0,	12),
-	GROUP_AO(uart_rx_ao_a,		0,	11),
-	GROUP_AO(uart_cts_ao_a,		0,	10),
-	GROUP_AO(uart_rts_ao_a,		0,	9),
+	GROUP(uart_tx_ao_a,		0,	12),
+	GROUP(uart_rx_ao_a,		0,	11),
+	GROUP(uart_cts_ao_a,		0,	10),
+	GROUP(uart_rts_ao_a,		0,	9),
 
-	GROUP_AO(remote_input,		0,	0),
+	GROUP(remote_input,		0,	0),
 
-	GROUP_AO(i2c_slave_sck_ao,	0,	2),
-	GROUP_AO(i2c_slave_sda_ao,	0,	1),
+	GROUP(i2c_slave_sck_ao,		0,	2),
+	GROUP(i2c_slave_sda_ao,		0,	1),
 
-	GROUP_AO(uart_tx_ao_b0,		0,	26),
-	GROUP_AO(uart_rx_ao_b0,		0,	25),
+	GROUP(uart_tx_ao_b0,		0,	26),
+	GROUP(uart_rx_ao_b0,		0,	25),
 
-	GROUP_AO(uart_tx_ao_b1,		0,	24),
-	GROUP_AO(uart_rx_ao_b1,		0,	23),
+	GROUP(uart_tx_ao_b1,		0,	24),
+	GROUP(uart_rx_ao_b1,		0,	23),
 
-	GROUP_AO(i2c_mst_sck_ao,	0,	6),
-	GROUP_AO(i2c_mst_sda_ao,	0,	5),
+	GROUP(i2c_mst_sck_ao,		0,	6),
+	GROUP(i2c_mst_sda_ao,		0,	5),
 };
 
 static const char * const gpio_groups[] = {
@@ -872,7 +878,7 @@ static const char * const i2c_mst_ao_groups[] = {
 	"i2c_mst_sck_ao", "i2c_mst_sda_ao"
 };
 
-static struct meson_pmx_func meson8_functions[] = {
+static struct meson_pmx_func meson8_cbus_functions[] = {
 	FUNCTION(gpio),
 	FUNCTION(sd_a),
 	FUNCTION(sdxc_a),
@@ -899,6 +905,9 @@ static struct meson_pmx_func meson8_functions[] = {
 	FUNCTION(nor),
 	FUNCTION(sd_b),
 	FUNCTION(sdxc_b),
+};
+
+static struct meson_pmx_func meson8_aobus_functions[] = {
 	FUNCTION(uart_ao),
 	FUNCTION(remote),
 	FUNCTION(i2c_slave_ao),
@@ -906,7 +915,7 @@ static struct meson_pmx_func meson8_functions[] = {
 	FUNCTION(i2c_mst_ao),
 };
 
-static struct meson_bank meson8_banks[] = {
+static struct meson_bank meson8_cbus_banks[] = {
 	/*   name    first             last                 pullen  pull    dir     out     in  */
 	BANK("X",    PIN(GPIOX_0, 0),  PIN(GPIOX_21, 0),    4,  0,  4,  0,  0,  0,  1,  0,  2,  0),
 	BANK("Y",    PIN(GPIOY_0, 0),  PIN(GPIOY_16, 0),    3,  0,  3,  0,  3,  0,  4,  0,  5,  0),
@@ -917,35 +926,43 @@ static struct meson_bank meson8_banks[] = {
 	BANK("BOOT", PIN(BOOT_0, 0),   PIN(BOOT_18, 0),     2,  0,  2,  0,  9,  0, 10,  0, 11,  0),
 };
 
-static struct meson_bank meson8_ao_banks[] = {
+static struct meson_bank meson8_aobus_banks[] = {
 	/*   name    first                  last                      pullen  pull    dir     out     in  */
 	BANK("AO",   PIN(GPIOAO_0, AO_OFF), PIN(GPIO_TEST_N, AO_OFF), 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
-static struct meson_domain_data meson8_domain_data[] = {
-	{
-		.name		= "banks",
-		.banks		= meson8_banks,
-		.num_banks	= ARRAY_SIZE(meson8_banks),
-		.pin_base	= 0,
-		.num_pins	= 120,
-	},
-	{
-		.name		= "ao-bank",
-		.banks		= meson8_ao_banks,
-		.num_banks	= ARRAY_SIZE(meson8_ao_banks),
-		.pin_base	= 120,
-		.num_pins	= 16,
-	},
+static struct meson_domain_data meson8_cbus_domain_data = {
+	.name		= "cbus-banks",
+	.banks		= meson8_cbus_banks,
+	.num_banks	= ARRAY_SIZE(meson8_cbus_banks),
+	.pin_base	= 0,
+	.num_pins	= 120,
 };
 
-struct meson_pinctrl_data meson8_pinctrl_data = {
-	.pins		= meson8_pins,
-	.groups		= meson8_groups,
-	.funcs		= meson8_functions,
-	.domain_data	= meson8_domain_data,
-	.num_pins	= ARRAY_SIZE(meson8_pins),
-	.num_groups	= ARRAY_SIZE(meson8_groups),
-	.num_funcs	= ARRAY_SIZE(meson8_functions),
-	.num_domains	= ARRAY_SIZE(meson8_domain_data),
+static struct meson_domain_data meson8_aobus_domain_data = {
+	.name		= "ao-bank",
+	.banks		= meson8_aobus_banks,
+	.num_banks	= ARRAY_SIZE(meson8_aobus_banks),
+	.pin_base	= 120,
+	.num_pins	= 16,
+};
+
+struct meson_pinctrl_data meson8_cbus_pinctrl_data = {
+	.pins		= meson8_cbus_pins,
+	.groups		= meson8_cbus_groups,
+	.funcs		= meson8_cbus_functions,
+	.domain_data	= &meson8_cbus_domain_data,
+	.num_pins	= ARRAY_SIZE(meson8_cbus_pins),
+	.num_groups	= ARRAY_SIZE(meson8_cbus_groups),
+	.num_funcs	= ARRAY_SIZE(meson8_cbus_functions),
+};
+
+struct meson_pinctrl_data meson8_aobus_pinctrl_data = {
+	.pins		= meson8_aobus_pins,
+	.groups		= meson8_aobus_groups,
+	.funcs		= meson8_aobus_functions,
+	.domain_data	= &meson8_aobus_domain_data,
+	.num_pins	= ARRAY_SIZE(meson8_aobus_pins),
+	.num_groups	= ARRAY_SIZE(meson8_aobus_groups),
+	.num_funcs	= ARRAY_SIZE(meson8_aobus_functions),
 };
