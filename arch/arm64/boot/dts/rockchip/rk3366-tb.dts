@@ -214,6 +214,36 @@
 		sdcard-supply = <&vccio_sd>;
 		tphdsor-supply = <&vcc_io>;
 	};
+
+	dwc_control_usb: dwc-control-usb {
+		compatible = "rockchip,rk3368-dwc-control-usb";
+		rockchip,grf = <&grf>;
+		grf-offset = <0x049c>; /* GRF_SOC_STATUS for USB2.0 OTG */
+		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "otg_id", "otg_bvalid",
+				  "otg_linestate", "host0_linestate";
+		clocks = <&cru SCLK_USBPHY480M>;
+		clock-names = "usbphy_480m";
+
+		usb_bc {
+			compatible = "inno,phy";
+			regbase = &dwc_control_usb;
+			rk_usb,bvalid     = <0x49c 23 1>;
+			rk_usb,iddig      = <0x49c 26 1>;
+			rk_usb,vdmsrcen   = <0x718 12 1>;
+			rk_usb,vdpsrcen   = <0x718 11 1>;
+			rk_usb,rdmpden    = <0x718 10 1>;
+			rk_usb,idpsrcen   = <0x718  9 1>;
+			rk_usb,idmsinken  = <0x718  8 1>;
+			rk_usb,idpsinken  = <0x718  7 1>;
+			rk_usb,dpattach   = <0x498 31 1>;
+			rk_usb,cpdet      = <0x498 30 1>;
+			rk_usb,dcpattach  = <0x498 29 1>;
+		};
+	};
 };
 
 &emmc {
@@ -592,5 +622,25 @@
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
+	status = "okay";
+};
+
+&dwc_control_usb {
+	host_drv_gpio = <&gpio0 16 GPIO_ACTIVE_LOW>; /* GPIO_C0 = 16 */
+	otg_drv_gpio = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO_B2 = 10 */
+
+	rockchip,remote_wakeup;
+	rockchip,usb_irq_wakeup;
+};
+
+&usb_otg {
+	clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_OTG>;
+	clock-names = "sclk_otgphy0", "otg";
+	resets = <&cru SRST_USBOTG_AHB>,
+		 <&cru SRST_USBOTG_PHY>,
+		 <&cru SRST_USBOTG_CON>;
+	reset-names = "otg_ahb", "otg_phy", "otg_controller";
+	/* 0 - Normal, 1 - Force Host, 2 - Force Device */
+	rockchip,usb-mode = <0>;
 	status = "okay";
 };
