@@ -970,7 +970,7 @@ static int __ref kernel_init(void *unused)
 	    !try_to_run_init_process("/etc/init") ||
 	    !try_to_run_init_process("/bin/init") ||
 	    !try_to_run_init_process("/bin/busybox ash") ||
-	    !try_to_run_init_process("/bin/bash") ||
+	    !try_to_run_init_process("/bin/ash") ||
 	    !try_to_run_init_process("/bin/sh"))
 		return 0;
 
