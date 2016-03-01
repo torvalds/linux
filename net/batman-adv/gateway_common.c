@@ -40,8 +40,8 @@
  *
  * Return: false on parse error and true otherwise.
  */
-static bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
-				    const char *description, u32 *throughput)
+bool batadv_parse_throughput(struct net_device *net_dev, char *buff,
+			     const char *description, u32 *throughput)
 {
 	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
 	u64 lthroughput;

@@ -378,8 +378,7 @@ bool batadv_frag_skb_fwd(struct sk_buff *skb,
 				   skb->len + ETH_HLEN);
 
 		packet->ttl--;
-		batadv_send_skb_packet(skb, neigh_node->if_incoming,
-				       neigh_node->addr);
+		batadv_send_unicast_skb(skb, neigh_node);
 		ret = true;
 	}
 
@@ -486,8 +485,7 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 				   skb_fragment->len + ETH_HLEN);
-		batadv_send_skb_packet(skb_fragment, neigh_node->if_incoming,
-				       neigh_node->addr);
+		batadv_send_unicast_skb(skb_fragment, neigh_node);
 		frag_header.no++;
 
 		/* The initial check in this function should cover this case */
@@ -506,7 +504,7 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 	batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 	batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 			   skb->len + ETH_HLEN);
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_unicast_skb(skb, neigh_node);
 
 	ret = true;
 

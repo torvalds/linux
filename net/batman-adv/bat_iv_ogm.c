@@ -478,7 +478,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 		batadv_inc_counter(bat_priv, BATADV_CNT_MGMT_TX);
 		batadv_add_counter(bat_priv, BATADV_CNT_MGMT_TX_BYTES,
 				   skb->len + ETH_HLEN);
-		batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
+		batadv_send_broadcast_skb(skb, hard_iface);
 	}
 }
 

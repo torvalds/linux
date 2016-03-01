@@ -278,7 +278,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	ether_addr_copy(icmp_header->orig, primary_if->net_dev->dev_addr);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_unicast_skb(skb, neigh_node);
 	goto out;
 
 dst_unreach:
