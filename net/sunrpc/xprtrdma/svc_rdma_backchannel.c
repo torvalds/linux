@@ -111,16 +111,9 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	if (ret)
 		goto out_err;
 
-	/* Post a recv buffer to handle the reply for this request. */
-	ret = svc_rdma_post_recv(rdma, GFP_NOIO);
-	if (ret) {
-		pr_err("svcrdma: Failed to post bc receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", rdma);
-		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
+	ret = svc_rdma_repost_recv(rdma, GFP_NOIO);
+	if (ret)
 		goto out_err;
-	}
 
 	ctxt = svc_rdma_get_context(rdma);
 	ctxt->pages[0] = virt_to_page(rqst->rq_buffer);

@@ -711,13 +711,5 @@ defer:
 	return 0;
 
 repost:
-	ret = svc_rdma_post_recv(rdma_xprt, GFP_KERNEL);
-	if (ret) {
-		pr_err("svcrdma: could not post a receive buffer, err=%d.\n",
-		       ret);
-		pr_err("svcrdma: closing transport %p.\n", rdma_xprt);
-		set_bit(XPT_CLOSE, &rdma_xprt->sc_xprt.xpt_flags);
-		ret = -ENOTCONN;
-	}
-	return ret;
+	return svc_rdma_repost_recv(rdma_xprt, GFP_KERNEL);
 }
