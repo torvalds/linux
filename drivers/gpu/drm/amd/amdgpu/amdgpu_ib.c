@@ -165,6 +165,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 		if (ib->ctx != ctx || ib->vm != vm) {
 			ring->current_ctx = old_ctx;
+			if (ib->vm_id)
+				amdgpu_vm_reset_id(adev, ib->vm_id);
 			amdgpu_ring_undo(ring);
 			return -EINVAL;
 		}
@@ -181,6 +183,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		ring->current_ctx = old_ctx;
+		if (ib->vm_id)
+			amdgpu_vm_reset_id(adev, ib->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}

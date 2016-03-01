@@ -252,16 +252,53 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     uint32_t gws_base, uint32_t gws_size,
 		     uint32_t oa_base, uint32_t oa_size)
 {
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vm_manager_id *mgr_id = &adev->vm_manager.ids[vm_id];
+
 	if (pd_addr != AMDGPU_VM_NO_FLUSH) {
 		trace_amdgpu_vm_flush(pd_addr, ring->idx, vm_id);
 		amdgpu_ring_emit_vm_flush(ring, vm_id, pd_addr);
 	}
 
-	if (ring->funcs->emit_gds_switch)
+	if (ring->funcs->emit_gds_switch && (
+	    mgr_id->gds_base != gds_base ||
+	    mgr_id->gds_size != gds_size ||
+	    mgr_id->gws_base != gws_base ||
+	    mgr_id->gws_size != gws_size ||
+	    mgr_id->oa_base != oa_base ||
+	    mgr_id->oa_size != oa_size)) {
+
+		mgr_id->gds_base = gds_base;
+		mgr_id->gds_size = gds_size;
+		mgr_id->gws_base = gws_base;
+		mgr_id->gws_size = gws_size;
+		mgr_id->oa_base = oa_base;
+		mgr_id->oa_size = oa_size;
 		amdgpu_ring_emit_gds_switch(ring, vm_id,
 					    gds_base, gds_size,
 					    gws_base, gws_size,
 					    oa_base, oa_size);
+	}
+}
+
+/**
+ * amdgpu_vm_reset_id - reset VMID to zero
+ *
+ * @adev: amdgpu device structure
+ * @vm_id: vmid number to use
+ *
+ * Reset saved GDW, GWS and OA to force switch on next flush.
+ */
+void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id)
+{
+	struct amdgpu_vm_manager_id *mgr_id = &adev->vm_manager.ids[vm_id];
+
+	mgr_id->gds_base = 0;
+	mgr_id->gds_size = 0;
+	mgr_id->gws_base = 0;
+	mgr_id->gws_size = 0;
+	mgr_id->oa_base = 0;
+	mgr_id->oa_size = 0;
 }
 
 /**
@@ -1425,9 +1462,11 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	INIT_LIST_HEAD(&adev->vm_manager.ids_lru);
 
 	/* skip over VMID 0, since it is the system VM */
-	for (i = 1; i < adev->vm_manager.num_ids; ++i)
+	for (i = 1; i < adev->vm_manager.num_ids; ++i) {
+		amdgpu_vm_reset_id(adev, i);
 		list_add_tail(&adev->vm_manager.ids[i].list,
 			      &adev->vm_manager.ids_lru);
+	}
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
 }

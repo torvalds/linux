@@ -922,6 +922,13 @@ struct amdgpu_vm_manager_id {
 	struct list_head	list;
 	struct fence		*active;
 	atomic_long_t		owner;
+
+	uint32_t		gds_base;
+	uint32_t		gds_size;
+	uint32_t		gws_base;
+	uint32_t		gws_size;
+	uint32_t		oa_base;
+	uint32_t		oa_size;
 };
 
 struct amdgpu_vm_manager {
@@ -961,6 +968,7 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     uint32_t gds_base, uint32_t gds_size,
 		     uint32_t gws_base, uint32_t gws_size,
 		     uint32_t oa_base, uint32_t oa_size);
+void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);
