@@ -141,11 +141,11 @@ static const struct composite_conf mali_conf __initconst = {
 };
 
 static const struct clk_conf meson8b_xtal_conf __initconst =
-	FIXED_RATE_P(MESON8B_REG_CTL0_ADDR, CLKID_XTAL, "xtal",
-		     CLK_IS_ROOT, PARM(0x00, 4, 7));
+	FIXED_RATE_P(MESON8B_REG_CTL0_ADDR, CLKID_XTAL, "xtal", 0,
+			PARM(0x00, 4, 7));
 
 static const struct clk_conf meson8b_clk_confs[] __initconst = {
-	FIXED_RATE(CLKID_ZERO, "zero", CLK_IS_ROOT, 0),
+	FIXED_RATE(CLKID_ZERO, "zero", 0, 0),
 	PLL(MESON8B_REG_PLL_FIXED, CLKID_PLL_FIXED, "fixed_pll",
 	    p_xtal, 0, &pll_confs),
 	PLL(MESON8B_REG_PLL_VID, CLKID_PLL_VID, "vid_pll",
