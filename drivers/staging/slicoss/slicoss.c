@@ -2984,7 +2984,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 
 	/* Initialize a new card structure if need be */
 	if (card_hostid == SLIC_HOSTID_DEFAULT) {
-		card = kzalloc(sizeof(struct sliccard), GFP_KERNEL);
+		card = kzalloc(sizeof(*card), GFP_KERNEL);
 		if (card == NULL)
 			return -ENOMEM;
 
