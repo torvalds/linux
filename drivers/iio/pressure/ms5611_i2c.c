@@ -63,23 +63,23 @@ static int ms5611_i2c_read_adc_temp_and_pressure(struct device *dev,
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(dev_to_iio_dev(dev));
+	const struct ms5611_osr *osr = st->temp_osr;
 
-	ret = i2c_smbus_write_byte(st->client, MS5611_START_TEMP_CONV);
+	ret = i2c_smbus_write_byte(st->client, osr->cmd);
 	if (ret < 0)
 		return ret;
 
-	usleep_range(MS5611_CONV_TIME_MIN, MS5611_CONV_TIME_MAX);
-
+	usleep_range(osr->conv_usec, osr->conv_usec + (osr->conv_usec / 10UL));
 	ret = ms5611_i2c_read_adc(st, temp);
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_byte(st->client, MS5611_START_PRESSURE_CONV);
+	osr = st->pressure_osr;
+	ret = i2c_smbus_write_byte(st->client, osr->cmd);
 	if (ret < 0)
 		return ret;
 
-	usleep_range(MS5611_CONV_TIME_MIN, MS5611_CONV_TIME_MAX);
-
+	usleep_range(osr->conv_usec, osr->conv_usec + (osr->conv_usec / 10UL));
 	return ms5611_i2c_read_adc(st, pressure);
 }
 

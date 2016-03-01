@@ -56,28 +56,29 @@ static int ms5611_spi_read_adc(struct device *dev, s32 *val)
 static int ms5611_spi_read_adc_temp_and_pressure(struct device *dev,
 						 s32 *temp, s32 *pressure)
 {
-	u8 cmd;
 	int ret;
 	struct ms5611_state *st = iio_priv(dev_to_iio_dev(dev));
+	const struct ms5611_osr *osr = st->temp_osr;
 
-	cmd = MS5611_START_TEMP_CONV;
-	ret = spi_write_then_read(st->client, &cmd, 1, NULL, 0);
+	/*
+	 * Warning: &osr->cmd MUST be aligned on a word boundary since used as
+	 * 2nd argument (void*) of spi_write_then_read.
+	 */
+	ret = spi_write_then_read(st->client, &osr->cmd, 1, NULL, 0);
 	if (ret < 0)
 		return ret;
 
-	usleep_range(MS5611_CONV_TIME_MIN, MS5611_CONV_TIME_MAX);
-
+	usleep_range(osr->conv_usec, osr->conv_usec + (osr->conv_usec / 10UL));
 	ret = ms5611_spi_read_adc(dev, temp);
 	if (ret < 0)
 		return ret;
 
-	cmd = MS5611_START_PRESSURE_CONV;
-	ret = spi_write_then_read(st->client, &cmd, 1, NULL, 0);
+	osr = st->pressure_osr;
+	ret = spi_write_then_read(st->client, &osr->cmd, 1, NULL, 0);
 	if (ret < 0)
 		return ret;
 
-	usleep_range(MS5611_CONV_TIME_MIN, MS5611_CONV_TIME_MAX);
-
+	usleep_range(osr->conv_usec, osr->conv_usec + (osr->conv_usec / 10UL));
 	return ms5611_spi_read_adc(dev, pressure);
 }
 
