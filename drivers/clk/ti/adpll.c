@@ -462,7 +462,7 @@ static unsigned long ti_adpll_recalc_rate(struct clk_hw *hw,
 	spin_lock_irqsave(&d->lock, flags);
 	frac_m = readl_relaxed(d->regs + ADPLL_FRACDIV_OFFSET);
 	frac_m &= ADPLL_FRACDIV_FRACTIONALM_MASK;
-	rate = readw_relaxed(d->regs + ADPLL_MN2DIV_OFFSET) << 18;
+	rate = (u64)readw_relaxed(d->regs + ADPLL_MN2DIV_OFFSET) << 18;
 	rate += frac_m;
 	rate *= parent_rate;
 	divider = (readw_relaxed(d->regs + ADPLL_M2NDIV_OFFSET) + 1) << 18;
@@ -919,7 +919,7 @@ static int ti_adpll_probe(struct platform_device *pdev)
 				 TI_ADPLL_NR_CLOCKS,
 				 GFP_KERNEL);
 	if (!d->clocks)
-		goto free;
+		return -ENOMEM;
 
 	err = ti_adpll_init_dco(d);
 	if (err) {

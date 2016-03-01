@@ -31,7 +31,7 @@ static struct ti_dt_clk dm814_clks[] = {
 
 static bool timer_clocks_initialized;
 
-int __init dm814x_adpll_early_init(void)
+static int __init dm814x_adpll_early_init(void)
 {
 	struct device_node *np;
 
@@ -55,7 +55,7 @@ static const char * const init_clocks[] = {
 	"pll290clkout",		/* DDR 481c5290.adpll.clkout */
 };
 
-int __init dm814x_adpll_enable_init_clocks(void)
+static int __init dm814x_adpll_enable_init_clocks(void)
 {
 	int i, err;
 
