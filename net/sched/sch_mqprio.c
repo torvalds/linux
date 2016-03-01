@@ -142,7 +142,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	 */
 	if (qopt->hw) {
 		struct tc_to_netdev tc = {.type = TC_SETUP_MQPRIO,
-					  .tc = qopt->num_tc};
+					  { .tc = qopt->num_tc }};
 
 		priv->hw_owned = 1;
 		err = dev->netdev_ops->ndo_setup_tc(dev, sch->handle, 0, &tc);
