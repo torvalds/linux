@@ -22,6 +22,7 @@
 #include <net/cfg80211.h>
 #include <linux/timex.h>
 #include <linux/types.h>
+#include "wmi.h"
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
@@ -334,29 +335,11 @@ struct wil6210_mbox_hdr {
 /* max. value for wil6210_mbox_hdr.len */
 #define MAX_MBOXITEM_SIZE   (240)
 
-/**
- * struct wil6210_mbox_hdr_wmi - WMI header
- *
- * @mid: MAC ID
- *	00 - default, created by FW
- *	01..0f - WiFi ports, driver to create
- *	10..fe - debug
- *	ff - broadcast
- * @id: command/event ID
- * @timestamp: FW fills for events, free-running msec timer
- */
-struct wil6210_mbox_hdr_wmi {
-	u8 mid;
-	u8 reserved;
-	__le16 id;
-	__le32 timestamp;
-} __packed;
-
 struct pending_wmi_event {
 	struct list_head list;
 	struct {
 		struct wil6210_mbox_hdr hdr;
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		u8 data[0];
 	} __packed event;
 };

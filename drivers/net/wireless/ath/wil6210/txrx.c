@@ -820,7 +820,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		},
 	};
 	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
@@ -897,7 +897,7 @@ int wil_vring_init_bcast(struct wil6210_priv *wil, int id, int size)
 		},
 	};
 	struct {
-		struct wil6210_mbox_hdr_wmi wmi;
+		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
 	} __packed reply;
 	struct vring *vring = &wil->vring_tx[id];
