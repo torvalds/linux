@@ -275,6 +275,11 @@ out:
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
 			if (!ima_fix_xattr(dentry, iint))
 				status = INTEGRITY_PASS;
+		} else if ((inode->i_size == 0) &&
+			   (iint->flags & IMA_NEW_FILE) &&
+			   (xattr_value &&
+			    xattr_value->type == EVM_IMA_XATTR_DIGSIG)) {
+			status = INTEGRITY_PASS;
 		}
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, filename,
 				    op, cause, rc, 0);
