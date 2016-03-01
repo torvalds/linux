@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
  * Author: Xing Zheng <zhengxing@rock-chips.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -306,6 +306,8 @@
 #define HCLK_SDIO_NOC			495
 #define HCLK_SDIOAUDIO_NOC		496
 
+#define CLK_NR_CLKS			(HCLK_SDIOAUDIO_NOC + 1)
+
 /* pmu-clocks indices */
 #define SCLK_32K_SUSPEND_PMU		521
 #define SCLK_SPI3_PMU			522
@@ -342,7 +344,7 @@
 #define PCLK_INTR_ARB_PMU		564
 #define HCLK_NOC_PMU			565
 
-#define CLK_NR_CLKS		(HCLK_NOC_PMU + 1)
+#define CLKPMU_NR_CLKS			(HCLK_NOC_PMU - SCLK_32K_SUSPEND_PMU + 1)
 
 /* soft-reset indices */
 
