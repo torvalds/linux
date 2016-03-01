@@ -75,7 +75,9 @@ long kvmppc_ioba_validate(struct kvmppc_spapr_tce_table *stt,
 	unsigned long mask = (1ULL << stt->page_shift) - 1;
 	unsigned long idx = ioba >> stt->page_shift;
 
-	if ((ioba & mask) || (idx + npages > stt->size) || (idx + npages < idx))
+	if ((ioba & mask) || (idx < stt->offset) ||
+			(idx - stt->offset + npages > stt->size) ||
+			(idx + npages < idx))
 		return H_PARAMETER;
 
 	return H_SUCCESS;
@@ -147,6 +149,7 @@ void kvmppc_tce_put(struct kvmppc_spapr_tce_table *stt,
 	struct page *page;
 	u64 *tbl;
 
+	idx -= stt->offset;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = kvmppc_page_address(page);
 
@@ -335,7 +338,7 @@ long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	if (ret != H_SUCCESS)
 		return ret;
 
-	idx = ioba >> stt->page_shift;
+	idx = (ioba >> stt->page_shift) - stt->offset;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	tbl = (u64 *)page_address(page);
 
