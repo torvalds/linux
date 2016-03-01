@@ -3063,7 +3063,7 @@ static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, 
 		p = xdr_encode_opaque_fixed(p, bcts->sessionid.data,
 						NFS4_MAX_SESSIONID_LEN);
 		*p++ = cpu_to_be32(bcts->dir);
-		/* Sorry, we do not yet support RDMA over 4.1: */
+		/* Upshifting from TCP to RDMA is not supported */
 		*p++ = cpu_to_be32(0);
 	}
 	return nfserr;
