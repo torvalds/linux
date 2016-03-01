@@ -156,14 +156,6 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 	{ "Headset Mic", NULL, "Platform Clock" },
 };
 
-static const struct snd_soc_pcm_stream skl_ssm4567_loop_params = {
-	.formats = SNDRV_PCM_FMTBIT_S24_LE,
-	.rate_min = 48000,
-	.rate_max = 48000,
-	.channels_min = 4,
-	.channels_max = 4,
-};
-
 static struct snd_soc_codec_conf ssm4567_codec_conf[] = {
 	{
 		.dev_name = "i2c-INT343B:00",
@@ -507,16 +499,6 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.init = NULL,
 		.nonatomic = 1,
 		.dynamic = 1,
-	},
-	/* Codec-codec link */
-	{
-		.name = "Skylake IV loop",
-		.stream_name = "SKL IV Loop",
-		.cpu_dai_name = "SSP0 Pin",
-		.platform_name = "0000:00:1f.3",
-		.codecs = ssm4567_codec_components,
-		.num_codecs = ARRAY_SIZE(ssm4567_codec_components),
-		.params = &skl_ssm4567_loop_params,
 	},
 
 	/* Back End DAI links */
