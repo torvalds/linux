@@ -1333,6 +1333,34 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 		   r->ssn_last_drop);
 }
 
+static void wil_print_rxtid_crypto(struct seq_file *s, int tid,
+				   struct wil_tid_crypto_rx *c)
+{
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		struct wil_tid_crypto_rx_single *cc = &c->key_id[i];
+
+		if (cc->key_set)
+			goto has_keys;
+	}
+	return;
+
+has_keys:
+	if (tid < WIL_STA_TID_NUM)
+		seq_printf(s, "  [%2d] PN", tid);
+	else
+		seq_puts(s, "  [GR] PN");
+
+	for (i = 0; i < 4; i++) {
+		struct wil_tid_crypto_rx_single *cc = &c->key_id[i];
+
+		seq_printf(s, " [%i%s]%6phN", i, cc->key_set ? "+" : "-",
+			   cc->pn);
+	}
+	seq_puts(s, "\n");
+}
+
 static int wil_sta_debugfs_show(struct seq_file *s, void *data)
 __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 {
@@ -1360,18 +1388,25 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			spin_lock_bh(&p->tid_rx_lock);
 			for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
 				struct wil_tid_ampdu_rx *r = p->tid_rx[tid];
+				struct wil_tid_crypto_rx *c =
+						&p->tid_crypto_rx[tid];
 
 				if (r) {
-					seq_printf(s, "[%2d] ", tid);
+					seq_printf(s, "  [%2d] ", tid);
 					wil_print_rxtid(s, r);
 				}
+
+				wil_print_rxtid_crypto(s, tid, c);
 			}
+			wil_print_rxtid_crypto(s, WIL_STA_TID_NUM,
+					       &p->group_crypto_rx);
 			spin_unlock_bh(&p->tid_rx_lock);
 			seq_printf(s,
-				   "Rx invalid frame: non-data %lu, short %lu, large %lu\n",
+				   "Rx invalid frame: non-data %lu, short %lu, large %lu, replay %lu\n",
 				   p->stats.rx_non_data_frame,
 				   p->stats.rx_short_frame,
-				   p->stats.rx_large_frame);
+				   p->stats.rx_large_frame,
+				   p->stats.rx_replay);
 
 			seq_puts(s, "Rx/MCS:");
 			for (mcs = 0; mcs < ARRAY_SIZE(p->stats.rx_per_mcs);

@@ -149,7 +149,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	might_sleep();
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
-
+	/* inform upper/lower layers */
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
 			wmi_disconnect_sta(wil, sta->addr, reason_code, true);
@@ -165,7 +165,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		}
 		sta->status = wil_sta_unused;
 	}
-
+	/* reorder buffers */
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
 		struct wil_tid_ampdu_rx *r;
 
@@ -177,10 +177,15 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 
 		spin_unlock_bh(&sta->tid_rx_lock);
 	}
+	/* crypto context */
+	memset(sta->tid_crypto_rx, 0, sizeof(sta->tid_crypto_rx));
+	memset(&sta->group_crypto_rx, 0, sizeof(sta->group_crypto_rx));
+	/* release vrings */
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		if (wil->vring2cid_tid[i][0] == cid)
 			wil_vring_fini_tx(wil, i);
 	}
+	/* statistics */
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 

@@ -82,6 +82,12 @@ static const u32 wil_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_GCMP,
 };
 
+static const char * const key_usage_str[] = {
+	[WMI_KEY_USE_PAIRWISE]	= "PTK",
+	[WMI_KEY_USE_RX_GROUP]	= "RX_GTK",
+	[WMI_KEY_USE_TX_GROUP]	= "TX_GTK",
+};
+
 int wil_iftype_nl2wmi(enum nl80211_iftype type)
 {
 	static const struct {
@@ -610,11 +616,6 @@ static enum wmi_key_usage wil_detect_key_usage(struct wil6210_priv *wil,
 {
 	struct wireless_dev *wdev = wil->wdev;
 	enum wmi_key_usage rc;
-	static const char * const key_usage_str[] = {
-		[WMI_KEY_USE_PAIRWISE]	= "WMI_KEY_USE_PAIRWISE",
-		[WMI_KEY_USE_RX_GROUP]	= "WMI_KEY_USE_RX_GROUP",
-		[WMI_KEY_USE_TX_GROUP]	= "WMI_KEY_USE_TX_GROUP",
-	};
 
 	if (pairwise) {
 		rc = WMI_KEY_USE_PAIRWISE;
@@ -638,20 +639,86 @@ static enum wmi_key_usage wil_detect_key_usage(struct wil6210_priv *wil,
 	return rc;
 }
 
+static struct wil_tid_crypto_rx_single *
+wil_find_crypto_ctx(struct wil6210_priv *wil, u8 key_index,
+		    enum wmi_key_usage key_usage, const u8 *mac_addr)
+{
+	int cid = -EINVAL;
+	int tid = 0;
+	struct wil_sta_info *s;
+	struct wil_tid_crypto_rx *c;
+
+	if (key_usage == WMI_KEY_USE_TX_GROUP)
+		return NULL; /* not needed */
+
+	/* supplicant provides Rx group key in STA mode with NULL MAC address */
+	if (mac_addr)
+		cid = wil_find_cid(wil, mac_addr);
+	else if (key_usage == WMI_KEY_USE_RX_GROUP)
+		cid = wil_find_cid_by_idx(wil, 0);
+	if (cid < 0) {
+		wil_err(wil, "No CID for %pM %s[%d]\n", mac_addr,
+			key_usage_str[key_usage], key_index);
+		return ERR_PTR(cid);
+	}
+
+	s = &wil->sta[cid];
+	if (key_usage == WMI_KEY_USE_PAIRWISE)
+		c = &s->tid_crypto_rx[tid];
+	else
+		c = &s->group_crypto_rx;
+
+	return &c->key_id[key_index];
+}
+
 static int wil_cfg80211_add_key(struct wiphy *wiphy,
 				struct net_device *ndev,
 				u8 key_index, bool pairwise,
 				const u8 *mac_addr,
 				struct key_params *params)
 {
+	int rc;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	enum wmi_key_usage key_usage = wil_detect_key_usage(wil, pairwise);
+	struct wil_tid_crypto_rx_single *cc = wil_find_crypto_ctx(wil,
+								  key_index,
+								  key_usage,
+								  mac_addr);
 
-	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
-		     pairwise ? "PTK" : "GTK");
+	wil_dbg_misc(wil, "%s(%pM %s[%d] PN %*phN)\n", __func__,
+		     mac_addr, key_usage_str[key_usage], key_index,
+		     params->seq_len, params->seq);
 
-	return wmi_add_cipher_key(wil, key_index, mac_addr, params->key_len,
-				  params->key, key_usage);
+	if (IS_ERR(cc)) {
+		wil_err(wil, "Not connected, %s(%pM %s[%d] PN %*phN)\n",
+			__func__, mac_addr, key_usage_str[key_usage], key_index,
+			params->seq_len, params->seq);
+		return -EINVAL;
+	}
+
+	if (cc)
+		cc->key_set = false;
+
+	if (params->seq && params->seq_len != IEEE80211_GCMP_PN_LEN) {
+		wil_err(wil,
+			"Wrong PN len %d, %s(%pM %s[%d] PN %*phN)\n",
+			params->seq_len, __func__, mac_addr,
+			key_usage_str[key_usage], key_index,
+			params->seq_len, params->seq);
+		return -EINVAL;
+	}
+
+	rc = wmi_add_cipher_key(wil, key_index, mac_addr, params->key_len,
+				params->key, key_usage);
+	if ((rc == 0) && cc) {
+		if (params->seq)
+			memcpy(cc->pn, params->seq, IEEE80211_GCMP_PN_LEN);
+		else
+			memset(cc->pn, 0, IEEE80211_GCMP_PN_LEN);
+		cc->key_set = true;
+	}
+
+	return rc;
 }
 
 static int wil_cfg80211_del_key(struct wiphy *wiphy,
@@ -661,9 +728,20 @@ static int wil_cfg80211_del_key(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	enum wmi_key_usage key_usage = wil_detect_key_usage(wil, pairwise);
+	struct wil_tid_crypto_rx_single *cc = wil_find_crypto_ctx(wil,
+								  key_index,
+								  key_usage,
+								  mac_addr);
 
-	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
-		     pairwise ? "PTK" : "GTK");
+	wil_dbg_misc(wil, "%s(%pM %s[%d])\n", __func__, mac_addr,
+		     key_usage_str[key_usage], key_index);
+
+	if (IS_ERR(cc))
+		wil_info(wil, "Not connected, %s(%pM %s[%d])\n", __func__,
+			 mac_addr, key_usage_str[key_usage], key_index);
+
+	if (!IS_ERR_OR_NULL(cc))
+		cc->key_set = false;
 
 	return wmi_del_cipher_key(wil, key_index, mac_addr, key_usage);
 }

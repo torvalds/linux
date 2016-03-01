@@ -455,6 +455,21 @@ struct wil_tid_ampdu_rx {
 	bool first_time; /* is it 1-st time this buffer used? */
 };
 
+/**
+ * struct wil_tid_crypto_rx_single - TID crypto information (Rx).
+ *
+ * @pn: GCMP PN for the session
+ * @key_set: valid key present
+ */
+struct wil_tid_crypto_rx_single {
+	u8 pn[IEEE80211_GCMP_PN_LEN];
+	bool key_set;
+};
+
+struct wil_tid_crypto_rx {
+	struct wil_tid_crypto_rx_single key_id[4];
+};
+
 enum wil_sta_status {
 	wil_sta_unused = 0,
 	wil_sta_conn_pending = 1,
@@ -474,6 +489,7 @@ struct wil_net_stats {
 	unsigned long	rx_non_data_frame;
 	unsigned long	rx_short_frame;
 	unsigned long	rx_large_frame;
+	unsigned long	rx_replay;
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
 };
@@ -495,6 +511,8 @@ struct wil_sta_info {
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
+	struct wil_tid_crypto_rx tid_crypto_rx[WIL_STA_TID_NUM];
+	struct wil_tid_crypto_rx group_crypto_rx;
 };
 
 enum {
