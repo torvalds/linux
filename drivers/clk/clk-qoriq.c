@@ -876,7 +876,7 @@ static struct clk *sysclk_from_fixed(struct device_node *node, const char *name)
 	if (of_property_read_u32(node, "clock-frequency", &rate))
 		return ERR_PTR(-ENODEV);
 
-	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
+	return clk_register_fixed_rate(NULL, name, NULL, 0, rate);
 }
 
 static struct clk *sysclk_from_parent(const char *name)
