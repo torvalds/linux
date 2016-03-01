@@ -58,8 +58,8 @@ void __init mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks,
 	for (i = 0; i < num; i++) {
 		const struct mtk_fixed_clk *rc = &clks[i];
 
-		clk = clk_register_fixed_rate(NULL, rc->name, rc->parent,
-				rc->parent ? 0 : CLK_IS_ROOT, rc->rate);
+		clk = clk_register_fixed_rate(NULL, rc->name, rc->parent, 0,
+					      rc->rate);
 
 		if (IS_ERR(clk)) {
 			pr_err("Failed to register clk %s: %ld\n",
