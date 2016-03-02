@@ -5682,7 +5682,7 @@ static void bnx2x_sp_task(struct work_struct *work)
 		if (status & BNX2X_DEF_SB_IDX) {
 			struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
 
-		if (FCOE_INIT(bp) &&
+			if (FCOE_INIT(bp) &&
 			    (bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
 				/* Prevent local bottom-halves from running as
 				 * we are going to change the local NAPI list.
