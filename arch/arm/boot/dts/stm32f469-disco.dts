@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - Maxime Coquelin <mcoquelin.stm32@gmail.com>
+ * Copyright 2016 - Lee Jones <lee.jones@linaro.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -49,8 +49,8 @@
 #include "stm32f429.dtsi"
 
 / {
-	model = "STMicroelectronics STM32429i-EVAL board";
-	compatible = "st,stm32429i-eval", "st,stm32f429";
+	model = "STMicroelectronics STM32F469i-DISCO board";
+	compatible = "st,stm32f469i-disco", "st,stm32f469";
 
 	chosen {
 		bootargs = "root=/dev/ram rdinit=/linuxrc";
@@ -58,68 +58,18 @@
 	};
 
 	memory {
-		reg = <0x00000000 0x2000000>;
+		reg = <0x00000000 0x800000>;
 	};
 
 	aliases {
-		serial0 = &usart1;
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		green {
-			gpios = <&gpiog 6 1>;
-			linux,default-trigger = "heartbeat";
-		};
-		orange {
-			gpios = <&gpiog 7 1>;
-		};
-		red {
-			gpios = <&gpiog 10 1>;
-		};
-		blue {
-			gpios = <&gpiog 12 1>;
-		};
-	};
-
-	usbotg_hs_phy: usbphy {
-		#phy-cells = <0>;
-		compatible = "usb-nop-xceiv";
-		clocks = <&rcc 0 30>;
-		clock-names = "main_clk";
+		serial0 = &usart3;
 	};
 };
 
 &clk_hse {
-	clock-frequency = <25000000>;
+	clock-frequency = <8000000>;
 };
 
-&ethernet0 {
-	status = "okay";
-	pinctrl-0	= <&ethernet0_mii>;
-	pinctrl-names	= "default";
-	phy-mode	= "mii-id";
-	mdio0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "snps,dwmac-mdio";
-		phy1: ethernet-phy@1 {
-			reg = <1>;
-		};
-	};
-};
-
-&usart1 {
-	pinctrl-0 = <&usart1_pins_a>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
-&usbotg_hs {
-	dr_mode = "host";
-	phys = <&usbotg_hs_phy>;
-	phy-names = "usb2-phy";
-	pinctrl-0 = <&usbotg_hs_pins_a>;
-	pinctrl-names = "default";
+&usart3 {
 	status = "okay";
 };
