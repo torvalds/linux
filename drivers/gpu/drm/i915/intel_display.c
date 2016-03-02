@@ -169,47 +169,59 @@ static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
 }
 
-int
-intel_pch_rawclk(struct drm_device *dev)
+static int
+intel_pch_rawclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	WARN_ON(!HAS_PCH_SPLIT(dev));
-
-	return I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK;
+	return (I915_READ(PCH_RAWCLK_FREQ) & RAWCLK_FREQ_MASK) * 1000;
 }
 
-/* hrawclock is 1/4 the FSB frequency */
-int intel_hrawclk(struct drm_device *dev)
+static int
+intel_vlv_hrawclk(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	return 200000;
+}
+
+static int
+intel_g4x_hrawclk(struct drm_i915_private *dev_priv)
+{
 	uint32_t clkcfg;
 
-	/* There is no CLKCFG reg in Valleyview. VLV hrawclk is 200 MHz */
-	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
-		return 200;
-
+	/* hrawclock is 1/4 the FSB frequency */
 	clkcfg = I915_READ(CLKCFG);
 	switch (clkcfg & CLKCFG_FSB_MASK) {
 	case CLKCFG_FSB_400:
-		return 100;
+		return 100000;
 	case CLKCFG_FSB_533:
-		return 133;
+		return 133333;
 	case CLKCFG_FSB_667:
-		return 166;
+		return 166667;
 	case CLKCFG_FSB_800:
-		return 200;
+		return 200000;
 	case CLKCFG_FSB_1067:
-		return 266;
+		return 266667;
 	case CLKCFG_FSB_1333:
-		return 333;
+		return 333333;
 	/* these two are just a guess; one of them might be right */
 	case CLKCFG_FSB_1600:
 	case CLKCFG_FSB_1600_ALT:
-		return 400;
+		return 400000;
 	default:
-		return 133;
+		return 133333;
 	}
+}
+
+static void intel_update_rawclk(struct drm_i915_private *dev_priv)
+{
+	if (HAS_PCH_SPLIT(dev_priv))
+		dev_priv->rawclk_freq = intel_pch_rawclk(dev_priv);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		dev_priv->rawclk_freq = intel_vlv_hrawclk(dev_priv);
+	else if (IS_G4X(dev_priv) || IS_PINEVIEW(dev_priv))
+		dev_priv->rawclk_freq = intel_g4x_hrawclk(dev_priv);
+	else
+		return; /* no rawclk on other platforms, or no need to know it */
+
+	DRM_DEBUG_DRIVER("rawclk rate: %d kHz\n", dev_priv->rawclk_freq);
 }
 
 static void intel_update_czclk(struct drm_i915_private *dev_priv)
@@ -15617,6 +15629,7 @@ void intel_modeset_init(struct drm_device *dev)
 	}
 
 	intel_update_czclk(dev_priv);
+	intel_update_rawclk(dev_priv);
 	intel_update_cdclk(dev);
 
 	intel_shared_dpll_init(dev);
