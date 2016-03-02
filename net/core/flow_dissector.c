@@ -399,6 +399,13 @@ ip_proto_again:
 				goto out_bad;
 			proto = eth->h_proto;
 			nhoff += sizeof(*eth);
+
+			/* Cap headers that we access via pointers at the
+			 * end of the Ethernet header as our maximum alignment
+			 * at that point is only 2 bytes.
+			 */
+			if (NET_IP_ALIGN)
+				hlen = nhoff;
 		}
 
 		key_control->flags |= FLOW_DIS_ENCAPSULATION;

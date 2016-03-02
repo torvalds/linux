@@ -289,7 +289,7 @@ static void __init of_gpio_clk_setup(struct device_node *node,
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents < 0)
-		return;
+		num_parents = 0;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)

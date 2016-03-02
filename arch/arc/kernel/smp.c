@@ -336,11 +336,8 @@ irqreturn_t do_IPI(int irq, void *dev_id)
 		int rc;
 
 		rc = __do_IPI(msg);
-#ifdef CONFIG_ARC_IPI_DBG
-		/* IPI received but no valid @msg */
 		if (rc)
 			pr_info("IPI with bogus msg %ld in %ld\n", msg, copy);
-#endif
 		pending &= ~(1U << msg);
 	} while (pending);
 
