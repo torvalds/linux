@@ -801,11 +801,10 @@ static void iwl_pcie_rx_mq_hw_init(struct iwl_trans *trans)
 
 	/*
 	 * Activate DMA snooping.
-	 * Set RX DMA chunk size to 128 bit
+	 * Set RX DMA chunk size to 64B
 	 * Default queue is 0
 	 */
 	iwl_write_prph(trans, RFH_GEN_CFG, RFH_GEN_CFG_RFH_DMA_SNOOP |
-		       RFH_GEN_CFG_RB_CHUNK_SIZE |
 		       (DEFAULT_RXQ_NUM << RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS) |
 		       RFH_GEN_CFG_SERVICE_DMA_SNOOP);
 	/* Enable the relevant rx queues */
