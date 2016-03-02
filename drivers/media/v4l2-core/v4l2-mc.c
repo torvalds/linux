@@ -27,7 +27,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 {
 	struct media_entity *entity;
 	struct media_entity *if_vid = NULL, *if_aud = NULL;
-	struct media_entity *tuner = NULL, *decoder = NULL;
+	struct media_entity *tuner = NULL, *decoder = NULL, *dtv_demod = NULL;
 	struct media_entity *io_v4l = NULL, *io_vbi = NULL, *io_swradio = NULL;
 	bool is_webcam = false;
 	u32 flags;
@@ -49,6 +49,9 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 			break;
 		case MEDIA_ENT_F_ATV_DECODER:
 			decoder = entity;
+			break;
+		case MEDIA_ENT_F_DTV_DEMOD:
+			dtv_demod = entity;
 			break;
 		case MEDIA_ENT_F_IO_V4L:
 			io_v4l = entity;
@@ -183,6 +186,22 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 
 		flags = 0;
 	}
+
+	/*
+	 * Disable tuner to demod link to avoid disable step
+	 * when tuner is requested by video or audio
+	 */
+	if (tuner && dtv_demod) {
+		struct media_link *link;
+
+		list_for_each_entry(link, &dtv_demod->links, list) {
+			if (link->sink->entity == dtv_demod &&
+			    link->source->entity == tuner) {
+				media_entity_setup_link(link, 0);
+			}
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_mc_create_media_graph);
