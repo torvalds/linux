@@ -252,7 +252,7 @@ ticks_from_ns:
 
 	/* try not losing precision (multiply then divide) */
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 
 	/* use an immeditate, it's ok because HW_TICKS_PER_US < 16 bits */
 	div $r12 $r12 1000
@@ -264,7 +264,7 @@ ticks_from_ns:
 	/* let's divide then multiply, too bad for the precision! */
 	div $r14 $r14 1000
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 
 	/* this cannot overflow as long as HW_TICKS_PER_US < 1000 */
 
@@ -286,7 +286,7 @@ ticks_from_us:
 
 	/* simply multiply $us by HW_TICKS_PER_US */
 	imm32($r13, HW_TICKS_PER_US)
-	call #mulu32_32_64
+	call(mulu32_32_64)
 	mov b32 $r14 $r12
 
 	/* check if there wasn't any overflow */
