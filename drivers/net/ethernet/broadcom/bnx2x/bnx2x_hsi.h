@@ -5207,9 +5207,9 @@ struct e2_integ_data {
  * set mac event data
  */
 struct eth_event_data {
-	u32 echo;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 echo;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 
