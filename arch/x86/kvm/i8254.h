@@ -33,8 +33,7 @@ struct kvm_kpit_state {
 	u32    speaker_data_on;
 	struct mutex lock;
 	struct kvm_pit *pit;
-	spinlock_t inject_lock;
-	unsigned long irq_ack;
+	atomic_t irq_ack;
 	struct kvm_irq_ack_notifier irq_ack_notifier;
 };
 
