@@ -1466,6 +1466,7 @@ lnet_parse_put(lnet_ni_t *ni, lnet_msg_t *msg)
 {
 	lnet_hdr_t *hdr = &msg->msg_hdr;
 	struct lnet_match_info info;
+	bool ready_delay;
 	int rc;
 
 	/* Convert put fields to host byte order */
@@ -1482,6 +1483,7 @@ lnet_parse_put(lnet_ni_t *ni, lnet_msg_t *msg)
 	info.mi_mbits	= hdr->msg.put.match_bits;
 
 	msg->msg_rx_ready_delay = !ni->ni_lnd->lnd_eager_recv;
+	ready_delay = msg->msg_rx_ready_delay;
 
  again:
 	rc = lnet_ptl_match_md(&info, msg);
@@ -1494,12 +1496,18 @@ lnet_parse_put(lnet_ni_t *ni, lnet_msg_t *msg)
 		return 0;
 
 	case LNET_MATCHMD_NONE:
-		if (msg->msg_rx_delayed) /* attached on delayed list */
+		/**
+		 * no eager_recv or has already called it, should
+		 * have been attached on delayed list
+		 */
+		if (ready_delay)
 			return 0;
 
 		rc = lnet_ni_eager_recv(ni, msg);
-		if (!rc)
+		if (!rc) {
+			ready_delay = true;
 			goto again;
+		}
 		/* fall through */
 
 	case LNET_MATCHMD_DROP:
