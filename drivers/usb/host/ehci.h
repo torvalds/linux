@@ -888,12 +888,10 @@ extern int	ehci_handshake(struct ehci_hcd *ehci, void __iomem *ptr,
 				u32 mask, u32 done, int usec);
 extern int	ehci_reset(struct ehci_hcd *ehci);
 
-#ifdef CONFIG_PM
 extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
 extern int	ehci_resume(struct usb_hcd *hcd, bool force_reset);
 extern void	ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 			bool suspending, bool do_wakeup);
-#endif	/* CONFIG_PM */
 
 extern int	ehci_hub_control(struct usb_hcd	*hcd, u16 typeReq, u16 wValue,
 				 u16 wIndex, char *buf, u16 wLength);
