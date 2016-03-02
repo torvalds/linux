@@ -2300,7 +2300,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 	struct intel_plane_state *pristate = NULL;
 	struct intel_plane_state *sprstate = NULL;
 	struct intel_plane_state *curstate = NULL;
-	int level, max_level = ilk_wm_max_level(dev);
+	int level, max_level = ilk_wm_max_level(dev), usable_level;
 	struct ilk_wm_maximums max;
 
 	cstate = intel_atomic_get_crtc_state(state, intel_crtc);
@@ -2308,7 +2308,6 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		return PTR_ERR(cstate);
 
 	pipe_wm = &cstate->wm.optimal.ilk;
-	memset(pipe_wm, 0, sizeof(*pipe_wm));
 
 	for_each_intel_plane_on_crtc(dev, intel_crtc, intel_plane) {
 		ps = drm_atomic_get_plane_state(state,
@@ -2330,13 +2329,15 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		(drm_rect_width(&sprstate->dst) != drm_rect_width(&sprstate->src) >> 16 ||
 		drm_rect_height(&sprstate->dst) != drm_rect_height(&sprstate->src) >> 16);
 
+	usable_level = max_level;
+
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
 	if (INTEL_INFO(dev)->gen <= 6 && sprstate->visible)
-		max_level = 1;
+		usable_level = 1;
 
 	/* ILK/SNB/IVB: LP1+ watermarks only w/o scaling */
 	if (pipe_wm->sprites_scaled)
-		max_level = 0;
+		usable_level = 0;
 
 	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
 			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
@@ -2350,20 +2351,22 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 	ilk_compute_wm_reg_maximums(dev, 1, &max);
 
 	for (level = 1; level <= max_level; level++) {
-		struct intel_wm_level wm = {};
+		struct intel_wm_level *wm = &pipe_wm->wm[level];
 
 		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate,
-				     pristate, sprstate, curstate, &wm);
+				     pristate, sprstate, curstate, wm);
 
 		/*
 		 * Disable any watermark level that exceeds the
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (!ilk_validate_wm_level(level, &max, &wm))
-			break;
-
-		pipe_wm->wm[level] = wm;
+		if (level > usable_level) {
+			wm->enable = false;
+		} else if (!ilk_validate_wm_level(level, &max, wm)) {
+			wm->enable = false;
+			usable_level = level;
+		}
 	}
 
 	return 0;
