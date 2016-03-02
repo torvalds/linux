@@ -667,7 +667,7 @@ struct comedi_rangeinfo {
  * by 1e6, so a @max value of %1000000 (with %UNIT_volt) represents a maximal
  * value of 1 volt.
  *
- * The only defined flag value is %RF_external (%1 << %8), indicating that the
+ * The only defined flag value is %RF_EXTERNAL (%0x100), indicating that the
  * the range needs to be multiplied by an external reference.
  */
 struct comedi_krange {
