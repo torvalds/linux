@@ -281,11 +281,6 @@ static int init_driver(void)
 	return PTR_ERR_OR_ZERO(firmware_pdev);
 }
 
-static void finish_driver(void)
-{
-	platform_device_unregister(firmware_pdev);
-}
-
 static int gs_fpgaboot(void)
 {
 	int err;
@@ -370,14 +365,14 @@ static int __init gs_fpgaboot_init(void)
 	return 0;
 
 errout:
-	finish_driver();
+	platform_device_unregister(firmware_pdev);
 
 	return err;
 }
 
 static void __exit gs_fpgaboot_exit(void)
 {
-	finish_driver();
+	platform_device_unregister(firmware_pdev);
 	pr_info("FPGA image download module removed\n");
 }
 
