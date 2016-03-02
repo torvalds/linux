@@ -3659,10 +3659,18 @@ static int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
 static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 				 struct kvm_reinject_control *control)
 {
-	if (!kvm->arch.vpit)
+	struct kvm_pit *pit = kvm->arch.vpit;
+
+	if (!pit)
 		return -ENXIO;
 
-	kvm->arch.vpit->pit_state.reinject = control->pit_reinject;
+	/* pit->pit_state.lock was overloaded to prevent userspace from getting
+	 * an inconsistent state after running multiple KVM_REINJECT_CONTROL
+	 * ioctls in parallel.  Use a separate lock if that ioctl isn't rare.
+	 */
+	mutex_lock(&pit->pit_state.lock);
+	kvm_pit_set_reinject(pit, control->pit_reinject);
+	mutex_unlock(&pit->pit_state.lock);
 
 	return 0;
 }

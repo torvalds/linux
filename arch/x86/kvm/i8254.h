@@ -63,5 +63,6 @@ void kvm_free_pit(struct kvm *kvm);
 
 void kvm_pit_load_count(struct kvm_pit *pit, int channel, u32 val,
 		int hpet_legacy_start);
+void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject);
 
 #endif

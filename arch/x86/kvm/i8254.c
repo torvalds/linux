@@ -225,7 +225,7 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 	 * inc(pending) in pit_timer_fn and xchg(irq_ack, 0) in pit_do_work.
 	 */
 	smp_mb();
-	if (atomic_dec_if_positive(&ps->pending) > 0 && ps->reinject)
+	if (atomic_dec_if_positive(&ps->pending) > 0)
 		queue_kthread_work(&ps->pit->worker, &ps->pit->expired);
 }
 
@@ -299,6 +299,27 @@ static inline void kvm_pit_reset_reinject(struct kvm_pit *pit)
 {
 	atomic_set(&pit->pit_state.pending, 0);
 	atomic_set(&pit->pit_state.irq_ack, 1);
+}
+
+void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
+{
+	struct kvm_kpit_state *ps = &pit->pit_state;
+	struct kvm *kvm = pit->kvm;
+
+	if (ps->reinject == reinject)
+		return;
+
+	if (reinject) {
+		/* The initial state is preserved while ps->reinject == 0. */
+		kvm_pit_reset_reinject(pit);
+		kvm_register_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
+		kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+	} else {
+		kvm_unregister_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
+		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+	}
+
+	ps->reinject = reinject;
 }
 
 static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
@@ -681,15 +702,14 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit_state = &pit->pit_state;
 	pit_state->pit = pit;
 	hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+
 	pit_state->irq_ack_notifier.gsi = 0;
 	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
-	kvm_register_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
-	pit_state->reinject = true;
+	pit->mask_notifier.func = pit_mask_notifer;
 
 	kvm_pit_reset(pit);
 
-	pit->mask_notifier.func = pit_mask_notifer;
-	kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+	kvm_pit_set_reinject(pit, true);
 
 	kvm_iodevice_init(&pit->dev, &pit_dev_ops);
 	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, KVM_PIT_BASE_ADDRESS,
@@ -712,8 +732,7 @@ fail_unregister:
 	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
 
 fail:
-	kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
-	kvm_unregister_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
+	kvm_pit_set_reinject(pit, false);
 	kvm_free_irq_source_id(kvm, pit->irq_source_id);
 	kthread_stop(pit->worker_task);
 	kfree(pit);
@@ -728,10 +747,7 @@ void kvm_free_pit(struct kvm *kvm)
 		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &kvm->arch.vpit->dev);
 		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS,
 					      &kvm->arch.vpit->speaker_dev);
-		kvm_unregister_irq_mask_notifier(kvm, 0,
-					       &kvm->arch.vpit->mask_notifier);
-		kvm_unregister_irq_ack_notifier(kvm,
-				&kvm->arch.vpit->pit_state.irq_ack_notifier);
+		kvm_pit_set_reinject(kvm->arch.vpit, false);
 		timer = &kvm->arch.vpit->pit_state.timer;
 		hrtimer_cancel(timer);
 		flush_kthread_work(&kvm->arch.vpit->expired);
