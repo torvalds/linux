@@ -1800,7 +1800,8 @@ lnet_notify(lnet_ni_t *ni, lnet_nid_t nid, int alive, unsigned long when)
 
 	lnet_notify_locked(lp, !ni, alive, when);
 
-	lnet_ni_notify_locked(ni, lp);
+	if (ni)
+		lnet_ni_notify_locked(ni, lp);
 
 	lnet_peer_decref_locked(lp);
 
