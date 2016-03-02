@@ -5213,9 +5213,9 @@ struct eth_event_data {
 struct vf_pf_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 msg_addr_lo;
-	u32 msg_addr_hi;
+	__le16 reserved1;
+	__le32 msg_addr_lo;
+	__le32 msg_addr_hi;
 };
 
 /*
