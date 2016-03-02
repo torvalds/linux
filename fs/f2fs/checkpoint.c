@@ -635,7 +635,7 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 		goto invalid_cp1;
 
 	crc = le32_to_cpu(*((__le32 *)((unsigned char *)cp_block + crc_offset)));
-	if (!f2fs_crc_valid(crc, cp_block, crc_offset))
+	if (!f2fs_crc_valid(sbi, crc, cp_block, crc_offset))
 		goto invalid_cp1;
 
 	pre_version = cur_cp_version(cp_block);
@@ -650,7 +650,7 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 		goto invalid_cp2;
 
 	crc = le32_to_cpu(*((__le32 *)((unsigned char *)cp_block + crc_offset)));
-	if (!f2fs_crc_valid(crc, cp_block, crc_offset))
+	if (!f2fs_crc_valid(sbi, crc, cp_block, crc_offset))
 		goto invalid_cp2;
 
 	cur_version = cur_cp_version(cp_block);
@@ -1029,7 +1029,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	get_sit_bitmap(sbi, __bitmap_ptr(sbi, SIT_BITMAP));
 	get_nat_bitmap(sbi, __bitmap_ptr(sbi, NAT_BITMAP));
 
-	crc32 = f2fs_crc32(ckpt, le32_to_cpu(ckpt->checksum_offset));
+	crc32 = f2fs_crc32(sbi, ckpt, le32_to_cpu(ckpt->checksum_offset));
 	*((__le32 *)((unsigned char *)ckpt +
 				le32_to_cpu(ckpt->checksum_offset)))
 				= cpu_to_le32(crc32);

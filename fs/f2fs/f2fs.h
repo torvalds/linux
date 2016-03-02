@@ -23,6 +23,7 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/fscrypto.h>
+#include <crypto/hash.h>
 
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(sbi, condition)	BUG_ON(condition)
@@ -82,27 +83,6 @@ struct f2fs_mount_info {
 	F2FS_SB(sb)->raw_super->feature |= cpu_to_le32(mask)
 #define F2FS_CLEAR_FEATURE(sb, mask)					\
 	F2FS_SB(sb)->raw_super->feature &= ~cpu_to_le32(mask)
-
-#define CRCPOLY_LE 0xedb88320
-
-static inline __u32 f2fs_crc32(void *buf, size_t len)
-{
-	unsigned char *p = (unsigned char *)buf;
-	__u32 crc = F2FS_SUPER_MAGIC;
-	int i;
-
-	while (len--) {
-		crc ^= *p++;
-		for (i = 0; i < 8; i++)
-			crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
-	}
-	return crc;
-}
-
-static inline bool f2fs_crc_valid(__u32 blk_crc, void *buf, size_t buf_size)
-{
-	return f2fs_crc32(buf, buf_size) == blk_crc;
-}
 
 /*
  * For checkpoint manager
@@ -819,6 +799,9 @@ struct f2fs_sb_info {
 	/* For write statistics */
 	u64 sectors_written_start;
 	u64 kbytes_written;
+
+	/* Reference to checksum algorithm driver via cryptoapi */
+	struct crypto_shash *s_chksum_driver;
 };
 
 /* For write statistics. Suppose sector size is 512 bytes,
@@ -856,6 +839,29 @@ static inline bool is_idle(struct f2fs_sb_info *sbi)
 /*
  * Inline functions
  */
+static inline u32 f2fs_crc32(struct f2fs_sb_info *sbi, const void *address,
+			   unsigned int length)
+{
+	SHASH_DESC_ON_STACK(shash, sbi->s_chksum_driver);
+	u32 *ctx = (u32 *)shash_desc_ctx(shash);
+	int err;
+
+	shash->tfm = sbi->s_chksum_driver;
+	shash->flags = 0;
+	*ctx = F2FS_SUPER_MAGIC;
+
+	err = crypto_shash_update(shash, address, length);
+	BUG_ON(err);
+
+	return *ctx;
+}
+
+static inline bool f2fs_crc_valid(struct f2fs_sb_info *sbi, __u32 blk_crc,
+				  void *buf, size_t buf_size)
+{
+	return f2fs_crc32(sbi, buf, buf_size) == blk_crc;
+}
+
 static inline struct f2fs_inode_info *F2FS_I(struct inode *inode)
 {
 	return container_of(inode, struct f2fs_inode_info, vfs_inode);
