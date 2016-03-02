@@ -79,7 +79,6 @@ enum intel_ring_hangcheck_action {
 	HANGCHECK_IDLE = 0,
 	HANGCHECK_WAIT,
 	HANGCHECK_ACTIVE,
-	HANGCHECK_ACTIVE_LOOP,
 	HANGCHECK_KICK,
 	HANGCHECK_HUNG,
 };
@@ -88,7 +87,6 @@ enum intel_ring_hangcheck_action {
 
 struct intel_ring_hangcheck {
 	u64 acthd;
-	u64 max_acthd;
 	u32 seqno;
 	int score;
 	enum intel_ring_hangcheck_action action;

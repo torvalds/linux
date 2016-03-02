@@ -3001,12 +3001,7 @@ head_stuck(struct intel_engine_cs *ring, u64 acthd)
 		memset(ring->hangcheck.instdone, 0,
 		       sizeof(ring->hangcheck.instdone));
 
-		if (acthd > ring->hangcheck.max_acthd) {
-			ring->hangcheck.max_acthd = acthd;
-			return HANGCHECK_ACTIVE;
-		}
-
-		return HANGCHECK_ACTIVE_LOOP;
+		return HANGCHECK_ACTIVE;
 	}
 
 	if (!subunits_stuck(ring))
@@ -3083,6 +3078,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 #define BUSY 1
 #define KICK 5
 #define HUNG 20
+#define ACTIVE_DECAY 15
 
 	if (!i915.enable_hangcheck)
 		return;
@@ -3151,9 +3147,8 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				switch (ring->hangcheck.action) {
 				case HANGCHECK_IDLE:
 				case HANGCHECK_WAIT:
-				case HANGCHECK_ACTIVE:
 					break;
-				case HANGCHECK_ACTIVE_LOOP:
+				case HANGCHECK_ACTIVE:
 					ring->hangcheck.score += BUSY;
 					break;
 				case HANGCHECK_KICK:
@@ -3172,10 +3167,12 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			 * attempts across multiple batches.
 			 */
 			if (ring->hangcheck.score > 0)
-				ring->hangcheck.score--;
+				ring->hangcheck.score -= ACTIVE_DECAY;
+			if (ring->hangcheck.score < 0)
+				ring->hangcheck.score = 0;
 
 			/* Clear head and subunit states on seqno movement */
-			ring->hangcheck.acthd = ring->hangcheck.max_acthd = 0;
+			ring->hangcheck.acthd = 0;
 
 			memset(ring->hangcheck.instdone, 0,
 			       sizeof(ring->hangcheck.instdone));
