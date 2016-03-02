@@ -1328,7 +1328,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 	}
 
 	/* RPC to MDT is sent, cancel data modification flag */
-	if (rc == 0 && (op_data->op_bias & MDS_DATA_MODIFIED)) {
+	if (op_data->op_bias & MDS_DATA_MODIFIED) {
 		spin_lock(&lli->lli_lock);
 		lli->lli_flags &= ~LLIF_DATA_MODIFIED;
 		spin_unlock(&lli->lli_lock);
