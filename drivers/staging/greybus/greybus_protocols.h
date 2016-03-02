@@ -170,6 +170,20 @@ struct gb_control_interface_version_response {
 	__le16			minor;
 } __packed;
 
+#define GB_TIMESYNC_MAX_STROBES			0x04
+
+struct gb_control_timesync_enable_request {
+	__u8	count;
+	__u64	frame_time;
+	__u32	strobe_delay;
+	__u32	refclk;
+} __packed;
+/* timesync enable response has no payload */
+
+struct gb_control_timesync_authoritative_request {
+	__u64	frame_time[GB_TIMESYNC_MAX_STROBES];
+} __packed;
+/* timesync authoritative response has no payload */
 
 /* APBridge protocol */
 
@@ -899,6 +913,20 @@ struct gb_svc_route_destroy_request {
 	__u8	intf2_id;
 } __packed;
 /* route destroy response has no payload */
+
+struct gb_svc_timesync_enable_request {
+	__u8	count;
+	__u64	frame_time;
+	__u32	strobe_delay;
+	__u32	strobe_mask;
+	__u32	refclk;
+} __packed;
+/* timesync enable response has no payload */
+
+/* timesync authoritative request has no payload */
+struct gb_svc_timesync_authoritative_response {
+	__u64	frame_time[GB_TIMESYNC_MAX_STROBES];
+};
 
 #define GB_SVC_UNIPRO_FAST_MODE			0x01
 #define GB_SVC_UNIPRO_SLOW_MODE			0x02
