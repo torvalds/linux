@@ -5114,15 +5114,9 @@ struct vf_pf_channel_zone_trigger {
  * zone that triggers the in-bound interrupt
  */
 struct trigger_vf_zone {
-#if defined(__BIG_ENDIAN)
-	u16 reserved1;
-	u8 reserved0;
-	struct vf_pf_channel_zone_trigger vf_pf_channel;
-#elif defined(__LITTLE_ENDIAN)
 	struct vf_pf_channel_zone_trigger vf_pf_channel;
 	u8 reserved0;
 	u16 reserved1;
-#endif
 	u32 reserved2;
 };
 
