@@ -270,7 +270,6 @@ parse_nidrange(struct cfs_lstr *src, struct list_head *nidlist)
 
 	return 1;
 failed:
-	CWARN("can't parse nidrange: \"%.*s\"\n", tmp.ls_len, tmp.ls_str);
 	return 0;
 }
 
