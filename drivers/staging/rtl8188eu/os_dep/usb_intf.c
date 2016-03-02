@@ -484,14 +484,14 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
-	if (dvobj == NULL) {
+	if (!dvobj) {
 		RT_TRACE(_module_hci_intfs_c_, _drv_err_,
 			 ("initialize device object priv Failed!\n"));
 		goto exit;
 	}
 
 	if1 = rtw_usb_if1_init(dvobj, pusb_intf, pdid);
-	if (if1 == NULL) {
+	if (!if1) {
 		pr_debug("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}
