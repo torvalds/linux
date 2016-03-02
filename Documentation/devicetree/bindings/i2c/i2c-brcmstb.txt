@@ -2,7 +2,7 @@ Broadcom stb bsc iic master controller
 
 Required properties:
 
-- compatible: should be "brcm,brcmstb-i2c"
+- compatible: should be "brcm,brcmstb-i2c" or "brcm,brcmper-i2c"
 - clock-frequency: 32-bit decimal value of iic master clock freqency in Hz
 		   valid values are 375000, 390000, 187500, 200000
 		   93750, 97500, 46875 and 50000

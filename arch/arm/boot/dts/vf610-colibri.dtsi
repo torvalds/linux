@@ -18,8 +18,3 @@
 		reg = <0x80000000 0x10000000>;
 	};
 };
-
-&L2 {
-	arm,data-latency = <2 1 2>;
-	arm,tag-latency = <3 2 3>;
-};

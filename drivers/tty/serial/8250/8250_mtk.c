@@ -16,7 +16,7 @@
  */
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -245,23 +245,6 @@ static int mtk8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk8250_remove(struct platform_device *pdev)
-{
-	struct mtk8250_data *data = platform_get_drvdata(pdev);
-
-	pm_runtime_get_sync(&pdev->dev);
-
-	serial8250_unregister_port(data->line);
-
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
-
-	if (!pm_runtime_status_suspended(&pdev->dev))
-		mtk8250_runtime_suspend(&pdev->dev);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int mtk8250_suspend(struct device *dev)
 {
@@ -292,18 +275,18 @@ static const struct of_device_id mtk8250_of_match[] = {
 	{ .compatible = "mediatek,mt6577-uart" },
 	{ /* Sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, mtk8250_of_match);
 
 static struct platform_driver mtk8250_platform_driver = {
 	.driver = {
-		.name		= "mt6577-uart",
-		.pm		= &mtk8250_pm_ops,
-		.of_match_table	= mtk8250_of_match,
+		.name			= "mt6577-uart",
+		.pm			= &mtk8250_pm_ops,
+		.of_match_table		= mtk8250_of_match,
+		.suppress_bind_attrs	= true,
+
 	},
 	.probe			= mtk8250_probe,
-	.remove			= mtk8250_remove,
 };
-module_platform_driver(mtk8250_platform_driver);
+builtin_platform_driver(mtk8250_platform_driver);
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init early_mtk8250_setup(struct earlycon_device *device,
@@ -319,7 +302,3 @@ static int __init early_mtk8250_setup(struct earlycon_device *device,
 
 OF_EARLYCON_DECLARE(mtk8250, "mediatek,mt6577-uart", early_mtk8250_setup);
 #endif
-
-MODULE_AUTHOR("Matthias Brugger");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Mediatek 8250 serial port driver");

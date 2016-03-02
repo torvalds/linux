@@ -353,9 +353,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 					 *	1	>0	Yes(FS bulk)
 					 */
 					if (!musb_ep->hb_mult ||
-						(musb_ep->hb_mult &&
-						 can_bulk_split(musb,
-						    musb_ep->type)))
+					    can_bulk_split(musb,
+							   musb_ep->type))
 						csr |= MUSB_TXCSR_AUTOSET;
 				}
 				csr &= ~MUSB_TXCSR_P_UNDERRUN;

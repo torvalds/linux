@@ -21,6 +21,14 @@
 
 #include <linux/videodev2.h>
 
+/* Tuner PADs */
+/* FIXME: is this the right place for it? */
+enum tuner_pad_index {
+	TUNER_PAD_RF_INPUT,
+	TUNER_PAD_IF_OUTPUT,
+	TUNER_NUM_PADS
+};
+
 #define ADDR_UNSET (255)
 
 #define TUNER_TEMIC_PAL			0        /* 4002 FH5 (3X 7756, 9483) */

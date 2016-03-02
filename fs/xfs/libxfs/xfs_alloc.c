@@ -535,6 +535,7 @@ xfs_agfl_write_verify(
 }
 
 const struct xfs_buf_ops xfs_agfl_buf_ops = {
+	.name = "xfs_agfl",
 	.verify_read = xfs_agfl_read_verify,
 	.verify_write = xfs_agfl_write_verify,
 };
@@ -1926,7 +1927,7 @@ xfs_alloc_space_available(
  * Decide whether to use this allocation group for this allocation.
  * If so, fix up the btree freelist's size.
  */
-STATIC int			/* error */
+int			/* error */
 xfs_alloc_fix_freelist(
 	struct xfs_alloc_arg	*args,	/* allocation argument structure */
 	int			flags)	/* XFS_ALLOC_FLAG_... */
@@ -2339,6 +2340,7 @@ xfs_agf_write_verify(
 }
 
 const struct xfs_buf_ops xfs_agf_buf_ops = {
+	.name = "xfs_agf",
 	.verify_read = xfs_agf_read_verify,
 	.verify_write = xfs_agf_write_verify,
 };

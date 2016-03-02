@@ -525,14 +525,22 @@ static void nicvf_snd_pkt_handler(struct net_device *netdev,
 		   __func__, cqe_tx->sq_qs, cqe_tx->sq_idx,
 		   cqe_tx->sqe_ptr, hdr->subdesc_cnt);
 
-	nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	nicvf_check_cqe_tx_errs(nic, cq, cqe_tx);
 	skb = (struct sk_buff *)sq->skbuff[cqe_tx->sqe_ptr];
-	/* For TSO offloaded packets only one head SKB needs to be freed */
+	/* For TSO offloaded packets only one SQE will have a valid SKB */
 	if (skb) {
+		nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 		prefetch(skb);
 		dev_consume_skb_any(skb);
 		sq->skbuff[cqe_tx->sqe_ptr] = (u64)NULL;
+	} else {
+		/* In case of HW TSO, HW sends a CQE for each segment of a TSO
+		 * packet instead of a single CQE for the whole TSO packet
+		 * transmitted. Each of this CQE points to the same SQE, so
+		 * avoid freeing same SQE multiple times.
+		 */
+		if (!nic->hw_tso)
+			nicvf_put_sq_desc(sq, hdr->subdesc_cnt + 1);
 	}
 }
 
@@ -1057,6 +1065,7 @@ int nicvf_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(nic->netdev);
+	nic->link_up = false;
 
 	/* Teardown secondary qsets first */
 	if (!nic->sqs_mode) {
@@ -1210,9 +1219,6 @@ int nicvf_open(struct net_device *netdev)
 
 	nic->drv_stats.txq_stop = 0;
 	nic->drv_stats.txq_wake = 0;
-
-	netif_carrier_on(netdev);
-	netif_tx_start_all_queues(netdev);
 
 	return 0;
 cleanup:
@@ -1551,6 +1557,9 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 
+	if (!pass1_silicon(nic->pdev))
+		nic->hw_tso = true;
+
 	netdev->netdev_ops = &nicvf_netdev_ops;
 	netdev->watchdog_timeo = NICVF_TX_TIMEOUT;
 
@@ -1583,8 +1592,14 @@ err_disable_device:
 static void nicvf_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct nicvf *nic = netdev_priv(netdev);
-	struct net_device *pnetdev = nic->pnicvf->netdev;
+	struct nicvf *nic;
+	struct net_device *pnetdev;
+
+	if (!netdev)
+		return;
+
+	nic = netdev_priv(netdev);
+	pnetdev = nic->pnicvf->netdev;
 
 	/* Check if this Qset is assigned to different VF.
 	 * If yes, clean primary and all secondary Qsets.

@@ -113,12 +113,16 @@ enum ad5064_type {
 	ID_AD5065,
 	ID_AD5628_1,
 	ID_AD5628_2,
+	ID_AD5629_1,
+	ID_AD5629_2,
 	ID_AD5648_1,
 	ID_AD5648_2,
 	ID_AD5666_1,
 	ID_AD5666_2,
 	ID_AD5668_1,
 	ID_AD5668_2,
+	ID_AD5669_1,
+	ID_AD5669_2,
 };
 
 static int ad5064_write(struct ad5064_state *st, unsigned int cmd,
@@ -291,7 +295,7 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	{ },
 };
 
-#define AD5064_CHANNEL(chan, addr, bits) {			\
+#define AD5064_CHANNEL(chan, addr, bits, _shift) {		\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
@@ -303,36 +307,39 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 		.sign = 'u',					\
 		.realbits = (bits),				\
 		.storagebits = 16,				\
-		.shift = 20 - bits,				\
+		.shift = (_shift),				\
 	},							\
 	.ext_info = ad5064_ext_info,				\
 }
 
-#define DECLARE_AD5064_CHANNELS(name, bits) \
+#define DECLARE_AD5064_CHANNELS(name, bits, shift) \
 const struct iio_chan_spec name[] = { \
-	AD5064_CHANNEL(0, 0, bits), \
-	AD5064_CHANNEL(1, 1, bits), \
-	AD5064_CHANNEL(2, 2, bits), \
-	AD5064_CHANNEL(3, 3, bits), \
-	AD5064_CHANNEL(4, 4, bits), \
-	AD5064_CHANNEL(5, 5, bits), \
-	AD5064_CHANNEL(6, 6, bits), \
-	AD5064_CHANNEL(7, 7, bits), \
+	AD5064_CHANNEL(0, 0, bits, shift), \
+	AD5064_CHANNEL(1, 1, bits, shift), \
+	AD5064_CHANNEL(2, 2, bits, shift), \
+	AD5064_CHANNEL(3, 3, bits, shift), \
+	AD5064_CHANNEL(4, 4, bits, shift), \
+	AD5064_CHANNEL(5, 5, bits, shift), \
+	AD5064_CHANNEL(6, 6, bits, shift), \
+	AD5064_CHANNEL(7, 7, bits, shift), \
 }
 
-#define DECLARE_AD5065_CHANNELS(name, bits) \
+#define DECLARE_AD5065_CHANNELS(name, bits, shift) \
 const struct iio_chan_spec name[] = { \
-	AD5064_CHANNEL(0, 0, bits), \
-	AD5064_CHANNEL(1, 3, bits), \
+	AD5064_CHANNEL(0, 0, bits, shift), \
+	AD5064_CHANNEL(1, 3, bits, shift), \
 }
 
-static DECLARE_AD5064_CHANNELS(ad5024_channels, 12);
-static DECLARE_AD5064_CHANNELS(ad5044_channels, 14);
-static DECLARE_AD5064_CHANNELS(ad5064_channels, 16);
+static DECLARE_AD5064_CHANNELS(ad5024_channels, 12, 8);
+static DECLARE_AD5064_CHANNELS(ad5044_channels, 14, 6);
+static DECLARE_AD5064_CHANNELS(ad5064_channels, 16, 4);
 
-static DECLARE_AD5065_CHANNELS(ad5025_channels, 12);
-static DECLARE_AD5065_CHANNELS(ad5045_channels, 14);
-static DECLARE_AD5065_CHANNELS(ad5065_channels, 16);
+static DECLARE_AD5065_CHANNELS(ad5025_channels, 12, 8);
+static DECLARE_AD5065_CHANNELS(ad5045_channels, 14, 6);
+static DECLARE_AD5065_CHANNELS(ad5065_channels, 16, 4);
+
+static DECLARE_AD5064_CHANNELS(ad5629_channels, 12, 4);
+static DECLARE_AD5064_CHANNELS(ad5669_channels, 16, 0);
 
 static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 	[ID_AD5024] = {
@@ -382,6 +389,18 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 		.channels = ad5024_channels,
 		.num_channels = 8,
 	},
+	[ID_AD5629_1] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5629_channels,
+		.num_channels = 8,
+	},
+	[ID_AD5629_2] = {
+		.shared_vref = true,
+		.internal_vref = 5000000,
+		.channels = ad5629_channels,
+		.num_channels = 8,
+	},
 	[ID_AD5648_1] = {
 		.shared_vref = true,
 		.internal_vref = 2500000,
@@ -416,6 +435,18 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 		.shared_vref = true,
 		.internal_vref = 5000000,
 		.channels = ad5064_channels,
+		.num_channels = 8,
+	},
+	[ID_AD5669_1] = {
+		.shared_vref = true,
+		.internal_vref = 2500000,
+		.channels = ad5669_channels,
+		.num_channels = 8,
+	},
+	[ID_AD5669_2] = {
+		.shared_vref = true,
+		.internal_vref = 5000000,
+		.channels = ad5669_channels,
 		.num_channels = 8,
 	},
 };
@@ -597,10 +628,16 @@ static int ad5064_i2c_write(struct ad5064_state *st, unsigned int cmd,
 	unsigned int addr, unsigned int val)
 {
 	struct i2c_client *i2c = to_i2c_client(st->dev);
+	int ret;
 
 	st->data.i2c[0] = (cmd << 4) | addr;
 	put_unaligned_be16(val, &st->data.i2c[1]);
-	return i2c_master_send(i2c, st->data.i2c, 3);
+
+	ret = i2c_master_send(i2c, st->data.i2c, 3);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int ad5064_i2c_probe(struct i2c_client *i2c,
@@ -616,12 +653,12 @@ static int ad5064_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5064_i2c_ids[] = {
-	{"ad5629-1", ID_AD5628_1},
-	{"ad5629-2", ID_AD5628_2},
-	{"ad5629-3", ID_AD5628_2}, /* similar enough to ad5629-2 */
-	{"ad5669-1", ID_AD5668_1},
-	{"ad5669-2", ID_AD5668_2},
-	{"ad5669-3", ID_AD5668_2}, /* similar enough to ad5669-2 */
+	{"ad5629-1", ID_AD5629_1},
+	{"ad5629-2", ID_AD5629_2},
+	{"ad5629-3", ID_AD5629_2}, /* similar enough to ad5629-2 */
+	{"ad5669-1", ID_AD5669_1},
+	{"ad5669-2", ID_AD5669_2},
+	{"ad5669-3", ID_AD5669_2}, /* similar enough to ad5669-2 */
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ad5064_i2c_ids);

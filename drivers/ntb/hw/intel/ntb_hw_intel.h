@@ -245,6 +245,9 @@
 #define NTB_UNSAFE_DB			BIT_ULL(0)
 #define NTB_UNSAFE_SPAD			BIT_ULL(1)
 
+#define NTB_BAR_MASK_64			~(0xfull)
+#define NTB_BAR_MASK_32			~(0xfu)
+
 struct intel_ntb_dev;
 
 struct intel_ntb_reg {
@@ -334,7 +337,8 @@ struct intel_ntb_dev {
 #define ndev_pdev(ndev) ((ndev)->ntb.pdev)
 #define ndev_name(ndev) pci_name(ndev_pdev(ndev))
 #define ndev_dev(ndev) (&ndev_pdev(ndev)->dev)
-#define ntb_ndev(ntb) container_of(ntb, struct intel_ntb_dev, ntb)
-#define hb_ndev(work) container_of(work, struct intel_ntb_dev, hb_timer.work)
+#define ntb_ndev(__ntb) container_of(__ntb, struct intel_ntb_dev, ntb)
+#define hb_ndev(__work) container_of(__work, struct intel_ntb_dev, \
+				     hb_timer.work)
 
 #endif

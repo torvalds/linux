@@ -1,5 +1,5 @@
 /*
- * Driver include for the PN544 NFC chip.
+ * Driver include for the Inside Secure microread NFC Chip.
  *
  * Copyright (C) 2011 Tieto Poland
  * Copyright (C) 2012 Intel Corporation. All rights reserved.

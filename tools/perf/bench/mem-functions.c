@@ -8,7 +8,7 @@
 
 #include "../perf.h"
 #include "../util/util.h"
-#include "../util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "../util/header.h"
 #include "../util/cloexec.h"
 #include "bench.h"

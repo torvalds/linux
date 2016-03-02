@@ -236,7 +236,7 @@ int ubi_debugfs_init(void)
 
 	dfs_rootdir = debugfs_create_dir("ubi", NULL);
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
-		int err = dfs_rootdir ? -ENODEV : PTR_ERR(dfs_rootdir);
+		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
 
 		pr_err("UBI error: cannot create \"ubi\" debugfs directory, error %d\n",
 		       err);

@@ -15,7 +15,6 @@
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
-#include "debug.h"
 #include "otg.h"
 
 /**
@@ -322,8 +321,10 @@ static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
 		return -EINVAL;
 
 	pm_runtime_get_sync(ci->dev);
+	disable_irq(ci->irq);
 	ci_role_stop(ci);
 	ret = ci_role_start(ci, role);
+	enable_irq(ci->irq);
 	pm_runtime_put_sync(ci->dev);
 
 	return ret ? ret : count;

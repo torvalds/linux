@@ -14,7 +14,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/dmi.h>
 #include "sbshc.h"
 
 #define PREFIX "ACPI: "
@@ -30,6 +29,7 @@ struct acpi_smb_hc {
 	u8 query_bit;
 	smbus_alarm_callback callback;
 	void *context;
+	bool done;
 };
 
 static int acpi_smbus_hc_add(struct acpi_device *device);
@@ -88,8 +88,6 @@ enum acpi_smb_offset {
 	ACPI_SMB_ALARM_DATA = 0x26,	/* 2 bytes alarm data */
 };
 
-static bool macbook;
-
 static inline int smb_hc_read(struct acpi_smb_hc *hc, u8 address, u8 *data)
 {
 	return ec_read(hc->offset + address, data);
@@ -100,27 +98,11 @@ static inline int smb_hc_write(struct acpi_smb_hc *hc, u8 address, u8 data)
 	return ec_write(hc->offset + address, data);
 }
 
-static inline int smb_check_done(struct acpi_smb_hc *hc)
-{
-	union acpi_smb_status status = {.raw = 0};
-	smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw);
-	return status.fields.done && (status.fields.status == SMBUS_OK);
-}
-
 static int wait_transaction_complete(struct acpi_smb_hc *hc, int timeout)
 {
-	if (wait_event_timeout(hc->wait, smb_check_done(hc),
-			       msecs_to_jiffies(timeout)))
+	if (wait_event_timeout(hc->wait, hc->done, msecs_to_jiffies(timeout)))
 		return 0;
-	/*
-	 * After the timeout happens, OS will try to check the status of SMbus.
-	 * If the status is what OS expected, it will be regarded as the bogus
-	 * timeout.
-	 */
-	if (smb_check_done(hc))
-		return 0;
-	else
-		return -ETIME;
+	return -ETIME;
 }
 
 static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
@@ -135,8 +117,7 @@ static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
 	}
 
 	mutex_lock(&hc->lock);
-	if (macbook)
-		udelay(5);
+	hc->done = false;
 	if (smb_hc_read(hc, ACPI_SMB_PROTOCOL, &temp))
 		goto end;
 	if (temp) {
@@ -235,8 +216,10 @@ static int smbus_alarm(void *context)
 	if (smb_hc_read(hc, ACPI_SMB_STATUS, &status.raw))
 		return 0;
 	/* Check if it is only a completion notify */
-	if (status.fields.done)
+	if (status.fields.done && status.fields.status == SMBUS_OK) {
+		hc->done = true;
 		wake_up(&hc->wait);
+	}
 	if (!status.fields.alarm)
 		return 0;
 	mutex_lock(&hc->lock);
@@ -262,28 +245,11 @@ extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 			      acpi_handle handle, acpi_ec_query_func func,
 			      void *data);
 
-static int macbook_dmi_match(const struct dmi_system_id *d)
-{
-	pr_debug("Detected MacBook, enabling workaround\n");
-	macbook = true;
-	return 0;
-}
-
-static struct dmi_system_id acpi_smbus_dmi_table[] = {
-	{ macbook_dmi_match, "Apple MacBook", {
-	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
-	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBook") },
-	},
-	{ },
-};
-
 static int acpi_smbus_hc_add(struct acpi_device *device)
 {
 	int status;
 	unsigned long long val;
 	struct acpi_smb_hc *hc;
-
-	dmi_check_system(acpi_smbus_dmi_table);
 
 	if (!device)
 		return -EINVAL;

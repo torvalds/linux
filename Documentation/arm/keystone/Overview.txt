@@ -49,24 +49,6 @@ specified through DTS. Following are the DTS used:-
 The device tree documentation for the keystone machines are located at
         Documentation/devicetree/bindings/arm/keystone/keystone.txt
 
-Known issues & workaround
--------------------------
-
-Some of the device drivers used on keystone are re-used from that from
-DaVinci and other TI SoCs. These device drivers may use clock APIs directly.
-Some of the keystone specific drivers such as netcp uses run time power
-management API instead to enable clock. As this API has limitations on
-keystone, following workaround is needed to boot Linux.
-
-   Add 'clk_ignore_unused' to the bootargs env variable in u-boot. Otherwise
-   clock frameworks will try to disable clocks that are unused and disable
-   the hardware. This is because netcp related power domain and clock
-   domains are enabled in u-boot as run time power management API currently
-   doesn't enable clocks for netcp due to a limitation. This workaround is
-   expected to be removed in the future when proper API support becomes
-   available. Until then, this work around is needed.
-
-
 Document Author
 ---------------
 Murali Karicheri <m-karicheri2@ti.com>

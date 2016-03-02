@@ -608,8 +608,11 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	s->msg.msg_flags = MSG_NOSIGNAL;
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
-	/* Set default mc filter */
-	set_bit(bnep_mc_hash(dev->broadcast), (ulong *) &s->mc_filter);
+	/* Set default mc filter to not filter out any mc addresses
+	 * as defined in the BNEP specification (revision 0.95a)
+	 * http://grouper.ieee.org/groups/802/15/Bluetooth/BNEP.pdf
+	 */
+	s->mc_filter = ~0LL;
 #endif
 
 #ifdef CONFIG_BT_BNEP_PROTO_FILTER

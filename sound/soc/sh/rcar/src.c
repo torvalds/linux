@@ -475,6 +475,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
 
@@ -486,6 +487,12 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	 * SRC sync convert needs clock master
 	 */
 	if (!rsnd_rdai_is_clk_master(rdai))
+		return 0;
+
+	/*
+	 * SRC In doesn't work if DVC was enabled
+	 */
+	if (dvc && !rsnd_io_is_play(io))
 		return 0;
 
 	/*

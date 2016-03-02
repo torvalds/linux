@@ -183,6 +183,8 @@ struct cz_power_info {
 	uint32_t voltage_drop_threshold;
 	uint32_t gfx_pg_threshold;
 	uint32_t max_sclk_level;
+	uint32_t max_uvd_level;
+	uint32_t max_vce_level;
 	/* flags */
 	bool didt_enabled;
 	bool video_start;

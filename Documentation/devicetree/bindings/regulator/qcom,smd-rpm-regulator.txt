@@ -1,0 +1,159 @@
+QCOM SMD RPM REGULATOR
+
+The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
+Because SMD is used as the communication transport mechanism, the RPM resides as
+a subnode of the SMD.  As such, the SMD-RPM regulator requires that the SMD and
+RPM nodes be present.
+
+Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
+information pertaining to the SMD node.
+
+Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.txt for
+information regarding the RPM node.
+
+== Regulator
+
+Regulator nodes are identified by their compatible:
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,rpm-pm8841-regulators"
+		    "qcom,rpm-pm8916-regulators"
+		    "qcom,rpm-pm8941-regulators"
+		    "qcom,rpm-pma8084-regulators"
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+- vdd_s7-supply:
+- vdd_s8-supply:
+	Usage: optional (pm8841 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_l1_l2_l3-supply:
+- vdd_l4_l5_l6-supply:
+- vdd_l7-supply:
+- vdd_l8_l9_l10_l11_l12_l13_l14_l15_l16_l17_l18-supply:
+	Usage: optional (pm8916 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_l1_l3-supply:
+- vdd_l2_lvs1_2_3-supply:
+- vdd_l4_l11-supply:
+- vdd_l5_l7-supply:
+- vdd_l6_l12_l14_l15-supply:
+- vdd_l8_l16_l18_l19-supply:
+- vdd_l9_l10_l17_l22-supply:
+- vdd_l13_l20_l23_l24-supply:
+- vdd_l21-supply:
+- vin_5vs-supply:
+	Usage: optional (pm8941 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+- vdd_s1-supply:
+- vdd_s2-supply:
+- vdd_s3-supply:
+- vdd_s4-supply:
+- vdd_s5-supply:
+- vdd_s6-supply:
+- vdd_s7-supply:
+- vdd_s8-supply:
+- vdd_s9-supply:
+- vdd_s10-supply:
+- vdd_s11-supply:
+- vdd_s12-supply:
+- vdd_l1_l11-supply:
+- vdd_l2_l3_l4_l27-supply:
+- vdd_l5_l7-supply:
+- vdd_l6_l12_l14_l15_l26-supply:
+- vdd_l8-supply:
+- vdd_l9_l10_l13_l20_l23_l24-supply:
+- vdd_l16_l25-supply:
+- vdd_l17-supply:
+- vdd_l18-supply:
+- vdd_l19-supply:
+- vdd_l21-supply:
+- vdd_l22-supply:
+	Usage: optional (pma8084 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
+The regulator node houses sub-nodes for each regulator within the device. Each
+sub-node is identified using the node's name, with valid values listed for each
+of the pmics below.
+
+pm8841:
+	s1, s2, s3, s4, s5, s6, s7, s8
+
+pm8916:
+	s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13,
+	l14, l15, l16, l17, l18
+
+pm8941:
+	s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13,
+	l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, lvs1, lvs2,
+	lvs3, 5vs1, 5vs2
+
+pma8084:
+	s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, l1, l2, l3, l4, l5,
+	l6, l7, l8, l9, l10, l11, l12, l13, l14, l15, l16, l17, l18, l19, l20,
+	l21, l22, l23, l24, l25, l26, l27, lvs1, lvs2, lvs3, lvs4, 5vs1
+
+The content of each sub-node is defined by the standard binding for regulators -
+see regulator.txt.
+
+= EXAMPLE
+
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <0 168 1>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8974";
+				qcom,smd-channels = "rpm_requests";
+
+				pm8941-regulators {
+					compatible = "qcom,rpm-pm8941-regulators";
+					vdd_l13_l20_l23_l24-supply = <&pm8941_boost>;
+
+					pm8941_s3: s3 {
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					pm8941_boost: s4 {
+						regulator-min-microvolt = <5000000>;
+						regulator-max-microvolt = <5000000>;
+					};
+
+					pm8941_l20: l20 {
+						regulator-min-microvolt = <2950000>;
+						regulator-max-microvolt = <2950000>;
+					};
+				};
+			};
+		};
+	};

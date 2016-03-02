@@ -778,8 +778,10 @@ static struct clk * __init create_one_cmux(struct clockgen *cg, int idx)
 	 */
 	clksel = (cg_in(cg, hwc->reg) & CLKSEL_MASK) >> CLKSEL_SHIFT;
 	div = get_pll_div(cg, hwc, clksel);
-	if (!div)
+	if (!div) {
+		kfree(hwc);
 		return NULL;
+	}
 
 	pct80_rate = clk_get_rate(div->clk);
 	pct80_rate *= 8;

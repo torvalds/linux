@@ -131,7 +131,8 @@ static void __usbhsg_queue_pop(struct usbhsg_uep *uep,
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 
-	dev_dbg(dev, "pipe %d : queue pop\n", usbhs_pipe_number(pipe));
+	if (pipe)
+		dev_dbg(dev, "pipe %d : queue pop\n", usbhs_pipe_number(pipe));
 
 	ureq->req.status = status;
 	spin_unlock(usbhs_priv_to_lock(priv));
@@ -685,7 +686,13 @@ static int usbhsg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 
-	usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq));
+	if (pipe)
+		usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq));
+
+	/*
+	 * To dequeue a request, this driver should call the usbhsg_queue_pop()
+	 * even if the pipe is NULL.
+	 */
 	usbhsg_queue_pop(uep, ureq, -ECONNRESET);
 
 	return 0;
@@ -1035,6 +1042,8 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	struct usbhsg_gpriv *gpriv;
 	struct usbhsg_uep *uep;
 	struct device *dev = usbhs_priv_to_dev(priv);
+	struct renesas_usbhs_driver_pipe_config *pipe_configs =
+					usbhs_get_dparam(priv, pipe_configs);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int i;
 	int ret;
@@ -1104,13 +1113,16 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 			gpriv->gadget.ep0 = &uep->ep;
 			usb_ep_set_maxpacket_limit(&uep->ep, 64);
 			uep->ep.caps.type_control = true;
-		}
-		/* init normal pipe */
-		else {
-			usb_ep_set_maxpacket_limit(&uep->ep, 512);
-			uep->ep.caps.type_iso = true;
-			uep->ep.caps.type_bulk = true;
-			uep->ep.caps.type_int = true;
+		} else {
+			/* init normal pipe */
+			if (pipe_configs[i].type == USB_ENDPOINT_XFER_ISOC)
+				uep->ep.caps.type_iso = true;
+			if (pipe_configs[i].type == USB_ENDPOINT_XFER_BULK)
+				uep->ep.caps.type_bulk = true;
+			if (pipe_configs[i].type == USB_ENDPOINT_XFER_INT)
+				uep->ep.caps.type_int = true;
+			usb_ep_set_maxpacket_limit(&uep->ep,
+						   pipe_configs[i].bufsize);
 			list_add_tail(&uep->ep.ep_list, &gpriv->gadget.ep_list);
 		}
 		uep->ep.caps.dir_in = true;

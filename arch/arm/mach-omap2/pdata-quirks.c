@@ -24,9 +24,6 @@
 #include <linux/platform_data/iommu-omap.h>
 #include <linux/platform_data/wkup_m3.h>
 
-#include <asm/siginfo.h>
-#include <asm/signal.h>
-
 #include "common.h"
 #include "common-board-devices.h"
 #include "dss-common.h"
@@ -153,6 +150,21 @@ static struct platform_device wl18xx_device = {
 	}
 };
 
+static struct ti_st_plat_data wilink7_pdata = {
+	.nshutdown_gpio = 162,
+	.dev_name = "/dev/ttyO1",
+	.flow_cntrl = 1,
+	.baud_rate = 300000,
+};
+
+static struct platform_device wl128x_device = {
+	.name	= "kim",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &wilink7_pdata,
+	}
+};
+
 static struct platform_device btwilink_device = {
 	.name	= "btwilink",
 	.id	= -1,
@@ -268,7 +280,7 @@ static void __init nokia_n900_legacy_init(void)
 			pr_warn("Thumb binaries may crash randomly without this workaround\n");
 		}
 
-		pr_info("RX-51: Registring OMAP3 HWRNG device\n");
+		pr_info("RX-51: Registering OMAP3 HWRNG device\n");
 		platform_device_register(&omap3_rom_rng_device);
 
 	}
@@ -277,6 +289,13 @@ static void __init nokia_n900_legacy_init(void)
 static void __init omap3_tao3530_legacy_init(void)
 {
 	hsmmc2_internal_input_clk();
+}
+
+static void __init omap3_logicpd_torpedo_init(void)
+{
+	omap3_gpio126_127_129();
+	platform_device_register(&wl128x_device);
+	platform_device_register(&btwilink_device);
 }
 
 /* omap3pandora legacy devices */
@@ -384,29 +403,6 @@ static void __init omap3_pandora_legacy_init(void)
 	pandora_wl1251_init();
 }
 #endif /* CONFIG_ARCH_OMAP3 */
-
-#ifdef CONFIG_SOC_TI81XX
-static int fault_fixed_up;
-
-static int t410_abort_handler(unsigned long addr, unsigned int fsr,
-			      struct pt_regs *regs)
-{
-	if ((fsr == 0x406 || fsr == 0xc06) && !fault_fixed_up) {
-		pr_warn("External imprecise Data abort at addr=%#lx, fsr=%#x ignored.\n",
-			addr, fsr);
-		fault_fixed_up = 1;
-		return 0;
-	}
-
-	return 1;
-}
-
-static void __init t410_abort_init(void)
-{
-	hook_fault_code(16 + 6, t410_abort_handler, SIGBUS, BUS_OBJERR,
-			"imprecise external abort");
-}
-#endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
 static struct iommu_platform_data omap4_iommu_pdata = {
@@ -529,15 +525,12 @@ static struct pdata_init pdata_quirks[] __initdata = {
 	{ "nokia,omap3-n950", hsmmc2_internal_input_clk, },
 	{ "isee,omap3-igep0020-rev-f", omap3_igep0020_rev_f_legacy_init, },
 	{ "isee,omap3-igep0030-rev-g", omap3_igep0030_rev_g_legacy_init, },
-	{ "logicpd,dm3730-torpedo-devkit", omap3_gpio126_127_129, },
+	{ "logicpd,dm3730-torpedo-devkit", omap3_logicpd_torpedo_init, },
 	{ "ti,omap3-evm-37xx", omap3_evm_legacy_init, },
 	{ "ti,am3517-evm", am3517_evm_legacy_init, },
 	{ "technexion,omap3-tao3530", omap3_tao3530_legacy_init, },
 	{ "openpandora,omap3-pandora-600mhz", omap3_pandora_legacy_init, },
 	{ "openpandora,omap3-pandora-1ghz", omap3_pandora_legacy_init, },
-#endif
-#ifdef CONFIG_SOC_TI81XX
-	{ "hp,t410", t410_abort_init, },
 #endif
 #ifdef CONFIG_SOC_OMAP5
 	{ "ti,omap5-uevm", omap5_uevm_legacy_init, },

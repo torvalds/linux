@@ -50,7 +50,7 @@ struct intel_crt {
 	 * encoder's enable/disable callbacks */
 	struct intel_connector *connector;
 	bool force_hotplug_required;
-	u32 adpa_reg;
+	i915_reg_t adpa_reg;
 };
 
 static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
@@ -138,18 +138,6 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
-static void hsw_crt_pre_enable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL already enabled\n");
-	I915_WRITE(SPLL_CTL,
-		   SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC);
-	POSTING_READ(SPLL_CTL);
-	udelay(20);
-}
-
 /* Note: The caller is required to filter out dpms modes not supported by the
  * platform. */
 static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
@@ -216,19 +204,6 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 	intel_disable_crt(encoder);
 }
 
-static void hsw_crt_post_disable(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t val;
-
-	DRM_DEBUG_KMS("Disabling SPLL\n");
-	val = I915_READ(SPLL_CTL);
-	WARN_ON(!(val & SPLL_PLL_ENABLE));
-	I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
-	POSTING_READ(SPLL_CTL);
-}
-
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
@@ -280,6 +255,10 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	if (HAS_DDI(dev)) {
 		pipe_config->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 		pipe_config->port_clock = 135000 * 2;
+
+		pipe_config->dpll_hw_state.wrpll = 0;
+		pipe_config->dpll_hw_state.spll =
+			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
 	}
 
 	return true;
@@ -501,12 +480,8 @@ intel_crt_load_detect(struct intel_crt *crt)
 	uint32_t vsample;
 	uint32_t vblank, vblank_start, vblank_end;
 	uint32_t dsl;
-	uint32_t bclrpat_reg;
-	uint32_t vtotal_reg;
-	uint32_t vblank_reg;
-	uint32_t vsync_reg;
-	uint32_t pipeconf_reg;
-	uint32_t pipe_dsl_reg;
+	i915_reg_t bclrpat_reg, vtotal_reg,
+		vblank_reg, vsync_reg, pipeconf_reg, pipe_dsl_reg;
 	uint8_t	st00;
 	enum drm_connector_status status;
 
@@ -539,7 +514,7 @@ intel_crt_load_detect(struct intel_crt *crt)
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_wait_for_vblank(dev, pipe);
-		st00 = I915_READ8(VGA_MSR_WRITE);
+		st00 = I915_READ8(_VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :
 			connector_status_disconnected;
@@ -584,7 +559,7 @@ intel_crt_load_detect(struct intel_crt *crt)
 		do {
 			count++;
 			/* Read the ST00 VGA status register */
-			st00 = I915_READ8(VGA_MSR_WRITE);
+			st00 = I915_READ8(_VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
 		} while ((I915_READ(pipe_dsl_reg) == dsl));
@@ -802,10 +777,36 @@ void intel_crt_init(struct drm_device *dev)
 	struct intel_crt *crt;
 	struct intel_connector *intel_connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	i915_reg_t adpa_reg;
+	u32 adpa;
 
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_no_crt))
 		return;
+
+	if (HAS_PCH_SPLIT(dev))
+		adpa_reg = PCH_ADPA;
+	else if (IS_VALLEYVIEW(dev))
+		adpa_reg = VLV_ADPA;
+	else
+		adpa_reg = ADPA;
+
+	adpa = I915_READ(adpa_reg);
+	if ((adpa & ADPA_DAC_ENABLE) == 0) {
+		/*
+		 * On some machines (some IVB at least) CRT can be
+		 * fused off, but there's no known fuse bit to
+		 * indicate that. On these machine the ADPA register
+		 * works normally, except the DAC enable bit won't
+		 * take. So the only way to tell is attempt to enable
+		 * it and see what happens.
+		 */
+		I915_WRITE(adpa_reg, adpa | ADPA_DAC_ENABLE |
+			   ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+		if ((I915_READ(adpa_reg) & ADPA_DAC_ENABLE) == 0)
+			return;
+		I915_WRITE(adpa_reg, adpa);
+	}
 
 	crt = kzalloc(sizeof(struct intel_crt), GFP_KERNEL);
 	if (!crt)
@@ -823,7 +824,7 @@ void intel_crt_init(struct drm_device *dev)
 			   &intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
 	drm_encoder_init(dev, &crt->base.base, &intel_crt_enc_funcs,
-			 DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
@@ -840,15 +841,10 @@ void intel_crt_init(struct drm_device *dev)
 		connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	if (HAS_PCH_SPLIT(dev))
-		crt->adpa_reg = PCH_ADPA;
-	else if (IS_VALLEYVIEW(dev))
-		crt->adpa_reg = VLV_ADPA;
-	else
-		crt->adpa_reg = ADPA;
+	crt->adpa_reg = adpa_reg;
 
 	crt->base.compute_config = intel_crt_compute_config;
-	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		crt->base.disable = pch_disable_crt;
 		crt->base.post_disable = pch_post_disable_crt;
 	} else {
@@ -860,8 +856,6 @@ void intel_crt_init(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
-		crt->base.pre_enable = hsw_crt_pre_enable;
-		crt->base.post_disable = hsw_crt_post_disable;
 	} else {
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;

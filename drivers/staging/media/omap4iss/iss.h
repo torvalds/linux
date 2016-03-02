@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 
-#include <media/omap4iss.h>
+#include <linux/platform_data/media/omap4iss.h>
 
 #include "iss_regs.h"
 #include "iss_csiphy.h"
@@ -82,11 +82,12 @@ struct iss_reg {
 /*
  * struct iss_device - ISS device structure.
  * @syscon: Regmap for the syscon register space
- * @crashed: Bitmask of crashed entities (indexed by entity ID)
+ * @crashed: Crashed entities
  */
 struct iss_device {
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct media_entity_graph pm_count_graph;
 	struct device *dev;
 	u32 revision;
 
@@ -101,7 +102,7 @@ struct iss_device {
 	u64 raw_dmamask;
 
 	struct mutex iss_mutex;	/* For handling ref_count field */
-	unsigned int crashed;
+	struct media_entity_enum crashed;
 	int has_context;
 	int ref_count;
 
@@ -151,7 +152,8 @@ void omap4iss_isp_subclk_enable(struct iss_device *iss,
 void omap4iss_isp_subclk_disable(struct iss_device *iss,
 				 enum iss_isp_subclk_resource res);
 
-int omap4iss_pipeline_pm_use(struct media_entity *entity, int use);
+int omap4iss_pipeline_pm_use(struct media_entity *entity, int use,
+			     struct media_entity_graph *graph);
 
 int omap4iss_register_entities(struct platform_device *pdev,
 			       struct v4l2_device *v4l2_dev);

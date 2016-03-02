@@ -25,8 +25,8 @@
 #include <linux/platform_data/at24.h>
 #include <linux/i2c/pcf857x.h>
 
-#include <media/tvp514x.h>
-#include <media/adv7343.h>
+#include <media/i2c/tvp514x.h>
+#include <media/i2c/adv7343.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>

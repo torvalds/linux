@@ -157,8 +157,9 @@ void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 							qp_flow,
 							&flowinfo_ops);
 	if (IS_ERR_OR_NULL(qp_flow->dbgfs_dentry)) {
-		usnic_err("Failed to create dbg fs entry for flow %u\n",
-				qp_flow->flow->flow_id);
+		usnic_err("Failed to create dbg fs entry for flow %u with error %ld\n",
+				qp_flow->flow->flow_id,
+				PTR_ERR(qp_flow->dbgfs_dentry));
 	}
 }
 

@@ -1173,9 +1173,9 @@ dump_nhm_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
 
-	fprintf(stderr, "cpu%d: MSR_NHM_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
+	fprintf(stderr, "cpu%d: MSR_PLATFORM_INFO: 0x%08llx\n", base_cpu, msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency frequency\n",
@@ -1807,7 +1807,7 @@ void check_permissions()
  *
  * MSR_SMI_COUNT                   0x00000034
  *
- * MSR_NHM_PLATFORM_INFO           0x000000ce
+ * MSR_PLATFORM_INFO               0x000000ce
  * MSR_NHM_SNB_PKG_CST_CFG_CTL     0x000000e2
  *
  * MSR_PKG_C3_RESIDENCY            0x000003f8
@@ -1876,7 +1876,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 	get_msr(base_cpu, MSR_NHM_SNB_PKG_CST_CFG_CTL, &msr);
 	pkg_cstate_limit = pkg_cstate_limits[msr & 0xF];
 
-	get_msr(base_cpu, MSR_NHM_PLATFORM_INFO, &msr);
+	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
 	base_ratio = (msr >> 8) & 0xFF;
 
 	base_hz = base_ratio * bclk * 1000000;

@@ -192,14 +192,14 @@
 #define __NR_set_tid_address	252
 #define __NR_fadvise64		253
 #define __NR_timer_create	254
-#define __NR_timer_settime	(__NR_timer_create+1)
-#define __NR_timer_gettime	(__NR_timer_create+2)
-#define __NR_timer_getoverrun	(__NR_timer_create+3)
-#define __NR_timer_delete	(__NR_timer_create+4)
-#define __NR_clock_settime	(__NR_timer_create+5)
-#define __NR_clock_gettime	(__NR_timer_create+6)
-#define __NR_clock_getres	(__NR_timer_create+7)
-#define __NR_clock_nanosleep	(__NR_timer_create+8)
+#define __NR_timer_settime	255
+#define __NR_timer_gettime	256
+#define __NR_timer_getoverrun	257
+#define __NR_timer_delete	258
+#define __NR_clock_settime	259
+#define __NR_clock_gettime	260
+#define __NR_clock_getres	261
+#define __NR_clock_nanosleep	262
 /* Number 263 is reserved for vserver */
 #define __NR_statfs64		265
 #define __NR_fstatfs64		266
@@ -309,7 +309,8 @@
 #define __NR_recvfrom		371
 #define __NR_recvmsg		372
 #define __NR_shutdown		373
-#define NR_syscalls 374
+#define __NR_mlock2		374
+#define NR_syscalls 375
 
 /* 
  * There are some system calls that are not present on 64 bit, some

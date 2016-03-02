@@ -57,7 +57,7 @@ err:
 
 static void nf_tables_arp_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.arp);
+	nft_unregister_afinfo(net, net->nft.arp);
 	kfree(net->nft.arp);
 }
 

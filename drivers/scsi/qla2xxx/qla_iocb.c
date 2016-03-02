@@ -1868,6 +1868,7 @@ skip_cmd_array:
 	}
 
 queuing_error:
+	vha->tgt_counters.num_alloc_iocb_failed++;
 	return pkt;
 }
 
@@ -2007,6 +2008,190 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 		host_to_fcp_swap((uint8_t *)&tsk->lun,
 			sizeof(tsk->lun));
 	}
+}
+
+static void
+qla2x00_els_dcmd_sp_free(void *ptr, void *data)
+{
+	struct scsi_qla_host *vha = (scsi_qla_host_t *)ptr;
+	struct qla_hw_data *ha = vha->hw;
+	srb_t *sp = (srb_t *)data;
+	struct srb_iocb *elsio = &sp->u.iocb_cmd;
+
+	kfree(sp->fcport);
+
+	if (elsio->u.els_logo.els_logo_pyld)
+		dma_free_coherent(&ha->pdev->dev, DMA_POOL_SIZE,
+		    elsio->u.els_logo.els_logo_pyld,
+		    elsio->u.els_logo.els_logo_pyld_dma);
+
+	del_timer(&elsio->timer);
+	qla2x00_rel_sp(vha, sp);
+}
+
+static void
+qla2x00_els_dcmd_iocb_timeout(void *data)
+{
+	srb_t *sp = (srb_t *)data;
+	struct srb_iocb *lio = &sp->u.iocb_cmd;
+	fc_port_t *fcport = sp->fcport;
+	struct scsi_qla_host *vha = fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags = 0;
+
+	ql_dbg(ql_dbg_io, vha, 0x3069,
+	    "%s Timeout, hdl=%x, portid=%02x%02x%02x\n",
+	    sp->name, sp->handle, fcport->d_id.b.domain, fcport->d_id.b.area,
+	    fcport->d_id.b.al_pa);
+
+	/* Abort the exchange */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	if (ha->isp_ops->abort_command(sp)) {
+		ql_dbg(ql_dbg_io, vha, 0x3070,
+		    "mbx abort_command failed.\n");
+	} else {
+		ql_dbg(ql_dbg_io, vha, 0x3071,
+		    "mbx abort_command success.\n");
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	complete(&lio->u.els_logo.comp);
+}
+
+static void
+qla2x00_els_dcmd_sp_done(void *data, void *ptr, int res)
+{
+	srb_t *sp = (srb_t *)ptr;
+	fc_port_t *fcport = sp->fcport;
+	struct srb_iocb *lio = &sp->u.iocb_cmd;
+	struct scsi_qla_host *vha = fcport->vha;
+
+	ql_dbg(ql_dbg_io, vha, 0x3072,
+	    "%s hdl=%x, portid=%02x%02x%02x done\n",
+	    sp->name, sp->handle, fcport->d_id.b.domain,
+	    fcport->d_id.b.area, fcport->d_id.b.al_pa);
+
+	complete(&lio->u.els_logo.comp);
+}
+
+int
+qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
+    port_id_t remote_did)
+{
+	srb_t *sp;
+	fc_port_t *fcport = NULL;
+	struct srb_iocb *elsio = NULL;
+	struct qla_hw_data *ha = vha->hw;
+	struct els_logo_payload logo_pyld;
+	int rval = QLA_SUCCESS;
+
+	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
+	if (!fcport) {
+	       ql_log(ql_log_info, vha, 0x70e5, "fcport allocation failed\n");
+	       return -ENOMEM;
+	}
+
+	/* Alloc SRB structure */
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
+	if (!sp) {
+		kfree(fcport);
+		ql_log(ql_log_info, vha, 0x70e6,
+		 "SRB allocation failed\n");
+		return -ENOMEM;
+	}
+
+	elsio = &sp->u.iocb_cmd;
+	fcport->loop_id = 0xFFFF;
+	fcport->d_id.b.domain = remote_did.b.domain;
+	fcport->d_id.b.area = remote_did.b.area;
+	fcport->d_id.b.al_pa = remote_did.b.al_pa;
+
+	ql_dbg(ql_dbg_io, vha, 0x3073, "portid=%02x%02x%02x done\n",
+	    fcport->d_id.b.domain, fcport->d_id.b.area, fcport->d_id.b.al_pa);
+
+	sp->type = SRB_ELS_DCMD;
+	sp->name = "ELS_DCMD";
+	sp->fcport = fcport;
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+	elsio->timeout = qla2x00_els_dcmd_iocb_timeout;
+	sp->done = qla2x00_els_dcmd_sp_done;
+	sp->free = qla2x00_els_dcmd_sp_free;
+
+	elsio->u.els_logo.els_logo_pyld = dma_alloc_coherent(&ha->pdev->dev,
+			    DMA_POOL_SIZE, &elsio->u.els_logo.els_logo_pyld_dma,
+			    GFP_KERNEL);
+
+	if (!elsio->u.els_logo.els_logo_pyld) {
+		sp->free(vha, sp);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	memset(&logo_pyld, 0, sizeof(struct els_logo_payload));
+
+	elsio->u.els_logo.els_cmd = els_opcode;
+	logo_pyld.opcode = els_opcode;
+	logo_pyld.s_id[0] = vha->d_id.b.al_pa;
+	logo_pyld.s_id[1] = vha->d_id.b.area;
+	logo_pyld.s_id[2] = vha->d_id.b.domain;
+	host_to_fcp_swap(logo_pyld.s_id, sizeof(uint32_t));
+	memcpy(&logo_pyld.wwpn, vha->port_name, WWN_SIZE);
+
+	memcpy(elsio->u.els_logo.els_logo_pyld, &logo_pyld,
+	    sizeof(struct els_logo_payload));
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		sp->free(vha, sp);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	ql_dbg(ql_dbg_io, vha, 0x3074,
+	    "%s LOGO sent, hdl=%x, loopid=%x, portid=%02x%02x%02x.\n",
+	    sp->name, sp->handle, fcport->loop_id, fcport->d_id.b.domain,
+	    fcport->d_id.b.area, fcport->d_id.b.al_pa);
+
+	wait_for_completion(&elsio->u.els_logo.comp);
+
+	sp->free(vha, sp);
+	return rval;
+}
+
+static void
+qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
+{
+	scsi_qla_host_t *vha = sp->fcport->vha;
+	struct srb_iocb *elsio = &sp->u.iocb_cmd;
+
+	els_iocb->entry_type = ELS_IOCB_TYPE;
+	els_iocb->entry_count = 1;
+	els_iocb->sys_define = 0;
+	els_iocb->entry_status = 0;
+	els_iocb->handle = sp->handle;
+	els_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	els_iocb->tx_dsd_count = 1;
+	els_iocb->vp_index = vha->vp_idx;
+	els_iocb->sof_type = EST_SOFI3;
+	els_iocb->rx_dsd_count = 0;
+	els_iocb->opcode = elsio->u.els_logo.els_cmd;
+
+	els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+	els_iocb->port_id[1] = sp->fcport->d_id.b.area;
+	els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	els_iocb->control_flags = 0;
+
+	els_iocb->tx_byte_count = sizeof(struct els_logo_payload);
+	els_iocb->tx_address[0] =
+	    cpu_to_le32(LSD(elsio->u.els_logo.els_logo_pyld_dma));
+	els_iocb->tx_address[1] =
+	    cpu_to_le32(MSD(elsio->u.els_logo.els_logo_pyld_dma));
+	els_iocb->tx_len = cpu_to_le32(sizeof(struct els_logo_payload));
+
+	els_iocb->rx_byte_count = 0;
+	els_iocb->rx_address[0] = 0;
+	els_iocb->rx_address[1] = 0;
+	els_iocb->rx_len = 0;
+
+	sp->fcport->vha->qla_stats.control_requests++;
 }
 
 static void
@@ -2622,6 +2807,9 @@ qla2x00_start_sp(srb_t *sp)
 		IS_QLAFX00(ha) ?
 			qlafx00_abort_iocb(sp, pkt) :
 			qla24xx_abort_iocb(sp, pkt);
+		break;
+	case SRB_ELS_DCMD:
+		qla24xx_els_logo_iocb(sp, pkt);
 		break;
 	default:
 		break;

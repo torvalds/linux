@@ -151,16 +151,12 @@ do {									    \
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
-	int s = (size);						 \
 	if (unlikely((ptr) == NULL)) {				  \
 		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
-		       "%s:%d\n", s, __FILE__, __LINE__);	       \
+		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
 		break;						  \
 	}							       \
-	if (unlikely(s > LIBCFS_VMALLOC_SIZE))			  \
-		vfree(ptr);				    \
-	else							    \
-		kfree(ptr);					  \
+	kvfree(ptr);					  \
 } while (0)
 
 /******************************************************************************/
@@ -184,8 +180,6 @@ int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
 int libcfs_debug_clear_buffer(void);
 int libcfs_debug_mark_buffer(const char *text);
-
-void libcfs_debug_set_level(unsigned int debug_level);
 
 /*
  * allocate per-cpu-partition data, returned value is an array of pointers,

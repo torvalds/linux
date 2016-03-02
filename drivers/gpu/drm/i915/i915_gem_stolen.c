@@ -433,7 +433,8 @@ int i915_gem_init_stolen(struct drm_device *dev)
 					 &reserved_size);
 		break;
 	default:
-		if (IS_BROADWELL(dev_priv) || IS_SKYLAKE(dev_priv))
+		if (IS_BROADWELL(dev_priv) ||
+		    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev))
 			bdw_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		else
@@ -687,6 +688,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		}
 
 		vma->bound |= GLOBAL_BIND;
+		__i915_vma_set_map_and_fenceable(vma);
 		list_add_tail(&vma->mm_list, &ggtt->inactive_list);
 	}
 

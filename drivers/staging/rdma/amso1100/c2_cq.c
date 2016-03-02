@@ -173,9 +173,6 @@ static inline int c2_poll_one(struct c2_dev *c2dev,
 	case C2_WR_TYPE_RDMA_READ:
 		entry->opcode = IB_WC_RDMA_READ;
 		break;
-	case C2_WR_TYPE_BIND_MW:
-		entry->opcode = IB_WC_BIND_MW;
-		break;
 	case C2_WR_TYPE_RECV:
 		entry->byte_len = be32_to_cpu(ce->bytes_rcvd);
 		entry->opcode = IB_WC_RECV;

@@ -115,7 +115,6 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 			     u32 *pu32ReceivedLength)
 {
 	Message *pstrMessage;
-	int result = 0;
 	unsigned long flags;
 
 	if ((!pHandle) || (u32RecvBufferSize == 0)
@@ -134,12 +133,6 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
 	down(&pHandle->hSem);
-
-	/* other non-timeout scenarios */
-	if (result) {
-		PRINT_ER("Non-timeout\n");
-		return result;
-	}
 
 	if (pHandle->bExiting) {
 		PRINT_ER("pHandle fail\n");
@@ -174,5 +167,5 @@ int wilc_mq_recv(WILC_MsgQueueHandle *pHandle,
 
 	spin_unlock_irqrestore(&pHandle->strCriticalSection, flags);
 
-	return result;
+	return 0;
 }

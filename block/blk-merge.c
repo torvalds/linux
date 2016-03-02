@@ -7,6 +7,8 @@
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
 
+#include <trace/events/block.h>
+
 #include "blk.h"
 
 static struct bio *blk_bio_discard_split(struct request_queue *q,
@@ -76,17 +78,33 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
 	unsigned seg_size = 0, nsegs = 0, sectors = 0;
+	unsigned front_seg_size = bio->bi_seg_front_size;
+	bool do_split = true;
+	struct bio *new = NULL;
 
 	bio_for_each_segment(bv, bio, iter) {
-		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
+
+		if (sectors + (bv.bv_len >> 9) >
+				blk_max_size_offset(q, bio->bi_iter.bi_sector)) {
+			/*
+			 * Consider this a new segment if we're splitting in
+			 * the middle of this vector.
+			 */
+			if (nsegs < queue_max_segments(q) &&
+			    sectors < blk_max_size_offset(q,
+						bio->bi_iter.bi_sector)) {
+				nsegs++;
+				sectors = blk_max_size_offset(q,
+						bio->bi_iter.bi_sector);
+			}
+			goto split;
+		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))
@@ -98,8 +116,11 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 
 			seg_size += bv.bv_len;
 			bvprv = bv;
-			bvprvp = &bv;
+			bvprvp = &bvprv;
 			sectors += bv.bv_len >> 9;
+
+			if (nsegs == 1 && seg_size > front_seg_size)
+				front_seg_size = seg_size;
 			continue;
 		}
 new_segment:
@@ -108,16 +129,29 @@ new_segment:
 
 		nsegs++;
 		bvprv = bv;
-		bvprvp = &bv;
+		bvprvp = &bvprv;
 		seg_size = bv.bv_len;
 		sectors += bv.bv_len >> 9;
+
+		if (nsegs == 1 && seg_size > front_seg_size)
+			front_seg_size = seg_size;
 	}
 
-	*segs = nsegs;
-	return NULL;
+	do_split = false;
 split:
 	*segs = nsegs;
-	return bio_split(bio, sectors, GFP_NOIO, bs);
+
+	if (do_split) {
+		new = bio_split(bio, sectors, GFP_NOIO, bs);
+		if (new)
+			bio = new;
+	}
+
+	bio->bi_seg_front_size = front_seg_size;
+	if (seg_size > bio->bi_seg_back_size)
+		bio->bi_seg_back_size = seg_size;
+
+	return do_split ? new : NULL;
 }
 
 void blk_queue_split(struct request_queue *q, struct bio **bio,
@@ -143,6 +177,7 @@ void blk_queue_split(struct request_queue *q, struct bio **bio,
 		split->bi_rw |= REQ_NOMERGE;
 
 		bio_chain(split, *bio);
+		trace_block_split(q, split, (*bio)->bi_iter.bi_sector);
 		generic_make_request(*bio);
 		*bio = split;
 	}
@@ -411,6 +446,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 
 	if (sg)
 		sg_mark_end(sg);
+
+	/*
+	 * Something must have been wrong if the figured number of
+	 * segment is bigger than number of req's physical segments
+	 */
+	WARN_ON(nsegs > rq->nr_phys_segments);
 
 	return nsegs;
 }

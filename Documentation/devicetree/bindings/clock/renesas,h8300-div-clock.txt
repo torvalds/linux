@@ -2,7 +2,7 @@
 
 Required Properties:
 
-  - compatible: Must be "renesas,sh73a0-h8300-div-clock"
+  - compatible: Must be "renesas,h8300-div-clock"
 
   - clocks: Reference to the parent clocks ("extal1" and "extal2")
 

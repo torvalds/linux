@@ -58,7 +58,7 @@ void pppox_unbind_sock(struct sock *sk)
 {
 	/* Clear connection to ppp device, if attached. */
 
-	if (sk->sk_state & (PPPOX_BOUND | PPPOX_CONNECTED | PPPOX_ZOMBIE)) {
+	if (sk->sk_state & (PPPOX_BOUND | PPPOX_CONNECTED)) {
 		ppp_unregister_channel(&pppox_sk(sk)->chan);
 		sk->sk_state = PPPOX_DEAD;
 	}
@@ -113,7 +113,7 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol,
 
 	rc = -EPROTONOSUPPORT;
 	if (!pppox_protos[protocol])
-		request_module("pppox-proto-%d", protocol);
+		request_module("net-pf-%d-proto-%d", PF_PPPOX, protocol);
 	if (!pppox_protos[protocol] ||
 	    !try_module_get(pppox_protos[protocol]->owner))
 		goto out;
@@ -147,3 +147,4 @@ module_exit(pppox_exit);
 MODULE_AUTHOR("Michal Ostrowski <mostrows@speakeasy.net>");
 MODULE_DESCRIPTION("PPP over Ethernet driver (generic socket layer)");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NETPROTO(PF_PPPOX);

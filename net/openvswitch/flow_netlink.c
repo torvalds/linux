@@ -2434,7 +2434,10 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ovs_nla_put_tunnel_info(skb, tun_info);
+		err =  ip_tun_to_nlattr(skb, &tun_info->key,
+					ip_tunnel_info_opts(tun_info),
+					tun_info->options_len,
+					ip_tunnel_info_af(tun_info));
 		if (err)
 			return err;
 		nla_nest_end(skb, start);

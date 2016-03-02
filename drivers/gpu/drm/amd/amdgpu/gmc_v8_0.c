@@ -476,6 +476,10 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	adev->mc.visible_vram_size = adev->mc.aper_size;
 
+	/* In case the PCI BAR is larger than the actual amount of vram */
+	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
+		adev->mc.visible_vram_size = adev->mc.real_vram_size;
+
 	/* unless the user had overridden it, set the gart
 	 * size equal to the 1024 or vram, whichever is larger.
 	 */
@@ -629,6 +633,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, EFFECTIVE_L2_QUEUE_SIZE, 7);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
+	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_DEFAULT_PAGE_OUT_TO_SYSTEM_MEMORY, 1);
 	WREG32(mmVM_L2_CNTL, tmp);
 	tmp = RREG32(mmVM_L2_CNTL2);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
@@ -656,7 +661,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL4, tmp);
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gtt_start >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, (adev->mc.gtt_end >> 12) - 1);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gtt_end >> 12);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page.addr >> 12));
@@ -979,12 +984,10 @@ static int gmc_v8_0_sw_init(void *handle)
 
 static int gmc_v8_0_sw_fini(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
+		amdgpu_vm_manager_fini(adev);
 		gmc_v8_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1031,12 +1034,9 @@ static int gmc_v8_0_hw_fini(void *handle)
 
 static int gmc_v8_0_suspend(void *handle)
 {
-	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->vm_manager.enabled) {
-		for (i = 0; i < AMDGPU_NUM_VM; ++i)
-			fence_put(adev->vm_manager.active[i]);
 		gmc_v8_0_vm_fini(adev);
 		adev->vm_manager.enabled = false;
 	}
@@ -1327,9 +1327,181 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void fiji_update_mc_medium_grain_clock_gating(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t data;
+
+	if (enable) {
+		data = RREG32(mmMC_HUB_MISC_HUB_CG);
+		data |= MC_HUB_MISC_HUB_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_HUB_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_SIP_CG);
+		data |= MC_HUB_MISC_SIP_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_SIP_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_VM_CG);
+		data |= MC_HUB_MISC_VM_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_VM_CG, data);
+
+		data = RREG32(mmMC_XPB_CLK_GAT);
+		data |= MC_XPB_CLK_GAT__ENABLE_MASK;
+		WREG32(mmMC_XPB_CLK_GAT, data);
+
+		data = RREG32(mmATC_MISC_CG);
+		data |= ATC_MISC_CG__ENABLE_MASK;
+		WREG32(mmATC_MISC_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_WR_CG);
+		data |= MC_CITF_MISC_WR_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_WR_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_RD_CG);
+		data |= MC_CITF_MISC_RD_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_RD_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_VM_CG);
+		data |= MC_CITF_MISC_VM_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_VM_CG, data);
+
+		data = RREG32(mmVM_L2_CG);
+		data |= VM_L2_CG__ENABLE_MASK;
+		WREG32(mmVM_L2_CG, data);
+	} else {
+		data = RREG32(mmMC_HUB_MISC_HUB_CG);
+		data &= ~MC_HUB_MISC_HUB_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_HUB_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_SIP_CG);
+		data &= ~MC_HUB_MISC_SIP_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_SIP_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_VM_CG);
+		data &= ~MC_HUB_MISC_VM_CG__ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_VM_CG, data);
+
+		data = RREG32(mmMC_XPB_CLK_GAT);
+		data &= ~MC_XPB_CLK_GAT__ENABLE_MASK;
+		WREG32(mmMC_XPB_CLK_GAT, data);
+
+		data = RREG32(mmATC_MISC_CG);
+		data &= ~ATC_MISC_CG__ENABLE_MASK;
+		WREG32(mmATC_MISC_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_WR_CG);
+		data &= ~MC_CITF_MISC_WR_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_WR_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_RD_CG);
+		data &= ~MC_CITF_MISC_RD_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_RD_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_VM_CG);
+		data &= ~MC_CITF_MISC_VM_CG__ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_VM_CG, data);
+
+		data = RREG32(mmVM_L2_CG);
+		data &= ~VM_L2_CG__ENABLE_MASK;
+		WREG32(mmVM_L2_CG, data);
+	}
+}
+
+static void fiji_update_mc_light_sleep(struct amdgpu_device *adev,
+		bool enable)
+{
+	uint32_t data;
+
+	if (enable) {
+		data = RREG32(mmMC_HUB_MISC_HUB_CG);
+		data |= MC_HUB_MISC_HUB_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_HUB_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_SIP_CG);
+		data |= MC_HUB_MISC_SIP_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_SIP_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_VM_CG);
+		data |= MC_HUB_MISC_VM_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_VM_CG, data);
+
+		data = RREG32(mmMC_XPB_CLK_GAT);
+		data |= MC_XPB_CLK_GAT__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_XPB_CLK_GAT, data);
+
+		data = RREG32(mmATC_MISC_CG);
+		data |= ATC_MISC_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmATC_MISC_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_WR_CG);
+		data |= MC_CITF_MISC_WR_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_WR_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_RD_CG);
+		data |= MC_CITF_MISC_RD_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_RD_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_VM_CG);
+		data |= MC_CITF_MISC_VM_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_VM_CG, data);
+
+		data = RREG32(mmVM_L2_CG);
+		data |= VM_L2_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmVM_L2_CG, data);
+	} else {
+		data = RREG32(mmMC_HUB_MISC_HUB_CG);
+		data &= ~MC_HUB_MISC_HUB_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_HUB_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_SIP_CG);
+		data &= ~MC_HUB_MISC_SIP_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_SIP_CG, data);
+
+		data = RREG32(mmMC_HUB_MISC_VM_CG);
+		data &= ~MC_HUB_MISC_VM_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_HUB_MISC_VM_CG, data);
+
+		data = RREG32(mmMC_XPB_CLK_GAT);
+		data &= ~MC_XPB_CLK_GAT__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_XPB_CLK_GAT, data);
+
+		data = RREG32(mmATC_MISC_CG);
+		data &= ~ATC_MISC_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmATC_MISC_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_WR_CG);
+		data &= ~MC_CITF_MISC_WR_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_WR_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_RD_CG);
+		data &= ~MC_CITF_MISC_RD_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_RD_CG, data);
+
+		data = RREG32(mmMC_CITF_MISC_VM_CG);
+		data &= ~MC_CITF_MISC_VM_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmMC_CITF_MISC_VM_CG, data);
+
+		data = RREG32(mmVM_L2_CG);
+		data &= ~VM_L2_CG__MEM_LS_ENABLE_MASK;
+		WREG32(mmVM_L2_CG, data);
+	}
+}
+
 static int gmc_v8_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+	case CHIP_FIJI:
+		fiji_update_mc_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		fiji_update_mc_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 

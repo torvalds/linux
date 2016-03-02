@@ -392,7 +392,10 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	ib->ptr[ib->length_dw++] = 0x00000001; /* session cmd */
 	ib->ptr[ib->length_dw++] = handle;
 
-	ib->ptr[ib->length_dw++] = 0x00000030; /* len */
+	if ((ring->adev->vce.fw_version >> 24) >= 52)
+		ib->ptr[ib->length_dw++] = 0x00000040; /* len */
+	else
+		ib->ptr[ib->length_dw++] = 0x00000030; /* len */
 	ib->ptr[ib->length_dw++] = 0x01000001; /* create cmd */
 	ib->ptr[ib->length_dw++] = 0x00000000;
 	ib->ptr[ib->length_dw++] = 0x00000042;
@@ -404,6 +407,12 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	ib->ptr[ib->length_dw++] = 0x00000100;
 	ib->ptr[ib->length_dw++] = 0x0000000c;
 	ib->ptr[ib->length_dw++] = 0x00000000;
+	if ((ring->adev->vce.fw_version >> 24) >= 52) {
+		ib->ptr[ib->length_dw++] = 0x00000000;
+		ib->ptr[ib->length_dw++] = 0x00000000;
+		ib->ptr[ib->length_dw++] = 0x00000000;
+		ib->ptr[ib->length_dw++] = 0x00000000;
+	}
 
 	ib->ptr[ib->length_dw++] = 0x00000014; /* len */
 	ib->ptr[ib->length_dw++] = 0x05000005; /* feedback buffer */

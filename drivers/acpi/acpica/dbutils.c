@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -173,6 +173,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level)
 			if (obj_desc->buffer.length > 16) {
 				acpi_os_printf("\n");
 			}
+
 			acpi_ut_debug_dump_buffer(ACPI_CAST_PTR
 						  (u8,
 						   obj_desc->buffer.pointer),

@@ -35,9 +35,6 @@
 static int debug;
 
 
-#define nvt_pr(level, text, ...) \
-	printk(level KBUILD_MODNAME ": " text, ## __VA_ARGS__)
-
 #define nvt_dbg(text, ...) \
 	if (debug) \
 		printk(KERN_DEBUG \
@@ -63,6 +60,21 @@ static int debug;
  */
 #define TX_BUF_LEN 256
 #define RX_BUF_LEN 32
+
+#define SIO_ID_MASK 0xfff0
+
+enum nvt_chip_ver {
+	NVT_UNKNOWN	= 0,
+	NVT_W83667HG	= 0xa510,
+	NVT_6775F	= 0xb470,
+	NVT_6776F	= 0xc330,
+	NVT_6779D	= 0xc560
+};
+
+struct nvt_chip {
+	const char *name;
+	enum nvt_chip_ver chip_ver;
+};
 
 struct nvt_dev {
 	struct pnp_dev *pdev;
@@ -93,6 +105,7 @@ struct nvt_dev {
 	int cir_irq;
 	int cir_wake_irq;
 
+	enum nvt_chip_ver chip_ver;
 	/* hardware id */
 	u8 chip_major;
 	u8 chip_minor;
@@ -325,15 +338,6 @@ struct nvt_dev {
 /* Extended Function Mode enable/disable magic values */
 #define EFER_EFM_ENABLE		0x87
 #define EFER_EFM_DISABLE	0xaa
-
-/* Chip IDs found in CR_CHIP_ID_{HI,LO} */
-#define CHIP_ID_HIGH_667	0xa5
-#define CHIP_ID_HIGH_677B	0xb4
-#define CHIP_ID_HIGH_677C	0xc3
-#define CHIP_ID_LOW_667		0x13
-#define CHIP_ID_LOW_677B2	0x72
-#define CHIP_ID_LOW_677B3	0x73
-#define CHIP_ID_LOW_677C	0x33
 
 /* Config regs we need to care about */
 #define CR_SOFTWARE_RESET	0x02

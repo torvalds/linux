@@ -117,6 +117,30 @@ OPTIONS
 	And default sort keys are changed to comm, dso_from, symbol_from, dso_to
 	and symbol_to, see '--branch-stack'.
 
+	If the data file has tracepoint event(s), following (dynamic) sort keys
+	are also available:
+	trace, trace_fields, [<event>.]<field>[/raw]
+
+	- trace: pretty printed trace output in a single column
+	- trace_fields: fields in tracepoints in separate columns
+	- <field name>: optional event and field name for a specific field
+
+	The last form consists of event and field names.  If event name is
+	omitted, it searches all events for matching field name.  The matched
+	field will be shown only for the event has the field.  The event name
+	supports substring match so user doesn't need to specify full subsystem
+	and event name everytime.  For example, 'sched:sched_switch' event can
+	be shortened to 'switch' as long as it's not ambiguous.  Also event can
+	be specified by its index (starting from 1) preceded by the '%'.
+	So '%1' is the first event, '%2' is the second, and so on.
+
+	The field name can have '/raw' suffix which disables pretty printing
+	and shows raw field value like hex numbers.  The --raw-trace option
+	has the same effect for all dynamic sort keys.
+
+	The default sort keys are changed to 'trace' if all events in the data
+	file are tracepoint.
+
 -F::
 --fields=::
 	Specify output field - multiple keys can be specified in CSV format.
@@ -170,17 +194,18 @@ OPTIONS
         Dump raw trace in ASCII.
 
 -g::
---call-graph=<print_type,threshold[,print_limit],order,sort_key,branch>::
+--call-graph=<print_type,threshold[,print_limit],order,sort_key[,branch],value>::
         Display call chains using type, min percent threshold, print limit,
-	call order, sort key and branch.  Note that ordering of parameters is not
-	fixed so any parement can be given in an arbitraty order.  One exception
-	is the print_limit which should be preceded by threshold.
+	call order, sort key, optional branch and value.  Note that ordering of
+	parameters is not fixed so any parement can be given in an arbitraty order.
+	One exception is the print_limit which should be preceded by threshold.
 
 	print_type can be either:
 	- flat: single column, linear exposure of call chains.
 	- graph: use a graph tree, displaying absolute overhead rates. (default)
 	- fractal: like graph, but displays relative rates. Each branch of
 		 the tree is considered as a new profiled object.
+	- folded: call chains are displayed in a line, separated by semicolons
 	- none: disable call chain display.
 
 	threshold is a percentage value which specifies a minimum percent to be
@@ -203,6 +228,11 @@ OPTIONS
 	branch can be:
 	- branch: include last branch information in callgraph when available.
 	          Usually more convenient to use --branch-history for this.
+
+	value can be:
+	- percent: diplay overhead percent (default)
+	- period: display event period
+	- count: display event count
 
 --children::
 	Accumulate callchain of children to parent entry so that then can
@@ -364,6 +394,9 @@ include::itrace.txt[]
 
 --socket-filter::
 	Only report the samples on the processor socket that match with this filter
+
+--raw-trace::
+	When displaying traceevent output, do not use print fmt or plugins.
 
 include::callchain-overhead-calculation.txt[]
 

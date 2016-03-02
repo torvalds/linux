@@ -18,8 +18,6 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 
-#ifdef CONFIG_DEBUG_FS
-
 #include "fm10k.h"
 
 #include <linux/debugfs.h>
@@ -258,5 +256,3 @@ void fm10k_dbg_exit(void)
 	debugfs_remove_recursive(dbg_root);
 	dbg_root = NULL;
 }
-
-#endif /* CONFIG_DEBUG_FS */
