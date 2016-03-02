@@ -348,6 +348,16 @@ typedef struct {
 	void *kib_connd; /* the connd task (serialisation assertions) */
 	struct list_head kib_connd_conns;   /* connections to setup/teardown */
 	struct list_head kib_connd_zombies; /* connections with zero refcount */
+	/* connections to reconnect */
+	struct list_head	kib_reconn_list;
+	/* peers wait for reconnection */
+	struct list_head	kib_reconn_wait;
+	/**
+	 * The second that peers are pulled out from \a kib_reconn_wait
+	 * for reconnection.
+	 */
+	time64_t		kib_reconn_sec;
+
 	wait_queue_head_t kib_connd_waitq;  /* connection daemon sleeps here */
 	spinlock_t kib_connd_lock;          /* serialise */
 	struct ib_qp_attr kib_error_qpa;    /* QP->ERROR */
@@ -525,6 +535,8 @@ typedef struct kib_conn {
 	struct list_head ibc_list;             /* stash on peer's conn list */
 	struct list_head      ibc_sched_list;  /* schedule for attention */
 	__u16                 ibc_version;     /* version of connection */
+	/* reconnect later */
+	__u16			ibc_reconnect:1;
 	__u64                 ibc_incarnation; /* which instance of the peer */
 	atomic_t              ibc_refcount;    /* # users */
 	int                   ibc_state;       /* what's happening */
@@ -574,18 +586,25 @@ typedef struct kib_peer {
 	struct list_head ibp_list;        /* stash on global peer list */
 	lnet_nid_t       ibp_nid;         /* who's on the other end(s) */
 	lnet_ni_t        *ibp_ni;         /* LNet interface */
-	atomic_t         ibp_refcount;    /* # users */
 	struct list_head ibp_conns;       /* all active connections */
 	struct list_head ibp_tx_queue;    /* msgs waiting for a conn */
-	__u16            ibp_version;     /* version of peer */
 	__u64            ibp_incarnation; /* incarnation of peer */
-	int              ibp_connecting;  /* current active connection attempts
-					   */
-	int              ibp_accepting;   /* current passive connection attempts
-					   */
-	int              ibp_error;       /* errno on closing this peer */
-	unsigned long    ibp_last_alive;  /* when (in jiffies) I was last alive
-					   */
+	/* when (in jiffies) I was last alive */
+	unsigned long		ibp_last_alive;
+	/* # users */
+	atomic_t		ibp_refcount;
+	/* version of peer */
+	__u16			ibp_version;
+	/* current passive connection attempts */
+	unsigned short		ibp_accepting;
+	/* current active connection attempts */
+	unsigned short		ibp_connecting;
+	/* reconnect this peer later */
+	unsigned short		ibp_reconnecting:1;
+	/* # consecutive reconnection attempts to this peer */
+	unsigned int		ibp_reconnected;
+	/* errno on closing this peer */
+	int              ibp_error;
 	/* max map_on_demand */
 	__u16		 ibp_max_frags;
 	/* max_peer_credits */
@@ -666,6 +685,20 @@ do {							    \
 	if (atomic_dec_and_test(&(peer)->ibp_refcount))     \
 		kiblnd_destroy_peer(peer);		      \
 } while (0)
+
+static inline bool
+kiblnd_peer_connecting(kib_peer_t *peer)
+{
+	return peer->ibp_connecting ||
+	       peer->ibp_reconnecting ||
+	       peer->ibp_accepting;
+}
+
+static inline bool
+kiblnd_peer_idle(kib_peer_t *peer)
+{
+	return !kiblnd_peer_connecting(peer) && list_empty(&peer->ibp_conns);
+}
 
 static inline struct list_head *
 kiblnd_nid2peerlist(lnet_nid_t nid)
@@ -943,6 +976,7 @@ int  kiblnd_translate_mtu(int value);
 int  kiblnd_dev_failover(kib_dev_t *dev);
 int  kiblnd_create_peer(lnet_ni_t *ni, kib_peer_t **peerp, lnet_nid_t nid);
 void kiblnd_destroy_peer(kib_peer_t *peer);
+bool kiblnd_reconnect_peer(kib_peer_t *peer);
 void kiblnd_destroy_dev(kib_dev_t *dev);
 void kiblnd_unlink_peer_locked(kib_peer_t *peer);
 kib_peer_t *kiblnd_find_peer_locked(lnet_nid_t nid);
@@ -952,7 +986,7 @@ int  kiblnd_close_peer_conns_locked(kib_peer_t *peer, int why);
 
 kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 			       int state, int version);
-void kiblnd_destroy_conn(kib_conn_t *conn);
+void kiblnd_destroy_conn(kib_conn_t *conn, bool free_conn);
 void kiblnd_close_conn(kib_conn_t *conn, int error);
 void kiblnd_close_conn_locked(kib_conn_t *conn, int error);
 
