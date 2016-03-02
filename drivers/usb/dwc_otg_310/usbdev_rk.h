@@ -130,6 +130,7 @@ struct dwc_otg_control_usb {
 	pGRF_SOC_STATUS19_RK3288 grf_soc_status19_rk3288;
 	pGRF_SOC_STATUS21_RK3288 grf_soc_status21_rk3288;
 
+	u32 grf_otg_st_offset;
 	struct regmap *grf;
 	struct gpio *host_gpios;
 	struct gpio *otg_gpios;

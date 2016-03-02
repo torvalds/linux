@@ -131,7 +131,7 @@ static void usb20otg_clock_enable(void *pdata, int enable)
 static int usb20otg_get_status(int id)
 {
 	int ret = -1;
-	u32 soc_status15 = uoc_read(0x4bc);
+	u32 soc_status15 = uoc_read(control_usb->grf_otg_st_offset);
 
 	switch (id) {
 	case USB_STATUS_BVABLID:
@@ -402,6 +402,7 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	struct clk *hclk_usb_peri;
 	struct regmap *grf;
 	int gpio, ret = 0;
+	u32 offset;
 
 	control_usb = devm_kzalloc(dev, sizeof(*control_usb), GFP_KERNEL);
 	if (!control_usb) {
@@ -416,6 +417,14 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 		return PTR_ERR(grf);
 	}
 	control_usb->grf = grf;
+
+	/* get the reg offset of GRF_SOC_STATUS for USB2.0 OTG */
+	if (of_property_read_u32(np, "grf-offset", &offset)) {
+		dev_err(&pdev->dev, "missing reg property in node %s\n",
+			np->name);
+		return -EINVAL;
+	}
+	control_usb->grf_otg_st_offset = offset;
 
 	/* Init Vbus-drv GPIOs */
 	control_usb->host_gpios =
@@ -466,8 +475,8 @@ static int dwc_otg_control_usb_probe(struct platform_device *pdev)
 	/* Init hclk_usb_peri */
 	hclk_usb_peri = devm_clk_get(&pdev->dev, "hclk_usb_peri");
 	if (IS_ERR(hclk_usb_peri)) {
-		dev_err(&pdev->dev, "Failed to get hclk_usb_peri\n");
-		return PTR_ERR(hclk_usb_peri);
+		dev_info(&pdev->dev, "no hclk_usb_peri clk specified\n");
+		hclk_usb_peri = NULL;
 	}
 	control_usb->hclk_usb_peri = hclk_usb_peri;
 	clk_prepare_enable(hclk_usb_peri);
