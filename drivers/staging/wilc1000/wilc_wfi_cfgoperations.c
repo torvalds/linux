@@ -1424,7 +1424,7 @@ static void WILC_WFI_CfgParseTxAction(u8 *buf, u32 len, bool bOperChan, u8 iftyp
 	}
 }
 
-void WILC_WFI_p2p_rx (struct net_device *dev, u8 *buff, u32 size)
+void WILC_WFI_p2p_rx(struct net_device *dev, u8 *buff, u32 size)
 {
 	struct wilc_priv *priv;
 	u32 header, pkt_offset;
