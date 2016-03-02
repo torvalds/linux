@@ -541,9 +541,15 @@ sfw_test_rpc_fini(srpc_client_rpc_t *rpc)
 static inline int
 sfw_test_buffers(sfw_test_instance_t *tsi)
 {
-	struct sfw_test_case *tsc = sfw_find_test_case(tsi->tsi_service);
-	struct srpc_service *svc = tsc->tsc_srv_service;
+	struct sfw_test_case *tsc;
+	struct srpc_service *svc;
 	int nbuf;
+
+	LASSERT(tsi);
+	tsc = sfw_find_test_case(tsi->tsi_service);
+	LASSERT(tsc);
+	svc = tsc->tsc_srv_service;
+	LASSERT(svc);
 
 	nbuf = min(svc->sv_wi_total, tsi->tsi_loop) / svc->sv_ncpts;
 	return max(SFW_TEST_WI_MIN, nbuf + SFW_TEST_WI_EXTRA);
@@ -591,8 +597,10 @@ sfw_load_test(struct sfw_test_instance *tsi)
 static void
 sfw_unload_test(struct sfw_test_instance *tsi)
 {
-	struct sfw_test_case *tsc = sfw_find_test_case(tsi->tsi_service);
+	struct sfw_test_case *tsc;
 
+	LASSERT(tsi);
+	tsc = sfw_find_test_case(tsi->tsi_service);
 	LASSERT(tsc);
 
 	if (tsi->tsi_is_client)
