@@ -858,7 +858,6 @@ void wq_worker_waking_up(struct task_struct *task, int cpu)
 /**
  * wq_worker_sleeping - a worker is going to sleep
  * @task: task going to sleep
- * @cpu: CPU in question, must be the current CPU number
  *
  * This function is called during schedule() when a busy worker is
  * going to sleep.  Worker on the same cpu can be woken up by
@@ -870,7 +869,7 @@ void wq_worker_waking_up(struct task_struct *task, int cpu)
  * Return:
  * Worker task on @cpu to wake up, %NULL if none.
  */
-struct task_struct *wq_worker_sleeping(struct task_struct *task, int cpu)
+struct task_struct *wq_worker_sleeping(struct task_struct *task)
 {
 	struct worker *worker = kthread_data(task), *to_wakeup = NULL;
 	struct worker_pool *pool;
@@ -886,7 +885,7 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task, int cpu)
 	pool = worker->pool;
 
 	/* this can only happen on the local cpu */
-	if (WARN_ON_ONCE(cpu != raw_smp_processor_id() || pool->cpu != cpu))
+	if (WARN_ON_ONCE(pool->cpu != raw_smp_processor_id()))
 		return NULL;
 
 	/*
