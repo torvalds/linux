@@ -360,16 +360,15 @@ lnet_mt_match_head(struct lnet_match_table *mtable,
 		   lnet_process_id_t id, __u64 mbits)
 {
 	struct lnet_portal *ptl = the_lnet.ln_portals[mtable->mt_portal];
+	unsigned long hash = mbits;
 
-	if (lnet_ptl_is_wildcard(ptl)) {
-		return &mtable->mt_mhash[mbits & LNET_MT_HASH_MASK];
-	} else {
-		unsigned long hash = mbits + id.nid + id.pid;
+	if (!lnet_ptl_is_wildcard(ptl)) {
+		hash += id.nid + id.pid;
 
 		LASSERT(lnet_ptl_is_unique(ptl));
 		hash = hash_long(hash, LNET_MT_HASH_BITS);
-		return &mtable->mt_mhash[hash];
 	}
+	return &mtable->mt_mhash[hash & LNET_MT_HASH_MASK];
 }
 
 int
