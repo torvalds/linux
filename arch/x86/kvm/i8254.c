@@ -607,12 +607,11 @@ static int speaker_ioport_read(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-void kvm_pit_reset(struct kvm_pit *pit)
+static void kvm_pit_reset(struct kvm_pit *pit)
 {
 	int i;
 	struct kvm_kpit_channel_state *c;
 
-	mutex_lock(&pit->pit_state.lock);
 	pit->pit_state.flags = 0;
 	for (i = 0; i < 3; i++) {
 		c = &pit->pit_state.channels[i];
@@ -620,7 +619,6 @@ void kvm_pit_reset(struct kvm_pit *pit)
 		c->gate = (i != 2);
 		pit_load_count(pit, i, 0);
 	}
-	mutex_unlock(&pit->pit_state.lock);
 
 	kvm_pit_reset_reinject(pit);
 }
@@ -663,7 +661,6 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	}
 
 	mutex_init(&pit->pit_state.lock);
-	mutex_lock(&pit->pit_state.lock);
 
 	pid = get_pid(task_tgid(current));
 	pid_nr = pid_vnr(pid);
@@ -673,7 +670,6 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit->worker_task = kthread_run(kthread_worker_fn, &pit->worker,
 				       "kvm-pit/%d", pid_nr);
 	if (IS_ERR(pit->worker_task)) {
-		mutex_unlock(&pit->pit_state.lock);
 		kvm_free_irq_source_id(kvm, pit->irq_source_id);
 		kfree(pit);
 		return NULL;
@@ -689,7 +685,6 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
 	kvm_register_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
 	pit_state->reinject = true;
-	mutex_unlock(&pit->pit_state.lock);
 
 	kvm_pit_reset(pit);
 
@@ -737,13 +732,11 @@ void kvm_free_pit(struct kvm *kvm)
 					       &kvm->arch.vpit->mask_notifier);
 		kvm_unregister_irq_ack_notifier(kvm,
 				&kvm->arch.vpit->pit_state.irq_ack_notifier);
-		mutex_lock(&kvm->arch.vpit->pit_state.lock);
 		timer = &kvm->arch.vpit->pit_state.timer;
 		hrtimer_cancel(timer);
 		flush_kthread_work(&kvm->arch.vpit->expired);
 		kthread_stop(kvm->arch.vpit->worker_task);
 		kvm_free_irq_source_id(kvm, kvm->arch.vpit->irq_source_id);
-		mutex_unlock(&kvm->arch.vpit->pit_state.lock);
 		kfree(kvm->arch.vpit);
 	}
 }

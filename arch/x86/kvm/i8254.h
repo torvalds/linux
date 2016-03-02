@@ -22,17 +22,19 @@ struct kvm_kpit_channel_state {
 };
 
 struct kvm_kpit_state {
+	/* All members before "struct mutex lock" are protected by the lock. */
 	struct kvm_kpit_channel_state channels[3];
 	u32 flags;
 	bool is_periodic;
 	s64 period; 				/* unit: ns */
 	struct hrtimer timer;
-	atomic_t pending;			/* accumulated triggered timers */
-	bool reinject;
-	struct kvm *kvm;
 	u32    speaker_data_on;
+
 	struct mutex lock;
+	struct kvm *kvm;
 	struct kvm_pit *pit;
+	bool reinject;
+	atomic_t pending; /* accumulated triggered timers */
 	atomic_t irq_ack;
 	struct kvm_irq_ack_notifier irq_ack_notifier;
 };
@@ -59,7 +61,6 @@ struct kvm_pit {
 struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags);
 void kvm_free_pit(struct kvm *kvm);
 
-void kvm_pit_reset(struct kvm_pit *pit);
 void kvm_pit_load_count(struct kvm_pit *pit, int channel, u32 val,
 		int hpet_legacy_start);
 
