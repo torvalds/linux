@@ -1347,12 +1347,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		       ifmsh->last_preq + msecs_to_jiffies(ifmsh->mshcfg.dot11MeshHWMPpreqMinInterval)))
 		mesh_path_start_discovery(sdata);
 
-	if (test_and_clear_bit(MESH_WORK_GROW_MPATH_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpath_table_grow(sdata);
-
-	if (test_and_clear_bit(MESH_WORK_GROW_MPP_TABLE, &ifmsh->wrkq_flags))
-		mesh_mpp_table_grow(sdata);
-
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata);
 
