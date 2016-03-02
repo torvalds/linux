@@ -48,6 +48,11 @@ config ARCH_MEDIATEK
 	help
 	  Support for Mediatek MT65xx & MT81xx ARMv8 SoCs
 
+config ARCH_MESON
+	bool "Amlogic Platforms"
+	help
+	  This enables support for the Amlogic S905 SoCs.
+
 config ARCH_QCOM
 	bool "Qualcomm Platforms"
 	select PINCTRL
