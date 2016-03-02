@@ -686,16 +686,16 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 	if (tuner) {
 		dev->tuner = tuner;
 		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-					    decoder, AU8522_PAD_INPUT, 0);
+					    decoder, DEMOD_PAD_IF_INPUT, 0);
 		if (ret)
 			return ret;
 	}
-	ret = media_create_pad_link(decoder, AU8522_PAD_VID_OUT,
+	ret = media_create_pad_link(decoder, DEMOD_PAD_VID_OUT,
 				    &dev->vdev.entity, 0,
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		return ret;
-	ret = media_create_pad_link(decoder, AU8522_PAD_VBI_OUT,
+	ret = media_create_pad_link(decoder, DEMOD_PAD_VBI_OUT,
 				    &dev->vbi_dev.entity, 0,
 				    MEDIA_LNK_FL_ENABLED);
 	if (ret)
@@ -723,7 +723,7 @@ static int au0828_create_media_graph(struct au0828_dev *dev)
 		case AU0828_VMUX_SVIDEO:
 			/* FIXME: fix the decoder PAD */
 			ret = media_create_pad_link(ent, 0, decoder,
-						    AU8522_PAD_INPUT, 0);
+						    DEMOD_PAD_IF_INPUT, 0);
 			if (ret)
 				return ret;
 			break;

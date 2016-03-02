@@ -218,7 +218,7 @@ static void au0828_media_graph_notify(struct media_entity *new,
 	switch (new->function) {
 	case MEDIA_ENT_F_AUDIO_MIXER:
 		ret = media_create_pad_link(dev->decoder,
-					    AU8522_PAD_AUDIO_OUT,
+					    DEMOD_PAD_AUDIO_OUT,
 					    new, 0,
 					    MEDIA_LNK_FL_ENABLED);
 		if (ret)
