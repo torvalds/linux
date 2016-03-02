@@ -3354,6 +3354,10 @@ enum ieee80211_reconfig_type {
  *	the function call.
  *
  * @wake_tx_queue: Called when new packets have been added to the queue.
+ * @sync_rx_queues: Process all pending frames in RSS queues. This is a
+ *	synchronization which is needed in case driver has in its RSS queues
+ *	pending frames that were received prior to the control path action
+ *	currently taken (e.g. disassociation) but are not processed yet.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -3591,6 +3595,7 @@ struct ieee80211_ops {
 
 	void (*wake_tx_queue)(struct ieee80211_hw *hw,
 			      struct ieee80211_txq *txq);
+	void (*sync_rx_queues)(struct ieee80211_hw *hw);
 };
 
 /**

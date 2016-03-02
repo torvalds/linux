@@ -2,7 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2015 Intel Deutschland GmbH
+ * Copyright (C) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -874,6 +874,13 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	 */
 	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_sta_tear_down_BA_sessions(sta, AGG_STOP_DESTROY_STA);
+
+	/*
+	 * Before removing the station from the driver there might be pending
+	 * rx frames on RSS queues sent prior to the disassociation - wait for
+	 * all such frames to be processed.
+	 */
+	drv_sync_rx_queues(local, sta);
 
 	ret = sta_info_hash_del(local, sta);
 	if (WARN_ON(ret))
