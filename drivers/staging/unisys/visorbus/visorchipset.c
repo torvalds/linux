@@ -2251,7 +2251,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 {
 	int rc = 0;
 	u64 addr;
-	int tmp_sz = sizeof(struct spar_controlvm_channel_protocol);
 	uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
 
 	addr = controlvm_get_channel_address();
@@ -2261,8 +2260,10 @@ visorchipset_init(struct acpi_device *acpi_device)
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 
-	controlvm_channel = visorchannel_create_with_lock(addr, tmp_sz,
+	controlvm_channel = visorchannel_create_with_lock(addr, 0,
 							  GFP_KERNEL, uuid);
+	if (!controlvm_channel)
+		return -ENODEV;
 	if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 		    visorchannel_get_header(controlvm_channel))) {
 		initialize_controlvm_payload();
