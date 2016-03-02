@@ -4,7 +4,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
- * Copyright 2015  Intel Deutschland GmbH
+ * Copyright 2015 - 2016 Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -15,6 +15,7 @@
 #include <linux/rtnetlink.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
+#include "rate.h"
 
 /* give usermode some time for retries in setting up the TDLS session */
 #define TDLS_PEER_SETUP_TIMEOUT	(15 * HZ)
@@ -302,7 +303,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	/* IEEE802.11ac-2013 Table E-4 */
 	u16 centers_80mhz[] = { 5210, 5290, 5530, 5610, 5690, 5775 };
 	struct cfg80211_chan_def uc = sta->tdls_chandef;
-	enum nl80211_chan_width max_width = ieee80211_get_sta_bw(&sta->sta);
+	enum nl80211_chan_width max_width = ieee80211_sta_cap_chan_bw(sta);
 	int i;
 
 	/* only support upgrading non-narrow channels up to 80Mhz */
@@ -1242,18 +1243,44 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata)
+static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
+	enum nl80211_chan_width width;
+	struct ieee80211_supported_band *sband;
 
 	mutex_lock(&local->chanctx_mtx);
 	conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (conf) {
+		width = conf->def.width;
+		sband = local->hw.wiphy->bands[conf->def.chan->band];
 		ctx = container_of(conf, struct ieee80211_chanctx, conf);
 		ieee80211_recalc_chanctx_chantype(local, ctx);
+
+		/* if width changed and a peer is given, update its BW */
+		if (width != conf->def.width && sta &&
+		    test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW)) {
+			enum ieee80211_sta_rx_bandwidth bw;
+
+			bw = ieee80211_chan_width_to_rx_bw(conf->def.width);
+			bw = min(bw, ieee80211_sta_cap_rx_bw(sta));
+			if (bw != sta->sta.bandwidth) {
+				sta->sta.bandwidth = bw;
+				rate_control_rate_update(local, sband, sta,
+							 IEEE80211_RC_BW_CHANGED);
+				/*
+				 * if a TDLS peer BW was updated, we need to
+				 * recalc the chandef width again, to get the
+				 * correct chanctx min_def
+				 */
+				ieee80211_recalc_chanctx_chantype(local, ctx);
+			}
+		}
+
 	}
 	mutex_unlock(&local->chanctx_mtx);
 }
@@ -1350,8 +1377,6 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
-		iee80211_tdls_recalc_chanctx(sdata);
-
 		mutex_lock(&local->sta_mtx);
 		sta = sta_info_get(sdata, peer);
 		if (!sta) {
@@ -1360,6 +1385,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
+		iee80211_tdls_recalc_chanctx(sdata, sta);
 		iee80211_tdls_recalc_ht_protection(sdata, sta);
 
 		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
@@ -1390,7 +1416,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		iee80211_tdls_recalc_ht_protection(sdata, NULL);
 		mutex_unlock(&local->sta_mtx);
 
-		iee80211_tdls_recalc_chanctx(sdata);
+		iee80211_tdls_recalc_chanctx(sdata, NULL);
 		break;
 	default:
 		ret = -ENOTSUPP;
