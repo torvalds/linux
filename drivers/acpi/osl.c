@@ -602,6 +602,14 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 	return AE_OK;
 }
 
+static void acpi_table_taint(struct acpi_table_header *table)
+{
+	pr_warn(PREFIX
+		"Override [%4.4s-%8.8s], this is unsafe: tainting kernel\n",
+		table->signature, table->oem_table_id);
+	add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_NOW_UNRELIABLE);
+}
+
 #ifdef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
 #include <linux/earlycpio.h>
 #include <linux/memblock.h>
@@ -746,20 +754,65 @@ void __init acpi_initrd_override(void *data, size_t size)
 		}
 	}
 }
-#endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
-
-static void acpi_table_taint(struct acpi_table_header *table)
-{
-	pr_warn(PREFIX
-		"Override [%4.4s-%8.8s], this is unsafe: tainting kernel\n",
-		table->signature, table->oem_table_id);
-	add_taint(TAINT_OVERRIDDEN_ACPI_TABLE, LOCKDEP_NOW_UNRELIABLE);
-}
-
 
 acpi_status
-acpi_os_table_override(struct acpi_table_header * existing_table,
-		       struct acpi_table_header ** new_table)
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address *address, u32 *length)
+{
+	int table_offset = 0;
+	struct acpi_table_header *table;
+	u32 table_length;
+
+	*length = 0;
+	*address = 0;
+	if (!acpi_tables_addr)
+		return AE_OK;
+
+	while (table_offset + ACPI_HEADER_SIZE <= all_tables_size) {
+		table = acpi_os_map_memory(acpi_tables_addr + table_offset,
+					   ACPI_HEADER_SIZE);
+		if (table_offset + table->length > all_tables_size) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			WARN_ON(1);
+			return AE_OK;
+		}
+
+		table_length = table->length;
+
+		/* Only override tables matched */
+		if (memcmp(existing_table->signature, table->signature, 4) ||
+		    memcmp(table->oem_table_id, existing_table->oem_table_id,
+			   ACPI_OEM_TABLE_ID_SIZE)) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			goto next_table;
+		}
+
+		*length = table_length;
+		*address = acpi_tables_addr + table_offset;
+		acpi_table_taint(existing_table);
+		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+		break;
+
+next_table:
+		table_offset += table_length;
+	}
+	return AE_OK;
+}
+#else
+acpi_status
+acpi_os_physical_table_override(struct acpi_table_header *existing_table,
+				acpi_physical_address *address,
+				u32 *table_length)
+{
+	*table_length = 0;
+	*address = 0;
+	return AE_OK;
+}
+#endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
+
+acpi_status
+acpi_os_table_override(struct acpi_table_header *existing_table,
+		       struct acpi_table_header **new_table)
 {
 	if (!existing_table || !new_table)
 		return AE_BAD_PARAMETER;
@@ -773,69 +826,6 @@ acpi_os_table_override(struct acpi_table_header * existing_table,
 	if (*new_table != NULL)
 		acpi_table_taint(existing_table);
 	return AE_OK;
-}
-
-acpi_status
-acpi_os_physical_table_override(struct acpi_table_header *existing_table,
-				acpi_physical_address *address,
-				u32 *table_length)
-{
-#ifndef CONFIG_ACPI_INITRD_TABLE_OVERRIDE
-	*table_length = 0;
-	*address = 0;
-	return AE_OK;
-#else
-	int table_offset = 0;
-	struct acpi_table_header *table;
-
-	*table_length = 0;
-	*address = 0;
-
-	if (!acpi_tables_addr)
-		return AE_OK;
-
-	do {
-		if (table_offset + ACPI_HEADER_SIZE > all_tables_size) {
-			WARN_ON(1);
-			return AE_OK;
-		}
-
-		table = acpi_os_map_memory(acpi_tables_addr + table_offset,
-					   ACPI_HEADER_SIZE);
-
-		if (table_offset + table->length > all_tables_size) {
-			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
-			WARN_ON(1);
-			return AE_OK;
-		}
-
-		table_offset += table->length;
-
-		if (memcmp(existing_table->signature, table->signature, 4)) {
-			acpi_os_unmap_memory(table,
-				     ACPI_HEADER_SIZE);
-			continue;
-		}
-
-		/* Only override tables with matching oem id */
-		if (memcmp(table->oem_table_id, existing_table->oem_table_id,
-			   ACPI_OEM_TABLE_ID_SIZE)) {
-			acpi_os_unmap_memory(table,
-				     ACPI_HEADER_SIZE);
-			continue;
-		}
-
-		table_offset -= table->length;
-		*table_length = table->length;
-		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
-		*address = acpi_tables_addr + table_offset;
-		break;
-	} while (table_offset + ACPI_HEADER_SIZE < all_tables_size);
-
-	if (*address != 0)
-		acpi_table_taint(existing_table);
-	return AE_OK;
-#endif
 }
 
 static irqreturn_t acpi_irq(int irq, void *dev_id)
