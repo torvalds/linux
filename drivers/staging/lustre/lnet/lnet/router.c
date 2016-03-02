@@ -1503,7 +1503,7 @@ lnet_nrb_tiny_calculate(void)
 		LCONSOLE_ERROR_MSG(0x10c,
 				   "tiny_router_buffers=%d invalid when routing enabled\n",
 				   tiny_router_buffers);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (tiny_router_buffers > 0)
@@ -1522,7 +1522,7 @@ lnet_nrb_small_calculate(void)
 		LCONSOLE_ERROR_MSG(0x10c,
 				   "small_router_buffers=%d invalid when routing enabled\n",
 				   small_router_buffers);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (small_router_buffers > 0)
@@ -1541,7 +1541,7 @@ lnet_nrb_large_calculate(void)
 		LCONSOLE_ERROR_MSG(0x10c,
 				   "large_router_buffers=%d invalid when routing enabled\n",
 				   large_router_buffers);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (large_router_buffers > 0)

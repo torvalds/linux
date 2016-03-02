@@ -467,7 +467,7 @@ lnet_str2tbs_sep(struct list_head *tbs, char *str)
 			ltb = lnet_new_text_buf(nob);
 			if (!ltb) {
 				lnet_free_text_bufs(&pending);
-				return -1;
+				return -ENOMEM;
 			}
 
 			for (i = 0; i < nob; i++)
@@ -598,7 +598,7 @@ lnet_str2tbs_expand(struct list_head *tbs, char *str)
 
  failed:
 	lnet_free_text_bufs(&pending);
-	return -1;
+	return -EINVAL;
 }
 
 static int
@@ -634,7 +634,7 @@ lnet_parse_priority(char *str, unsigned int *priority, char **token)
 		 * priority as the token to report in the error message.
 		 */
 		*token += sep - str + 1;
-		return -1;
+		return -EINVAL;
 	}
 
 	CDEBUG(D_NET, "gateway %s, priority %d, nob %d\n", str, *priority, nob);

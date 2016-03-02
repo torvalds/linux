@@ -1409,7 +1409,7 @@ int lnet_lib_init(void)
 		/* we are under risk of consuming all lh_cookie */
 		CERROR("Can't have %d CPTs for LNet (max allowed is %d), please change setting of CPT-table and retry\n",
 		       the_lnet.ln_cpt_number, LNET_CPT_MAX);
-		return -1;
+		return -E2BIG;
 	}
 
 	while ((1 << the_lnet.ln_cpt_bits) < the_lnet.ln_cpt_number)
@@ -1418,7 +1418,7 @@ int lnet_lib_init(void)
 	rc = lnet_create_locks();
 	if (rc) {
 		CERROR("Can't create LNet global locks: %d\n", rc);
-		return -1;
+		return rc;
 	}
 
 	the_lnet.ln_refcount = 0;
