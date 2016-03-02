@@ -532,6 +532,23 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
 	};
 
+	/*
+	 * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
+	 * put 32-bit resources in the window.
+	 *
+	 * There's no hardware reason why a 64-bit window *couldn't*
+	 * contain a 32-bit resource, but pbus_size_mem() computes the
+	 * bridge window size assuming a 64-bit window will contain no
+	 * 32-bit resources.  __pci_assign_resource() enforces that
+	 * artificial restriction to make sure everything will fit.
+	 *
+	 * The only way we could use a 64-bit non-prefechable MEMBAR is
+	 * if its address is <4GB so that we can convert it to a 32-bit
+	 * resource.  To be visible to the host OS, all VMD endpoints must
+	 * be initially configured by platform BIOS, which includes setting
+	 * up these resources.  We can assume the device is configured
+	 * according to the platform needs.
+	 */
 	res = &vmd->dev->resource[VMD_MEMBAR1];
 	upper_bits = upper_32_bits(res->end);
 	flags = res->flags & ~IORESOURCE_SIZEALIGN;
