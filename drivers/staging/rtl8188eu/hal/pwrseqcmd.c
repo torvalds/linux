@@ -39,11 +39,10 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
 
 		RT_TRACE(_module_hal_init_c_, _drv_info_,
 			 ("rtl88eu_pwrseqcmdparsing: offset(%#x) cut_msk(%#x)"
-			  " base(%#x) cmd(%#x)"
+			  " cmd(%#x)"
 			  "msk(%#x) value(%#x)\n",
 			 GET_PWR_CFG_OFFSET(pwrcfgcmd),
 			 GET_PWR_CFG_CUT_MASK(pwrcfgcmd),
-			 GET_PWR_CFG_BASE(pwrcfgcmd),
 			 GET_PWR_CFG_CMD(pwrcfgcmd),
 			 GET_PWR_CFG_MASK(pwrcfgcmd),
 			 GET_PWR_CFG_VALUE(pwrcfgcmd)));
