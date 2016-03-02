@@ -786,6 +786,7 @@ enum skl_disp_power_wells {
 #define  DSI_PLL_M1_DIV_MASK			(0x1ff << 0)
 #define CCK_CZ_CLOCK_CONTROL			0x62
 #define CCK_DISPLAY_CLOCK_CONTROL		0x6b
+#define CCK_DISPLAY_REF_CLOCK_CONTROL		0x6c
 #define  CCK_TRUNK_FORCE_ON			(1 << 17)
 #define  CCK_TRUNK_FORCE_OFF			(1 << 16)
 #define  CCK_FREQUENCY_STATUS			(0x1f << 8)
