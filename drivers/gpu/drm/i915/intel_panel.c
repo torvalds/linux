@@ -1240,7 +1240,7 @@ static void intel_backlight_device_unregister(struct intel_connector *connector)
  */
 static u32 bxt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
-	return KHz(19200) / pwm_freq_hz;
+	return DIV_ROUND_CLOSEST(KHz(19200), pwm_freq_hz);
 }
 
 /*
@@ -1258,7 +1258,7 @@ static u32 spt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	else
 		mul = 16;
 
-	return MHz(24) / (pwm_freq_hz * mul);
+	return DIV_ROUND_CLOSEST(MHz(24), pwm_freq_hz * mul);
 }
 
 /*
@@ -1281,7 +1281,7 @@ static u32 lpt_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	else
 		clock = MHz(24); /* LPT:LP */
 
-	return clock / (pwm_freq_hz * mul);
+	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * mul);
 }
 
 /*
@@ -1292,7 +1292,7 @@ static u32 pch_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 
-	return KHz(dev_priv->rawclk_freq) / (pwm_freq_hz * 128);
+	return DIV_ROUND_CLOSEST(KHz(dev_priv->rawclk_freq), pwm_freq_hz * 128);
 }
 
 /*
@@ -1313,7 +1313,7 @@ static u32 i9xx_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	else
 		clock = KHz(dev_priv->cdclk_freq);
 
-	return clock / (pwm_freq_hz * 32);
+	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 32);
 }
 
 /*
@@ -1332,7 +1332,7 @@ static u32 i965_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	else
 		clock = KHz(dev_priv->cdclk_freq);
 
-	return clock / (pwm_freq_hz * 128);
+	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * 128);
 }
 
 /*
@@ -1356,7 +1356,7 @@ static u32 vlv_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 		mul = 128;
 	}
 
-	return clock / (pwm_freq_hz * mul);
+	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * mul);
 }
 
 static u32 get_backlight_max_vbt(struct intel_connector *connector)
