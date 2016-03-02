@@ -829,6 +829,20 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	/* wait for idle */
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0,
+					    SDMA_POLL_REG_MEM_EXTRA_OP(0) |
+					    SDMA_POLL_REG_MEM_EXTRA_FUNC(3) | /* equal */
+					    SDMA_POLL_REG_MEM_EXTRA_M));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq); /* reference */
+	amdgpu_ring_write(ring, 0xfffffff); /* mask */
+	amdgpu_ring_write(ring, (0xfff << 16) | 4); /* retry count, poll interval */
+
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm_id < 8) {

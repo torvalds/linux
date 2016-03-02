@@ -885,6 +885,21 @@ static void sdma_v2_4_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib
 static void sdma_v2_4_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vm_id, uint64_t pd_addr)
 {
+	uint32_t seq = ring->fence_drv.sync_seq;
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	/* wait for idle */
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3) | /* equal */
+			  SDMA_PKT_POLL_REGMEM_HEADER_MEM_POLL(1));
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq); /* reference */
+	amdgpu_ring_write(ring, 0xfffffff); /* mask */
+	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
+			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(4)); /* retry count, poll interval */
+
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
 	if (vm_id < 8) {
