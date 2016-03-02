@@ -5319,12 +5319,10 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			if (rt)
 				ip6_del_rt(rt);
 		}
-		if (ifp->rt) {
-			dst_hold(&ifp->rt->dst);
+		dst_hold(&ifp->rt->dst);
 
-			ip6_del_rt(ifp->rt);
-			ifp->rt = NULL;
-		}
+		ip6_del_rt(ifp->rt);
+
 		rt_genid_bump_ipv6(net);
 		break;
 	}
