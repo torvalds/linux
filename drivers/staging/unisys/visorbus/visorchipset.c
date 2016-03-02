@@ -399,21 +399,13 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 		p = __va((unsigned long)(addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
-		void *mapping;
+		void *mapping = memremap(addr, bytes, MEMREMAP_WB);
 
-		if (!request_mem_region(addr, bytes, "visorchipset")) {
-			rc = NULL;
-			goto cleanup;
-		}
-
-		mapping = memremap(addr, bytes, MEMREMAP_WB);
 		if (!mapping) {
-			release_mem_region(addr, bytes);
 			rc = NULL;
 			goto cleanup;
 		}
 		memcpy(ctx->data, mapping, bytes);
-		release_mem_region(addr, bytes);
 		memunmap(mapping);
 	}
 
