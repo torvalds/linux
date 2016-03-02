@@ -720,11 +720,6 @@ static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
-{
-	return index ? 0 : 100;
-}
-
 static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	/*
@@ -5859,8 +5854,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	/* intel_dp vfuncs */
 	if (INTEL_INFO(dev)->gen >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
-	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
-		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
 	else if (HAS_PCH_SPLIT(dev))
