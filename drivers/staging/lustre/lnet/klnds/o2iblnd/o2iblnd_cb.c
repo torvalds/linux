@@ -158,7 +158,7 @@ kiblnd_post_rx(kib_rx_t *rx, int credit)
 	kib_conn_t *conn = rx->rx_conn;
 	kib_net_t *net = conn->ibc_peer->ibp_ni->ni_data;
 	struct ib_recv_wr *bad_wrq = NULL;
-	struct ib_mr *mr;
+	struct ib_mr *mr = conn->ibc_hdev->ibh_mrs;
 	int rc;
 
 	LASSERT(net);
@@ -166,8 +166,6 @@ kiblnd_post_rx(kib_rx_t *rx, int credit)
 	LASSERT(credit == IBLND_POSTRX_NO_CREDIT ||
 		credit == IBLND_POSTRX_PEER_CREDIT ||
 		credit == IBLND_POSTRX_RSRVD_CREDIT);
-
-	mr = kiblnd_find_dma_mr(conn->ibc_hdev, rx->rx_msgaddr, IBLND_MSG_SIZE);
 	LASSERT(mr);
 
 	rx->rx_sge.lkey   = mr->lkey;
@@ -1035,16 +1033,14 @@ kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob)
 	struct ib_sge *sge = &tx->tx_sge[tx->tx_nwrq];
 	struct ib_rdma_wr *wrq = &tx->tx_wrq[tx->tx_nwrq];
 	int nob = offsetof(kib_msg_t, ibm_u) + body_nob;
-	struct ib_mr *mr;
+	struct ib_mr *mr = hdev->ibh_mrs;
 
 	LASSERT(tx->tx_nwrq >= 0);
 	LASSERT(tx->tx_nwrq < IBLND_MAX_RDMA_FRAGS + 1);
 	LASSERT(nob <= IBLND_MSG_SIZE);
+	LASSERT(mr);
 
 	kiblnd_init_msg(tx->tx_msg, type, body_nob);
-
-	mr = kiblnd_find_dma_mr(hdev, tx->tx_msgaddr, nob);
-	LASSERT(mr);
 
 	sge->lkey   = mr->lkey;
 	sge->addr   = tx->tx_msgaddr;

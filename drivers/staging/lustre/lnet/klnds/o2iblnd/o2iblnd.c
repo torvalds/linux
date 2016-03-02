@@ -1296,55 +1296,15 @@ static void kiblnd_map_tx_pool(kib_tx_pool_t *tpo)
 	}
 }
 
-struct ib_mr *kiblnd_find_dma_mr(kib_hca_dev_t *hdev, __u64 addr, __u64 size)
-{
-	__u64 index;
-
-	LASSERT(hdev->ibh_mrs[0]);
-
-	if (hdev->ibh_nmrs == 1)
-		return hdev->ibh_mrs[0];
-
-	index = addr >> hdev->ibh_mr_shift;
-
-	if (index <  hdev->ibh_nmrs &&
-	    index == ((addr + size - 1) >> hdev->ibh_mr_shift))
-		return hdev->ibh_mrs[index];
-
-	return NULL;
-}
-
 struct ib_mr *kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev, kib_rdma_desc_t *rd)
 {
-	struct ib_mr *prev_mr;
-	struct ib_mr *mr;
-	int i;
-
-	LASSERT(hdev->ibh_mrs[0]);
+	LASSERT(hdev->ibh_mrs);
 
 	if (*kiblnd_tunables.kib_map_on_demand > 0 &&
 	    *kiblnd_tunables.kib_map_on_demand <= rd->rd_nfrags)
 		return NULL;
 
-	if (hdev->ibh_nmrs == 1)
-		return hdev->ibh_mrs[0];
-
-	for (i = 0, mr = prev_mr = NULL;
-	     i < rd->rd_nfrags; i++) {
-		mr = kiblnd_find_dma_mr(hdev,
-					rd->rd_frags[i].rf_addr,
-					rd->rd_frags[i].rf_nob);
-		if (!prev_mr)
-			prev_mr = mr;
-
-		if (!mr || prev_mr != mr) {
-			/* Can't covered by one single MR */
-			mr = NULL;
-			break;
-		}
-	}
-
-	return mr;
+	return hdev->ibh_mrs;
 }
 
 static void kiblnd_destroy_fmr_pool(kib_fmr_pool_t *pool)
@@ -1978,8 +1938,7 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 	int i;
 
 	read_lock_irqsave(&kiblnd_data.kib_global_lock, flags);
-	if (!*kiblnd_tunables.kib_map_on_demand &&
-	    net->ibn_dev->ibd_hdev->ibh_nmrs == 1) {
+	if (!*kiblnd_tunables.kib_map_on_demand) {
 		read_unlock_irqrestore(&kiblnd_data.kib_global_lock, flags);
 		goto create_tx_pool;
 	}
@@ -2019,26 +1978,15 @@ static int kiblnd_net_init_pools(kib_net_t *net, __u32 *cpts, int ncpts)
 		rc = kiblnd_init_fmr_poolset(net->ibn_fmr_ps[cpt], cpt, net,
 					     kiblnd_fmr_pool_size(ncpts),
 					     kiblnd_fmr_flush_trigger(ncpts));
-		if (rc == -ENOSYS && !i) /* no FMR */
-			break;
-
-		if (rc) { /* a real error */
+		if (rc) {
 			CERROR("Can't initialize FMR pool for CPT %d: %d\n",
 			       cpt, rc);
 			goto failed;
 		}
 	}
 
-	if (i > 0) {
+	if (i > 0)
 		LASSERT(i == ncpts);
-		goto create_tx_pool;
-	}
-
-	cfs_percpt_free(net->ibn_fmr_ps);
-	net->ibn_fmr_ps = NULL;
-
-	CWARN("Device does not support FMR\n");
-			goto failed;
 
  create_tx_pool:
 	net->ibn_tx_ps = cfs_percpt_alloc(lnet_cpt_table(),
@@ -2087,34 +2035,18 @@ static int kiblnd_hdev_get_attr(kib_hca_dev_t *hdev)
 		return 0;
 	}
 
-	for (hdev->ibh_mr_shift = 0;
-	     hdev->ibh_mr_shift < 64; hdev->ibh_mr_shift++) {
-		if (hdev->ibh_mr_size == (1ULL << hdev->ibh_mr_shift) ||
-		    hdev->ibh_mr_size == (1ULL << hdev->ibh_mr_shift) - 1)
-			return 0;
-	}
-
 	CERROR("Invalid mr size: %#llx\n", hdev->ibh_mr_size);
 	return -EINVAL;
 }
 
 static void kiblnd_hdev_cleanup_mrs(kib_hca_dev_t *hdev)
 {
-	int i;
-
-	if (!hdev->ibh_nmrs || !hdev->ibh_mrs)
+	if (!hdev->ibh_mrs)
 		return;
 
-	for (i = 0; i < hdev->ibh_nmrs; i++) {
-		if (!hdev->ibh_mrs[i])
-			break;
+	ib_dereg_mr(hdev->ibh_mrs);
 
-		ib_dereg_mr(hdev->ibh_mrs[i]);
-	}
-
-	LIBCFS_FREE(hdev->ibh_mrs, sizeof(*hdev->ibh_mrs) * hdev->ibh_nmrs);
-	hdev->ibh_mrs  = NULL;
-	hdev->ibh_nmrs = 0;
+	hdev->ibh_mrs = NULL;
 }
 
 void kiblnd_hdev_destroy(kib_hca_dev_t *hdev)
@@ -2140,15 +2072,6 @@ static int kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 	if (rc)
 		return rc;
 
-	LIBCFS_ALLOC(hdev->ibh_mrs, 1 * sizeof(*hdev->ibh_mrs));
-	if (!hdev->ibh_mrs) {
-		CERROR("Failed to allocate MRs table\n");
-		return -ENOMEM;
-	}
-
-	hdev->ibh_mrs[0] = NULL;
-	hdev->ibh_nmrs   = 1;
-
 	mr = ib_get_dma_mr(hdev->ibh_pd, acflags);
 	if (IS_ERR(mr)) {
 		CERROR("Failed ib_get_dma_mr : %ld\n", PTR_ERR(mr));
@@ -2156,7 +2079,7 @@ static int kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 		return PTR_ERR(mr);
 	}
 
-	hdev->ibh_mrs[0] = mr;
+	hdev->ibh_mrs = mr;
 
 	return 0;
 }
