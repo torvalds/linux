@@ -321,6 +321,12 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 		return HRTIMER_NORESTART;
 }
 
+static inline void kvm_pit_reset_reinject(struct kvm_pit *pit)
+{
+	atomic_set(&pit->pit_state.pending, 0);
+	pit->pit_state.irq_ack = 1;
+}
+
 static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 {
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
@@ -343,8 +349,7 @@ static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 	ps->timer.function = pit_timer_fn;
 	ps->kvm = ps->pit->kvm;
 
-	atomic_set(&ps->pending, 0);
-	ps->irq_ack = 1;
+	kvm_pit_reset_reinject(ps->pit);
 
 	/*
 	 * Do not allow the guest to program periodic timers with small
@@ -644,18 +649,15 @@ void kvm_pit_reset(struct kvm_pit *pit)
 	}
 	mutex_unlock(&pit->pit_state.lock);
 
-	atomic_set(&pit->pit_state.pending, 0);
-	pit->pit_state.irq_ack = 1;
+	kvm_pit_reset_reinject(pit);
 }
 
 static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 {
 	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
 
-	if (!mask) {
-		atomic_set(&pit->pit_state.pending, 0);
-		pit->pit_state.irq_ack = 1;
-	}
+	if (!mask)
+		kvm_pit_reset_reinject(pit);
 }
 
 static const struct kvm_io_device_ops pit_dev_ops = {
