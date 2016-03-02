@@ -844,9 +844,11 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 		struct request_queue *q)
 {
 	if (ctrl->max_hw_sectors) {
+		u32 max_segments =
+			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1;
+
 		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
-		blk_queue_max_segments(q,
-			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1);
+		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
 	}
 	if (ctrl->stripe_size)
 		blk_queue_chunk_sectors(q, ctrl->stripe_size >> 9);
