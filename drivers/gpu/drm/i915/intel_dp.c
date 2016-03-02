@@ -676,22 +676,29 @@ static uint32_t g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 
+	if (index)
+		return 0;
+
 	/*
 	 * The clock divider is based off the hrawclk, and would like to run at
-	 * 2MHz.  So, take the hrawclk value and divide by 2 and use that
+	 * 2MHz.  So, take the hrawclk value and divide by 2000 and use that
 	 */
-	return index ? 0 : DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
+	return DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
 }
 
 static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 
 	if (index)
 		return 0;
 
+	/*
+	 * The clock divider is based off the cdclk or PCH rawclk, and would
+	 * like to run at 2MHz.  So, take the cdclk or PCH rawclk value and
+	 * divide by 2000 and use that
+	 */
 	if (intel_dig_port->port == PORT_A)
 		return DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 2000);
 	else
@@ -701,23 +708,18 @@ static uint32_t ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 static uint32_t hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_device *dev = intel_dig_port->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 
-	if (intel_dig_port->port == PORT_A) {
-		if (index)
-			return 0;
-		return DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 2000);
-	} else if (HAS_PCH_LPT_H(dev_priv)) {
+	if (intel_dig_port->port != PORT_A && HAS_PCH_LPT_H(dev_priv)) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
 		case 0: return 63;
 		case 1: return 72;
 		default: return 0;
 		}
-	} else  {
-		return index ? 0 : DIV_ROUND_CLOSEST(dev_priv->rawclk_freq, 2000);
 	}
+
+	return ilk_get_aux_clock_divider(intel_dp, index);
 }
 
 static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
