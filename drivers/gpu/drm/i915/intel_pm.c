@@ -2345,7 +2345,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc *intel_crtc,
 		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
 
 	if (!ilk_validate_pipe_wm(dev, pipe_wm))
-		return false;
+		return -EINVAL;
 
 	ilk_compute_wm_reg_maximums(dev, 1, &max);
 
