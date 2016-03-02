@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(ife_get_meta_u16);
 
 int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval)
 {
-	mi->metaval = kmemdup(&metaval, sizeof(u32), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u32), GFP_KERNEL);
 	if (!mi->metaval)
 		return -ENOMEM;
 
@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(ife_alloc_meta_u32);
 
 int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval)
 {
-	mi->metaval = kmemdup(&metaval, sizeof(u16), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u16), GFP_KERNEL);
 	if (!mi->metaval)
 		return -ENOMEM;
 
