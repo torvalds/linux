@@ -627,7 +627,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 			plarbdev = of_platform_device_create(
 						larbnode, NULL,
 						platform_bus_type.dev_root);
-			if (IS_ERR(plarbdev))
+			if (!plarbdev)
 				return -EPROBE_DEFER;
 		}
 		data->smi_imu.larb_imu[i].dev = &plarbdev->dev;
@@ -720,8 +720,8 @@ static int mtk_iommu_init_fn(struct device_node *np)
 	struct platform_device *pdev;
 
 	pdev = of_platform_device_create(np, NULL, platform_bus_type.dev_root);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
+	if (!pdev)
+		return -ENOMEM;
 
 	ret = platform_driver_register(&mtk_iommu_driver);
 	if (ret) {
