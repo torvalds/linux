@@ -5477,9 +5477,6 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			goto next_spqe;
 		}
 
-		/* elem CID originates from FW; actually LE */
-		cid = SW_CID((__force __le32)
-			     elem->message.data.cfc_del_event.cid);
 		opcode = elem->message.opcode;
 
 		/* handle eq element */
@@ -5502,6 +5499,11 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			 * we may want to verify here that the bp state is
 			 * HALTING
 			 */
+
+			/* elem CID originates from FW; actually LE */
+			cid = SW_CID((__force __le32)
+				     elem->message.data.cfc_del_event.cid);
+
 			DP(BNX2X_MSG_SP,
 			   "got delete ramrod for MULTI[%d]\n", cid);
 
