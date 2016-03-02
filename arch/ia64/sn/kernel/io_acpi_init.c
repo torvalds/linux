@@ -429,6 +429,7 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 	void __iomem *addr;
 	struct pcidev_info *pcidev_info = NULL;
 	struct sn_irq_info *sn_irq_info = NULL;
+	struct resource *res;
 	size_t image_size, size;
 
 	if (sn_acpi_get_pcidev_info(dev, &pcidev_info, &sn_irq_info)) {
@@ -446,14 +447,13 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 		addr = ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
 			       size);
 		image_size = pci_get_rom_size(dev, addr, size);
-		dev->resource[PCI_ROM_RESOURCE].start = (unsigned long) addr;
-		dev->resource[PCI_ROM_RESOURCE].end =
-					(unsigned long) addr + image_size - 1;
-		dev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_BIOS_COPY;
+		res = &dev->resource[PCI_ROM_RESOURCE];
+		res->start = (unsigned long) addr;
+		res->end = (unsigned long) addr + image_size - 1;
+		res->flags |= IORESOURCE_ROM_BIOS_COPY;
 	}
 	sn_pci_fixup_slot(dev, pcidev_info, sn_irq_info);
 }
-
 EXPORT_SYMBOL(sn_acpi_slot_fixup);
 
 
