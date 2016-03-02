@@ -171,6 +171,13 @@ void __init arm64_memblock_init(void)
 	const s64 linear_region_size = -(s64)PAGE_OFFSET;
 
 	/*
+	 * Ensure that the linear region takes up exactly half of the kernel
+	 * virtual address space. This way, we can distinguish a linear address
+	 * from a kernel/module/vmalloc address by testing a single bit.
+	 */
+	BUILD_BUG_ON(linear_region_size != BIT(VA_BITS - 1));
+
+	/*
 	 * Select a suitable value for the base of physical memory.
 	 */
 	memstart_addr = round_down(memblock_start_of_DRAM(),
