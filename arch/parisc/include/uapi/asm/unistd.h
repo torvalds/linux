@@ -361,8 +361,9 @@
 #define __NR_membarrier		(__NR_Linux + 343)
 #define __NR_userfaultfd	(__NR_Linux + 344)
 #define __NR_mlock2		(__NR_Linux + 345)
+#define __NR_copy_file_range	(__NR_Linux + 346)
 
-#define __NR_Linux_syscalls	(__NR_mlock2 + 1)
+#define __NR_Linux_syscalls	(__NR_copy_file_range + 1)
 
 
 #define __IGNORE_select		/* newselect */
