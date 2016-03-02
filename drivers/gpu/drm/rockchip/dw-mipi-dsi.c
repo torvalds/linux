@@ -878,7 +878,7 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-	int mux  = rockchip_drm_encoder_get_mux_id(dsi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
 	u32 interface_pix_fmt;
 	u32 val;
 

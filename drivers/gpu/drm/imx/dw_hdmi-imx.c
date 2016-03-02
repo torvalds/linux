@@ -118,7 +118,7 @@ static void dw_hdmi_imx_encoder_mode_set(struct drm_encoder *encoder,
 static void dw_hdmi_imx_encoder_commit(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = container_of(encoder, struct imx_hdmi, encoder);
-	int mux = imx_drm_encoder_get_mux_id(hdmi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
 			   IMX6Q_GPR3_HDMI_MUX_CTL_MASK,
