@@ -1531,13 +1531,40 @@ static int gen6_do_reset(struct drm_device *dev)
 	return ret;
 }
 
-static int wait_for_register(struct drm_i915_private *dev_priv,
-			     i915_reg_t reg,
-			     const u32 mask,
-			     const u32 value,
-			     const unsigned long timeout_ms)
+static int wait_for_register_fw(struct drm_i915_private *dev_priv,
+				i915_reg_t reg,
+				const u32 mask,
+				const u32 value,
+				const unsigned long timeout_ms)
 {
-	return wait_for((I915_READ(reg) & mask) == value, timeout_ms);
+	return wait_for((I915_READ_FW(reg) & mask) == value, timeout_ms);
+}
+
+static int gen8_request_engine_reset(struct intel_engine_cs *engine)
+{
+	int ret;
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+
+	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
+		      _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
+
+	ret = wait_for_register_fw(dev_priv,
+				   RING_RESET_CTL(engine->mmio_base),
+				   RESET_CTL_READY_TO_RESET,
+				   RESET_CTL_READY_TO_RESET,
+				   700);
+	if (ret)
+		DRM_ERROR("%s: reset request timeout\n", engine->name);
+
+	return ret;
+}
+
+static void gen8_unrequest_engine_reset(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+
+	I915_WRITE_FW(RING_RESET_CTL(engine->mmio_base),
+		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
 }
 
 static int gen8_do_reset(struct drm_device *dev)
@@ -1546,26 +1573,15 @@ static int gen8_do_reset(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i) {
-		I915_WRITE(RING_RESET_CTL(engine->mmio_base),
-			   _MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET));
-
-		if (wait_for_register(dev_priv,
-				      RING_RESET_CTL(engine->mmio_base),
-				      RESET_CTL_READY_TO_RESET,
-				      RESET_CTL_READY_TO_RESET,
-				      700)) {
-			DRM_ERROR("%s: reset request timeout\n", engine->name);
+	for_each_ring(engine, dev_priv, i)
+		if (gen8_request_engine_reset(engine))
 			goto not_ready;
-		}
-	}
 
 	return gen6_do_reset(dev);
 
 not_ready:
 	for_each_ring(engine, dev_priv, i)
-		I915_WRITE(RING_RESET_CTL(engine->mmio_base),
-			   _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
+		gen8_unrequest_engine_reset(engine);
 
 	return -EIO;
 }
