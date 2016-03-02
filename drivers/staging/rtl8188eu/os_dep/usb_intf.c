@@ -482,8 +482,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	struct adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
 
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+rtw_drv_init\n"));
-
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
 	if (dvobj == NULL) {
@@ -497,8 +495,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		pr_debug("rtw_init_primarystruct adapter Failed!\n");
 		goto free_dvobj;
 	}
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-871x_drv - drv_init, success!\n"));
 
 	return 0;
 
