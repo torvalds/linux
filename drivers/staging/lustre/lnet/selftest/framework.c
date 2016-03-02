@@ -160,7 +160,7 @@ static void
 sfw_add_session_timer(void)
 {
 	sfw_session_t *sn = sfw_data.fw_session;
-	stt_timer_t *timer = &sn->sn_timer;
+	struct stt_timer *timer = &sn->sn_timer;
 
 	LASSERT(!sfw_data.fw_shuttingdown);
 
@@ -261,7 +261,7 @@ static inline void
 sfw_init_session(sfw_session_t *sn, lst_sid_t sid,
 		 unsigned features, const char *name)
 {
-	stt_timer_t *timer = &sn->sn_timer;
+	struct stt_timer *timer = &sn->sn_timer;
 
 	memset(sn, 0, sizeof(sfw_session_t));
 	INIT_LIST_HEAD(&sn->sn_list);

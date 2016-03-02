@@ -153,7 +153,7 @@ struct lstcon_session {
 	__u64               ses_id_cookie;    /* batch id cookie */
 	char                ses_name[LST_NAME_SIZE];/* session name */
 	lstcon_rpc_trans_t  *ses_ping;        /* session pinger */
-	stt_timer_t         ses_ping_timer;   /* timer for pinger */
+	struct stt_timer         ses_ping_timer;   /* timer for pinger */
 	lstcon_trans_stat_t ses_trans_stat;   /* transaction stats */
 
 	struct list_head    ses_trans_list;   /* global list of transaction */

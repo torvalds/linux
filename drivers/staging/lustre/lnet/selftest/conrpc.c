@@ -1173,7 +1173,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 static void
 lstcon_rpc_pinger(void *arg)
 {
-	stt_timer_t *ptimer = (stt_timer_t *)arg;
+	struct stt_timer *ptimer = (struct stt_timer *)arg;
 	lstcon_rpc_trans_t *trans;
 	lstcon_rpc_t *crpc;
 	srpc_msg_t *rep;
@@ -1290,7 +1290,7 @@ lstcon_rpc_pinger(void *arg)
 int
 lstcon_rpc_pinger_start(void)
 {
-	stt_timer_t *ptimer;
+	struct stt_timer *ptimer;
 	int rc;
 
 	LASSERT(list_empty(&console_session.ses_rpc_freelist));

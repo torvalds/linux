@@ -48,12 +48,12 @@ static int ping_srv_workitems = SFW_TEST_WI_MAX;
 module_param(ping_srv_workitems, int, 0644);
 MODULE_PARM_DESC(ping_srv_workitems, "# PING server workitems");
 
-typedef struct {
+struct lst_ping_data {
 	spinlock_t	pnd_lock;	/* serialize */
 	int		pnd_counter;	/* sequence counter */
-} lst_ping_data_t;
+};
 
-static lst_ping_data_t  lst_ping_data;
+static struct lst_ping_data  lst_ping_data;
 
 static int
 ping_client_init(sfw_test_instance_t *tsi)

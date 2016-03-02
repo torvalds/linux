@@ -207,7 +207,7 @@ typedef struct srpc_client_rpc {
 	int               crpc_service;
 	atomic_t          crpc_refcount;
 	int               crpc_timeout;   /* # seconds to wait for reply */
-	stt_timer_t       crpc_timer;
+	struct stt_timer       crpc_timer;
 	swi_workitem_t    crpc_wi;
 	lnet_process_id_t crpc_dest;
 
@@ -328,7 +328,7 @@ typedef struct {
 	unsigned int     sn_timeout; /* # seconds' inactivity to expire */
 	int              sn_timer_active;
 	unsigned int     sn_features;
-	stt_timer_t      sn_timer;
+	struct stt_timer      sn_timer;
 	struct list_head sn_batches; /* list of batches */
 	char             sn_name[LST_NAME_SIZE];
 	atomic_t         sn_refcount;

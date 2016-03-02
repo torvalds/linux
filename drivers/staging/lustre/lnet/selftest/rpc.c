@@ -1100,7 +1100,7 @@ srpc_client_rpc_expired(void *data)
 static void
 srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 {
-	stt_timer_t *timer = &rpc->crpc_timer;
+	struct stt_timer *timer = &rpc->crpc_timer;
 
 	if (!rpc->crpc_timeout)
 		return;
