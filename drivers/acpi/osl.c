@@ -644,6 +644,7 @@ static const char * const table_sigs[] = {
 
 #define ACPI_OVERRIDE_TABLES 64
 static struct cpio_data __initdata acpi_initrd_files[ACPI_OVERRIDE_TABLES];
+static DECLARE_BITMAP(acpi_initrd_installed, ACPI_OVERRIDE_TABLES);
 
 #define MAP_CHUNK_SIZE   (NR_FIX_BTMAPS << PAGE_SHIFT)
 
@@ -760,6 +761,7 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 				acpi_physical_address *address, u32 *length)
 {
 	int table_offset = 0;
+	int table_index = 0;
 	struct acpi_table_header *table;
 	u32 table_length;
 
@@ -780,7 +782,8 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 		table_length = table->length;
 
 		/* Only override tables matched */
-		if (memcmp(existing_table->signature, table->signature, 4) ||
+		if (test_bit(table_index, acpi_initrd_installed) ||
+		    memcmp(existing_table->signature, table->signature, 4) ||
 		    memcmp(table->oem_table_id, existing_table->oem_table_id,
 			   ACPI_OEM_TABLE_ID_SIZE)) {
 			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
@@ -791,12 +794,53 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 		*address = acpi_tables_addr + table_offset;
 		acpi_table_taint(existing_table);
 		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+		set_bit(table_index, acpi_initrd_installed);
 		break;
 
 next_table:
 		table_offset += table_length;
+		table_index++;
 	}
 	return AE_OK;
+}
+
+void __init acpi_initrd_initialize_tables(void)
+{
+	int table_offset = 0;
+	int table_index = 0;
+	u32 table_length;
+	struct acpi_table_header *table;
+
+	if (!acpi_tables_addr)
+		return;
+
+	while (table_offset + ACPI_HEADER_SIZE <= all_tables_size) {
+		table = acpi_os_map_memory(acpi_tables_addr + table_offset,
+					   ACPI_HEADER_SIZE);
+		if (table_offset + table->length > all_tables_size) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			WARN_ON(1);
+			return;
+		}
+
+		table_length = table->length;
+
+		/* Skip RSDT/XSDT which should only be used for override */
+		if (test_bit(table_index, acpi_initrd_installed) ||
+		    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_RSDT) ||
+		    ACPI_COMPARE_NAME(table->signature, ACPI_SIG_XSDT)) {
+			acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+			goto next_table;
+		}
+
+		acpi_table_taint(table);
+		acpi_os_unmap_memory(table, ACPI_HEADER_SIZE);
+		acpi_install_table(acpi_tables_addr + table_offset, TRUE);
+		set_bit(table_index, acpi_initrd_installed);
+next_table:
+		table_offset += table_length;
+		table_index++;
+	}
 }
 #else
 acpi_status
@@ -807,6 +851,10 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
 	*table_length = 0;
 	*address = 0;
 	return AE_OK;
+}
+
+void __init acpi_initrd_initialize_tables(void)
+{
 }
 #endif /* CONFIG_ACPI_INITRD_TABLE_OVERRIDE */
 

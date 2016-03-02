@@ -20,6 +20,7 @@
 
 #define PREFIX "ACPI: "
 
+void acpi_initrd_initialize_tables(void);
 acpi_status acpi_os_initialize1(void);
 void init_acpi_device_notify(void);
 int acpi_scan_init(void);
