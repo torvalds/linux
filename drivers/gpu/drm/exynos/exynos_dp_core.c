@@ -977,9 +977,7 @@ static int exynos_dp_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	drm_display_mode_from_videomode(&dp->priv.vm, mode);
-	mode->width_mm = dp->priv.width_mm;
-	mode->height_mm = dp->priv.height_mm;
+	drm_display_mode_from_videomode(&dp->vm, mode);
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 
@@ -1241,8 +1239,7 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 {
 	int ret;
 
-	ret = of_get_videomode(dp->dev->of_node, &dp->priv.vm,
-			OF_USE_NATIVE_MODE);
+	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
 		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
 		return ret;
