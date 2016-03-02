@@ -6273,6 +6273,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 
 static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 {
+	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	enum intel_display_power_domain domain;
@@ -6291,7 +6292,20 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	}
 
 	dev_priv->display.crtc_disable(crtc);
+
+	DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was enabled, now disabled\n",
+		      crtc->base.id);
+
+	WARN_ON(drm_atomic_set_mode_for_crtc(crtc->state, NULL) < 0);
+	crtc->state->active = false;
 	intel_crtc->active = false;
+	crtc->enabled = false;
+	crtc->state->connector_mask = 0;
+	crtc->state->encoder_mask = 0;
+
+	for_each_encoder_on_crtc(crtc->dev, crtc, encoder)
+		encoder->base.crtc = NULL;
+
 	intel_fbc_disable(intel_crtc);
 	intel_update_watermarks(crtc);
 	intel_disable_shared_dpll(intel_crtc);
@@ -15513,37 +15527,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
-	if (!intel_crtc_has_encoders(crtc))
+	if (crtc->active && !intel_crtc_has_encoders(crtc))
 		intel_crtc_disable_noatomic(&crtc->base);
-
-	if (crtc->active != crtc->base.state->active) {
-		struct intel_encoder *encoder;
-
-		/* This can happen either due to bugs in the get_hw_state
-		 * functions or because of calls to intel_crtc_disable_noatomic,
-		 * or because the pipe is force-enabled due to the
-		 * pipe A quirk. */
-		DRM_DEBUG_KMS("[CRTC:%d] hw state adjusted, was %s, now %s\n",
-			      crtc->base.base.id,
-			      crtc->base.state->enable ? "enabled" : "disabled",
-			      crtc->active ? "enabled" : "disabled");
-
-		WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, NULL) < 0);
-		crtc->base.state->active = crtc->active;
-		crtc->base.enabled = crtc->active;
-		crtc->base.state->connector_mask = 0;
-		crtc->base.state->encoder_mask = 0;
-
-		/* Because we only establish the connector -> encoder ->
-		 * crtc links if something is active, this means the
-		 * crtc is now deactivated. Break the links. connector
-		 * -> encoder links are only establish when things are
-		 *  actually up, hence no need to break them. */
-		WARN_ON(crtc->active);
-
-		for_each_encoder_on_crtc(dev, &crtc->base, encoder)
-			encoder->base.crtc = NULL;
-	}
 
 	if (crtc->active || HAS_GMCH_DISPLAY(dev)) {
 		/*
