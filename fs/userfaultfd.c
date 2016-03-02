@@ -287,6 +287,12 @@ int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 		goto out;
 
 	/*
+	 * We don't do userfault handling for the final child pid update.
+	 */
+	if (current->flags & PF_EXITING)
+		goto out;
+
+	/*
 	 * Check that we can return VM_FAULT_RETRY.
 	 *
 	 * NOTE: it should become possible to return VM_FAULT_RETRY
