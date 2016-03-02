@@ -4818,7 +4818,10 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		goto err_vdev_delete;
 	}
 
-	if (ar->cfg_tx_chainmask) {
+	/* Configuring number of spatial stream for monitor interface is causing
+	 * target assert in qca9888 and qca6174.
+	 */
+	if (ar->cfg_tx_chainmask && (vif->type != NL80211_IFTYPE_MONITOR)) {
 		u16 nss = get_nss_from_chainmask(ar->cfg_tx_chainmask);
 
 		vdev_param = ar->wmi.vdev_param->nss;
