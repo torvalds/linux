@@ -1398,9 +1398,17 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		size = PAGE_ALIGN(gsize.bytes);
 	}
 
-	spin_lock(&priv->list_lock);
-	list_add(&omap_obj->mm_list, &priv->obj_list);
-	spin_unlock(&priv->list_lock);
+	/* Initialize the GEM object. */
+	if (!(flags & OMAP_BO_MEM_SHMEM)) {
+		drm_gem_private_object_init(dev, obj, size);
+	} else {
+		ret = drm_gem_object_init(dev, obj, size);
+		if (ret)
+			goto err_free;
+
+		mapping = file_inode(obj->filp)->i_mapping;
+		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
+	}
 
 	/* Allocate memory if needed. */
 	if (flags & OMAP_BO_MEM_DMA_API) {
@@ -1408,25 +1416,19 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 							 &omap_obj->paddr,
 							 GFP_KERNEL);
 		if (!omap_obj->vaddr)
-			goto fail;
+			goto err_release;
 	}
 
-	/* Initialize the GEM object. */
-	if (!(flags & OMAP_BO_MEM_SHMEM)) {
-		drm_gem_private_object_init(dev, obj, size);
-	} else {
-		ret = drm_gem_object_init(dev, obj, size);
-		if (ret)
-			goto fail;
-
-		mapping = file_inode(obj->filp)->i_mapping;
-		mapping_set_gfp_mask(mapping, GFP_USER | __GFP_DMA32);
-	}
+	spin_lock(&priv->list_lock);
+	list_add(&omap_obj->mm_list, &priv->obj_list);
+	spin_unlock(&priv->list_lock);
 
 	return obj;
 
-fail:
-	omap_gem_free_object(obj);
+err_release:
+	drm_gem_object_release(obj);
+err_free:
+	kfree(omap_obj);
 	return NULL;
 }
 
