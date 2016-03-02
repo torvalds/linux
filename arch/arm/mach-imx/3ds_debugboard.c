@@ -94,8 +94,8 @@ static void mxc_expio_irq_handler(struct irq_desc *desc)
 	/* irq = gpio irq number */
 	desc->irq_data.chip->irq_mask(&desc->irq_data);
 
-	imr_val = __raw_readw(brd_io + INTR_MASK_REG);
-	int_valid = __raw_readw(brd_io + INTR_STATUS_REG) & ~imr_val;
+	imr_val = imx_readw(brd_io + INTR_MASK_REG);
+	int_valid = imx_readw(brd_io + INTR_STATUS_REG) & ~imr_val;
 
 	expio_irq = 0;
 	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
@@ -117,17 +117,17 @@ static void expio_mask_irq(struct irq_data *d)
 	u16 reg;
 	u32 expio = d->hwirq;
 
-	reg = __raw_readw(brd_io + INTR_MASK_REG);
+	reg = imx_readw(brd_io + INTR_MASK_REG);
 	reg |= (1 << expio);
-	__raw_writew(reg, brd_io + INTR_MASK_REG);
+	imx_writew(reg, brd_io + INTR_MASK_REG);
 }
 
 static void expio_ack_irq(struct irq_data *d)
 {
 	u32 expio = d->hwirq;
 
-	__raw_writew(1 << expio, brd_io + INTR_RESET_REG);
-	__raw_writew(0, brd_io + INTR_RESET_REG);
+	imx_writew(1 << expio, brd_io + INTR_RESET_REG);
+	imx_writew(0, brd_io + INTR_RESET_REG);
 	expio_mask_irq(d);
 }
 
@@ -136,9 +136,9 @@ static void expio_unmask_irq(struct irq_data *d)
 	u16 reg;
 	u32 expio = d->hwirq;
 
-	reg = __raw_readw(brd_io + INTR_MASK_REG);
+	reg = imx_readw(brd_io + INTR_MASK_REG);
 	reg &= ~(1 << expio);
-	__raw_writew(reg, brd_io + INTR_MASK_REG);
+	imx_writew(reg, brd_io + INTR_MASK_REG);
 }
 
 static struct irq_chip expio_irq_chip = {
@@ -162,9 +162,9 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	if (brd_io == NULL)
 		return -ENOMEM;
 
-	if ((__raw_readw(brd_io + MAGIC_NUMBER1_REG) != 0xAAAA) ||
-	    (__raw_readw(brd_io + MAGIC_NUMBER2_REG) != 0x5555) ||
-	    (__raw_readw(brd_io + MAGIC_NUMBER3_REG) != 0xCAFE)) {
+	if ((imx_readw(brd_io + MAGIC_NUMBER1_REG) != 0xAAAA) ||
+	    (imx_readw(brd_io + MAGIC_NUMBER2_REG) != 0x5555) ||
+	    (imx_readw(brd_io + MAGIC_NUMBER3_REG) != 0xCAFE)) {
 		pr_info("3-Stack Debug board not detected\n");
 		iounmap(brd_io);
 		brd_io = NULL;
@@ -181,10 +181,10 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	gpio_direction_input(intr_gpio);
 
 	/* disable the interrupt and clear the status */
-	__raw_writew(0, brd_io + INTR_MASK_REG);
-	__raw_writew(0xFFFF, brd_io + INTR_RESET_REG);
-	__raw_writew(0, brd_io + INTR_RESET_REG);
-	__raw_writew(0x1F, brd_io + INTR_MASK_REG);
+	imx_writew(0, brd_io + INTR_MASK_REG);
+	imx_writew(0xFFFF, brd_io + INTR_RESET_REG);
+	imx_writew(0, brd_io + INTR_RESET_REG);
+	imx_writew(0x1F, brd_io + INTR_MASK_REG);
 
 	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_node_id());
 	WARN_ON(irq_base < 0);
