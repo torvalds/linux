@@ -60,16 +60,16 @@
 #include <net/sock.h>
 #include <linux/in.h>
 
+#include <rdma/rdma_cm.h>
+#include <rdma/ib_cm.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_fmr_pool.h>
+
 #define DEBUG_SUBSYSTEM S_LND
 
 #include "../../../include/linux/libcfs/libcfs.h"
 #include "../../../include/linux/lnet/lnet.h"
 #include "../../../include/linux/lnet/lib-lnet.h"
-
-#include <rdma/rdma_cm.h>
-#include <rdma/ib_cm.h>
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_fmr_pool.h>
 
 #define IBLND_PEER_HASH_SIZE		101	/* # peer lists */
 /* # scheduler loops before reschedule */
