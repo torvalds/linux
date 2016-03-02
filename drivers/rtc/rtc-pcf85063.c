@@ -16,8 +16,6 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
-#define DRV_VERSION "0.0.1"
-
 #define PCF85063_REG_CTRL1		0x00 /* status */
 #define PCF85063_REG_CTRL1_STOP		BIT(5)
 #define PCF85063_REG_CTRL2		0x01
@@ -182,8 +180,6 @@ static int pcf85063_probe(struct i2c_client *client,
 	if (!pcf85063)
 		return -ENOMEM;
 
-	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
-
 	i2c_set_clientdata(client, pcf85063);
 
 	pcf85063->rtc = devm_rtc_device_register(&client->dev,
@@ -221,4 +217,3 @@ module_i2c_driver(pcf85063_driver);
 MODULE_AUTHOR("Søren Andersen <san@rosetechnology.dk>");
 MODULE_DESCRIPTION("PCF85063 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
