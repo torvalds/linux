@@ -762,11 +762,6 @@ static int snd_portman_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto free_pardev;
 	}
-	err = portman_probe(p);
-	if (err) {
-		err = -EIO;
-		goto release_pardev;
-	}
 
 	if ((err = portman_create(card, pardev, &pm)) < 0) {
 		snd_printd("Cannot create main component\n");
@@ -774,6 +769,12 @@ static int snd_portman_probe(struct platform_device *pdev)
 	}
 	card->private_data = pm;
 	card->private_free = snd_portman_card_private_free;
+
+	err = portman_probe(p);
+	if (err) {
+		err = -EIO;
+		goto __err;
+	}
 	
 	if ((err = snd_portman_rawmidi_create(card)) < 0) {
 		snd_printd("Creating Rawmidi component failed\n");
