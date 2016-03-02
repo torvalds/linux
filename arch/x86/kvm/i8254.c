@@ -76,8 +76,6 @@ static void pit_set_gate(struct kvm *kvm, int channel, u32 val)
 	struct kvm_kpit_channel_state *c =
 		&kvm->arch.vpit->pit_state.channels[channel];
 
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
-
 	switch (c->mode) {
 	default:
 	case 0:
@@ -99,8 +97,6 @@ static void pit_set_gate(struct kvm *kvm, int channel, u32 val)
 
 static int pit_get_gate(struct kvm *kvm, int channel)
 {
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
-
 	return kvm->arch.vpit->pit_state.channels[channel].gate;
 }
 
@@ -144,8 +140,6 @@ static int pit_get_count(struct kvm *kvm, int channel)
 	s64 d, t;
 	int counter;
 
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
-
 	t = kpit_elapsed(kvm, c, channel);
 	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
 
@@ -173,8 +167,6 @@ static int pit_get_out(struct kvm *kvm, int channel)
 		&kvm->arch.vpit->pit_state.channels[channel];
 	s64 d, t;
 	int out;
-
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
 	t = kpit_elapsed(kvm, c, channel);
 	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
@@ -207,8 +199,6 @@ static void pit_latch_count(struct kvm *kvm, int channel)
 	struct kvm_kpit_channel_state *c =
 		&kvm->arch.vpit->pit_state.channels[channel];
 
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
-
 	if (!c->count_latched) {
 		c->latched_count = pit_get_count(kvm, channel);
 		c->count_latched = c->rw_mode;
@@ -219,8 +209,6 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 {
 	struct kvm_kpit_channel_state *c =
 		&kvm->arch.vpit->pit_state.channels[channel];
-
-	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
 	if (!c->status_latched) {
 		/* TODO: Return NULL COUNT (bit 6). */
@@ -367,8 +355,6 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 {
 	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 
-	WARN_ON(!mutex_is_locked(&ps->lock));
-
 	pr_debug("load_count val is %d, channel is %d\n", val, channel);
 
 	/*
@@ -406,6 +392,9 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 void kvm_pit_load_count(struct kvm *kvm, int channel, u32 val, int hpet_legacy_start)
 {
 	u8 saved_mode;
+
+	WARN_ON_ONCE(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
+
 	if (hpet_legacy_start) {
 		/* save existing mode for later reenablement */
 		WARN_ON(channel != 0);
