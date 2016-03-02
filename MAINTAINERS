@@ -4542,6 +4542,15 @@ S:	Maintained
 F:	drivers/net/ethernet/freescale/fs_enet/
 F:	include/linux/fs_enet_pd.h
 
+FREESCALE IMX / MXC FEC DRIVER
+M:	Fugang Duan <fugang.duan@nxp.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/freescale/fec_main.c
+F:	drivers/net/ethernet/freescale/fec_ptp.c
+F:	drivers/net/ethernet/freescale/fec.h
+F:	Documentation/devicetree/bindings/net/fsl-fec.txt
+
 FREESCALE QUICC ENGINE LIBRARY
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Orphan
