@@ -24,7 +24,11 @@
 #include <linux/regmap.h>
 
 #define MAX77686_I2C_ADDR_RTC		(0x0C >> 1)
+#define MAX77620_I2C_ADDR_RTC		0x68
 #define MAX77686_INVALID_I2C_ADDR	(-1)
+
+/* Define non existing register */
+#define MAX77686_INVALID_REG		(-1)
 
 /* RTC Control Register */
 #define BCD_EN_SHIFT			0
@@ -74,6 +78,10 @@ struct max77686_rtc_driver_data {
 	bool			alarm_enable_reg;
 	/* I2C address for RTC block */
 	int			rtc_i2c_addr;
+	/* RTC interrupt via platform resource */
+	bool			rtc_irq_from_platform;
+	/* Pending alarm status register */
+	int			alarm_pending_status_reg;
 	/* RTC IRQ CHIP for regmap */
 	const struct regmap_irq_chip *rtc_irq_chip;
 };
@@ -185,7 +193,20 @@ static const struct max77686_rtc_driver_data max77686_drv_data = {
 	.mask  = 0x7f,
 	.map   = max77686_map,
 	.alarm_enable_reg  = false,
+	.rtc_irq_from_platform = false,
+	.alarm_pending_status_reg = MAX77686_REG_STATUS2,
 	.rtc_i2c_addr = MAX77686_I2C_ADDR_RTC,
+	.rtc_irq_chip = &max77686_rtc_irq_chip,
+};
+
+static const struct max77686_rtc_driver_data max77620_drv_data = {
+	.delay = 16000,
+	.mask  = 0x7f,
+	.map   = max77686_map,
+	.alarm_enable_reg  = false,
+	.rtc_irq_from_platform = true,
+	.alarm_pending_status_reg = MAX77686_INVALID_REG,
+	.rtc_i2c_addr = MAX77620_I2C_ADDR_RTC,
 	.rtc_irq_chip = &max77686_rtc_irq_chip,
 };
 
@@ -232,6 +253,8 @@ static const struct max77686_rtc_driver_data max77802_drv_data = {
 	.mask  = 0xff,
 	.map   = max77802_map,
 	.alarm_enable_reg  = true,
+	.rtc_irq_from_platform = false,
+	.alarm_pending_status_reg = MAX77686_REG_STATUS2,
 	.rtc_i2c_addr = MAX77686_INVALID_I2C_ADDR,
 	.rtc_irq_chip = &max77802_rtc_irq_chip,
 };
@@ -427,9 +450,15 @@ static int max77686_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	alrm->pending = 0;
-	ret = regmap_read(info->regmap, MAX77686_REG_STATUS2, &val);
+
+	if (info->drv_data->alarm_pending_status_reg == MAX77686_INVALID_REG)
+		goto out;
+
+	ret = regmap_read(info->regmap,
+			  info->drv_data->alarm_pending_status_reg, &val);
 	if (ret < 0) {
-		dev_err(info->dev, "Fail to read status2 reg(%d)\n", ret);
+		dev_err(info->dev,
+			"Fail to read alarm pending status reg(%d)\n", ret);
 		goto out;
 	}
 
@@ -648,7 +677,18 @@ static int max77686_init_rtc_regmap(struct max77686_rtc_info *info)
 	struct i2c_client *parent_i2c = to_i2c_client(parent);
 	int ret;
 
-	info->rtc_irq = parent_i2c->irq;
+	if (info->drv_data->rtc_irq_from_platform) {
+		struct platform_device *pdev = to_platform_device(info->dev);
+
+		info->rtc_irq = platform_get_irq(pdev, 0);
+		if (info->rtc_irq < 0) {
+			dev_err(info->dev, "Failed to get rtc interrupts: %d\n",
+				info->rtc_irq);
+			return info->rtc_irq;
+		}
+	} else {
+		info->rtc_irq =  parent_i2c->irq;
+	}
 
 	info->regmap = dev_get_regmap(parent, NULL);
 	if (!info->regmap) {
@@ -802,6 +842,7 @@ static SIMPLE_DEV_PM_OPS(max77686_rtc_pm_ops,
 static const struct platform_device_id rtc_id[] = {
 	{ "max77686-rtc", .driver_data = (kernel_ulong_t)&max77686_drv_data, },
 	{ "max77802-rtc", .driver_data = (kernel_ulong_t)&max77802_drv_data, },
+	{ "max77620-rtc", .driver_data = (kernel_ulong_t)&max77620_drv_data, },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, rtc_id);
