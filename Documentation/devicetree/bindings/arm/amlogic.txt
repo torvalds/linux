@@ -13,6 +13,10 @@ Boards with the Amlogic Meson8b SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,meson8b";
 
+Boards with the Amlogic Meson GXBaby SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,meson-gxbb";
+
 Board compatible values:
   - "geniatech,atv1200" (Meson6)
   - "minix,neo-x8" (Meson8)
