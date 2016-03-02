@@ -538,6 +538,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	struct ipoib_tx_buf *tx_req;
 	int hlen, rc;
 	void *phead;
+	unsigned usable_sge = priv->max_send_sge - !!skb_headlen(skb);
 
 	if (skb_is_gso(skb)) {
 		hlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -560,6 +561,23 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		}
 		phead = NULL;
 		hlen  = 0;
+	}
+	if (skb_shinfo(skb)->nr_frags > usable_sge) {
+		if (skb_linearize(skb) < 0) {
+			ipoib_warn(priv, "skb could not be linearized\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
+		/* Does skb_linearize return ok without reducing nr_frags? */
+		if (skb_shinfo(skb)->nr_frags > usable_sge) {
+			ipoib_warn(priv, "too many frags after skb linearize\n");
+			++dev->stats.tx_dropped;
+			++dev->stats.tx_errors;
+			dev_kfree_skb_any(skb);
+			return;
+		}
 	}
 
 	ipoib_dbg_data(priv, "sending packet, length=%d address=%p qpn=0x%06x\n",
