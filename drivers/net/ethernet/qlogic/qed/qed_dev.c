@@ -756,10 +756,54 @@ int qed_hw_init(struct qed_dev *cdev,
 }
 
 #define QED_HW_STOP_RETRY_LIMIT (10)
+static inline void qed_hw_timers_stop(struct qed_dev *cdev,
+				      struct qed_hwfn *p_hwfn,
+				      struct qed_ptt *p_ptt)
+{
+	int i;
+
+	/* close timers */
+	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
+	qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
+
+	for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
+		if ((!qed_rd(p_hwfn, p_ptt,
+			     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
+		    (!qed_rd(p_hwfn, p_ptt,
+			     TM_REG_PF_SCAN_ACTIVE_TASK)))
+			break;
+
+		/* Dependent on number of connection/tasks, possibly
+		 * 1ms sleep is required between polls
+		 */
+		usleep_range(1000, 2000);
+	}
+
+	if (i < QED_HW_STOP_RETRY_LIMIT)
+		return;
+
+	DP_NOTICE(p_hwfn,
+		  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
+		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_CONN),
+		  (u8)qed_rd(p_hwfn, p_ptt, TM_REG_PF_SCAN_ACTIVE_TASK));
+}
+
+void qed_hw_timers_stop_all(struct qed_dev *cdev)
+{
+	int j;
+
+	for_each_hwfn(cdev, j) {
+		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
+		struct qed_ptt *p_ptt = p_hwfn->p_main_ptt;
+
+		qed_hw_timers_stop(cdev, p_hwfn, p_ptt);
+	}
+}
+
 int qed_hw_stop(struct qed_dev *cdev)
 {
 	int rc = 0, t_rc;
-	int i, j;
+	int j;
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
@@ -772,7 +816,8 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 		rc = qed_sp_pf_stop(p_hwfn);
 		if (rc)
-			return rc;
+			DP_NOTICE(p_hwfn,
+				  "Failed to close PF against FW. Continue to stop HW to prevent illegal host access by the device\n");
 
 		qed_wr(p_hwfn, p_ptt,
 		       NIG_REG_RX_LLH_BRB_GATE_DNTFWD_PERPF, 0x1);
@@ -783,24 +828,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_OPENFLOW, 0x0);
 
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
-		for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
-			if ((!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
-			    (!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_TASK)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-		if (i == QED_HW_STOP_RETRY_LIMIT)
-			DP_NOTICE(p_hwfn,
-				  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_CONN),
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_TASK));
+		qed_hw_timers_stop(cdev, p_hwfn, p_ptt);
 
 		/* Disable Attention Generation */
 		qed_int_igu_disable_int(p_hwfn, p_ptt);
@@ -829,7 +857,7 @@ int qed_hw_stop(struct qed_dev *cdev)
 
 void qed_hw_stop_fastpath(struct qed_dev *cdev)
 {
-	int i, j;
+	int j;
 
 	for_each_hwfn(cdev, j) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[j];
@@ -847,25 +875,6 @@ void qed_hw_stop_fastpath(struct qed_dev *cdev)
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_FCOE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_ROCE, 0x0);
 		qed_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_OPENFLOW, 0x0);
-
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_CONN, 0x0);
-		qed_wr(p_hwfn, p_ptt, TM_REG_PF_ENABLE_TASK, 0x0);
-		for (i = 0; i < QED_HW_STOP_RETRY_LIMIT; i++) {
-			if ((!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_CONN)) &&
-			    (!qed_rd(p_hwfn, p_ptt,
-				     TM_REG_PF_SCAN_ACTIVE_TASK)))
-				break;
-
-			usleep_range(1000, 2000);
-		}
-		if (i == QED_HW_STOP_RETRY_LIMIT)
-			DP_NOTICE(p_hwfn,
-				  "Timers linear scans are not over [Connection %02x Tasks %02x]\n",
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_CONN),
-				  (u8)qed_rd(p_hwfn, p_ptt,
-					     TM_REG_PF_SCAN_ACTIVE_TASK));
 
 		qed_int_igu_init_pure_rt(p_hwfn, p_ptt, false, false);
 

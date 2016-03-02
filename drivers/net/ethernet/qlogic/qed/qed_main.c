@@ -779,7 +779,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	rc = qed_hw_init(cdev, true, cdev->int_params.out.int_mode,
 			 true, data);
 	if (rc)
-		goto err3;
+		goto err2;
 
 	DP_INFO(cdev,
 		"HW initialization and function start completed successfully\n");
@@ -798,12 +798,14 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 		return rc;
 	}
 
+	qed_reset_vport_stats(cdev);
+
 	return 0;
 
-err3:
-	qed_free_stream_mem(cdev);
-	qed_slowpath_irq_free(cdev);
 err2:
+	qed_hw_timers_stop_all(cdev);
+	qed_slowpath_irq_free(cdev);
+	qed_free_stream_mem(cdev);
 	qed_disable_msix(cdev);
 err1:
 	qed_resc_free(cdev);

@@ -78,6 +78,15 @@ int qed_hw_init(struct qed_dev *cdev,
 		const u8 *bin_fw_data);
 
 /**
+ * @brief qed_hw_timers_stop_all - stop the timers HW block
+ *
+ * @param cdev
+ *
+ * @return void
+ */
+void qed_hw_timers_stop_all(struct qed_dev *cdev);
+
+/**
  * @brief qed_hw_stop -
  *
  * @param cdev
