@@ -517,6 +517,7 @@ struct sptlrpc_conf *sptlrpc_conf_get(const char *fsname,
 				      int create)
 {
 	struct sptlrpc_conf *conf;
+	size_t len;
 
 	list_for_each_entry(conf, &sptlrpc_confs, sc_list) {
 		if (strcmp(conf->sc_fsname, fsname) == 0)
@@ -530,7 +531,11 @@ struct sptlrpc_conf *sptlrpc_conf_get(const char *fsname,
 	if (!conf)
 		return NULL;
 
-	strcpy(conf->sc_fsname, fsname);
+	len = strlcpy(conf->sc_fsname, fsname, sizeof(conf->sc_fsname));
+	if (len >= sizeof(conf->sc_fsname)) {
+		kfree(conf);
+		return NULL;
+	}
 	sptlrpc_rule_set_init(&conf->sc_rset);
 	INIT_LIST_HEAD(&conf->sc_tgts);
 	list_add(&conf->sc_list, &sptlrpc_confs);

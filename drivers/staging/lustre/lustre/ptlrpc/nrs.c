@@ -1094,6 +1094,7 @@ static int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 {
 	struct ptlrpc_service *svc;
 	struct ptlrpc_nrs_pol_desc *desc;
+	size_t len;
 	int rc = 0;
 
 	LASSERT(conf->nc_ops);
@@ -1137,7 +1138,12 @@ static int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 		goto fail;
 	}
 
-	strncpy(desc->pd_name, conf->nc_name, NRS_POL_NAME_MAX);
+	len = strlcpy(desc->pd_name, conf->nc_name, sizeof(desc->pd_name));
+	if (len >= sizeof(desc->pd_name)) {
+		kfree(desc);
+		rc = -E2BIG;
+		goto fail;
+	}
 	desc->pd_ops = conf->nc_ops;
 	desc->pd_compat = conf->nc_compat;
 	desc->pd_compat_svc_name = conf->nc_compat_svc_name;
