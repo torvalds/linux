@@ -332,7 +332,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	/* proceed to downgrade the chandef until usable or the same */
-	while (uc.width > max_width &&
+	while (uc.width > max_width ||
 	       !cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
 					      sdata->wdev.iftype))
 		ieee80211_chandef_downgrade(&uc);
