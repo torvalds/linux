@@ -171,12 +171,12 @@ static const unsigned int max77686_map[REG_RTC_END] = {
 
 static const struct regmap_irq max77686_rtc_irqs[] = {
 	/* RTC interrupts */
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC60S_MSK, },
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA1_MSK, },
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTCA2_MSK, },
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_SMPL_MSK, },
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_RTC1S_MSK, },
-	{ .reg_offset = 0, .mask = MAX77686_RTCINT_WTSR_MSK, },
+	REGMAP_IRQ_REG(0, 0, MAX77686_RTCINT_RTC60S_MSK),
+	REGMAP_IRQ_REG(1, 0, MAX77686_RTCINT_RTCA1_MSK),
+	REGMAP_IRQ_REG(2, 0, MAX77686_RTCINT_RTCA2_MSK),
+	REGMAP_IRQ_REG(3, 0, MAX77686_RTCINT_SMPL_MSK),
+	REGMAP_IRQ_REG(4, 0, MAX77686_RTCINT_RTC1S_MSK),
+	REGMAP_IRQ_REG(5, 0, MAX77686_RTCINT_WTSR_MSK),
 };
 
 static const struct regmap_irq_chip max77686_rtc_irq_chip = {
