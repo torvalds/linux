@@ -61,6 +61,7 @@ static int visorchipset_major;
 static int visorchipset_visorbusregwait = 1;	/* default is on */
 static int visorchipset_holdchipsetready;
 static unsigned long controlvm_payload_bytes_buffered;
+static u32 dump_vhba_bus;
 
 static int
 visorchipset_open(struct inode *inode, struct file *file)
@@ -859,6 +860,59 @@ enum crash_obj_type {
 };
 
 static void
+save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
+{
+	u32 local_crash_msg_offset;
+	u16 local_crash_msg_count;
+
+	if (visorchannel_read(controlvm_channel,
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_count),
+			      &local_crash_msg_count, sizeof(u16)) < 0) {
+		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
+				 POSTCODE_SEVERITY_ERR);
+		return;
+	}
+
+	if (local_crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
+		POSTCODE_LINUX_3(CRASH_DEV_COUNT_FAILURE_PC,
+				 local_crash_msg_count,
+				 POSTCODE_SEVERITY_ERR);
+		return;
+	}
+
+	if (visorchannel_read(controlvm_channel,
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_offset),
+			      &local_crash_msg_offset, sizeof(u32)) < 0) {
+		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
+				 POSTCODE_SEVERITY_ERR);
+		return;
+	}
+
+	if (typ == CRASH_BUS) {
+		if (visorchannel_write(controlvm_channel,
+				       local_crash_msg_offset,
+				       msg,
+				       sizeof(struct controlvm_message)) < 0) {
+			POSTCODE_LINUX_2(SAVE_MSG_BUS_FAILURE_PC,
+					 POSTCODE_SEVERITY_ERR);
+			return;
+		}
+	} else {
+		local_crash_msg_offset += sizeof(struct controlvm_message);
+		if (visorchannel_write(controlvm_channel,
+				       local_crash_msg_offset,
+				       msg,
+				       sizeof(struct controlvm_message)) < 0) {
+			POSTCODE_LINUX_2(SAVE_MSG_DEV_FAILURE_PC,
+					 POSTCODE_SEVERITY_ERR);
+			return;
+		}
+	}
+}
+
+static void
 bus_responder(enum controlvm_id cmd_id,
 	      struct controlvm_message_header *pending_msg_hdr,
 	      int response)
@@ -1118,6 +1172,10 @@ bus_create(struct controlvm_message *inmsg)
 		goto cleanup;
 	}
 	bus_info->visorchannel = visorchannel;
+	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
+		dump_vhba_bus = bus_no;
+		save_crash_message(inmsg, CRASH_BUS);
+	}
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
@@ -1254,6 +1312,10 @@ my_device_create(struct controlvm_message *inmsg)
 	}
 	dev_info->visorchannel = visorchannel;
 	dev_info->channel_type_guid = cmd->create_device.data_type_uuid;
+	if (uuid_le_cmp(cmd->create_device.data_type_uuid,
+			spar_vhba_channel_protocol_uuid) == 0)
+		save_crash_message(inmsg, CRASH_DEV);
+
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 cleanup:
