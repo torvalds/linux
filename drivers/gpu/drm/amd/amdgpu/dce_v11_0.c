@@ -2964,7 +2964,7 @@ static int dce_v11_0_sw_init(void *handle)
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		r = amdgpu_irq_add_id(adev, i + 1, &adev->crtc_irq);
 		if (r)
-		return r;
+			return r;
 	}
 
 	for (i = 8; i < 20; i += 2) {
@@ -2976,7 +2976,7 @@ static int dce_v11_0_sw_init(void *handle)
 	/* HPD hotplug */
 	r = amdgpu_irq_add_id(adev, 42, &adev->hpd_irq);
 	if (r)
-	return r;
+		return r;
 
 	adev->mode_info.mode_config_initialized = true;
 
