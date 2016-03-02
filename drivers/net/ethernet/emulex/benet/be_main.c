@@ -125,6 +125,11 @@ static const char * const ue_status_hi_desc[] = {
 	"Unknown"
 };
 
+#define BE_VF_IF_EN_FLAGS	(BE_IF_FLAGS_UNTAGGED | \
+				 BE_IF_FLAGS_BROADCAST | \
+				 BE_IF_FLAGS_MULTICAST | \
+				 BE_IF_FLAGS_PASS_L3L4_ERRORS)
+
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
@@ -3537,7 +3542,7 @@ static int be_enable_if_filters(struct be_adapter *adapter)
 {
 	int status;
 
-	status = be_cmd_rx_filter(adapter, BE_IF_EN_FLAGS, ON);
+	status = be_cmd_rx_filter(adapter, BE_IF_FILT_FLAGS_BASIC, ON);
 	if (status)
 		return status;
 
@@ -3857,8 +3862,7 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 	int status;
 
 	/* If a FW profile exists, then cap_flags are updated */
-	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
-		    BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
+	cap_flags = BE_VF_IF_EN_FLAGS;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		if (!BE3_chip(adapter)) {
@@ -3874,10 +3878,8 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 			}
 		}
 
-		en_flags = cap_flags & (BE_IF_FLAGS_UNTAGGED |
-					BE_IF_FLAGS_BROADCAST |
-					BE_IF_FLAGS_MULTICAST |
-					BE_IF_FLAGS_PASS_L3L4_ERRORS);
+		/* PF should enable IF flags during proxy if_create call */
+		en_flags = cap_flags & BE_VF_IF_EN_FLAGS;
 		status = be_cmd_if_create(adapter, cap_flags, en_flags,
 					  &vf_cfg->if_handle, vf + 1);
 		if (status)
