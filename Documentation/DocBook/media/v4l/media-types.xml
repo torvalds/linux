@@ -176,6 +176,15 @@
 		   skipping are considered as scaling.
 	    </entry>
 	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_PROC_VIDEO_STATISTICS</constant></entry>
+	    <entry>Video statistics computation (histogram, 3A, ...). An entity
+		   capable of statistics computation must have one sink pad and
+		   one source pad. It computes statistics over the frames
+		   received on its sink pad and outputs the statistics data on
+		   its source pad.
+	    </entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
