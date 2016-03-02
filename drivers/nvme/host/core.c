@@ -840,6 +840,21 @@ int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
+		struct request_queue *q)
+{
+	if (ctrl->max_hw_sectors) {
+		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
+		blk_queue_max_segments(q,
+			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1);
+	}
+	if (ctrl->stripe_size)
+		blk_queue_chunk_sectors(q, ctrl->stripe_size >> 9);
+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
+		blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
+	blk_queue_virt_boundary(q, ctrl->page_size - 1);
+}
+
 /*
  * Initialize the cached copies of the Identify data and various controller
  * register in our nvme_ctrl structure.  This should be called as soon as
@@ -896,6 +911,8 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 			ctrl->max_hw_sectors = max_hw_sectors;
 		}
 	}
+
+	nvme_set_queue_limits(ctrl, ctrl->admin_q);
 
 	kfree(id);
 	return 0;
@@ -1147,17 +1164,9 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	ns->disk = disk;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
 
+
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
-	if (ctrl->max_hw_sectors) {
-		blk_queue_max_hw_sectors(ns->queue, ctrl->max_hw_sectors);
-		blk_queue_max_segments(ns->queue,
-			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1);
-	}
-	if (ctrl->stripe_size)
-		blk_queue_chunk_sectors(ns->queue, ctrl->stripe_size >> 9);
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
-	blk_queue_virt_boundary(ns->queue, ctrl->page_size - 1);
+	nvme_set_queue_limits(ctrl, ns->queue);
 
 	disk->major = nvme_major;
 	disk->first_minor = 0;
