@@ -1658,6 +1658,9 @@ static void dce_v11_0_audio_fini(struct amdgpu_device *adev)
 {
 	int i;
 
+	if (!amdgpu_audio)
+		return;
+
 	if (!adev->mode_info.audio.enabled)
 		return;
 
