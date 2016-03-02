@@ -4896,9 +4896,9 @@ struct c2s_pri_trans_table_entry {
  * cfc delete event data
  */
 struct cfc_del_event_data {
-	u32 cid;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 cid;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 

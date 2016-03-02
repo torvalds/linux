@@ -5501,8 +5501,7 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			 */
 
 			/* elem CID originates from FW; actually LE */
-			cid = SW_CID((__force __le32)
-				     elem->message.data.cfc_del_event.cid);
+			cid = SW_CID(elem->message.data.cfc_del_event.cid);
 
 			DP(BNX2X_MSG_SP,
 			   "got delete ramrod for MULTI[%d]\n", cid);

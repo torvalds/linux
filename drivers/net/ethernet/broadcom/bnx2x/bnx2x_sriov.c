@@ -1747,8 +1747,7 @@ int bnx2x_iov_eq_sp_event(struct bnx2x *bp, union event_ring_elem *elem)
 
 	switch (opcode) {
 	case EVENT_RING_OPCODE_CFC_DEL:
-		cid = SW_CID((__force __le32)
-			     elem->message.data.cfc_del_event.cid);
+		cid = SW_CID(elem->message.data.cfc_del_event.cid);
 		DP(BNX2X_MSG_IOV, "checking cfc-del comp cid=%d\n", cid);
 		break;
 	case EVENT_RING_OPCODE_CLASSIFICATION_RULES:
