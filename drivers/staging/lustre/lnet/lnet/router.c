@@ -718,6 +718,13 @@ lnet_parse_rc_info(lnet_rc_data_t *rcd)
 			rte->lr_downis = 0;
 			continue;
 		}
+		/**
+		 * if @down is zero and this route is single-hop, it means
+		 * we can't find NI for target network
+		 */
+		if (!down && rte->lr_hops == 1)
+			down = 1;
+
 		rte->lr_downis = down;
 	}
 }
