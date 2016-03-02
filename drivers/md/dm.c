@@ -1567,21 +1567,26 @@ static void bio_setup_sector(struct bio *bio, sector_t sector, unsigned len)
 /*
  * Creates a bio that consists of range of complete bvecs.
  */
-static void clone_bio(struct dm_target_io *tio, struct bio *bio,
-		      sector_t sector, unsigned len)
+static int clone_bio(struct dm_target_io *tio, struct bio *bio,
+		     sector_t sector, unsigned len)
 {
 	struct bio *clone = &tio->clone;
 
 	__bio_clone_fast(clone, bio);
 
-	if (bio_integrity(bio))
-		bio_integrity_clone(clone, bio, GFP_NOIO);
+	if (bio_integrity(bio)) {
+		int r = bio_integrity_clone(clone, bio, GFP_NOIO);
+		if (r < 0)
+			return r;
+	}
 
 	bio_advance(clone, to_bytes(sector - clone->bi_iter.bi_sector));
 	clone->bi_iter.bi_size = to_bytes(len);
 
 	if (bio_integrity(bio))
 		bio_integrity_trim(clone, 0, len);
+
+	return 0;
 }
 
 static struct dm_target_io *alloc_tio(struct clone_info *ci,
@@ -1638,13 +1643,14 @@ static int __send_empty_flush(struct clone_info *ci)
 	return 0;
 }
 
-static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti,
+static int __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti,
 				     sector_t sector, unsigned *len)
 {
 	struct bio *bio = ci->bio;
 	struct dm_target_io *tio;
 	unsigned target_bio_nr;
 	unsigned num_target_bios = 1;
+	int r = 0;
 
 	/*
 	 * Does the target want to receive duplicate copies of the bio?
@@ -1655,9 +1661,13 @@ static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti
 	for (target_bio_nr = 0; target_bio_nr < num_target_bios; target_bio_nr++) {
 		tio = alloc_tio(ci, ti, target_bio_nr);
 		tio->len_ptr = len;
-		clone_bio(tio, bio, sector, *len);
+		r = clone_bio(tio, bio, sector, *len);
+		if (r < 0)
+			break;
 		__map_bio(tio);
 	}
+
+	return r;
 }
 
 typedef unsigned (*get_num_bios_fn)(struct dm_target *ti);
@@ -1734,6 +1744,7 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	struct bio *bio = ci->bio;
 	struct dm_target *ti;
 	unsigned len;
+	int r;
 
 	if (unlikely(bio->bi_rw & REQ_DISCARD))
 		return __send_discard(ci);
@@ -1746,7 +1757,9 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 
 	len = min_t(sector_t, max_io_len(ci->sector, ti), ci->sector_count);
 
-	__clone_and_map_data_bio(ci, ti, ci->sector, &len);
+	r = __clone_and_map_data_bio(ci, ti, ci->sector, &len);
+	if (r < 0)
+		return r;
 
 	ci->sector += len;
 	ci->sector_count -= len;
