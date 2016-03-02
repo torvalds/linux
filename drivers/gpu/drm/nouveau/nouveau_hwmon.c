@@ -640,7 +640,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return -ENOMEM;
 	hwmon->dev = dev;
 
-	hwmon_dev = hwmon_device_register(&dev->pdev->dev);
+	hwmon_dev = hwmon_device_register(dev->dev);
 	if (IS_ERR(hwmon_dev)) {
 		ret = PTR_ERR(hwmon_dev);
 		NV_ERROR(drm, "Unable to register hwmon device: %d\n", ret);
