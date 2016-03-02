@@ -527,7 +527,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd)
 	res = &vmd->dev->resource[VMD_CFGBAR];
 	vmd->resources[0] = (struct resource) {
 		.name  = "VMD CFGBAR",
-		.start = res->start,
+		.start = 0,
 		.end   = (resource_size(res) >> 20) - 1,
 		.flags = IORESOURCE_BUS | IORESOURCE_PCI_FIXED,
 	};
