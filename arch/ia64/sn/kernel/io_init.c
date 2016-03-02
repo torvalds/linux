@@ -185,9 +185,8 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		if (size == 0)
 			continue;
 
-		addr = pcidev_info->pdi_pio_mapped_addr[idx];
-		addr = ((addr << 4) >> 4) | __IA64_UNCACHED_OFFSET;
-		res->start = addr;
+		res->start = ioremap(pcidev_info->pdi_pio_mapped_addr[idx],
+				     size + 1);
 		res->end = addr + size;
 
 		/*
