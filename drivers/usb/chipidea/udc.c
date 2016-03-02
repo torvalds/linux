@@ -819,7 +819,6 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 			       ci->ep0out : ci->ep0in;
 		if (!list_empty(&hwep->qh.queue)) {
 			_ep_nuke(hwep);
-			retval = -EOVERFLOW;
 			dev_warn(hwep->ci->dev, "endpoint ctrl %X nuked\n",
 				 _usb_addr(hwep));
 		}
