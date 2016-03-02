@@ -54,7 +54,7 @@ static const struct of_device_id rk_spdif_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk_spdif_match);
 
-static int rk_spdif_runtime_suspend(struct device *dev)
+static int __maybe_unused rk_spdif_runtime_suspend(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 
@@ -64,7 +64,7 @@ static int rk_spdif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int rk_spdif_runtime_resume(struct device *dev)
+static int __maybe_unused rk_spdif_runtime_resume(struct device *dev)
 {
 	struct rk_spdif_dev *spdif = dev_get_drvdata(dev);
 	int ret;
