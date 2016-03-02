@@ -97,7 +97,7 @@ static int gb_raw_request_handler(struct gb_operation *op)
 	u32 len;
 
 	if (op->type != GB_RAW_TYPE_SEND) {
-		dev_err(dev, "unknown request type %d\n", op->type);
+		dev_err(dev, "unknown request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 
