@@ -671,7 +671,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 	return status;
 }
 
-static uint32_t i9xx_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+static uint32_t g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
@@ -735,10 +735,10 @@ static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	return index ? 0 : 1;
 }
 
-static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
-				      bool has_aux_irq,
-				      int send_bytes,
-				      uint32_t aux_clock_divider)
+static uint32_t g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
+				     bool has_aux_irq,
+				     int send_bytes,
+				     uint32_t aux_clock_divider)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
@@ -5866,12 +5866,12 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else if (HAS_PCH_SPLIT(dev))
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
 	else
-		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
+		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
 
 	if (INTEL_INFO(dev)->gen >= 9)
 		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
 	else
-		intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
+		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
 
 	if (HAS_DDI(dev))
 		intel_dp->prepare_link_retrain = intel_ddi_prepare_link_retrain;
