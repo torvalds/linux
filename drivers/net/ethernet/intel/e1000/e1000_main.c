@@ -3106,7 +3106,7 @@ static int e1000_maybe_stop_tx(struct net_device *netdev,
 	return __e1000_maybe_stop_tx(netdev, size);
 }
 
-#define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1)
+#define TXD_USE_COUNT(S, X) (((S) + ((1 << (X)) - 1)) >> (X))
 static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
