@@ -53,20 +53,6 @@ static inline void *i2c_mux_priv(struct i2c_mux_core *muxc)
 }
 
 /*
- * Called to create a i2c bus on a multiplexed bus segment.
- * The mux_dev and chan_id parameters are passed to the select
- * and deselect callback functions to perform hardware-specific
- * mux control.
- */
-struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
-				struct device *mux_dev,
-				void *mux_priv, u32 force_nr, u32 chan_id,
-				unsigned int class,
-				int (*select) (struct i2c_adapter *,
-					       void *mux_dev, u32 chan_id),
-				int (*deselect) (struct i2c_adapter *,
-						 void *mux_dev, u32 chan_id));
-/*
  * Called to create an i2c bus on a multiplexed bus segment.
  * The chan_id parameter is passed to the select and deselect
  * callback functions to perform hardware-specific mux control.
@@ -75,7 +61,6 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 			u32 force_nr, u32 chan_id,
 			unsigned int class);
 
-void i2c_del_mux_adapter(struct i2c_adapter *adap);
 void i2c_mux_del_adapters(struct i2c_mux_core *muxc);
 
 #endif /* __KERNEL__ */

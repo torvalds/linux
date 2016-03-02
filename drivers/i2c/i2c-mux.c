@@ -28,12 +28,6 @@
 #include <linux/slab.h>
 
 /* multiplexer per channel data */
-struct i2c_mux_priv_old {
-	void *mux_priv;
-	int (*select)(struct i2c_adapter *, void *mux_priv, u32 chan_id);
-	int (*deselect)(struct i2c_adapter *, void *mux_priv, u32 chan_id);
-};
-
 struct i2c_mux_priv {
 	struct i2c_adapter adap;
 	struct i2c_algorithm algo;
@@ -103,53 +97,6 @@ static unsigned int i2c_mux_parent_classes(struct i2c_adapter *parent)
 
 	return class;
 }
-
-static int i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
-{
-	struct i2c_mux_priv_old *priv = i2c_mux_priv(muxc);
-
-	return priv->select(muxc->parent, priv->mux_priv, chan);
-}
-
-static int i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
-{
-	struct i2c_mux_priv_old *priv = i2c_mux_priv(muxc);
-
-	return priv->deselect(muxc->parent, priv->mux_priv, chan);
-}
-
-struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
-				struct device *mux_dev,
-				void *mux_priv, u32 force_nr, u32 chan_id,
-				unsigned int class,
-				int (*select) (struct i2c_adapter *,
-					       void *, u32),
-				int (*deselect) (struct i2c_adapter *,
-						 void *, u32))
-{
-	struct i2c_mux_core *muxc;
-	struct i2c_mux_priv_old *priv;
-	int ret;
-
-	muxc = i2c_mux_alloc(parent, mux_dev, 1, sizeof(*priv), 0,
-			     i2c_mux_select, i2c_mux_deselect);
-	if (!muxc)
-		return NULL;
-
-	priv = i2c_mux_priv(muxc);
-	priv->select = select;
-	priv->deselect = deselect;
-	priv->mux_priv = mux_priv;
-
-	ret = i2c_mux_add_adapter(muxc, force_nr, chan_id, class);
-	if (ret) {
-		devm_kfree(mux_dev, muxc);
-		return NULL;
-	}
-
-	return muxc->adapter[0];
-}
-EXPORT_SYMBOL_GPL(i2c_add_mux_adapter);
 
 struct i2c_mux_core *i2c_mux_alloc(struct i2c_adapter *parent,
 				   struct device *dev, int max_adapters,
@@ -304,16 +251,6 @@ void i2c_mux_del_adapters(struct i2c_mux_core *muxc)
 	}
 }
 EXPORT_SYMBOL_GPL(i2c_mux_del_adapters);
-
-void i2c_del_mux_adapter(struct i2c_adapter *adap)
-{
-	struct i2c_mux_priv *priv = adap->algo_data;
-	struct i2c_mux_core *muxc = priv->muxc;
-
-	i2c_mux_del_adapters(muxc);
-	devm_kfree(muxc->dev, muxc);
-}
-EXPORT_SYMBOL_GPL(i2c_del_mux_adapter);
 
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("I2C driver for multiplexed I2C busses");
