@@ -180,7 +180,7 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx_snvs_pwrkey_suspend(struct device *dev)
+static int __maybe_unused imx_snvs_pwrkey_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
@@ -191,7 +191,7 @@ static int imx_snvs_pwrkey_suspend(struct device *dev)
 	return 0;
 }
 
-static int imx_snvs_pwrkey_resume(struct device *dev)
+static int __maybe_unused imx_snvs_pwrkey_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pwrkey_drv_data *pdata = platform_get_drvdata(pdev);
