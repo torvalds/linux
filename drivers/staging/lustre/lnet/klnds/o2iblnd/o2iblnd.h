@@ -762,10 +762,11 @@ kiblnd_queue2str(kib_conn_t *conn, struct list_head *q)
 /* CAVEAT EMPTOR: We rely on descriptor alignment to allow us to use the */
 /* lowest bits of the work request id to stash the work item type. */
 
-#define IBLND_WID_TX    0
-#define IBLND_WID_RDMA  1
-#define IBLND_WID_RX    2
-#define IBLND_WID_MASK  3UL
+#define IBLND_WID_INVAL	0
+#define IBLND_WID_TX	1
+#define IBLND_WID_RX	2
+#define IBLND_WID_RDMA	3
+#define IBLND_WID_MASK	3UL
 
 static inline __u64
 kiblnd_ptr2wreqid(void *ptr, int type)

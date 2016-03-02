@@ -768,7 +768,6 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 	int ver = conn->ibc_version;
 	int rc;
 	int done;
-	struct ib_send_wr *bad_wrq;
 
 	LASSERT(tx->tx_queued);
 	/* We rely on this for QP sizing */
@@ -852,7 +851,14 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 		/* close_conn will launch failover */
 		rc = -ENETDOWN;
 	} else {
-		rc = ib_post_send(conn->ibc_cmid->qp, &tx->tx_wrq->wr, &bad_wrq);
+		struct ib_send_wr *wrq = &tx->tx_wrq[tx->tx_nwrq - 1].wr;
+
+		LASSERTF(wrq->wr_id == kiblnd_ptr2wreqid(tx, IBLND_WID_TX),
+			 "bad wr_id %llx, opc %d, flags %d, peer: %s\n",
+			 wrq->wr_id, wrq->opcode, wrq->send_flags,
+		libcfs_nid2str(conn->ibc_peer->ibp_nid));
+		wrq = NULL;
+		rc = ib_post_send(conn->ibc_cmid->qp, &tx->tx_wrq->wr, &wrq);
 	}
 
 	conn->ibc_last_send = jiffies;
@@ -3420,6 +3426,8 @@ kiblnd_scheduler(void *arg)
 
 			spin_unlock_irqrestore(&sched->ibs_lock, flags);
 
+			wc.wr_id = IBLND_WID_INVAL;
+
 			rc = ib_poll_cq(conn->ibc_cq, 1, &wc);
 			if (!rc) {
 				rc = ib_req_notify_cq(conn->ibc_cq,
@@ -3435,6 +3443,15 @@ kiblnd_scheduler(void *arg)
 				}
 
 				rc = ib_poll_cq(conn->ibc_cq, 1, &wc);
+			}
+
+			if (unlikely(rc > 0 && wc.wr_id == IBLND_WID_INVAL)) {
+				LCONSOLE_ERROR("ib_poll_cq (rc: %d) returned invalid wr_id, opcode %d, status: %d, vendor_err: %d, conn: %s status: %d\nplease upgrade firmware and OFED or contact vendor.\n",
+					       rc, wc.opcode, wc.status,
+					       wc.vendor_err,
+					       libcfs_nid2str(conn->ibc_peer->ibp_nid),
+					       conn->ibc_state);
+				rc = -EINVAL;
 			}
 
 			if (rc < 0) {
