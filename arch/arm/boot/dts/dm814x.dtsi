@@ -305,6 +305,13 @@
 				reg = <0x60000 0x1000>;
 			};
 
+			rtc: rtc@c0000 {
+				compatible = "ti,am3352-rtc", "ti,da830-rtc";
+				reg = <0xc0000 0x1000>;
+				interrupts = <75 76>;
+				ti,hwmods = "rtc";
+			};
+
 			mmc2: mmc@1d8000 {
 				compatible = "ti,omap4-hsmmc";
 				ti,hwmods = "mmc2";
@@ -559,6 +566,8 @@
 			gpmc,num-waitpins = <2>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 	};
 };

@@ -468,6 +468,7 @@ dtb-$(CONFIG_ARCH_OMAP3) += \
 	omap3-sbc-t3517.dtb \
 	omap3-sbc-t3530.dtb \
 	omap3-sbc-t3730.dtb \
+	omap3-sniper.dtb \
 	omap3-thunder.dtb \
 	omap3-zoom3.dtb
 dtb-$(CONFIG_SOC_TI81XX) += \

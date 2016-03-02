@@ -15,8 +15,8 @@
 #define MAX_SOURCES 400
 
 / {
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	compatible = "ti,dra7xx";
 	interrupt-parent = <&crossbar_mpu>;
@@ -57,10 +57,10 @@
 		compatible = "arm,cortex-a15-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48211000 0x1000>,
-		      <0x48212000 0x1000>,
-		      <0x48214000 0x2000>,
-		      <0x48216000 0x2000>;
+		reg = <0x0 0x48211000 0x0 0x1000>,
+		      <0x0 0x48212000 0x0 0x1000>,
+		      <0x0 0x48214000 0x0 0x2000>,
+		      <0x0 0x48216000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 		interrupt-parent = <&gic>;
 	};
@@ -69,7 +69,7 @@
 		compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x48281000 0x1000>;
+		reg = <0x0 0x48281000 0x0 0x1000>;
 		interrupt-parent = <&gic>;
 	};
 
@@ -96,10 +96,10 @@
 		compatible = "ti,dra7-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0x0 0x0 0x0 0xc0000000>;
 		ti,hwmods = "l3_main_1", "l3_main_2";
-		reg = <0x44000000 0x1000000>,
-		      <0x45000000 0x1000>;
+		reg = <0x0 0x44000000 0x0 0x1000000>,
+		      <0x0 0x45000000 0x0 0x1000>;
 		interrupts-extended = <&crossbar_mpu GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
 				      <&wakeupgen GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -1402,6 +1402,8 @@
 			gpmc,num-waitpins = <2>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			status = "disabled";
 		};
 

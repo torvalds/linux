@@ -183,6 +183,8 @@
 			dma-names = "rxtx";
 			gpmc,num-cs = <6>;
 			gpmc,num-waitpins = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		i2c1: i2c@48028000 {
@@ -212,6 +214,13 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 			reg = <0x48200000 0x1000>;
+		};
+
+		rtc: rtc@480c0000 {
+			compatible = "ti,am3352-rtc", "ti,da830-rtc";
+			reg = <0x480c0000 0x1000>;
+			interrupts = <75 76>;
+			ti,hwmods = "rtc";
 		};
 
 		mailbox: mailbox@480c8000 {

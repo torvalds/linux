@@ -11,7 +11,7 @@
 #include "omap-gpmc-smsc9221.dtsi"
 
 / {
-	model = "LogicPD Zoom DM3730 Torpedo Development Kit";
+	model = "LogicPD Zoom DM3730 Torpedo + Wireless Development Kit";
 	compatible = "logicpd,dm3730-torpedo-devkit", "ti,omap3630", "ti,omap3";
 
 	gpio_keys {
@@ -102,7 +102,8 @@
 };
 
 &gpmc {
-	ranges = <1 0 0x08000000 0x1000000>;	/* CS1: 16MB for LAN9221 */
+	ranges = <0 0 0x30000000 0x1000000	/* CS0: 16MB for NAND */
+		  1 0 0x2c000000 0x1000000>;	/* CS1: 16MB for LAN9221 */
 
 	ethernet@gpmc {
 		pinctrl-names = "default";

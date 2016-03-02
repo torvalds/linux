@@ -24,7 +24,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x80000000>;
+		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
 	vdd_3v3: fixedregulator-vdd_3v3 {
