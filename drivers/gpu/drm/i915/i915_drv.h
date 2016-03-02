@@ -786,6 +786,7 @@ struct intel_csr {
 	func(overlay_needs_physical) sep \
 	func(supports_tv) sep \
 	func(has_llc) sep \
+	func(has_snoop) sep \
 	func(has_ddi) sep \
 	func(has_fpga_dbg)
 
@@ -2630,6 +2631,7 @@ struct drm_i915_cmd_table {
 #define HAS_BLT(dev)		(INTEL_INFO(dev)->ring_mask & BLT_RING)
 #define HAS_VEBOX(dev)		(INTEL_INFO(dev)->ring_mask & VEBOX_RING)
 #define HAS_LLC(dev)		(INTEL_INFO(dev)->has_llc)
+#define HAS_SNOOP(dev)		(INTEL_INFO(dev)->has_snoop)
 #define HAS_WT(dev)		((IS_HASWELL(dev) || IS_BROADWELL(dev)) && \
 				 __I915__(dev)->ellc_size)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)

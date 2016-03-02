@@ -3949,7 +3949,7 @@ int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 		 * cacheline, whereas normally such cachelines would get
 		 * invalidated.
 		 */
-		if (IS_BXT_REVID(dev, 0, BXT_REVID_A1))
+		if (!HAS_LLC(dev) && !HAS_SNOOP(dev))
 			return -ENODEV;
 
 		level = I915_CACHE_LLC;
