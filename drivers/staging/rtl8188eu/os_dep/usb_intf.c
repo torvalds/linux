@@ -360,7 +360,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	padapter->bDriverStopped = true;
 	mutex_init(&padapter->hw_init_mutex);
-	padapter->chip_type = RTL8188E;
 
 	pnetdev = rtw_init_netdev(padapter);
 	if (pnetdev == NULL)

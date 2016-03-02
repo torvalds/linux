@@ -176,8 +176,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 };
 
 struct adapter {
-	u16	chip_type;
-
 	struct dvobj_priv *dvobj;
 	struct	mlme_priv mlmepriv;
 	struct	mlme_ext_priv mlmeextpriv;
