@@ -42,15 +42,7 @@
 #include <asm/page.h>
 #include "o2iblnd.h"
 
-static lnd_t the_o2iblnd = {
-	.lnd_type     = O2IBLND,
-	.lnd_startup  = kiblnd_startup,
-	.lnd_shutdown = kiblnd_shutdown,
-	.lnd_ctl      = kiblnd_ctl,
-	.lnd_query    = kiblnd_query,
-	.lnd_send     = kiblnd_send,
-	.lnd_recv     = kiblnd_recv,
-};
+static lnd_t the_o2iblnd;
 
 kib_data_t kiblnd_data;
 
@@ -1012,7 +1004,7 @@ static int kiblnd_close_matching_conns(lnet_ni_t *ni, lnet_nid_t nid)
 	return !count ? -ENOENT : 0;
 }
 
-int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
+static int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
 	int rc = -EINVAL;
@@ -1065,7 +1057,7 @@ int kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg)
 	return rc;
 }
 
-void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
+static void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 {
 	unsigned long last_alive = 0;
 	unsigned long now = cfs_time_current();
@@ -1100,7 +1092,7 @@ void kiblnd_query(lnet_ni_t *ni, lnet_nid_t nid, unsigned long *when)
 	       last_alive ? cfs_duration_sec(now - last_alive) : -1);
 }
 
-void kiblnd_free_pages(kib_pages_t *p)
+static void kiblnd_free_pages(kib_pages_t *p)
 {
 	int npages = p->ibp_npages;
 	int i;
@@ -2491,7 +2483,7 @@ static void kiblnd_base_shutdown(void)
 	module_put(THIS_MODULE);
 }
 
-void kiblnd_shutdown(lnet_ni_t *ni)
+static void kiblnd_shutdown(lnet_ni_t *ni)
 {
 	kib_net_t *net = ni->ni_data;
 	rwlock_t *g_lock = &kiblnd_data.kib_global_lock;
@@ -2745,7 +2737,7 @@ static kib_dev_t *kiblnd_dev_search(char *ifname)
 	return alias;
 }
 
-int kiblnd_startup(lnet_ni_t *ni)
+static int kiblnd_startup(lnet_ni_t *ni)
 {
 	char *ifname;
 	kib_dev_t *ibdev = NULL;
@@ -2839,6 +2831,16 @@ net_failed:
 	CDEBUG(D_NET, "kiblnd_startup failed\n");
 	return -ENETDOWN;
 }
+
+static lnd_t the_o2iblnd = {
+	.lnd_type	= O2IBLND,
+	.lnd_startup	= kiblnd_startup,
+	.lnd_shutdown	= kiblnd_shutdown,
+	.lnd_ctl	= kiblnd_ctl,
+	.lnd_query	= kiblnd_query,
+	.lnd_send	= kiblnd_send,
+	.lnd_recv	= kiblnd_recv,
+};
 
 static void __exit ko2iblnd_exit(void)
 {

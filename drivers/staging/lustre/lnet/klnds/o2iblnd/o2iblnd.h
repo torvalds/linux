@@ -920,11 +920,6 @@ int  kiblnd_fmr_pool_map(kib_fmr_poolset_t *fps, __u64 *pages,
 			 int npages, __u64 iov, kib_fmr_t *fmr);
 void kiblnd_fmr_pool_unmap(kib_fmr_t *fmr, int status);
 
-int  kiblnd_startup(lnet_ni_t *ni);
-void kiblnd_shutdown(lnet_ni_t *ni);
-int  kiblnd_ctl(lnet_ni_t *ni, unsigned int cmd, void *arg);
-void kiblnd_query(struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when);
-
 int  kiblnd_tunables_init(void);
 void kiblnd_tunables_fini(void);
 
@@ -934,7 +929,6 @@ int  kiblnd_thread_start(int (*fn)(void *arg), void *arg, char *name);
 int  kiblnd_failover_thread(void *arg);
 
 int  kiblnd_alloc_pages(kib_pages_t **pp, int cpt, int npages);
-void kiblnd_free_pages(kib_pages_t *p);
 
 int  kiblnd_cm_callback(struct rdma_cm_id *cmid,
 			struct rdma_cm_event *event);
