@@ -169,7 +169,7 @@
 */	.b32 0 /*
 */	.skip 64
 
-#if NV_PPWR_CHIPSET < GK208
+#if NVKM_PPWR_CHIPSET < GK208
 #define imm32(reg,val) /*
 */	movw reg  ((val) & 0x0000ffff) /*
 */	sethi reg ((val) & 0xffff0000)
