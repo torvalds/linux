@@ -185,8 +185,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		if (size == 0)
 			continue;
 
-		res->start = ioremap(pcidev_info->pdi_pio_mapped_addr[idx],
-				     size + 1);
+		res->start = pcidev_info->pdi_pio_mapped_addr[idx];
 		res->end = addr + size;
 
 		/*
@@ -201,18 +200,12 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		else
 			insert_resource(&iomem_resource, res);
 		/*
-		 * If ROM, set the actual ROM image size, and mark as
-		 * shadowed in PROM.
+		 * If ROM, mark as shadowed in PROM.
 		 */
 		if (idx == PCI_ROM_RESOURCE) {
-			size_t image_size;
-			void __iomem *rom;
-
-			rom = ioremap(pci_resource_start(dev, PCI_ROM_RESOURCE),
-				      size + 1);
-			image_size = pci_get_rom_size(dev, rom, size + 1);
-			res->end = res->start + image_size - 1;
-			res->flags |= IORESOURCE_ROM_BIOS_COPY;
+			pci_disable_rom(dev);
+			res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
+				     IORESOURCE_PCI_FIXED;
 		}
 	}
 
