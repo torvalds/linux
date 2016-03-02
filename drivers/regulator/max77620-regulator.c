@@ -578,6 +578,7 @@ static struct regulator_ops max77620_regulator_ops = {
 	.get_mode = max77620_regulator_get_mode,
 	.set_ramp_delay = max77620_regulator_set_ramp_delay,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
+	.set_active_discharge = regulator_set_active_discharge_regmap,
 };
 
 #define MAX77620_SD_CNF2_ROVS_EN_NONE	0
@@ -606,6 +607,10 @@ static struct regulator_ops max77620_regulator_ops = {
 			.enable_time = 500,				\
 			.vsel_mask = MAX77620_##_volt_mask##_VOLT_MASK,	\
 			.vsel_reg = MAX77620_REG_##_id,			\
+			.active_discharge_off = 0,			\
+			.active_discharge_on = MAX77620_SD_CFG1_ADE_ENABLE, \
+			.active_discharge_mask = MAX77620_SD_CFG1_ADE_MASK, \
+			.active_discharge_reg = MAX77620_REG_##_id##_CFG, \
 			.type = REGULATOR_VOLTAGE,			\
 		},							\
 	}
@@ -633,6 +638,10 @@ static struct regulator_ops max77620_regulator_ops = {
 			.enable_time = 500,				\
 			.vsel_mask = MAX77620_LDO_VOLT_MASK,		\
 			.vsel_reg = MAX77620_REG_##_id##_CFG,		\
+			.active_discharge_off = 0,			\
+			.active_discharge_on = MAX77620_LDO_CFG2_ADE_ENABLE, \
+			.active_discharge_mask = MAX77620_LDO_CFG2_ADE_MASK, \
+			.active_discharge_reg = MAX77620_REG_##_id##_CFG2, \
 			.type = REGULATOR_VOLTAGE,			\
 		},							\
 	}
