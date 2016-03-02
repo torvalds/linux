@@ -1,5 +1,6 @@
 /*
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright 2015 Timesys Corporation.
+ * Copyright 2015 General Electric Company
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,19 +40,49 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "vf500.dtsi"
+/dts-v1/;
 
-&a5_cpu {
-	next-level-cache = <&L2>;
+#include "imx6q-bx50v3.dtsi"
+
+/ {
+	model = "General Electric B450v3";
+	compatible = "ge,imx6q-b450v3", "advantech,imx6q-ba16", "fsl,imx6q";
+
+	chosen {
+		stdout-path = &uart3;
+	};
+
+	panel-lvds0 {
+		compatible = "innolux,g121x1-l03";
+		backlight = <&backlight_lvds>;
+		power-supply = <&reg_lvds>;
+
+		port {
+			panel_in_lvds0: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
 };
 
-&aips0 {
-	L2: l2-cache@40006000 {
-		compatible = "arm,pl310-cache";
-		reg = <0x40006000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
-		arm,data-latency = <3 3 3>;
-		arm,tag-latency = <2 2 2>;
+&ldb {
+	assigned-clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>,
+			  <&clks IMX6QDL_CLK_LDB_DI1_SEL>;
+	assigned-clock-parents = <&clks IMX6QDL_CLK_PLL3_USB_OTG>,
+				 <&clks IMX6QDL_CLK_PLL3_USB_OTG>;
+	status = "okay";
+
+	lvds0: lvds-channel@0 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <24>;
+		status = "okay";
+
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
 	};
 };

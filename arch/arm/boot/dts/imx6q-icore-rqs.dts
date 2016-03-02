@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2015 Amarula Solutions B.V.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -39,19 +39,40 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "vf500.dtsi"
+/dts-v1/;
 
-&a5_cpu {
-	next-level-cache = <&L2>;
+#include "imx6q.dtsi"
+#include "imx6qdl-icore-rqs.dtsi"
+
+/ {
+	model = "Engicam i.CoreM6 Quad SOM";
+	compatible = "engicam,imx6-icore-rqs", "fsl,imx6q";
+
+	sound {
+		compatible = "fsl,imx-audio-sgtl5000";
+		model = "imx-audio-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&codec>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <4>;
+	};
 };
 
-&aips0 {
-	L2: l2-cache@40006000 {
-		compatible = "arm,pl310-cache";
-		reg = <0x40006000 0x1000>;
-		cache-unified;
-		cache-level = <2>;
-		arm,data-latency = <3 3 3>;
-		arm,tag-latency = <2 2 2>;
+&i2c3 {
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks IMX6QDL_CLK_CKO>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
+		VDDD-supply = <&reg_1p8v>;
 	};
+};
+
+&sata {
+	status = "okay";
 };
