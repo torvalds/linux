@@ -738,18 +738,16 @@ fail_request:
 
 void kvm_free_pit(struct kvm *kvm)
 {
-	struct hrtimer *timer;
+	struct kvm_pit *pit = kvm->arch.vpit;
 
-	if (kvm->arch.vpit) {
-		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &kvm->arch.vpit->dev);
-		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS,
-					      &kvm->arch.vpit->speaker_dev);
-		kvm_pit_set_reinject(kvm->arch.vpit, false);
-		timer = &kvm->arch.vpit->pit_state.timer;
-		hrtimer_cancel(timer);
-		flush_kthread_work(&kvm->arch.vpit->expired);
-		kthread_stop(kvm->arch.vpit->worker_task);
-		kvm_free_irq_source_id(kvm, kvm->arch.vpit->irq_source_id);
-		kfree(kvm->arch.vpit);
+	if (pit) {
+		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
+		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->speaker_dev);
+		kvm_pit_set_reinject(pit, false);
+		hrtimer_cancel(&pit->pit_state.timer);
+		flush_kthread_work(&pit->expired);
+		kthread_stop(pit->worker_task);
+		kvm_free_irq_source_id(kvm, pit->irq_source_id);
+		kfree(pit);
 	}
 }
