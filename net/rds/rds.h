@@ -222,6 +222,7 @@ struct rds_incoming {
 	__be32			i_saddr;
 
 	rds_rdma_cookie_t	i_rdma_cookie;
+	struct timeval		i_rx_tstamp;
 };
 
 struct rds_mr {
