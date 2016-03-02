@@ -187,9 +187,9 @@ ds1685_rtc_end_data_access(struct ds1685_priv *rtc)
  * Only use this where you are certain another lock will not be held.
  */
 static inline void
-ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long flags)
+ds1685_rtc_begin_ctrl_access(struct ds1685_priv *rtc, unsigned long *flags)
 {
-	spin_lock_irqsave(&rtc->lock, flags);
+	spin_lock_irqsave(&rtc->lock, *flags);
 	ds1685_rtc_switch_to_bank1(rtc);
 }
 
@@ -1304,7 +1304,7 @@ ds1685_rtc_sysfs_ctrl_regs_store(struct device *dev,
 {
 	struct ds1685_priv *rtc = dev_get_drvdata(dev);
 	u8 reg = 0, bit = 0, tmp;
-	unsigned long flags = 0;
+	unsigned long flags;
 	long int val = 0;
 	const struct ds1685_rtc_ctrl_regs *reg_info =
 		ds1685_rtc_sysfs_ctrl_regs_lookup(attr->attr.name);
@@ -1325,7 +1325,7 @@ ds1685_rtc_sysfs_ctrl_regs_store(struct device *dev,
 	bit = reg_info->bit;
 
 	/* Safe to spinlock during a write. */
-	ds1685_rtc_begin_ctrl_access(rtc, flags);
+	ds1685_rtc_begin_ctrl_access(rtc, &flags);
 	tmp = rtc->read(rtc, reg);
 	rtc->write(rtc, reg, (val ? (tmp | bit) : (tmp & ~(bit))));
 	ds1685_rtc_end_ctrl_access(rtc, flags);
