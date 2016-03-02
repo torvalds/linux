@@ -348,8 +348,6 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 	ps->period = interval;
 	ps->is_periodic = is_period;
 
-	ps->timer.function = pit_timer_fn;
-
 	kvm_pit_reset_reinject(pit);
 
 	/*
@@ -702,6 +700,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 
 	pit_state = &pit->pit_state;
 	hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	pit_state->timer.function = pit_timer_fn;
 
 	pit_state->irq_ack_notifier.gsi = 0;
 	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
