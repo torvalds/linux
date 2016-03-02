@@ -44,6 +44,11 @@ Optional properties:
   any consumer request.
 - regulator-pull-down: Enable pull down resistor when the regulator is disabled.
 - regulator-over-current-protection: Enable over current protection.
+- regulator-active-discharge: tristate, enable/disable active discharge of
+  regulators. The values are:
+	0: Disable active discharge.
+	1: Enable active discharge.
+	Absence of this property will leave configuration to default.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple
