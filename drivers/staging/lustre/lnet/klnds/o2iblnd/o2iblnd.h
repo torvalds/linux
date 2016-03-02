@@ -939,30 +939,20 @@ int  kiblnd_create_peer(lnet_ni_t *ni, kib_peer_t **peerp, lnet_nid_t nid);
 void kiblnd_destroy_peer(kib_peer_t *peer);
 void kiblnd_destroy_dev(kib_dev_t *dev);
 void kiblnd_unlink_peer_locked(kib_peer_t *peer);
-void kiblnd_peer_alive(kib_peer_t *peer);
 kib_peer_t *kiblnd_find_peer_locked(lnet_nid_t nid);
-void kiblnd_peer_connect_failed(kib_peer_t *peer, int active, int error);
 int  kiblnd_close_stale_conns_locked(kib_peer_t *peer,
 				     int version, __u64 incarnation);
 int  kiblnd_close_peer_conns_locked(kib_peer_t *peer, int why);
 
-void kiblnd_connreq_done(kib_conn_t *conn, int status);
 kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 			       int state, int version);
 void kiblnd_destroy_conn(kib_conn_t *conn);
 void kiblnd_close_conn(kib_conn_t *conn, int error);
 void kiblnd_close_conn_locked(kib_conn_t *conn, int error);
 
-int  kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
-		      int nob, kib_rdma_desc_t *dstrd, __u64 dstcookie);
-
 void kiblnd_launch_tx(lnet_ni_t *ni, kib_tx_t *tx, lnet_nid_t nid);
-void kiblnd_queue_tx_locked(kib_tx_t *tx, kib_conn_t *conn);
-void kiblnd_queue_tx(kib_tx_t *tx, kib_conn_t *conn);
-void kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob);
 void kiblnd_txlist_done(lnet_ni_t *ni, struct list_head *txlist,
 			int status);
-void kiblnd_check_sends(kib_conn_t *conn);
 
 void kiblnd_qp_event(struct ib_event *event, void *arg);
 void kiblnd_cq_event(struct ib_event *event, void *arg);

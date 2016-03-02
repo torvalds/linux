@@ -40,6 +40,15 @@
 
 #include "o2iblnd.h"
 
+static void kiblnd_peer_alive(kib_peer_t *peer);
+static void kiblnd_peer_connect_failed(kib_peer_t *peer, int active, int error);
+static void kiblnd_check_sends(kib_conn_t *conn);
+static void kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx,
+				int type, int body_nob);
+static int kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
+			     int resid, kib_rdma_desc_t *dstrd, __u64 dstcookie);
+static void kiblnd_queue_tx_locked(kib_tx_t *tx, kib_conn_t *conn);
+static void kiblnd_queue_tx(kib_tx_t *tx, kib_conn_t *conn);
 static void kiblnd_unmap_tx(lnet_ni_t *ni, kib_tx_t *tx);
 
 static void
@@ -891,7 +900,7 @@ kiblnd_post_tx_locked(kib_conn_t *conn, kib_tx_t *tx, int credit)
 	return -EIO;
 }
 
-void
+static void
 kiblnd_check_sends(kib_conn_t *conn)
 {
 	int ver = conn->ibc_version;
@@ -1019,7 +1028,7 @@ kiblnd_tx_complete(kib_tx_t *tx, int status)
 	kiblnd_conn_decref(conn);	       /* ...until here */
 }
 
-void
+static void
 kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob)
 {
 	kib_hca_dev_t *hdev = tx->tx_pool->tpo_hdev;
@@ -1053,7 +1062,7 @@ kiblnd_init_tx_msg(lnet_ni_t *ni, kib_tx_t *tx, int type, int body_nob)
 	tx->tx_nwrq++;
 }
 
-int
+static int
 kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 		 int resid, kib_rdma_desc_t *dstrd, __u64 dstcookie)
 {
@@ -1137,7 +1146,7 @@ kiblnd_init_rdma(kib_conn_t *conn, kib_tx_t *tx, int type,
 	return rc;
 }
 
-void
+static void
 kiblnd_queue_tx_locked(kib_tx_t *tx, kib_conn_t *conn)
 {
 	struct list_head *q;
@@ -1192,7 +1201,7 @@ kiblnd_queue_tx_locked(kib_tx_t *tx, kib_conn_t *conn)
 	list_add_tail(&tx->tx_list, q);
 }
 
-void
+static void
 kiblnd_queue_tx(kib_tx_t *tx, kib_conn_t *conn)
 {
 	spin_lock(&conn->ibc_lock);
@@ -1792,7 +1801,7 @@ kiblnd_thread_fini(void)
 	atomic_dec(&kiblnd_data.kib_nthreads);
 }
 
-void
+static void
 kiblnd_peer_alive(kib_peer_t *peer)
 {
 	/* This is racy, but everyone's only writing cfs_time_current() */
@@ -1993,7 +2002,7 @@ kiblnd_finalise_conn(kib_conn_t *conn)
 	kiblnd_handle_early_rxs(conn);
 }
 
-void
+static void
 kiblnd_peer_connect_failed(kib_peer_t *peer, int active, int error)
 {
 	LIST_HEAD(zombies);
@@ -2047,7 +2056,7 @@ kiblnd_peer_connect_failed(kib_peer_t *peer, int active, int error)
 	kiblnd_txlist_done(peer->ibp_ni, &zombies, -EHOSTUNREACH);
 }
 
-void
+static void
 kiblnd_connreq_done(kib_conn_t *conn, int status)
 {
 	kib_peer_t *peer = conn->ibc_peer;
