@@ -2011,8 +2011,10 @@ LNetCtl(unsigned int cmd, void *arg)
 
 	case IOC_LIBCFS_NOTIFY_ROUTER:
 		secs_passed = (ktime_get_real_seconds() - data->ioc_u64[0]);
+		secs_passed *= msecs_to_jiffies(MSEC_PER_SEC);
+
 		return lnet_notify(NULL, data->ioc_nid, data->ioc_flags,
-				   jiffies - secs_passed * HZ);
+				   jiffies - secs_passed);
 
 	case IOC_LIBCFS_LNET_DIST:
 		rc = LNetDist(data->ioc_nid, &data->ioc_nid, &data->ioc_u32[1]);

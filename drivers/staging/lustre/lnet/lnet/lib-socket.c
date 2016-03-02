@@ -262,7 +262,7 @@ int
 lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int rc;
-	long ticks = timeout * HZ;
+	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
 
@@ -282,10 +282,7 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 
 		if (timeout) {
 			/* Set send timeout to remaining time */
-			tv = (struct timeval) {
-				.tv_sec = ticks / HZ,
-				.tv_usec = ((ticks % HZ) * 1000000) / HZ
-			};
+			jiffies_to_timeval(jiffies_left, &tv);
 			rc = kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
 					       (char *)&tv, sizeof(tv));
 			if (rc) {
@@ -297,7 +294,7 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 
 		then = jiffies;
 		rc = kernel_sendmsg(sock, &msg, &iov, 1, nob);
-		ticks -= jiffies - then;
+		jiffies_left -= jiffies - then;
 
 		if (rc == nob)
 			return 0;
@@ -310,7 +307,7 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 			return -ECONNABORTED;
 		}
 
-		if (ticks <= 0)
+		if (jiffies_left <= 0)
 			return -EAGAIN;
 
 		buffer = ((char *)buffer) + rc;
@@ -324,12 +321,12 @@ int
 lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 {
 	int rc;
-	long ticks = timeout * HZ;
+	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
 
 	LASSERT(nob > 0);
-	LASSERT(ticks > 0);
+	LASSERT(jiffies_left > 0);
 
 	for (;;) {
 		struct kvec  iov = {
@@ -341,10 +338,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		};
 
 		/* Set receive timeout to remaining time */
-		tv = (struct timeval) {
-			.tv_sec = ticks / HZ,
-			.tv_usec = ((ticks % HZ) * 1000000) / HZ
-		};
+		jiffies_to_timeval(jiffies_left, &tv);
 		rc = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
 				       (char *)&tv, sizeof(tv));
 		if (rc) {
@@ -355,7 +349,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 
 		then = jiffies;
 		rc = kernel_recvmsg(sock, &msg, &iov, 1, nob, 0);
-		ticks -= jiffies - then;
+		jiffies_left -= jiffies - then;
 
 		if (rc < 0)
 			return rc;
@@ -369,7 +363,7 @@ lnet_sock_read(struct socket *sock, void *buffer, int nob, int timeout)
 		if (!nob)
 			return 0;
 
-		if (ticks <= 0)
+		if (jiffies_left <= 0)
 			return -ETIMEDOUT;
 	}
 }

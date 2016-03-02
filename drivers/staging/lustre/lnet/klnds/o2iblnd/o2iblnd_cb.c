@@ -1147,7 +1147,9 @@ kiblnd_queue_tx_locked(kib_tx_t *tx, kib_conn_t *conn)
 	LASSERT(conn->ibc_state >= IBLND_CONN_ESTABLISHED);
 
 	tx->tx_queued = 1;
-	tx->tx_deadline = jiffies + (*kiblnd_tunables.kib_timeout * HZ);
+	tx->tx_deadline = jiffies +
+			  msecs_to_jiffies(*kiblnd_tunables.kib_timeout *
+					   MSEC_PER_SEC);
 
 	if (!tx->tx_conn) {
 		kiblnd_conn_addref(conn);
@@ -3188,7 +3190,7 @@ kiblnd_connd(void *arg)
 					     kiblnd_data.kib_peer_hash_size;
 			}
 
-			deadline += p * HZ;
+			deadline += msecs_to_jiffies(p * MSEC_PER_SEC);
 			spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
 		}
 
