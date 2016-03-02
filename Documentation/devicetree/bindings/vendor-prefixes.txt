@@ -238,6 +238,7 @@ toshiba	Toshiba Corporation
 toumaz	Toumaz
 tplink	TP-LINK Technologies Co., Ltd.
 tronfy	Tronfy
+tronsmart	Tronsmart
 truly	Truly Semiconductors Limited
 upisemi	uPI Semiconductor Corp.
 usi	Universal Scientific Industrial Co., Ltd.
