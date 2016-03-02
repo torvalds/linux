@@ -377,7 +377,7 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_TX_RING_MAX_SIZE   4096
 #define VMXNET3_TC_RING_MAX_SIZE   4096
 #define VMXNET3_RX_RING_MAX_SIZE   4096
-#define VMXNET3_RX_RING2_MAX_SIZE  2048
+#define VMXNET3_RX_RING2_MAX_SIZE  4096
 #define VMXNET3_RC_RING_MAX_SIZE   8192
 
 /* a list of reasons for queue stop */

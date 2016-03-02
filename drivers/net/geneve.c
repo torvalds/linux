@@ -1039,15 +1039,32 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	return geneve_xmit_skb(skb, dev, info);
 }
 
-static int geneve_change_mtu(struct net_device *dev, int new_mtu)
+static int __geneve_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {
-	/* GENEVE overhead is not fixed, so we can't enforce a more
-	 * precise max MTU.
+	/* The max_mtu calculation does not take account of GENEVE
+	 * options, to avoid excluding potentially valid
+	 * configurations.
 	 */
-	if (new_mtu < 68 || new_mtu > IP_MAX_MTU)
+	int max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - sizeof(struct iphdr)
+		- dev->hard_header_len;
+
+	if (new_mtu < 68)
 		return -EINVAL;
+
+	if (new_mtu > max_mtu) {
+		if (strict)
+			return -EINVAL;
+
+		new_mtu = max_mtu;
+	}
+
 	dev->mtu = new_mtu;
 	return 0;
+}
+
+static int geneve_change_mtu(struct net_device *dev, int new_mtu)
+{
+	return __geneve_change_mtu(dev, new_mtu, true);
 }
 
 static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
@@ -1161,6 +1178,7 @@ static void geneve_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 
 	netif_keep_dst(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 	eth_hw_addr_random(dev);
 }
@@ -1452,14 +1470,15 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 		return dev;
 
 	err = geneve_configure(net, dev, &geneve_remote_unspec,
-			       0, 0, 0, htons(dst_port), true, 0);
+			       0, 0, 0, htons(dst_port), true,
+			       GENEVE_F_UDP_ZERO_CSUM6_RX);
 	if (err)
 		goto err;
 
 	/* openvswitch users expect packet sizes to be unrestricted,
 	 * so set the largest MTU we can.
 	 */
-	err = geneve_change_mtu(dev, IP_MAX_MTU);
+	err = __geneve_change_mtu(dev, IP_MAX_MTU, false);
 	if (err)
 		goto err;
 

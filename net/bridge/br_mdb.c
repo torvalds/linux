@@ -425,8 +425,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	mp = br_mdb_ip_get(mdb, group);
 	if (!mp) {
 		mp = br_multicast_new_group(br, port, group);
-		err = PTR_ERR(mp);
-		if (IS_ERR(mp))
+		err = PTR_ERR_OR_ZERO(mp);
+		if (err)
 			return err;
 	}
 

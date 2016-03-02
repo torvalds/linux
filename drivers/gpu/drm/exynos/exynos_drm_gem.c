@@ -218,7 +218,7 @@ static struct exynos_drm_gem *exynos_drm_gem_init(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	DRM_DEBUG_KMS("created file object = 0x%x\n", (unsigned int)obj->filp);
+	DRM_DEBUG_KMS("created file object = %p\n", obj->filp);
 
 	return exynos_gem;
 }
@@ -335,7 +335,7 @@ static int exynos_drm_gem_mmap_buffer(struct exynos_drm_gem *exynos_gem,
 	if (vm_size > exynos_gem->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(drm_dev->dev, vma, exynos_gem->pages,
+	ret = dma_mmap_attrs(drm_dev->dev, vma, exynos_gem->cookie,
 			     exynos_gem->dma_addr, exynos_gem->size,
 			     &exynos_gem->dma_attrs);
 	if (ret < 0) {

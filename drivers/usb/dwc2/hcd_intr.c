@@ -525,11 +525,19 @@ void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
 	u32 pid = (hctsiz & TSIZ_SC_MC_PID_MASK) >> TSIZ_SC_MC_PID_SHIFT;
 
 	if (chan->ep_type != USB_ENDPOINT_XFER_CONTROL) {
+		if (WARN(!chan || !chan->qh,
+			 "chan->qh must be specified for non-control eps\n"))
+			return;
+
 		if (pid == TSIZ_SC_MC_PID_DATA0)
 			chan->qh->data_toggle = DWC2_HC_PID_DATA0;
 		else
 			chan->qh->data_toggle = DWC2_HC_PID_DATA1;
 	} else {
+		if (WARN(!qtd,
+			 "qtd must be specified for control eps\n"))
+			return;
+
 		if (pid == TSIZ_SC_MC_PID_DATA0)
 			qtd->data_toggle = DWC2_HC_PID_DATA0;
 		else
