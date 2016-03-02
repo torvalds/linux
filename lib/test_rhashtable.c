@@ -143,7 +143,7 @@ static void test_bucket_stats(struct rhashtable *ht)
 	struct rhashtable_iter hti;
 	struct rhash_head *pos;
 
-	err = rhashtable_walk_init(ht, &hti);
+	err = rhashtable_walk_init(ht, &hti, GFP_KERNEL);
 	if (err) {
 		pr_warn("Test failed: allocation error");
 		return;
