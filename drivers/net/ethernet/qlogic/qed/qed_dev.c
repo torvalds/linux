@@ -32,6 +32,33 @@
 #include "qed_sp.h"
 
 /* API common to all protocols */
+enum BAR_ID {
+	BAR_ID_0,       /* used for GRC */
+	BAR_ID_1        /* Used for doorbells */
+};
+
+static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
+			   enum BAR_ID		bar_id)
+{
+	u32	bar_reg = (bar_id == BAR_ID_0 ?
+			   PGLUE_B_REG_PF_BAR0_SIZE : PGLUE_B_REG_PF_BAR1_SIZE);
+	u32	val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
+
+	if (val)
+		return 1 << (val + 15);
+
+	/* Old MFW initialized above registered only conditionally */
+	if (p_hwfn->cdev->num_hwfns > 1) {
+		DP_INFO(p_hwfn,
+			"BAR size not configured. Assuming BAR size of 256kB for GRC and 512kB for DB\n");
+			return BAR_ID_0 ? 256 * 1024 : 512 * 1024;
+	} else {
+		DP_INFO(p_hwfn,
+			"BAR size not configured. Assuming BAR size of 512kB for GRC and 512kB for DB\n");
+			return 512 * 1024;
+	}
+}
+
 void qed_init_dp(struct qed_dev *cdev,
 		 u32 dp_module, u8 dp_level)
 {
@@ -1385,17 +1412,6 @@ err0:
 	return rc;
 }
 
-static u32 qed_hw_bar_size(struct qed_hwfn	*p_hwfn,
-			   u8			bar_id)
-{
-	u32 bar_reg = (bar_id == 0 ? PGLUE_B_REG_PF_BAR0_SIZE
-		       : PGLUE_B_REG_PF_BAR1_SIZE);
-	u32 val = qed_rd(p_hwfn, p_hwfn->p_main_ptt, bar_reg);
-
-	/* Get the BAR size(in KB) from hardware given val */
-	return 1 << (val + 15);
-}
-
 int qed_hw_prepare(struct qed_dev *cdev,
 		   int personality)
 {
@@ -1420,11 +1436,11 @@ int qed_hw_prepare(struct qed_dev *cdev,
 		u8 __iomem *addr;
 
 		/* adjust bar offset for second engine */
-		addr = cdev->regview + qed_hw_bar_size(p_hwfn, 0) / 2;
+		addr = cdev->regview + qed_hw_bar_size(p_hwfn, BAR_ID_0) / 2;
 		p_regview = addr;
 
 		/* adjust doorbell bar offset for second engine */
-		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, 1) / 2;
+		addr = cdev->doorbells + qed_hw_bar_size(p_hwfn, BAR_ID_1) / 2;
 		p_doorbell = addr;
 
 		/* prepare second hw function */
