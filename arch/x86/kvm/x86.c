@@ -3604,9 +3604,13 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 
 static int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 {
-	mutex_lock(&kvm->arch.vpit->pit_state.lock);
-	memcpy(ps, &kvm->arch.vpit->pit_state, sizeof(struct kvm_pit_state));
-	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
+	struct kvm_kpit_state *kps = &kvm->arch.vpit->pit_state;
+
+	BUILD_BUG_ON(sizeof(*ps) != sizeof(kps->channels));
+
+	mutex_lock(&kps->lock);
+	memcpy(ps, &kps->channels, sizeof(*ps));
+	mutex_unlock(&kps->lock);
 	return 0;
 }
 
@@ -3616,7 +3620,7 @@ static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
 	struct kvm_pit *pit = kvm->arch.vpit;
 
 	mutex_lock(&pit->pit_state.lock);
-	memcpy(&pit->pit_state, ps, sizeof(struct kvm_pit_state));
+	memcpy(&pit->pit_state.channels, ps, sizeof(*ps));
 	for (i = 0; i < 3; i++)
 		kvm_pit_load_count(pit, i, ps->channels[i].count, 0);
 	mutex_unlock(&pit->pit_state.lock);
