@@ -695,7 +695,6 @@ static int xhci_mtk_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * if ip sleep fails, and all clocks are disabled, access register will hang
  * AHB bus, so stop polling roothubs to avoid regs access on bus suspend.
@@ -703,7 +702,7 @@ static int xhci_mtk_remove(struct platform_device *dev)
  * to wake up system immediately after system suspend complete if ip sleep
  * fails, it is what we wanted.
  */
-static int xhci_mtk_suspend(struct device *dev)
+static int __maybe_unused xhci_mtk_suspend(struct device *dev)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
@@ -722,7 +721,7 @@ static int xhci_mtk_suspend(struct device *dev)
 	return 0;
 }
 
-static int xhci_mtk_resume(struct device *dev)
+static int __maybe_unused xhci_mtk_resume(struct device *dev)
 {
 	struct xhci_hcd_mtk *mtk = dev_get_drvdata(dev);
 	struct usb_hcd *hcd = mtk->hcd;
@@ -744,10 +743,7 @@ static int xhci_mtk_resume(struct device *dev)
 static const struct dev_pm_ops xhci_mtk_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(xhci_mtk_suspend, xhci_mtk_resume)
 };
-#define DEV_PM_OPS	(&xhci_mtk_pm_ops)
-#else
-#define DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#define DEV_PM_OPS IS_ENABLED(CONFIG_PM) ? &xhci_mtk_pm_ops : NULL
 
 #ifdef CONFIG_OF
 static const struct of_device_id mtk_xhci_of_match[] = {
