@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/triggered_buffer.h>
@@ -136,17 +137,17 @@ static int ms5607_temp_and_pressure_compensate(struct ms5611_chip_info *chip_inf
 
 	t = 2000 + ((chip_info->prom[6] * dt) >> 23);
 	if (t < 2000) {
-		s64 off2, sens2, t2;
+		s64 off2, sens2, t2, tmp;
 
 		t2 = (dt * dt) >> 31;
-		off2 = (61 * (t - 2000) * (t - 2000)) >> 4;
-		sens2 = off2 << 1;
+		tmp = (t - 2000) * (t - 2000);
+		off2 = (61 * tmp) >> 4;
+		sens2 = tmp << 1;
 
 		if (t < -1500) {
-			s64 tmp = (t + 1500) * (t + 1500);
-
+			tmp = (t + 1500) * (t + 1500);
 			off2 += 15 * tmp;
-			sens2 += (8 * tmp);
+			sens2 += 8 * tmp;
 		}
 
 		t -= t2;
@@ -290,6 +291,18 @@ static const struct iio_info ms5611_info = {
 static int ms5611_init(struct iio_dev *indio_dev)
 {
 	int ret;
+	struct regulator *vdd = devm_regulator_get(indio_dev->dev.parent,
+	                                           "vdd");
+
+	/* Enable attached regulator if any. */
+	if (!IS_ERR(vdd)) {
+		ret = regulator_enable(vdd);
+		if (ret) {
+			dev_err(indio_dev->dev.parent,
+			        "failed to enable Vdd supply: %d\n", ret);
+			return ret;
+		}
+	}
 
 	ret = ms5611_reset(indio_dev);
 	if (ret < 0)
@@ -298,7 +311,8 @@ static int ms5611_init(struct iio_dev *indio_dev)
 	return ms5611_read_prom(indio_dev);
 }
 
-int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
+int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
+                 const char *name, int type)
 {
 	int ret;
 	struct ms5611_state *st = iio_priv(indio_dev);
@@ -306,7 +320,7 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev, int type)
 	mutex_init(&st->lock);
 	st->chip_info = &chip_info_tbl[type];
 	indio_dev->dev.parent = dev;
-	indio_dev->name = dev->driver->name;
+	indio_dev->name = name;
 	indio_dev->info = &ms5611_info;
 	indio_dev->channels = ms5611_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ms5611_channels);

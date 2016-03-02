@@ -19,19 +19,19 @@ static void inv_scan_query(struct iio_dev *indio_dev)
 
 	st->chip_config.gyro_fifo_enable =
 		test_bit(INV_MPU6050_SCAN_GYRO_X,
-			indio_dev->active_scan_mask) ||
-			test_bit(INV_MPU6050_SCAN_GYRO_Y,
-			indio_dev->active_scan_mask) ||
-			test_bit(INV_MPU6050_SCAN_GYRO_Z,
-			indio_dev->active_scan_mask);
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU6050_SCAN_GYRO_Y,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU6050_SCAN_GYRO_Z,
+			 indio_dev->active_scan_mask);
 
 	st->chip_config.accl_fifo_enable =
 		test_bit(INV_MPU6050_SCAN_ACCL_X,
-			indio_dev->active_scan_mask) ||
-			test_bit(INV_MPU6050_SCAN_ACCL_Y,
-			indio_dev->active_scan_mask) ||
-			test_bit(INV_MPU6050_SCAN_ACCL_Z,
-			indio_dev->active_scan_mask);
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU6050_SCAN_ACCL_Y,
+			 indio_dev->active_scan_mask) ||
+		test_bit(INV_MPU6050_SCAN_ACCL_Z,
+			 indio_dev->active_scan_mask);
 }
 
 /**
@@ -101,7 +101,7 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
  * @state: Desired trigger state
  */
 static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
+					      bool state)
 {
 	return inv_mpu6050_set_enable(iio_trigger_get_drvdata(trig), state);
 }

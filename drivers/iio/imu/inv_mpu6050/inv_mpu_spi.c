@@ -54,7 +54,8 @@ static int inv_mpu_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return inv_mpu_core_probe(regmap, spi->irq, name, inv_mpu_i2c_disable);
+	return inv_mpu_core_probe(regmap, spi->irq, name,
+				  inv_mpu_i2c_disable, id->driver_data);
 }
 
 static int inv_mpu_remove(struct spi_device *spi)

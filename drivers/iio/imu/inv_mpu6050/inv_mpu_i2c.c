@@ -68,7 +68,8 @@ static int inv_mpu6050_select_bypass(struct i2c_adapter *adap, void *mux_priv,
 		if (ret)
 			goto write_error;
 
-		msleep(INV_MPU6050_REG_UP_TIME);
+		usleep_range(INV_MPU6050_REG_UP_TIME_MIN,
+			     INV_MPU6050_REG_UP_TIME_MAX);
 	}
 	if (!ret) {
 		st->powerup_count++;
@@ -111,7 +112,7 @@ static int inv_mpu6050_deselect_bypass(struct i2c_adapter *adap,
  *  Returns 0 on success, a negative error code otherwise.
  */
 static int inv_mpu_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+			 const struct i2c_device_id *id)
 {
 	struct inv_mpu6050_state *st;
 	int result;
@@ -120,7 +121,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	regmap = devm_regmap_init_i2c(client, &inv_mpu_regmap_config);
 	if (IS_ERR(regmap)) {
@@ -129,7 +130,8 @@ static int inv_mpu_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	result = inv_mpu_core_probe(regmap, client->irq, name, NULL);
+	result = inv_mpu_core_probe(regmap, client->irq, name,
+				    NULL, id->driver_data);
 	if (result < 0)
 		return result;
 

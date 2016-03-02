@@ -65,8 +65,6 @@ struct atlas_data {
 
 static const struct regmap_range atlas_volatile_ranges[] = {
 	regmap_reg_range(ATLAS_REG_INT_CONTROL, ATLAS_REG_INT_CONTROL),
-	regmap_reg_range(ATLAS_REG_CALIB_STATUS, ATLAS_REG_CALIB_STATUS),
-	regmap_reg_range(ATLAS_REG_TEMP_DATA, ATLAS_REG_TEMP_DATA + 4),
 	regmap_reg_range(ATLAS_REG_PH_DATA, ATLAS_REG_PH_DATA + 4),
 };
 
@@ -83,7 +81,7 @@ static const struct regmap_config atlas_regmap_config = {
 
 	.volatile_table = &atlas_volatile_table,
 	.max_register = ATLAS_REG_PH_DATA + 4,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static const struct iio_chan_spec atlas_channels[] = {
@@ -180,10 +178,10 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 	struct atlas_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = i2c_smbus_read_i2c_block_data(data->client, ATLAS_REG_PH_DATA,
-				sizeof(data->buffer[0]), (u8 *) &data->buffer);
+	ret = regmap_bulk_read(data->regmap, ATLAS_REG_PH_DATA,
+			      (u8 *) &data->buffer, sizeof(data->buffer[0]));
 
-	if (ret > 0)
+	if (!ret)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 				iio_get_time_ns());
 

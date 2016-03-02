@@ -278,7 +278,7 @@ static int lidar_probe(struct i2c_client *client,
 				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
 		data->xfer = lidar_smbus_xfer;
 	else
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	indio_dev->info = &lidar_info;
 	indio_dev->name = LIDAR_DRV_NAME;

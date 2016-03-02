@@ -23,3 +23,4 @@ obj-$(CONFIG_MAX5821) += max5821.o
 obj-$(CONFIG_MCP4725) += mcp4725.o
 obj-$(CONFIG_MCP4922) += mcp4922.o
 obj-$(CONFIG_STX104) += stx104.o
+obj-$(CONFIG_VF610_DAC) += vf610_dac.o

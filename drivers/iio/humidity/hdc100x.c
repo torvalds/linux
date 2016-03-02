@@ -274,7 +274,7 @@ static int hdc100x_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_BYTE))
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
