@@ -1083,13 +1083,6 @@ static int qed_hw_get_nvm_info(struct qed_hwfn *p_hwfn,
 	/* Read nvm_cfg1  (Notice this is just offset, and not offsize (TBD) */
 	nvm_cfg1_offset = qed_rd(p_hwfn, p_ptt, nvm_cfg_addr + 4);
 
-	/* Read Vendor Id / Device Id */
-	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
-	       offsetof(struct nvm_cfg1, glob) +
-	       offsetof(struct nvm_cfg1_glob, pci_id);
-	p_hwfn->hw_info.vendor_id = qed_rd(p_hwfn, p_ptt, addr) &
-				    NVM_CFG1_GLOB_VENDOR_ID_MASK;
-
 	addr = MCP_REG_SCRATCH + nvm_cfg1_offset +
 	       offsetof(struct nvm_cfg1, glob) +
 	       offsetof(struct nvm_cfg1_glob, core_cfg);

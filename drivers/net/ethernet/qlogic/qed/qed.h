@@ -146,9 +146,6 @@ struct qed_hw_info {
 	u16				ovlan;
 	u32				part_num[4];
 
-	u32				vendor_id;
-	u32				device_id;
-
 	unsigned char			hw_mac_addr[ETH_ALEN];
 
 	struct qed_igu_info		*p_igu_info;
