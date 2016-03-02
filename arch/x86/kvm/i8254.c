@@ -264,7 +264,7 @@ static void pit_do_work(struct kthread_work *work)
 	int i;
 	struct kvm_kpit_state *ps = &pit->pit_state;
 
-	if (ps->reinject && !atomic_xchg(&ps->irq_ack, 0))
+	if (atomic_read(&ps->reinject) && !atomic_xchg(&ps->irq_ack, 0))
 		return;
 
 	kvm_set_irq(kvm, pit->irq_source_id, 0, 1, false);
@@ -289,7 +289,7 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 	struct kvm_kpit_state *ps = container_of(data, struct kvm_kpit_state, timer);
 	struct kvm_pit *pt = pit_state_to_pit(ps);
 
-	if (ps->reinject)
+	if (atomic_read(&ps->reinject))
 		atomic_inc(&ps->pending);
 
 	queue_kthread_work(&pt->worker, &pt->expired);
@@ -312,7 +312,7 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 	struct kvm_kpit_state *ps = &pit->pit_state;
 	struct kvm *kvm = pit->kvm;
 
-	if (ps->reinject == reinject)
+	if (atomic_read(&ps->reinject) == reinject)
 		return;
 
 	if (reinject) {
@@ -325,7 +325,7 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	}
 
-	ps->reinject = reinject;
+	atomic_set(&ps->reinject, reinject);
 }
 
 static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)

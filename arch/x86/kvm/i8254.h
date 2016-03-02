@@ -31,7 +31,7 @@ struct kvm_kpit_state {
 	u32    speaker_data_on;
 
 	struct mutex lock;
-	bool reinject;
+	atomic_t reinject;
 	atomic_t pending; /* accumulated triggered timers */
 	atomic_t irq_ack;
 	struct kvm_irq_ack_notifier irq_ack_notifier;
