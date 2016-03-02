@@ -102,6 +102,7 @@ ksocknal_destroy_route(ksock_route_t *route)
 static int
 ksocknal_create_peer(ksock_peer_t **peerp, lnet_ni_t *ni, lnet_process_id_t id)
 {
+	int cpt = lnet_cpt_of_nid(id.nid);
 	ksock_net_t *net = ni->ni_data;
 	ksock_peer_t *peer;
 
@@ -109,7 +110,7 @@ ksocknal_create_peer(ksock_peer_t **peerp, lnet_ni_t *ni, lnet_process_id_t id)
 	LASSERT(id.pid != LNET_PID_ANY);
 	LASSERT(!in_interrupt());
 
-	LIBCFS_ALLOC(peer, sizeof(*peer));
+	LIBCFS_CPT_ALLOC(peer, lnet_cpt_table(), cpt, sizeof(*peer));
 	if (!peer)
 		return -ENOMEM;
 
