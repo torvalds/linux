@@ -93,6 +93,12 @@ static void of_get_regulation_constraints(struct device_node *np,
 
 	constraints->soft_start = of_property_read_bool(np,
 					"regulator-soft-start");
+	ret = of_property_read_u32(np, "regulator-active-discharge", &pval);
+	if (!ret) {
+		constraints->active_discharge =
+				(pval) ? REGULATOR_ACTIVE_DISCHARGE_ENABLE :
+					REGULATOR_ACTIVE_DISCHARGE_DISABLE;
+	}
 
 	if (!of_property_read_u32(np, "regulator-initial-mode", &pval)) {
 		if (desc && desc->of_map_mode) {
