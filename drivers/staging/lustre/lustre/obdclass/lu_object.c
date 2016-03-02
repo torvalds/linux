@@ -134,7 +134,7 @@ void lu_object_put(const struct lu_env *env, struct lu_object *o)
 	}
 
 	/*
-	 * If object is dying (will not be cached), removed it
+	 * If object is dying (will not be cached), then removed it
 	 * from hash table and LRU.
 	 *
 	 * This is done with hash table and LRU lists locked. As the only

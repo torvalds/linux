@@ -878,7 +878,7 @@ int ll_get_mdt_idx(struct inode *inode)
 /**
  * Generic handler to do any pre-copy work.
  *
- * It send a first hsm_progress (with extent length == 0) to coordinator as a
+ * It sends a first hsm_progress (with extent length == 0) to coordinator as a
  * first information for it that real work has started.
  *
  * Moreover, for a ARCHIVE request, it will sample the file data version and
@@ -930,7 +930,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 			goto progress;
 		}
 
-		/* Store it the hsm_copy for later copytool use.
+		/* Store in the hsm_copy for later copytool use.
 		 * Always modified even if no lsm.
 		 */
 		copy->hc_data_version = data_version;
@@ -1008,7 +1008,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 			goto progress;
 		}
 
-		/* Store it the hsm_copy for later copytool use.
+		/* Store in the hsm_copy for later copytool use.
 		 * Always modified even if no lsm.
 		 */
 		hpk.hpk_data_version = data_version;

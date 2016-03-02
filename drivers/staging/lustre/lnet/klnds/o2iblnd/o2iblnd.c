@@ -758,7 +758,7 @@ kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
 
 	rc = ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	if (rc) {
-		CERROR("Can't request completion notificiation: %d\n", rc);
+		CERROR("Can't request completion notification: %d\n", rc);
 		goto failed_2;
 	}
 

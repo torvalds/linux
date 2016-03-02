@@ -1331,7 +1331,7 @@ int ptlrpc_import_recovery_state_machine(struct obd_import *imp)
 		{
 		struct task_struct *task;
 		/* bug 17802:  XXX client_disconnect_export vs connect request
-		 * race. if client will evicted at this time, we start
+		 * race. if client is evicted at this time, we start
 		 * invalidate thread without reference to import and import can
 		 * be freed at same time.
 		 */
