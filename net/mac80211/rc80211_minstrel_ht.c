@@ -872,7 +872,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	 *  - if station is in dynamic SMPS (and streams > 1)
 	 *  - for fallback rates, to increase chances of getting through
 	 */
-	if (offset > 0 &&
+	if (offset > 0 ||
 	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
 	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;

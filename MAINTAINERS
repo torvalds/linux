@@ -6758,6 +6758,7 @@ S:	Maintained
 F:	Documentation/networking/mac80211-injection.txt
 F:	include/net/mac80211.h
 F:	net/mac80211/
+F:	drivers/net/wireless/mac80211_hwsim.[ch]
 
 MACVLAN DRIVER
 M:	Patrick McHardy <kaber@trash.net>
