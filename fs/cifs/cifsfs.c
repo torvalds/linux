@@ -1013,7 +1013,6 @@ const struct file_operations cifs_file_strict_ops = {
 	.llseek = cifs_llseek,
 	.unlocked_ioctl	= cifs_ioctl,
 	.clone_file_range = cifs_clone_file_range,
-	.clone_file_range = cifs_clone_file_range,
 	.setlease = cifs_setlease,
 	.fallocate = cifs_fallocate,
 };
