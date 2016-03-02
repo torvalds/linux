@@ -492,6 +492,7 @@ static const struct sunxi_pinctrl_desc sun8i_h3_pinctrl_data = {
 	.pins = sun8i_h3_pins,
 	.npins = ARRAY_SIZE(sun8i_h3_pins),
 	.irq_banks = 2,
+	.irq_read_needs_mux = true
 };
 
 static int sun8i_h3_pinctrl_probe(struct platform_device *pdev)
