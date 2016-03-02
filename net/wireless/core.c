@@ -626,6 +626,13 @@ int wiphy_register(struct wiphy *wiphy)
 		     !rdev->ops->set_mac_acl)))
 		return -EINVAL;
 
+	/* assure only valid behaviours are flagged by driver
+	 * hence subtract 2 as bit 0 is invalid.
+	 */
+	if (WARN_ON(wiphy->bss_select_support &&
+		    (wiphy->bss_select_support & ~(BIT(__NL80211_BSS_SELECT_ATTR_AFTER_LAST) - 2))))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 
