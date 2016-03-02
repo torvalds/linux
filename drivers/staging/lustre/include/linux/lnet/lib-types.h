@@ -371,7 +371,7 @@ typedef struct {
 	__u32			 lr_net;	/* remote network number */
 	int			 lr_seq;	/* sequence for round-robin */
 	unsigned int		 lr_downis;	/* number of down NIs */
-	unsigned int		 lr_hops;	/* how far I am */
+	__u32			 lr_hops;	/* how far I am */
 	unsigned int             lr_priority;	/* route priority */
 } lnet_route_t;
 

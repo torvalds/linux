@@ -235,7 +235,7 @@ static int proc_lnet_routes(struct ctl_table *table, int write,
 
 		if (route) {
 			__u32 net = rnet->lrn_net;
-			unsigned int hops = route->lr_hops;
+			__u32 hops = route->lr_hops;
 			unsigned int priority = route->lr_priority;
 			lnet_nid_t nid = route->lr_gateway->lp_nid;
 			int alive = lnet_is_route_alive(route);
