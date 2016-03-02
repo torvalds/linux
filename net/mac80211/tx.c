@@ -1839,6 +1839,9 @@ static bool ieee80211_parse_tx_radiotap(struct ieee80211_local *local,
 			}
 		}
 
+		if (info->control.rates[0].idx < 0)
+			info->control.flags &= ~IEEE80211_TX_CTRL_RATE_INJECT;
+
 		info->control.rates[0].flags = rate_flags;
 		info->control.rates[0].count = min_t(u8, rate_retries + 1,
 						     local->hw.max_rate_tries);
