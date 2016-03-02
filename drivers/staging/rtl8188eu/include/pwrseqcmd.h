@@ -36,12 +36,6 @@
 #define PWR_BASEADDR_PCIE	0x02
 #define PWR_BASEADDR_SDIO	0x03
 
-/* The value of interface_msk: 4 bits */
-#define PWR_INTF_SDIO_MSK	BIT(0)
-#define PWR_INTF_USB_MSK	BIT(1)
-#define PWR_INTF_PCI_MSK	BIT(2)
-#define PWR_INTF_ALL_MSK	(BIT(0)|BIT(1)|BIT(2)|BIT(3))
-
 /* The value of cut_msk: 8 bits */
 #define PWR_CUT_TESTCHIP_MSK	BIT(0)
 #define PWR_CUT_A_MSK		BIT(1)
@@ -62,7 +56,6 @@ enum pwrseq_cmd_delat_unit {
 struct wl_pwr_cfg {
 	u16 offset;
 	u8 cut_msk;
-	u8 interface_msk:4;
 	u8 base:4;
 	u8 cmd:4;
 	u8 msk;
@@ -71,13 +64,12 @@ struct wl_pwr_cfg {
 
 #define GET_PWR_CFG_OFFSET(__PWR_CMD)		__PWR_CMD.offset
 #define GET_PWR_CFG_CUT_MASK(__PWR_CMD)		__PWR_CMD.cut_msk
-#define GET_PWR_CFG_INTF_MASK(__PWR_CMD)	__PWR_CMD.interface_msk
 #define GET_PWR_CFG_BASE(__PWR_CMD)		__PWR_CMD.base
 #define GET_PWR_CFG_CMD(__PWR_CMD)		__PWR_CMD.cmd
 #define GET_PWR_CFG_MASK(__PWR_CMD)		__PWR_CMD.msk
 #define GET_PWR_CFG_VALUE(__PWR_CMD)		__PWR_CMD.value
 
 u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
-			    u8 ifacetype, struct wl_pwr_cfg pwrcfgCmd[]);
+			    struct wl_pwr_cfg pwrcfgCmd[]);
 
 #endif
