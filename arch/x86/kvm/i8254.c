@@ -676,10 +676,8 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 		return NULL;
 
 	pit->irq_source_id = kvm_request_irq_source_id(kvm);
-	if (pit->irq_source_id < 0) {
-		kfree(pit);
-		return NULL;
-	}
+	if (pit->irq_source_id < 0)
+		goto fail_request;
 
 	mutex_init(&pit->pit_state.lock);
 
@@ -690,11 +688,9 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	init_kthread_worker(&pit->worker);
 	pit->worker_task = kthread_run(kthread_worker_fn, &pit->worker,
 				       "kvm-pit/%d", pid_nr);
-	if (IS_ERR(pit->worker_task)) {
-		kvm_free_irq_source_id(kvm, pit->irq_source_id);
-		kfree(pit);
-		return NULL;
-	}
+	if (IS_ERR(pit->worker_task))
+		goto fail_kthread;
+
 	init_kthread_work(&pit->expired, pit_do_work);
 
 	pit->kvm = kvm;
@@ -715,7 +711,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, KVM_PIT_BASE_ADDRESS,
 				      KVM_PIT_MEM_LENGTH, &pit->dev);
 	if (ret < 0)
-		goto fail;
+		goto fail_register_pit;
 
 	if (flags & KVM_PIT_SPEAKER_DUMMY) {
 		kvm_iodevice_init(&pit->speaker_dev, &speaker_dev_ops);
@@ -723,18 +719,19 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 					      KVM_SPEAKER_BASE_ADDRESS, 4,
 					      &pit->speaker_dev);
 		if (ret < 0)
-			goto fail_unregister;
+			goto fail_register_speaker;
 	}
 
 	return pit;
 
-fail_unregister:
+fail_register_speaker:
 	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
-
-fail:
+fail_register_pit:
 	kvm_pit_set_reinject(pit, false);
-	kvm_free_irq_source_id(kvm, pit->irq_source_id);
 	kthread_stop(pit->worker_task);
+fail_kthread:
+	kvm_free_irq_source_id(kvm, pit->irq_source_id);
+fail_request:
 	kfree(pit);
 	return NULL;
 }
