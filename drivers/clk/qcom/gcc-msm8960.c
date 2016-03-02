@@ -2753,7 +2753,7 @@ static struct clk_rcg ce3_src = {
 	},
 	.freq_tbl = clk_tbl_ce3,
 	.clkr = {
-		.enable_reg = 0x2c08,
+		.enable_reg = 0x36c0,
 		.enable_mask = BIT(7),
 		.hw.init = &(struct clk_init_data){
 			.name = "ce3_src",
