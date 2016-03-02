@@ -162,18 +162,17 @@ kiblnd_concurrent_sends_v1(void)
 #define IBLND_FMR_POOL			256
 #define IBLND_FMR_POOL_FLUSH		192
 
-/* TX messages (shared by all connections) */
-#define IBLND_TX_MSGS()	    (*kiblnd_tunables.kib_ntx)
-
-/* RX messages (per connection) */
-#define IBLND_RX_MSGS(v)	    (IBLND_MSG_QUEUE_SIZE(v) * 2 + IBLND_OOB_MSGS(v))
-#define IBLND_RX_MSG_BYTES(v)       (IBLND_RX_MSGS(v) * IBLND_MSG_SIZE)
-#define IBLND_RX_MSG_PAGES(v)      ((IBLND_RX_MSG_BYTES(v) + PAGE_SIZE - 1) / PAGE_SIZE)
+#define IBLND_RX_MSGS(c)	\
+	((c->ibc_queue_depth) * 2 + IBLND_OOB_MSGS(c->ibc_version))
+#define IBLND_RX_MSG_BYTES(c)	(IBLND_RX_MSGS(c) * IBLND_MSG_SIZE)
+#define IBLND_RX_MSG_PAGES(c)	\
+	((IBLND_RX_MSG_BYTES(c) + PAGE_SIZE - 1) / PAGE_SIZE)
 
 /* WRs and CQEs (per connection) */
-#define IBLND_RECV_WRS(v)	    IBLND_RX_MSGS(v)
-#define IBLND_SEND_WRS(v)	  ((IBLND_RDMA_FRAGS(v) + 1) * IBLND_CONCURRENT_SENDS(v))
-#define IBLND_CQ_ENTRIES(v)	 (IBLND_RECV_WRS(v) + IBLND_SEND_WRS(v))
+#define IBLND_RECV_WRS(c)	IBLND_RX_MSGS(c)
+#define IBLND_SEND_WRS(c)	\
+	((c->ibc_max_frags + 1) * IBLND_CONCURRENT_SENDS(c->ibc_version))
+#define IBLND_CQ_ENTRIES(c)	(IBLND_RECV_WRS(c) + IBLND_SEND_WRS(c))
 
 struct kib_hca_dev;
 
@@ -464,10 +463,10 @@ typedef struct {
 #define IBLND_REJECT_FATAL          3 /* Anything else */
 #define IBLND_REJECT_CONN_UNCOMPAT  4 /* incompatible version peer */
 #define IBLND_REJECT_CONN_STALE     5 /* stale peer */
-#define IBLND_REJECT_RDMA_FRAGS     6 /* Fatal: peer's rdma frags can't match */
-				      /* mine */
-#define IBLND_REJECT_MSG_QUEUE_SIZE 7 /* Fatal: peer's msg queue size can't */
-				      /* match mine */
+/* peer's rdma frags doesn't match mine */
+#define IBLND_REJECT_RDMA_FRAGS	    6
+/* peer's msg queue size doesn't match mine */
+#define IBLND_REJECT_MSG_QUEUE_SIZE 7
 
 /***********************************************************************/
 
@@ -535,6 +534,10 @@ typedef struct kib_conn {
 	int                   ibc_outstanding_credits; /* # credits to return */
 	int                   ibc_reserved_credits; /* # ACK/DONE msg credits */
 	int                   ibc_comms_error; /* set on comms error */
+	/* connections queue depth */
+	__u16		      ibc_queue_depth;
+	/* connections max frags */
+	__u16		      ibc_max_frags;
 	unsigned int          ibc_nrx:16;      /* receive buffers owned */
 	unsigned int          ibc_scheduled:1; /* scheduled for attention */
 	unsigned int          ibc_ready:1;     /* CQ callback fired */
@@ -907,7 +910,8 @@ static inline unsigned int kiblnd_sg_dma_len(struct ib_device *dev,
 #define KIBLND_CONN_PARAM_LEN(e) ((e)->param.conn.private_data_len)
 
 struct ib_mr *kiblnd_find_rd_dma_mr(kib_hca_dev_t *hdev,
-				    kib_rdma_desc_t *rd);
+				    kib_rdma_desc_t *rd,
+				    int negotiated_nfrags);
 void kiblnd_map_rx_descs(kib_conn_t *conn);
 void kiblnd_unmap_rx_descs(kib_conn_t *conn);
 void kiblnd_pool_free_node(kib_pool_t *pool, struct list_head *node);
@@ -942,7 +946,7 @@ int  kiblnd_close_stale_conns_locked(kib_peer_t *peer,
 int  kiblnd_close_peer_conns_locked(kib_peer_t *peer, int why);
 
 kib_conn_t *kiblnd_create_conn(kib_peer_t *peer, struct rdma_cm_id *cmid,
-			       int state, int version);
+			       int state, int version, kib_connparams_t *cp);
 void kiblnd_destroy_conn(kib_conn_t *conn);
 void kiblnd_close_conn(kib_conn_t *conn, int error);
 void kiblnd_close_conn_locked(kib_conn_t *conn, int error);
