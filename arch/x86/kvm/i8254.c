@@ -215,10 +215,16 @@ static void pit_latch_status(struct kvm_pit *pit, int channel)
 	}
 }
 
+static inline struct kvm_pit *pit_state_to_pit(struct kvm_kpit_state *ps)
+{
+	return container_of(ps, struct kvm_pit, pit_state);
+}
+
 static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_kpit_state *ps = container_of(kian, struct kvm_kpit_state,
 						 irq_ack_notifier);
+	struct kvm_pit *pit = pit_state_to_pit(ps);
 
 	atomic_set(&ps->irq_ack, 1);
 	/* irq_ack should be set before pending is read.  Order accesses with
@@ -226,7 +232,7 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 	 */
 	smp_mb();
 	if (atomic_dec_if_positive(&ps->pending) > 0)
-		queue_kthread_work(&ps->pit->worker, &ps->pit->expired);
+		queue_kthread_work(&pit->worker, &pit->expired);
 }
 
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
@@ -281,7 +287,7 @@ static void pit_do_work(struct kthread_work *work)
 static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 {
 	struct kvm_kpit_state *ps = container_of(data, struct kvm_kpit_state, timer);
-	struct kvm_pit *pt = ps->kvm->arch.vpit;
+	struct kvm_pit *pt = pit_state_to_pit(ps);
 
 	if (ps->reinject)
 		atomic_inc(&ps->pending);
@@ -338,12 +344,11 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&ps->timer);
-	flush_kthread_work(&ps->pit->expired);
+	flush_kthread_work(&pit->expired);
 	ps->period = interval;
 	ps->is_periodic = is_period;
 
 	ps->timer.function = pit_timer_fn;
-	ps->kvm = pit->kvm;
 
 	kvm_pit_reset_reinject(pit);
 
@@ -696,7 +701,6 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit->kvm = kvm;
 
 	pit_state = &pit->pit_state;
-	pit_state->pit = pit;
 	hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 	pit_state->irq_ack_notifier.gsi = 0;
