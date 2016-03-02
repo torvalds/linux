@@ -804,6 +804,8 @@ ksocknal_select_ips(ksock_peer_t *peer, __u32 *peerips, int n_peerips)
 			ip = peer->ksnp_passive_ips[i];
 			best_iface = ksocknal_ip2iface(peer->ksnp_ni, ip);
 
+			/* peer passive ips are kept up to date */
+			LASSERT(best_iface);
 		} else {
 			/* choose a new interface */
 			LASSERT(i == peer->ksnp_n_passive_ips);
@@ -837,6 +839,8 @@ ksocknal_select_ips(ksock_peer_t *peer, __u32 *peerips, int n_peerips)
 				best_netmatch = this_netmatch;
 				best_npeers = iface->ksni_npeers;
 			}
+
+			LASSERT(best_iface);
 
 			best_iface->ksni_npeers++;
 			ip = best_iface->ksni_ipaddr;
