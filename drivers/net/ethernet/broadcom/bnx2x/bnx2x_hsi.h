@@ -5224,9 +5224,9 @@ struct vf_pf_event_data {
 struct vf_flr_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*
@@ -5235,9 +5235,9 @@ struct vf_flr_event_data {
 struct malicious_vf_event_data {
 	u8 vf_id;
 	u8 err_id;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*
