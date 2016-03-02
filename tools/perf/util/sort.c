@@ -2635,25 +2635,14 @@ out:
 	return ret;
 }
 
-int setup_sorting(struct perf_evlist *evlist)
+static void evlist__set_hists_nr_sort_keys(struct perf_evlist *evlist)
 {
-	int err;
-	struct hists *hists;
 	struct perf_evsel *evsel;
-	struct perf_hpp_fmt *fmt;
-
-	err = __setup_sorting(evlist);
-	if (err < 0)
-		return err;
-
-	if (parent_pattern != default_parent_pattern) {
-		err = sort_dimension__add("parent", evlist);
-		if (err < 0)
-			return err;
-	}
 
 	evlist__for_each(evlist, evsel) {
-		hists = evsel__hists(evsel);
+		struct perf_hpp_fmt *fmt;
+		struct hists *hists = evsel__hists(evsel);
+
 		hists->nr_sort_keys = perf_hpp_list.nr_sort_keys;
 
 		/*
@@ -2667,6 +2656,24 @@ int setup_sorting(struct perf_evlist *evlist)
 				hists->nr_sort_keys--;
 		}
 	}
+}
+
+int setup_sorting(struct perf_evlist *evlist)
+{
+	int err;
+
+	err = __setup_sorting(evlist);
+	if (err < 0)
+		return err;
+
+	if (parent_pattern != default_parent_pattern) {
+		err = sort_dimension__add("parent", evlist);
+		if (err < 0)
+			return err;
+	}
+
+	if (evlist != NULL)
+		evlist__set_hists_nr_sort_keys(evlist);
 
 	reset_dimensions();
 
