@@ -93,6 +93,7 @@ static struct reg_data rt8973a_reg_data[] = {
 static const unsigned int rt8973a_extcon_cable[] = {
 	EXTCON_USB,
 	EXTCON_USB_HOST,
+	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_JIG,
 	EXTCON_NONE,
@@ -398,6 +399,9 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 
 	/* Change the state of external accessory */
 	extcon_set_cable_state_(info->edev, id, attached);
+	if (id == EXTCON_USB)
+		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+					attached);
 
 	return 0;
 }
@@ -663,7 +667,7 @@ MODULE_DEVICE_TABLE(of, rt8973a_dt_match);
 #ifdef CONFIG_PM_SLEEP
 static int rt8973a_muic_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct rt8973a_muic_info *info = i2c_get_clientdata(i2c);
 
 	enable_irq_wake(info->irq);
@@ -673,7 +677,7 @@ static int rt8973a_muic_suspend(struct device *dev)
 
 static int rt8973a_muic_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct rt8973a_muic_info *info = i2c_get_clientdata(i2c);
 
 	disable_irq_wake(info->irq);
