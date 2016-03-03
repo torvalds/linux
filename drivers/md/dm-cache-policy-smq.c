@@ -1805,7 +1805,7 @@ static int __init smq_init(void)
 
 	r = dm_cache_policy_register(&mq_policy_type);
 	if (r) {
-		DMERR("register failed %d", r);
+		DMERR("register failed (as mq) %d", r);
 		dm_cache_policy_unregister(&smq_policy_type);
 		return -ENOMEM;
 	}
