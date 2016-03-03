@@ -35,6 +35,7 @@ ENTRY(entry)
 	 * for image_addr variable passed to efi_entry().
 	 */
 	stp	x29, x30, [sp, #-32]!
+	mov	x29, sp
 
 	/*
 	 * Call efi_entry to do the real work.
