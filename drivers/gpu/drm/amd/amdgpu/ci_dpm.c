@@ -5394,30 +5394,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 
 	ci_update_current_ps(adev, boot_ps);
 
-	if (adev->irq.installed &&
-	    amdgpu_is_internal_thermal_sensor(adev->pm.int_thermal_type)) {
-#if 0
-		PPSMC_Result result;
-#endif
-		ret = ci_thermal_set_temperature_range(adev, CISLANDS_TEMP_RANGE_MIN,
-						       CISLANDS_TEMP_RANGE_MAX);
-		if (ret) {
-			DRM_ERROR("ci_thermal_set_temperature_range failed\n");
-			return ret;
-		}
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
-
-#if 0
-		result = amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-#endif
-	}
-
 	return 0;
 }
 
