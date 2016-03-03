@@ -507,7 +507,8 @@ static void hsw_psr_disable(struct intel_dp *intel_dp)
 
 		/* Wait till PSR is idle */
 		if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL) &
-			       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
+			       EDP_PSR_STATUS_STATE_MASK) == 0,
+			       2 * USEC_PER_SEC, 10 * USEC_PER_MSEC))
 			DRM_ERROR("Timed out waiting for PSR Idle State\n");
 
 		dev_priv->psr.active = false;
