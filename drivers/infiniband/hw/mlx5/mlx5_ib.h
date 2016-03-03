@@ -468,15 +468,10 @@ struct mlx5_ib_mw {
 };
 
 struct mlx5_ib_umr_context {
+	struct ib_cqe		cqe;
 	enum ib_wc_status	status;
 	struct completion	done;
 };
-
-static inline void mlx5_ib_init_umr_context(struct mlx5_ib_umr_context *context)
-{
-	context->status = -1;
-	init_completion(&context->done);
-}
 
 struct umr_common {
 	struct ib_pd	*pd;
@@ -762,7 +757,6 @@ int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq);
 int mlx5_mr_cache_init(struct mlx5_ib_dev *dev);
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_mr_ib_cont_pages(struct ib_umem *umem, u64 addr, int *count, int *shift);
-void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context);
 int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
 

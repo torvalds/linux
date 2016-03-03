@@ -836,26 +836,20 @@ static struct ib_umem *mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 	return umem;
 }
 
-void mlx5_umr_cq_handler(struct ib_cq *cq, void *cq_context)
+static void mlx5_ib_umr_done(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct mlx5_ib_umr_context *context;
-	struct ib_wc wc;
-	int err;
+	struct mlx5_ib_umr_context *context =
+		container_of(wc->wr_cqe, struct mlx5_ib_umr_context, cqe);
 
-	while (1) {
-		err = ib_poll_cq(cq, 1, &wc);
-		if (err < 0) {
-			pr_warn("poll cq error %d\n", err);
-			return;
-		}
-		if (err == 0)
-			break;
+	context->status = wc->status;
+	complete(&context->done);
+}
 
-		context = (struct mlx5_ib_umr_context *) (unsigned long) wc.wr_id;
-		context->status = wc.status;
-		complete(&context->done);
-	}
-	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
+static inline void mlx5_ib_init_umr_context(struct mlx5_ib_umr_context *context)
+{
+	context->cqe.done = mlx5_ib_umr_done;
+	context->status = -1;
+	init_completion(&context->done);
 }
 
 static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
@@ -896,12 +890,13 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	if (err)
 		goto free_mr;
 
+	mlx5_ib_init_umr_context(&umr_context);
+
 	memset(&umrwr, 0, sizeof(umrwr));
-	umrwr.wr.wr_id = (u64)(unsigned long)&umr_context;
+	umrwr.wr.wr_cqe = &umr_context.cqe;
 	prep_umr_reg_wqe(pd, &umrwr.wr, &sg, dma, npages, mr->mmkey.key,
 			 page_shift, virt_addr, len, access_flags);
 
-	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
 	err = ib_post_send(umrc->qp, &umrwr.wr, &bad);
 	if (err) {
@@ -1013,8 +1008,10 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 
 		dma_sync_single_for_device(ddev, dma, size, DMA_TO_DEVICE);
 
+		mlx5_ib_init_umr_context(&umr_context);
+
 		memset(&wr, 0, sizeof(wr));
-		wr.wr.wr_id = (u64)(unsigned long)&umr_context;
+		wr.wr.wr_cqe = &umr_context.cqe;
 
 		sg.addr = dma;
 		sg.length = ALIGN(npages * sizeof(u64),
@@ -1031,7 +1028,6 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		wr.mkey = mr->mmkey.key;
 		wr.target.offset = start_page_index;
 
-		mlx5_ib_init_umr_context(&umr_context);
 		down(&umrc->sem);
 		err = ib_post_send(umrc->qp, &wr.wr, &bad);
 		if (err) {
@@ -1204,11 +1200,12 @@ static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	struct ib_send_wr *bad;
 	int err;
 
+	mlx5_ib_init_umr_context(&umr_context);
+
 	memset(&umrwr.wr, 0, sizeof(umrwr));
-	umrwr.wr.wr_id = (u64)(unsigned long)&umr_context;
+	umrwr.wr.wr_cqe = &umr_context.cqe;
 	prep_umr_unreg_wqe(dev, &umrwr.wr, mr->mmkey.key);
 
-	mlx5_ib_init_umr_context(&umr_context);
 	down(&umrc->sem);
 	err = ib_post_send(umrc->qp, &umrwr.wr, &bad);
 	if (err) {
@@ -1246,7 +1243,9 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 	int size;
 	int err;
 
-	umrwr.wr.wr_id = (u64)(unsigned long)&umr_context;
+	mlx5_ib_init_umr_context(&umr_context);
+
+	umrwr.wr.wr_cqe = &umr_context.cqe;
 	umrwr.wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE;
 
 	if (flags & IB_MR_REREG_TRANS) {
@@ -1272,8 +1271,6 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 		umrwr.access_flags = access_flags;
 		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_ACCESS;
 	}
-
-	mlx5_ib_init_umr_context(&umr_context);
 
 	/* post send request to UMR QP */
 	down(&umrc->sem);

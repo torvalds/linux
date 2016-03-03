@@ -1861,7 +1861,7 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 		mlx5_ib_warn(dev, "mr cache cleanup failed\n");
 
 	mlx5_ib_destroy_qp(dev->umrc.qp);
-	ib_destroy_cq(dev->umrc.cq);
+	ib_free_cq(dev->umrc.cq);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
@@ -1876,7 +1876,6 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	struct ib_pd *pd;
 	struct ib_cq *cq;
 	struct ib_qp *qp;
-	struct ib_cq_init_attr cq_attr = {};
 	int ret;
 
 	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -1893,15 +1892,12 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 		goto error_0;
 	}
 
-	cq_attr.cqe = 128;
-	cq = ib_create_cq(&dev->ib_dev, mlx5_umr_cq_handler, NULL, NULL,
-			  &cq_attr);
+	cq = ib_alloc_cq(&dev->ib_dev, NULL, 128, 0, IB_POLL_SOFTIRQ);
 	if (IS_ERR(cq)) {
 		mlx5_ib_dbg(dev, "Couldn't create CQ for sync UMR QP\n");
 		ret = PTR_ERR(cq);
 		goto error_2;
 	}
-	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 
 	init_attr->send_cq = cq;
 	init_attr->recv_cq = cq;
@@ -1968,7 +1964,7 @@ error_4:
 	mlx5_ib_destroy_qp(qp);
 
 error_3:
-	ib_destroy_cq(cq);
+	ib_free_cq(cq);
 
 error_2:
 	ib_dealloc_pd(pd);
