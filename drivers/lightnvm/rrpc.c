@@ -965,25 +965,11 @@ static void rrpc_requeue(struct work_struct *work)
 
 static void rrpc_gc_free(struct rrpc *rrpc)
 {
-	struct rrpc_lun *rlun;
-	int i;
-
 	if (rrpc->krqd_wq)
 		destroy_workqueue(rrpc->krqd_wq);
 
 	if (rrpc->kgc_wq)
 		destroy_workqueue(rrpc->kgc_wq);
-
-	if (!rrpc->luns)
-		return;
-
-	for (i = 0; i < rrpc->nr_luns; i++) {
-		rlun = &rrpc->luns[i];
-
-		if (!rlun->blocks)
-			break;
-		vfree(rlun->blocks);
-	}
 }
 
 static int rrpc_gc_init(struct rrpc *rrpc)
@@ -1143,6 +1129,23 @@ static void rrpc_core_free(struct rrpc *rrpc)
 
 static void rrpc_luns_free(struct rrpc *rrpc)
 {
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvm_lun *lun;
+	struct rrpc_lun *rlun;
+	int i;
+
+	if (!rrpc->luns)
+		return;
+
+	for (i = 0; i < rrpc->nr_luns; i++) {
+		rlun = &rrpc->luns[i];
+		lun = rlun->parent;
+		if (!lun)
+			break;
+		dev->mt->release_lun(dev, lun->id);
+		vfree(rlun->blocks);
+	}
+
 	kfree(rrpc->luns);
 }
 
@@ -1150,7 +1153,7 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 {
 	struct nvm_dev *dev = rrpc->dev;
 	struct rrpc_lun *rlun;
-	int i, j;
+	int i, j, ret = -EINVAL;
 
 	if (dev->sec_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
 		pr_err("rrpc: number of pages per block too high.");
@@ -1166,25 +1169,26 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 
 	/* 1:1 mapping */
 	for (i = 0; i < rrpc->nr_luns; i++) {
-		struct nvm_lun *lun = dev->mt->get_lun(dev, lun_begin + i);
+		int lunid = lun_begin + i;
+		struct nvm_lun *lun;
+
+		if (dev->mt->reserve_lun(dev, lunid)) {
+			pr_err("rrpc: lun %u is already allocated\n", lunid);
+			goto err;
+		}
+
+		lun = dev->mt->get_lun(dev, lunid);
+		if (!lun)
+			goto err;
 
 		rlun = &rrpc->luns[i];
-		rlun->rrpc = rrpc;
 		rlun->parent = lun;
-		INIT_LIST_HEAD(&rlun->prio_list);
-		INIT_LIST_HEAD(&rlun->open_list);
-		INIT_LIST_HEAD(&rlun->closed_list);
-
-		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
-		spin_lock_init(&rlun->lock);
-
-		rrpc->total_blocks += dev->blks_per_lun;
-		rrpc->nr_sects += dev->sec_per_lun;
-
 		rlun->blocks = vzalloc(sizeof(struct rrpc_block) *
 						rrpc->dev->blks_per_lun);
-		if (!rlun->blocks)
+		if (!rlun->blocks) {
+			ret = -ENOMEM;
 			goto err;
+		}
 
 		for (j = 0; j < rrpc->dev->blks_per_lun; j++) {
 			struct rrpc_block *rblk = &rlun->blocks[j];
@@ -1195,11 +1199,23 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 			INIT_LIST_HEAD(&rblk->prio);
 			spin_lock_init(&rblk->lock);
 		}
+
+		rlun->rrpc = rrpc;
+		INIT_LIST_HEAD(&rlun->prio_list);
+		INIT_LIST_HEAD(&rlun->open_list);
+		INIT_LIST_HEAD(&rlun->closed_list);
+
+		INIT_WORK(&rlun->ws_gc, rrpc_lun_gc);
+		spin_lock_init(&rlun->lock);
+
+		rrpc->total_blocks += dev->blks_per_lun;
+		rrpc->nr_sects += dev->sec_per_lun;
+
 	}
 
 	return 0;
 err:
-	return -ENOMEM;
+	return ret;
 }
 
 /* returns 0 on success and stores the beginning address in *begin */

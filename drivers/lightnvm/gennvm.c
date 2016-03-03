@@ -192,6 +192,9 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 		lun_id = div_u64(pba, dev->sec_per_lun);
 		lun = &gn->luns[lun_id];
 
+		if (!test_bit(lun_id, dev->lun_map))
+			__set_bit(lun_id, dev->lun_map);
+
 		/* Calculate block offset into lun */
 		pba = pba - (dev->sec_per_lun * lun_id);
 		blk = &lun->vlun.blocks[div_u64(pba, dev->sec_per_blk)];
@@ -482,9 +485,22 @@ static int gennvm_erase_blk(struct nvm_dev *dev, struct nvm_block *blk,
 	return nvm_erase_ppa(dev, &addr, 1);
 }
 
+static int gennvm_reserve_lun(struct nvm_dev *dev, int lunid)
+{
+	return test_and_set_bit(lunid, dev->lun_map);
+}
+
+static void gennvm_release_lun(struct nvm_dev *dev, int lunid)
+{
+	WARN_ON(!test_and_clear_bit(lunid, dev->lun_map));
+}
+
 static struct nvm_lun *gennvm_get_lun(struct nvm_dev *dev, int lunid)
 {
 	struct gen_nvm *gn = dev->mp;
+
+	if (unlikely(lunid >= dev->nr_luns))
+		return NULL;
 
 	return &gn->luns[lunid].vlun;
 }
@@ -527,6 +543,8 @@ static struct nvmm_type gennvm = {
 	.erase_blk		= gennvm_erase_blk,
 
 	.get_lun		= gennvm_get_lun,
+	.reserve_lun		= gennvm_reserve_lun,
+	.release_lun		= gennvm_release_lun,
 	.lun_info_print		= gennvm_lun_info_print,
 
 	.get_area		= gennvm_get_area,
