@@ -146,9 +146,7 @@ struct lpc32xx_udc {
 	u32			io_p_size;
 	void __iomem		*udp_baseaddr;
 	int			udp_irq[4];
-	struct clk		*usb_pll_clk;
 	struct clk		*usb_slv_clk;
-	struct clk		*usb_otg_clk;
 
 	/* DMA support */
 	u32			*udca_v_base;
@@ -966,21 +964,13 @@ static void udc_clk_set(struct lpc32xx_udc *udc, int enable)
 			return;
 
 		udc->clocked = 1;
-
-		/* 48MHz PLL up */
-		clk_prepare_enable(udc->usb_pll_clk);
-		clk_prepare_enable(udc->usb_otg_clk);
+		clk_prepare_enable(udc->usb_slv_clk);
 	} else {
 		if (!udc->clocked)
 			return;
 
 		udc->clocked = 0;
-
-		/* Never disable the USB_HCLK during normal operation */
-
-		/* 48MHz PLL dpwn */
-		clk_disable_unprepare(udc->usb_pll_clk);
-		clk_disable_unprepare(udc->usb_otg_clk);
+		clk_disable_unprepare(udc->usb_slv_clk);
 	}
 }
 
@@ -3101,37 +3091,12 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 		goto io_map_fail;
 	}
 
-	/* Get required clocks */
-	udc->usb_pll_clk = clk_get(&pdev->dev, "ck_pll5");
-	if (IS_ERR(udc->usb_pll_clk)) {
-		dev_err(udc->dev, "failed to acquire USB PLL\n");
-		retval = PTR_ERR(udc->usb_pll_clk);
-		goto pll_get_fail;
-	}
-	udc->usb_slv_clk = clk_get(&pdev->dev, "ck_usbd");
+	/* Get USB device clock */
+	udc->usb_slv_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc->usb_slv_clk)) {
 		dev_err(udc->dev, "failed to acquire USB device clock\n");
 		retval = PTR_ERR(udc->usb_slv_clk);
 		goto usb_clk_get_fail;
-	}
-	udc->usb_otg_clk = clk_get(&pdev->dev, "ck_usb_otg");
-	if (IS_ERR(udc->usb_otg_clk)) {
-		dev_err(udc->dev, "failed to acquire USB otg clock\n");
-		retval = PTR_ERR(udc->usb_otg_clk);
-		goto usb_otg_clk_get_fail;
-	}
-
-	/* Setup PLL clock to 48MHz */
-	retval = clk_prepare_enable(udc->usb_pll_clk);
-	if (retval < 0) {
-		dev_err(udc->dev, "failed to start USB PLL\n");
-		goto pll_enable_fail;
-	}
-
-	retval = clk_set_rate(udc->usb_pll_clk, 48000);
-	if (retval < 0) {
-		dev_err(udc->dev, "failed to set USB clock rate\n");
-		goto pll_set_fail;
 	}
 
 	/* Enable USB device clock */
@@ -3139,13 +3104,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 	if (retval < 0) {
 		dev_err(udc->dev, "failed to start USB device clock\n");
 		goto usb_clk_enable_fail;
-	}
-
-	/* Enable USB OTG clock */
-	retval = clk_prepare_enable(udc->usb_otg_clk);
-	if (retval < 0) {
-		dev_err(udc->dev, "failed to start USB otg clock\n");
-		goto usb_otg_clk_enable_fail;
 	}
 
 	/* Setup deferred workqueue data */
@@ -3258,19 +3216,10 @@ dma_alloc_fail:
 	dma_free_coherent(&pdev->dev, UDCA_BUFF_SIZE,
 			  udc->udca_v_base, udc->udca_p_base);
 i2c_fail:
-	clk_disable_unprepare(udc->usb_otg_clk);
-usb_otg_clk_enable_fail:
 	clk_disable_unprepare(udc->usb_slv_clk);
 usb_clk_enable_fail:
-pll_set_fail:
-	clk_disable_unprepare(udc->usb_pll_clk);
-pll_enable_fail:
-	clk_put(udc->usb_otg_clk);
-usb_otg_clk_get_fail:
 	clk_put(udc->usb_slv_clk);
 usb_clk_get_fail:
-	clk_put(udc->usb_pll_clk);
-pll_get_fail:
 	iounmap(udc->udp_baseaddr);
 io_map_fail:
 	release_mem_region(udc->io_p_start, udc->io_p_size);
@@ -3307,12 +3256,9 @@ static int lpc32xx_udc_remove(struct platform_device *pdev)
 	free_irq(udc->udp_irq[IRQ_USB_HP], udc);
 	free_irq(udc->udp_irq[IRQ_USB_LP], udc);
 
-	clk_disable_unprepare(udc->usb_otg_clk);
-	clk_put(udc->usb_otg_clk);
 	clk_disable_unprepare(udc->usb_slv_clk);
 	clk_put(udc->usb_slv_clk);
-	clk_disable_unprepare(udc->usb_pll_clk);
-	clk_put(udc->usb_pll_clk);
+
 	iounmap(udc->udp_baseaddr);
 	release_mem_region(udc->io_p_start, udc->io_p_size);
 	kfree(udc);
