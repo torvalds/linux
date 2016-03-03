@@ -393,24 +393,47 @@ static int mma8452_active(struct mma8452_data *data)
 					 data->ctrl_reg1);
 }
 
+/* returns >0 if active, 0 if in standby and <0 on error */
+static int mma8452_is_active(struct mma8452_data *data)
+{
+	int reg;
+
+	reg = i2c_smbus_read_byte_data(data->client, MMA8452_CTRL_REG1);
+	if (reg < 0)
+		return reg;
+
+	return reg & MMA8452_CTRL_ACTIVE;
+}
+
 static int mma8452_change_config(struct mma8452_data *data, u8 reg, u8 val)
 {
 	int ret;
+	int is_active;
 
 	mutex_lock(&data->lock);
 
-	/* config can only be changed when in standby */
-	ret = mma8452_standby(data);
-	if (ret < 0)
+	is_active = mma8452_is_active(data);
+	if (is_active < 0) {
+		ret = is_active;
 		goto fail;
+	}
+
+	/* config can only be changed when in standby */
+	if (is_active > 0) {
+		ret = mma8452_standby(data);
+		if (ret < 0)
+			goto fail;
+	}
 
 	ret = i2c_smbus_write_byte_data(data->client, reg, val);
 	if (ret < 0)
 		goto fail;
 
-	ret = mma8452_active(data);
-	if (ret < 0)
-		goto fail;
+	if (is_active > 0) {
+		ret = mma8452_active(data);
+		if (ret < 0)
+			goto fail;
+	}
 
 	ret = 0;
 fail:
