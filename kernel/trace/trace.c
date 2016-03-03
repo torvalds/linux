@@ -3872,6 +3872,7 @@ static const char readme_msg[] =
 	"\t            .sym-offset display an address as a symbol and offset\n"
 	"\t            .execname   display a common_pid as a program name\n"
 	"\t            .syscall    display a syscall id as a syscall name\n\n"
+	"\t            .log2       display log2 value rather than raw number\n\n"
 	"\t    The 'pause' parameter can be used to pause an existing hist\n"
 	"\t    trigger or to start a hist trigger but not log any events\n"
 	"\t    until told to do so.  'continue' can be used to start or\n"

@@ -68,6 +68,13 @@ static u64 hist_field_pstring(struct hist_field *hist_field, void *event)
 	return (u64)(unsigned long)*addr;
 }
 
+static u64 hist_field_log2(struct hist_field *hist_field, void *event)
+{
+	u64 val = *(u64 *)(event + hist_field->field->offset);
+
+	return (u64) ilog2(roundup_pow_of_two(val));
+}
+
 #define DEFINE_HIST_FIELD_FN(type)					\
 static u64 hist_field_##type(struct hist_field *hist_field, void *event)\
 {									\
@@ -111,6 +118,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_EXECNAME		= 64,
 	HIST_FIELD_FL_SYSCALL		= 128,
 	HIST_FIELD_FL_STACKTRACE	= 256,
+	HIST_FIELD_FL_LOG2		= 512,
 };
 
 struct hist_trigger_attrs {
@@ -358,6 +366,11 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 		goto out;
 	}
 
+	if (flags & HIST_FIELD_FL_LOG2) {
+		hist_field->fn = hist_field_log2;
+		goto out;
+	}
+
 	if (is_string_field(field)) {
 		flags |= HIST_FIELD_FL_STRING;
 
@@ -522,6 +535,8 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 				flags |= HIST_FIELD_FL_EXECNAME;
 			else if (strcmp(field_str, "syscall") == 0)
 				flags |= HIST_FIELD_FL_SYSCALL;
+			else if (strcmp(field_str, "log2") == 0)
+				flags |= HIST_FIELD_FL_LOG2;
 			else {
 				ret = -EINVAL;
 				goto out;
@@ -980,6 +995,9 @@ hist_trigger_entry_print(struct seq_file *m,
 						      key + key_field->offset,
 						      HIST_STACKTRACE_DEPTH);
 			multiline = true;
+		} else if (key_field->flags & HIST_FIELD_FL_LOG2) {
+			seq_printf(m, "%s: ~ 2^%-2llu", key_field->field->name,
+				   *(u64 *)(key + key_field->offset));
 		} else if (key_field->flags & HIST_FIELD_FL_STRING) {
 			seq_printf(m, "%s: %-50s", key_field->field->name,
 				   (char *)(key + key_field->offset));
@@ -1112,6 +1130,8 @@ static const char *get_hist_field_flags(struct hist_field *hist_field)
 		flags_str = "execname";
 	else if (hist_field->flags & HIST_FIELD_FL_SYSCALL)
 		flags_str = "syscall";
+	else if (hist_field->flags & HIST_FIELD_FL_LOG2)
+		flags_str = "log2";
 
 	return flags_str;
 }
