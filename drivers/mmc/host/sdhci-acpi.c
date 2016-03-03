@@ -264,6 +264,17 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.probe_slot	= sdhci_acpi_sd_probe_slot,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd_3v = {
+	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
+	.quirks2 = SDHCI_QUIRK2_NO_1_8_V,
+	.caps    = MMC_CAP_NONREMOVABLE,
+};
+
+static const struct sdhci_acpi_slot sdhci_acpi_slot_qcom_sd = {
+	.quirks  = SDHCI_QUIRK_BROKEN_CARD_DETECTION,
+	.caps    = MMC_CAP_NONREMOVABLE,
+};
+
 struct sdhci_acpi_uid_slot {
 	const char *hid;
 	const char *uid;
@@ -284,6 +295,8 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "INT344D"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0FFF"  , "3" , &sdhci_acpi_slot_int_sd   },
 	{ "PNP0D40"  },
+	{ "QCOM8051", NULL, &sdhci_acpi_slot_qcom_sd_3v },
+	{ "QCOM8052", NULL, &sdhci_acpi_slot_qcom_sd },
 	{ },
 };
 
@@ -298,6 +311,8 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 	{ "INT3436"  },
 	{ "INT344D"  },
 	{ "PNP0D40"  },
+	{ "QCOM8051" },
+	{ "QCOM8052" },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
