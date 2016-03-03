@@ -678,6 +678,9 @@ static void css_set_move_task(struct task_struct *task,
 {
 	lockdep_assert_held(&css_set_lock);
 
+	if (to_cset && !css_set_populated(to_cset))
+		css_set_update_populated(to_cset, true);
+
 	if (from_cset) {
 		struct css_task_iter *it, *pos;
 
@@ -711,8 +714,6 @@ static void css_set_move_task(struct task_struct *task,
 		 */
 		WARN_ON_ONCE(task->flags & PF_EXITING);
 
-		if (!css_set_populated(to_cset))
-			css_set_update_populated(to_cset, true);
 		rcu_assign_pointer(task->cgroups, to_cset);
 		list_add_tail(&task->cg_list, use_mg_tasks ? &to_cset->mg_tasks :
 							     &to_cset->tasks);
