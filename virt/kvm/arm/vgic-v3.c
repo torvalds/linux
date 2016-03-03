@@ -216,6 +216,11 @@ static const struct vgic_ops vgic_v3_ops = {
 
 static struct vgic_params vgic_v3_params;
 
+static void vgic_cpu_init_lrs(void *params)
+{
+	kvm_call_hyp(__vgic_v3_init_lrs);
+}
+
 /**
  * vgic_v3_probe - probe for a GICv3 compatible interrupt controller in DT
  * @node:	pointer to the DT node
@@ -283,6 +288,8 @@ int vgic_v3_probe(struct device_node *vgic_node,
 
 	kvm_info("%s@%llx IRQ%d\n", vgic_node->name,
 		 vcpu_res.start, vgic->maint_irq);
+
+	on_each_cpu(vgic_cpu_init_lrs, vgic, 1);
 
 	*ops = &vgic_v3_ops;
 	*params = vgic;

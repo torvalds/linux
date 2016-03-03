@@ -321,6 +321,15 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	}
 }
 
+void __hyp_text __vgic_v3_init_lrs(void)
+{
+	int max_lr_idx = vtr_to_max_lr_idx(read_gicreg(ICH_VTR_EL2));
+	int i;
+
+	for (i = 0; i <= max_lr_idx; i++)
+		__gic_v3_set_lr(0, i);
+}
+
 static u64 __hyp_text __vgic_v3_read_ich_vtr_el2(void)
 {
 	return read_gicreg(ICH_VTR_EL2);
