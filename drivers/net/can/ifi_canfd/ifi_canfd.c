@@ -136,7 +136,11 @@
 #define IFI_CANFD_RXFIFO_ID			0x6c
 #define IFI_CANFD_RXFIFO_ID_ID_OFFSET		0
 #define IFI_CANFD_RXFIFO_ID_ID_STD_MASK		CAN_SFF_MASK
+#define IFI_CANFD_RXFIFO_ID_ID_STD_OFFSET	0
+#define IFI_CANFD_RXFIFO_ID_ID_STD_WIDTH	10
 #define IFI_CANFD_RXFIFO_ID_ID_XTD_MASK		CAN_EFF_MASK
+#define IFI_CANFD_RXFIFO_ID_ID_XTD_OFFSET	11
+#define IFI_CANFD_RXFIFO_ID_ID_XTD_WIDTH	18
 #define IFI_CANFD_RXFIFO_ID_IDE			BIT(29)
 
 #define IFI_CANFD_RXFIFO_DATA			0x70	/* 0x70..0xac */
@@ -157,7 +161,11 @@
 #define IFI_CANFD_TXFIFO_ID			0xbc
 #define IFI_CANFD_TXFIFO_ID_ID_OFFSET		0
 #define IFI_CANFD_TXFIFO_ID_ID_STD_MASK		CAN_SFF_MASK
+#define IFI_CANFD_TXFIFO_ID_ID_STD_OFFSET	0
+#define IFI_CANFD_TXFIFO_ID_ID_STD_WIDTH	10
 #define IFI_CANFD_TXFIFO_ID_ID_XTD_MASK		CAN_EFF_MASK
+#define IFI_CANFD_TXFIFO_ID_ID_XTD_OFFSET	11
+#define IFI_CANFD_TXFIFO_ID_ID_XTD_WIDTH	18
 #define IFI_CANFD_TXFIFO_ID_IDE			BIT(29)
 
 #define IFI_CANFD_TXFIFO_DATA			0xc0	/* 0xb0..0xfc */
@@ -229,10 +237,20 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 
 	rxid = readl(priv->base + IFI_CANFD_RXFIFO_ID);
 	id = (rxid >> IFI_CANFD_RXFIFO_ID_ID_OFFSET);
-	if (id & IFI_CANFD_RXFIFO_ID_IDE)
+	if (id & IFI_CANFD_RXFIFO_ID_IDE) {
 		id &= IFI_CANFD_RXFIFO_ID_ID_XTD_MASK;
-	else
+		/*
+		 * In case the Extended ID frame is received, the standard
+		 * and extended part of the ID are swapped in the register,
+		 * so swap them back to obtain the correct ID.
+		 */
+		id = (id >> IFI_CANFD_RXFIFO_ID_ID_XTD_OFFSET) |
+		     ((id & IFI_CANFD_RXFIFO_ID_ID_STD_MASK) <<
+		       IFI_CANFD_RXFIFO_ID_ID_XTD_WIDTH);
+		id |= CAN_EFF_FLAG;
+	} else {
 		id &= IFI_CANFD_RXFIFO_ID_ID_STD_MASK;
+	}
 	cf->can_id = id;
 
 	if (rxdlc & IFI_CANFD_RXFIFO_DLC_ESI) {
@@ -767,6 +785,15 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 
 	if (cf->can_id & CAN_EFF_FLAG) {
 		txid = cf->can_id & CAN_EFF_MASK;
+		/*
+		 * In case the Extended ID frame is transmitted, the
+		 * standard and extended part of the ID are swapped
+		 * in the register, so swap them back to send the
+		 * correct ID.
+		 */
+		txid = (txid >> IFI_CANFD_TXFIFO_ID_ID_XTD_WIDTH) |
+		       ((txid & IFI_CANFD_TXFIFO_ID_ID_XTD_MASK) <<
+		         IFI_CANFD_TXFIFO_ID_ID_XTD_OFFSET);
 		txid |= IFI_CANFD_TXFIFO_ID_IDE;
 	} else {
 		txid = cf->can_id & CAN_SFF_MASK;
