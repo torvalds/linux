@@ -4945,20 +4945,6 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags))
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 
-	/* create the directory */
-	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
-	if (IS_ERR(kn)) {
-		ret = PTR_ERR(kn);
-		goto out_free_id;
-	}
-	cgrp->kn = kn;
-
-	/*
-	 * This extra ref will be put in cgroup_free_fn() and guarantees
-	 * that @cgrp->kn is always accessible.
-	 */
-	kernfs_get(kn);
-
 	cgrp->self.serial_nr = css_serial_nr_next++;
 
 	/* allocation complete, commit to creation */
@@ -4972,15 +4958,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	 */
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
-	ret = cgroup_kn_set_ugid(kn);
-	if (ret)
-		goto out_destroy;
-
-	ret = css_populate_dir(&cgrp->self, NULL);
-	if (ret)
-		goto out_destroy;
-
-	/* let's create and online css's */
+	/* create the csses */
 	do_each_subsys_mask(ss, ssid, parent->subtree_ss_mask) {
 		struct cgroup_subsys_state *css;
 
@@ -4988,12 +4966,6 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 		if (IS_ERR(css)) {
 			ret = PTR_ERR(css);
 			goto out_destroy;
-		}
-
-		if (parent->subtree_control & (1 << ssid)) {
-			ret = css_populate_dir(css, NULL);
-			if (ret)
-				goto out_destroy;
 		}
 	} while_each_subsys_mask();
 
@@ -5006,13 +4978,40 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 		cgroup_refresh_subtree_ss_mask(cgrp);
 	}
 
+	/* create the directory */
+	kn = kernfs_create_dir(parent->kn, name, mode, cgrp);
+	if (IS_ERR(kn)) {
+		ret = PTR_ERR(kn);
+		goto out_destroy;
+	}
+	cgrp->kn = kn;
+
+	/*
+	 * This extra ref will be put in cgroup_free_fn() and guarantees
+	 * that @cgrp->kn is always accessible.
+	 */
+	kernfs_get(kn);
+
+	ret = cgroup_kn_set_ugid(kn);
+	if (ret)
+		goto out_destroy;
+
+	ret = css_populate_dir(&cgrp->self, NULL);
+	if (ret)
+		goto out_destroy;
+
+	do_each_subsys_mask(ss, ssid, parent->subtree_control) {
+		ret = css_populate_dir(cgroup_css(cgrp, ss), NULL);
+		if (ret)
+			goto out_destroy;
+	} while_each_subsys_mask();
+
+	/* let's create and online css's */
 	kernfs_activate(kn);
 
 	ret = 0;
 	goto out_unlock;
 
-out_free_id:
-	cgroup_idr_remove(&root->cgroup_idr, cgrp->id);
 out_cancel_ref:
 	percpu_ref_exit(&cgrp->self.refcnt);
 out_free_cgrp:
