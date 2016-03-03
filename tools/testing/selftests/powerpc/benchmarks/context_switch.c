@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 #include <linux/futex.h>
-
+#ifdef __powerpc__
+#include <altivec.h>
+#endif
 #include "../utils.h"
 
 static unsigned int timeout = 30;
@@ -37,12 +39,15 @@ static int touch_fp = 1;
 double fp;
 
 static int touch_vector = 1;
-typedef int v4si __attribute__ ((vector_size (16)));
-v4si a, b, c;
+vector int a, b, c;
 
 #ifdef __powerpc__
 static int touch_altivec = 1;
 
+/*
+ * Note: LTO (Link Time Optimisation) doesn't play well with this function
+ * attribute. Be very careful enabling LTO for this test.
+ */
 static void __attribute__((__target__("no-vsx"))) altivec_touch_fn(void)
 {
 	c = a + b;

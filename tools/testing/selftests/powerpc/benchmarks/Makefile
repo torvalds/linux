@@ -7,6 +7,7 @@ all: $(TEST_PROGS)
 $(TEST_PROGS): ../harness.c
 
 context_switch: ../utils.c
+context_switch: CFLAGS += -maltivec -mvsx -mabi=altivec
 context_switch: LDLIBS += -lpthread
 
 include ../../lib.mk
