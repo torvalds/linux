@@ -1,6 +1,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <asm/apicdef.h>
+
 #include <linux/perf_event.h>
 #include "../perf_event.h"
 
