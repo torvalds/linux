@@ -86,7 +86,8 @@ drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
 	}
 }
 
-static int disable_conflicting_connectors(struct drm_atomic_state *state)
+static int handle_conflicting_encoders(struct drm_atomic_state *state,
+				       bool disable_conflicting_encoders)
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;
@@ -94,6 +95,11 @@ static int disable_conflicting_connectors(struct drm_atomic_state *state)
 	unsigned encoder_mask = 0;
 	int i, ret;
 
+	/*
+	 * First loop, find all newly assigned encoders from the connectors
+	 * part of the state. If the same encoder is assigned to multiple
+	 * connectors bail out.
+	 */
 	for_each_connector_in_state(state, connector, conn_state, i) {
 		const struct drm_connector_helper_funcs *funcs = connector->helper_private;
 		struct drm_encoder *new_encoder;
@@ -106,10 +112,33 @@ static int disable_conflicting_connectors(struct drm_atomic_state *state)
 		else
 			new_encoder = funcs->best_encoder(connector);
 
-		if (new_encoder)
+		if (new_encoder) {
+			if (encoder_mask & (1 << drm_encoder_index(new_encoder))) {
+				DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] on [CONNECTOR:%d:%s] already assigned\n",
+					new_encoder->base.id, new_encoder->name,
+					connector->base.id, connector->name);
+
+				return -EINVAL;
+			}
+
 			encoder_mask |= 1 << drm_encoder_index(new_encoder);
+		}
 	}
 
+	if (!encoder_mask)
+		return 0;
+
+	/*
+	 * Second loop, iterate over all connectors not part of the state.
+	 *
+	 * If a conflicting encoder is found and disable_conflicting_encoders
+	 * is not set, an error is returned. Userspace can provide a solution
+	 * through the atomic ioctl.
+	 *
+	 * If the flag is set conflicting connectors are removed from the crtc
+	 * and the crtc is disabled if no encoder is left. This preserves
+	 * compatibility with the legacy set_config behavior.
+	 */
 	drm_for_each_connector(connector, state->dev) {
 		struct drm_crtc_state *crtc_state;
 
@@ -119,6 +148,15 @@ static int disable_conflicting_connectors(struct drm_atomic_state *state)
 		encoder = connector->state->best_encoder;
 		if (!encoder || !(encoder_mask & (1 << drm_encoder_index(encoder))))
 			continue;
+
+		if (!disable_conflicting_encoders) {
+			DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] in use on [CRTC:%d:%s] by [CONNECTOR:%d:%s]\n",
+					 encoder->base.id, encoder->name,
+					 connector->state->crtc->base.id,
+					 connector->state->crtc->name,
+					 connector->base.id, connector->name);
+			return -EINVAL;
+		}
 
 		conn_state = drm_atomic_get_connector_state(state, connector);
 		if (IS_ERR(conn_state))
@@ -146,26 +184,6 @@ static int disable_conflicting_connectors(struct drm_atomic_state *state)
 	}
 
 	return 0;
-}
-
-static bool
-check_pending_encoder_assignment(struct drm_atomic_state *state,
-				 struct drm_encoder *new_encoder)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *conn_state;
-	int i;
-
-	for_each_connector_in_state(state, connector, conn_state, i) {
-		if (conn_state->best_encoder != new_encoder)
-			continue;
-
-		/* encoder already assigned and we're trying to re-steal it! */
-		if (connector->state->best_encoder != conn_state->best_encoder)
-			return false;
-	}
-
-	return true;
 }
 
 static void
@@ -323,13 +341,6 @@ update_connector_routing(struct drm_atomic_state *state,
 				 connector_state->crtc->name);
 
 		return 0;
-	}
-
-	if (!check_pending_encoder_assignment(state, new_encoder)) {
-		DRM_DEBUG_ATOMIC("Encoder for [CONNECTOR:%d:%s] already assigned\n",
-				 connector->base.id,
-				 connector->name);
-		return -EINVAL;
 	}
 
 	ret = steal_encoder(state, new_encoder);
@@ -510,11 +521,9 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		}
 	}
 
-	if (state->legacy_set_config) {
-		ret = disable_conflicting_connectors(state);
-		if (ret)
-			return ret;
-	}
+	ret = handle_conflicting_encoders(state, state->legacy_set_config);
+	if (ret)
+		return ret;
 
 	for_each_connector_in_state(state, connector, connector_state, i) {
 		/*
