@@ -140,7 +140,7 @@
 /* Version Register */
 #define AT91_SAMA5D2_VERSION	0xfc
 
-#define AT91_AT91_SAMA5D2_CHAN(num, addr)				\
+#define AT91_SAMA5D2_CHAN(num, addr)					\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.channel = num,						\
@@ -185,18 +185,18 @@ struct at91_adc_state {
 };
 
 static const struct iio_chan_spec at91_adc_channels[] = {
-	AT91_AT91_SAMA5D2_CHAN(0, 0x50),
-	AT91_AT91_SAMA5D2_CHAN(1, 0x54),
-	AT91_AT91_SAMA5D2_CHAN(2, 0x58),
-	AT91_AT91_SAMA5D2_CHAN(3, 0x5c),
-	AT91_AT91_SAMA5D2_CHAN(4, 0x60),
-	AT91_AT91_SAMA5D2_CHAN(5, 0x64),
-	AT91_AT91_SAMA5D2_CHAN(6, 0x68),
-	AT91_AT91_SAMA5D2_CHAN(7, 0x6c),
-	AT91_AT91_SAMA5D2_CHAN(8, 0x70),
-	AT91_AT91_SAMA5D2_CHAN(9, 0x74),
-	AT91_AT91_SAMA5D2_CHAN(10, 0x78),
-	AT91_AT91_SAMA5D2_CHAN(11, 0x7c),
+	AT91_SAMA5D2_CHAN(0, 0x50),
+	AT91_SAMA5D2_CHAN(1, 0x54),
+	AT91_SAMA5D2_CHAN(2, 0x58),
+	AT91_SAMA5D2_CHAN(3, 0x5c),
+	AT91_SAMA5D2_CHAN(4, 0x60),
+	AT91_SAMA5D2_CHAN(5, 0x64),
+	AT91_SAMA5D2_CHAN(6, 0x68),
+	AT91_SAMA5D2_CHAN(7, 0x6c),
+	AT91_SAMA5D2_CHAN(8, 0x70),
+	AT91_SAMA5D2_CHAN(9, 0x74),
+	AT91_SAMA5D2_CHAN(10, 0x78),
+	AT91_SAMA5D2_CHAN(11, 0x7c),
 };
 
 static unsigned at91_adc_startup_time(unsigned startup_time_min,
