@@ -548,11 +548,15 @@
 		assigned-clocks =
 			<&cru PLL_CPLL>, <&cru PLL_GPLL>,
 			<&cru PLL_NPLL>, <&cru PLL_MPLL>,
-			<&cru PLL_WPLL>, <&cru PLL_BPLL>;
+			<&cru PLL_WPLL>, <&cru PLL_BPLL>,
+			<&cru ACLK_VOP_FULL>, <&cru ACLK_VOP_LITE>,
+			<&cru HCLK_VOP_LITE>,<&cru HCLK_VOP_LITE>;
 		assigned-clock-rates =
 			<750000000>, <576000000>,
 			<594000000>, <594000000>,
-			<480000000>, <520000000>;
+			<480000000>, <520000000>,
+			<375000000>, <288000000>,
+			<100000000>, <100000000>;
 	};
 
 	grf: syscon@ff770000 {
