@@ -564,6 +564,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_KEEP);
 	if (bus) {
+		eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 		pci_lock_rescan_remove();
 		pcibios_remove_pci_devices(bus);
 		pci_unlock_rescan_remove();
@@ -803,6 +804,7 @@ perm_error:
 	 * the their PCI config any more.
 	 */
 	if (frozen_bus) {
+		eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
 		pci_lock_rescan_remove();
@@ -886,6 +888,7 @@ static void eeh_handle_special_event(void)
 					continue;
 
 				/* Notify all devices to be down */
+				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
 				bus = eeh_pe_bus_get(phb_pe);
 				eeh_pe_dev_traverse(pe,
 					eeh_report_failure, NULL);

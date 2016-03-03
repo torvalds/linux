@@ -1257,6 +1257,15 @@ int find_free_dev_extent_start(struct btrfs_transaction *transaction,
 	int ret;
 	int slot;
 	struct extent_buffer *l;
+	u64 min_search_start;
+
+	/*
+	 * We don't want to overwrite the superblock on the drive nor any area
+	 * used by the boot loader (grub for example), so we make sure to start
+	 * at an offset of at least 1MB.
+	 */
+	min_search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
+	search_start = max(search_start, min_search_start);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1397,18 +1406,9 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *len)
 {
-	struct btrfs_root *root = device->dev_root;
-	u64 search_start;
-
 	/* FIXME use last free of some kind */
-
-	/*
-	 * we don't want to overwrite the superblock on the drive,
-	 * so we make sure to start at an offset of at least 1MB
-	 */
-	search_start = max(root->fs_info->alloc_start, 1024ull * 1024);
 	return find_free_dev_extent_start(trans->transaction, device,
-					  num_bytes, search_start, start, len);
+					  num_bytes, 0, start, len);
 }
 
 static int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
@@ -6512,6 +6512,14 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 				goto out_short_read;
 
 			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
+			if (!num_stripes) {
+				printk(KERN_ERR
+	    "BTRFS: invalid number of stripes %u in sys_array at offset %u\n",
+					num_stripes, cur_offset);
+				ret = -EIO;
+				break;
+			}
+
 			len = btrfs_chunk_item_size(num_stripes);
 			if (cur_offset + len > array_size)
 				goto out_short_read;

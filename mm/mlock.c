@@ -172,7 +172,7 @@ static void __munlock_isolation_failed(struct page *page)
  */
 unsigned int munlock_vma_page(struct page *page)
 {
-	unsigned int nr_pages;
+	int nr_pages;
 	struct zone *zone = page_zone(page);
 
 	/* For try_to_munlock() and to serialize with page migration */
