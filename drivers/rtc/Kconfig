@@ -140,7 +140,6 @@ config RTC_DRV_TEST
 	  will be called rtc-test.
 
 comment "I2C RTC drivers"
-	depends on I2C
 
 if I2C
 
