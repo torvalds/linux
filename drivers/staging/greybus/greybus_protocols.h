@@ -495,22 +495,15 @@ struct gb_hid_input_report_request {
 
 /* Greybus i2c request types */
 #define GB_I2C_TYPE_FUNCTIONALITY	0x02
-#define GB_I2C_TYPE_TIMEOUT		0x03
 #define GB_I2C_TYPE_RETRIES		0x04
 #define GB_I2C_TYPE_TRANSFER		0x05
 
 #define GB_I2C_RETRIES_DEFAULT		3
-#define GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
 
 /* functionality request has no payload */
 struct gb_i2c_functionality_response {
 	__le32	functionality;
 } __packed;
-
-struct gb_i2c_timeout_request {
-	__le16	msec;
-} __packed;
-/* timeout response has no payload */
 
 struct gb_i2c_retries_request {
 	__u8	retries;
