@@ -178,6 +178,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		ring->current_ctx = ctx;
 	}
 
+	if (vm) {
+		if (ring->funcs->emit_hdp_invalidate)
+			amdgpu_ring_emit_hdp_invalidate(ring);
+	}
+
 	r = amdgpu_fence_emit(ring, owner, &ib->fence);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);

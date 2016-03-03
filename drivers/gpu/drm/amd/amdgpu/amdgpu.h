@@ -329,6 +329,7 @@ struct amdgpu_ring_funcs {
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
+	void (*emit_hdp_invalidate)(struct amdgpu_ring *ring);
 	void (*emit_gds_switch)(struct amdgpu_ring *ring, uint32_t vmid,
 				uint32_t gds_base, uint32_t gds_size,
 				uint32_t gws_base, uint32_t gws_size,
@@ -2230,6 +2231,7 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
+#define amdgpu_ring_emit_hdp_invalidate(r) (r)->funcs->emit_hdp_invalidate((r))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
