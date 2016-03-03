@@ -18,7 +18,6 @@ struct gb_i2c_device {
 	struct gb_connection	*connection;
 
 	u32			functionality;
-	u8			retries;
 
 	struct i2c_adapter	adapter;
 };
@@ -48,25 +47,6 @@ static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
 
 	return 0;
 }
-
-static int gb_i2c_retries_operation(struct gb_i2c_device *gb_i2c_dev,
-				u8 retries)
-{
-	struct device *dev = &gb_i2c_dev->connection->bundle->dev;
-	struct gb_i2c_retries_request request;
-	int ret;
-
-	request.retries = retries;
-	ret = gb_operation_sync(gb_i2c_dev->connection, GB_I2C_TYPE_RETRIES,
-				&request, sizeof(request), NULL, 0);
-	if (ret)
-		dev_err(dev, "retries operation failed (%d)\n", ret);
-	else
-		gb_i2c_dev->retries = retries;
-
-	return ret;
-}
-
 
 /*
  * Map Linux i2c_msg flags into Greybus i2c transfer op flags.
@@ -249,22 +229,14 @@ static const struct i2c_algorithm gb_i2c_algorithm = {
 /*
  * Do initial setup of the i2c device.  This includes verifying we
  * can support it (based on the protocol version it advertises).
- * If that's OK, we get and cached its functionality bits and
- * set up the retry count.
+ * If that's OK, we get and cached its functionality bits.
  *
  * Note: gb_i2c_dev->connection is assumed to have been valid.
  */
 static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 {
-	int ret;
-
 	/* Assume the functionality never changes, just get it once */
-	ret = gb_i2c_functionality_operation(gb_i2c_dev);
-	if (ret)
-		return ret;
-
-	/* Set up our default retry count */
-	return gb_i2c_retries_operation(gb_i2c_dev, GB_I2C_RETRIES_DEFAULT);
+	return gb_i2c_functionality_operation(gb_i2c_dev);
 }
 
 static int gb_i2c_connection_init(struct gb_connection *connection)
@@ -290,7 +262,6 @@ static int gb_i2c_connection_init(struct gb_connection *connection)
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &gb_i2c_algorithm;
 	/* adapter->algo_data = what? */
-	adapter->retries = gb_i2c_dev->retries;
 
 	adapter->dev.parent = &connection->bundle->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
