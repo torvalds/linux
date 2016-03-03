@@ -1976,7 +1976,7 @@ static void dce_v10_0_afmt_enable(struct drm_encoder *encoder, bool enable)
 		  enable ? "En" : "Dis", dig->afmt->offset, amdgpu_encoder->encoder_id);
 }
 
-static void dce_v10_0_afmt_init(struct amdgpu_device *adev)
+static int dce_v10_0_afmt_init(struct amdgpu_device *adev)
 {
 	int i;
 
@@ -1989,8 +1989,16 @@ static void dce_v10_0_afmt_init(struct amdgpu_device *adev)
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
+		} else {
+			int j;
+			for (j = 0; j < i; j++) {
+				kfree(adev->mode_info.afmt[j]);
+				adev->mode_info.afmt[j] = NULL;
+			}
+			return -ENOMEM;
 		}
 	}
+	return 0;
 }
 
 static void dce_v10_0_afmt_fini(struct amdgpu_device *adev)
@@ -3013,7 +3021,9 @@ static int dce_v10_0_sw_init(void *handle)
 		return -EINVAL;
 
 	/* setup afmt */
-	dce_v10_0_afmt_init(adev);
+	r = dce_v10_0_afmt_init(adev);
+	if (r)
+		return r;
 
 	r = dce_v10_0_audio_init(adev);
 	if (r)
