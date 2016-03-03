@@ -1393,3 +1393,118 @@ __init int register_trigger_hist_cmd(void)
 
 	return ret;
 }
+
+static void
+hist_enable_trigger(struct event_trigger_data *data, void *rec)
+{
+	struct enable_trigger_data *enable_data = data->private_data;
+	struct event_trigger_data *test;
+
+	list_for_each_entry_rcu(test, &enable_data->file->triggers, list) {
+		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
+			if (enable_data->enable)
+				test->paused = false;
+			else
+				test->paused = true;
+			break;
+		}
+	}
+}
+
+static void
+hist_enable_count_trigger(struct event_trigger_data *data, void *rec)
+{
+	if (!data->count)
+		return;
+
+	if (data->count != -1)
+		(data->count)--;
+
+	hist_enable_trigger(data, rec);
+}
+
+static struct event_trigger_ops hist_enable_trigger_ops = {
+	.func			= hist_enable_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops hist_enable_count_trigger_ops = {
+	.func			= hist_enable_count_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops hist_disable_trigger_ops = {
+	.func			= hist_enable_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops hist_disable_count_trigger_ops = {
+	.func			= hist_enable_count_trigger,
+	.print			= event_enable_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_enable_trigger_free,
+};
+
+static struct event_trigger_ops *
+hist_enable_get_trigger_ops(char *cmd, char *param)
+{
+	struct event_trigger_ops *ops;
+	bool enable;
+
+	enable = (strcmp(cmd, ENABLE_HIST_STR) == 0);
+
+	if (enable)
+		ops = param ? &hist_enable_count_trigger_ops :
+			&hist_enable_trigger_ops;
+	else
+		ops = param ? &hist_disable_count_trigger_ops :
+			&hist_disable_trigger_ops;
+
+	return ops;
+}
+
+static struct event_command trigger_hist_enable_cmd = {
+	.name			= ENABLE_HIST_STR,
+	.trigger_type		= ETT_HIST_ENABLE,
+	.func			= event_enable_trigger_func,
+	.reg			= event_enable_register_trigger,
+	.unreg			= event_enable_unregister_trigger,
+	.get_trigger_ops	= hist_enable_get_trigger_ops,
+	.set_filter		= set_trigger_filter,
+};
+
+static struct event_command trigger_hist_disable_cmd = {
+	.name			= DISABLE_HIST_STR,
+	.trigger_type		= ETT_HIST_ENABLE,
+	.func			= event_enable_trigger_func,
+	.reg			= event_enable_register_trigger,
+	.unreg			= event_enable_unregister_trigger,
+	.get_trigger_ops	= hist_enable_get_trigger_ops,
+	.set_filter		= set_trigger_filter,
+};
+
+static __init void unregister_trigger_hist_enable_disable_cmds(void)
+{
+	unregister_event_command(&trigger_hist_enable_cmd);
+	unregister_event_command(&trigger_hist_disable_cmd);
+}
+
+__init int register_trigger_hist_enable_disable_cmds(void)
+{
+	int ret;
+
+	ret = register_event_command(&trigger_hist_enable_cmd);
+	if (WARN_ON(ret < 0))
+		return ret;
+	ret = register_event_command(&trigger_hist_disable_cmd);
+	if (WARN_ON(ret < 0))
+		unregister_trigger_hist_enable_disable_cmds();
+
+	return ret;
+}

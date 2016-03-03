@@ -408,6 +408,7 @@ enum event_trigger_type {
 	ETT_STACKTRACE		= (1 << 2),
 	ETT_EVENT_ENABLE	= (1 << 3),
 	ETT_EVENT_HIST		= (1 << 4),
+	ETT_HIST_ENABLE		= (1 << 5),
 };
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);

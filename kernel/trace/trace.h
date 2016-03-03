@@ -1166,8 +1166,10 @@ extern const struct file_operations event_hist_fops;
 
 #ifdef CONFIG_HIST_TRIGGERS
 extern int register_trigger_hist_cmd(void);
+extern int register_trigger_hist_enable_disable_cmds(void);
 #else
 static inline int register_trigger_hist_cmd(void) { return 0; }
+static inline int register_trigger_hist_enable_disable_cmds(void) { return 0; }
 #endif
 
 extern int register_trigger_cmds(void);
@@ -1185,6 +1187,34 @@ struct event_trigger_data {
 	struct list_head		list;
 };
 
+/* Avoid typos */
+#define ENABLE_EVENT_STR	"enable_event"
+#define DISABLE_EVENT_STR	"disable_event"
+#define ENABLE_HIST_STR		"enable_hist"
+#define DISABLE_HIST_STR	"disable_hist"
+
+struct enable_trigger_data {
+	struct trace_event_file		*file;
+	bool				enable;
+	bool				hist;
+};
+
+extern int event_enable_trigger_print(struct seq_file *m,
+				      struct event_trigger_ops *ops,
+				      struct event_trigger_data *data);
+extern void event_enable_trigger_free(struct event_trigger_ops *ops,
+				      struct event_trigger_data *data);
+extern int event_enable_trigger_func(struct event_command *cmd_ops,
+				     struct trace_event_file *file,
+				     char *glob, char *cmd, char *param);
+extern int event_enable_register_trigger(char *glob,
+					 struct event_trigger_ops *ops,
+					 struct event_trigger_data *data,
+					 struct trace_event_file *file);
+extern void event_enable_unregister_trigger(char *glob,
+					    struct event_trigger_ops *ops,
+					    struct event_trigger_data *test,
+					    struct trace_event_file *file);
 extern void trigger_data_free(struct event_trigger_data *data);
 extern int event_trigger_init(struct event_trigger_ops *ops,
 			      struct event_trigger_data *data);
@@ -1198,6 +1228,8 @@ extern int set_trigger_filter(char *filter_str,
 			      struct event_trigger_data *trigger_data,
 			      struct trace_event_file *file);
 extern int register_event_command(struct event_command *cmd);
+extern int unregister_event_command(struct event_command *cmd);
+extern int register_trigger_hist_enable_disable_cmds(void);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers

@@ -3807,6 +3807,10 @@ static const char readme_msg[] =
 	"\t   trigger: traceon, traceoff\n"
 	"\t            enable_event:<system>:<event>\n"
 	"\t            disable_event:<system>:<event>\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t            enable_hist:<system>:<event>\n"
+	"\t            disable_hist:<system>:<event>\n"
+#endif
 #ifdef CONFIG_STACKTRACE
 	"\t\t    stacktrace\n"
 #endif
@@ -3867,6 +3871,10 @@ static const char readme_msg[] =
 	"\t    The 'clear' parameter will clear the contents of a running\n"
 	"\t    hist trigger and leave its current paused/active state\n"
 	"\t    unchanged.\n\n"
+	"\t    The enable_hist and disable_hist triggers can be used to\n"
+	"\t    have one event conditionally start and stop another event's\n"
+	"\t    already-attached hist trigger.  The syntax is analagous to\n"
+	"\t    the enable_event and disable_event triggers.\n"
 #endif
 ;
 
