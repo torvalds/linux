@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 struct vsp1_device;
+struct vsp1_dl_fragment;
 struct vsp1_dl_list;
 struct vsp1_dl_manager;
 
@@ -33,5 +34,12 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm);
 void vsp1_dl_list_put(struct vsp1_dl_list *dl);
 void vsp1_dl_list_write(struct vsp1_dl_list *dl, u32 reg, u32 data);
 void vsp1_dl_list_commit(struct vsp1_dl_list *dl);
+
+struct vsp1_dl_body *vsp1_dl_fragment_alloc(struct vsp1_device *vsp1,
+					    unsigned int num_entries);
+void vsp1_dl_fragment_free(struct vsp1_dl_body *dlb);
+void vsp1_dl_fragment_write(struct vsp1_dl_body *dlb, u32 reg, u32 data);
+int vsp1_dl_list_add_fragment(struct vsp1_dl_list *dl,
+			      struct vsp1_dl_body *dlb);
 
 #endif /* __VSP1_DL_H__ */
