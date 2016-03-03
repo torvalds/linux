@@ -42,7 +42,6 @@
    --RR.  */
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
-#define R2_STACK_OFFSET 24
 
 /* An address is simply the address of the function. */
 typedef unsigned long func_desc_t;
@@ -74,7 +73,6 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 	return PPC64_LOCAL_ENTRY_OFFSET(sym->st_other);
 }
 #else
-#define R2_STACK_OFFSET 40
 
 /* An address is address of the OPD entry, which contains address of fn. */
 typedef struct ppc64_opd_entry func_desc_t;
@@ -451,17 +449,60 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 	return (unsigned long)&stubs[i];
 }
 
+#ifdef CC_USING_MPROFILE_KERNEL
+static bool is_early_mcount_callsite(u32 *instruction)
+{
+	/*
+	 * Check if this is one of the -mprofile-kernel sequences.
+	 */
+	if (instruction[-1] == PPC_INST_STD_LR &&
+	    instruction[-2] == PPC_INST_MFLR)
+		return true;
+
+	if (instruction[-1] == PPC_INST_MFLR)
+		return true;
+
+	return false;
+}
+
+/*
+ * In case of _mcount calls, do not save the current callee's TOC (in r2) into
+ * the original caller's stack frame. If we did we would clobber the saved TOC
+ * value of the original caller.
+ */
+static void squash_toc_save_inst(const char *name, unsigned long addr)
+{
+	struct ppc64_stub_entry *stub = (struct ppc64_stub_entry *)addr;
+
+	/* Only for calls to _mcount */
+	if (strcmp("_mcount", name) != 0)
+		return;
+
+	stub->jump[2] = PPC_INST_NOP;
+}
+#else
+static void squash_toc_save_inst(const char *name, unsigned long addr) { }
+
+/* without -mprofile-kernel, mcount calls are never early */
+static bool is_early_mcount_callsite(u32 *instruction)
+{
+	return false;
+}
+#endif
+
 /* We expect a noop next: if it is, replace it with instruction to
    restore r2. */
 static int restore_r2(u32 *instruction, struct module *me)
 {
 	if (*instruction != PPC_INST_NOP) {
+		if (is_early_mcount_callsite(instruction - 1))
+			return 1;
 		pr_err("%s: Expect noop after relocate, got %08x\n",
 		       me->name, *instruction);
 		return 0;
 	}
 	/* ld r2,R2_STACK_OFFSET(r1) */
-	*instruction = 0xe8410000 | R2_STACK_OFFSET;
+	*instruction = PPC_INST_LD_TOC;
 	return 1;
 }
 
@@ -586,6 +627,8 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 					return -ENOENT;
 				if (!restore_r2((u32 *)location + 1, me))
 					return -ENOEXEC;
+
+				squash_toc_save_inst(strtab + sym->st_name, value);
 			} else
 				value += local_entry_offset(sym);
 
