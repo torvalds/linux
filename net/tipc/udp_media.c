@@ -310,9 +310,14 @@ err:
 
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if ((sa_local.ss_family & sa_remote.ss_family) == AF_INET6) {
+		int atype;
 		struct sockaddr_in6 *ip6;
 
 		ip6 = (struct sockaddr_in6 *)&sa_local;
+		atype = ipv6_addr_type(&ip6->sin6_addr);
+		if (__ipv6_addr_needs_scope_id(atype) && !ip6->sin6_scope_id)
+			return -EINVAL;
+
 		local->proto = htons(ETH_P_IPV6);
 		local->udp_port = ip6->sin6_port;
 		memcpy(&local->ipv6, &ip6->sin6_addr, sizeof(struct in6_addr));
