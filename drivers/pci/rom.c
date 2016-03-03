@@ -128,12 +128,6 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	loff_t start;
 	void __iomem *rom;
 
-	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY)) {
-		*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-		return (void __iomem *)(unsigned long)
-			pci_resource_start(pdev, PCI_ROM_RESOURCE);
-	}
-
 	/* assign the ROM an address if it doesn't have one */
 	if (res->parent == NULL && pci_assign_resource(pdev, PCI_ROM_RESOURCE))
 		return NULL;
@@ -150,8 +144,7 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	rom = ioremap(start, *size);
 	if (!rom) {
 		/* restore enable if ioremap fails */
-		if (!(res->flags & (IORESOURCE_ROM_ENABLE |
-				    IORESOURCE_ROM_COPY)))
+		if (!(res->flags & IORESOURCE_ROM_ENABLE))
 			pci_disable_rom(pdev);
 		return NULL;
 	}
@@ -177,9 +170,6 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 
-	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY))
-		return;
-
 	iounmap(rom);
 
 	/* Disable again before continuing */
@@ -187,25 +177,6 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 		pci_disable_rom(pdev);
 }
 EXPORT_SYMBOL(pci_unmap_rom);
-
-/**
- * pci_cleanup_rom - free the ROM copy created by pci_map_rom_copy
- * @pdev: pointer to pci device struct
- *
- * Free the copied ROM if we allocated one.
- */
-void pci_cleanup_rom(struct pci_dev *pdev)
-{
-	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
-
-	if (res->flags & IORESOURCE_ROM_COPY) {
-		kfree((void *)(unsigned long)res->start);
-		res->flags |= IORESOURCE_UNSET;
-		res->flags &= ~IORESOURCE_ROM_COPY;
-		res->start = 0;
-		res->end = 0;
-	}
-}
 
 /**
  * pci_platform_rom - provides a pointer to any ROM image provided by the
