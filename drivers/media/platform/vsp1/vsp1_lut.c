@@ -38,10 +38,25 @@ static inline void vsp1_lut_write(struct vsp1_lut *lut, struct vsp1_dl_list *dl,
  * V4L2 Subdevice Core Operations
  */
 
-static void lut_set_table(struct vsp1_lut *lut, struct vsp1_lut_config *config)
+static int lut_set_table(struct vsp1_lut *lut, struct vsp1_lut_config *config)
 {
-	memcpy_toio(lut->entity.vsp1->mmio + VI6_LUT_TABLE, config->lut,
-		    sizeof(config->lut));
+	struct vsp1_dl_body *dlb;
+	unsigned int i;
+
+	dlb = vsp1_dl_fragment_alloc(lut->entity.vsp1, ARRAY_SIZE(config->lut));
+	if (!dlb)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(config->lut); ++i)
+		vsp1_dl_fragment_write(dlb, VI6_LUT_TABLE + 4 * i,
+				       config->lut[i]);
+
+	mutex_lock(&lut->lock);
+	swap(lut->lut, dlb);
+	mutex_unlock(&lut->lock);
+
+	vsp1_dl_fragment_free(dlb);
+	return 0;
 }
 
 static long lut_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
@@ -50,8 +65,7 @@ static long lut_ioctl(struct v4l2_subdev *subdev, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_VSP1_LUT_CONFIG:
-		lut_set_table(lut, arg);
-		return 0;
+		return lut_set_table(lut, arg);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -161,6 +175,13 @@ static void lut_configure(struct vsp1_entity *entity,
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
 
 	vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
+
+	mutex_lock(&lut->lock);
+	if (lut->lut) {
+		vsp1_dl_list_add_fragment(dl, lut->lut);
+		lut->lut = NULL;
+	}
+	mutex_unlock(&lut->lock);
 }
 
 static const struct vsp1_entity_operations lut_entity_ops = {
