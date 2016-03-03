@@ -123,7 +123,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev);
  * v4l_enable_media_source() -	Hold media source for exclusive use
  *				if free
  *
- * @vdev - poniter to struct video_device
+ * @vdev:	pointer to struct video_device
  *
  * This interface calls enable_source handler to determine if
  * media source is free for use. The enable_source handler is
@@ -140,7 +140,7 @@ int v4l_enable_media_source(struct video_device *vdev);
 /**
  * v4l_disable_media_source() -	Release media source
  *
- * @vdev - poniter to struct video_device
+ * @vdev:	pointer to struct video_device
  *
  * This interface calls disable_source handler to release
  * the media source. The disable_source handler stops the
