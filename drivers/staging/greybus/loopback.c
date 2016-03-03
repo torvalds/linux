@@ -516,15 +516,15 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 				err = true;
 	}
 
-	if (err) {
-		gb->error++;
-	} else {
+	if (!err) {
 		gb_loopback_push_latency_ts(gb, &op_async->ts, &te);
 		gb->elapsed_nsecs = gb_loopback_calc_latency(&op_async->ts,
 							     &te);
 	}
 
 	if (op_async->pending) {
+		if (err)
+			gb->error++;
 		gb->iteration_count++;
 		op_async->pending = false;
 		del_timer_sync(&op_async->timer);
