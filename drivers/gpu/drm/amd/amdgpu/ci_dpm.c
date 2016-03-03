@@ -4380,26 +4380,6 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				}
 			}
 		}
-		if ((!pi->pcie_dpm_key_disabled) &&
-		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
-			levels = 0;
-			tmp = pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
-			while (tmp >>= 1)
-				levels++;
-			if (levels) {
-				ret = ci_dpm_force_state_pcie(adev, level);
-				if (ret)
-					return ret;
-				for (i = 0; i < adev->usec_timeout; i++) {
-					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_1) &
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX_MASK) >>
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX__SHIFT;
-					if (tmp == levels)
-						break;
-					udelay(1);
-				}
-			}
-		}
 	} else if (level == AMDGPU_DPM_FORCED_LEVEL_LOW) {
 		if ((!pi->sclk_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
