@@ -163,7 +163,7 @@ static int tracing_map_add_field(struct tracing_map *map,
  * tracing_map_update_sum() or reading it via tracing_map_read_sum().
  *
  * Return: The index identifying the field in the map and associated
- * tracing_map_elts.
+ * tracing_map_elts, or -EINVAL on error.
  */
 int tracing_map_add_sum_field(struct tracing_map *map)
 {
@@ -184,7 +184,7 @@ int tracing_map_add_sum_field(struct tracing_map *map)
  * the key referenced by this key field resides.
  *
  * Return: The index identifying the field in the map and associated
- * tracing_map_elts.
+ * tracing_map_elts, or -EINVAL on error.
  */
 int tracing_map_add_key_field(struct tracing_map *map,
 			      unsigned int offset,

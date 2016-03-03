@@ -5,9 +5,10 @@
 #define TRACING_MAP_BITS_MAX		17
 #define TRACING_MAP_BITS_MIN		7
 
-#define TRACING_MAP_FIELDS_MAX		4
 #define TRACING_MAP_KEYS_MAX		2
-
+#define TRACING_MAP_VALS_MAX		3
+#define TRACING_MAP_FIELDS_MAX		(TRACING_MAP_KEYS_MAX + \
+					 TRACING_MAP_VALS_MAX)
 #define TRACING_MAP_SORT_KEYS_MAX	2
 
 typedef int (*tracing_map_cmp_fn_t) (void *val_a, void *val_b);
