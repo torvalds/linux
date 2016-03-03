@@ -74,6 +74,9 @@ struct reg_sequence {
 #define	regmap_update_bits_check_async(map, reg, mask, val, change)\
 	regmap_update_bits_base(map, reg, mask, val, change, true, false)
 
+#define	regmap_write_bits(map, reg, mask, val) \
+	regmap_update_bits_base(map, reg, mask, val, NULL, false, true)
+
 #define	regmap_field_write(field, val) \
 	regmap_field_update_bits_base(field, ~0, val, NULL, false, false)
 #define	regmap_field_force_write(field, val) \
@@ -721,8 +724,6 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 			    unsigned int mask, unsigned int val,
 			    bool *change, bool async, bool force);
-int regmap_write_bits(struct regmap *map, unsigned int reg,
-		       unsigned int mask, unsigned int val);
 int regmap_get_val_bytes(struct regmap *map);
 int regmap_get_max_register(struct regmap *map);
 int regmap_get_reg_stride(struct regmap *map);
@@ -956,13 +957,6 @@ static inline int regmap_bulk_read(struct regmap *map, unsigned int reg,
 static inline int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 					  unsigned int mask, unsigned int val,
 					  bool *change, bool async, bool force)
-{
-	WARN_ONCE(1, "regmap API is disabled");
-	return -EINVAL;
-}
-
-static inline int regmap_write_bits(struct regmap *map, unsigned int reg,
-				     unsigned int mask, unsigned int val)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
