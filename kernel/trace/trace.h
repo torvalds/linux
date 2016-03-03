@@ -1162,6 +1162,13 @@ extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
 
 extern const struct file_operations event_trigger_fops;
+extern const struct file_operations event_hist_fops;
+
+#ifdef CONFIG_HIST_TRIGGERS
+extern int register_trigger_hist_cmd(void);
+#else
+static inline int register_trigger_hist_cmd(void) { return 0; }
+#endif
 
 extern int register_trigger_cmds(void);
 extern void clear_event_triggers(struct trace_array *tr);

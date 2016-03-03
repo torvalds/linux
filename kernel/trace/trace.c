@@ -3813,6 +3813,9 @@ static const char readme_msg[] =
 #ifdef CONFIG_TRACER_SNAPSHOT
 	"\t\t    snapshot\n"
 #endif
+#ifdef CONFIG_HIST_TRIGGERS
+	"\t\t    hist (see below)\n"
+#endif
 	"\t   example: echo traceoff > events/block/block_unplug/trigger\n"
 	"\t            echo traceoff:3 > events/block/block_unplug/trigger\n"
 	"\t            echo 'enable_event:kmem:kmalloc:3 if nr_rq > 1' > \\\n"
@@ -3828,6 +3831,20 @@ static const char readme_msg[] =
 	"\t   To remove a trigger with a count:\n"
 	"\t     echo '!<trigger>:0 > <system>/<event>/trigger\n"
 	"\t   Filters can be ignored when removing a trigger.\n"
+#ifdef CONFIG_HIST_TRIGGERS
+	"      hist trigger\t- If set, event hits are aggregated into a hash table\n"
+	"\t    Format: hist:keys=<field1>\n"
+	"\t            [:size=#entries]\n"
+	"\t            [if <filter>]\n\n"
+	"\t    When a matching event is hit, an entry is added to a hash\n"
+	"\t    table using the key named, and the value of a sum called\n"
+	"\t    'hitcount' is incremented.  Keys correspond to fields in the\n"
+	"\t    event's format description.  Keys can be any field.  The\n"
+	"\t    'size' parameter can be  used to specify more or fewer than\n"
+	"\t    the default 2048 entries for the hashtable size.\n\n"
+	"\t    Reading the 'hist' file for the event will dump the hash\n"
+	"\t    table in its entirety to stdout."
+#endif
 ;
 
 static ssize_t

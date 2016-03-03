@@ -1,0 +1,849 @@
+/*
+ * trace_events_hist - trace event hist triggers
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * Copyright (C) 2015 Tom Zanussi <tom.zanussi@linux.intel.com>
+ */
+
+#include <linux/module.h>
+#include <linux/kallsyms.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/stacktrace.h>
+
+#include "tracing_map.h"
+#include "trace.h"
+
+struct hist_field;
+
+typedef u64 (*hist_field_fn_t) (struct hist_field *field, void *event);
+
+struct hist_field {
+	struct ftrace_event_field	*field;
+	unsigned long			flags;
+	hist_field_fn_t			fn;
+	unsigned int			size;
+};
+
+static u64 hist_field_counter(struct hist_field *field, void *event)
+{
+	return 1;
+}
+
+static u64 hist_field_string(struct hist_field *hist_field, void *event)
+{
+	char *addr = (char *)(event + hist_field->field->offset);
+
+	return (u64)(unsigned long)addr;
+}
+
+#define DEFINE_HIST_FIELD_FN(type)					\
+static u64 hist_field_##type(struct hist_field *hist_field, void *event)\
+{									\
+	type *addr = (type *)(event + hist_field->field->offset);	\
+									\
+	return (u64)*addr;						\
+}
+
+DEFINE_HIST_FIELD_FN(s64);
+DEFINE_HIST_FIELD_FN(u64);
+DEFINE_HIST_FIELD_FN(s32);
+DEFINE_HIST_FIELD_FN(u32);
+DEFINE_HIST_FIELD_FN(s16);
+DEFINE_HIST_FIELD_FN(u16);
+DEFINE_HIST_FIELD_FN(s8);
+DEFINE_HIST_FIELD_FN(u8);
+
+#define for_each_hist_field(i, hist_data)	\
+	for ((i) = 0; (i) < (hist_data)->n_fields; (i)++)
+
+#define for_each_hist_val_field(i, hist_data)	\
+	for ((i) = 0; (i) < (hist_data)->n_vals; (i)++)
+
+#define for_each_hist_key_field(i, hist_data)	\
+	for ((i) = (hist_data)->n_vals; (i) < (hist_data)->n_fields; (i)++)
+
+#define HITCOUNT_IDX		0
+#define HIST_KEY_MAX		1
+#define HIST_KEY_SIZE_MAX	MAX_FILTER_STR_VAL
+
+enum hist_field_flags {
+	HIST_FIELD_FL_HITCOUNT	= 1,
+	HIST_FIELD_FL_KEY	= 2,
+	HIST_FIELD_FL_STRING	= 4,
+};
+
+struct hist_trigger_attrs {
+	char		*keys_str;
+	unsigned int	map_bits;
+};
+
+struct hist_trigger_data {
+	struct hist_field               *fields[TRACING_MAP_FIELDS_MAX];
+	unsigned int			n_vals;
+	unsigned int			n_keys;
+	unsigned int			n_fields;
+	unsigned int			key_size;
+	struct tracing_map_sort_key	sort_keys[TRACING_MAP_SORT_KEYS_MAX];
+	unsigned int			n_sort_keys;
+	struct trace_event_file		*event_file;
+	struct hist_trigger_attrs	*attrs;
+	struct tracing_map		*map;
+};
+
+static hist_field_fn_t select_value_fn(int field_size, int field_is_signed)
+{
+	hist_field_fn_t fn = NULL;
+
+	switch (field_size) {
+	case 8:
+		if (field_is_signed)
+			fn = hist_field_s64;
+		else
+			fn = hist_field_u64;
+		break;
+	case 4:
+		if (field_is_signed)
+			fn = hist_field_s32;
+		else
+			fn = hist_field_u32;
+		break;
+	case 2:
+		if (field_is_signed)
+			fn = hist_field_s16;
+		else
+			fn = hist_field_u16;
+		break;
+	case 1:
+		if (field_is_signed)
+			fn = hist_field_s8;
+		else
+			fn = hist_field_u8;
+		break;
+	}
+
+	return fn;
+}
+
+static int parse_map_size(char *str)
+{
+	unsigned long size, map_bits;
+	int ret;
+
+	strsep(&str, "=");
+	if (!str) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = kstrtoul(str, 0, &size);
+	if (ret)
+		goto out;
+
+	map_bits = ilog2(roundup_pow_of_two(size));
+	if (map_bits < TRACING_MAP_BITS_MIN ||
+	    map_bits > TRACING_MAP_BITS_MAX)
+		ret = -EINVAL;
+	else
+		ret = map_bits;
+ out:
+	return ret;
+}
+
+static void destroy_hist_trigger_attrs(struct hist_trigger_attrs *attrs)
+{
+	if (!attrs)
+		return;
+
+	kfree(attrs->keys_str);
+	kfree(attrs);
+}
+
+static struct hist_trigger_attrs *parse_hist_trigger_attrs(char *trigger_str)
+{
+	struct hist_trigger_attrs *attrs;
+	int ret = 0;
+
+	attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+	if (!attrs)
+		return ERR_PTR(-ENOMEM);
+
+	while (trigger_str) {
+		char *str = strsep(&trigger_str, ":");
+
+		if ((strncmp(str, "key=", strlen("key=")) == 0) ||
+		    (strncmp(str, "keys=", strlen("keys=")) == 0))
+			attrs->keys_str = kstrdup(str, GFP_KERNEL);
+		else if (strncmp(str, "size=", strlen("size=")) == 0) {
+			int map_bits = parse_map_size(str);
+
+			if (map_bits < 0) {
+				ret = map_bits;
+				goto free;
+			}
+			attrs->map_bits = map_bits;
+		} else {
+			ret = -EINVAL;
+			goto free;
+		}
+	}
+
+	if (!attrs->keys_str) {
+		ret = -EINVAL;
+		goto free;
+	}
+
+	return attrs;
+ free:
+	destroy_hist_trigger_attrs(attrs);
+
+	return ERR_PTR(ret);
+}
+
+static void destroy_hist_field(struct hist_field *hist_field)
+{
+	kfree(hist_field);
+}
+
+static struct hist_field *create_hist_field(struct ftrace_event_field *field,
+					    unsigned long flags)
+{
+	struct hist_field *hist_field;
+
+	if (field && is_function_field(field))
+		return NULL;
+
+	hist_field = kzalloc(sizeof(struct hist_field), GFP_KERNEL);
+	if (!hist_field)
+		return NULL;
+
+	if (flags & HIST_FIELD_FL_HITCOUNT) {
+		hist_field->fn = hist_field_counter;
+		goto out;
+	}
+
+	if (is_string_field(field)) {
+		flags |= HIST_FIELD_FL_STRING;
+		hist_field->fn = hist_field_string;
+	} else {
+		hist_field->fn = select_value_fn(field->size,
+						 field->is_signed);
+		if (!hist_field->fn) {
+			destroy_hist_field(hist_field);
+			return NULL;
+		}
+	}
+ out:
+	hist_field->field = field;
+	hist_field->flags = flags;
+
+	return hist_field;
+}
+
+static void destroy_hist_fields(struct hist_trigger_data *hist_data)
+{
+	unsigned int i;
+
+	for (i = 0; i < TRACING_MAP_FIELDS_MAX; i++) {
+		if (hist_data->fields[i]) {
+			destroy_hist_field(hist_data->fields[i]);
+			hist_data->fields[i] = NULL;
+		}
+	}
+}
+
+static int create_hitcount_val(struct hist_trigger_data *hist_data)
+{
+	hist_data->fields[HITCOUNT_IDX] =
+		create_hist_field(NULL, HIST_FIELD_FL_HITCOUNT);
+	if (!hist_data->fields[HITCOUNT_IDX])
+		return -ENOMEM;
+
+	hist_data->n_vals++;
+
+	if (WARN_ON(hist_data->n_vals > TRACING_MAP_VALS_MAX))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int create_val_fields(struct hist_trigger_data *hist_data,
+			     struct trace_event_file *file)
+{
+	int ret;
+
+	ret = create_hitcount_val(hist_data);
+
+	return ret;
+}
+
+static int create_key_field(struct hist_trigger_data *hist_data,
+			    unsigned int key_idx,
+			    struct trace_event_file *file,
+			    char *field_str)
+{
+	struct ftrace_event_field *field = NULL;
+	unsigned long flags = 0;
+	unsigned int key_size;
+	int ret = 0;
+
+	if (WARN_ON(key_idx >= TRACING_MAP_FIELDS_MAX))
+		return -EINVAL;
+
+	flags |= HIST_FIELD_FL_KEY;
+
+	field = trace_find_event_field(file->event_call, field_str);
+	if (!field) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	key_size = field->size;
+
+	hist_data->fields[key_idx] = create_hist_field(field, flags);
+	if (!hist_data->fields[key_idx]) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	key_size = ALIGN(key_size, sizeof(u64));
+	hist_data->fields[key_idx]->size = key_size;
+	hist_data->key_size = key_size;
+	if (hist_data->key_size > HIST_KEY_SIZE_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hist_data->n_keys++;
+
+	if (WARN_ON(hist_data->n_keys > TRACING_MAP_KEYS_MAX))
+		return -EINVAL;
+
+	ret = key_size;
+ out:
+	return ret;
+}
+
+static int create_key_fields(struct hist_trigger_data *hist_data,
+			     struct trace_event_file *file)
+{
+	unsigned int i, n_vals = hist_data->n_vals;
+	char *fields_str, *field_str;
+	int ret = -EINVAL;
+
+	fields_str = hist_data->attrs->keys_str;
+	if (!fields_str)
+		goto out;
+
+	strsep(&fields_str, "=");
+	if (!fields_str)
+		goto out;
+
+	for (i = n_vals; i < n_vals + HIST_KEY_MAX; i++) {
+		field_str = strsep(&fields_str, ",");
+		if (!field_str)
+			break;
+		ret = create_key_field(hist_data, i, file, field_str);
+		if (ret < 0)
+			goto out;
+	}
+	if (fields_str) {
+		ret = -EINVAL;
+		goto out;
+	}
+	ret = 0;
+ out:
+	return ret;
+}
+
+static int create_hist_fields(struct hist_trigger_data *hist_data,
+			      struct trace_event_file *file)
+{
+	int ret;
+
+	ret = create_val_fields(hist_data, file);
+	if (ret)
+		goto out;
+
+	ret = create_key_fields(hist_data, file);
+	if (ret)
+		goto out;
+
+	hist_data->n_fields = hist_data->n_vals + hist_data->n_keys;
+ out:
+	return ret;
+}
+
+static int create_sort_keys(struct hist_trigger_data *hist_data)
+{
+	int ret = 0;
+
+	hist_data->n_sort_keys = 1; /* sort_keys[0] is always hitcount */
+
+	return ret;
+}
+
+static void destroy_hist_data(struct hist_trigger_data *hist_data)
+{
+	destroy_hist_trigger_attrs(hist_data->attrs);
+	destroy_hist_fields(hist_data);
+	tracing_map_destroy(hist_data->map);
+	kfree(hist_data);
+}
+
+static int create_tracing_map_fields(struct hist_trigger_data *hist_data)
+{
+	struct tracing_map *map = hist_data->map;
+	struct ftrace_event_field *field;
+	struct hist_field *hist_field;
+	unsigned int i, idx;
+
+	for_each_hist_field(i, hist_data) {
+		hist_field = hist_data->fields[i];
+		if (hist_field->flags & HIST_FIELD_FL_KEY) {
+			tracing_map_cmp_fn_t cmp_fn;
+
+			field = hist_field->field;
+
+			if (is_string_field(field))
+				cmp_fn = tracing_map_cmp_string;
+			else
+				cmp_fn = tracing_map_cmp_num(field->size,
+							     field->is_signed);
+			idx = tracing_map_add_key_field(map, 0, cmp_fn);
+		} else
+			idx = tracing_map_add_sum_field(map);
+
+		if (idx < 0)
+			return idx;
+	}
+
+	return 0;
+}
+
+static struct hist_trigger_data *
+create_hist_data(unsigned int map_bits,
+		 struct hist_trigger_attrs *attrs,
+		 struct trace_event_file *file)
+{
+	struct hist_trigger_data *hist_data;
+	int ret = 0;
+
+	hist_data = kzalloc(sizeof(*hist_data), GFP_KERNEL);
+	if (!hist_data)
+		return ERR_PTR(-ENOMEM);
+
+	hist_data->attrs = attrs;
+
+	ret = create_hist_fields(hist_data, file);
+	if (ret)
+		goto free;
+
+	ret = create_sort_keys(hist_data);
+	if (ret)
+		goto free;
+
+	hist_data->map = tracing_map_create(map_bits, hist_data->key_size,
+					    NULL, hist_data);
+	if (IS_ERR(hist_data->map)) {
+		ret = PTR_ERR(hist_data->map);
+		hist_data->map = NULL;
+		goto free;
+	}
+
+	ret = create_tracing_map_fields(hist_data);
+	if (ret)
+		goto free;
+
+	ret = tracing_map_init(hist_data->map);
+	if (ret)
+		goto free;
+
+	hist_data->event_file = file;
+ out:
+	return hist_data;
+ free:
+	hist_data->attrs = NULL;
+
+	destroy_hist_data(hist_data);
+
+	hist_data = ERR_PTR(ret);
+
+	goto out;
+}
+
+static void hist_trigger_elt_update(struct hist_trigger_data *hist_data,
+				    struct tracing_map_elt *elt,
+				    void *rec)
+{
+	struct hist_field *hist_field;
+	unsigned int i;
+	u64 hist_val;
+
+	for_each_hist_val_field(i, hist_data) {
+		hist_field = hist_data->fields[i];
+		hist_val = hist_field->fn(hist_field, rec);
+		tracing_map_update_sum(elt, i, hist_val);
+	}
+}
+
+static void event_hist_trigger(struct event_trigger_data *data, void *rec)
+{
+	struct hist_trigger_data *hist_data = data->private_data;
+	struct hist_field *key_field;
+	struct tracing_map_elt *elt;
+	u64 field_contents;
+	void *key = NULL;
+	unsigned int i;
+
+	for_each_hist_key_field(i, hist_data) {
+		key_field = hist_data->fields[i];
+
+		field_contents = key_field->fn(key_field, rec);
+		if (key_field->flags & HIST_FIELD_FL_STRING)
+			key = (void *)(unsigned long)field_contents;
+		else
+			key = (void *)&field_contents;
+	}
+
+	elt = tracing_map_insert(hist_data->map, key);
+	if (elt)
+		hist_trigger_elt_update(hist_data, elt, rec);
+}
+
+static void
+hist_trigger_entry_print(struct seq_file *m,
+			 struct hist_trigger_data *hist_data, void *key,
+			 struct tracing_map_elt *elt)
+{
+	struct hist_field *key_field;
+	unsigned int i;
+	u64 uval;
+
+	seq_puts(m, "{ ");
+
+	for_each_hist_key_field(i, hist_data) {
+		key_field = hist_data->fields[i];
+
+		if (i > hist_data->n_vals)
+			seq_puts(m, ", ");
+
+		if (key_field->flags & HIST_FIELD_FL_STRING) {
+			seq_printf(m, "%s: %-50s", key_field->field->name,
+				   (char *)key);
+		} else {
+			uval = *(u64 *)key;
+			seq_printf(m, "%s: %10llu",
+				   key_field->field->name, uval);
+		}
+	}
+
+	seq_puts(m, " }");
+
+	seq_printf(m, " hitcount: %10llu",
+		   tracing_map_read_sum(elt, HITCOUNT_IDX));
+
+	seq_puts(m, "\n");
+}
+
+static int print_entries(struct seq_file *m,
+			 struct hist_trigger_data *hist_data)
+{
+	struct tracing_map_sort_entry **sort_entries = NULL;
+	struct tracing_map *map = hist_data->map;
+	unsigned int i, n_entries;
+
+	n_entries = tracing_map_sort_entries(map, hist_data->sort_keys,
+					     hist_data->n_sort_keys,
+					     &sort_entries);
+	if (n_entries < 0)
+		return n_entries;
+
+	for (i = 0; i < n_entries; i++)
+		hist_trigger_entry_print(m, hist_data,
+					 sort_entries[i]->key,
+					 sort_entries[i]->elt);
+
+	tracing_map_destroy_sort_entries(sort_entries, n_entries);
+
+	return n_entries;
+}
+
+static int hist_show(struct seq_file *m, void *v)
+{
+	struct event_trigger_data *test, *data = NULL;
+	struct trace_event_file *event_file;
+	struct hist_trigger_data *hist_data;
+	int n_entries, ret = 0;
+
+	mutex_lock(&event_mutex);
+
+	event_file = event_file_data(m->private);
+	if (unlikely(!event_file)) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	list_for_each_entry_rcu(test, &event_file->triggers, list) {
+		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
+			data = test;
+			break;
+		}
+	}
+	if (!data)
+		goto out_unlock;
+
+	seq_puts(m, "# event histogram\n#\n# trigger info: ");
+	data->ops->print(m, data->ops, data);
+	seq_puts(m, "\n");
+
+	hist_data = data->private_data;
+	n_entries = print_entries(m, hist_data);
+	if (n_entries < 0) {
+		ret = n_entries;
+		n_entries = 0;
+	}
+
+	seq_printf(m, "\nTotals:\n    Hits: %llu\n    Entries: %u\n    Dropped: %llu\n",
+		   (u64)atomic64_read(&hist_data->map->hits),
+		   n_entries, (u64)atomic64_read(&hist_data->map->drops));
+ out_unlock:
+	mutex_unlock(&event_mutex);
+
+	return ret;
+}
+
+static int event_hist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hist_show, file);
+}
+
+const struct file_operations event_hist_fops = {
+	.open = event_hist_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void hist_field_print(struct seq_file *m, struct hist_field *hist_field)
+{
+	seq_printf(m, "%s", hist_field->field->name);
+}
+
+static int event_hist_trigger_print(struct seq_file *m,
+				    struct event_trigger_ops *ops,
+				    struct event_trigger_data *data)
+{
+	struct hist_trigger_data *hist_data = data->private_data;
+	struct hist_field *key_field;
+	unsigned int i;
+
+	seq_puts(m, "hist:keys=");
+
+	for_each_hist_key_field(i, hist_data) {
+		key_field = hist_data->fields[i];
+
+		if (i > hist_data->n_vals)
+			seq_puts(m, ",");
+
+		hist_field_print(m, key_field);
+	}
+
+	seq_puts(m, ":vals=");
+	seq_puts(m, "hitcount");
+
+	seq_puts(m, ":sort=");
+	seq_puts(m, "hitcount");
+
+	seq_printf(m, ":size=%u", (1 << hist_data->map->map_bits));
+
+	if (data->filter_str)
+		seq_printf(m, " if %s", data->filter_str);
+
+	seq_puts(m, " [active]");
+
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static void event_hist_trigger_free(struct event_trigger_ops *ops,
+				    struct event_trigger_data *data)
+{
+	struct hist_trigger_data *hist_data = data->private_data;
+
+	if (WARN_ON_ONCE(data->ref <= 0))
+		return;
+
+	data->ref--;
+	if (!data->ref) {
+		trigger_data_free(data);
+		destroy_hist_data(hist_data);
+	}
+}
+
+static struct event_trigger_ops event_hist_trigger_ops = {
+	.func			= event_hist_trigger,
+	.print			= event_hist_trigger_print,
+	.init			= event_trigger_init,
+	.free			= event_hist_trigger_free,
+};
+
+static struct event_trigger_ops *event_hist_get_trigger_ops(char *cmd,
+							    char *param)
+{
+	return &event_hist_trigger_ops;
+}
+
+static int hist_register_trigger(char *glob, struct event_trigger_ops *ops,
+				 struct event_trigger_data *data,
+				 struct trace_event_file *file)
+{
+	struct event_trigger_data *test;
+	int ret = 0;
+
+	list_for_each_entry_rcu(test, &file->triggers, list) {
+		if (test->cmd_ops->trigger_type == ETT_EVENT_HIST) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+
+	if (data->ops->init) {
+		ret = data->ops->init(data->ops, data);
+		if (ret < 0)
+			goto out;
+	}
+
+	list_add_rcu(&data->list, &file->triggers);
+	ret++;
+
+	update_cond_flag(file);
+	if (trace_event_trigger_enable_disable(file, 1) < 0) {
+		list_del_rcu(&data->list);
+		update_cond_flag(file);
+		ret--;
+	}
+ out:
+	return ret;
+}
+
+static int event_hist_trigger_func(struct event_command *cmd_ops,
+				   struct trace_event_file *file,
+				   char *glob, char *cmd, char *param)
+{
+	unsigned int hist_trigger_bits = TRACING_MAP_BITS_DEFAULT;
+	struct event_trigger_data *trigger_data;
+	struct hist_trigger_attrs *attrs;
+	struct event_trigger_ops *trigger_ops;
+	struct hist_trigger_data *hist_data;
+	char *trigger;
+	int ret = 0;
+
+	if (!param)
+		return -EINVAL;
+
+	/* separate the trigger from the filter (k:v [if filter]) */
+	trigger = strsep(&param, " \t");
+	if (!trigger)
+		return -EINVAL;
+
+	attrs = parse_hist_trigger_attrs(trigger);
+	if (IS_ERR(attrs))
+		return PTR_ERR(attrs);
+
+	if (attrs->map_bits)
+		hist_trigger_bits = attrs->map_bits;
+
+	hist_data = create_hist_data(hist_trigger_bits, attrs, file);
+	if (IS_ERR(hist_data)) {
+		destroy_hist_trigger_attrs(attrs);
+		return PTR_ERR(hist_data);
+	}
+
+	trigger_ops = cmd_ops->get_trigger_ops(cmd, trigger);
+
+	ret = -ENOMEM;
+	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
+	if (!trigger_data)
+		goto out_free;
+
+	trigger_data->count = -1;
+	trigger_data->ops = trigger_ops;
+	trigger_data->cmd_ops = cmd_ops;
+
+	INIT_LIST_HEAD(&trigger_data->list);
+	RCU_INIT_POINTER(trigger_data->filter, NULL);
+
+	trigger_data->private_data = hist_data;
+
+	if (glob[0] == '!') {
+		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
+		ret = 0;
+		goto out_free;
+	}
+
+	if (!param) /* if param is non-empty, it's supposed to be a filter */
+		goto out_reg;
+
+	if (!cmd_ops->set_filter)
+		goto out_reg;
+
+	ret = cmd_ops->set_filter(param, trigger_data, file);
+	if (ret < 0)
+		goto out_free;
+ out_reg:
+	ret = cmd_ops->reg(glob, trigger_ops, trigger_data, file);
+	/*
+	 * The above returns on success the # of triggers registered,
+	 * but if it didn't register any it returns zero.  Consider no
+	 * triggers registered a failure too.
+	 */
+	if (!ret) {
+		ret = -ENOENT;
+		goto out_free;
+	} else if (ret < 0)
+		goto out_free;
+	/* Just return zero, not the number of registered triggers */
+	ret = 0;
+ out:
+	return ret;
+ out_free:
+	if (cmd_ops->set_filter)
+		cmd_ops->set_filter(NULL, trigger_data, NULL);
+
+	kfree(trigger_data);
+
+	destroy_hist_data(hist_data);
+	goto out;
+}
+
+static struct event_command trigger_hist_cmd = {
+	.name			= "hist",
+	.trigger_type		= ETT_EVENT_HIST,
+	.flags			= EVENT_CMD_FL_NEEDS_REC,
+	.func			= event_hist_trigger_func,
+	.reg			= hist_register_trigger,
+	.unreg			= unregister_trigger,
+	.get_trigger_ops	= event_hist_get_trigger_ops,
+	.set_filter		= set_trigger_filter,
+};
+
+__init int register_trigger_hist_cmd(void)
+{
+	int ret;
+
+	ret = register_event_command(&trigger_hist_cmd);
+	WARN_ON(ret < 0);
+
+	return ret;
+}
