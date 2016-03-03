@@ -2877,16 +2877,17 @@ static int cgroup_subtree_control_show(struct seq_file *seq, void *v)
  * cgroup_update_dfl_csses - update css assoc of a subtree in default hierarchy
  * @cgrp: root of the subtree to update csses for
  *
- * @cgrp's subtree_ss_mask has changed and its subtree's (self excluded)
- * css associations need to be updated accordingly.  This function looks up
- * all css_sets which are attached to the subtree, creates the matching
- * updated css_sets and migrates the tasks to the new ones.
+ * @cgrp's control masks have changed and its subtree's css associations
+ * need to be updated accordingly.  This function looks up all css_sets
+ * which are attached to the subtree, creates the matching updated css_sets
+ * and migrates the tasks to the new ones.
  */
 static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 {
 	LIST_HEAD(preloaded_csets);
 	struct cgroup_taskset tset = CGROUP_TASKSET_INIT(tset);
-	struct cgroup_subsys_state *css;
+	struct cgroup_subsys_state *d_css;
+	struct cgroup *dsct;
 	struct css_set *src_cset;
 	int ret;
 
@@ -2896,14 +2897,10 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 
 	/* look up all csses currently attached to @cgrp's subtree */
 	spin_lock_bh(&css_set_lock);
-	css_for_each_descendant_pre(css, cgroup_css(cgrp, NULL)) {
+	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 		struct cgrp_cset_link *link;
 
-		/* self is not affected by subtree_ss_mask change */
-		if (css->cgroup == cgrp)
-			continue;
-
-		list_for_each_entry(link, &css->cgroup->cset_links, cset_link)
+		list_for_each_entry(link, &dsct->cset_links, cset_link)
 			cgroup_migrate_add_src(link->cset, cgrp,
 					       &preloaded_csets);
 	}
