@@ -1135,7 +1135,6 @@ static void had_clear_underrun_intr_v2(struct snd_intelhad *intelhaddata)
 		pr_debug("HDMI status =0x%x\n", hdmi_status);
 		if (hdmi_status & AUD_CONFIG_MASK_UNDERRUN) {
 			i++;
-			hdmi_status &= ~AUD_CONFIG_MASK_UNDERRUN;
 			had_write_register(AUD_HDMI_STATUS_v2, hdmi_status);
 		} else
 			break;
