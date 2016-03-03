@@ -305,4 +305,7 @@ struct fsxattr {
 #define SYNC_FILE_RANGE_WRITE		2
 #define SYNC_FILE_RANGE_WAIT_AFTER	4
 
+/* flags for preadv2/pwritev2: */
+#define RWF_HIPRI			0x00000001 /* high priority request, poll if possible */
+
 #endif /* _UAPI_LINUX_FS_H */
