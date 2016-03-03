@@ -207,7 +207,7 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
 int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
 			      unsigned int notification);
 
-#else
+#else /* CONFIG_MEDIA_CONTROLLER */
 
 static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
 {
@@ -228,5 +228,17 @@ static int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 {
 	return 0;
 }
-#endif
+
+int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
+{
+	return 0;
+}
+
+int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
+			      unsigned int notification);
+{
+	return 0;
+}
+
+#endif /* CONFIG_MEDIA_CONTROLLER */
 #endif /* _V4L2_MC_H */
