@@ -50,13 +50,13 @@
  *
  ********************************************/
 
-typedef struct {
+struct sdio_cmd52 {
 	u32 read_write:		1;
 	u32 function:		3;
 	u32 raw:		1;
 	u32 address:		17;
 	u32 data:		8;
-} sdio_cmd52_t;
+};
 
 typedef struct {
 	/* struct { */
