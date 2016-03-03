@@ -1474,6 +1474,12 @@ do {									\
 #define read_c0_pwctl()		__read_32bit_c0_register($6, 6)
 #define write_c0_pwctl(val)	__write_32bit_c0_register($6, 6, val)
 
+#define read_c0_pgd()		__read_64bit_c0_register($9, 7)
+#define write_c0_pgd(val)	__write_64bit_c0_register($9, 7, val)
+
+#define read_c0_kpgd()		__read_64bit_c0_register($31, 7)
+#define write_c0_kpgd(val)	__write_64bit_c0_register($31, 7, val)
+
 /* Cavium OCTEON (cnMIPS) */
 #define read_c0_cvmcount()	__read_ulong_c0_register($9, 6)
 #define write_c0_cvmcount(val)	__write_ulong_c0_register($9, 6, val)

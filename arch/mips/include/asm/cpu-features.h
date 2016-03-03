@@ -35,6 +35,9 @@
 #ifndef cpu_has_htw
 #define cpu_has_htw		(cpu_data[0].options & MIPS_CPU_HTW)
 #endif
+#ifndef cpu_has_ldpte
+#define cpu_has_ldpte		(cpu_data[0].options & MIPS_CPU_LDPTE)
+#endif
 #ifndef cpu_has_rixiex
 #define cpu_has_rixiex		(cpu_data[0].options & MIPS_CPU_RIXIEX)
 #endif

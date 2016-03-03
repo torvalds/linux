@@ -402,6 +402,7 @@ enum cpu_type_enum {
 #define MIPS_CPU_NAN_LEGACY	MBIT_ULL(38)	/* Legacy NaN implemented */
 #define MIPS_CPU_NAN_2008	MBIT_ULL(39)	/* 2008 NaN implemented */
 #define MIPS_CPU_VP		MBIT_ULL(40)	/* MIPSr6 Virtual Processors (multi-threading) */
+#define MIPS_CPU_LDPTE		MBIT_ULL(41)	/* CPU has ldpte/lddir instructions */
 
 /*
  * CPU ASE encodings

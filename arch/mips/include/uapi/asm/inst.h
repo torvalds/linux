@@ -204,6 +204,16 @@ enum mad_func {
 };
 
 /*
+ * func field for page table walker (Loongson-3).
+ */
+enum ptw_func {
+	lwdir_op = 0x00,
+	lwpte_op = 0x01,
+	lddir_op = 0x02,
+	ldpte_op = 0x03,
+};
+
+/*
  * func field for special3 lx opcodes (Cavium Octeon).
  */
 enum lx_func {
