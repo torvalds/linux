@@ -339,7 +339,7 @@ static void gmc_v7_0_mc_program(struct amdgpu_device *adev)
 	WREG32(mmBIF_FB_EN, BIF_FB_EN__FB_READ_EN_MASK | BIF_FB_EN__FB_WRITE_EN_MASK);
 
 	tmp = RREG32(mmHDP_MISC_CNTL);
-	tmp = REG_SET_FIELD(tmp, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
+	tmp = REG_SET_FIELD(tmp, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 0);
 	WREG32(mmHDP_MISC_CNTL, tmp);
 
 	tmp = RREG32(mmHDP_HOST_PATH_CNTL);
