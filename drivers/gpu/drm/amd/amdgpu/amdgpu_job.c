@@ -28,6 +28,12 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
+static void amdgpu_job_free_handler(struct work_struct *ws)
+{
+	struct amdgpu_job *job = container_of(ws, struct amdgpu_job, base.work_free_job);
+	kfree(job);
+}
+
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job)
 {
@@ -45,6 +51,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->adev = adev;
 	(*job)->ibs = (void *)&(*job)[1];
 	(*job)->num_ibs = num_ibs;
+	INIT_WORK(&(*job)->base.work_free_job, amdgpu_job_free_handler);
 
 	amdgpu_sync_create(&(*job)->sync);
 
@@ -80,7 +87,9 @@ void amdgpu_job_free(struct amdgpu_job *job)
 
 	amdgpu_bo_unref(&job->uf.bo);
 	amdgpu_sync_free(&job->sync);
-	kfree(job);
+
+	if (!job->base.use_sched)
+		kfree(job);
 }
 
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,

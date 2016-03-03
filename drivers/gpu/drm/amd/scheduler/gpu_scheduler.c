@@ -319,6 +319,11 @@ static bool amd_sched_entity_in(struct amd_sched_job *sched_job)
 	return added;
 }
 
+static void amd_sched_free_job(struct fence *f, struct fence_cb *cb) {
+	struct amd_sched_job *job = container_of(cb, struct amd_sched_job, cb_free_job);
+	schedule_work(&job->work_free_job);
+}
+
 /**
  * Submit a job to the job queue
  *
@@ -330,6 +335,9 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 {
 	struct amd_sched_entity *entity = sched_job->s_entity;
 
+	sched_job->use_sched = 1;
+	fence_add_callback(&sched_job->s_fence->base,
+					&sched_job->cb_free_job, amd_sched_free_job);
 	trace_amd_sched_job(sched_job);
 	wait_event(entity->sched->job_scheduled,
 		   amd_sched_entity_in(sched_job));

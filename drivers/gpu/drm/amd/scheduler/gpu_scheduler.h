@@ -37,7 +37,7 @@ extern atomic_t sched_fence_slab_ref;
 
 /**
  * A scheduler entity is a wrapper around a job queue or a group
- * of other entities. Entities take turns emitting jobs from their 
+ * of other entities. Entities take turns emitting jobs from their
  * job queues to corresponding hardware ring based on scheduling
  * policy.
 */
@@ -82,6 +82,9 @@ struct amd_sched_job {
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
+	bool	use_sched;	/* true if the job goes to scheduler */
+	struct fence_cb                cb_free_job;
+	struct work_struct             work_free_job;
 };
 
 extern const struct fence_ops amd_sched_fence_ops;

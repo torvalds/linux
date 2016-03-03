@@ -2401,5 +2401,4 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 		       uint64_t addr, struct amdgpu_bo **bo);
 
 #include "amdgpu_object.h"
-
 #endif
