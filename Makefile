@@ -995,8 +995,19 @@ prepare0: archprepare FORCE
 # All the preparing..
 prepare: prepare0 prepare-objtool
 
+ifdef CONFIG_STACK_VALIDATION
+  has_libelf := $(shell echo "int main() {}" | $(HOSTCC) -xc -o /dev/null -lelf - &> /dev/null && echo 1 || echo 0)
+  ifeq ($(has_libelf),1)
+    objtool_target := tools/objtool FORCE
+  else
+    $(warning "Cannot use CONFIG_STACK_VALIDATION, please install libelf-dev or elfutils-libelf-devel")
+    SKIP_STACK_VALIDATION := 1
+    export SKIP_STACK_VALIDATION
+  endif
+endif
+
 PHONY += prepare-objtool
-prepare-objtool: $(if $(CONFIG_STACK_VALIDATION), tools/objtool FORCE)
+prepare-objtool: $(objtool_target)
 
 # Generate some files
 # ---------------------------------------------------------------------------
