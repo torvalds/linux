@@ -44,6 +44,10 @@
  * contexts. Note that it's important that we check the condition again after
  * having timed out, since the timeout could be due to preemption or similar and
  * we've never had a chance to check the condition before the timeout.
+ *
+ * TODO: When modesetting has fully transitioned to atomic, the below
+ * drm_can_sleep() can be removed and in_atomic()/!in_atomic() asserts
+ * added.
  */
 #define _wait_for(COND, US, W) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
@@ -66,8 +70,37 @@
 #define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
 #define wait_for_us(COND, US)	  	_wait_for((COND), (US), 1)
 
-#define wait_for_atomic(COND, MS) 	_wait_for((COND), (MS) * 1000, 0)
-#define wait_for_atomic_us(COND, US)	_wait_for((COND), (US), 0)
+/* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
+#if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
+# define _WAIT_FOR_ATOMIC_CHECK WARN_ON_ONCE(!in_atomic())
+#else
+# define _WAIT_FOR_ATOMIC_CHECK do { } while (0)
+#endif
+
+#define _wait_for_atomic(COND, US) ({ \
+	unsigned long end__; \
+	int ret__ = 0; \
+	_WAIT_FOR_ATOMIC_CHECK; \
+	BUILD_BUG_ON((US) > 50000); \
+	end__ = (local_clock() >> 10) + (US) + 1; \
+	while (!(COND)) { \
+		if (time_after((unsigned long)(local_clock() >> 10), end__)) { \
+			/* Unlike the regular wait_for(), this atomic variant \
+			 * cannot be preempted (and we'll just ignore the issue\
+			 * of irq interruptions) and so we know that no time \
+			 * has passed since the last check of COND and can \
+			 * immediately report the timeout. \
+			 */ \
+			ret__ = -ETIMEDOUT; \
+			break; \
+		} \
+		cpu_relax(); \
+	} \
+	ret__; \
+})
+
+#define wait_for_atomic(COND, MS)	_wait_for_atomic((COND), (MS) * 1000)
+#define wait_for_atomic_us(COND, US)	_wait_for_atomic((COND), (US))
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
