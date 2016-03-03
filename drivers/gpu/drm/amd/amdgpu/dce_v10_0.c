@@ -2983,8 +2983,6 @@ static int dce_v10_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->mode_info.mode_config_initialized = true;
-
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
 
 	adev->ddev->mode_config.max_width = 16384;
@@ -3023,7 +3021,8 @@ static int dce_v10_0_sw_init(void *handle)
 
 	drm_kms_helper_poll_init(adev->ddev);
 
-	return r;
+	adev->mode_info.mode_config_initialized = true;
+	return 0;
 }
 
 static int dce_v10_0_sw_fini(void *handle)
