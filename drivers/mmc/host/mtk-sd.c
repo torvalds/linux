@@ -1038,7 +1038,7 @@ static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		ret = regulator_set_voltage(mmc->supply.vqmmc, min_uv, max_uv);
 		if (ret) {
-			dev_err(host->dev,
+			dev_dbg(host->dev,
 					"Regulator set error %d: %d - %d\n",
 					ret, min_uv, max_uv);
 		} else {
