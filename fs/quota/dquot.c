@@ -1410,7 +1410,7 @@ static int dquot_active(const struct inode *inode)
 static int __dquot_initialize(struct inode *inode, int type)
 {
 	int cnt, init_needed = 0;
-	struct dquot **dquots, *got[MAXQUOTAS];
+	struct dquot **dquots, *got[MAXQUOTAS] = {};
 	struct super_block *sb = inode->i_sb;
 	qsize_t rsv;
 	int ret = 0;
@@ -1427,7 +1427,6 @@ static int __dquot_initialize(struct inode *inode, int type)
 		int rc;
 		struct dquot *dquot;
 
-		got[cnt] = NULL;
 		if (type != -1 && cnt != type)
 			continue;
 		/*
