@@ -346,6 +346,32 @@ static struct cgroup *cgroup_parent(struct cgroup *cgrp)
 	return NULL;
 }
 
+/* subsystems visibly enabled on a cgroup */
+static u16 cgroup_control(struct cgroup *cgrp)
+{
+	struct cgroup *parent = cgroup_parent(cgrp);
+	u16 root_ss_mask = cgrp->root->subsys_mask;
+
+	if (parent)
+		return parent->subtree_control;
+
+	if (cgroup_on_dfl(cgrp))
+		root_ss_mask &= ~cgrp_dfl_inhibit_ss_mask;
+
+	return root_ss_mask;
+}
+
+/* subsystems enabled on a cgroup */
+static u16 cgroup_ss_mask(struct cgroup *cgrp)
+{
+	struct cgroup *parent = cgroup_parent(cgrp);
+
+	if (parent)
+		return parent->subtree_ss_mask;
+
+	return cgrp->root->subsys_mask;
+}
+
 /**
  * cgroup_css - obtain a cgroup's css for the specified subsystem
  * @cgrp: the cgroup of interest
@@ -385,16 +411,15 @@ static struct cgroup_subsys_state *cgroup_e_css(struct cgroup *cgrp,
 	if (!ss)
 		return &cgrp->self;
 
-	if (!(cgrp->root->subsys_mask & (1 << ss->id)))
-		return NULL;
-
 	/*
 	 * This function is used while updating css associations and thus
-	 * can't test the csses directly.  Use ->subtree_ss_mask.
+	 * can't test the csses directly.  Test ss_mask.
 	 */
-	while (cgroup_parent(cgrp) &&
-	       !(cgroup_parent(cgrp)->subtree_ss_mask & (1 << ss->id)))
+	while (!(cgroup_ss_mask(cgrp) & (1 << ss->id))) {
 		cgrp = cgroup_parent(cgrp);
+		if (!cgrp)
+			return NULL;
+	}
 
 	return cgroup_css(cgrp, ss);
 }
@@ -1276,7 +1301,6 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
  */
 static u16 cgroup_calc_subtree_ss_mask(struct cgroup *cgrp, u16 subtree_control)
 {
-	struct cgroup *parent = cgroup_parent(cgrp);
 	u16 cur_ss_mask = subtree_control;
 	struct cgroup_subsys *ss;
 	int ssid;
@@ -1298,10 +1322,7 @@ static u16 cgroup_calc_subtree_ss_mask(struct cgroup *cgrp, u16 subtree_control)
 		 * happen only if some depended-upon subsystems were bound
 		 * to non-default hierarchies.
 		 */
-		if (parent)
-			new_ss_mask &= parent->subtree_ss_mask;
-		else
-			new_ss_mask &= cgrp->root->subsys_mask;
+		new_ss_mask &= cgroup_ss_mask(cgrp);
 
 		if (new_ss_mask == cur_ss_mask)
 			break;
@@ -2864,22 +2885,12 @@ static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
 		seq_putc(seq, '\n');
 }
 
-/* show controllers which are currently attached to the default hierarchy */
-static int cgroup_root_controllers_show(struct seq_file *seq, void *v)
-{
-	struct cgroup *cgrp = seq_css(seq)->cgroup;
-
-	cgroup_print_ss_mask(seq, cgrp->root->subsys_mask &
-			     ~cgrp_dfl_inhibit_ss_mask);
-	return 0;
-}
-
 /* show controllers which are enabled from the parent */
 static int cgroup_controllers_show(struct seq_file *seq, void *v)
 {
 	struct cgroup *cgrp = seq_css(seq)->cgroup;
 
-	cgroup_print_ss_mask(seq, cgroup_parent(cgrp)->subtree_control);
+	cgroup_print_ss_mask(seq, cgroup_control(cgrp));
 	return 0;
 }
 
@@ -3005,10 +3016,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 				continue;
 			}
 
-			/* unavailable or not enabled on the parent? */
-			if (!(cgrp_dfl_root.subsys_mask & (1 << ssid)) ||
-			    (cgroup_parent(cgrp) &&
-			     !(cgroup_parent(cgrp)->subtree_control & (1 << ssid)))) {
+			if (!(cgroup_control(cgrp) & (1 << ssid))) {
 				ret = -ENOENT;
 				goto out_unlock;
 			}
@@ -4566,12 +4574,6 @@ static struct cftype cgroup_dfl_base_files[] = {
 	},
 	{
 		.name = "cgroup.controllers",
-		.flags = CFTYPE_ONLY_ON_ROOT,
-		.seq_show = cgroup_root_controllers_show,
-	},
-	{
-		.name = "cgroup.controllers",
-		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = cgroup_controllers_show,
 	},
 	{
@@ -4945,7 +4947,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
 	/* create the csses */
-	do_each_subsys_mask(ss, ssid, parent->subtree_ss_mask) {
+	do_each_subsys_mask(ss, ssid, cgroup_ss_mask(cgrp)) {
 		struct cgroup_subsys_state *css;
 
 		css = css_create(cgrp, ss);
@@ -4960,7 +4962,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	 * subtree_control from the parent.  Each is configured manually.
 	 */
 	if (!cgroup_on_dfl(cgrp)) {
-		cgrp->subtree_control = parent->subtree_control;
+		cgrp->subtree_control = cgroup_control(cgrp);
 		cgroup_refresh_subtree_ss_mask(cgrp);
 	}
 
@@ -5020,7 +5022,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	do_each_subsys_mask(ss, ssid, parent->subtree_control) {
+	do_each_subsys_mask(ss, ssid, cgroup_control(cgrp)) {
 		ret = css_populate_dir(cgroup_css(cgrp, ss), NULL);
 		if (ret)
 			goto out_destroy;
