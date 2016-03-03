@@ -24,12 +24,16 @@
  */
 int pci_enable_rom(struct pci_dev *pdev)
 {
-	struct resource *res = pdev->resource + PCI_ROM_RESOURCE;
+	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 	struct pci_bus_region region;
 	u32 rom_addr;
 
 	if (!res->flags)
 		return -1;
+
+	/* Nothing to enable if we're using a shadow copy in RAM */
+	if (res->flags & IORESOURCE_ROM_SHADOW)
+		return 0;
 
 	pcibios_resource_to_bus(pdev->bus, &region, res);
 	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_addr);
@@ -49,7 +53,12 @@ EXPORT_SYMBOL_GPL(pci_enable_rom);
  */
 void pci_disable_rom(struct pci_dev *pdev)
 {
+	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
 	u32 rom_addr;
+
+	if (res->flags & IORESOURCE_ROM_SHADOW)
+		return;
+
 	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_addr);
 	rom_addr &= ~PCI_ROM_ADDRESS_ENABLE;
 	pci_write_config_dword(pdev, pdev->rom_base_reg, rom_addr);
@@ -154,7 +163,6 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	if (!rom) {
 		/* restore enable if ioremap fails */
 		if (!(res->flags & (IORESOURCE_ROM_ENABLE |
-				    IORESOURCE_ROM_SHADOW |
 				    IORESOURCE_ROM_COPY)))
 			pci_disable_rom(pdev);
 		return NULL;
@@ -186,8 +194,8 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 
 	iounmap(rom);
 
-	/* Disable again before continuing, leave enabled if pci=rom */
-	if (!(res->flags & (IORESOURCE_ROM_ENABLE | IORESOURCE_ROM_SHADOW)))
+	/* Disable again before continuing */
+	if (!(res->flags & IORESOURCE_ROM_ENABLE))
 		pci_disable_rom(pdev);
 }
 EXPORT_SYMBOL(pci_unmap_rom);
