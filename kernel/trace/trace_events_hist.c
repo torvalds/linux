@@ -52,12 +52,28 @@ static u64 hist_field_string(struct hist_field *hist_field, void *event)
 	return (u64)(unsigned long)addr;
 }
 
+static u64 hist_field_dynstring(struct hist_field *hist_field, void *event)
+{
+	u32 str_item = *(u32 *)(event + hist_field->field->offset);
+	int str_loc = str_item & 0xffff;
+	char *addr = (char *)(event + str_loc);
+
+	return (u64)(unsigned long)addr;
+}
+
+static u64 hist_field_pstring(struct hist_field *hist_field, void *event)
+{
+	char **addr = (char **)(event + hist_field->field->offset);
+
+	return (u64)(unsigned long)*addr;
+}
+
 #define DEFINE_HIST_FIELD_FN(type)					\
 static u64 hist_field_##type(struct hist_field *hist_field, void *event)\
 {									\
 	type *addr = (type *)(event + hist_field->field->offset);	\
 									\
-	return (u64)*addr;						\
+	return (u64)(unsigned long)*addr;				\
 }
 
 DEFINE_HIST_FIELD_FN(s64);
@@ -340,7 +356,13 @@ static struct hist_field *create_hist_field(struct ftrace_event_field *field,
 
 	if (is_string_field(field)) {
 		flags |= HIST_FIELD_FL_STRING;
-		hist_field->fn = hist_field_string;
+
+		if (field->filter_type == FILTER_STATIC_STRING)
+			hist_field->fn = hist_field_string;
+		else if (field->filter_type == FILTER_DYN_STRING)
+			hist_field->fn = hist_field_dynstring;
+		else
+			hist_field->fn = hist_field_pstring;
 	} else {
 		hist_field->fn = select_value_fn(field->size,
 						 field->is_signed);
@@ -508,7 +530,10 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 			goto out;
 		}
 
-		key_size = field->size;
+		if (is_string_field(field)) /* should be last key field */
+			key_size = HIST_KEY_SIZE_MAX - key_offset;
+		else
+			key_size = field->size;
 	}
 
 	hist_data->fields[key_idx] = create_hist_field(field, flags);
@@ -841,8 +866,24 @@ static void event_hist_trigger(struct event_trigger_data *data, void *rec)
 				key = (void *)&field_contents;
 
 			if (hist_data->n_keys > 1) {
+				/* ensure NULL-termination */
+				size_t size = key_field->size - 1;
+
+				if (key_field->flags & HIST_FIELD_FL_STRING) {
+					struct ftrace_event_field *field;
+
+					field = key_field->field;
+					if (field->filter_type == FILTER_DYN_STRING)
+						size = *(u32 *)(rec + field->offset) >> 16;
+					else if (field->filter_type == FILTER_PTR_STRING)
+						size = strlen(key);
+
+					if (size > key_field->size - 1)
+						size = key_field->size - 1;
+				}
+
 				memcpy(compound_key + key_field->offset, key,
-				       key_field->size);
+				       size);
 			}
 		}
 	}
