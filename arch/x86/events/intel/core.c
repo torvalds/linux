@@ -1502,7 +1502,15 @@ static __initconst const u64 knl_hw_cache_extra_regs
 };
 
 /*
- * Use from PMIs where the LBRs are already disabled.
+ * Used from PMIs where the LBRs are already disabled.
+ *
+ * This function could be called consecutively. It is required to remain in
+ * disabled state if called consecutively.
+ *
+ * During consecutive calls, the same disable value will be written to related
+ * registers, so the PMU state remains unchanged. hw.state in
+ * intel_bts_disable_local will remain PERF_HES_STOPPED too in consecutive
+ * calls.
  */
 static void __intel_pmu_disable_all(void)
 {
@@ -1929,7 +1937,10 @@ again:
 		goto again;
 
 done:
-	__intel_pmu_enable_all(0, true);
+	/* Only restore PMU state when it's active. See x86_pmu_disable(). */
+	if (cpuc->enabled)
+		__intel_pmu_enable_all(0, true);
+
 	/*
 	 * Only unmask the NMI after the overflow counters
 	 * have been reset. This avoids spurious NMIs on
