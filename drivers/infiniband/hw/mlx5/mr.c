@@ -860,7 +860,7 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 	struct device *ddev = dev->ib_dev.dma_device;
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
-	struct mlx5_umr_wr umrwr;
+	struct mlx5_umr_wr umrwr = {};
 	struct ib_send_wr *bad;
 	struct mlx5_ib_mr *mr;
 	struct ib_sge sg;
@@ -892,7 +892,6 @@ static struct mlx5_ib_mr *reg_umr(struct ib_pd *pd, struct ib_umem *umem,
 
 	mlx5_ib_init_umr_context(&umr_context);
 
-	memset(&umrwr, 0, sizeof(umrwr));
 	umrwr.wr.wr_cqe = &umr_context.cqe;
 	prep_umr_reg_wqe(pd, &umrwr.wr, &sg, dma, npages, mr->mmkey.key,
 			 page_shift, virt_addr, len, access_flags);
@@ -1196,13 +1195,12 @@ static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	struct umr_common *umrc = &dev->umrc;
 	struct mlx5_ib_umr_context umr_context;
-	struct mlx5_umr_wr umrwr;
+	struct mlx5_umr_wr umrwr = {};
 	struct ib_send_wr *bad;
 	int err;
 
 	mlx5_ib_init_umr_context(&umr_context);
 
-	memset(&umrwr.wr, 0, sizeof(umrwr));
 	umrwr.wr.wr_cqe = &umr_context.cqe;
 	prep_umr_unreg_wqe(dev, &umrwr.wr, mr->mmkey.key);
 
