@@ -378,19 +378,31 @@ int wilc_wlan_cfg_set_wid(u8 *frame, u32 offset, u16 id, u8 *buf, int size)
 	u8 type = (id >> 12) & 0xf;
 	int ret = 0;
 
-	if (type == CFG_BYTE_CMD) {
+	switch (type) {
+	case CFG_BYTE_CMD:
 		if (size >= 1)
 			ret = wilc_wlan_cfg_set_byte(frame, offset, id, *buf);
-	} else if (type == CFG_HWORD_CMD) {
+		break;
+
+	case CFG_HWORD_CMD:
 		if (size >= 2)
-			ret = wilc_wlan_cfg_set_hword(frame, offset, id, *((u16 *)buf));
-	} else if (type == CFG_WORD_CMD) {
+			ret = wilc_wlan_cfg_set_hword(frame, offset, id,
+						      *((u16 *)buf));
+		break;
+
+	case CFG_WORD_CMD:
 		if (size >= 4)
-			ret = wilc_wlan_cfg_set_word(frame, offset, id, *((u32 *)buf));
-	} else if (type == CFG_STR_CMD) {
+			ret = wilc_wlan_cfg_set_word(frame, offset, id,
+						     *((u32 *)buf));
+		break;
+
+	case CFG_STR_CMD:
 		ret = wilc_wlan_cfg_set_str(frame, offset, id, buf, size);
-	} else if (type == CFG_BIN_CMD) {
+		break;
+
+	case CFG_BIN_CMD:
 		ret = wilc_wlan_cfg_set_bin(frame, offset, id, buf, size);
+		break;
 	}
 
 	return ret;
