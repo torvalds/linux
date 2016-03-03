@@ -1184,7 +1184,11 @@ struct event_trigger_data {
 	char				*filter_str;
 	void				*private_data;
 	bool				paused;
+	bool				paused_tmp;
 	struct list_head		list;
+	char				*name;
+	struct list_head		named_list;
+	struct event_trigger_data	*named_data;
 };
 
 /* Avoid typos */
@@ -1227,6 +1231,15 @@ extern void unregister_trigger(char *glob, struct event_trigger_ops *ops,
 extern int set_trigger_filter(char *filter_str,
 			      struct event_trigger_data *trigger_data,
 			      struct trace_event_file *file);
+extern struct event_trigger_data *find_named_trigger(const char *name);
+extern bool is_named_trigger(struct event_trigger_data *test);
+extern int save_named_trigger(const char *name,
+			      struct event_trigger_data *data);
+extern void del_named_trigger(struct event_trigger_data *data);
+extern void pause_named_trigger(struct event_trigger_data *data);
+extern void unpause_named_trigger(struct event_trigger_data *data);
+extern void set_named_trigger_data(struct event_trigger_data *data,
+				   struct event_trigger_data *named_data);
 extern int register_event_command(struct event_command *cmd);
 extern int unregister_event_command(struct event_command *cmd);
 extern int register_trigger_hist_enable_disable_cmds(void);

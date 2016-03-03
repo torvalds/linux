@@ -641,6 +641,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 	trigger_data->ops = trigger_ops;
 	trigger_data->cmd_ops = cmd_ops;
 	INIT_LIST_HEAD(&trigger_data->list);
+	INIT_LIST_HEAD(&trigger_data->named_list);
 
 	if (glob[0] == '!') {
 		cmd_ops->unreg(glob+1, trigger_ops, trigger_data, file);
@@ -762,6 +763,148 @@ int set_trigger_filter(char *filter_str,
 	}
  out:
 	return ret;
+}
+
+static LIST_HEAD(named_triggers);
+
+/**
+ * find_named_trigger - Find the common named trigger associated with @name
+ * @name: The name of the set of named triggers to find the common data for
+ *
+ * Named triggers are sets of triggers that share a common set of
+ * trigger data.  The first named trigger registered with a given name
+ * owns the common trigger data that the others subsequently
+ * registered with the same name will reference.  This function
+ * returns the common trigger data associated with that first
+ * registered instance.
+ *
+ * Return: the common trigger data for the given named trigger on
+ * success, NULL otherwise.
+ */
+struct event_trigger_data *find_named_trigger(const char *name)
+{
+	struct event_trigger_data *data;
+
+	if (!name)
+		return NULL;
+
+	list_for_each_entry(data, &named_triggers, named_list) {
+		if (data->named_data)
+			continue;
+		if (strcmp(data->name, name) == 0)
+			return data;
+	}
+
+	return NULL;
+}
+
+/**
+ * is_named_trigger - determine if a given trigger is a named trigger
+ * @test: The trigger data to test
+ *
+ * Return: true if 'test' is a named trigger, false otherwise.
+ */
+bool is_named_trigger(struct event_trigger_data *test)
+{
+	struct event_trigger_data *data;
+
+	list_for_each_entry(data, &named_triggers, named_list) {
+		if (test == data)
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * save_named_trigger - save the trigger in the named trigger list
+ * @name: The name of the named trigger set
+ * @data: The trigger data to save
+ *
+ * Return: 0 if successful, negative error otherwise.
+ */
+int save_named_trigger(const char *name, struct event_trigger_data *data)
+{
+	data->name = kstrdup(name, GFP_KERNEL);
+	if (!data->name)
+		return -ENOMEM;
+
+	list_add(&data->named_list, &named_triggers);
+
+	return 0;
+}
+
+/**
+ * del_named_trigger - delete a trigger from the named trigger list
+ * @data: The trigger data to delete
+ */
+void del_named_trigger(struct event_trigger_data *data)
+{
+	kfree(data->name);
+	data->name = NULL;
+
+	list_del(&data->named_list);
+}
+
+static void __pause_named_trigger(struct event_trigger_data *data, bool pause)
+{
+	struct event_trigger_data *test;
+
+	list_for_each_entry(test, &named_triggers, named_list) {
+		if (strcmp(test->name, data->name) == 0) {
+			if (pause) {
+				test->paused_tmp = test->paused;
+				test->paused = true;
+			} else {
+				test->paused = test->paused_tmp;
+			}
+		}
+	}
+}
+
+/**
+ * pause_named_trigger - Pause all named triggers with the same name
+ * @data: The trigger data of a named trigger to pause
+ *
+ * Pauses a named trigger along with all other triggers having the
+ * same name.  Because named triggers share a common set of data,
+ * pausing only one is meaningless, so pausing one named trigger needs
+ * to pause all triggers with the same name.
+ */
+void pause_named_trigger(struct event_trigger_data *data)
+{
+	__pause_named_trigger(data, true);
+}
+
+/**
+ * unpause_named_trigger - Un-pause all named triggers with the same name
+ * @data: The trigger data of a named trigger to unpause
+ *
+ * Un-pauses a named trigger along with all other triggers having the
+ * same name.  Because named triggers share a common set of data,
+ * unpausing only one is meaningless, so unpausing one named trigger
+ * needs to unpause all triggers with the same name.
+ */
+void unpause_named_trigger(struct event_trigger_data *data)
+{
+	__pause_named_trigger(data, false);
+}
+
+/**
+ * set_named_trigger_data - Associate common named trigger data
+ * @data: The trigger data of a named trigger to unpause
+ *
+ * Named triggers are sets of triggers that share a common set of
+ * trigger data.  The first named trigger registered with a given name
+ * owns the common trigger data that the others subsequently
+ * registered with the same name will reference.  This function
+ * associates the common trigger data from the first trigger with the
+ * given trigger.
+ */
+void set_named_trigger_data(struct event_trigger_data *data,
+			    struct event_trigger_data *named_data)
+{
+	data->named_data = named_data;
 }
 
 static void
