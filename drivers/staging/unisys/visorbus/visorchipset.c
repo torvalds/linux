@@ -2248,7 +2248,7 @@ static inline int issue_vmcall_update_physical_time(u64 adjustment)
 static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long arg)
 {
-	s64 adjustment;
+	u64 adjustment;
 	s64 vrtc_offset;
 
 	switch (cmd) {
