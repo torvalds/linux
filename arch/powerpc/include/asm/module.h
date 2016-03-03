@@ -82,6 +82,15 @@ bool is_module_trampoline(u32 *insns);
 int module_trampoline_target(struct module *mod, u32 *trampoline,
 			     unsigned long *target);
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs);
+#else
+static inline int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
+{
+	return 0;
+}
+#endif
+
 struct exception_table_entry;
 void sort_ex_table(struct exception_table_entry *start,
 		   struct exception_table_entry *finish);

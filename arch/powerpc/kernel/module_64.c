@@ -413,7 +413,7 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 /* r2 is the TOC pointer: it actually points 0x8000 into the TOC (this
    gives the value maximum span in an instruction which uses a signed
    offset) */
-static inline unsigned long my_r2(Elf64_Shdr *sechdrs, struct module *me)
+static inline unsigned long my_r2(const Elf64_Shdr *sechdrs, struct module *me)
 {
 	return sechdrs[me->arch.toc_section].sh_addr + 0x8000;
 }
@@ -426,7 +426,7 @@ static inline unsigned long my_r2(Elf64_Shdr *sechdrs, struct module *me)
 #define PPC_HA(v) PPC_HI ((v) + 0x8000)
 
 /* Patch stub to reference function and correct r2 value. */
-static inline int create_stub(Elf64_Shdr *sechdrs,
+static inline int create_stub(const Elf64_Shdr *sechdrs,
 			      struct ppc64_stub_entry *entry,
 			      unsigned long addr,
 			      struct module *me)
@@ -452,7 +452,7 @@ static inline int create_stub(Elf64_Shdr *sechdrs,
 
 /* Create stub to jump to function described in this OPD/ptr: we need the
    stub to set up the TOC ptr (r2) for the function. */
-static unsigned long stub_for_addr(Elf64_Shdr *sechdrs,
+static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 				   unsigned long addr,
 				   struct module *me)
 {
@@ -693,12 +693,18 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		}
 	}
 
+	return 0;
+}
+
 #ifdef CONFIG_DYNAMIC_FTRACE
-	me->arch.toc = my_r2(sechdrs, me);
-	me->arch.tramp = stub_for_addr(sechdrs,
-				       (unsigned long)ftrace_caller,
-				       me);
-#endif
+int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
+{
+	mod->arch.toc = my_r2(sechdrs, mod);
+	mod->arch.tramp = stub_for_addr(sechdrs, (unsigned long)ftrace_caller, mod);
+
+	if (!mod->arch.tramp)
+		return -ENOENT;
 
 	return 0;
 }
+#endif
