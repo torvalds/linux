@@ -1250,10 +1250,40 @@ static void print_counter(struct perf_evsel *counter, char *prefix)
 	}
 }
 
+static void print_no_aggr_metric(char *prefix)
+{
+	int cpu;
+	int nrcpus = 0;
+	struct perf_evsel *counter;
+	u64 ena, run, val;
+	double uval;
+
+	nrcpus = evsel_list->cpus->nr;
+	for (cpu = 0; cpu < nrcpus; cpu++) {
+		bool first = true;
+
+		if (prefix)
+			fputs(prefix, stat_config.output);
+		evlist__for_each(evsel_list, counter) {
+			if (first) {
+				aggr_printout(counter, cpu, 0);
+				first = false;
+			}
+			val = perf_counts(counter->counts, cpu, 0)->val;
+			ena = perf_counts(counter->counts, cpu, 0)->ena;
+			run = perf_counts(counter->counts, cpu, 0)->run;
+
+			uval = val * counter->scale;
+			printout(cpu, 0, counter, uval, prefix, run, ena, 1.0);
+		}
+		fputc('\n', stat_config.output);
+	}
+}
+
 static int aggr_header_lens[] = {
 	[AGGR_CORE] = 18,
 	[AGGR_SOCKET] = 12,
-	[AGGR_NONE] = 15,
+	[AGGR_NONE] = 6,
 	[AGGR_THREAD] = 24,
 	[AGGR_GLOBAL] = 0,
 };
@@ -1408,8 +1438,12 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 			fputc('\n', stat_config.output);
 		break;
 	case AGGR_NONE:
-		evlist__for_each(evsel_list, counter)
-			print_counter(counter, prefix);
+		if (metric_only)
+			print_no_aggr_metric(prefix);
+		else {
+			evlist__for_each(evsel_list, counter)
+				print_counter(counter, prefix);
+		}
 		break;
 	case AGGR_UNSET:
 	default:
@@ -2175,11 +2209,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (metric_only && stat_config.aggr_mode == AGGR_THREAD) {
 		fprintf(stderr, "--metric-only is not supported with --per-thread\n");
-		goto out;
-	}
-
-	if (metric_only && stat_config.aggr_mode == AGGR_NONE) {
-		fprintf(stderr, "--metric-only is not supported with -A\n");
 		goto out;
 	}
 

@@ -149,7 +149,7 @@ The overhead percentage could be high in some cases, for instance with small, su
 
 --metric-only::
 Only print computed metrics. Print them in a single line.
-Don't show any raw values. Not supported with -A or --per-thread.
+Don't show any raw values. Not supported with --per-thread.
 
 --per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
