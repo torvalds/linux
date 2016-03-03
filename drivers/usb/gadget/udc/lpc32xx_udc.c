@@ -49,7 +49,6 @@
 #endif
 
 #include <mach/hardware.h>
-#include <mach/platform.h>
 
 /*
  * USB device configuration structure
@@ -209,16 +208,6 @@ static inline struct lpc32xx_udc *to_udc(struct usb_gadget *g)
 	dev_warn(epp->udc->dev, "%s:" fmt, __func__, ## arg)
 
 #define UDCA_BUFF_SIZE (128)
-
-/* TODO: When the clock framework is introduced in LPC32xx, IO_ADDRESS will
- * be replaced with an inremap()ed pointer
- * */
-#define USB_CTRL		IO_ADDRESS(LPC32XX_CLK_PM_BASE + 0x64)
-
-/* USB_CTRL bit defines */
-#define USB_SLAVE_HCLK_EN	(1 << 24)
-#define USB_HOST_NEED_CLK_EN	(1 << 21)
-#define USB_DEV_NEED_CLK_EN	(1 << 22)
 
 /**********************************************************************
  * USB device controller register offsets
@@ -639,9 +628,6 @@ static void isp1301_udc_configure(struct lpc32xx_udc *udc)
 	i2c_smbus_write_byte_data(udc->isp1301_i2c_client,
 		ISP1301_I2C_INTERRUPT_RISING, INT_VBUS_VLD);
 
-	/* Enable usb_need_clk clock after transceiver is initialized */
-	writel((readl(USB_CTRL) | USB_DEV_NEED_CLK_EN), USB_CTRL);
-
 	dev_info(udc->dev, "ISP1301 Vendor ID  : 0x%04x\n",
 		 i2c_smbus_read_word_data(udc->isp1301_i2c_client, 0x00));
 	dev_info(udc->dev, "ISP1301 Product ID : 0x%04x\n",
@@ -983,11 +969,6 @@ static void udc_clk_set(struct lpc32xx_udc *udc, int enable)
 
 		/* 48MHz PLL up */
 		clk_prepare_enable(udc->usb_pll_clk);
-
-		/* Enable the USB device clock */
-		writel(readl(USB_CTRL) | USB_DEV_NEED_CLK_EN,
-			     USB_CTRL);
-
 		clk_prepare_enable(udc->usb_otg_clk);
 	} else {
 		if (!udc->clocked)
@@ -999,11 +980,6 @@ static void udc_clk_set(struct lpc32xx_udc *udc, int enable)
 
 		/* 48MHz PLL dpwn */
 		clk_disable_unprepare(udc->usb_pll_clk);
-
-		/* Disable the USB device clock */
-		writel(readl(USB_CTRL) & ~USB_DEV_NEED_CLK_EN,
-			     USB_CTRL);
-
 		clk_disable_unprepare(udc->usb_otg_clk);
 	}
 }
@@ -3125,9 +3101,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 		goto io_map_fail;
 	}
 
-	/* Enable AHB slave USB clock, needed for further USB clock control */
-	writel(USB_SLAVE_HCLK_EN | (1 << 19), USB_CTRL);
-
 	/* Get required clocks */
 	udc->usb_pll_clk = clk_get(&pdev->dev, "ck_pll5");
 	if (IS_ERR(udc->usb_pll_clk)) {
@@ -3160,8 +3133,6 @@ static int lpc32xx_udc_probe(struct platform_device *pdev)
 		dev_err(udc->dev, "failed to set USB clock rate\n");
 		goto pll_set_fail;
 	}
-
-	writel(readl(USB_CTRL) | USB_DEV_NEED_CLK_EN, USB_CTRL);
 
 	/* Enable USB device clock */
 	retval = clk_prepare_enable(udc->usb_slv_clk);
