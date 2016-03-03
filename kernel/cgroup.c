@@ -220,6 +220,7 @@ static struct cftype cgroup_dfl_base_files[];
 static struct cftype cgroup_legacy_base_files[];
 
 static int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
+static void cgroup_lock_and_drain_offline(struct cgroup *cgrp);
 static void css_task_iter_advance(struct css_task_iter *it);
 static int cgroup_destroy_locked(struct cgroup *cgrp);
 static struct cgroup_subsys_state *css_create(struct cgroup *cgrp,
@@ -1391,19 +1392,22 @@ static void cgroup_kn_unlock(struct kernfs_node *kn)
 /**
  * cgroup_kn_lock_live - locking helper for cgroup kernfs methods
  * @kn: the kernfs_node being serviced
+ * @drain_offline: perform offline draining on the cgroup
  *
  * This helper is to be used by a cgroup kernfs method currently servicing
  * @kn.  It breaks the active protection, performs cgroup locking and
  * verifies that the associated cgroup is alive.  Returns the cgroup if
  * alive; otherwise, %NULL.  A successful return should be undone by a
- * matching cgroup_kn_unlock() invocation.
+ * matching cgroup_kn_unlock() invocation.  If @drain_offline is %true, the
+ * cgroup is drained of offlining csses before return.
  *
  * Any cgroup kernfs method implementation which requires locking the
  * associated cgroup should use this helper.  It avoids nesting cgroup
  * locking under kernfs active protection and allows all kernfs operations
  * including self-removal.
  */
-static struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn)
+static struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn,
+					  bool drain_offline)
 {
 	struct cgroup *cgrp;
 
@@ -1422,7 +1426,10 @@ static struct cgroup *cgroup_kn_lock_live(struct kernfs_node *kn)
 		return NULL;
 	kernfs_break_active_protection(kn);
 
-	mutex_lock(&cgroup_mutex);
+	if (drain_offline)
+		cgroup_lock_and_drain_offline(cgrp);
+	else
+		mutex_lock(&cgroup_mutex);
 
 	if (!cgroup_is_dead(cgrp))
 		return cgrp;
@@ -2761,7 +2768,7 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
 		return -EINVAL;
 
-	cgrp = cgroup_kn_lock_live(of->kn);
+	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
 		return -ENODEV;
 
@@ -2859,7 +2866,7 @@ static ssize_t cgroup_release_agent_write(struct kernfs_open_file *of,
 
 	BUILD_BUG_ON(sizeof(cgrp->root->release_agent_path) < PATH_MAX);
 
-	cgrp = cgroup_kn_lock_live(of->kn);
+	cgrp = cgroup_kn_lock_live(of->kn, false);
 	if (!cgrp)
 		return -ENODEV;
 	spin_lock(&release_agent_path_lock);
@@ -2984,27 +2991,23 @@ out_finish:
 }
 
 /**
- * cgroup_drain_offline - wait for previously offlined csses to go away
+ * cgroup_lock_and_drain_offline - lock cgroup_mutex and drain offlined csses
  * @cgrp: root of the target subtree
  *
  * Because css offlining is asynchronous, userland may try to re-enable a
- * controller while the previous css is still around.  This function drains
- * the previous css instances of @cgrp's subtree.
- *
- * Must be called with cgroup_mutex held.  Returns %false if there were no
- * dying css instances.  Returns %true if there were one or more and this
- * function waited.  On %true return, cgroup_mutex has been dropped and
- * re-acquired inbetween which anything could have happened.  The caller
- * typically would have to start over.
+ * controller while the previous css is still around.  This function grabs
+ * cgroup_mutex and drains the previous css instances of @cgrp's subtree.
  */
-static bool cgroup_drain_offline(struct cgroup *cgrp)
+static void cgroup_lock_and_drain_offline(struct cgroup *cgrp)
+	__acquires(&cgroup_mutex)
 {
 	struct cgroup *dsct;
 	struct cgroup_subsys_state *d_css;
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	lockdep_assert_held(&cgroup_mutex);
+restart:
+	mutex_lock(&cgroup_mutex);
 
 	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
 		for_each_subsys(ss, ssid) {
@@ -3021,14 +3024,11 @@ static bool cgroup_drain_offline(struct cgroup *cgrp)
 			mutex_unlock(&cgroup_mutex);
 			schedule();
 			finish_wait(&dsct->offline_waitq, &wait);
-			mutex_lock(&cgroup_mutex);
 
 			cgroup_put(dsct);
-			return true;
+			goto restart;
 		}
 	}
-
-	return false;
 }
 
 /**
@@ -3111,6 +3111,8 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
+			WARN_ON_ONCE(css && percpu_ref_is_dying(&css->refcnt));
+
 			if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
 				continue;
 
@@ -3154,6 +3156,8 @@ static void cgroup_apply_control_disable(struct cgroup *cgrp)
 	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
+
+			WARN_ON_ONCE(css && percpu_ref_is_dying(&css->refcnt));
 
 			if (!css)
 				continue;
@@ -3264,7 +3268,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 			return -EINVAL;
 	}
 
-	cgrp = cgroup_kn_lock_live(of->kn);
+	cgrp = cgroup_kn_lock_live(of->kn, true);
 	if (!cgrp)
 		return -ENODEV;
 
@@ -3307,11 +3311,6 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	if (enable && cgroup_parent(cgrp) && !list_empty(&cgrp->cset_links)) {
 		ret = -EBUSY;
 		goto out_unlock;
-	}
-
-	if (cgroup_drain_offline(cgrp)) {
-		cgroup_kn_unlock(of->kn);
-		return restart_syscall();
 	}
 
 	/* save and update control masks and prepare csses */
@@ -5140,7 +5139,7 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (strchr(name, '\n'))
 		return -EINVAL;
 
-	parent = cgroup_kn_lock_live(parent_kn);
+	parent = cgroup_kn_lock_live(parent_kn, false);
 	if (!parent)
 		return -ENODEV;
 
@@ -5339,7 +5338,7 @@ static int cgroup_rmdir(struct kernfs_node *kn)
 	struct cgroup *cgrp;
 	int ret = 0;
 
-	cgrp = cgroup_kn_lock_live(kn);
+	cgrp = cgroup_kn_lock_live(kn, false);
 	if (!cgrp)
 		return 0;
 
