@@ -3101,7 +3101,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom,
 					 false);
 
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
