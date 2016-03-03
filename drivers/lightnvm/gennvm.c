@@ -257,7 +257,7 @@ static int gennvm_blocks_init(struct nvm_dev *dev, struct gen_nvm *gn)
 		}
 	}
 
-	if (dev->ops->get_l2p_tbl) {
+	if ((dev->identity.dom & NVM_RSP_L2P) && dev->ops->get_l2p_tbl) {
 		ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs,
 							gennvm_block_map, dev);
 		if (ret) {
