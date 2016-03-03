@@ -219,6 +219,29 @@ $ perf stat -- make -j
 
  Wall-clock time elapsed:   719.554352 msecs
 
+CSV FORMAT
+----------
+
+With -x, perf stat is able to output a not-quite-CSV format output
+Commas in the output are not put into "". To make it easy to parse
+it is recommended to use a different character like -x \;
+
+The fields are in this order:
+
+	- optional usec time stamp in fractions of second (with -I xxx)
+	- optional CPU, core, or socket identifier
+	- optional number of logical CPUs aggregated
+	- counter value
+	- unit of the counter value or empty
+	- event name
+	- run time of counter
+	- percentage of measurement time the counter was running
+	- optional variance if multiple values are collected with -r
+	- optional metric value
+	- optional unit of metric
+
+Additional metrics may be printed with all earlier fields being empty.
+
 SEE ALSO
 --------
 linkperf:perf-top[1], linkperf:perf-list[1]
