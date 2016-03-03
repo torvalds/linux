@@ -299,6 +299,11 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn)
 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
 		return -ENODEV;
 
+	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
+		pfn_sb->start_pad = 0;
+		pfn_sb->end_trunc = 0;
+	}
+
 	switch (le32_to_cpu(pfn_sb->mode)) {
 	case PFN_MODE_RAM:
 	case PFN_MODE_PMEM:
