@@ -1548,6 +1548,17 @@ int eeh_pe_get_state(struct eeh_pe *pe)
 	if (!eeh_ops || !eeh_ops->get_state)
 		return -ENOENT;
 
+	/*
+	 * If the parent PE is owned by the host kernel and is undergoing
+	 * error recovery, we should return the PE state as temporarily
+	 * unavailable so that the error recovery on the guest is suspended
+	 * until the recovery completes on the host.
+	 */
+	if (pe->parent &&
+	    !(pe->state & EEH_PE_REMOVED) &&
+	    (pe->parent->state & (EEH_PE_ISOLATED | EEH_PE_RECOVERING)))
+		return EEH_PE_STATE_UNAVAIL;
+
 	result = eeh_ops->get_state(pe, NULL);
 	rst_active = !!(result & EEH_STATE_RESET_ACTIVE);
 	dma_en = !!(result & EEH_STATE_DMA_ENABLED);
