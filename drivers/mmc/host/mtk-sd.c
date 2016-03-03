@@ -1021,26 +1021,19 @@ static void msdc_set_buswidth(struct msdc_host *host, u32 width)
 static int msdc_ops_switch_volt(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct msdc_host *host = mmc_priv(mmc);
-	int min_uv, max_uv;
 	int ret = 0;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330) {
-			min_uv = 3300000;
-			max_uv = 3300000;
-		} else if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
-			min_uv = 1800000;
-			max_uv = 1800000;
-		} else {
+		if (ios->signal_voltage != MMC_SIGNAL_VOLTAGE_330 &&
+		    ios->signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
 			dev_err(host->dev, "Unsupported signal voltage!\n");
 			return -EINVAL;
 		}
 
-		ret = regulator_set_voltage(mmc->supply.vqmmc, min_uv, max_uv);
+		ret = mmc_regulator_set_vqmmc(mmc, ios);
 		if (ret) {
-			dev_dbg(host->dev,
-					"Regulator set error %d: %d - %d\n",
-					ret, min_uv, max_uv);
+			dev_dbg(host->dev, "Regulator set error %d (%d)\n",
+				ret, ios->signal_voltage);
 		} else {
 			/* Apply different pinctrl settings for different signal voltage */
 			if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
