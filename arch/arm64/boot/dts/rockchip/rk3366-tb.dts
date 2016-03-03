@@ -644,3 +644,7 @@
 	rockchip,usb-mode = <0>;
 	status = "okay";
 };
+
+&cpu0 {
+	cpu-supply = <&syr827>;
+};
