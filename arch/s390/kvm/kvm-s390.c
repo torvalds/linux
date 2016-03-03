@@ -485,7 +485,7 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	unsigned int idx;
 	switch (attr->attr) {
 	case KVM_S390_VM_MEM_ENABLE_CMMA:
-		ret = -EINVAL;
+		ret = -ENXIO;
 		if (!sclp.has_cmma)
 			break;
 
@@ -499,6 +499,9 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		mutex_unlock(&kvm->lock);
 		break;
 	case KVM_S390_VM_MEM_CLR_CMMA:
+		ret = -ENXIO;
+		if (!sclp.has_cmma)
+			break;
 		ret = -EINVAL;
 		if (!kvm->arch.use_cmma)
 			break;
@@ -964,6 +967,8 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		switch (attr->attr) {
 		case KVM_S390_VM_MEM_ENABLE_CMMA:
 		case KVM_S390_VM_MEM_CLR_CMMA:
+			ret = sclp.has_cmma ? 0 : -ENXIO;
+			break;
 		case KVM_S390_VM_MEM_LIMIT_SIZE:
 			ret = 0;
 			break;

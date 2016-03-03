@@ -20,7 +20,8 @@ Enables Collaborative Memory Management Assist (CMMA) for the virtual machine.
 
 1.2. ATTRIBUTE: KVM_S390_VM_MEM_CLR_CMMA
 Parameters: none
-Returns: 0
+Returns: -EINVAL if CMMA was not enabled
+         0 otherwise
 
 Clear the CMMA status for all guest pages, so any pages the guest marked
 as unused are again used any may not be reclaimed by the host.
