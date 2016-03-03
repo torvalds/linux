@@ -488,7 +488,7 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	clear_bit(STATE_BOOTING, &intel->flags);
 
 	/* In case of timeout, try to continue anyway */
-	if (err && err != ETIMEDOUT)
+	if (err && err != -ETIMEDOUT)
 		return err;
 
 	bt_dev_info(hdev, "Change controller speed to %d", speed);
@@ -581,7 +581,7 @@ static int intel_setup(struct hci_uart *hu)
 	clear_bit(STATE_BOOTING, &intel->flags);
 
 	/* In case of timeout, try to continue anyway */
-	if (err && err != ETIMEDOUT)
+	if (err && err != -ETIMEDOUT)
 		return err;
 
 	set_bit(STATE_BOOTLOADER, &intel->flags);

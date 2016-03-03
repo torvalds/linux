@@ -467,7 +467,7 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	err = request_firmware(&fw, fw_name, &hdev->dev);
 	if (err < 0) {
 		BT_INFO("%s: BCM: Patch %s not found", hdev->name, fw_name);
-		return 0;
+		goto done;
 	}
 
 	btbcm_patchram(hdev, fw);
@@ -501,6 +501,7 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	BT_INFO("%s: %s", hdev->name, (char *)(skb->data + 1));
 	kfree_skb(skb);
 
+done:
 	btbcm_check_bdaddr(hdev);
 
 	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);

@@ -169,6 +169,17 @@ config BT_HCIUART_QCA
 
 	  Say Y here to compile support for QCA protocol.
 
+config BT_HCIUART_AG6XX
+	bool "Intel AG6XX protocol support"
+	depends on BT_HCIUART
+	select BT_HCIUART_H4
+	select BT_INTEL
+	help
+	  The Intel/AG6XX protocol support enables Bluetooth HCI over serial
+	  port interface for Intel ibt 2.1 Bluetooth controllers.
+
+	  Say Y here to compile support for Intel AG6XX protocol.
+
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB
