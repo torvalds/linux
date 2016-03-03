@@ -3837,6 +3837,7 @@ static const char readme_msg[] =
 	"\t            [:values=<field1[,field2,...]>]\n"
 	"\t            [:sort=<field1[,field2,...]>]\n"
 	"\t            [:size=#entries]\n"
+	"\t            [:pause][:continue]\n"
 	"\t            [if <filter>]\n\n"
 	"\t    When a matching event is hit, an entry is added to a hash\n"
 	"\t    table using the key(s) and value(s) named, and the value of a\n"
@@ -3851,7 +3852,11 @@ static const char readme_msg[] =
 	"\t    used to specify more or fewer than the default 2048 entries\n"
 	"\t    for the hashtable size.\n\n"
 	"\t    Reading the 'hist' file for the event will dump the hash\n"
-	"\t    table in its entirety to stdout."
+	"\t    table in its entirety to stdout.\n\n"
+	"\t    The 'pause' parameter can be used to pause an existing hist\n"
+	"\t    trigger or to start a hist trigger but not log any events\n"
+	"\t    until told to do so.  'continue' can be used to start or\n"
+	"\t    restart a paused hist trigger.\n\n"
 #endif
 ;
 
