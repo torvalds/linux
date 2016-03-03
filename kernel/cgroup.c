@@ -3032,6 +3032,62 @@ static bool cgroup_drain_offline(struct cgroup *cgrp)
 }
 
 /**
+ * cgroup_save_control - save control masks of a subtree
+ * @cgrp: root of the target subtree
+ *
+ * Save ->subtree_control and ->subtree_ss_mask to the respective old_
+ * prefixed fields for @cgrp's subtree including @cgrp itself.
+ */
+static void cgroup_save_control(struct cgroup *cgrp)
+{
+	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
+
+	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
+		dsct->old_subtree_control = dsct->subtree_control;
+		dsct->old_subtree_ss_mask = dsct->subtree_ss_mask;
+	}
+}
+
+/**
+ * cgroup_propagate_control - refresh control masks of a subtree
+ * @cgrp: root of the target subtree
+ *
+ * For @cgrp and its subtree, ensure ->subtree_ss_mask matches
+ * ->subtree_control and propagate controller availability through the
+ * subtree so that descendants don't have unavailable controllers enabled.
+ */
+static void cgroup_propagate_control(struct cgroup *cgrp)
+{
+	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
+
+	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
+		dsct->subtree_control &= cgroup_control(dsct);
+		dsct->subtree_ss_mask = cgroup_calc_subtree_ss_mask(dsct,
+							dsct->subtree_control);
+	}
+}
+
+/**
+ * cgroup_restore_control - restore control masks of a subtree
+ * @cgrp: root of the target subtree
+ *
+ * Restore ->subtree_control and ->subtree_ss_mask from the respective old_
+ * prefixed fields for @cgrp's subtree including @cgrp itself.
+ */
+static void cgroup_restore_control(struct cgroup *cgrp)
+{
+	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
+
+	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
+		dsct->subtree_control = dsct->old_subtree_control;
+		dsct->subtree_ss_mask = dsct->old_subtree_ss_mask;
+	}
+}
+
+/**
  * cgroup_apply_control_enable - enable or show csses according to control
  * @cgrp: root of the target subtree
  *
@@ -3119,7 +3175,6 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    loff_t off)
 {
 	u16 enable = 0, disable = 0;
-	u16 css_enable, css_disable, old_sc, new_sc, old_ss, new_ss;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -3203,25 +3258,14 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 		return restart_syscall();
 	}
 
-	/*
-	 * Update subsys masks and calculate what needs to be done.  More
-	 * subsystems than specified may need to be enabled or disabled
-	 * depending on subsystem dependencies.
-	 */
-	old_sc = cgrp->subtree_control;
-	old_ss = cgrp->subtree_ss_mask;
-	new_sc = (old_sc | enable) & ~disable;
-	new_ss = cgroup_calc_subtree_ss_mask(cgrp, new_sc);
+	/* save and update control masks and prepare csses */
+	cgroup_save_control(cgrp);
 
-	css_enable = ~old_ss & new_ss;
-	css_disable = old_ss & ~new_ss;
-	enable |= css_enable;
-	disable |= css_disable;
+	cgrp->subtree_control |= enable;
+	cgrp->subtree_control &= ~disable;
 
-	cgrp->subtree_control = new_sc;
-	cgrp->subtree_ss_mask = new_ss;
+	cgroup_propagate_control(cgrp);
 
-	/* prepare csses */
 	ret = cgroup_apply_control_enable(cgrp);
 	if (ret)
 		goto err_undo_css;
@@ -3246,9 +3290,7 @@ out_unlock:
 
 err_undo_css:
 	/* restore masks and shoot down new csses */
-	cgrp->subtree_control = old_sc;
-	cgrp->subtree_ss_mask = old_ss;
-
+	cgroup_restore_control(cgrp);
 	cgroup_apply_control_disable(cgrp);
 
 	goto out_unlock;
