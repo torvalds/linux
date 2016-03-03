@@ -21,6 +21,8 @@ To use a USB channel where USB 2.0 Host and HSUSB (USB 2.0 Peripheral) are
 combined, the device tree node should set interrupt properties to use the
 channel as USB OTG:
 - interrupts: interrupt specifier for the PHY.
+- vbus-supply: Phandle to a regulator that provides power to the VBUS. This
+	       regulator will be managed during the PHY power on/off sequence.
 
 Example (R-Car H3):
 

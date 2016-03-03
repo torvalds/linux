@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 /******* USB2.0 Host registers (original offset is +0x200) *******/
 #define USB2_INT_ENABLE		0x000
@@ -77,6 +78,7 @@
 struct rcar_gen3_chan {
 	void __iomem *base;
 	struct phy *phy;
+	struct regulator *vbus;
 	bool has_otg;
 };
 
@@ -210,6 +212,13 @@ static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
 	void __iomem *usb2_base = channel->base;
 	u32 val;
+	int ret;
+
+	if (channel->vbus) {
+		ret = regulator_enable(channel->vbus);
+		if (ret)
+			return ret;
+	}
 
 	val = readl(usb2_base + USB2_USBCTR);
 	val |= USB2_USBCTR_PLL_RST;
@@ -220,10 +229,22 @@ static int rcar_gen3_phy_usb2_power_on(struct phy *p)
 	return 0;
 }
 
+static int rcar_gen3_phy_usb2_power_off(struct phy *p)
+{
+	struct rcar_gen3_chan *channel = phy_get_drvdata(p);
+	int ret = 0;
+
+	if (channel->vbus)
+		ret = regulator_disable(channel->vbus);
+
+	return ret;
+}
+
 static struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.init		= rcar_gen3_phy_usb2_init,
 	.exit		= rcar_gen3_phy_usb2_exit,
 	.power_on	= rcar_gen3_phy_usb2_power_on,
+	.power_off	= rcar_gen3_phy_usb2_power_off,
 	.owner		= THIS_MODULE,
 };
 
@@ -288,6 +309,13 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(channel->phy)) {
 		dev_err(dev, "Failed to create USB2 PHY\n");
 		return PTR_ERR(channel->phy);
+	}
+
+	channel->vbus = devm_regulator_get_optional(dev, "vbus");
+	if (IS_ERR(channel->vbus)) {
+		if (PTR_ERR(channel->vbus) == -EPROBE_DEFER)
+			return PTR_ERR(channel->vbus);
+		channel->vbus = NULL;
 	}
 
 	phy_set_drvdata(channel->phy, channel);
