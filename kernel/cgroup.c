@@ -3013,6 +3013,49 @@ static bool cgroup_drain_offline(struct cgroup *cgrp)
 }
 
 /**
+ * cgroup_apply_control_enable - enable or show csses according to control
+ * @cgrp: parent of the target cgroups
+ *
+ * Walk @cgrp's children and create new csses or make the existing ones
+ * visible.  A css is created invisible if it's being implicitly enabled
+ * through dependency.  An invisible css is made visible when the userland
+ * explicitly enables it.
+ *
+ * Returns 0 on success, -errno on failure.  On failure, csses which have
+ * been processed already aren't cleaned up.  The caller is responsible for
+ * cleaning up with cgroup_apply_control_disble().
+ */
+static int cgroup_apply_control_enable(struct cgroup *cgrp)
+{
+	struct cgroup *dsct;
+	struct cgroup_subsys *ss;
+	int ssid, ret;
+
+	cgroup_for_each_live_child(dsct, cgrp) {
+		for_each_subsys(ss, ssid) {
+			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
+
+			if (!(cgroup_ss_mask(dsct) & (1 << ss->id)))
+				continue;
+
+			if (!css) {
+				css = css_create(dsct, ss);
+				if (IS_ERR(css))
+					return PTR_ERR(css);
+			}
+
+			if (cgroup_control(dsct) & (1 << ss->id)) {
+				ret = css_populate_dir(css, NULL);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
  * cgroup_apply_control_disable - kill or hide csses according to control
  * @cgrp: parent of the target cgroups
  *
@@ -3157,36 +3200,10 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	cgrp->subtree_control = new_sc;
 	cgrp->subtree_ss_mask = new_ss;
 
-	/*
-	 * Create new csses or make the existing ones visible.  A css is
-	 * created invisible if it's being implicitly enabled through
-	 * dependency.  An invisible css is made visible when the userland
-	 * explicitly enables it.
-	 */
-	do_each_subsys_mask(ss, ssid, enable) {
-		cgroup_for_each_live_child(child, cgrp) {
-			if (css_enable & (1 << ssid)) {
-				struct cgroup_subsys_state *css;
-
-				css = css_create(child, ss);
-				if (IS_ERR(css)) {
-					ret = PTR_ERR(css);
-					goto err_undo_css;
-				}
-
-				if (cgrp->subtree_control & (1 << ssid)) {
-					ret = css_populate_dir(css, NULL);
-					if (ret)
-						goto err_undo_css;
-				}
-			} else {
-				ret = css_populate_dir(cgroup_css(child, ss),
-						       NULL);
-				if (ret)
-					goto err_undo_css;
-			}
-		}
-	} while_each_subsys_mask();
+	/* prepare csses */
+	ret = cgroup_apply_control_enable(cgrp);
+	if (ret)
+		goto err_undo_css;
 
 	/*
 	 * At this point, cgroup_e_css() results reflect the new csses
