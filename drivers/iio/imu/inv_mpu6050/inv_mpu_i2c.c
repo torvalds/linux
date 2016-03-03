@@ -117,6 +117,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	struct inv_mpu6050_state *st;
 	int result;
 	const char *name = id ? id->name : NULL;
+	const int chip_type = id ? id->driver_data : 0;
 	struct regmap *regmap;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -131,7 +132,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	}
 
 	result = inv_mpu_core_probe(regmap, client->irq, name,
-				    NULL, id->driver_data);
+				    NULL, chip_type);
 	if (result < 0)
 		return result;
 
