@@ -85,6 +85,7 @@ enum hist_field_flags {
 struct hist_trigger_attrs {
 	char		*keys_str;
 	char		*vals_str;
+	char		*sort_key_str;
 	unsigned int	map_bits;
 };
 
@@ -165,6 +166,7 @@ static void destroy_hist_trigger_attrs(struct hist_trigger_attrs *attrs)
 	if (!attrs)
 		return;
 
+	kfree(attrs->sort_key_str);
 	kfree(attrs->keys_str);
 	kfree(attrs->vals_str);
 	kfree(attrs);
@@ -189,6 +191,8 @@ static struct hist_trigger_attrs *parse_hist_trigger_attrs(char *trigger_str)
 			 (strncmp(str, "vals=", strlen("vals=")) == 0) ||
 			 (strncmp(str, "values=", strlen("values=")) == 0))
 			attrs->vals_str = kstrdup(str, GFP_KERNEL);
+		else if (strncmp(str, "sort=", strlen("sort=")) == 0)
+			attrs->sort_key_str = kstrdup(str, GFP_KERNEL);
 		else if (strncmp(str, "size=", strlen("size=")) == 0) {
 			int map_bits = parse_map_size(str);
 
@@ -450,12 +454,92 @@ static int create_hist_fields(struct hist_trigger_data *hist_data,
 	return ret;
 }
 
+static int is_descending(const char *str)
+{
+	if (!str)
+		return 0;
+
+	if (strcmp(str, "descending") == 0)
+		return 1;
+
+	if (strcmp(str, "ascending") == 0)
+		return 0;
+
+	return -EINVAL;
+}
+
 static int create_sort_keys(struct hist_trigger_data *hist_data)
 {
-	int ret = 0;
+	char *fields_str = hist_data->attrs->sort_key_str;
+	struct ftrace_event_field *field = NULL;
+	struct tracing_map_sort_key *sort_key;
+	int descending, ret = 0;
+	unsigned int i, j;
 
-	hist_data->n_sort_keys = 1; /* sort_keys[0] is always hitcount */
+	hist_data->n_sort_keys = 1; /* we always have at least one, hitcount */
 
+	if (!fields_str)
+		goto out;
+
+	strsep(&fields_str, "=");
+	if (!fields_str) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < TRACING_MAP_SORT_KEYS_MAX; i++) {
+		char *field_str, *field_name;
+
+		sort_key = &hist_data->sort_keys[i];
+
+		field_str = strsep(&fields_str, ",");
+		if (!field_str) {
+			if (i == 0)
+				ret = -EINVAL;
+			break;
+		}
+
+		if ((i == TRACING_MAP_SORT_KEYS_MAX - 1) && fields_str) {
+			ret = -EINVAL;
+			break;
+		}
+
+		field_name = strsep(&field_str, ".");
+		if (!field_name) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (strcmp(field_name, "hitcount") == 0) {
+			descending = is_descending(field_str);
+			if (descending < 0) {
+				ret = descending;
+				break;
+			}
+			sort_key->descending = descending;
+			continue;
+		}
+
+		for (j = 1; j < hist_data->n_fields; j++) {
+			field = hist_data->fields[j]->field;
+			if (field && (strcmp(field_name, field->name) == 0)) {
+				sort_key->field_idx = j;
+				descending = is_descending(field_str);
+				if (descending < 0) {
+					ret = descending;
+					goto out;
+				}
+				sort_key->descending = descending;
+				break;
+			}
+		}
+		if (j == hist_data->n_fields) {
+			ret = -EINVAL;
+			break;
+		}
+	}
+	hist_data->n_sort_keys = i;
+ out:
 	return ret;
 }
 
@@ -758,7 +842,29 @@ static int event_hist_trigger_print(struct seq_file *m,
 	}
 
 	seq_puts(m, ":sort=");
-	seq_puts(m, "hitcount");
+
+	for (i = 0; i < hist_data->n_sort_keys; i++) {
+		struct tracing_map_sort_key *sort_key;
+
+		sort_key = &hist_data->sort_keys[i];
+
+		if (i > 0)
+			seq_puts(m, ",");
+
+		if (sort_key->field_idx == HITCOUNT_IDX)
+			seq_puts(m, "hitcount");
+		else {
+			unsigned int idx = sort_key->field_idx;
+
+			if (WARN_ON(idx >= TRACING_MAP_FIELDS_MAX))
+				return -EINVAL;
+
+			hist_field_print(m, hist_data->fields[idx]);
+		}
+
+		if (sort_key->descending)
+			seq_puts(m, ".descending");
+	}
 
 	seq_printf(m, ":size=%u", (1 << hist_data->map->map_bits));
 
