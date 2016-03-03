@@ -1220,13 +1220,6 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 	scsi_autopm_get_device(sdev);
 
-	error = device_add(&sdev->sdev_gendev);
-	if (error) {
-		sdev_printk(KERN_INFO, sdev,
-				"failed to add device: %d\n", error);
-		return error;
-	}
-
 	error = scsi_dh_add_device(sdev);
 	if (error)
 		/*
@@ -1234,6 +1227,14 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		 */
 		sdev_printk(KERN_INFO, sdev,
 				"failed to add device handler: %d\n", error);
+
+	error = device_add(&sdev->sdev_gendev);
+	if (error) {
+		sdev_printk(KERN_INFO, sdev,
+				"failed to add device: %d\n", error);
+		scsi_dh_remove_device(sdev);
+		return error;
+	}
 
 	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
