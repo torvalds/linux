@@ -227,24 +227,17 @@ set_best_encoder(struct drm_atomic_state *state,
 	conn_state->best_encoder = encoder;
 }
 
-static int
+static void
 steal_encoder(struct drm_atomic_state *state,
 	      struct drm_encoder *encoder)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
+	int i;
 
-	drm_for_each_connector(connector, state->dev) {
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		struct drm_crtc *encoder_crtc;
-
-		if (connector->state->best_encoder != encoder)
-			continue;
-
-		connector_state = drm_atomic_get_connector_state(state,
-								 connector);
-		if (IS_ERR(connector_state))
-			return PTR_ERR(connector_state);
 
 		if (connector_state->best_encoder != encoder)
 			continue;
@@ -260,10 +253,8 @@ steal_encoder(struct drm_atomic_state *state,
 		crtc_state = drm_atomic_get_existing_crtc_state(state, encoder_crtc);
 		crtc_state->connectors_changed = true;
 
-		return 0;
+		return;
 	}
-
-	return 0;
 }
 
 static int
@@ -274,7 +265,7 @@ update_connector_routing(struct drm_atomic_state *state,
 	const struct drm_connector_helper_funcs *funcs;
 	struct drm_encoder *new_encoder;
 	struct drm_crtc_state *crtc_state;
-	int idx, ret;
+	int idx;
 
 	DRM_DEBUG_ATOMIC("Updating routing for [CONNECTOR:%d:%s]\n",
 			 connector->base.id,
@@ -343,13 +334,7 @@ update_connector_routing(struct drm_atomic_state *state,
 		return 0;
 	}
 
-	ret = steal_encoder(state, new_encoder);
-	if (ret) {
-		DRM_DEBUG_ATOMIC("Encoder stealing failed for [CONNECTOR:%d:%s]\n",
-				 connector->base.id,
-				 connector->name);
-		return ret;
-	}
+	steal_encoder(state, new_encoder);
 
 	if (WARN_ON(!connector_state->crtc))
 		return -EINVAL;
