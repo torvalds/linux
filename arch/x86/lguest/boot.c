@@ -1258,7 +1258,7 @@ static void probe_pci_console(void)
 		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
 		if (vndr == PCI_CAP_ID_VNDR) {
 			u8 type, bar;
-			u32 offset, length;
+			u32 offset;
 
 			type = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, cfg_type));
@@ -1266,15 +1266,12 @@ static void probe_pci_console(void)
 			    cap + offsetof(struct virtio_pci_cap, bar));
 			offset = read_pci_config(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, offset));
-			length = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, length));
 
 			switch (type) {
 			case VIRTIO_PCI_CAP_DEVICE_CFG:
 				if (bar == 0) {
 					device_cap = cap;
 					device_offset = offset;
-					device_len = length;
 				}
 				break;
 			case VIRTIO_PCI_CAP_PCI_CFG:
@@ -1297,6 +1294,8 @@ static void probe_pci_console(void)
 	 * emerg_wr.  If it doesn't support VIRTIO_CONSOLE_F_EMERG_WRITE
 	 * it should ignore the access.
 	 */
+	device_len = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, length));
 	if (device_len < (offsetof(struct virtio_console_config, emerg_wr)
 			  + sizeof(u32))) {
 		printk(KERN_ERR "lguest: console missing emerg_wr field\n");
