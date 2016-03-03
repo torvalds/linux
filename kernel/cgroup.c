@@ -1915,10 +1915,11 @@ static int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
 	/*
 	 * We're accessing css_set_count without locking css_set_lock here,
 	 * but that's OK - it can only be increased by someone holding
-	 * cgroup_lock, and that's us. The worst that can happen is that we
-	 * have some link structures left over
+	 * cgroup_lock, and that's us.  Later rebinding may disable
+	 * controllers on the default hierarchy and thus create new csets,
+	 * which can't be more than the existing ones.  Allocate 2x.
 	 */
-	ret = allocate_cgrp_cset_links(css_set_count, &tmp_links);
+	ret = allocate_cgrp_cset_links(2 * css_set_count, &tmp_links);
 	if (ret)
 		goto cancel_ref;
 
