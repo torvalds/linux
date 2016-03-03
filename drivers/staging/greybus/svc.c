@@ -291,21 +291,14 @@ int gb_svc_connection_create(struct gb_svc *svc,
 	request.cport1_id = cpu_to_le16(cport1_id);
 	request.intf2_id = intf2_id;
 	request.cport2_id = cpu_to_le16(cport2_id);
-	/*
-	 * XXX: fix connections paramaters to TC0 and all CPort flags
-	 * for now.
-	 */
-	request.tc = 0;
+	request.tc = 0;		/* TC0 */
 
-	/*
-	 * We need to skip setting E2EFC and other flags to the connection
-	 * create request, for all cports, on an interface that need to boot
-	 * over unipro, i.e. interfaces required to download firmware.
-	 */
+	/* The ES2/ES3 bootrom requires E2EFC, CSD and CSV to be disabled. */
+	request.flags = CPORT_FLAGS_CSV_N;
 	if (boot_over_unipro)
-		request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_CSD_N;
+		request.flags |= CPORT_FLAGS_CSD_N;
 	else
-		request.flags = CPORT_FLAGS_CSV_N | CPORT_FLAGS_E2EFC;
+		request.flags |= CPORT_FLAGS_CSD_N | CPORT_FLAGS_E2EFC;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
