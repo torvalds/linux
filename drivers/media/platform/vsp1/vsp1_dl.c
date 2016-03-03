@@ -163,18 +163,8 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 	return dl;
 }
 
-/**
- * vsp1_dl_list_put - Release a display list
- * @dl: The display list
- *
- * Release the display list and return it to the pool of free lists.
- *
- * This function must be called with the display list manager lock held.
- *
- * Passing a NULL pointer to this function is safe, in that case no operation
- * will be performed.
- */
-void vsp1_dl_list_put(struct vsp1_dl_list *dl)
+/* This function must be called with the display list manager lock held.*/
+static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 {
 	if (!dl)
 		return;
@@ -182,6 +172,27 @@ void vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	dl->reg_count = 0;
 
 	list_add_tail(&dl->list, &dl->dlm->free);
+}
+
+/**
+ * vsp1_dl_list_put - Release a display list
+ * @dl: The display list
+ *
+ * Release the display list and return it to the pool of free lists.
+ *
+ * Passing a NULL pointer to this function is safe, in that case no operation
+ * will be performed.
+ */
+void vsp1_dl_list_put(struct vsp1_dl_list *dl)
+{
+	unsigned long flags;
+
+	if (!dl)
+		return;
+
+	spin_lock_irqsave(&dl->dlm->lock, flags);
+	__vsp1_dl_list_put(dl);
+	spin_unlock_irqrestore(&dl->dlm->lock, flags);
 }
 
 void vsp1_dl_list_write(struct vsp1_dl_list *dl, u32 reg, u32 data)
@@ -219,7 +230,7 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 	 */
 	update = !!(vsp1_read(vsp1, VI6_DL_BODY_SIZE) & VI6_DL_BODY_SIZE_UPD);
 	if (update) {
-		vsp1_dl_list_put(dlm->pending);
+		__vsp1_dl_list_put(dlm->pending);
 		dlm->pending = dl;
 		goto done;
 	}
@@ -232,7 +243,7 @@ void vsp1_dl_list_commit(struct vsp1_dl_list *dl)
 	vsp1_write(vsp1, VI6_DL_BODY_SIZE, VI6_DL_BODY_SIZE_UPD |
 		   (dl->reg_count * 8));
 
-	vsp1_dl_list_put(dlm->queued);
+	__vsp1_dl_list_put(dlm->queued);
 	dlm->queued = dl;
 
 done:
@@ -252,7 +263,7 @@ void vsp1_dlm_irq_display_start(struct vsp1_dl_manager *dlm)
 	 * processing by the device. The active display list, if any, won't be
 	 * accessed anymore and can be reused.
 	 */
-	vsp1_dl_list_put(dlm->active);
+	__vsp1_dl_list_put(dlm->active);
 	dlm->active = NULL;
 
 	spin_unlock(&dlm->lock);
@@ -264,7 +275,7 @@ void vsp1_dlm_irq_frame_end(struct vsp1_dl_manager *dlm)
 
 	spin_lock(&dlm->lock);
 
-	vsp1_dl_list_put(dlm->active);
+	__vsp1_dl_list_put(dlm->active);
 	dlm->active = NULL;
 
 	/* Header mode is used for mem-to-mem pipelines only. We don't need to
@@ -327,9 +338,15 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 
 void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 {
-	vsp1_dl_list_put(dlm->active);
-	vsp1_dl_list_put(dlm->queued);
-	vsp1_dl_list_put(dlm->pending);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dlm->lock, flags);
+
+	__vsp1_dl_list_put(dlm->active);
+	__vsp1_dl_list_put(dlm->queued);
+	__vsp1_dl_list_put(dlm->pending);
+
+	spin_unlock_irqrestore(&dlm->lock, flags);
 
 	dlm->active = NULL;
 	dlm->queued = NULL;
