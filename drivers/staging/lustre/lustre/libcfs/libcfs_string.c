@@ -229,11 +229,36 @@ int
 cfs_str2num_check(char *str, int nob, unsigned *num,
 		  unsigned min, unsigned max)
 {
+	bool all_numbers = true;
+	char *endp, cache;
 	int rc;
 
 	str = cfs_trimwhite(str);
+
+	/**
+	 * kstrouint can only handle strings composed
+	 * of only numbers. We need to scan the string
+	 * passed in for the first non-digit character
+	 * and end the string at that location. If we
+	 * don't find any non-digit character we still
+	 * need to place a '\0' at position nob since
+	 * we are not interested in the rest of the
+	 * string which is longer than nob in size.
+	 * After we are done the character at the
+	 * position we placed '\0' must be restored.
+	 */
+	for (endp = str; endp < str + nob; endp++) {
+		if (!isdigit(*endp)) {
+			all_numbers = false;
+			break;
+		}
+	}
+	cache = *endp;
+	*endp = '\0';
+
 	rc = kstrtouint(str, 10, num);
-	if (rc)
+	*endp = cache;
+	if (rc || !all_numbers)
 		return 0;
 
 	return (*num >= min && *num <= max);
