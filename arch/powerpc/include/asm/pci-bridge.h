@@ -220,6 +220,7 @@ struct pci_dn {
 #define IODA_INVALID_M64        (-1)
 	int     (*m64_map)[PCI_SRIOV_NUM_BARS];
 #endif /* CONFIG_PCI_IOV */
+	int	mps;			/* Maximum Payload Size */
 #endif
 	struct list_head child_list;
 	struct list_head list;
