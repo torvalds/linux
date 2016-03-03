@@ -60,6 +60,16 @@ for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
 grep "id: sys_" events/raw_syscalls/sys_exit/hist > /dev/null || \
     fail "syscall modifier on raw_syscalls/sys_exit did not work"
 
+
+reset_trigger
+
+echo "Test histgram with log2 modifier"
+
+echo 'hist:keys=bytes_req.log2' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep 'bytes_req: ~ 2^[0-9]*' events/kmem/kmalloc/hist > /dev/null || \
+    fail "log2 modifier on kmem/kmalloc did not work"
+
 do_reset
 
 exit 0
