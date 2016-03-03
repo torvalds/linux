@@ -3712,7 +3712,7 @@ F:	drivers/gpu/vga/
 F:	include/drm/
 F:	include/uapi/drm/
 
-RADEON DRM DRIVERS
+RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
 L:	dri-devel@lists.freedesktop.org
@@ -3720,6 +3720,8 @@ T:	git git://people.freedesktop.org/~agd5f/linux
 S:	Supported
 F:	drivers/gpu/drm/radeon/
 F:	include/uapi/drm/radeon*
+F:	drivers/gpu/drm/amd/
+F:	include/uapi/drm/amdgpu*
 
 DRM PANEL DRIVERS
 M:	Thierry Reding <thierry.reding@gmail.com>
