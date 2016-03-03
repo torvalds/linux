@@ -81,7 +81,7 @@ static int wilc_sdio_cmd52(struct wilc *wilc, struct sdio_cmd52 *cmd)
 }
 
 
-static int wilc_sdio_cmd53(struct wilc *wilc, sdio_cmd53_t *cmd)
+static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 {
 	struct sdio_func *func = container_of(wilc->dev, struct sdio_func, dev);
 	int size, ret;
@@ -396,7 +396,7 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 			goto _fail_;
 		}
 	} else {
-		sdio_cmd53_t cmd;
+		struct sdio_cmd53 cmd;
 
 		/**
 		 *      set the AHB address
@@ -431,7 +431,7 @@ static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	u32 block_size = g_sdio.block_size;
-	sdio_cmd53_t cmd;
+	struct sdio_cmd53 cmd;
 	int nblk, nleft, ret;
 
 	cmd.read_write = 1;
@@ -536,7 +536,7 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		}
 		*data = cmd.data;
 	} else {
-		sdio_cmd53_t cmd;
+		struct sdio_cmd53 cmd;
 
 		if (!sdio_set_func0_csa_address(wilc, addr))
 			goto _fail_;
@@ -571,7 +571,7 @@ static int sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 {
 	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	u32 block_size = g_sdio.block_size;
-	sdio_cmd53_t cmd;
+	struct sdio_cmd53 cmd;
 	int nblk, nleft, ret;
 
 	cmd.read_write = 0;

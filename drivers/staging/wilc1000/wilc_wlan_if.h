@@ -58,7 +58,7 @@ struct sdio_cmd52 {
 	u32 data:		8;
 };
 
-typedef struct {
+struct sdio_cmd53 {
 	u32 read_write:		1;
 	u32 function:		3;
 	u32 block_mode:		1;
@@ -67,7 +67,7 @@ typedef struct {
 	u32 count:		9;
 	u8 *buffer;
 	u32 block_size;
-} sdio_cmd53_t;
+};
 
 #define WILC_MAC_INDICATE_STATUS	0x1
 #define WILC_MAC_STATUS_INIT		-1
