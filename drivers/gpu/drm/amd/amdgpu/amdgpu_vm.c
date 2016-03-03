@@ -188,6 +188,13 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (!is_later && owner == (long)id &&
 		    pd_addr == id->pd_gpu_addr) {
 
+			r = amdgpu_sync_fence(ring->adev, sync,
+					      id->mgr_id->active);
+			if (r) {
+				mutex_unlock(&adev->vm_manager.lock);
+				return r;
+			}
+
 			fence_put(id->mgr_id->active);
 			id->mgr_id->active = fence_get(fence);
 
