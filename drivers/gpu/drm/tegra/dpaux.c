@@ -121,6 +121,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	struct tegra_dpaux *dpaux = to_dpaux(aux);
 	unsigned long status;
 	ssize_t ret = 0;
+	u8 reply = 0;
 	u32 value;
 
 	/* Tegra has 4x4 byte DP AUX transmit and receive FIFOs. */
@@ -215,23 +216,23 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 
 	switch ((value & DPAUX_DP_AUXSTAT_REPLY_TYPE_MASK) >> 16) {
 	case 0x00:
-		msg->reply = DP_AUX_NATIVE_REPLY_ACK;
+		reply = DP_AUX_NATIVE_REPLY_ACK;
 		break;
 
 	case 0x01:
-		msg->reply = DP_AUX_NATIVE_REPLY_NACK;
+		reply = DP_AUX_NATIVE_REPLY_NACK;
 		break;
 
 	case 0x02:
-		msg->reply = DP_AUX_NATIVE_REPLY_DEFER;
+		reply = DP_AUX_NATIVE_REPLY_DEFER;
 		break;
 
 	case 0x04:
-		msg->reply = DP_AUX_I2C_REPLY_NACK;
+		reply = DP_AUX_I2C_REPLY_NACK;
 		break;
 
 	case 0x08:
-		msg->reply = DP_AUX_I2C_REPLY_DEFER;
+		reply = DP_AUX_I2C_REPLY_DEFER;
 		break;
 	}
 
@@ -239,14 +240,24 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		if (msg->request & DP_AUX_I2C_READ) {
 			size_t count = value & DPAUX_DP_AUXSTAT_REPLY_MASK;
 
-			if (WARN_ON(count != msg->size))
-				count = min_t(size_t, count, msg->size);
+			/*
+			 * There might be a smarter way to do this, but since
+			 * the DP helpers will already retry transactions for
+			 * an -EBUSY return value, simply reuse that instead.
+			 */
+			if (count != msg->size) {
+				ret = -EBUSY;
+				goto out;
+			}
 
 			tegra_dpaux_read_fifo(dpaux, msg->buffer, count);
 			ret = count;
 		}
 	}
 
+	msg->reply = reply;
+
+out:
 	return ret;
 }
 
