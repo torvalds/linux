@@ -339,7 +339,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	cport_flags = GB_SVC_CPORT_FLAG_CSV_N;
 	if (intf->boot_over_unipro) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N;
-	} else {
+	} else if (gb_connection_e2efc_enabled(connection)) {
 		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N |
 				GB_SVC_CPORT_FLAG_E2EFC;
 	}

@@ -13,6 +13,8 @@
 #include <linux/list.h>
 #include <linux/kfifo.h>
 
+#define GB_CONNECTION_FLAG_CSD		BIT(0)
+
 enum gb_connection_state {
 	GB_CONNECTION_STATE_INVALID	= 0,
 	GB_CONNECTION_STATE_DISABLED	= 1,
@@ -80,5 +82,10 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 
 void gb_connection_latency_tag_enable(struct gb_connection *connection);
 void gb_connection_latency_tag_disable(struct gb_connection *connection);
+
+static inline bool gb_connection_e2efc_enabled(struct gb_connection *connection)
+{
+	return !(connection->flags & GB_CONNECTION_FLAG_CSD);
+}
 
 #endif /* __CONNECTION_H */
