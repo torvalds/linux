@@ -9857,8 +9857,8 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	val |= LCPLL_CD_SOURCE_FCLK;
 	I915_WRITE(LCPLL_CTL, val);
 
-	if (wait_for_atomic_us(I915_READ(LCPLL_CTL) &
-			       LCPLL_CD_SOURCE_FCLK_DONE, 1))
+	if (wait_for_us(I915_READ(LCPLL_CTL) &
+			LCPLL_CD_SOURCE_FCLK_DONE, 1))
 		DRM_ERROR("Switching to FCLK failed\n");
 
 	val = I915_READ(LCPLL_CTL);
@@ -9892,8 +9892,8 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	val &= ~LCPLL_CD_SOURCE_FCLK;
 	I915_WRITE(LCPLL_CTL, val);
 
-	if (wait_for_atomic_us((I915_READ(LCPLL_CTL) &
-				LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
+	if (wait_for_us((I915_READ(LCPLL_CTL) &
+			LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 		DRM_ERROR("Switching back to LCPLL failed\n");
 
 	mutex_lock(&dev_priv->rps.hw_lock);
