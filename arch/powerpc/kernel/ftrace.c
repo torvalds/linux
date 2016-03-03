@@ -106,10 +106,9 @@ static int
 __ftrace_make_nop(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
 {
-	unsigned int op;
-	unsigned long entry, ptr;
+	unsigned long entry, ptr, tramp;
 	unsigned long ip = rec->ip;
-	void *tramp;
+	unsigned int op;
 
 	/* read where this goes */
 	if (probe_kernel_read(&op, (void *)ip, sizeof(int)))
@@ -122,14 +121,9 @@ __ftrace_make_nop(struct module *mod,
 	}
 
 	/* lets find where the pointer goes */
-	tramp = (void *)find_bl_target(ip, op);
+	tramp = find_bl_target(ip, op);
 
-	pr_devel("ip:%lx jumps to %p", ip, tramp);
-
-	if (!is_module_trampoline(tramp)) {
-		pr_err("Not a trampoline\n");
-		return -EINVAL;
-	}
+	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	if (module_trampoline_target(mod, tramp, &ptr)) {
 		pr_err("Failed to get trampoline target\n");

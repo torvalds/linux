@@ -96,6 +96,8 @@ static unsigned int local_entry_offset(const Elf64_Sym *sym)
 }
 #endif
 
+#define STUB_MAGIC 0x73747562 /* stub */
+
 /* Like PPC32, we need little trampolines to do > 24-bit jumps (into
    the kernel itself).  But on PPC64, these need to be used for every
    jump, actually, to reset r2 (TOC+0x8000). */
@@ -105,7 +107,8 @@ struct ppc64_stub_entry
 	 * need 6 instructions on ABIv2 but we always allocate 7 so
 	 * so we don't have to modify the trampoline load instruction. */
 	u32 jump[7];
-	u32 unused;
+	/* Used by ftrace to identify stubs */
+	u32 magic;
 	/* Data for the above code */
 	func_desc_t funcdata;
 };
@@ -139,70 +142,39 @@ static u32 ppc64_stub_insns[] = {
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-
-static u32 ppc64_stub_mask[] = {
-	0xffff0000,
-	0xffff0000,
-	0xffffffff,
-	0xffffffff,
-#if !defined(_CALL_ELF) || _CALL_ELF != 2
-	0xffffffff,
-#endif
-	0xffffffff,
-	0xffffffff
-};
-
-bool is_module_trampoline(u32 *p)
-{
-	unsigned int i;
-	u32 insns[ARRAY_SIZE(ppc64_stub_insns)];
-
-	BUILD_BUG_ON(sizeof(ppc64_stub_insns) != sizeof(ppc64_stub_mask));
-
-	if (probe_kernel_read(insns, p, sizeof(insns)))
-		return -EFAULT;
-
-	for (i = 0; i < ARRAY_SIZE(ppc64_stub_insns); i++) {
-		u32 insna = insns[i];
-		u32 insnb = ppc64_stub_insns[i];
-		u32 mask = ppc64_stub_mask[i];
-
-		if ((insna & mask) != (insnb & mask))
-			return false;
-	}
-
-	return true;
-}
-
-int module_trampoline_target(struct module *mod, u32 *trampoline,
+int module_trampoline_target(struct module *mod, unsigned long addr,
 			     unsigned long *target)
 {
-	u32 buf[2];
-	u16 upper, lower;
-	long offset;
-	void *toc_entry;
+	struct ppc64_stub_entry *stub;
+	func_desc_t funcdata;
+	u32 magic;
 
-	if (probe_kernel_read(buf, trampoline, sizeof(buf)))
+	if (!within_module_core(addr, mod)) {
+		pr_err("%s: stub %lx not in module %s\n", __func__, addr, mod->name);
 		return -EFAULT;
+	}
 
-	upper = buf[0] & 0xffff;
-	lower = buf[1] & 0xffff;
+	stub = (struct ppc64_stub_entry *)addr;
 
-	/* perform the addis/addi, both signed */
-	offset = ((short)upper << 16) + (short)lower;
-
-	/*
-	 * Now get the address this trampoline jumps to. This
-	 * is always 32 bytes into our trampoline stub.
-	 */
-	toc_entry = (void *)mod->arch.toc + offset + 32;
-
-	if (probe_kernel_read(target, toc_entry, sizeof(*target)))
+	if (probe_kernel_read(&magic, &stub->magic, sizeof(magic))) {
+		pr_err("%s: fault reading magic for stub %lx for %s\n", __func__, addr, mod->name);
 		return -EFAULT;
+	}
+
+	if (magic != STUB_MAGIC) {
+		pr_err("%s: bad magic for stub %lx for %s\n", __func__, addr, mod->name);
+		return -EFAULT;
+	}
+
+	if (probe_kernel_read(&funcdata, &stub->funcdata, sizeof(funcdata))) {
+		pr_err("%s: fault reading funcdata for stub %lx for %s\n", __func__, addr, mod->name);
+                return -EFAULT;
+	}
+
+	*target = stub_func_addr(funcdata);
 
 	return 0;
 }
-
 #endif
 
 /* Count how many different 24-bit relocations (different symbol,
@@ -447,6 +419,8 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 	entry->jump[0] |= PPC_HA(reladdr);
 	entry->jump[1] |= PPC_LO(reladdr);
 	entry->funcdata = func_desc(addr);
+	entry->magic = STUB_MAGIC;
+
 	return 1;
 }
 
