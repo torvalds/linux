@@ -50,7 +50,7 @@
 #define MAKE_WORD16(lsb, msb) ((((u16)(msb) << 8) & 0xFF00) | (lsb))
 #define MAKE_WORD32(lsw, msw) ((((u32)(msw) << 16) & 0xFFFF0000) | (lsw))
 
-typedef enum {
+enum connect_status {
 	SUCCESSFUL_STATUSCODE    = 0,
 	UNSPEC_FAIL              = 1,
 	UNSUP_CAP                = 10,
@@ -68,7 +68,7 @@ typedef enum {
 	SHORT_SLOT_UNSUP         = 25,
 	OFDM_DSSS_UNSUP          = 26,
 	CONNECT_STS_FORCE_16_BIT = 0xFFFF
-} tenuConnectSts;
+};
 
 typedef struct {
 	u8 u8Full;
