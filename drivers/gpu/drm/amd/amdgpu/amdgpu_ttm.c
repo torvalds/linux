@@ -494,13 +494,20 @@ static void amdgpu_ttm_io_mem_free(struct ttm_bo_device *bdev, struct ttm_mem_re
 /*
  * TTM backend functions.
  */
+struct amdgpu_ttm_gup_task_list {
+	struct list_head	list;
+	struct task_struct	*task;
+};
+
 struct amdgpu_ttm_tt {
-	struct ttm_dma_tt		ttm;
-	struct amdgpu_device		*adev;
-	u64				offset;
-	uint64_t			userptr;
-	struct mm_struct		*usermm;
-	uint32_t			userflags;
+	struct ttm_dma_tt	ttm;
+	struct amdgpu_device	*adev;
+	u64			offset;
+	uint64_t		userptr;
+	struct mm_struct	*usermm;
+	uint32_t		userflags;
+	spinlock_t              guptasklock;
+	struct list_head        guptasks;
 };
 
 /* prepare the sg table with the user pages */
@@ -530,9 +537,20 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		unsigned num_pages = ttm->num_pages - pinned;
 		uint64_t userptr = gtt->userptr + pinned * PAGE_SIZE;
 		struct page **pages = ttm->pages + pinned;
+		struct amdgpu_ttm_gup_task_list guptask;
+
+		guptask.task = current;
+		spin_lock(&gtt->guptasklock);
+		list_add(&guptask.list, &gtt->guptasks);
+		spin_unlock(&gtt->guptasklock);
 
 		r = get_user_pages(current, current->mm, userptr, num_pages,
 				   write, 0, pages, NULL);
+
+		spin_lock(&gtt->guptasklock);
+		list_del(&guptask.list);
+		spin_unlock(&gtt->guptasklock);
+
 		if (r < 0)
 			goto release_pages;
 
@@ -783,6 +801,9 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	gtt->userptr = addr;
 	gtt->usermm = current->mm;
 	gtt->userflags = flags;
+	spin_lock_init(&gtt->guptasklock);
+	INIT_LIST_HEAD(&gtt->guptasks);
+
 	return 0;
 }
 
@@ -800,17 +821,24 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 				  unsigned long end)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	struct amdgpu_ttm_gup_task_list *entry;
 	unsigned long size;
 
-	if (gtt == NULL)
-		return false;
-
-	if (gtt->ttm.ttm.state != tt_bound || !gtt->userptr)
+	if (gtt == NULL || !gtt->userptr)
 		return false;
 
 	size = (unsigned long)gtt->ttm.ttm.num_pages * PAGE_SIZE;
 	if (gtt->userptr > end || gtt->userptr + size <= start)
 		return false;
+
+	spin_lock(&gtt->guptasklock);
+	list_for_each_entry(entry, &gtt->guptasks, list) {
+		if (entry->task == current) {
+			spin_unlock(&gtt->guptasklock);
+			return false;
+		}
+	}
+	spin_unlock(&gtt->guptasklock);
 
 	return true;
 }
