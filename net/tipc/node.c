@@ -843,7 +843,7 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 	memcpy(&le->maddr, maddr, sizeof(*maddr));
 exit:
 	tipc_node_write_unlock(n);
-	if (reset && !tipc_link_is_reset(l))
+	if (reset && l && !tipc_link_is_reset(l))
 		tipc_node_link_down(n, b->identity, false);
 	tipc_node_put(n);
 }
