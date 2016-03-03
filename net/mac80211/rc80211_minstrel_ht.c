@@ -924,6 +924,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	struct minstrel_rate_stats *mrs;
 	struct minstrel_mcs_group_data *mg;
 	unsigned int sample_dur, sample_group, cur_max_tp_streams;
+	int tp_rate1, tp_rate2;
 	int sample_idx = 0;
 
 	if (mi->sample_wait > 0) {
@@ -945,14 +946,22 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	mrs = &mg->rates[sample_idx];
 	sample_idx += sample_group * MCS_GROUP_RATES;
 
+	/* Set tp_rate1, tp_rate2 to the highest / second highest max_tp_rate */
+	if (minstrel_get_duration(mi->max_tp_rate[0]) >
+	    minstrel_get_duration(mi->max_tp_rate[1])) {
+		tp_rate1 = mi->max_tp_rate[1];
+		tp_rate2 = mi->max_tp_rate[0];
+	} else {
+		tp_rate1 = mi->max_tp_rate[0];
+		tp_rate2 = mi->max_tp_rate[1];
+	}
+
 	/*
 	 * Sampling might add some overhead (RTS, no aggregation)
-	 * to the frame. Hence, don't use sampling for the currently
-	 * used rates.
+	 * to the frame. Hence, don't use sampling for the highest currently
+	 * used highest throughput or probability rate.
 	 */
-	if (sample_idx == mi->max_tp_rate[0] ||
-	    sample_idx == mi->max_tp_rate[1] ||
-	    sample_idx == mi->max_prob_rate)
+	if (sample_idx == mi->max_tp_rate[0] || sample_idx == mi->max_prob_rate)
 		return -1;
 
 	/*
@@ -967,10 +976,10 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	 * if the link is working perfectly.
 	 */
 
-	cur_max_tp_streams = minstrel_mcs_groups[mi->max_tp_rate[0] /
+	cur_max_tp_streams = minstrel_mcs_groups[tp_rate1 /
 		MCS_GROUP_RATES].streams;
 	sample_dur = minstrel_get_duration(sample_idx);
-	if (sample_dur >= minstrel_get_duration(mi->max_tp_rate[1]) &&
+	if (sample_dur >= minstrel_get_duration(tp_rate2) &&
 	    (cur_max_tp_streams - 1 <
 	     minstrel_mcs_groups[sample_group].streams ||
 	     sample_dur >= minstrel_get_duration(mi->max_prob_rate))) {
