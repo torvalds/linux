@@ -60,7 +60,7 @@ struct vsp1_dl_list {
 	dma_addr_t dma;
 	size_t size;
 
-	int reg_count;
+	unsigned int reg_count;
 };
 
 enum vsp1_dl_mode {
