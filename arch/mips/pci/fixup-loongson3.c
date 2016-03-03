@@ -48,9 +48,14 @@ static void pci_fixup_radeon(struct pci_dev *pdev)
 	if (!loongson_sysconf.vgabios_addr)
 		return;
 
-	res->start = loongson_sysconf.vgabios_addr;
+	pci_disable_rom(pdev);
+	if (res->parent)
+		release_resource(res);
+
+	res->start = virt_to_phys((void *) loongson_sysconf.vgabios_addr);
 	res->end   = res->start + 256*1024 - 1;
-	res->flags |= IORESOURCE_ROM_COPY;
+	res->flags = IORESOURCE_MEM | IORESOURCE_ROM_SHADOW |
+		     IORESOURCE_PCI_FIXED;
 
 	dev_info(&pdev->dev, "BAR %d: assigned %pR for Radeon ROM\n",
 		 PCI_ROM_RESOURCE, res);
