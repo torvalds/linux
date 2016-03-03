@@ -573,6 +573,24 @@ static int notify_on_release(const struct cgroup *cgrp)
 			;						\
 		else
 
+/* walk live descendants in preorder */
+#define cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp)		\
+	css_for_each_descendant_pre((d_css), cgroup_css((cgrp), NULL))	\
+		if (({ lockdep_assert_held(&cgroup_mutex);		\
+		       (dsct) = (d_css)->cgroup;			\
+		       cgroup_is_dead(dsct); }))			\
+			;						\
+		else
+
+/* walk live descendants in postorder */
+#define cgroup_for_each_live_descendant_post(dsct, d_css, cgrp)		\
+	css_for_each_descendant_post((d_css), cgroup_css((cgrp), NULL))	\
+		if (({ lockdep_assert_held(&cgroup_mutex);		\
+		       (dsct) = (d_css)->cgroup;			\
+		       cgroup_is_dead(dsct); }))			\
+			;						\
+		else
+
 static void cgroup_release_agent(struct work_struct *work);
 static void check_for_release(struct cgroup *cgrp);
 
@@ -2967,11 +2985,11 @@ out_finish:
 
 /**
  * cgroup_drain_offline - wait for previously offlined csses to go away
- * @cgrp: parent of the target cgroups
+ * @cgrp: root of the target subtree
  *
  * Because css offlining is asynchronous, userland may try to re-enable a
  * controller while the previous css is still around.  This function drains
- * the previous css instances of @cgrp's children.
+ * the previous css instances of @cgrp's subtree.
  *
  * Must be called with cgroup_mutex held.  Returns %false if there were no
  * dying css instances.  Returns %true if there were one or more and this
@@ -2982,17 +3000,18 @@ out_finish:
 static bool cgroup_drain_offline(struct cgroup *cgrp)
 {
 	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
 	struct cgroup_subsys *ss;
 	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	cgroup_for_each_live_child(dsct, cgrp) {
+	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 			DEFINE_WAIT(wait);
 
-			if (!css)
+			if (!css || !percpu_ref_is_dying(&css->refcnt))
 				continue;
 
 			cgroup_get(dsct);
@@ -3014,9 +3033,9 @@ static bool cgroup_drain_offline(struct cgroup *cgrp)
 
 /**
  * cgroup_apply_control_enable - enable or show csses according to control
- * @cgrp: parent of the target cgroups
+ * @cgrp: root of the target subtree
  *
- * Walk @cgrp's children and create new csses or make the existing ones
+ * Walk @cgrp's subtree and create new csses or make the existing ones
  * visible.  A css is created invisible if it's being implicitly enabled
  * through dependency.  An invisible css is made visible when the userland
  * explicitly enables it.
@@ -3028,10 +3047,11 @@ static bool cgroup_drain_offline(struct cgroup *cgrp)
 static int cgroup_apply_control_enable(struct cgroup *cgrp)
 {
 	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
 	struct cgroup_subsys *ss;
 	int ssid, ret;
 
-	cgroup_for_each_live_child(dsct, cgrp) {
+	cgroup_for_each_live_descendant_pre(dsct, d_css, cgrp) {
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
@@ -3057,9 +3077,9 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 
 /**
  * cgroup_apply_control_disable - kill or hide csses according to control
- * @cgrp: parent of the target cgroups
+ * @cgrp: root of the target subtree
  *
- * Walk @cgrp's children and kill and hide csses so that they match
+ * Walk @cgrp's subtree and kill and hide csses so that they match
  * cgroup_ss_mask() and cgroup_visible_mask().
  *
  * A css is hidden when the userland requests it to be disabled while other
@@ -3071,10 +3091,11 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 static void cgroup_apply_control_disable(struct cgroup *cgrp)
 {
 	struct cgroup *dsct;
+	struct cgroup_subsys_state *d_css;
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	cgroup_for_each_live_child(dsct, cgrp) {
+	cgroup_for_each_live_descendant_post(dsct, d_css, cgrp) {
 		for_each_subsys(ss, ssid) {
 			struct cgroup_subsys_state *css = cgroup_css(dsct, ss);
 
