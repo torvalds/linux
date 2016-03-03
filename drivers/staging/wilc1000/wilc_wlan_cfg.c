@@ -29,7 +29,7 @@ struct wilc_mac_cfg {
 	u8 supp_rate[24];
 	u8 wep_key[28];
 	u8 i_psk[66];
-	u8 hardwareProductVersion[33];
+	u8 hw_product_version[33];
 	u8 phyversion[17];
 	u8 supp_username[21];
 	u8 supp_password[64];
@@ -136,7 +136,7 @@ static struct wilc_cfg_str g_cfg_str[] = {
 	{WID_BSSID, g_mac.bssid},	/* 6 bytes */
 	{WID_WEP_KEY_VALUE, g_mac.wep_key},	/* 27 bytes */
 	{WID_11I_PSK, g_mac.i_psk},	/* 65 bytes */
-	{WID_HARDWARE_VERSION, g_mac.hardwareProductVersion},
+	{WID_HARDWARE_VERSION, g_mac.hw_product_version},
 	{WID_MAC_ADDR, g_mac.mac_address},
 	{WID_PHY_VERSION, g_mac.phyversion},
 	{WID_SUPP_USERNAME, g_mac.supp_username},
