@@ -3602,7 +3602,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_hsw();
 
 		x86_pmu.event_constraints = intel_bdw_event_constraints;
-		x86_pmu.pebs_constraints = intel_hsw_pebs_event_constraints;
+		x86_pmu.pebs_constraints = intel_bdw_pebs_event_constraints;
 		x86_pmu.extra_regs = intel_snbep_extra_regs;
 		x86_pmu.pebs_aliases = intel_pebs_aliases_ivb;
 		x86_pmu.pebs_prec_dist = true;
