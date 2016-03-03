@@ -214,17 +214,17 @@ static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
 	return 0;
 }
 
-static int v4l_enable_media_source(struct video_device *vdev)
+static inline int v4l_enable_media_source(struct video_device *vdev)
 {
 	return 0;
 }
 
-static void v4l_disable_media_source(struct video_device *vdev)
+static inline void v4l_disable_media_source(struct video_device *vdev)
 {
 	return;
 }
 
-static int v4l_vb2q_enable_media_source(struct vb2_queue *q)
+static inline int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 {
 	return 0;
 }
