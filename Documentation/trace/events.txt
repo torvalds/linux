@@ -550,12 +550,14 @@ The following commands are supported:
 
   'hist' triggers add a 'hist' file to each event's subdirectory.
   Reading the 'hist' file for the event will dump the hash table in
-  its entirety to stdout.  Each printed hash table entry is a simple
-  list of the keys and values comprising the entry; keys are printed
-  first and are delineated by curly braces, and are followed by the
-  set of value fields for the entry.  By default, numeric fields are
-  displayed as base-10 integers.  This can be modified by appending
-  any of the following modifiers to the field name:
+  its entirety to stdout.  If there are multiple hist triggers
+  attached to an event, there will be a table for each trigger in the
+  output.  Each printed hash table entry is a simple list of the keys
+  and values comprising the entry; keys are printed first and are
+  delineated by curly braces, and are followed by the set of value
+  fields for the entry.  By default, numeric fields are displayed as
+  base-10 integers.  This can be modified by appending any of the
+  following modifiers to the field name:
 
         .hex        display a number as a hex value
 	.sym        display an address as a symbol
@@ -1667,3 +1669,143 @@ The following commands are supported:
     .
     .
     .
+
+  The following example demonstrates how multiple hist triggers can be
+  attached to a given event.  This capability can be useful for
+  creating a set of different summaries derived from the same set of
+  events, or for comparing the effects of different filters, among
+  other things.
+
+    # echo 'hist:keys=skbaddr.hex:vals=len if len < 0' >> \
+           /sys/kernel/debug/tracing/events/net/netif_receive_skb/trigger
+    # echo 'hist:keys=skbaddr.hex:vals=len if len > 4096' >> \
+           /sys/kernel/debug/tracing/events/net/netif_receive_skb/trigger
+    # echo 'hist:keys=skbaddr.hex:vals=len if len == 256' >> \
+           /sys/kernel/debug/tracing/events/net/netif_receive_skb/trigger
+    # echo 'hist:keys=skbaddr.hex:vals=len' >> \
+           /sys/kernel/debug/tracing/events/net/netif_receive_skb/trigger
+    # echo 'hist:keys=len:vals=common_preempt_count' >> \
+           /sys/kernel/debug/tracing/events/net/netif_receive_skb/trigger
+
+  The above set of commands create four triggers differing only in
+  their filters, along with a completely different though fairly
+  nonsensical trigger.  Note that in order to append multiple hist
+  triggers to the same file, you should use the '>>' operator to
+  append them ('>' will also add the new hist trigger, but will remove
+  any existing hist triggers beforehand).
+
+  Displaying the contents of the 'hist' file for the event shows the
+  contents of all five histograms:
+
+    # cat /sys/kernel/debug/tracing/events/net/netif_receive_skb/hist
+
+    # event histogram
+    #
+    # trigger info: hist:keys=len:vals=hitcount,common_preempt_count:sort=hitcount:size=2048 [active]
+    #
+
+    { len:        176 } hitcount:          1  common_preempt_count:          0
+    { len:        223 } hitcount:          1  common_preempt_count:          0
+    { len:       4854 } hitcount:          1  common_preempt_count:          0
+    { len:        395 } hitcount:          1  common_preempt_count:          0
+    { len:        177 } hitcount:          1  common_preempt_count:          0
+    { len:        446 } hitcount:          1  common_preempt_count:          0
+    { len:       1601 } hitcount:          1  common_preempt_count:          0
+    .
+    .
+    .
+    { len:       1280 } hitcount:         66  common_preempt_count:          0
+    { len:        116 } hitcount:         81  common_preempt_count:         40
+    { len:        708 } hitcount:        112  common_preempt_count:          0
+    { len:         46 } hitcount:        221  common_preempt_count:          0
+    { len:       1264 } hitcount:        458  common_preempt_count:          0
+
+    Totals:
+        Hits: 1428
+        Entries: 147
+        Dropped: 0
+
+
+    # event histogram
+    #
+    # trigger info: hist:keys=skbaddr.hex:vals=hitcount,len:sort=hitcount:size=2048 [active]
+    #
+
+    { skbaddr: ffff8800baee5e00 } hitcount:          1  len:        130
+    { skbaddr: ffff88005f3d5600 } hitcount:          1  len:       1280
+    { skbaddr: ffff88005f3d4900 } hitcount:          1  len:       1280
+    { skbaddr: ffff88009fed6300 } hitcount:          1  len:        115
+    { skbaddr: ffff88009fe0ad00 } hitcount:          1  len:        115
+    { skbaddr: ffff88008cdb1900 } hitcount:          1  len:         46
+    { skbaddr: ffff880064b5ef00 } hitcount:          1  len:        118
+    { skbaddr: ffff880044e3c700 } hitcount:          1  len:         60
+    { skbaddr: ffff880100065900 } hitcount:          1  len:         46
+    { skbaddr: ffff8800d46bd500 } hitcount:          1  len:        116
+    { skbaddr: ffff88005f3d5f00 } hitcount:          1  len:       1280
+    { skbaddr: ffff880100064700 } hitcount:          1  len:        365
+    { skbaddr: ffff8800badb6f00 } hitcount:          1  len:         60
+    .
+    .
+    .
+    { skbaddr: ffff88009fe0be00 } hitcount:         27  len:      24677
+    { skbaddr: ffff88009fe0a400 } hitcount:         27  len:      23052
+    { skbaddr: ffff88009fe0b700 } hitcount:         31  len:      25589
+    { skbaddr: ffff88009fe0b600 } hitcount:         32  len:      27326
+    { skbaddr: ffff88006a462800 } hitcount:         68  len:      71678
+    { skbaddr: ffff88006a463700 } hitcount:         70  len:      72678
+    { skbaddr: ffff88006a462b00 } hitcount:         71  len:      77589
+    { skbaddr: ffff88006a463600 } hitcount:         73  len:      71307
+    { skbaddr: ffff88006a462200 } hitcount:         81  len:      81032
+
+    Totals:
+        Hits: 1451
+        Entries: 318
+        Dropped: 0
+
+
+    # event histogram
+    #
+    # trigger info: hist:keys=skbaddr.hex:vals=hitcount,len:sort=hitcount:size=2048 if len == 256 [active]
+    #
+
+
+    Totals:
+        Hits: 0
+        Entries: 0
+        Dropped: 0
+
+
+    # event histogram
+    #
+    # trigger info: hist:keys=skbaddr.hex:vals=hitcount,len:sort=hitcount:size=2048 if len > 4096 [active]
+    #
+
+    { skbaddr: ffff88009fd2c300 } hitcount:          1  len:       7212
+    { skbaddr: ffff8800d2bcce00 } hitcount:          1  len:       7212
+    { skbaddr: ffff8800d2bcd700 } hitcount:          1  len:       7212
+    { skbaddr: ffff8800d2bcda00 } hitcount:          1  len:      21492
+    { skbaddr: ffff8800ae2e2d00 } hitcount:          1  len:       7212
+    { skbaddr: ffff8800d2bcdb00 } hitcount:          1  len:       7212
+    { skbaddr: ffff88006a4df500 } hitcount:          1  len:       4854
+    { skbaddr: ffff88008ce47b00 } hitcount:          1  len:      18636
+    { skbaddr: ffff8800ae2e2200 } hitcount:          1  len:      12924
+    { skbaddr: ffff88005f3e1000 } hitcount:          1  len:       4356
+    { skbaddr: ffff8800d2bcdc00 } hitcount:          2  len:      24420
+    { skbaddr: ffff8800d2bcc200 } hitcount:          2  len:      12996
+
+    Totals:
+        Hits: 14
+        Entries: 12
+        Dropped: 0
+
+
+    # event histogram
+    #
+    # trigger info: hist:keys=skbaddr.hex:vals=hitcount,len:sort=hitcount:size=2048 if len < 0 [active]
+    #
+
+
+    Totals:
+        Hits: 0
+        Entries: 0
+        Dropped: 0
