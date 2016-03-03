@@ -87,12 +87,30 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 	return v4l2_subdev_get_try_format(&entity->subdev, cfg, pad);
 }
 
+/**
+ * vsp1_entity_get_pad_selection - Get a pad selection from storage for entity
+ * @entity: the entity
+ * @cfg: the configuration storage
+ * @pad: the pad number
+ * @target: the selection target
+ *
+ * Return the selection rectangle stored in the given configuration for an
+ * entity's pad. The configuration can be an ACTIVE or TRY configuration. The
+ * selection target can be COMPOSE or CROP.
+ */
 struct v4l2_rect *
-vsp1_entity_get_pad_compose(struct vsp1_entity *entity,
-			    struct v4l2_subdev_pad_config *cfg,
-			    unsigned int pad)
+vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
+			      struct v4l2_subdev_pad_config *cfg,
+			      unsigned int pad, unsigned int target)
 {
-	return v4l2_subdev_get_try_compose(&entity->subdev, cfg, pad);
+	switch (target) {
+	case V4L2_SEL_TGT_COMPOSE:
+		return v4l2_subdev_get_try_compose(&entity->subdev, cfg, pad);
+	case V4L2_SEL_TGT_CROP:
+		return v4l2_subdev_get_try_crop(&entity->subdev, cfg, pad);
+	default:
+		return NULL;
+	}
 }
 
 /*
