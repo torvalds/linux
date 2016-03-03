@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -379,7 +380,22 @@ static int ak8975_who_i_am(struct i2c_client *client,
 			   enum asahi_compass_chipset type)
 {
 	u8 wia_val[2];
+	struct regulator *vdd = devm_regulator_get_optional(&client->dev,
+							    "vdd");
 	int ret;
+
+	/* Enable attached regulator if any. */
+	if (!IS_ERR(vdd)) {
+		ret = regulator_enable(vdd);
+		if (ret) {
+			dev_err(&client->dev, "Failed to enable Vdd supply\n");
+			return ret;
+		}
+	} else {
+		ret = PTR_ERR(vdd);
+		if (ret != -ENODEV)
+			return ret;
+	}
 
 	/*
 	 * Signature for each device:
