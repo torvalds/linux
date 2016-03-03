@@ -554,7 +554,7 @@ static bool xilinx_vdma_is_idle(struct xilinx_vdma_chan *chan)
  */
 static void xilinx_vdma_halt(struct xilinx_vdma_chan *chan)
 {
-	int err = 0;
+	int err;
 	u32 val;
 
 	vdma_ctrl_clr(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RUNSTOP);
@@ -579,7 +579,7 @@ static void xilinx_vdma_halt(struct xilinx_vdma_chan *chan)
  */
 static void xilinx_vdma_start(struct xilinx_vdma_chan *chan)
 {
-	int err = 0;
+	int err;
 	u32 val;
 
 	vdma_ctrl_set(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RUNSTOP);
@@ -756,7 +756,7 @@ static void xilinx_vdma_complete_descriptor(struct xilinx_vdma_chan *chan)
  */
 static int xilinx_vdma_reset(struct xilinx_vdma_chan *chan)
 {
-	int err = 0;
+	int err;
 	u32 tmp;
 
 	vdma_ctrl_set(chan, XILINX_VDMA_REG_DMACR, XILINX_VDMA_DMACR_RESET);
