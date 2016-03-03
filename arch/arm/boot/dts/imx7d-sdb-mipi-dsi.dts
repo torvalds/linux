@@ -1,0 +1,30 @@
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx7d-sdb.dts"
+
+/ {
+	mipi_dsi_reset: mipi-dsi-reset {
+		compatible = "gpio-reset";
+		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		reset-delay-us = <50>;
+		#reset-cells = <0>;
+	};
+};
+
+&lcdif {
+	disp-dev = "mipi_dsi_samsung";
+};
+
+&mipi_dsi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet2_epdc0_en>;
+	lcd_panel = "TRULY-WVGA-TFT3P5079E";
+	resets = <&mipi_dsi_reset>;
+	status = "okay";
+};
