@@ -1041,7 +1041,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		clock = clock * (connector->display_info.bpc * 3) / 10;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		return MODE_BAD;
 	}
 

@@ -3623,7 +3623,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		nv50_audio_enable(encoder, mode);
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
@@ -3796,7 +3796,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 		proto = 0x0;
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 
