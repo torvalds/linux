@@ -134,3 +134,11 @@ config AC97_BUS
 	  sound subsystem and other function drivers completely unrelated to
 	  sound although they're sharing the AC97 bus. Concerned drivers
 	  should "select" this.
+
+config SUPPORT_HDMI
+        bool "SUPPORT_HDMI"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to support HDMI.
+

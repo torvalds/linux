@@ -7,6 +7,7 @@ obj-$(CONFIG_DMASOUND) += oss/
 obj-$(CONFIG_SND) += core/ i2c/ drivers/ isa/ pci/ ppc/ arm/ sh/ synth/ usb/ \
 	firewire/ sparc/ spi/ parisc/ pcmcia/ mips/ soc/ atmel/ hda/
 obj-$(CONFIG_SND_AOA) += aoa/
+obj-$(CONFIG_SUPPORT_HDMI) += hdmi_audio/
 
 # This one must be compilable even if sound is configured out
 obj-$(CONFIG_AC97_BUS) += ac97_bus.o
