@@ -1233,8 +1233,6 @@ static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
 static void probe_pci_console(void)
 {
 	u8 cap, common_cap = 0, device_cap = 0;
-	/* Offset within BAR0 */
-	u32 device_offset;
 	u32 device_len;
 
 	/* Avoid recursive printk into here. */
@@ -1258,21 +1256,16 @@ static void probe_pci_console(void)
 		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
 		if (vndr == PCI_CAP_ID_VNDR) {
 			u8 type, bar;
-			u32 offset;
 
 			type = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, cfg_type));
 			bar = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, bar));
-			offset = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, offset));
 
 			switch (type) {
 			case VIRTIO_PCI_CAP_DEVICE_CFG:
-				if (bar == 0) {
+				if (bar == 0)
 					device_cap = cap;
-					device_offset = offset;
-				}
 				break;
 			case VIRTIO_PCI_CAP_PCI_CFG:
 				console_access_cap = cap;
@@ -1302,7 +1295,8 @@ static void probe_pci_console(void)
 		return;
 	}
 
-	console_cfg_offset = device_offset;
+	console_cfg_offset = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, offset));
 	printk(KERN_INFO "lguest: Console via virtio-pci emerg_wr\n");
 }
 
