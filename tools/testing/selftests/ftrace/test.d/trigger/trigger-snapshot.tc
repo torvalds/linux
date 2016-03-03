@@ -1,0 +1,56 @@
+#!/bin/sh
+# description: event trigger - test snapshot-trigger
+
+do_reset() {
+    reset_trigger
+    echo > set_event
+    clear_trace
+}
+
+fail() { #msg
+    do_reset
+    echo $1
+    exit $FAIL
+}
+
+if [ ! -f set_event -o ! -d events/sched ]; then
+    echo "event tracing is not supported"
+    exit_unsupported
+fi
+
+if [ ! -f events/sched/sched_process_fork/trigger ]; then
+    echo "event trigger is not supported"
+    exit_unsupported
+fi
+
+reset_tracer
+do_reset
+
+FEATURE=`grep snapshot events/sched/sched_process_fork/trigger`
+if [ -z "$FEATURE" ]; then
+    echo "snapshot trigger is not supported"
+    exit_unsupported
+fi
+
+echo "Test snapshot tigger"
+echo 0 > snapshot
+echo 1 > events/sched/sched_process_fork/enable
+( echo "forked")
+echo 'snapshot:1' > events/sched/sched_process_fork/trigger
+( echo "forked")
+grep sched_process_fork snapshot > /dev/null || \
+    fail "snapshot trigger on sched_process_fork did not work"
+
+reset_trigger
+echo 0 > snapshot
+echo 0 > events/sched/sched_process_fork/enable
+
+echo "Test snapshot semantic errors"
+
+! echo "snapshot+1" > events/sched/sched_process_fork/trigger
+echo "snapshot" > events/sched/sched_process_fork/trigger
+! echo "snapshot" > events/sched/sched_process_fork/trigger
+
+do_reset
+
+exit 0
