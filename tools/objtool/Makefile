@@ -7,13 +7,19 @@ ARCH := x86
 endif
 endif
 
+# always use the host compiler
+CC = gcc
+LD = ld
+AR = ar
+
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 endif
 
-SUBCMD_SRCDIR	= $(srctree)/tools/lib/subcmd/
-LIBSUBCMD	= $(if $(OUTPUT),$(OUTPUT),$(SUBCMD_SRCDIR))libsubcmd.a
+SUBCMD_SRCDIR		= $(srctree)/tools/lib/subcmd/
+LIBSUBCMD_OUTPUT	= $(if $(OUTPUT),$(OUTPUT),$(PWD)/)
+LIBSUBCMD		= $(LIBSUBCMD_OUTPUT)libsubcmd.a
 
 OBJTOOL    := $(OUTPUT)objtool
 OBJTOOL_IN := $(OBJTOOL)-in.o
@@ -45,12 +51,9 @@ $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
 
 
 $(LIBSUBCMD): fixdep FORCE
-	$(Q)$(MAKE) -C $(SUBCMD_SRCDIR)
+	$(Q)$(MAKE) -C $(SUBCMD_SRCDIR) OUTPUT=$(LIBSUBCMD_OUTPUT)
 
-$(LIBSUBCMD)-clean:
-	$(Q)$(MAKE) -C $(SUBCMD_SRCDIR) clean > /dev/null
-
-clean: $(LIBSUBCMD)-clean
+clean:
 	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
 	$(Q)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT)arch/x86/insn/inat-tables.c $(OUTPUT)fixdep
