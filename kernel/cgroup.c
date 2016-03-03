@@ -1490,7 +1490,7 @@ static int css_populate_dir(struct cgroup_subsys_state *css,
 	struct cftype *cfts, *failed_cfts;
 	int ret;
 
-	if (css->flags & CSS_VISIBLE)
+	if ((css->flags & CSS_VISIBLE) || !cgrp->kn)
 		return 0;
 
 	if (!css->ss) {
@@ -5042,10 +5042,9 @@ err_free_css:
 static struct cgroup *cgroup_create(struct cgroup *parent)
 {
 	struct cgroup_root *root = parent->root;
-	struct cgroup_subsys *ss;
 	struct cgroup *cgrp, *tcgrp;
 	int level = parent->level + 1;
-	int ssid, ret;
+	int ret;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
 	cgrp = kzalloc(sizeof(*cgrp) +
@@ -5095,25 +5094,19 @@ static struct cgroup *cgroup_create(struct cgroup *parent)
 	 */
 	cgroup_idr_replace(&root->cgroup_idr, cgrp, cgrp->id);
 
-	/* create the csses */
-	do_each_subsys_mask(ss, ssid, cgroup_ss_mask(cgrp)) {
-		struct cgroup_subsys_state *css;
-
-		css = css_create(cgrp, ss);
-		if (IS_ERR(css)) {
-			ret = PTR_ERR(css);
-			goto out_destroy;
-		}
-	} while_each_subsys_mask();
-
 	/*
 	 * On the default hierarchy, a child doesn't automatically inherit
 	 * subtree_control from the parent.  Each is configured manually.
 	 */
-	if (!cgroup_on_dfl(cgrp)) {
+	if (!cgroup_on_dfl(cgrp))
 		cgrp->subtree_control = cgroup_control(cgrp);
-		cgroup_refresh_subtree_ss_mask(cgrp);
-	}
+
+	cgroup_propagate_control(cgrp);
+
+	/* @cgrp doesn't have dir yet so the following will only create csses */
+	ret = cgroup_apply_control_enable(cgrp);
+	if (ret)
+		goto out_destroy;
 
 	return cgrp;
 
@@ -5131,9 +5124,8 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 			umode_t mode)
 {
 	struct cgroup *parent, *cgrp;
-	struct cgroup_subsys *ss;
 	struct kernfs_node *kn;
-	int ssid, ret;
+	int ret;
 
 	/* do not accept '\n' to prevent making /proc/<pid>/cgroup unparsable */
 	if (strchr(name, '\n'))
@@ -5171,11 +5163,9 @@ static int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	do_each_subsys_mask(ss, ssid, cgroup_control(cgrp)) {
-		ret = css_populate_dir(cgroup_css(cgrp, ss), NULL);
-		if (ret)
-			goto out_destroy;
-	} while_each_subsys_mask();
+	ret = cgroup_apply_control_enable(cgrp);
+	if (ret)
+		goto out_destroy;
 
 	/* let's create and online css's */
 	kernfs_activate(kn);
