@@ -3169,6 +3169,62 @@ static void cgroup_apply_control_disable(struct cgroup *cgrp)
 	}
 }
 
+/**
+ * cgroup_apply_control - apply control mask updates to the subtree
+ * @cgrp: root of the target subtree
+ *
+ * subsystems can be enabled and disabled in a subtree using the following
+ * steps.
+ *
+ * 1. Call cgroup_save_control() to stash the current state.
+ * 2. Update ->subtree_control masks in the subtree as desired.
+ * 3. Call cgroup_apply_control() to apply the changes.
+ * 4. Optionally perform other related operations.
+ * 5. Call cgroup_finalize_control() to finish up.
+ *
+ * This function implements step 3 and propagates the mask changes
+ * throughout @cgrp's subtree, updates csses accordingly and perform
+ * process migrations.
+ */
+static int cgroup_apply_control(struct cgroup *cgrp)
+{
+	int ret;
+
+	cgroup_propagate_control(cgrp);
+
+	ret = cgroup_apply_control_enable(cgrp);
+	if (ret)
+		return ret;
+
+	/*
+	 * At this point, cgroup_e_css() results reflect the new csses
+	 * making the following cgroup_update_dfl_csses() properly update
+	 * css associations of all tasks in the subtree.
+	 */
+	ret = cgroup_update_dfl_csses(cgrp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * cgroup_finalize_control - finalize control mask update
+ * @cgrp: root of the target subtree
+ * @ret: the result of the update
+ *
+ * Finalize control mask update.  See cgroup_apply_control() for more info.
+ */
+static void cgroup_finalize_control(struct cgroup *cgrp, int ret)
+{
+	if (ret) {
+		cgroup_restore_control(cgrp);
+		cgroup_propagate_control(cgrp);
+	}
+
+	cgroup_apply_control_disable(cgrp);
+}
+
 /* change the enabled child controllers for a cgroup in the default hierarchy */
 static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    char *buf, size_t nbytes,
@@ -3264,36 +3320,15 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 	cgrp->subtree_control |= enable;
 	cgrp->subtree_control &= ~disable;
 
-	cgroup_propagate_control(cgrp);
+	ret = cgroup_apply_control(cgrp);
 
-	ret = cgroup_apply_control_enable(cgrp);
-	if (ret)
-		goto err_undo_css;
-
-	/*
-	 * At this point, cgroup_e_css() results reflect the new csses
-	 * making the following cgroup_update_dfl_csses() properly update
-	 * css associations of all tasks in the subtree.
-	 */
-	ret = cgroup_update_dfl_csses(cgrp);
-	if (ret)
-		goto err_undo_css;
-
-	/* all tasks are migrated out of disabled csses, commit disable */
-	cgroup_apply_control_disable(cgrp);
+	cgroup_finalize_control(cgrp, ret);
 
 	kernfs_activate(cgrp->kn);
 	ret = 0;
 out_unlock:
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
-
-err_undo_css:
-	/* restore masks and shoot down new csses */
-	cgroup_restore_control(cgrp);
-	cgroup_apply_control_disable(cgrp);
-
-	goto out_unlock;
 }
 
 static int cgroup_events_show(struct seq_file *seq, void *v)
