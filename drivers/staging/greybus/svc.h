@@ -10,6 +10,10 @@
 #ifndef __SVC_H
 #define __SVC_H
 
+#define GB_SVC_CPORT_FLAG_E2EFC       BIT(0)
+#define GB_SVC_CPORT_FLAG_CSD_N       BIT(1)
+#define GB_SVC_CPORT_FLAG_CSV_N       BIT(2)
+
 enum gb_svc_state {
 	GB_SVC_STATE_RESET,
 	GB_SVC_STATE_PROTOCOL_VERSION,
@@ -46,7 +50,7 @@ void gb_svc_put(struct gb_svc *svc);
 
 int gb_svc_intf_reset(struct gb_svc *svc, u8 intf_id);
 int gb_svc_connection_create(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
-			     u8 intf2_id, u16 cport2_id, bool boot_over_unipro);
+			     u8 intf2_id, u16 cport2_id, u8 cport_flags);
 void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 			       u8 intf2_id, u16 cport2_id);
 int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id);

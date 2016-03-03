@@ -327,18 +327,29 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
+	u8 cport_flags;
 	int ret;
 
 	if (gb_connection_is_static(connection))
 		return gb_connection_hd_fct_flow_enable(connection);
 
 	intf = connection->intf;
+
+	/* The ES2/ES3 bootrom requires E2EFC, CSD and CSV to be disabled. */
+	cport_flags = GB_SVC_CPORT_FLAG_CSV_N;
+	if (intf->boot_over_unipro) {
+		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N;
+	} else {
+		cport_flags |= GB_SVC_CPORT_FLAG_CSD_N |
+				GB_SVC_CPORT_FLAG_E2EFC;
+	}
+
 	ret = gb_svc_connection_create(hd->svc,
 			hd->svc->ap_intf_id,
 			connection->hd_cport_id,
 			intf->interface_id,
 			connection->intf_cport_id,
-			intf->boot_over_unipro);
+			cport_flags);
 	if (ret) {
 		dev_err(&connection->hd->dev,
 			"%s: failed to create svc connection: %d\n",

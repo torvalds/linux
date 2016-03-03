@@ -12,10 +12,6 @@
 
 #include "greybus.h"
 
-#define CPORT_FLAGS_E2EFC       BIT(0)
-#define CPORT_FLAGS_CSD_N       BIT(1)
-#define CPORT_FLAGS_CSV_N       BIT(2)
-
 #define SVC_KEY_ARA_BUTTON	KEY_A
 
 struct gb_svc_deferred_request {
@@ -283,7 +279,7 @@ static int gb_svc_read_and_clear_module_boot_status(struct gb_interface *intf)
 int gb_svc_connection_create(struct gb_svc *svc,
 				u8 intf1_id, u16 cport1_id,
 				u8 intf2_id, u16 cport2_id,
-				bool boot_over_unipro)
+				u8 cport_flags)
 {
 	struct gb_svc_conn_create_request request;
 
@@ -292,13 +288,7 @@ int gb_svc_connection_create(struct gb_svc *svc,
 	request.intf2_id = intf2_id;
 	request.cport2_id = cpu_to_le16(cport2_id);
 	request.tc = 0;		/* TC0 */
-
-	/* The ES2/ES3 bootrom requires E2EFC, CSD and CSV to be disabled. */
-	request.flags = CPORT_FLAGS_CSV_N;
-	if (boot_over_unipro)
-		request.flags |= CPORT_FLAGS_CSD_N;
-	else
-		request.flags |= CPORT_FLAGS_CSD_N | CPORT_FLAGS_E2EFC;
+	request.flags = cport_flags;
 
 	return gb_operation_sync(svc->connection, GB_SVC_TYPE_CONN_CREATE,
 				 &request, sizeof(request), NULL, 0);
