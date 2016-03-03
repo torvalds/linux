@@ -1062,7 +1062,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 
 	/* TODO: Is this correct with Execlists enabled? */
 	I915_WRITE_MODE(ring, _MASKED_BIT_ENABLE(STOP_RING));
-	if (wait_for_atomic((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000)) {
+	if (wait_for((I915_READ_MODE(ring) & MODE_IDLE) != 0, 1000)) {
 		DRM_ERROR("%s :timed out trying to stop ring\n", ring->name);
 		return;
 	}
