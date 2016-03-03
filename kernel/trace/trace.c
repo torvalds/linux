@@ -3833,7 +3833,7 @@ static const char readme_msg[] =
 	"\t   Filters can be ignored when removing a trigger.\n"
 #ifdef CONFIG_HIST_TRIGGERS
 	"      hist trigger\t- If set, event hits are aggregated into a hash table\n"
-	"\t    Format: hist:keys=<field1>\n"
+	"\t    Format: hist:keys=<field1[,field2,...]>\n"
 	"\t            [:values=<field1[,field2,...]>]\n"
 	"\t            [:size=#entries]\n"
 	"\t            [if <filter>]\n\n"
@@ -3841,9 +3841,11 @@ static const char readme_msg[] =
 	"\t    table using the key(s) and value(s) named, and the value of a\n"
 	"\t    sum called 'hitcount' is incremented.  Keys and values\n"
 	"\t    correspond to fields in the event's format description.  Keys\n"
-	"\t    can be any field.  Values must correspond to numeric fields.\n"
-	"\t    The 'size' parameter can be  used to specify more or fewer\n"
-	"\t    than the default 2048 entries for the hashtable size.\n\n"
+	"\t    can be any field.  Compound keys consisting of up to two\n"
+	"\t    fields can be specified by the 'keys' keyword.  Values must\n"
+	"\t    correspond to numeric fields.  The 'size' parameter can be\n"
+	"\t    used to specify more or fewer than the default 2048 entries\n"
+	"\t    for the hashtable size.\n\n"
 	"\t    Reading the 'hist' file for the event will dump the hash\n"
 	"\t    table in its entirety to stdout."
 #endif
