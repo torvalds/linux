@@ -7,6 +7,9 @@ config VIDEO_MX2
 	---help---
 	  This is a v4l2 driver for the i.MX27 Camera Sensor Interface
 
-	  This driver is deprecated and will be removed soon unless someone
-	  will start the work to convert this driver to the vb2 framework
-	  and remove the soc-camera dependency.
+	  This driver is deprecated: it should become a stand-alone driver
+	  instead of using the soc-camera framework.
+
+	  Unless someone is willing to take this on (unlikely with such
+	  ancient hardware) it is going to be removed from the kernel
+	  soon.
