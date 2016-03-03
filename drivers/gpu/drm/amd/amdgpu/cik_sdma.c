@@ -261,6 +261,13 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
+static void cik_sdma_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	amdgpu_ring_write(ring, mmHDP_DEBUG0);
+	amdgpu_ring_write(ring, 1);
+}
+
 /**
  * cik_sdma_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -1286,6 +1293,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.emit_fence = cik_sdma_ring_emit_fence,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = cik_sdma_ring_emit_hdp_invalidate,
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,
