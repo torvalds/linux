@@ -256,8 +256,9 @@
 	nand_flash_x16: nand_flash_x16 {
 		/* On DRA7 EVM, GPMC_WPN and NAND_BOOTn comes from DIP switch
 		 * So NAND flash requires following switch settings:
-		 * SW5.9 (GPMC_WPN) = LOW
-		 * SW5.1 (NAND_BOOTn) = HIGH */
+		 * SW5.1 (NAND_BOOTn) = ON (LOW)
+		 * SW5.9 (GPMC_WPN) = OFF (HIGH)
+		 */
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x3400, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad0	*/
 			DRA7XX_CORE_IOPAD(0x3404, PIN_INPUT  | MUX_MODE0)	/* gpmc_ad1	*/
