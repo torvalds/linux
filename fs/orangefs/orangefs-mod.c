@@ -261,12 +261,13 @@ void purge_inprogress_ops(void)
 					 next,
 					 &htable_ops_in_progress[i],
 					 list) {
-			gossip_debug(GOSSIP_INIT_DEBUG,
-				"pvfs2-client-core: purging in-progress op tag "
-				"%llu %s\n",
-				llu(op->tag),
-				get_opname_string(op));
 			set_op_state_purged(op);
+			gossip_debug(GOSSIP_DEV_DEBUG,
+				     "%s: op:%s: op_state:%d: process:%s:\n",
+				     __func__,
+				     get_opname_string(op),
+				     op->op_state,
+				     current->comm);
 		}
 		spin_unlock(&htable_ops_in_progress_lock);
 	}

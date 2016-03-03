@@ -245,6 +245,12 @@ restart:
 	 * it has been sent to the client.
 	 */
 	set_op_state_inprogress(cur_op);
+	gossip_debug(GOSSIP_DEV_DEBUG,
+		     "%s: 1 op:%s: op_state:%d: process:%s:\n",
+		     __func__,
+		     get_opname_string(cur_op),
+		     cur_op->op_state,
+		     current->comm);
 	orangefs_devreq_add_op(cur_op);
 	spin_unlock(&cur_op->lock);
 	spin_unlock(&htable_ops_in_progress_lock);
@@ -262,6 +268,12 @@ error:
 	spin_lock(&cur_op->lock);
 	if (likely(!op_state_given_up(cur_op))) {
 		set_op_state_waiting(cur_op);
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: 2 op:%s: op_state:%d: process:%s:\n",
+			     __func__,
+			     get_opname_string(cur_op),
+			     cur_op->op_state,
+			     current->comm);
 		list_add(&cur_op->list, &orangefs_request_list);
 		spin_unlock(&cur_op->lock);
 	} else {
@@ -416,6 +428,12 @@ wakeup:
 		complete(&op->waitq);
 	} else {
 		set_op_state_serviced(op);
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: op:%s: op_state:%d: process:%s:\n",
+			     __func__,
+			     get_opname_string(op),
+			     op->op_state,
+			     current->comm);
 		spin_unlock(&op->lock);
 	}
 	return ret;

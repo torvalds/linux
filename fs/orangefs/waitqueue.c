@@ -37,6 +37,12 @@ void purge_waiting_ops(void)
 			     llu(op->tag),
 			     get_opname_string(op));
 		set_op_state_purged(op);
+		gossip_debug(GOSSIP_DEV_DEBUG,
+			     "%s: op:%s: op_state:%d: process:%s:\n",
+			     __func__,
+			     get_opname_string(op),
+			     op->op_state,
+			     current->comm);
 	}
 	spin_unlock(&orangefs_request_list_lock);
 }
@@ -101,6 +107,12 @@ retry_servicing:
 	spin_lock(&orangefs_request_list_lock);
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
+	gossip_debug(GOSSIP_DEV_DEBUG,
+		     "%s: op:%s: op_state:%d: process:%s:\n",
+		     __func__,
+		     get_opname_string(op),
+		     op->op_state,
+		     current->comm);
 	/* add high priority remount op to the front of the line. */
 	if (flags & ORANGEFS_OP_PRIORITY)
 		list_add(&op->list, &orangefs_request_list);
@@ -173,7 +185,8 @@ retry_servicing:
 
 out:
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "orangefs: service_operation %s returning: %d for %p.\n",
+		     "%s: %s returning: %d for %p.\n",
+		     __func__,
 		     op_name,
 		     ret,
 		     op);
@@ -204,6 +217,12 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
 	}
 	spin_lock(&op->lock);
 	set_op_state_waiting(op);
+	gossip_debug(GOSSIP_DEV_DEBUG,
+		     "%s: op:%s: op_state:%d: process:%s:\n",
+		     __func__,
+		     get_opname_string(op),
+		     op->op_state,
+		     current->comm);
 	list_add(&op->list, &orangefs_request_list);
 	spin_unlock(&op->lock);
 	spin_unlock(&orangefs_request_list_lock);
@@ -310,9 +329,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 
 	if (unlikely(n < 0)) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "*** %s:"
-			     " operation interrupted by a signal (tag "
-			     "%llu, op %p)\n",
+			     "%s: operation interrupted, tag %llu, %p\n",
 			     __func__,
 			     llu(op->tag),
 			     op);
@@ -320,9 +337,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 	}
 	if (op_state_purged(op)) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
-			     "*** %s:"
-			     " operation purged (tag "
-			     "%llu, %p, att %d)\n",
+			     "%s: operation purged, tag %llu, %p, %d\n",
 			     __func__,
 			     llu(op->tag),
 			     op,
@@ -333,9 +348,7 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 	}
 	/* must have timed out, then... */
 	gossip_debug(GOSSIP_WAIT_DEBUG,
-		     "*** %s:"
-		     " operation timed out (tag"
-		     " %llu, %p, att %d)\n",
+		     "%s: operation timed out, tag %llu, %p, %d)\n",
 		     __func__,
 		     llu(op->tag),
 		     op,

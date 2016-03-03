@@ -214,17 +214,13 @@ populate_shared_memory:
 			goto out;
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
-	    "%s(%pU): Amount written as returned by the sys-io call:%d\n",
+	    "%s(%pU): Amount %s, returned by the sys-io call:%d\n",
 	    __func__,
 	    handle,
+	    type == ORANGEFS_IO_READ ?  "read" : "written",
 	    (int)new_op->downcall.resp.io.amt_complete);
 
 	ret = new_op->downcall.resp.io.amt_complete;
-
-	/*
-	 * tell the device file owner waiting on I/O that this read has
-	 * completed and it can return now.
-	 */
 
 out:
 	if (buffer_index >= 0) {
