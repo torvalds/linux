@@ -1324,6 +1324,10 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 out:
 	spin_unlock_bh(&txqi->queue.lock);
 
+	if (skb && skb_has_frag_list(skb) &&
+	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST))
+		skb_linearize(skb);
+
 	return skb;
 }
 EXPORT_SYMBOL(ieee80211_tx_dequeue);
@@ -2802,6 +2806,154 @@ void ieee80211_clear_fast_xmit(struct sta_info *sta)
 		kfree_rcu(fast_tx, rcu_head);
 }
 
+static bool ieee80211_amsdu_realloc_pad(struct ieee80211_local *local,
+					struct sk_buff *skb, int headroom,
+					int *subframe_len)
+{
+	int amsdu_len = *subframe_len + sizeof(struct ethhdr);
+	int padding = (4 - amsdu_len) & 3;
+
+	if (skb_headroom(skb) < headroom || skb_tailroom(skb) < padding) {
+		I802_DEBUG_INC(local->tx_expand_skb_head);
+
+		if (pskb_expand_head(skb, headroom, padding, GFP_ATOMIC)) {
+			wiphy_debug(local->hw.wiphy,
+				    "failed to reallocate TX buffer\n");
+			return false;
+		}
+	}
+
+	if (padding) {
+		*subframe_len += padding;
+		memset(skb_put(skb, padding), 0, padding);
+	}
+
+	return true;
+}
+
+static bool ieee80211_amsdu_prepare_head(struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_fast_tx *fast_tx,
+					 struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr;
+	struct ethhdr amsdu_hdr;
+	int hdr_len = fast_tx->hdr_len - sizeof(rfc1042_header);
+	int subframe_len = skb->len - hdr_len;
+	void *data;
+	u8 *qc;
+
+	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+		return false;
+
+	if (info->control.flags & IEEE80211_TX_CTRL_AMSDU)
+		return true;
+
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(amsdu_hdr),
+					 &subframe_len))
+		return false;
+
+	amsdu_hdr.h_proto = cpu_to_be16(subframe_len);
+	memcpy(amsdu_hdr.h_source, skb->data + fast_tx->sa_offs, ETH_ALEN);
+	memcpy(amsdu_hdr.h_dest, skb->data + fast_tx->da_offs, ETH_ALEN);
+
+	data = skb_push(skb, sizeof(amsdu_hdr));
+	memmove(data, data + sizeof(amsdu_hdr), hdr_len);
+	memcpy(data + hdr_len, &amsdu_hdr, sizeof(amsdu_hdr));
+
+	hdr = data;
+	qc = ieee80211_get_qos_ctl(hdr);
+	*qc |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+
+	info->control.flags |= IEEE80211_TX_CTRL_AMSDU;
+
+	return true;
+}
+
+static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
+				      struct sta_info *sta,
+				      struct ieee80211_fast_tx *fast_tx,
+				      struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	u8 tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+	struct ieee80211_txq *txq = sta->sta.txq[tid];
+	struct txq_info *txqi;
+	struct sk_buff **frag_tail, *head;
+	int subframe_len = skb->len - ETH_ALEN;
+	u8 max_subframes = sta->sta.max_amsdu_subframes;
+	int max_frags = local->hw.max_tx_fragments;
+	int max_amsdu_len = sta->sta.max_amsdu_len;
+	__be16 len;
+	void *data;
+	bool ret = false;
+	int n = 1, nfrags;
+
+	if (!ieee80211_hw_check(&local->hw, TX_AMSDU))
+		return false;
+
+	if (!txq)
+		return false;
+
+	txqi = to_txq_info(txq);
+	if (test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags))
+		return false;
+
+	if (sta->sta.max_rc_amsdu_len)
+		max_amsdu_len = min_t(int, max_amsdu_len,
+				      sta->sta.max_rc_amsdu_len);
+
+	spin_lock_bh(&txqi->queue.lock);
+
+	head = skb_peek_tail(&txqi->queue);
+	if (!head)
+		goto out;
+
+	if (skb->len + head->len > max_amsdu_len)
+		goto out;
+
+	if (!ieee80211_amsdu_prepare_head(sdata, fast_tx, head))
+		goto out;
+
+	nfrags = 1 + skb_shinfo(skb)->nr_frags;
+	nfrags += 1 + skb_shinfo(head)->nr_frags;
+	frag_tail = &skb_shinfo(head)->frag_list;
+	while (*frag_tail) {
+		nfrags += 1 + skb_shinfo(*frag_tail)->nr_frags;
+		frag_tail = &(*frag_tail)->next;
+		n++;
+	}
+
+	if (max_subframes && n > max_subframes)
+		goto out;
+
+	if (max_frags && nfrags > max_frags)
+		goto out;
+
+	if (!ieee80211_amsdu_realloc_pad(local, skb, sizeof(rfc1042_header) + 2,
+					 &subframe_len))
+		goto out;
+
+	ret = true;
+	data = skb_push(skb, ETH_ALEN + 2);
+	memmove(data, data + ETH_ALEN + 2, 2 * ETH_ALEN);
+
+	data += 2 * ETH_ALEN;
+	len = cpu_to_be16(subframe_len);
+	memcpy(data, &len, 2);
+	memcpy(data + 2, rfc1042_header, sizeof(rfc1042_header));
+
+	head->len += skb->len;
+	head->data_len += skb->len;
+	*frag_tail = skb;
+
+out:
+	spin_unlock_bh(&txqi->queue.lock);
+
+	return ret;
+}
+
 static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 				struct net_device *dev, struct sta_info *sta,
 				struct ieee80211_fast_tx *fast_tx,
@@ -2855,6 +3007,10 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_tx_stats(dev, skb->len + extra_head);
+
+	if ((hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) &&
+	    ieee80211_amsdu_aggregate(sdata, sta, fast_tx, skb))
+		return true;
 
 	/* will not be crypto-handled beyond what we do here, so use false
 	 * as the may-encrypt argument for the resize to not account for

@@ -713,6 +713,7 @@ enum mac80211_tx_info_flags {
  * @IEEE80211_TX_CTRL_PS_RESPONSE: This frame is a response to a poll
  *	frame (PS-Poll or uAPSD).
  * @IEEE80211_TX_CTRL_RATE_INJECT: This frame is injected with rate information
+ * @IEEE80211_TX_CTRL_AMSDU: This frame is an A-MSDU frame
  *
  * These flags are used in tx_info->control.flags.
  */
@@ -720,6 +721,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_PORT_CTRL_PROTO	= BIT(0),
 	IEEE80211_TX_CTRL_PS_RESPONSE		= BIT(1),
 	IEEE80211_TX_CTRL_RATE_INJECT		= BIT(2),
+	IEEE80211_TX_CTRL_AMSDU			= BIT(3),
 };
 
 /*
@@ -1746,6 +1748,7 @@ struct ieee80211_sta_rates {
  *	Both additional HT limits must be enforced by the low level driver.
  *	This is defined by the spec (IEEE 802.11-2012 section 8.3.2.2 NOTE 2).
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
+ * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
@@ -1767,6 +1770,7 @@ struct ieee80211_sta {
 	u8 max_amsdu_subframes;
 	u16 max_amsdu_len;
 	bool support_p2p_ps;
+	u16 max_rc_amsdu_len;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
@@ -1983,6 +1987,15 @@ struct ieee80211_txq {
  * @IEEE80211_HW_USES_RSS: The device uses RSS and thus requires parallel RX,
  *	which implies using per-CPU station statistics.
  *
+ * @IEEE80211_HW_TX_AMSDU: Hardware (or driver) supports software aggregated
+ *	A-MSDU frames. Requires software tx queueing and fast-xmit support.
+ *	When not using minstrel/minstrel_ht rate control, the driver must
+ *	limit the maximum A-MSDU size based on the current tx rate by setting
+ *	max_rc_amsdu_len in struct ieee80211_sta.
+ *
+ * @IEEE80211_HW_TX_FRAG_LIST: Hardware (or driver) supports sending frag_list
+ *	skbs, needed for zero-copy software A-MSDU.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2021,6 +2034,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_NEEDS_UNIQUE_STA_ADDR,
 	IEEE80211_HW_SUPPORTS_REORDERING_BUFFER,
 	IEEE80211_HW_USES_RSS,
+	IEEE80211_HW_TX_AMSDU,
+	IEEE80211_HW_TX_FRAG_LIST,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -2093,6 +2108,9 @@ enum ieee80211_hw_flags {
  *	size is smaller (an example is LinkSys WRT120N with FW v1.0.07
  *	build 002 Jun 18 2012).
  *
+ * @max_tx_fragments: maximum number of tx buffers per (A)-MSDU, sum
+ *	of 1 + skb_shinfo(skb)->nr_frags for each skb in the frag_list.
+ *
  * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
  *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
  *
@@ -2147,6 +2165,7 @@ struct ieee80211_hw {
 	u8 max_rate_tries;
 	u8 max_rx_aggregation_subframes;
 	u8 max_tx_aggregation_subframes;
+	u8 max_tx_fragments;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
 	u16 radiotap_vht_details;

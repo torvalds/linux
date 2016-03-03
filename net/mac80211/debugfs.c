@@ -128,6 +128,8 @@ static const char *hw_flag_names[] = {
 	FLAG(NEEDS_UNIQUE_STA_ADDR),
 	FLAG(SUPPORTS_REORDERING_BUFFER),
 	FLAG(USES_RSS),
+	FLAG(TX_AMSDU),
+	FLAG(TX_FRAG_LIST),
 #undef FLAG
 };
 

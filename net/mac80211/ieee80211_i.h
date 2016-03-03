@@ -802,6 +802,7 @@ struct mac80211_qos_map {
 enum txq_info_flags {
 	IEEE80211_TXQ_STOP,
 	IEEE80211_TXQ_AMPDU,
+	IEEE80211_TXQ_NO_AMSDU,
 };
 
 struct txq_info {

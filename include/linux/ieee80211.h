@@ -164,6 +164,9 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 /* 30 byte 4 addr hdr, 2 byte QoS, 2304 byte MSDU, 12 byte crypt, 4 byte FCS */
 #define IEEE80211_MAX_FRAME_LEN		2352
 
+/* Maximal size of an A-MSDU that can be transported in a HT BA session */
+#define IEEE80211_MAX_MPDU_LEN_HT_BA		4095
+
 /* Maximal size of an A-MSDU */
 #define IEEE80211_MAX_MPDU_LEN_HT_3839		3839
 #define IEEE80211_MAX_MPDU_LEN_HT_7935		7935
