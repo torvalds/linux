@@ -3837,7 +3837,7 @@ static const char readme_msg[] =
 	"\t            [:values=<field1[,field2,...]>]\n"
 	"\t            [:sort=<field1[,field2,...]>]\n"
 	"\t            [:size=#entries]\n"
-	"\t            [:pause][:continue]\n"
+	"\t            [:pause][:continue][:clear]\n"
 	"\t            [if <filter>]\n\n"
 	"\t    When a matching event is hit, an entry is added to a hash\n"
 	"\t    table using the key(s) and value(s) named, and the value of a\n"
@@ -3857,6 +3857,9 @@ static const char readme_msg[] =
 	"\t    trigger or to start a hist trigger but not log any events\n"
 	"\t    until told to do so.  'continue' can be used to start or\n"
 	"\t    restart a paused hist trigger.\n\n"
+	"\t    The 'clear' parameter will clear the contents of a running\n"
+	"\t    hist trigger and leave its current paused/active state\n"
+	"\t    unchanged.\n\n"
 #endif
 ;
 
