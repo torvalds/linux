@@ -59,14 +59,12 @@ struct sdio_cmd52 {
 };
 
 typedef struct {
-	/* struct { */
 	u32 read_write:		1;
 	u32 function:		3;
 	u32 block_mode:		1;
 	u32 increment:		1;
 	u32 address:		17;
 	u32 count:		9;
-	/* } bit; */
 	u8 *buffer;
 	u32 block_size;
 } sdio_cmd53_t;
