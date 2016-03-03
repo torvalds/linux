@@ -36,6 +36,7 @@ struct gb_connection {
 	struct list_head		bundle_links;
 
 	gb_request_handler_t		handler;
+	unsigned long			flags;
 
 	struct gb_protocol		*protocol;
 	u8				module_major;
@@ -59,6 +60,9 @@ struct gb_connection *gb_connection_create_static(struct gb_host_device *hd,
 struct gb_connection *gb_connection_create_control(struct gb_interface *intf);
 struct gb_connection *gb_connection_create(struct gb_bundle *bundle,
 				u16 cport_id, gb_request_handler_t handler);
+struct gb_connection * gb_connection_create_flags(struct gb_bundle *bundle,
+				u16 cport_id, gb_request_handler_t handler,
+				unsigned long flags);
 void gb_connection_destroy(struct gb_connection *connection);
 
 static inline bool gb_connection_is_static(struct gb_connection *connection)

@@ -119,6 +119,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
  * @bundle:		remote-interface bundle (may be NULL)
  * @cport_id:		remote-interface cport id, or 0 for static connections
  * @handler:		request handler (may be NULL)
+ * @flags:		connection flags
  *
  * Create a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -137,7 +138,8 @@ static struct gb_connection *
 _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 				struct gb_interface *intf,
 				struct gb_bundle *bundle, int cport_id,
-				gb_request_handler_t handler)
+				gb_request_handler_t handler,
+				unsigned long flags)
 {
 	struct gb_connection *connection;
 	struct ida *id_map = &hd->cport_id_map;
@@ -180,6 +182,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	connection->intf = intf;
 	connection->bundle = bundle;
 	connection->handler = handler;
+	connection->flags = flags;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	atomic_set(&connection->op_cycle, 0);
@@ -226,13 +229,14 @@ struct gb_connection *
 gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id,
 					gb_request_handler_t handler)
 {
-	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, handler);
+	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, handler,
+					0);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
-	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL);
+	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL, 0);
 }
 
 struct gb_connection *
@@ -242,9 +246,21 @@ gb_connection_create(struct gb_bundle *bundle, u16 cport_id,
 	struct gb_interface *intf = bundle->intf;
 
 	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
-					handler);
+					handler, 0);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create);
+
+struct gb_connection *
+gb_connection_create_flags(struct gb_bundle *bundle, u16 cport_id,
+					gb_request_handler_t handler,
+					unsigned long flags)
+{
+	struct gb_interface *intf = bundle->intf;
+
+	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
+					handler, flags);
+}
+EXPORT_SYMBOL_GPL(gb_connection_create_flags);
 
 static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 {
