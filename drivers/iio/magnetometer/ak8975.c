@@ -774,8 +774,11 @@ static int ak8975_probe(struct i2c_client *client,
 	if (id) {
 		chipset = (enum asahi_compass_chipset)(id->driver_data);
 		name = id->name;
-	} else if (ACPI_HANDLE(&client->dev))
+	} else if (ACPI_HANDLE(&client->dev)) {
 		name = ak8975_match_acpi_device(&client->dev, &chipset);
+		if (!name)
+			return -ENODEV;
+	}
 	else
 		return -ENOSYS;
 
