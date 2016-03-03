@@ -780,6 +780,15 @@
 /* Disable Branch Return Cache */
 #define R10K_DIAG_D_BRC		(_ULCAST_(1) << 22)
 
+/* Flush ITLB */
+#define LOONGSON_DIAG_ITLB	(_ULCAST_(1) << 2)
+/* Flush DTLB */
+#define LOONGSON_DIAG_DTLB	(_ULCAST_(1) << 3)
+/* Flush VTLB */
+#define LOONGSON_DIAG_VTLB	(_ULCAST_(1) << 12)
+/* Flush FTLB */
+#define LOONGSON_DIAG_FTLB	(_ULCAST_(1) << 13)
+
 /*
  * Coprocessor 1 (FPU) register names
  */

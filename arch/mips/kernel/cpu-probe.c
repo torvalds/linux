@@ -563,6 +563,9 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, int enable)
 					   << MIPS_CONF7_FTLBP_SHIFT));
 		break;
 	case CPU_LOONGSON3:
+		/* Flush ITLB, DTLB, VTLB and FTLB */
+		write_c0_diag(LOONGSON_DIAG_ITLB | LOONGSON_DIAG_DTLB |
+			      LOONGSON_DIAG_VTLB | LOONGSON_DIAG_FTLB);
 		/* Loongson-3 cores use Config6 to enable the FTLB */
 		config = read_c0_config6();
 		if (enable)
