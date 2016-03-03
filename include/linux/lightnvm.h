@@ -355,6 +355,7 @@ struct nvm_dev {
 	char name[DISK_NAME_LEN];
 
 	struct mutex mlock;
+	spinlock_t lock;
 };
 
 static inline struct ppa_addr generic_to_dev_addr(struct nvm_dev *dev,
@@ -467,6 +468,9 @@ typedef int (nvmm_erase_blk_fn)(struct nvm_dev *, struct nvm_block *,
 typedef struct nvm_lun *(nvmm_get_lun_fn)(struct nvm_dev *, int);
 typedef void (nvmm_lun_info_print_fn)(struct nvm_dev *);
 
+typedef int (nvmm_get_area_fn)(struct nvm_dev *, sector_t *, sector_t);
+typedef void (nvmm_put_area_fn)(struct nvm_dev *, sector_t);
+
 struct nvmm_type {
 	const char *name;
 	unsigned int version[3];
@@ -491,6 +495,10 @@ struct nvmm_type {
 
 	/* Statistics */
 	nvmm_lun_info_print_fn *lun_info_print;
+
+	nvmm_get_area_fn *get_area;
+	nvmm_put_area_fn *put_area;
+
 	struct list_head list;
 };
 

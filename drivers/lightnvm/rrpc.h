@@ -97,6 +97,7 @@ struct rrpc {
 	struct nvm_dev *dev;
 	struct gendisk *disk;
 
+	sector_t soffset; /* logical sector offset */
 	u64 poffset; /* physical page offset */
 	int lun_offset;
 

@@ -1053,7 +1053,10 @@ static int rrpc_map_init(struct rrpc *rrpc)
 {
 	struct nvm_dev *dev = rrpc->dev;
 	sector_t i;
+	u64 slba;
 	int ret;
+
+	slba = rrpc->soffset >> (ilog2(dev->sec_size) - 9);
 
 	rrpc->trans_map = vzalloc(sizeof(struct rrpc_addr) * rrpc->nr_sects);
 	if (!rrpc->trans_map)
@@ -1076,7 +1079,7 @@ static int rrpc_map_init(struct rrpc *rrpc)
 		return 0;
 
 	/* Bring up the mapping table from device */
-	ret = dev->ops->get_l2p_tbl(dev, 0, dev->total_secs, rrpc_l2p_update,
+	ret = dev->ops->get_l2p_tbl(dev, slba, rrpc->nr_sects, rrpc_l2p_update,
 									rrpc);
 	if (ret) {
 		pr_err("nvm: rrpc: could not read L2P table.\n");
@@ -1085,7 +1088,6 @@ static int rrpc_map_init(struct rrpc *rrpc)
 
 	return 0;
 }
-
 
 /* Minimum pages needed within a lun */
 #define PAGE_POOL_SIZE 16
@@ -1200,12 +1202,33 @@ err:
 	return -ENOMEM;
 }
 
+/* returns 0 on success and stores the beginning address in *begin */
+static int rrpc_area_init(struct rrpc *rrpc, sector_t *begin)
+{
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvmm_type *mt = dev->mt;
+	sector_t size = rrpc->nr_sects * dev->sec_size;
+
+	size >>= 9;
+
+	return mt->get_area(dev, begin, size);
+}
+
+static void rrpc_area_free(struct rrpc *rrpc)
+{
+	struct nvm_dev *dev = rrpc->dev;
+	struct nvmm_type *mt = dev->mt;
+
+	mt->put_area(dev, rrpc->soffset);
+}
+
 static void rrpc_free(struct rrpc *rrpc)
 {
 	rrpc_gc_free(rrpc);
 	rrpc_map_free(rrpc);
 	rrpc_core_free(rrpc);
 	rrpc_luns_free(rrpc);
+	rrpc_area_free(rrpc);
 
 	kfree(rrpc);
 }
@@ -1327,6 +1350,7 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 	struct request_queue *bqueue = dev->q;
 	struct request_queue *tqueue = tdisk->queue;
 	struct rrpc *rrpc;
+	sector_t soffset;
 	int ret;
 
 	if (!(dev->identity.dom & NVM_RSP_L2P)) {
@@ -1351,6 +1375,13 @@ static void *rrpc_init(struct nvm_dev *dev, struct gendisk *tdisk,
 
 	/* simple round-robin strategy */
 	atomic_set(&rrpc->next_lun, -1);
+
+	ret = rrpc_area_init(rrpc, &soffset);
+	if (ret < 0) {
+		pr_err("nvm: rrpc: could not initialize area\n");
+		return ERR_PTR(ret);
+	}
+	rrpc->soffset = soffset;
 
 	ret = rrpc_luns_init(rrpc, lun_begin, lun_end);
 	if (ret) {
