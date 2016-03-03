@@ -192,9 +192,6 @@ static int gennvm_block_map(u64 slba, u32 nlb, __le64 *entries, void *private)
 		lun_id = div_u64(pba, dev->sec_per_lun);
 		lun = &gn->luns[lun_id];
 
-		if (!test_bit(lun_id, dev->lun_map))
-			__set_bit(lun_id, dev->lun_map);
-
 		/* Calculate block offset into lun */
 		pba = pba - (dev->sec_per_lun * lun_id);
 		blk = &lun->vlun.blocks[div_u64(pba, dev->sec_per_blk)];
