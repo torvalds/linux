@@ -17,8 +17,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/scatterlist.h>
 #include <keys/asymmetric-subtype.h>
 #include <crypto/public_key.h>
+#include <crypto/akcipher.h>
 
 MODULE_LICENSE("GPL");
 
@@ -34,12 +36,6 @@ const char *const pkey_id_type_name[PKEY_ID_TYPE__LAST] = {
 	[PKEY_ID_PKCS7]		= "PKCS#7",
 };
 EXPORT_SYMBOL_GPL(pkey_id_type_name);
-
-static int (*alg_verify[PKEY_ALGO__LAST])(const struct public_key *pkey,
-	const struct public_key_signature *sig) = {
-	NULL,
-	rsa_verify_signature
-};
 
 /*
  * Provide a part of a description of the key for /proc/keys.
@@ -68,24 +64,110 @@ void public_key_destroy(void *payload)
 }
 EXPORT_SYMBOL_GPL(public_key_destroy);
 
+struct public_key_completion {
+	struct completion completion;
+	int err;
+};
+
+static void public_key_verify_done(struct crypto_async_request *req, int err)
+{
+	struct public_key_completion *compl = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	compl->err = err;
+	complete(&compl->completion);
+}
+
 /*
  * Verify a signature using a public key.
  */
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig)
 {
+	struct public_key_completion compl;
+	struct crypto_akcipher *tfm;
+	struct akcipher_request *req;
+	struct scatterlist sig_sg, digest_sg;
+	const char *alg_name;
+	char alg_name_buf[CRYPTO_MAX_ALG_NAME];
+	void *output;
+	unsigned int outlen;
+	int ret = -ENOMEM;
+
+	pr_devel("==>%s()\n", __func__);
+
 	BUG_ON(!pkey);
 	BUG_ON(!sig);
 	BUG_ON(!sig->digest);
 	BUG_ON(!sig->s);
 
-	if (pkey->pkey_algo >= PKEY_ALGO__LAST)
-		return -ENOPKG;
+	alg_name = pkey_algo_name[sig->pkey_algo];
+	if (sig->pkey_algo == PKEY_ALGO_RSA) {
+		/* The data wangled by the RSA algorithm is typically padded
+		 * and encoded in some manner, such as EMSA-PKCS1-1_5 [RFC3447
+		 * sec 8.2].
+		 */
+		if (snprintf(alg_name_buf, CRYPTO_MAX_ALG_NAME,
+			     "pkcs1pad(rsa,%s)",
+			     hash_algo_name[sig->pkey_hash_algo]
+			     ) >= CRYPTO_MAX_ALG_NAME)
+			return -EINVAL;
+		alg_name = alg_name_buf;
+	}
 
-	if (!alg_verify[pkey->pkey_algo])
-		return -ENOPKG;
+	tfm = crypto_alloc_akcipher(alg_name, 0, 0);
+	if (IS_ERR(tfm))
+		return PTR_ERR(tfm);
 
-	return alg_verify[pkey->pkey_algo](pkey, sig);
+	req = akcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		goto error_free_tfm;
+
+	ret = crypto_akcipher_set_pub_key(tfm, pkey->key, pkey->keylen);
+	if (ret)
+		goto error_free_req;
+
+	outlen = crypto_akcipher_maxsize(tfm);
+	output = kmalloc(outlen, GFP_KERNEL);
+	if (!output)
+		goto error_free_req;
+
+	sg_init_one(&sig_sg, sig->s, sig->s_size);
+	sg_init_one(&digest_sg, output, outlen);
+	akcipher_request_set_crypt(req, &sig_sg, &digest_sg, sig->s_size,
+				   outlen);
+	init_completion(&compl.completion);
+	akcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+				      CRYPTO_TFM_REQ_MAY_SLEEP,
+				      public_key_verify_done, &compl);
+
+	/* Perform the verification calculation.  This doesn't actually do the
+	 * verification, but rather calculates the hash expected by the
+	 * signature and returns that to us.
+	 */
+	ret = crypto_akcipher_verify(req);
+	if (ret == -EINPROGRESS) {
+		wait_for_completion(&compl.completion);
+		ret = compl.err;
+	}
+	if (ret < 0)
+		goto out_free_output;
+
+	/* Do the actual verification step. */
+	if (req->dst_len != sig->digest_size ||
+	    memcmp(sig->digest, output, sig->digest_size) != 0)
+		ret = -EKEYREJECTED;
+
+out_free_output:
+	kfree(output);
+error_free_req:
+	akcipher_request_free(req);
+error_free_tfm:
+	crypto_free_akcipher(tfm);
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(public_key_verify_signature);
 

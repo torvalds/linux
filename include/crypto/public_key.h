@@ -91,6 +91,4 @@ extern struct key *x509_request_asymmetric_key(struct key *keyring,
 int public_key_verify_signature(const struct public_key *pkey,
 				const struct public_key_signature *sig);
 
-int rsa_verify_signature(const struct public_key *pkey,
-			 const struct public_key_signature *sig);
 #endif /* _LINUX_PUBLIC_KEY_H */
