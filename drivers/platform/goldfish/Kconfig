@@ -1,6 +1,7 @@
 menuconfig GOLDFISH
 	bool "Platform support for Goldfish virtual devices"
 	depends on X86_32 || X86_64 || ARM || ARM64 || MIPS
+	depends on HAS_IOMEM
 	---help---
 	  Say Y here to get to see options for the Goldfish virtual platform.
 	  This option alone does not add any kernel code.
