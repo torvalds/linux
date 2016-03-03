@@ -156,6 +156,15 @@ struct rrpc_rev_addr {
 	u64 addr;
 };
 
+static inline struct rrpc_block *rrpc_get_rblk(struct rrpc_lun *rlun,
+								int blk_id)
+{
+	struct rrpc *rrpc = rlun->rrpc;
+	int lun_blk = blk_id % rrpc->dev->blks_per_lun;
+
+	return &rlun->blocks[lun_blk];
+}
+
 static inline sector_t rrpc_get_laddr(struct bio *bio)
 {
 	return bio->bi_iter.bi_sector / NR_PHY_IN_LOG;

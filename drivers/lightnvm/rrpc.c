@@ -38,7 +38,7 @@ static void rrpc_page_invalidate(struct rrpc *rrpc, struct rrpc_addr *a)
 
 	spin_lock(&rblk->lock);
 
-	div_u64_rem(a->addr, rrpc->dev->pgs_per_blk, &pg_offset);
+	div_u64_rem(a->addr, rrpc->dev->sec_per_blk, &pg_offset);
 	WARN_ON(test_and_set_bit(pg_offset, rblk->invalid_pages));
 	rblk->nr_invalid_pages++;
 
@@ -113,14 +113,24 @@ static void rrpc_discard(struct rrpc *rrpc, struct bio *bio)
 
 static int block_is_full(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
-	return (rblk->next_page == rrpc->dev->pgs_per_blk);
+	return (rblk->next_page == rrpc->dev->sec_per_blk);
 }
 
+/* Calculate relative addr for the given block, considering instantiated LUNs */
+static u64 block_to_rel_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
+{
+	struct nvm_block *blk = rblk->parent;
+	int lun_blk = blk->id % (rrpc->dev->blks_per_lun * rrpc->nr_luns);
+
+	return lun_blk * rrpc->dev->sec_per_blk;
+}
+
+/* Calculate global addr for the given block */
 static u64 block_to_addr(struct rrpc *rrpc, struct rrpc_block *rblk)
 {
 	struct nvm_block *blk = rblk->parent;
 
-	return blk->id * rrpc->dev->pgs_per_blk;
+	return blk->id * rrpc->dev->sec_per_blk;
 }
 
 static struct ppa_addr linear_to_generic_addr(struct nvm_dev *dev,
@@ -136,7 +146,7 @@ static struct ppa_addr linear_to_generic_addr(struct nvm_dev *dev,
 	l.g.sec = secs;
 
 	sector_div(ppa, dev->sec_per_pg);
-	div_u64_rem(ppa, dev->sec_per_blk, &pgs);
+	div_u64_rem(ppa, dev->pgs_per_blk, &pgs);
 	l.g.pg = pgs;
 
 	sector_div(ppa, dev->pgs_per_blk);
@@ -191,12 +201,12 @@ static struct rrpc_block *rrpc_get_blk(struct rrpc *rrpc, struct rrpc_lun *rlun,
 		return NULL;
 	}
 
-	rblk = &rlun->blocks[blk->id];
+	rblk = rrpc_get_rblk(rlun, blk->id);
 	list_add_tail(&rblk->list, &rlun->open_list);
 	spin_unlock(&lun->lock);
 
 	blk->priv = rblk;
-	bitmap_zero(rblk->invalid_pages, rrpc->dev->pgs_per_blk);
+	bitmap_zero(rblk->invalid_pages, rrpc->dev->sec_per_blk);
 	rblk->next_page = 0;
 	rblk->nr_invalid_pages = 0;
 	atomic_set(&rblk->data_cmnt_size, 0);
@@ -286,11 +296,11 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 	struct bio *bio;
 	struct page *page;
 	int slot;
-	int nr_pgs_per_blk = rrpc->dev->pgs_per_blk;
+	int nr_sec_per_blk = rrpc->dev->sec_per_blk;
 	u64 phys_addr;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
-	if (bitmap_full(rblk->invalid_pages, nr_pgs_per_blk))
+	if (bitmap_full(rblk->invalid_pages, nr_sec_per_blk))
 		return 0;
 
 	bio = bio_alloc(GFP_NOIO, 1);
@@ -304,10 +314,10 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 		return -ENOMEM;
 
 	while ((slot = find_first_zero_bit(rblk->invalid_pages,
-					    nr_pgs_per_blk)) < nr_pgs_per_blk) {
+					    nr_sec_per_blk)) < nr_sec_per_blk) {
 
 		/* Lock laddr */
-		phys_addr = (rblk->parent->id * nr_pgs_per_blk) + slot;
+		phys_addr = rblk->parent->id * nr_sec_per_blk + slot;
 
 try:
 		spin_lock(&rrpc->rev_lock);
@@ -379,7 +389,7 @@ finished:
 	mempool_free(page, rrpc->page_pool);
 	bio_put(bio);
 
-	if (!bitmap_full(rblk->invalid_pages, nr_pgs_per_blk)) {
+	if (!bitmap_full(rblk->invalid_pages, nr_sec_per_blk)) {
 		pr_err("nvm: failed to garbage collect block\n");
 		return -EIO;
 	}
@@ -675,7 +685,7 @@ static void rrpc_end_io_write(struct rrpc *rrpc, struct rrpc_rq *rrqd,
 		lun = rblk->parent->lun;
 
 		cmnt_size = atomic_inc_return(&rblk->data_cmnt_size);
-		if (unlikely(cmnt_size == rrpc->dev->pgs_per_blk))
+		if (unlikely(cmnt_size == rrpc->dev->sec_per_blk))
 			rrpc_run_gc(rrpc, rblk);
 	}
 }
@@ -1012,6 +1022,7 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 
 	for (i = 0; i < nlb; i++) {
 		u64 pba = le64_to_cpu(entries[i]);
+		unsigned int mod;
 		/* LNVM treats address-spaces as silos, LBA and PBA are
 		 * equally large and zero-indexed.
 		 */
@@ -1027,8 +1038,10 @@ static int rrpc_l2p_update(u64 slba, u32 nlb, __le64 *entries, void *private)
 		if (!pba)
 			continue;
 
+		div_u64_rem(pba, rrpc->nr_sects, &mod);
+
 		addr[i].addr = pba;
-		raddr[pba].addr = slba + i;
+		raddr[mod].addr = slba + i;
 	}
 
 	return 0;
@@ -1135,7 +1148,7 @@ static int rrpc_luns_init(struct rrpc *rrpc, int lun_begin, int lun_end)
 	struct rrpc_lun *rlun;
 	int i, j;
 
-	if (dev->pgs_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
+	if (dev->sec_per_blk > MAX_INVALID_PAGES_STORAGE * BITS_PER_LONG) {
 		pr_err("rrpc: number of pages per block too high.");
 		return -EINVAL;
 	}
@@ -1236,10 +1249,11 @@ static void rrpc_block_map_update(struct rrpc *rrpc, struct rrpc_block *rblk)
 	struct nvm_dev *dev = rrpc->dev;
 	int offset;
 	struct rrpc_addr *laddr;
-	u64 paddr, pladdr;
+	u64 bpaddr, paddr, pladdr;
 
-	for (offset = 0; offset < dev->pgs_per_blk; offset++) {
-		paddr = block_to_addr(rrpc, rblk) + offset;
+	bpaddr = block_to_rel_addr(rrpc, rblk);
+	for (offset = 0; offset < dev->sec_per_blk; offset++) {
+		paddr = bpaddr + offset;
 
 		pladdr = rrpc->rev_trans_map[paddr].addr;
 		if (pladdr == ADDR_EMPTY)
