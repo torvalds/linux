@@ -211,23 +211,50 @@ static void au0828_media_graph_notify(struct media_entity *new,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct au0828_dev *dev = (struct au0828_dev *) notify_data;
 	int ret;
+	struct media_entity *entity, *mixer = NULL, *decoder = NULL;
 
-	if (!dev->decoder)
-		return;
+	if (!new) {
+		/*
+		 * Called during au0828 probe time to connect
+		 * entites that were created prior to registering
+		 * the notify handler. Find mixer and decoder.
+		*/
+		media_device_for_each_entity(entity, dev->media_dev) {
+			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
+				mixer = entity;
+			else if (entity->function == MEDIA_ENT_F_ATV_DECODER)
+				decoder = entity;
+		}
+		goto create_link;
+	}
 
 	switch (new->function) {
 	case MEDIA_ENT_F_AUDIO_MIXER:
-		ret = media_create_pad_link(dev->decoder,
-					    DEMOD_PAD_AUDIO_OUT,
-					    new, 0,
-					    MEDIA_LNK_FL_ENABLED);
-		if (ret)
-			dev_err(&dev->usbdev->dev,
-				"Mixer Pad Link Create Error: %d\n",
-				ret);
+		mixer = new;
+		if (dev->decoder)
+			decoder = dev->decoder;
+		break;
+	case MEDIA_ENT_F_ATV_DECODER:
+		/* In case, Mixer is added first, find mixer and create link */
+		media_device_for_each_entity(entity, dev->media_dev) {
+			if (entity->function == MEDIA_ENT_F_AUDIO_MIXER)
+				mixer = entity;
+		}
+		decoder = new;
 		break;
 	default:
 		break;
+	}
+
+create_link:
+	if (decoder && mixer) {
+		ret = media_create_pad_link(decoder,
+					    DEMOD_PAD_AUDIO_OUT,
+					    mixer, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			dev_err(&dev->usbdev->dev,
+				"Mixer Pad Link Create Error: %d\n", ret);
 	}
 #endif
 }
@@ -447,6 +474,15 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 				"Media Device Register Error: %d\n", ret);
 			return ret;
 		}
+	} else {
+		/*
+		 * Call au0828_media_graph_notify() to connect
+		 * audio graph to our graph. In this case, audio
+		 * driver registered the device and there is no
+		 * entity_notify to be called when new entities
+		 * are added. Invoke it now.
+		*/
+		au0828_media_graph_notify(NULL, (void *) dev);
 	}
 	/* register entity_notify callback */
 	dev->entity_notify.notify_data = (void *) dev;
