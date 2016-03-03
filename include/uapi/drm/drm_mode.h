@@ -295,6 +295,19 @@ struct drm_mode_get_connector {
  */
 #define DRM_MODE_PROP_ATOMIC        0x80000000
 
+/* Color for the KMS API, ARGB (msb -> lsb) 16bits per component. */
+#define DRM_MODE_COLOR(bits, a, r, g, b)                        \
+        ((((__u64)(a) & 0xffff) << (48 + 16 - (bits))) |	\
+         (((__u64)(r) & 0xffff) << (32 + 16 - (bits))) |	\
+         (((__u64)(g) & 0xffff) << (16 + 16 - (bits))) |	\
+         ((__u64)(b) & 0xffff) << (16 - (bits)))
+
+/* Extract full precision, 8 bits, 10 bits and 12 bits components. */
+#define DRM_MODE_COLOR_ALPHA(bits, color)	((((color) >> 48) & 0xffff) >> (16 - bits))
+#define DRM_MODE_COLOR_RED(bits, color)		((((color) >> 32) & 0xffff) >> (16 - bits))
+#define DRM_MODE_COLOR_GREEN(bits, color)	((((color) >> 16) & 0xffff) >> (16 - bits))
+#define DRM_MODE_COLOR_BLUE(bits, color)	(((color) & 0xffff) >> (16 - bits))
+
 struct drm_mode_property_enum {
 	__u64 value;
 	char name[DRM_PROP_NAME_LEN];
