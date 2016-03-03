@@ -84,6 +84,7 @@ enum hist_field_flags {
 	HIST_FIELD_FL_SYM		= 16,
 	HIST_FIELD_FL_SYM_OFFSET	= 32,
 	HIST_FIELD_FL_EXECNAME		= 64,
+	HIST_FIELD_FL_SYSCALL		= 128,
 };
 
 struct hist_trigger_attrs {
@@ -474,6 +475,8 @@ static int create_key_field(struct hist_trigger_data *hist_data,
 		else if ((strcmp(field_str, "execname") == 0) &&
 			 (strcmp(field_name, "common_pid") == 0))
 			flags |= HIST_FIELD_FL_EXECNAME;
+		else if (strcmp(field_str, "syscall") == 0)
+			flags |= HIST_FIELD_FL_SYSCALL;
 		else {
 			ret = -EINVAL;
 			goto out;
@@ -854,6 +857,16 @@ hist_trigger_entry_print(struct seq_file *m,
 			uval = *(u64 *)(key + key_field->offset);
 			seq_printf(m, "%s: %-16s[%10llu]",
 				   key_field->field->name, comm, uval);
+		} else if (key_field->flags & HIST_FIELD_FL_SYSCALL) {
+			const char *syscall_name;
+
+			uval = *(u64 *)(key + key_field->offset);
+			syscall_name = get_syscall_name(uval);
+			if (!syscall_name)
+				syscall_name = "unknown_syscall";
+
+			seq_printf(m, "%s: %-30s[%3llu]",
+				   key_field->field->name, syscall_name, uval);
 		} else if (key_field->flags & HIST_FIELD_FL_STRING) {
 			seq_printf(m, "%s: %-50s", key_field->field->name,
 				   (char *)(key + key_field->offset));
@@ -975,6 +988,8 @@ static const char *get_hist_field_flags(struct hist_field *hist_field)
 		flags_str = "sym-offset";
 	else if (hist_field->flags & HIST_FIELD_FL_EXECNAME)
 		flags_str = "execname";
+	else if (hist_field->flags & HIST_FIELD_FL_SYSCALL)
+		flags_str = "syscall";
 
 	return flags_str;
 }
