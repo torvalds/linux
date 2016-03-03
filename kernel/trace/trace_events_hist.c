@@ -84,6 +84,7 @@ enum hist_field_flags {
 
 struct hist_trigger_attrs {
 	char		*keys_str;
+	char		*vals_str;
 	unsigned int	map_bits;
 };
 
@@ -165,6 +166,7 @@ static void destroy_hist_trigger_attrs(struct hist_trigger_attrs *attrs)
 		return;
 
 	kfree(attrs->keys_str);
+	kfree(attrs->vals_str);
 	kfree(attrs);
 }
 
@@ -183,6 +185,10 @@ static struct hist_trigger_attrs *parse_hist_trigger_attrs(char *trigger_str)
 		if ((strncmp(str, "key=", strlen("key=")) == 0) ||
 		    (strncmp(str, "keys=", strlen("keys=")) == 0))
 			attrs->keys_str = kstrdup(str, GFP_KERNEL);
+		else if ((strncmp(str, "val=", strlen("val=")) == 0) ||
+			 (strncmp(str, "vals=", strlen("vals=")) == 0) ||
+			 (strncmp(str, "values=", strlen("values=")) == 0))
+			attrs->vals_str = kstrdup(str, GFP_KERNEL);
 		else if (strncmp(str, "size=", strlen("size=")) == 0) {
 			int map_bits = parse_map_size(str);
 
@@ -276,13 +282,70 @@ static int create_hitcount_val(struct hist_trigger_data *hist_data)
 	return 0;
 }
 
+static int create_val_field(struct hist_trigger_data *hist_data,
+			    unsigned int val_idx,
+			    struct trace_event_file *file,
+			    char *field_str)
+{
+	struct ftrace_event_field *field = NULL;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	if (WARN_ON(val_idx >= TRACING_MAP_VALS_MAX))
+		return -EINVAL;
+	field = trace_find_event_field(file->event_call, field_str);
+	if (!field) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hist_data->fields[val_idx] = create_hist_field(field, flags);
+	if (!hist_data->fields[val_idx]) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	++hist_data->n_vals;
+
+	if (WARN_ON(hist_data->n_vals > TRACING_MAP_VALS_MAX))
+		ret = -EINVAL;
+ out:
+	return ret;
+}
+
 static int create_val_fields(struct hist_trigger_data *hist_data,
 			     struct trace_event_file *file)
 {
+	char *fields_str, *field_str;
+	unsigned int i, j;
 	int ret;
 
 	ret = create_hitcount_val(hist_data);
+	if (ret)
+		goto out;
 
+	fields_str = hist_data->attrs->vals_str;
+	if (!fields_str)
+		goto out;
+
+	strsep(&fields_str, "=");
+	if (!fields_str)
+		goto out;
+
+	for (i = 0, j = 1; i < TRACING_MAP_VALS_MAX &&
+		     j < TRACING_MAP_VALS_MAX; i++) {
+		field_str = strsep(&fields_str, ",");
+		if (!field_str)
+			break;
+		if (strcmp(field_str, "hitcount") == 0)
+			continue;
+		ret = create_val_field(hist_data, j++, file, field_str);
+		if (ret)
+			goto out;
+	}
+	if (fields_str && (strcmp(fields_str, "hitcount") != 0))
+		ret = -EINVAL;
+ out:
 	return ret;
 }
 
@@ -552,6 +615,12 @@ hist_trigger_entry_print(struct seq_file *m,
 	seq_printf(m, " hitcount: %10llu",
 		   tracing_map_read_sum(elt, HITCOUNT_IDX));
 
+	for (i = 1; i < hist_data->n_vals; i++) {
+		seq_printf(m, "  %s: %10llu",
+			   hist_data->fields[i]->field->name,
+			   tracing_map_read_sum(elt, i));
+	}
+
 	seq_puts(m, "\n");
 }
 
@@ -659,7 +728,15 @@ static int event_hist_trigger_print(struct seq_file *m,
 	}
 
 	seq_puts(m, ":vals=");
-	seq_puts(m, "hitcount");
+
+	for_each_hist_val_field(i, hist_data) {
+		if (i == HITCOUNT_IDX)
+			seq_puts(m, "hitcount");
+		else {
+			seq_puts(m, ",");
+			hist_field_print(m, hist_data->fields[i]);
+		}
+	}
 
 	seq_puts(m, ":sort=");
 	seq_puts(m, "hitcount");
