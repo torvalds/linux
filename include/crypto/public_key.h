@@ -14,28 +14,6 @@
 #ifndef _LINUX_PUBLIC_KEY_H
 #define _LINUX_PUBLIC_KEY_H
 
-#include <crypto/hash_info.h>
-
-enum pkey_algo {
-	PKEY_ALGO_DSA,
-	PKEY_ALGO_RSA,
-	PKEY_ALGO__LAST
-};
-
-extern const char *const pkey_algo_name[PKEY_ALGO__LAST];
-
-/* asymmetric key implementation supports only up to SHA224 */
-#define PKEY_HASH__LAST		(HASH_ALGO_SHA224 + 1)
-
-enum pkey_id_type {
-	PKEY_ID_PGP,		/* OpenPGP generated key ID */
-	PKEY_ID_X509,		/* X.509 arbitrary subjectKeyIdentifier */
-	PKEY_ID_PKCS7,		/* Signature in PKCS#7 message */
-	PKEY_ID_TYPE__LAST
-};
-
-extern const char *const pkey_id_type_name[PKEY_ID_TYPE__LAST];
-
 /*
  * The use to which an asymmetric key is being put.
  */
@@ -59,8 +37,8 @@ extern const char *const key_being_used_for[NR__KEY_BEING_USED_FOR];
 struct public_key {
 	void *key;
 	u32 keylen;
-	enum pkey_algo pkey_algo : 8;
-	enum pkey_id_type id_type : 8;
+	const char *id_type;
+	const char *pkey_algo;
 };
 
 extern void public_key_destroy(void *payload);
@@ -73,8 +51,8 @@ struct public_key_signature {
 	u32 s_size;		/* Number of bytes in signature */
 	u8 *digest;
 	u8 digest_size;		/* Number of bytes in digest */
-	enum pkey_algo pkey_algo : 8;
-	enum hash_algo pkey_hash_algo : 8;
+	const char *pkey_algo;
+	const char *hash_algo;
 };
 
 extern struct asymmetric_key_subtype public_key_subtype;

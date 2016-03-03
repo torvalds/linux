@@ -24,19 +24,6 @@
 
 MODULE_LICENSE("GPL");
 
-const char *const pkey_algo_name[PKEY_ALGO__LAST] = {
-	[PKEY_ALGO_DSA]		= "dsa",
-	[PKEY_ALGO_RSA]		= "rsa",
-};
-EXPORT_SYMBOL_GPL(pkey_algo_name);
-
-const char *const pkey_id_type_name[PKEY_ID_TYPE__LAST] = {
-	[PKEY_ID_PGP]		= "PGP",
-	[PKEY_ID_X509]		= "X509",
-	[PKEY_ID_PKCS7]		= "PKCS#7",
-};
-EXPORT_SYMBOL_GPL(pkey_id_type_name);
-
 /*
  * Provide a part of a description of the key for /proc/keys.
  */
@@ -46,9 +33,7 @@ static void public_key_describe(const struct key *asymmetric_key,
 	struct public_key *key = asymmetric_key->payload.data[asym_crypto];
 
 	if (key)
-		seq_printf(m, "%s.%s",
-			   pkey_id_type_name[key->id_type],
-			   pkey_algo_name[key->pkey_algo]);
+		seq_printf(m, "%s.%s", key->id_type, key->pkey_algo);
 }
 
 /*
@@ -103,15 +88,14 @@ int public_key_verify_signature(const struct public_key *pkey,
 	BUG_ON(!sig->digest);
 	BUG_ON(!sig->s);
 
-	alg_name = pkey_algo_name[sig->pkey_algo];
-	if (sig->pkey_algo == PKEY_ALGO_RSA) {
+	alg_name = sig->pkey_algo;
+	if (strcmp(sig->pkey_algo, "rsa") == 0) {
 		/* The data wangled by the RSA algorithm is typically padded
 		 * and encoded in some manner, such as EMSA-PKCS1-1_5 [RFC3447
 		 * sec 8.2].
 		 */
 		if (snprintf(alg_name_buf, CRYPTO_MAX_ALG_NAME,
-			     "pkcs1pad(rsa,%s)",
-			     hash_algo_name[sig->pkey_hash_algo]
+			     "pkcs1pad(rsa,%s)", sig->hash_algo
 			     ) >= CRYPTO_MAX_ALG_NAME)
 			return -EINVAL;
 		alg_name = alg_name_buf;

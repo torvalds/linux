@@ -94,7 +94,7 @@ struct ima_digest_data {
 struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
 	uint8_t version;	/* signature format version */
-	uint8_t	hash_algo;	/* Digest algorithm [enum pkey_hash_algo] */
+	uint8_t	hash_algo;	/* Digest algorithm [enum hash_algo] */
 	uint32_t keyid;		/* IMA key identifier - not X509/PGP specific */
 	uint16_t sig_size;	/* signature size */
 	uint8_t sig[0];		/* signature payload */
