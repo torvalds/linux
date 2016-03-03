@@ -1231,8 +1231,6 @@ static int cpuhp_cb_check(enum cpuhp_state state)
 
 static bool cpuhp_is_ap_state(enum cpuhp_state state)
 {
-	if (state >= CPUHP_AP_OFFLINE && state <= CPUHP_AP_ONLINE)
-		return true;
 	return state > CPUHP_BRINGUP_CPU;
 }
 
