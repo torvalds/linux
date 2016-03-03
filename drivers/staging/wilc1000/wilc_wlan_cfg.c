@@ -136,7 +136,6 @@ static struct wilc_cfg_str g_cfg_str[] = {
 	{WID_BSSID, g_mac.bssid},	/* 6 bytes */
 	{WID_WEP_KEY_VALUE, g_mac.wep_key},	/* 27 bytes */
 	{WID_11I_PSK, g_mac.i_psk},	/* 65 bytes */
-	/* {WID_11E_P_ACTION_REQ, g_mac.action_req}, */
 	{WID_HARDWARE_VERSION, g_mac.hardwareProductVersion},
 	{WID_MAC_ADDR, g_mac.mac_address},
 	{WID_PHY_VERSION, g_mac.phyversion},
@@ -144,10 +143,8 @@ static struct wilc_cfg_str g_cfg_str[] = {
 	{WID_SUPP_PASSWORD, g_mac.supp_password},
 	{WID_SITE_SURVEY_RESULTS, g_mac.scan_result},
 	{WID_SITE_SURVEY_RESULTS, g_mac.scan_result1},
-	/* {WID_RX_POWER_LEVEL, g_mac.channel_rssi}, */
 	{WID_ASSOC_REQ_INFO, g_mac.assoc_req},
 	{WID_ASSOC_RES_INFO, g_mac.assoc_rsp},
-	/* {WID_11N_P_ACTION_REQ, g_mac.action_req}, */
 	{WID_FIRMWARE_INFO, g_mac.firmware_version},
 	{WID_IP_ADDRESS, g_mac.ip_address},
 	{WID_NIL, NULL}
