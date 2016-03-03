@@ -159,7 +159,6 @@
 #define PCLK_HDMI_CTRL		357
 #define PCLK_VIO_H2P		358
 #define PCLK_WDT		359
-#define PCLK_HDMI_PHY		360
 #define PCLK_BUS		361
 #define PCLK_PERI0		362
 #define PCLK_PERI1		363

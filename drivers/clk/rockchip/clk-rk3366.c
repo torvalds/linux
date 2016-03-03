@@ -92,7 +92,7 @@ PNAME(mux_pll_src_cpll_gpll_usb_npll_p)	= { "cpll", "gpll", "usbphy_480m",
 PNAME(mux_pll_src_cpll_gpll_npll_npll_p) = { "cpll", "gpll", "npll", "npll" };
 PNAME(mux_pll_src_cpll_gpll_npll_usb_p) = { "cpll", "gpll", "npll",
 					    "usbphy_480m" };
-PNAME(mux_pll_src_cpll_gpll_npll_mpll_p) = { "cpll", "gpll", "npll", "mpll" };
+PNAME(mux_pll_src_cpll_gpll_npll_mpll_p) = { "cpll", "gpll", "npll", "mpll_src" };
 PNAME(mux_vop_full_pwm_p) = { "xin24m", "cpll", "gpll", "npll" };
 PNAME(mux_clk_32k_p)		= { "xin32k", "clk_32k_inter" };
 PNAME(mux_i2s_8ch_pre_p)	= { "i2s_8ch_src", "i2s_8ch_frac",
@@ -217,6 +217,13 @@ static struct rockchip_clk_branch rk3366_uart3_fracmux __initdata =
 			RK3368_CLKSEL_CON(39), 8, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
+	/*
+	 * Clock-Architecture Diagram 1
+	 */
+
+	GATE(0, "mpll_src", "mpll", CLK_IGNORE_UNUSED,
+			RK3368_CLKGATE_CON(2), 11, GFLAGS),
+
 	/*
 	 * Clock-Architecture Diagram 2
 	 */
@@ -392,9 +399,9 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 			RK3368_CLKSEL_CON(24), 8, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3368_CLKGATE_CON(5), 6, GFLAGS),
 
-	COMPOSITE_NOMUX(DCLK_HDMIPHY, "dclk_hdmiphy", "mpll", 0,
+	COMPOSITE_NOMUX(DCLK_HDMIPHY, "dclk_hdmiphy", "mpll_src", 0,
 			RK3368_CLKSEL_CON(16), 8, 8, DFLAGS,
-			RK3368_CLKGATE_CON(2), 11, GFLAGS),
+			RK3368_CLKGATE_CON(5), 7, GFLAGS),
 
 	COMPOSITE(SCLK_ISP, "sclk_isp", mux_pll_src_cpll_gpll_npll_npll_p, 0,
 			RK3368_CLKSEL_CON(22), 6, 2, MFLAGS, 0, 6, DFLAGS,
@@ -565,10 +572,6 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	/*
 	 * Clock-Architecture Diagram 7
 	 */
-
-	COMPOSITE_NOMUX(PCLK_HDMI_PHY, "pclk_hdmi_phy", "mpll", 0,
-			RK3368_CLKSEL_CON(16), 8, 8, DFLAGS,
-			RK3368_CLKGATE_CON(5), 7, GFLAGS),
 
 	COMPOSITE_NODIV(0, "btclk520_pll", mux_pll_src_cpll_gpll_npll_npll_p, 0,
 			RK3368_CLKSEL_CON(5), 13, 2, MFLAGS,
