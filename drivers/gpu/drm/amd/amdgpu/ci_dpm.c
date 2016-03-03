@@ -3016,7 +3016,6 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      &memory_level->MinVddcPhases);
 
 	memory_level->EnabledForThrottle = 1;
-	memory_level->EnabledForActivity = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
 	memory_level->VoltageDownH = 0;
@@ -3375,7 +3374,6 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->SpllSpreadSpectrum2 = cpu_to_be32(graphic_level->SpllSpreadSpectrum2);
 	graphic_level->CcPwrDynRm = cpu_to_be32(graphic_level->CcPwrDynRm);
 	graphic_level->CcPwrDynRm1 = cpu_to_be32(graphic_level->CcPwrDynRm1);
-	graphic_level->EnabledForActivity = 1;
 
 	return 0;
 }
@@ -3406,6 +3404,7 @@ static int ci_populate_all_graphic_levels(struct amdgpu_device *adev)
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
 	}
+	pi->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.GraphicsDpmLevelCount = (u8)dpm_table->sclk_table.count;
 	pi->dpm_level_enable_mask.sclk_dpm_enable_mask =
@@ -3448,6 +3447,8 @@ static int ci_populate_all_memory_levels(struct amdgpu_device *adev)
 		if (ret)
 			return ret;
 	}
+
+	pi->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
 	if ((dpm_table->mclk_table.count >= 2) &&
 	    ((adev->pdev->device == 0x67B0) || (adev->pdev->device == 0x67B1))) {
