@@ -40,20 +40,20 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static void pci_fixup_radeon(struct pci_dev *pdev)
 {
-	if (pdev->resource[PCI_ROM_RESOURCE].start)
+	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
+
+	if (res->start)
 		return;
 
 	if (!loongson_sysconf.vgabios_addr)
 		return;
 
-	pdev->resource[PCI_ROM_RESOURCE].start =
-		loongson_sysconf.vgabios_addr;
-	pdev->resource[PCI_ROM_RESOURCE].end   =
-		loongson_sysconf.vgabios_addr + 256*1024 - 1;
-	pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_COPY;
+	res->start = loongson_sysconf.vgabios_addr;
+	res->end   = res->start + 256*1024 - 1;
+	res->flags |= IORESOURCE_ROM_COPY;
 
 	dev_info(&pdev->dev, "BAR %d: assigned %pR for Radeon ROM\n",
-			PCI_ROM_RESOURCE, &pdev->resource[PCI_ROM_RESOURCE]);
+		 PCI_ROM_RESOURCE, res);
 }
 
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_ATI, PCI_ANY_ID,
