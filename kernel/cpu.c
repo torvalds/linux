@@ -755,14 +755,26 @@ static int notify_dead(unsigned int cpu)
 	return 0;
 }
 
+static void cpuhp_complete_idle_dead(void *arg)
+{
+	struct cpuhp_cpu_state *st = arg;
+
+	complete(&st->done);
+}
+
 void cpuhp_report_idle_dead(void)
 {
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
 
 	BUG_ON(st->state != CPUHP_AP_OFFLINE);
-	st->state = CPUHP_AP_IDLE_DEAD;
-	complete(&st->done);
 	rcu_report_dead(smp_processor_id());
+	st->state = CPUHP_AP_IDLE_DEAD;
+	/*
+	 * We cannot call complete after rcu_report_dead() so we delegate it
+	 * to an online cpu.
+	 */
+	smp_call_function_single(cpumask_first(cpu_online_mask),
+				 cpuhp_complete_idle_dead, st, 0);
 }
 
 #else
