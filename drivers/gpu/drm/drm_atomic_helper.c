@@ -86,6 +86,68 @@ drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
 	}
 }
 
+static int disable_conflicting_connectors(struct drm_atomic_state *state)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	struct drm_encoder *encoder;
+	unsigned encoder_mask = 0;
+	int i, ret;
+
+	for_each_connector_in_state(state, connector, conn_state, i) {
+		const struct drm_connector_helper_funcs *funcs = connector->helper_private;
+		struct drm_encoder *new_encoder;
+
+		if (!conn_state->crtc)
+			continue;
+
+		if (funcs->atomic_best_encoder)
+			new_encoder = funcs->atomic_best_encoder(connector, conn_state);
+		else
+			new_encoder = funcs->best_encoder(connector);
+
+		if (new_encoder)
+			encoder_mask |= 1 << drm_encoder_index(new_encoder);
+	}
+
+	drm_for_each_connector(connector, state->dev) {
+		struct drm_crtc_state *crtc_state;
+
+		if (drm_atomic_get_existing_connector_state(state, connector))
+			continue;
+
+		encoder = connector->state->best_encoder;
+		if (!encoder || !(encoder_mask & (1 << drm_encoder_index(encoder))))
+			continue;
+
+		conn_state = drm_atomic_get_connector_state(state, connector);
+		if (IS_ERR(conn_state))
+			return PTR_ERR(conn_state);
+
+		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] in use on [CRTC:%d:%s], disabling [CONNECTOR:%d:%s]\n",
+				 encoder->base.id, encoder->name,
+				 conn_state->crtc->base.id, conn_state->crtc->name,
+				 connector->base.id, connector->name);
+
+		crtc_state = drm_atomic_get_existing_crtc_state(state, conn_state->crtc);
+
+		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
+		if (ret)
+			return ret;
+
+		if (!crtc_state->connector_mask) {
+			ret = drm_atomic_set_mode_prop_for_crtc(crtc_state,
+								NULL);
+			if (ret < 0)
+				return ret;
+
+			crtc_state->active = false;
+		}
+	}
+
+	return 0;
+}
+
 static bool
 check_pending_encoder_assignment(struct drm_atomic_state *state,
 				 struct drm_encoder *new_encoder)
@@ -446,6 +508,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			crtc_state->mode_changed = true;
 			crtc_state->connectors_changed = true;
 		}
+	}
+
+	if (state->legacy_set_config) {
+		ret = disable_conflicting_connectors(state);
+		if (ret)
+			return ret;
 	}
 
 	for_each_connector_in_state(state, connector, connector_state, i) {
@@ -1796,6 +1864,7 @@ int drm_atomic_helper_set_config(struct drm_mode_set *set)
 	if (!state)
 		return -ENOMEM;
 
+	state->legacy_set_config = true;
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
 retry:
 	ret = __drm_atomic_helper_set_config(set, state);
