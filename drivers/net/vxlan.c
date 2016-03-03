@@ -1460,7 +1460,7 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	reply->dev = dev;
 	skb_reserve(reply, LL_RESERVED_SPACE(request->dev));
 	skb_push(reply, sizeof(struct ethhdr));
-	skb_set_mac_header(reply, 0);
+	skb_reset_mac_header(reply);
 
 	ns = (struct nd_msg *)skb_transport_header(request);
 
@@ -1480,7 +1480,7 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	reply->protocol = htons(ETH_P_IPV6);
 
 	skb_pull(reply, sizeof(struct ethhdr));
-	skb_set_network_header(reply, 0);
+	skb_reset_network_header(reply);
 	skb_put(reply, sizeof(struct ipv6hdr));
 
 	/* IPv6 header */
@@ -1495,7 +1495,7 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	pip6->saddr = *(struct in6_addr *)n->primary_key;
 
 	skb_pull(reply, sizeof(struct ipv6hdr));
-	skb_set_transport_header(reply, 0);
+	skb_reset_transport_header(reply);
 
 	na = (struct nd_msg *)skb_put(reply, sizeof(*na) + na_olen);
 
