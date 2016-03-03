@@ -455,6 +455,9 @@ static void *eeh_rmv_device(void *data, void *userdata)
 	if (driver) {
 		eeh_pcid_put(dev);
 		if (removed &&
+		    eeh_pe_passed(edev->pe))
+			return NULL;
+		if (removed &&
 		    driver->err_handler &&
 		    driver->err_handler->error_detected &&
 		    driver->err_handler->slot_reset)
