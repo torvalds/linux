@@ -412,11 +412,6 @@ enomem:
 	return -ENOMEM;
 }
 
-void tipc_bcast_reinit(struct net *net)
-{
-	tipc_link_reinit(tipc_bc_sndlink(net), tipc_own_addr(net));
-}
-
 void tipc_bcast_stop(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);

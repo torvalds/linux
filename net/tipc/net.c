@@ -116,7 +116,6 @@ int tipc_net_start(struct net *net, u32 addr)
 	tn->own_addr = addr;
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
-	tipc_bcast_reinit(net);
 
 	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
 			     TIPC_ZONE_SCOPE, 0, tn->own_addr);
