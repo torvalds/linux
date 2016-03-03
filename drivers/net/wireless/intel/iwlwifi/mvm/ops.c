@@ -611,9 +611,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	IWL_INFO(mvm, "Detected %s, REV=0x%X\n",
 		 mvm->cfg->name, mvm->trans->hw_rev);
 
-	min_backoff = calc_min_backoff(trans, cfg);
-	iwl_mvm_thermal_initialize(mvm, min_backoff);
-
 	if (iwlwifi_mod_params.nvm_file)
 		mvm->nvm_file_name = iwlwifi_mod_params.nvm_file;
 	else
@@ -665,6 +662,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	err = iwl_mvm_mac_setup_register(mvm);
 	if (err)
 		goto out_free;
+
+	min_backoff = calc_min_backoff(trans, cfg);
+	iwl_mvm_thermal_initialize(mvm, min_backoff);
 
 	err = iwl_mvm_dbgfs_register(mvm, dbgfs_dir);
 	if (err)
