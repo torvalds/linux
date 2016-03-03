@@ -71,8 +71,6 @@
 #define		VMID(x)						((x) << 4)
 #define		QUEUEID(x)					((x) << 8)
 
-#define RB_BITMAP_WIDTH_PER_SH     2
-
 #define MC_SEQ_MISC0__MT__MASK	0xf0000000
 #define MC_SEQ_MISC0__MT__GDDR1  0x10000000
 #define MC_SEQ_MISC0__MT__DDR2   0x20000000

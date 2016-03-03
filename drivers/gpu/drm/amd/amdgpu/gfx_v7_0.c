@@ -1637,18 +1637,16 @@ static void gfx_v7_0_setup_rb(struct amdgpu_device *adev)
 	int i, j;
 	u32 data;
 	u32 active_rbs = 0;
+	u32 rb_bitmap_width_per_sh = adev->gfx.config.max_backends_per_se /
+					adev->gfx.config.max_sh_per_se;
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v7_0_select_se_sh(adev, i, j);
 			data = gfx_v7_0_get_rb_active_bitmap(adev);
-			if (adev->asic_type == CHIP_HAWAII)
-				active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
-						       HAWAII_RB_BITMAP_WIDTH_PER_SH);
-			else
-				active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
-						       CIK_RB_BITMAP_WIDTH_PER_SH);
+			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
+					       rb_bitmap_width_per_sh);
 		}
 	}
 	gfx_v7_0_select_se_sh(adev, 0xffffffff, 0xffffffff);
@@ -3820,8 +3818,7 @@ static u32 gfx_v7_0_get_cu_active_bitmap(struct amdgpu_device *adev)
 	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
 
-	mask = gfx_v7_0_create_bitmask(adev->gfx.config.max_backends_per_se /
-				       adev->gfx.config.max_sh_per_se);
+	mask = gfx_v7_0_create_bitmask(adev->gfx.config.max_cu_per_sh);
 
 	return (~data) & mask;
 }
@@ -5231,6 +5228,8 @@ int gfx_v7_0_get_cu_info(struct amdgpu_device *adev,
 
 	if (!adev || !cu_info)
 		return -EINVAL;
+
+	memset(cu_info, 0, sizeof(*cu_info));
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
