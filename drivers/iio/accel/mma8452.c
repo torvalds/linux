@@ -357,7 +357,8 @@ static int mma8452_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = i2c_smbus_read_byte_data(data->client,
-					      MMA8452_OFF_X + chan->scan_index);
+					       MMA8452_OFF_X +
+					       chan->scan_index);
 		if (ret < 0)
 			return ret;
 
@@ -418,7 +419,7 @@ fail:
 	return ret;
 }
 
-/* returns >0 if in freefall mode, 0 if not or <0 if an error occured */
+/* returns >0 if in freefall mode, 0 if not or <0 if an error occurred */
 static int mma8452_freefall_mode_enabled(struct mma8452_data *data)
 {
 	int val;
@@ -668,7 +669,8 @@ static int mma8452_read_event_config(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		return !!(ret & BIT(chan->scan_index + chip->ev_cfg_chan_shift));
+		return !!(ret & BIT(chan->scan_index +
+				    chip->ev_cfg_chan_shift));
 	default:
 		return -EINVAL;
 	}
@@ -1003,7 +1005,7 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		 * bit.
 		 * The userspace interface uses m/s^2 and we declare micro units
 		 * So scale factor for 12 bit here is given by:
-		 * 	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
+		 *	g * N * 1000000 / 2048 for N = 2, 4, 8 and g=9.80665
 		 */
 		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
 		.ev_cfg = MMA8452_TRANSIENT_CFG,
