@@ -514,25 +514,25 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 
 static const struct can_bittiming_const ifi_canfd_bittiming_const = {
 	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 2,	/* Time segment 1 = prop_seg + phase_seg1 */
+	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
 	.tseg1_max	= 64,
-	.tseg2_min	= 1,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 16,
+	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
+	.tseg2_max	= 64,
 	.sjw_max	= 16,
-	.brp_min	= 1,
-	.brp_max	= 1024,
+	.brp_min	= 2,
+	.brp_max	= 256,
 	.brp_inc	= 1,
 };
 
 static const struct can_bittiming_const ifi_canfd_data_bittiming_const = {
 	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 2,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 16,
-	.tseg2_min	= 1,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 8,
-	.sjw_max	= 4,
-	.brp_min	= 1,
-	.brp_max	= 32,
+	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
+	.tseg1_max	= 64,
+	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
+	.tseg2_max	= 64,
+	.sjw_max	= 16,
+	.brp_min	= 2,
+	.brp_max	= 256,
 	.brp_inc	= 1,
 };
 
@@ -545,32 +545,34 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	u32 noniso_arg = 0;
 	u32 time_off;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO) {
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)) {
+		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
+	} else {
 		noniso_arg = IFI_CANFD_TIME_SET_TIMEB_BOSCH |
 			     IFI_CANFD_TIME_SET_TIMEA_BOSCH |
 			     IFI_CANFD_TIME_SET_PRESC_BOSCH |
 			     IFI_CANFD_TIME_SET_SJW_BOSCH;
 		time_off = IFI_CANFD_TIME_SJW_OFF_BOSCH;
-	} else {
-		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
 	}
 
 	/* Configure bit timing */
-	brp = bt->brp - 1;
+	brp = bt->brp - 2;
 	sjw = bt->sjw - 1;
 	tseg1 = bt->prop_seg + bt->phase_seg1 - 1;
-	tseg2 = bt->phase_seg2 - 1;
+	tseg2 = bt->phase_seg2 - 2;
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off),
+	       (sjw << time_off) |
+	       noniso_arg,
 	       priv->base + IFI_CANFD_TIME);
 
 	/* Configure data bit timing */
-	brp = dbt->brp - 1;
+	brp = dbt->brp - 2;
 	sjw = dbt->sjw - 1;
 	tseg1 = dbt->prop_seg + dbt->phase_seg1 - 1;
-	tseg2 = dbt->phase_seg2 - 1;
+	tseg2 = dbt->phase_seg2 - 2;
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
@@ -847,7 +849,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	priv->can.state = CAN_STATE_STOPPED;
 
-	priv->can.clock.freq = readl(addr + IFI_CANFD_SYSCLOCK);
+	priv->can.clock.freq = readl(addr + IFI_CANFD_CANCLOCK);
 
 	priv->can.bittiming_const	= &ifi_canfd_bittiming_const;
 	priv->can.data_bittiming_const	= &ifi_canfd_data_bittiming_const;
