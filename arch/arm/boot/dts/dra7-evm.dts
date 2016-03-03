@@ -33,6 +33,7 @@
 	evm_3v3_sw: fixedregulator-evm_3v3_sw {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3_sw";
+		vin-supply = <&sysen1>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
@@ -64,6 +65,7 @@
 		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
+		vin-supply = <&sysen2>;
 		gpio = <&gpio7 11 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -522,6 +524,31 @@
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-boot-on;
+				};
+
+				/* REGEN1 is unused */
+
+				regen2: regen2 {
+					/* Needed for PMIC internal resources */
+					regulator-name = "regen2";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				/* REGEN3 is unused */
+
+				sysen1: sysen1 {
+					/* PMIC_REGEN_3V3 */
+					regulator-name = "sysen1";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				sysen2: sysen2 {
+					/* PMIC_REGEN_DDR */
+					regulator-name = "sysen2";
+					regulator-boot-on;
+					regulator-always-on;
 				};
 			};
 		};
