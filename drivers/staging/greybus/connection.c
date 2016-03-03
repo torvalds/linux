@@ -290,17 +290,18 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 	hd->driver->cport_disable(hd, connection->hd_cport_id);
 }
 
-static int gb_connection_hd_fct_flow_enable(struct gb_connection *connection)
+static int
+gb_connection_hd_cport_features_enable(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
 	int ret;
 
-	if (!hd->driver->fct_flow_enable)
+	if (!hd->driver->cport_features_enable)
 		return 0;
 
-	ret = hd->driver->fct_flow_enable(hd, connection->hd_cport_id);
+	ret = hd->driver->cport_features_enable(hd, connection->hd_cport_id);
 	if (ret) {
-		dev_err(&hd->dev, "%s: failed to enable FCT flow: %d\n",
+		dev_err(&hd->dev, "%s: failed to enable CPort features: %d\n",
 			connection->name, ret);
 		return ret;
 	}
@@ -308,14 +309,15 @@ static int gb_connection_hd_fct_flow_enable(struct gb_connection *connection)
 	return 0;
 }
 
-static void gb_connection_hd_fct_flow_disable(struct gb_connection *connection)
+static void
+gb_connection_hd_cport_features_disable(struct gb_connection *connection)
 {
 	struct gb_host_device *hd = connection->hd;
 
-	if (!hd->driver->fct_flow_disable)
+	if (!hd->driver->cport_features_disable)
 		return;
 
-	hd->driver->fct_flow_disable(hd, connection->hd_cport_id);
+	hd->driver->cport_features_disable(hd, connection->hd_cport_id);
 }
 
 /*
@@ -331,7 +333,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	int ret;
 
 	if (gb_connection_is_static(connection))
-		return gb_connection_hd_fct_flow_enable(connection);
+		return gb_connection_hd_cport_features_enable(connection);
 
 	intf = connection->intf;
 
@@ -357,7 +359,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 		return ret;
 	}
 
-	ret = gb_connection_hd_fct_flow_enable(connection);
+	ret = gb_connection_hd_cport_features_enable(connection);
 	if (ret) {
 		gb_svc_connection_destroy(hd->svc, hd->svc->ap_intf_id,
 					  connection->hd_cport_id,
@@ -372,7 +374,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 static void
 gb_connection_svc_connection_destroy(struct gb_connection *connection)
 {
-	gb_connection_hd_fct_flow_disable(connection);
+	gb_connection_hd_cport_features_disable(connection);
 
 	if (gb_connection_is_static(connection))
 		return;

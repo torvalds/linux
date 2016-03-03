@@ -25,8 +25,8 @@ struct gb_hd_driver {
 	int (*latency_tag_disable)(struct gb_host_device *hd, u16 cport_id);
 	int (*output)(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 		      bool async);
-	int (*fct_flow_enable)(struct gb_host_device *hd, u16 cport_id);
-	int (*fct_flow_disable)(struct gb_host_device *hd, u16 cport_id);
+	int (*cport_features_enable)(struct gb_host_device *hd, u16 cport_id);
+	int (*cport_features_disable)(struct gb_host_device *hd, u16 cport_id);
 };
 
 struct gb_host_device {
