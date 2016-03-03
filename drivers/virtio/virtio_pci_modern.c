@@ -679,7 +679,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 	pci_read_config_dword(pci_dev,
 			      notify + offsetof(struct virtio_pci_notify_cap,
-						cap.length),
+						cap.offset),
 			      &notify_offset);
 
 	/* We don't know how many VQs we'll map, ahead of the time.
