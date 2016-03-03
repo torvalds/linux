@@ -749,8 +749,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
-	u32 txst, txid;
-	u32 txdlc = 0;
+	u32 txst, txid, txdlc;
 	int i;
 
 	if (can_dropped_invalid_skb(ndev, skb))
@@ -773,12 +772,11 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 		txid = cf->can_id & CAN_SFF_MASK;
 	}
 
-	if (priv->can.ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO)) {
-		if (can_is_canfd_skb(skb)) {
-			txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
-			if (cf->flags & CANFD_BRS)
-				txdlc |= IFI_CANFD_TXFIFO_DLC_BRS;
-		}
+	txdlc = can_len2dlc(cf->len);
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) && can_is_canfd_skb(skb)) {
+		txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
+		if (cf->flags & CANFD_BRS)
+			txdlc |= IFI_CANFD_TXFIFO_DLC_BRS;
 	}
 
 	if (cf->can_id & CAN_RTR_FLAG)
