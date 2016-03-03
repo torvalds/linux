@@ -82,9 +82,8 @@ static unsigned long cpg_div6_clock_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
 	struct div6_clock *clock = to_div6_clock(hw);
-	unsigned int div = (clk_readl(clock->reg) & CPG_DIV6_DIV_MASK) + 1;
 
-	return parent_rate / div;
+	return parent_rate / clock->div;
 }
 
 static unsigned int cpg_div6_clock_calc_div(unsigned long rate,
