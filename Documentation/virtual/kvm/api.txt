@@ -3035,6 +3035,63 @@ Returns: 0 on success, -1 on error
 
 Queues an SMI on the thread's vcpu.
 
+4.97 KVM_CAP_PPC_MULTITCE
+
+Capability: KVM_CAP_PPC_MULTITCE
+Architectures: ppc
+Type: vm
+
+This capability means the kernel is capable of handling hypercalls
+H_PUT_TCE_INDIRECT and H_STUFF_TCE without passing those into the user
+space. This significantly accelerates DMA operations for PPC KVM guests.
+User space should expect that its handlers for these hypercalls
+are not going to be called if user space previously registered LIOBN
+in KVM (via KVM_CREATE_SPAPR_TCE or similar calls).
+
+In order to enable H_PUT_TCE_INDIRECT and H_STUFF_TCE use in the guest,
+user space might have to advertise it for the guest. For example,
+IBM pSeries (sPAPR) guest starts using them if "hcall-multi-tce" is
+present in the "ibm,hypertas-functions" device-tree property.
+
+The hypercalls mentioned above may or may not be processed successfully
+in the kernel based fast path. If they can not be handled by the kernel,
+they will get passed on to user space. So user space still has to have
+an implementation for these despite the in kernel acceleration.
+
+This capability is always enabled.
+
+4.98 KVM_CREATE_SPAPR_TCE_64
+
+Capability: KVM_CAP_SPAPR_TCE_64
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce_64 (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This is an extension for KVM_CAP_SPAPR_TCE which only supports 32bit
+windows, described in 4.62 KVM_CREATE_SPAPR_TCE
+
+This capability uses extended struct in ioctl interface:
+
+/* for KVM_CAP_SPAPR_TCE_64 */
+struct kvm_create_spapr_tce_64 {
+	__u64 liobn;
+	__u32 page_shift;
+	__u32 flags;
+	__u64 offset;	/* in pages */
+	__u64 size; 	/* in pages */
+};
+
+The aim of extension is to support an additional bigger DMA window with
+a variable page size.
+KVM_CREATE_SPAPR_TCE_64 receives a 64bit window size, an IOMMU page shift and
+a bus offset of the corresponding DMA window, @size and @offset are numbers
+of IOMMU pages.
+
+@flags are not used at the moment.
+
+The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
+
 5. The kvm_run structure
 ------------------------
 
