@@ -50,6 +50,7 @@
 	dwc_control_usb: dwc-control-usb {
 		compatible = "rockchip,rk3368-dwc-control-usb";
 		rockchip,grf = <&grf>;
+		grf-offset = <0x04bc>; /* GRF_SOC_STATUS for USB2.0 OTG */
 		interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
