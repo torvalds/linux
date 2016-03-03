@@ -56,3 +56,9 @@ config DRM_I915_USERPTR
 	  selected to enabled full userptr support.
 
 	  If in doubt, say "Y".
+
+menu "drm/i915 Debugging"
+depends on DRM_I915
+depends on EXPERT
+source drivers/gpu/drm/i915/Kconfig.debug
+endmenu
