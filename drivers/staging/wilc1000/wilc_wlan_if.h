@@ -96,8 +96,6 @@ typedef void (*wilc_tx_complete_func_t)(void *, int);
 #define MAX_SSID_LEN            33
 #define MAX_RATES_SUPPORTED     12
 
-#define INFINITE_SLEEP_TIME	((u32)0xFFFFFFFF)
-
 typedef enum {
 	SUPP_RATES_IE		= 1,
 	EXT_SUPP_RATES_IE	= 50,
