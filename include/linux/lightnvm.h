@@ -242,6 +242,7 @@ struct nvm_rq {
 	uint16_t nr_pages;
 	uint16_t flags;
 
+	u64 ppa_status; /* ppa media status */
 	int error;
 };
 
