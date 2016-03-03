@@ -361,7 +361,6 @@ static const struct ak_def ak_def_array[AK_MAX_TYPE] = {
 struct ak8975_data {
 	struct i2c_client	*client;
 	const struct ak_def	*def;
-	struct attribute_group	attrs;
 	struct mutex		lock;
 	u8			asa[3];
 	long			raw_to_gauss[3];
