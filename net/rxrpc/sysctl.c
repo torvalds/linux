@@ -115,7 +115,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= (void *)&one,
-		.extra1		= (void *)&n_65535,
+		.extra2		= (void *)&n_65535,
 	},
 	{
 		.procname	= "rx_jumbo_max",
