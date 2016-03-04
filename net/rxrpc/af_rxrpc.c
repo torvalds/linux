@@ -81,6 +81,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 				  struct sockaddr_rxrpc *srx,
 				  int len)
 {
+	unsigned tail;
+
 	if (len < sizeof(struct sockaddr_rxrpc))
 		return -EINVAL;
 
@@ -103,9 +105,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 		_debug("INET: %x @ %pI4",
 		       ntohs(srx->transport.sin.sin_port),
 		       &srx->transport.sin.sin_addr);
-		if (srx->transport_len > 8)
-			memset((void *)&srx->transport + 8, 0,
-			       srx->transport_len - 8);
+		tail = offsetof(struct sockaddr_rxrpc, transport.sin.__pad);
 		break;
 
 	case AF_INET6:
@@ -113,6 +113,8 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 		return -EAFNOSUPPORT;
 	}
 
+	if (tail < len)
+		memset((void *)srx + tail, 0, len - tail);
 	return 0;
 }
 
