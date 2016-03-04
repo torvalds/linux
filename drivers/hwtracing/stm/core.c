@@ -546,8 +546,6 @@ static int stm_char_policy_set_ioctl(struct stm_file *stmf, void __user *arg)
 	if (ret)
 		goto err_free;
 
-	ret = 0;
-
 	if (stm->data->link)
 		ret = stm->data->link(stm->data, stmf->output.master,
 				      stmf->output.channel);
