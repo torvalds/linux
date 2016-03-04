@@ -195,7 +195,7 @@
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 25 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&eth_phy_pwr>;
 		regulator-name = "vcc_phy";
@@ -610,12 +610,12 @@
 };
 
 &gmac {
-	phy_regulator = "vcc_phy";
+	phy-supply = <&vcc_phy>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
-	snps,reset-gpio = <&gpio2 15 0>;
+	snps,reset-gpio = <&gpio2 15 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
-	snps,reset-delays-us = <0 10000 1000000>;
+	snps,reset-delays-us = <0 10000 50000>;
 	assigned-clocks = <&cru SCLK_MAC>;
 	assigned-clock-parents = <&ext_gmac>;
 	pinctrl-names = "default";
