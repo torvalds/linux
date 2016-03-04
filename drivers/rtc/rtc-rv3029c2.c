@@ -381,6 +381,7 @@ static const struct rtc_class_ops rv3029_rtc_ops = {
 };
 
 static struct i2c_device_id rv3029_id[] = {
+	{ "rv3029", 0 },
 	{ "rv3029c2", 0 },
 	{ }
 };
