@@ -881,6 +881,7 @@ static void cxl_pci_remove_afu(struct cxl_afu *afu)
 	if (!afu)
 		return;
 
+	cxl_pci_vphb_remove(afu);
 	cxl_sysfs_afu_remove(afu);
 	cxl_debugfs_afu_remove(afu);
 
@@ -1065,6 +1066,11 @@ static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
 	}
 
 	return 0;
+}
+
+ssize_t cxl_pci_read_adapter_vpd(struct cxl *adapter, void *buf, size_t len)
+{
+	return pci_read_vpd(to_pci_dev(adapter->dev.parent), 0, len, buf);
 }
 
 static void cxl_release_adapter(struct device *dev)
@@ -1272,7 +1278,6 @@ static void cxl_remove(struct pci_dev *dev)
 	 */
 	for (i = 0; i < adapter->slices; i++) {
 		afu = adapter->afu[i];
-		cxl_pci_vphb_remove(afu);
 		cxl_pci_remove_afu(afu);
 	}
 	cxl_pci_remove_adapter(adapter);
@@ -1450,8 +1455,6 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 
 		if (cxl_afu_select_best_mode(afu))
 			goto err;
-
-		cxl_pci_vphb_reconfigure(afu);
 
 		list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
 			/* Reset the device context.

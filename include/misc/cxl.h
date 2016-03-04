@@ -210,4 +210,9 @@ ssize_t cxl_fd_read(struct file *file, char __user *buf, size_t count,
 void cxl_perst_reloads_same_image(struct cxl_afu *afu,
 				  bool perst_reloads_same_image);
 
+/*
+ * Read the VPD for the card where the AFU resides
+ */
+ssize_t cxl_read_adapter_vpd(struct pci_dev *dev, void *buf, size_t count);
+
 #endif /* _MISC_CXL_H */

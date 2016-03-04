@@ -1019,6 +1019,52 @@ static int native_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off, u8 *out)
 	return rc;
 }
 
+static int native_afu_cr_write32(struct cxl_afu *afu, int cr, u64 off, u32 in)
+{
+	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
+		return -EIO;
+	if (unlikely(off >= afu->crs_len))
+		return -ERANGE;
+	out_le32(afu->native->afu_desc_mmio + afu->crs_offset +
+		(cr * afu->crs_len) + off, in);
+	return 0;
+}
+
+static int native_afu_cr_write16(struct cxl_afu *afu, int cr, u64 off, u16 in)
+{
+	u64 aligned_off = off & ~0x3L;
+	u32 val32, mask, shift;
+	int rc;
+
+	rc = native_afu_cr_read32(afu, cr, aligned_off, &val32);
+	if (rc)
+		return rc;
+	shift = (off & 0x3) * 8;
+	WARN_ON(shift == 24);
+	mask = 0xffff << shift;
+	val32 = (val32 & ~mask) | (in << shift);
+
+	rc = native_afu_cr_write32(afu, cr, aligned_off, val32);
+	return rc;
+}
+
+static int native_afu_cr_write8(struct cxl_afu *afu, int cr, u64 off, u8 in)
+{
+	u64 aligned_off = off & ~0x3L;
+	u32 val32, mask, shift;
+	int rc;
+
+	rc = native_afu_cr_read32(afu, cr, aligned_off, &val32);
+	if (rc)
+		return rc;
+	shift = (off & 0x3) * 8;
+	mask = 0xff << shift;
+	val32 = (val32 & ~mask) | (in << shift);
+
+	rc = native_afu_cr_write32(afu, cr, aligned_off, val32);
+	return rc;
+}
+
 const struct cxl_backend_ops cxl_native_ops = {
 	.module = THIS_MODULE,
 	.adapter_reset = cxl_pci_reset,
@@ -1044,4 +1090,8 @@ const struct cxl_backend_ops cxl_native_ops = {
 	.afu_cr_read16 = native_afu_cr_read16,
 	.afu_cr_read32 = native_afu_cr_read32,
 	.afu_cr_read64 = native_afu_cr_read64,
+	.afu_cr_write8 = native_afu_cr_write8,
+	.afu_cr_write16 = native_afu_cr_write16,
+	.afu_cr_write32 = native_afu_cr_write32,
+	.read_adapter_vpd = cxl_pci_read_adapter_vpd,
 };

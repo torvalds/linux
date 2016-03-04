@@ -587,6 +587,7 @@ int cxl_pci_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq
 int cxl_update_image_control(struct cxl *adapter);
 int cxl_pci_reset(struct cxl *adapter);
 void cxl_pci_release_afu(struct device *dev);
+ssize_t cxl_pci_read_adapter_vpd(struct cxl *adapter, void *buf, size_t len);
 
 /* common == phyp + powernv */
 struct cxl_process_element_common {
@@ -808,7 +809,6 @@ int cxl_psl_purge(struct cxl_afu *afu);
 
 void cxl_stop_trace(struct cxl *cxl);
 int cxl_pci_vphb_add(struct cxl_afu *afu);
-void cxl_pci_vphb_reconfigure(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
 
 extern struct pci_driver cxl_pci_driver;
@@ -869,6 +869,10 @@ struct cxl_backend_ops {
 	int (*afu_cr_read16)(struct cxl_afu *afu, int cr_idx, u64 offset, u16 *val);
 	int (*afu_cr_read32)(struct cxl_afu *afu, int cr_idx, u64 offset, u32 *val);
 	int (*afu_cr_read64)(struct cxl_afu *afu, int cr_idx, u64 offset, u64 *val);
+	int (*afu_cr_write8)(struct cxl_afu *afu, int cr_idx, u64 offset, u8 val);
+	int (*afu_cr_write16)(struct cxl_afu *afu, int cr_idx, u64 offset, u16 val);
+	int (*afu_cr_write32)(struct cxl_afu *afu, int cr_idx, u64 offset, u32 val);
+	ssize_t (*read_adapter_vpd)(struct cxl *adapter, void *buf, size_t count);
 };
 extern const struct cxl_backend_ops cxl_native_ops;
 extern const struct cxl_backend_ops cxl_guest_ops;

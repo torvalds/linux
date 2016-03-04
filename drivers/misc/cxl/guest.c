@@ -418,6 +418,24 @@ static int guest_afu_cr_read64(struct cxl_afu *afu, int cr_idx, u64 offset,
 	return _guest_afu_cr_readXX(8, afu, cr_idx, offset, out);
 }
 
+static int guest_afu_cr_write32(struct cxl_afu *afu, int cr, u64 off, u32 in)
+{
+	/* config record is not writable from guest */
+	return -EPERM;
+}
+
+static int guest_afu_cr_write16(struct cxl_afu *afu, int cr, u64 off, u16 in)
+{
+	/* config record is not writable from guest */
+	return -EPERM;
+}
+
+static int guest_afu_cr_write8(struct cxl_afu *afu, int cr, u64 off, u8 in)
+{
+	/* config record is not writable from guest */
+	return -EPERM;
+}
+
 static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 {
 	struct cxl_process_element_hcall *elem;
@@ -807,6 +825,9 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 
 	afu->enabled = true;
 
+	if ((rc = cxl_pci_vphb_add(afu)))
+		dev_info(&afu->dev, "Can't register vPHB\n");
+
 	return 0;
 
 err_put2:
@@ -832,6 +853,7 @@ void cxl_guest_remove_afu(struct cxl_afu *afu)
 	if (!afu)
 		return;
 
+	cxl_pci_vphb_remove(afu);
 	cxl_sysfs_afu_remove(afu);
 
 	spin_lock(&afu->adapter->afu_list_lock);
@@ -987,4 +1009,8 @@ const struct cxl_backend_ops cxl_guest_ops = {
 	.afu_cr_read16 = guest_afu_cr_read16,
 	.afu_cr_read32 = guest_afu_cr_read32,
 	.afu_cr_read64 = guest_afu_cr_read64,
+	.afu_cr_write8 = guest_afu_cr_write8,
+	.afu_cr_write16 = guest_afu_cr_write16,
+	.afu_cr_write32 = guest_afu_cr_write32,
+	.read_adapter_vpd = cxl_guest_read_adapter_vpd,
 };
