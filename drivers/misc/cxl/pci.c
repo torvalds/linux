@@ -116,24 +116,6 @@
 #define   AFUD_EB_LEN(val)		EXTRACT_PPC_BITS(val, 8, 63)
 #define AFUD_READ_EB_OFF(afu)		AFUD_READ(afu, 0x48)
 
-u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off)
-{
-	u64 aligned_off = off & ~0x3L;
-	u32 val;
-
-	val = cxl_afu_cr_read32(afu, cr, aligned_off);
-	return (val >> ((off & 0x2) * 8)) & 0xffff;
-}
-
-u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off)
-{
-	u64 aligned_off = off & ~0x3L;
-	u32 val;
-
-	val = cxl_afu_cr_read32(afu, cr, aligned_off);
-	return (val >> ((off & 0x3) * 8)) & 0xff;
-}
-
 static const struct pci_device_id cxl_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x0477), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_IBM, 0x044b), },

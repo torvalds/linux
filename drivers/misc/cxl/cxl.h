@@ -623,23 +623,8 @@ static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 		return ~0ULL;
 }
 
-static inline u64 cxl_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off)
-{
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
-		return in_le64((afu)->afu_desc_mmio + (afu)->crs_offset +
-			       ((cr) * (afu)->crs_len) + (off));
-	else
-		return ~0ULL;
-}
-
-static inline u32 cxl_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off)
-{
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
-		return in_le32((afu)->afu_desc_mmio + (afu)->crs_offset +
-			       ((cr) * (afu)->crs_len) + (off));
-	else
-		return 0xffffffff;
-}
+u64 cxl_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off);
+u32 cxl_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off);
 u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off);
 u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off);
 
@@ -654,7 +639,6 @@ struct cxl_calls {
 int register_cxl_calls(struct cxl_calls *calls);
 void unregister_cxl_calls(struct cxl_calls *calls);
 
-int cxl_alloc_adapter_nr(struct cxl *adapter);
 void cxl_remove_adapter_nr(struct cxl *adapter);
 
 int cxl_alloc_spa(struct cxl_afu *afu);
@@ -697,7 +681,8 @@ void cxl_release_serr_irq(struct cxl_afu *afu);
 int afu_register_irqs(struct cxl_context *ctx, u32 count);
 void afu_release_irqs(struct cxl_context *ctx, void *cookie);
 void afu_irq_name_free(struct cxl_context *ctx);
-irqreturn_t cxl_slice_irq_err(int irq, void *data);
+irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr,
+				u64 errstat);
 
 int cxl_debugfs_init(void);
 void cxl_debugfs_exit(void);
@@ -746,7 +731,6 @@ int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
 			    u64 amr);
 int cxl_detach_process(struct cxl_context *ctx);
 
-int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info);
 int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
 
 int cxl_check_error(struct cxl_afu *afu);

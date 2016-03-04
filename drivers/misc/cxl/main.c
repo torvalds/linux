@@ -173,7 +173,7 @@ struct cxl *get_cxl_adapter(int num)
 	return adapter;
 }
 
-int cxl_alloc_adapter_nr(struct cxl *adapter)
+static int cxl_alloc_adapter_nr(struct cxl *adapter)
 {
 	int i;
 
