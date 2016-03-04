@@ -403,10 +403,6 @@ struct iwl_trans_pcie {
 	bool cmd_hold_nic_awake;
 	bool ref_cmd_in_flight;
 
-	/* protect ref counter */
-	spinlock_t ref_lock;
-	u32 ref_count;
-
 	dma_addr_t fw_mon_phys;
 	struct page *fw_mon_page;
 	u32 fw_mon_size;

@@ -2015,38 +2015,32 @@ static void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 void iwl_trans_pcie_ref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
 	if (iwlwifi_mod_params.d0i3_disable)
 		return;
 
-	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
-	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
-	trans_pcie->ref_count++;
 	pm_runtime_get(&trans_pcie->pci_dev->dev);
-	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+
+#ifdef CONFIG_PM
+	IWL_DEBUG_RPM(trans, "runtime usage count: %d\n",
+		      atomic_read(&trans_pcie->pci_dev->dev.power.usage_count));
+#endif /* CONFIG_PM */
 }
 
 void iwl_trans_pcie_unref(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	unsigned long flags;
 
 	if (iwlwifi_mod_params.d0i3_disable)
 		return;
 
-	spin_lock_irqsave(&trans_pcie->ref_lock, flags);
-	IWL_DEBUG_RPM(trans, "ref_counter: %d\n", trans_pcie->ref_count);
-	if (WARN_ON_ONCE(trans_pcie->ref_count == 0)) {
-		spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
-		return;
-	}
-	trans_pcie->ref_count--;
-
 	pm_runtime_mark_last_busy(&trans_pcie->pci_dev->dev);
 	pm_runtime_put_autosuspend(&trans_pcie->pci_dev->dev);
 
-	spin_unlock_irqrestore(&trans_pcie->ref_lock, flags);
+#ifdef CONFIG_PM
+	IWL_DEBUG_RPM(trans, "runtime usage count: %d\n",
+		      atomic_read(&trans_pcie->pci_dev->dev.power.usage_count));
+#endif /* CONFIG_PM */
 }
 
 static const char *get_csr_string(int cmd)
@@ -2794,7 +2788,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans_pcie->irq_lock);
 	spin_lock_init(&trans_pcie->reg_lock);
-	spin_lock_init(&trans_pcie->ref_lock);
 	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 	trans_pcie->tso_hdr_page = alloc_percpu(struct iwl_tso_hdr_page);

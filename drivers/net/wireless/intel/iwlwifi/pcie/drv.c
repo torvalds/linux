@@ -651,10 +651,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* The PCI device starts with a reference taken and we are
 	 * supposed to release it here.  But to simplify the
 	 * interaction with the opmode, we don't do it now, but let
-	 * the opmode release it when it's ready.  To account for this
-	 * reference, we start with ref_count set to 1.
+	 * the opmode release it when it's ready.
 	 */
-	trans_pcie->ref_count = 1;
 
 	return 0;
 
