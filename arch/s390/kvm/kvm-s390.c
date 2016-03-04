@@ -1645,7 +1645,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvm_s390_vcpu_setup_model(vcpu);
 
-	vcpu->arch.sie_block->ecb   = 6;
+	vcpu->arch.sie_block->ecb = 0x02;
+	if (test_kvm_facility(vcpu->kvm, 9))
+		vcpu->arch.sie_block->ecb |= 0x04;
 	if (test_kvm_facility(vcpu->kvm, 50) && test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= 0x10;
 
