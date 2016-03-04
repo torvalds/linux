@@ -735,8 +735,8 @@ int hfi1_init(struct hfi1_devdata *dd, int reinit)
 		ret = lastfail;
 
 	/* Allocate enough memory for user event notification. */
-	len = ALIGN(dd->chip_rcv_contexts * HFI1_MAX_SHARED_CTXTS *
-		    sizeof(*dd->events), PAGE_SIZE);
+	len = PAGE_ALIGN(dd->chip_rcv_contexts * HFI1_MAX_SHARED_CTXTS *
+			 sizeof(*dd->events));
 	dd->events = vmalloc_user(len);
 	if (!dd->events)
 		dd_dev_err(dd, "Failed to allocate user events page\n");
@@ -1505,8 +1505,8 @@ int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 		 * rcvhdrqentsize is in DWs, so we have to convert to bytes
 		 * (* sizeof(u32)).
 		 */
-		amt = ALIGN(rcd->rcvhdrq_cnt * rcd->rcvhdrqentsize *
-			    sizeof(u32), PAGE_SIZE);
+		amt = PAGE_ALIGN(rcd->rcvhdrq_cnt * rcd->rcvhdrqentsize *
+				 sizeof(u32));
 
 		gfp_flags = (rcd->ctxt >= dd->first_user_ctxt) ?
 			GFP_USER : GFP_KERNEL;

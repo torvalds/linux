@@ -413,8 +413,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	if (!cq)
 		goto cq_nomem;
 
-	memsize = ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size,
-			PAGE_SIZE);
+	memsize = PAGE_ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size);
 	cq->comps = vmalloc_user(memsize);
 	if (!cq->comps)
 		goto cq_comps_nomem;
