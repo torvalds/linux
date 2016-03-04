@@ -69,11 +69,14 @@ struct snd_compr_file {
 
 /*
  * a note on stream states used:
- * we use follwing states in the compressed core
+ * we use following states in the compressed core
  * SNDRV_PCM_STATE_OPEN: When stream has been opened.
  * SNDRV_PCM_STATE_SETUP: When stream has been initialized. This is done by
- *	calling SNDRV_COMPRESS_SET_PARAMS. running streams will come to this
+ *	calling SNDRV_COMPRESS_SET_PARAMS. Running streams will come to this
  *	state at stop by calling SNDRV_COMPRESS_STOP, or at end of drain.
+ * SNDRV_PCM_STATE_PREPARED: When a stream has been written to (for
+ *	playback only). User after setting up stream writes the data buffer
+ *	before starting the stream.
  * SNDRV_PCM_STATE_RUNNING: When stream has been started and is
  *	decoding/encoding and rendering/capturing data.
  * SNDRV_PCM_STATE_DRAINING: When stream is draining current data. This is done
