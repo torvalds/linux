@@ -203,7 +203,7 @@ static struct irq_chip leon_irq = {
 
 /*
  * Build a LEON IRQ for the edge triggered LEON IRQ controller:
- *  Edge (normal) IRQ           - handle_simple_irq, ack=DONT-CARE, never ack
+ *  Edge (normal) IRQ           - handle_simple_irq, ack=DON'T-CARE, never ack
  *  Level IRQ (PCI|Level-GPIO)  - handle_fasteoi_irq, ack=1, ack after ISR
  *  Per-CPU Edge                - handle_percpu_irq, ack=0
  */
