@@ -151,28 +151,18 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 			switch (ee->ee_code) {
 			case ICMP_NET_UNREACH:
 				_net("Rx Received ICMP Network Unreachable");
-				err = ENETUNREACH;
 				break;
 			case ICMP_HOST_UNREACH:
 				_net("Rx Received ICMP Host Unreachable");
-				err = EHOSTUNREACH;
 				break;
 			case ICMP_PORT_UNREACH:
 				_net("Rx Received ICMP Port Unreachable");
-				err = ECONNREFUSED;
-				break;
-			case ICMP_FRAG_NEEDED:
-				_net("Rx Received ICMP Fragmentation Needed (%d)",
-				     ee->ee_info);
-				err = 0; /* dealt with elsewhere */
 				break;
 			case ICMP_NET_UNKNOWN:
 				_net("Rx Received ICMP Unknown Network");
-				err = ENETUNREACH;
 				break;
 			case ICMP_HOST_UNKNOWN:
 				_net("Rx Received ICMP Unknown Host");
-				err = EHOSTUNREACH;
 				break;
 			default:
 				_net("Rx Received ICMP DestUnreach code=%u",
