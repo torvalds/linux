@@ -364,11 +364,11 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 		   cdev->private->state == DEV_STATE_DISCONNECTED));
 	/* Inform the user if set offline failed. */
 	if (cdev->private->state == DEV_STATE_BOXED) {
-		pr_warning("%s: The device entered boxed state while "
-			   "being set offline\n", dev_name(&cdev->dev));
+		pr_warn("%s: The device entered boxed state while being set offline\n",
+			dev_name(&cdev->dev));
 	} else if (cdev->private->state == DEV_STATE_NOT_OPER) {
-		pr_warning("%s: The device stopped operating while "
-			   "being set offline\n", dev_name(&cdev->dev));
+		pr_warn("%s: The device stopped operating while being set offline\n",
+			dev_name(&cdev->dev));
 	}
 	/* Give up reference from ccw_device_set_online(). */
 	put_device(&cdev->dev);
@@ -429,13 +429,11 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		spin_unlock_irq(cdev->ccwlock);
 		/* Inform the user that set online failed. */
 		if (cdev->private->state == DEV_STATE_BOXED) {
-			pr_warning("%s: Setting the device online failed "
-				   "because it is boxed\n",
-				   dev_name(&cdev->dev));
+			pr_warn("%s: Setting the device online failed because it is boxed\n",
+				dev_name(&cdev->dev));
 		} else if (cdev->private->state == DEV_STATE_NOT_OPER) {
-			pr_warning("%s: Setting the device online failed "
-				   "because it is not operational\n",
-				   dev_name(&cdev->dev));
+			pr_warn("%s: Setting the device online failed because it is not operational\n",
+				dev_name(&cdev->dev));
 		}
 		/* Give up online reference since onlining failed. */
 		put_device(&cdev->dev);
@@ -619,9 +617,8 @@ initiate_logging(struct device *dev, struct device_attribute *attr,
 
 	rc = chsc_siosl(sch->schid);
 	if (rc < 0) {
-		pr_warning("Logging for subchannel 0.%x.%04x failed with "
-			   "errno=%d\n",
-			   sch->schid.ssid, sch->schid.sch_no, rc);
+		pr_warn("Logging for subchannel 0.%x.%04x failed with errno=%d\n",
+			sch->schid.ssid, sch->schid.sch_no, rc);
 		return rc;
 	}
 	pr_notice("Logging for subchannel 0.%x.%04x was triggered\n",

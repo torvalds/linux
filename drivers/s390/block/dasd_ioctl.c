@@ -265,9 +265,8 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 		return -EFAULT;
 	}
 	if (bdev != bdev->bd_contains) {
-		pr_warning("%s: The specified DASD is a partition and cannot "
-			   "be formatted\n",
-			   dev_name(&base->cdev->dev));
+		pr_warn("%s: The specified DASD is a partition and cannot be formatted\n",
+			dev_name(&base->cdev->dev));
 		dasd_put_device(base);
 		return -EINVAL;
 	}

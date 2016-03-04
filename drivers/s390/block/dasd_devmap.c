@@ -214,8 +214,8 @@ dasd_feature_list(char *str, char **endp)
 		else if (len == 8 && !strncmp(str, "failfast", 8))
 			features |= DASD_FEATURE_FAILFAST;
 		else {
-			pr_warning("%*s is not a supported device option\n",
-				   len, str);
+			pr_warn("%*s is not a supported device option\n",
+				len, str);
 			rc = -EINVAL;
 		}
 		str += len;
@@ -224,8 +224,7 @@ dasd_feature_list(char *str, char **endp)
 		str++;
 	}
 	if (*str != ')') {
-		pr_warning("A closing parenthesis ')' is missing in the "
-			   "dasd= parameter\n");
+		pr_warn("A closing parenthesis ')' is missing in the dasd= parameter\n");
 		rc = -EINVAL;
 	} else
 		str++;
@@ -348,8 +347,7 @@ dasd_parse_range( char *parsestring ) {
 		return str + 1;
 	if (*str == '\0')
 		return str;
-	pr_warning("The dasd= parameter value %s has an invalid ending\n",
-		   str);
+	pr_warn("The dasd= parameter value %s has an invalid ending\n", str);
 	return ERR_PTR(-EINVAL);
 }
 
