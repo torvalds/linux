@@ -280,7 +280,7 @@ static inline void gov_clear_update_util(struct cpufreq_policy *policy)
 	for_each_cpu(i, policy->cpus)
 		cpufreq_set_update_util_data(i, NULL);
 
-	synchronize_rcu();
+	synchronize_sched();
 }
 
 static void gov_cancel_work(struct cpufreq_policy *policy)

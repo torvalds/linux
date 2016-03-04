@@ -115,12 +115,15 @@ static DEFINE_PER_CPU(struct update_util_data *, cpufreq_update_util_data);
  * to call from cpufreq_update_util().  That function will be called from an RCU
  * read-side critical section, so it must not sleep.
  *
- * Callers must use RCU callbacks to free any memory that might be accessed
- * via the old update_util_data pointer or invoke synchronize_rcu() right after
- * this function to avoid use-after-free.
+ * Callers must use RCU-sched callbacks to free any memory that might be
+ * accessed via the old update_util_data pointer or invoke synchronize_sched()
+ * right after this function to avoid use-after-free.
  */
 void cpufreq_set_update_util_data(int cpu, struct update_util_data *data)
 {
+	if (WARN_ON(data && !data->func))
+		return;
+
 	rcu_assign_pointer(per_cpu(cpufreq_update_util_data, cpu), data);
 }
 EXPORT_SYMBOL_GPL(cpufreq_set_update_util_data);
@@ -133,18 +136,24 @@ EXPORT_SYMBOL_GPL(cpufreq_set_update_util_data);
  *
  * This function is called by the scheduler on every invocation of
  * update_load_avg() on the CPU whose utilization is being updated.
+ *
+ * It can only be called from RCU-sched read-side critical sections.
  */
 void cpufreq_update_util(u64 time, unsigned long util, unsigned long max)
 {
 	struct update_util_data *data;
 
-	rcu_read_lock();
+#ifdef CONFIG_LOCKDEP
+	WARN_ON(debug_locks && !rcu_read_lock_sched_held());
+#endif
 
-	data = rcu_dereference(*this_cpu_ptr(&cpufreq_update_util_data));
-	if (data && data->func)
+	data = rcu_dereference_sched(*this_cpu_ptr(&cpufreq_update_util_data));
+	/*
+	 * If this isn't inside of an RCU-sched read-side critical section, data
+	 * may become NULL after the check below.
+	 */
+	if (data)
 		data->func(data, time, util, max);
-
-	rcu_read_unlock();
 }
 
 /* Flag to suspend/resume CPUFreq governors */
