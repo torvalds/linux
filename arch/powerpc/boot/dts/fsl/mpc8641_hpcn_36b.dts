@@ -9,52 +9,16 @@
  * option) any later version.
  */
 
-/dts-v1/;
+/include/ "mpc8641si-pre.dtsi"
 
 / {
 	model = "MPC8641HPCN";
 	compatible = "fsl,mpc8641hpcn";
 	#address-cells = <2>;
 	#size-cells = <2>;
-	interrupt-parent = <&mpic>;
 
 	aliases {
-		ethernet0 = &enet0;
-		ethernet1 = &enet1;
-		ethernet2 = &enet2;
-		ethernet3 = &enet3;
-		serial0 = &serial0;
-		serial1 = &serial1;
-		pci0 = &pci0;
 		pci1 = &pci1;
-	};
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		PowerPC,8641@0 {
-			device_type = "cpu";
-			reg = <0>;
-			d-cache-line-size = <32>;	// 32 bytes
-			i-cache-line-size = <32>;	// 32 bytes
-			d-cache-size = <32768>;		// L1, 32K
-			i-cache-size = <32768>;		// L1, 32K
-			timebase-frequency = <0>;	// 33 MHz, from uboot
-			bus-frequency = <0>;		// From uboot
-			clock-frequency = <0>;		// From uboot
-		};
-		PowerPC,8641@1 {
-			device_type = "cpu";
-			reg = <1>;
-			d-cache-line-size = <32>;	// 32 bytes
-			i-cache-line-size = <32>;	// 32 bytes
-			d-cache-size = <32768>;		// L1, 32K
-			i-cache-size = <32768>;		// L1, 32K
-			timebase-frequency = <0>;	// 33 MHz, from uboot
-			bus-frequency = <0>;		// From uboot
-			clock-frequency = <0>;		// From uboot
-		};
 	};
 
 	memory {
@@ -62,12 +26,8 @@
 		reg = <0x0 0x00000000 0x0 0x40000000>;	// 1G at 0x0
 	};
 
-	localbus@fffe05000 {
-		#address-cells = <2>;
-		#size-cells = <1>;
-		compatible = "fsl,mpc8641-localbus", "simple-bus";
+	lbc: localbus@fffe05000 {
 		reg = <0x0f 0xffe05000 0x0 0x1000>;
-		interrupts = <19 2 0 0>;
 
 		ranges = <0 0 0xf 0xef800000 0x00800000
 			  2 0 0xf 0xffdf8000 0x00008000
@@ -101,257 +61,82 @@
 		};
 	};
 
-	soc8641@fffe00000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		device_type = "soc";
-		compatible = "simple-bus";
+	soc: soc8641@fffe00000 {
 		ranges = <0x00000000 0x0f 0xffe00000 0x00100000>;
-		bus-frequency = <0>;
-
-		mcm-law@0 {
-			compatible = "fsl,mcm-law";
-			reg = <0x0 0x1000>;
-			fsl,num-laws = <10>;
-		};
-
-		mcm@1000 {
-			compatible = "fsl,mpc8641-mcm", "fsl,mcm";
-			reg = <0x1000 0x1000>;
-			interrupts = <17 2 0 0>;
-		};
-
-		i2c@3000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			compatible = "fsl-i2c";
-			reg = <0x3000 0x100>;
-			interrupts = <43 2 0 0>;
-			dfsrr;
-		};
-
-		i2c@3100 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <1>;
-			compatible = "fsl-i2c";
-			reg = <0x3100 0x100>;
-			interrupts = <43 2 0 0>;
-			dfsrr;
-		};
-
-		dma@21300 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,mpc8641-dma", "fsl,eloplus-dma";
-			reg = <0x21300 0x4>;
-			ranges = <0x0 0x21100 0x200>;
-			cell-index = <0>;
-			dma-channel@0 {
-				compatible = "fsl,mpc8641-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x0 0x80>;
-				cell-index = <0>;
-				interrupts = <20 2 0 0>;
-			};
-			dma-channel@80 {
-				compatible = "fsl,mpc8641-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x80 0x80>;
-				cell-index = <1>;
-				interrupts = <21 2 0 0>;
-			};
-			dma-channel@100 {
-				compatible = "fsl,mpc8641-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x100 0x80>;
-				cell-index = <2>;
-				interrupts = <22 2 0 0>;
-			};
-			dma-channel@180 {
-				compatible = "fsl,mpc8641-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x180 0x80>;
-				cell-index = <3>;
-				interrupts = <23 2 0 0>;
-			};
-		};
 
 		enet0: ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cell-index = <0>;
-			device_type = "network";
-			model = "TSEC";
-			compatible = "gianfar";
-			reg = <0x24000 0x1000>;
-			ranges = <0x0 0x24000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <29 2 0 0 30 2 0 0 34 2 0 0>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
+		};
 
-			mdio@520 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,gianfar-mdio";
-				reg = <0x520 0x20>;
-
-				phy0: ethernet-phy@0 {
-					interrupts = <10 1 0 0>;
-					reg = <0>;
-				};
-				phy1: ethernet-phy@1 {
-					interrupts = <10 1 0 0>;
-					reg = <1>;
-				};
-				phy2: ethernet-phy@2 {
-					interrupts = <10 1 0 0>;
-					reg = <2>;
-				};
-				phy3: ethernet-phy@3 {
-					interrupts = <10 1 0 0>;
-					reg = <3>;
-				};
-				tbi0: tbi-phy@11 {
-					reg = <0x11>;
-					device_type = "tbi-phy";
-				};
+		mdio@24520 {
+			phy0: ethernet-phy@0 {
+				interrupts = <10 1 0 0>;
+				reg = <0>;
+			};
+			phy1: ethernet-phy@1 {
+				interrupts = <10 1 0 0>;
+				reg = <1>;
+			};
+			phy2: ethernet-phy@2 {
+				interrupts = <10 1 0 0>;
+				reg = <2>;
+			};
+			phy3: ethernet-phy@3 {
+				interrupts = <10 1 0 0>;
+				reg = <3>;
+			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
 			};
 		};
 
 		enet1: ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cell-index = <1>;
-			device_type = "network";
-			model = "TSEC";
-			compatible = "gianfar";
-			reg = <0x25000 0x1000>;
-			ranges = <0x0 0x25000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <35 2 0 0 36 2 0 0 40 2 0 0>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
+		};
 
-			mdio@520 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,gianfar-tbi";
-				reg = <0x520 0x20>;
-
-				tbi1: tbi-phy@11 {
-					reg = <0x11>;
-					device_type = "tbi-phy";
-				};
+		mdio@25520 {
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
 			};
 		};
 
 		enet2: ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cell-index = <2>;
-			device_type = "network";
-			model = "TSEC";
-			compatible = "gianfar";
-			reg = <0x26000 0x1000>;
-			ranges = <0x0 0x26000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <31 2 0 0 32 2 0 0 33 2 0 0>;
 			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;
 			phy-connection-type = "rgmii-id";
+		};
 
-			mdio@520 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,gianfar-tbi";
-				reg = <0x520 0x20>;
-
-				tbi2: tbi-phy@11 {
-					reg = <0x11>;
-					device_type = "tbi-phy";
-				};
+		mdio@26520 {
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
 			};
 		};
 
 		enet3: ethernet@27000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			cell-index = <3>;
-			device_type = "network";
-			model = "TSEC";
-			compatible = "gianfar";
-			reg = <0x27000 0x1000>;
-			ranges = <0x0 0x27000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <37 2 0 0 38 2 0 0 39 2 0 0>;
 			tbi-handle = <&tbi3>;
 			phy-handle = <&phy3>;
 			phy-connection-type = "rgmii-id";
+		};
 
-			mdio@520 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				compatible = "fsl,gianfar-tbi";
-				reg = <0x520 0x20>;
-
-				tbi3: tbi-phy@11 {
-					reg = <0x11>;
-					device_type = "tbi-phy";
-				};
+		mdio@27520 {
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
 			};
-		};
-
-		serial0: serial@4500 {
-			cell-index = <0>;
-			device_type = "serial";
-			compatible = "fsl,ns16550", "ns16550";
-			reg = <0x4500 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2 0 0>;
-		};
-
-		serial1: serial@4600 {
-			cell-index = <1>;
-			device_type = "serial";
-			compatible = "fsl,ns16550", "ns16550";
-			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
-			interrupts = <28 2 0 0>;
-		};
-
-		mpic: pic@40000 {
-			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <4>;
-			reg = <0x40000 0x40000>;
-			compatible = "fsl,mpic", "chrp,open-pic";
-			device_type = "open-pic";
-		};
-
-		global-utilities@e0000 {
-			compatible = "fsl,mpc8641-guts";
-			reg = <0xe0000 0x1000>;
-			fsl,has-rstcr;
 		};
 	};
 
 	pci0: pcie@fffe08000 {
-		cell-index = <0>;
-		compatible = "fsl,mpc8641-pcie";
-		device_type = "pci";
-		#size-cells = <2>;
-		#address-cells = <3>;
 		reg = <0x0f 0xffe08000 0x0 0x1000>;
-		bus-range = <0x0 0xff>;
 		ranges = <0x02000000 0x0 0xe0000000 0x0c 0x00000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0x0f 0xffc00000 0x0 0x00010000>;
-		clock-frequency = <100000000>;
-		interrupts = <24 2 0 0>;
 		interrupt-map-mask = <0xff00 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x11 func 0 - PCI slot 1 */
@@ -469,10 +254,6 @@
 			>;
 
 		pcie@0 {
-			reg = <0 0 0 0 0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x02000000 0x0 0xe0000000
 				  0x02000000 0x0 0xe0000000
 				  0x0 0x20000000
@@ -545,7 +326,6 @@
 	};
 
 	pci1: pcie@fffe09000 {
-		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#size-cells = <2>;
@@ -579,3 +359,5 @@
 		};
 	};
 };
+
+/include/ "mpc8641si-post.dtsi"
