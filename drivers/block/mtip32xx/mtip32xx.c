@@ -3878,7 +3878,6 @@ static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
 								bool reserved)
 {
 	struct driver_data *dd = req->q->queuedata;
-	int ret = BLK_EH_RESET_TIMER;
 
 	if (reserved)
 		goto exit_handler;
@@ -3891,7 +3890,7 @@ static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
 
 	wake_up_interruptible(&dd->port->svc_wait);
 exit_handler:
-	return ret;
+	return BLK_EH_RESET_TIMER;
 }
 
 static struct blk_mq_ops mtip_mq_ops = {
