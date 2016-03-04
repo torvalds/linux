@@ -342,7 +342,7 @@ stp_policies_make(struct config_group *group, const char *name)
 		return ERR_PTR(-EINVAL);
 	}
 
-	*p++ = '\0';
+	*p = '\0';
 
 	stm = stm_find_device(devname);
 	kfree(devname);
