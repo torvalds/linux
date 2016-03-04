@@ -71,6 +71,15 @@ static int intel_th_probe(struct device *dev)
 	if (ret)
 		return ret;
 
+	if (thdrv->attr_group) {
+		ret = sysfs_create_group(&thdev->dev.kobj, thdrv->attr_group);
+		if (ret) {
+			thdrv->remove(thdev);
+
+			return ret;
+		}
+	}
+
 	if (thdev->type == INTEL_TH_OUTPUT &&
 	    !intel_th_output_assigned(thdev))
 		ret = hubdrv->assign(hub, thdev);
@@ -90,6 +99,9 @@ static int intel_th_remove(struct device *dev)
 		if (err)
 			return err;
 	}
+
+	if (thdrv->attr_group)
+		sysfs_remove_group(&thdev->dev.kobj, thdrv->attr_group);
 
 	thdrv->remove(thdev);
 
