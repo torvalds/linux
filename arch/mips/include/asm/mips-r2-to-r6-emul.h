@@ -79,7 +79,7 @@ struct r2_decoder_table {
 };
 
 
-extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+extern void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 			  const char *str);
 
 #ifndef CONFIG_MIPSR2_TO_R6_EMULATOR
