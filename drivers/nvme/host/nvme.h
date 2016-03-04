@@ -59,6 +59,12 @@ enum nvme_quirks {
 	 * correctly.
 	 */
 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
+
+	/*
+	 * The controller deterministically returns O's on reads to discarded
+	 * logical blocks.
+	 */
+	NVME_QUIRK_DISCARD_ZEROES		= (1 << 2),
 };
 
 struct nvme_ctrl {
