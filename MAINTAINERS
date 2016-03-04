@@ -8419,6 +8419,14 @@ L:     linux-arm-msm@vger.kernel.org
 S:     Maintained
 F:     drivers/pci/host/*qcom*
 
+PCIE DRIVER FOR CAVIUM THUNDERX
+M:	David Daney <david.daney@cavium.com>
+L:	linux-pci@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	Documentation/devicetree/bindings/pci/pci-thunder-*
+F:	drivers/pci/host/pci-thunder-*
+
 PCMCIA SUBSYSTEM
 P:	Linux PCMCIA Team
 L:	linux-pcmcia@lists.infradead.org

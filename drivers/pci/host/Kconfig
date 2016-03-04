@@ -195,4 +195,11 @@ config PCIE_QCOM
 	  PCIe controller uses the Designware core plus Qualcomm-specific
 	  hardware wrappers.
 
+config PCI_HOST_THUNDER_PEM
+	bool "Cavium Thunder PCIe controller to off-chip devices"
+	depends on OF && ARM64
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want PCIe support for CN88XX Cavium Thunder SoCs.
+
 endmenu
