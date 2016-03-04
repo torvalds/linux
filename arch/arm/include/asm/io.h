@@ -395,6 +395,12 @@ void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache
 
+/*
+ * Do not use ioremap_cached in new code. Provided for the benefit of
+ * the pxa2xx-flash MTD driver only.
+ */
+void __iomem *ioremap_cached(resource_size_t res_cookie, size_t size);
+
 void __iomem *ioremap_wc(resource_size_t res_cookie, size_t size);
 #define ioremap_wc ioremap_wc
 #define ioremap_wt ioremap_wc
