@@ -315,10 +315,13 @@ static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
 	alloc->nents = 0;
 }
 
+/* not to use sg_dma_len. */
+#define MALI_SG_DMA_LEN(sg)		((sg)->length)
+
 #ifdef CONFIG_DMA_SHARED_BUFFER
 static int kbase_jd_umm_map(struct kbase_context *kctx, struct kbase_va_region *reg)
 {
-	struct sg_table *sgt;
+	struct sg_table *sgt;	/* scatterlist_table */
 	struct scatterlist *s;
 	int i;
 	phys_addr_t *pa;
@@ -343,11 +346,17 @@ static int kbase_jd_umm_map(struct kbase_context *kctx, struct kbase_va_region *
 
 	for_each_sg(sgt->sgl, s, sgt->nents, i) {
 		int j;
-		size_t pages = PFN_UP(sg_dma_len(s));
+		/* size_t pages = PFN_UP(sg_dma_len(s)); */
+		size_t pages = PFN_UP(MALI_SG_DMA_LEN(s));
 
+		WARN_ONCE(MALI_SG_DMA_LEN(s) & (PAGE_SIZE-1),
+		"MALI_SG_DMA_LEN(s)=%u is not a multiple of PAGE_SIZE\n",
+		MALI_SG_DMA_LEN(s));
+		/*
 		WARN_ONCE(sg_dma_len(s) & (PAGE_SIZE-1),
 		"sg_dma_len(s)=%u is not a multiple of PAGE_SIZE\n",
 		sg_dma_len(s));
+		*/
 
 		WARN_ONCE(sg_dma_address(s) & (PAGE_SIZE-1),
 		"sg_dma_address(s)=%llx is not aligned to PAGE_SIZE\n",
@@ -355,14 +364,17 @@ static int kbase_jd_umm_map(struct kbase_context *kctx, struct kbase_va_region *
 
 		for (j = 0; (j < pages) && (count < reg->nr_pages); j++, count++)
 			*pa++ = sg_dma_address(s) + (j << PAGE_SHIFT);
+
 		WARN_ONCE(j < pages,
 		"sg list from dma_buf_map_attachment > dma_buf->size=%zu\n",
 		alloc->imported.umm.dma_buf->size);
 	}
 
 	if (WARN_ONCE(count < reg->nr_pages,
-			"sg list from dma_buf_map_attachment < dma_buf->size=%zu\n",
-			alloc->imported.umm.dma_buf->size)) {
+			"sg list from dma_buf_map_attachment < dma_buf->size=%zu, count : %lu, reg->nr_pages : %lu. \n",
+			alloc->imported.umm.dma_buf->size,
+			count,
+			reg->nr_pages)) {
 		err = -EINVAL;
 		goto out;
 	}
