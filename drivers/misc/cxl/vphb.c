@@ -248,7 +248,7 @@ int cxl_pci_vphb_add(struct cxl_afu *afu)
 
 	/* Setup the PHB using arch provided callback */
 	phb->ops = &cxl_pcie_pci_ops;
-	phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
+	phb->cfg_addr = afu->native->afu_desc_mmio + afu->crs_offset;
 	phb->cfg_data = (void *)(u64)afu->crs_len;
 	phb->private_data = afu;
 	phb->controller_ops = cxl_pci_controller_ops;
@@ -278,7 +278,7 @@ void cxl_pci_vphb_reconfigure(struct cxl_afu *afu)
 	 * and remapped. We need to reflect this in the PHB's view of
 	 * the world.
 	 */
-	afu->phb->cfg_addr = afu->afu_desc_mmio + afu->crs_offset;
+	afu->phb->cfg_addr = afu->native->afu_desc_mmio + afu->crs_offset;
 }
 
 void cxl_pci_vphb_remove(struct cxl_afu *afu)

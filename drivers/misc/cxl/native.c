@@ -186,22 +186,22 @@ static int spa_max_procs(int spa_size)
 int cxl_alloc_spa(struct cxl_afu *afu)
 {
 	/* Work out how many pages to allocate */
-	afu->spa_order = 0;
+	afu->native->spa_order = 0;
 	do {
-		afu->spa_order++;
-		afu->spa_size = (1 << afu->spa_order) * PAGE_SIZE;
-		afu->spa_max_procs = spa_max_procs(afu->spa_size);
-	} while (afu->spa_max_procs < afu->num_procs);
+		afu->native->spa_order++;
+		afu->native->spa_size = (1 << afu->native->spa_order) * PAGE_SIZE;
+		afu->native->spa_max_procs = spa_max_procs(afu->native->spa_size);
+	} while (afu->native->spa_max_procs < afu->num_procs);
 
-	WARN_ON(afu->spa_size > 0x100000); /* Max size supported by the hardware */
+	WARN_ON(afu->native->spa_size > 0x100000); /* Max size supported by the hardware */
 
-	if (!(afu->spa = (struct cxl_process_element *)
-	      __get_free_pages(GFP_KERNEL | __GFP_ZERO, afu->spa_order))) {
+	if (!(afu->native->spa = (struct cxl_process_element *)
+	      __get_free_pages(GFP_KERNEL | __GFP_ZERO, afu->native->spa_order))) {
 		pr_err("cxl_alloc_spa: Unable to allocate scheduled process area\n");
 		return -ENOMEM;
 	}
 	pr_devel("spa pages: %i afu->spa_max_procs: %i   afu->num_procs: %i\n",
-		 1<<afu->spa_order, afu->spa_max_procs, afu->num_procs);
+		 1<<afu->native->spa_order, afu->native->spa_max_procs, afu->num_procs);
 
 	return 0;
 }
@@ -210,13 +210,15 @@ static void attach_spa(struct cxl_afu *afu)
 {
 	u64 spap;
 
-	afu->sw_command_status = (__be64 *)((char *)afu->spa +
-					    ((afu->spa_max_procs + 3) * 128));
+	afu->native->sw_command_status = (__be64 *)((char *)afu->native->spa +
+					    ((afu->native->spa_max_procs + 3) * 128));
 
-	spap = virt_to_phys(afu->spa) & CXL_PSL_SPAP_Addr;
-	spap |= ((afu->spa_size >> (12 - CXL_PSL_SPAP_Size_Shift)) - 1) & CXL_PSL_SPAP_Size;
+	spap = virt_to_phys(afu->native->spa) & CXL_PSL_SPAP_Addr;
+	spap |= ((afu->native->spa_size >> (12 - CXL_PSL_SPAP_Size_Shift)) - 1) & CXL_PSL_SPAP_Size;
 	spap |= CXL_PSL_SPAP_V;
-	pr_devel("cxl: SPA allocated at 0x%p. Max processes: %i, sw_command_status: 0x%p CXL_PSL_SPAP_An=0x%016llx\n", afu->spa, afu->spa_max_procs, afu->sw_command_status, spap);
+	pr_devel("cxl: SPA allocated at 0x%p. Max processes: %i, sw_command_status: 0x%p CXL_PSL_SPAP_An=0x%016llx\n",
+		afu->native->spa, afu->native->spa_max_procs,
+		afu->native->sw_command_status, spap);
 	cxl_p1n_write(afu, CXL_PSL_SPAP_An, spap);
 }
 
@@ -227,9 +229,10 @@ static inline void detach_spa(struct cxl_afu *afu)
 
 void cxl_release_spa(struct cxl_afu *afu)
 {
-	if (afu->spa) {
-		free_pages((unsigned long) afu->spa, afu->spa_order);
-		afu->spa = NULL;
+	if (afu->native->spa) {
+		free_pages((unsigned long) afu->native->spa,
+			afu->native->spa_order);
+		afu->native->spa = NULL;
 	}
 }
 
@@ -291,7 +294,7 @@ static void slb_invalid(struct cxl_context *ctx)
 	struct cxl *adapter = ctx->afu->adapter;
 	u64 slbia;
 
-	WARN_ON(!mutex_is_locked(&ctx->afu->spa_mutex));
+	WARN_ON(!mutex_is_locked(&ctx->afu->native->spa_mutex));
 
 	cxl_p1_write(adapter, CXL_PSL_LBISEL,
 			((u64)be32_to_cpu(ctx->elem->common.pid) << 32) |
@@ -321,7 +324,7 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 
 	ctx->elem->software_state = cpu_to_be32(pe_state);
 	smp_wmb();
-	*(ctx->afu->sw_command_status) = cpu_to_be64(cmd | 0 | ctx->pe);
+	*(ctx->afu->native->sw_command_status) = cpu_to_be64(cmd | 0 | ctx->pe);
 	smp_mb();
 	cxl_p1n_write(ctx->afu, CXL_PSL_LLCMD_An, cmd | ctx->pe);
 	while (1) {
@@ -335,7 +338,7 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 			rc = -EIO;
 			goto out;
 		}
-		state = be64_to_cpup(ctx->afu->sw_command_status);
+		state = be64_to_cpup(ctx->afu->native->sw_command_status);
 		if (state == ~0ULL) {
 			pr_err("cxl: Error adding process element to AFU\n");
 			rc = -1;
@@ -363,12 +366,12 @@ static int add_process_element(struct cxl_context *ctx)
 {
 	int rc = 0;
 
-	mutex_lock(&ctx->afu->spa_mutex);
+	mutex_lock(&ctx->afu->native->spa_mutex);
 	pr_devel("%s Adding pe: %i started\n", __func__, ctx->pe);
 	if (!(rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_ADD, CXL_PE_SOFTWARE_STATE_V)))
 		ctx->pe_inserted = true;
 	pr_devel("%s Adding pe: %i finished\n", __func__, ctx->pe);
-	mutex_unlock(&ctx->afu->spa_mutex);
+	mutex_unlock(&ctx->afu->native->spa_mutex);
 	return rc;
 }
 
@@ -380,7 +383,7 @@ static int terminate_process_element(struct cxl_context *ctx)
 	if (!(ctx->elem->software_state & cpu_to_be32(CXL_PE_SOFTWARE_STATE_V)))
 		return rc;
 
-	mutex_lock(&ctx->afu->spa_mutex);
+	mutex_lock(&ctx->afu->native->spa_mutex);
 	pr_devel("%s Terminate pe: %i started\n", __func__, ctx->pe);
 	/* We could be asked to terminate when the hw is down. That
 	 * should always succeed: it's not running if the hw has gone
@@ -391,7 +394,7 @@ static int terminate_process_element(struct cxl_context *ctx)
 					    CXL_PE_SOFTWARE_STATE_V | CXL_PE_SOFTWARE_STATE_T);
 	ctx->elem->software_state = 0;	/* Remove Valid bit */
 	pr_devel("%s Terminate pe: %i finished\n", __func__, ctx->pe);
-	mutex_unlock(&ctx->afu->spa_mutex);
+	mutex_unlock(&ctx->afu->native->spa_mutex);
 	return rc;
 }
 
@@ -399,7 +402,7 @@ static int remove_process_element(struct cxl_context *ctx)
 {
 	int rc = 0;
 
-	mutex_lock(&ctx->afu->spa_mutex);
+	mutex_lock(&ctx->afu->native->spa_mutex);
 	pr_devel("%s Remove pe: %i started\n", __func__, ctx->pe);
 
 	/* We could be asked to remove when the hw is down. Again, if
@@ -412,7 +415,7 @@ static int remove_process_element(struct cxl_context *ctx)
 		ctx->pe_inserted = false;
 	slb_invalid(ctx);
 	pr_devel("%s Remove pe: %i finished\n", __func__, ctx->pe);
-	mutex_unlock(&ctx->afu->spa_mutex);
+	mutex_unlock(&ctx->afu->native->spa_mutex);
 
 	return rc;
 }
@@ -425,7 +428,7 @@ void cxl_assign_psn_space(struct cxl_context *ctx)
 		ctx->psn_size = ctx->afu->adapter->ps_size;
 	} else {
 		ctx->psn_phys = ctx->afu->psn_phys +
-			(ctx->afu->pp_offset + ctx->afu->pp_size * ctx->pe);
+			(ctx->afu->native->pp_offset + ctx->afu->pp_size * ctx->pe);
 		ctx->psn_size = ctx->afu->pp_size;
 	}
 }
@@ -437,7 +440,7 @@ static int activate_afu_directed(struct cxl_afu *afu)
 	dev_info(&afu->dev, "Activating AFU directed mode\n");
 
 	afu->num_procs = afu->max_procs_virtualised;
-	if (afu->spa == NULL) {
+	if (afu->native->spa == NULL) {
 		if (cxl_alloc_spa(afu))
 			return -ENOMEM;
 	}
@@ -846,27 +849,27 @@ int cxl_native_register_psl_err_irq(struct cxl *adapter)
 		return -ENOMEM;
 
 	if ((rc = cxl_register_one_irq(adapter, native_irq_err, adapter,
-				       &adapter->err_hwirq,
-				       &adapter->err_virq,
+				       &adapter->native->err_hwirq,
+				       &adapter->native->err_virq,
 				       adapter->irq_name))) {
 		kfree(adapter->irq_name);
 		adapter->irq_name = NULL;
 		return rc;
 	}
 
-	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, adapter->err_hwirq & 0xffff);
+	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, adapter->native->err_hwirq & 0xffff);
 
 	return 0;
 }
 
 void cxl_native_release_psl_err_irq(struct cxl *adapter)
 {
-	if (adapter->err_virq != irq_find_mapping(NULL, adapter->err_hwirq))
+	if (adapter->native->err_virq != irq_find_mapping(NULL, adapter->native->err_hwirq))
 		return;
 
 	cxl_p1_write(adapter, CXL_PSL_ErrIVTE, 0x0000000000000000);
-	cxl_unmap_irq(adapter->err_virq, adapter);
-	cxl_ops->release_one_irq(adapter, adapter->err_hwirq);
+	cxl_unmap_irq(adapter->native->err_virq, adapter);
+	cxl_ops->release_one_irq(adapter, adapter->native->err_hwirq);
 	kfree(adapter->irq_name);
 }
 
@@ -915,8 +918,8 @@ int cxl_native_register_psl_irq(struct cxl_afu *afu)
 	if (!afu->psl_irq_name)
 		return -ENOMEM;
 
-	if ((rc = cxl_register_one_irq(afu->adapter, native_irq_multiplexed, afu,
-				    &afu->psl_hwirq, &afu->psl_virq,
+	if ((rc = cxl_register_one_irq(afu->adapter, native_irq_multiplexed,
+				    afu, &afu->native->psl_hwirq, &afu->native->psl_virq,
 				    afu->psl_irq_name))) {
 		kfree(afu->psl_irq_name);
 		afu->psl_irq_name = NULL;
@@ -926,11 +929,11 @@ int cxl_native_register_psl_irq(struct cxl_afu *afu)
 
 void cxl_native_release_psl_irq(struct cxl_afu *afu)
 {
-	if (afu->psl_virq != irq_find_mapping(NULL, afu->psl_hwirq))
+	if (afu->native->psl_virq != irq_find_mapping(NULL, afu->native->psl_hwirq))
 		return;
 
-	cxl_unmap_irq(afu->psl_virq, afu);
-	cxl_ops->release_one_irq(afu->adapter, afu->psl_hwirq);
+	cxl_unmap_irq(afu->native->psl_virq, afu);
+	cxl_ops->release_one_irq(afu->adapter, afu->native->psl_hwirq);
 	kfree(afu->psl_irq_name);
 }
 
@@ -970,7 +973,7 @@ static int native_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 		return -EIO;
 	if (unlikely(off >= afu->crs_len))
 		return -ERANGE;
-	*out = in_le64(afu->afu_desc_mmio + afu->crs_offset +
+	*out = in_le64(afu->native->afu_desc_mmio + afu->crs_offset +
 		(cr * afu->crs_len) + off);
 	return 0;
 }
@@ -981,7 +984,7 @@ static int native_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off, u32 *out)
 		return -EIO;
 	if (unlikely(off >= afu->crs_len))
 		return -ERANGE;
-	*out = in_le32(afu->afu_desc_mmio + afu->crs_offset +
+	*out = in_le32(afu->native->afu_desc_mmio + afu->crs_offset +
 		(cr * afu->crs_len) + off);
 	return 0;
 }

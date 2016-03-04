@@ -165,7 +165,7 @@ static ssize_t pp_mmio_off_show(struct device *device,
 {
 	struct cxl_afu *afu = to_afu_chardev_m(device);
 
-	return scnprintf(buf, PAGE_SIZE, "%llu\n", afu->pp_offset);
+	return scnprintf(buf, PAGE_SIZE, "%llu\n", afu->native->pp_offset);
 }
 
 static ssize_t pp_mmio_len_show(struct device *device,

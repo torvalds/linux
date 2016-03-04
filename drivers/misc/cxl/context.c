@@ -96,7 +96,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 
 	ctx->pe = i;
 	if (cpu_has_feature(CPU_FTR_HVMODE))
-		ctx->elem = &ctx->afu->spa[i];
+		ctx->elem = &ctx->afu->native->spa[i];
 	ctx->pe_inserted = false;
 
 	/*

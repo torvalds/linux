@@ -344,32 +344,12 @@ struct cxl_sste {
 #define to_cxl_adapter(d) container_of(d, struct cxl, dev)
 #define to_cxl_afu(d) container_of(d, struct cxl_afu, dev)
 
-struct cxl_afu {
-	irq_hw_number_t psl_hwirq;
-	irq_hw_number_t serr_hwirq;
-	char *err_irq_name;
-	char *psl_irq_name;
-	unsigned int serr_virq;
+struct cxl_afu_native {
 	void __iomem *p1n_mmio;
-	void __iomem *p2n_mmio;
-	phys_addr_t psn_phys;
-	u64 pp_offset;
-	u64 pp_size;
 	void __iomem *afu_desc_mmio;
-	struct cxl *adapter;
-	struct device dev;
-	struct cdev afu_cdev_s, afu_cdev_m, afu_cdev_d;
-	struct device *chardev_s, *chardev_m, *chardev_d;
-	struct idr contexts_idr;
-	struct dentry *debugfs;
-	struct mutex contexts_lock;
+	irq_hw_number_t psl_hwirq;
+	unsigned int psl_virq;
 	struct mutex spa_mutex;
-	spinlock_t afu_cntl_lock;
-
-	/* AFU error buffer fields and bin attribute for sysfs */
-	u64 eb_len, eb_offset;
-	struct bin_attribute attr_eb;
-
 	/*
 	 * Only the first part of the SPA is used for the process element
 	 * linked list. The only other part that software needs to worry about
@@ -381,7 +361,39 @@ struct cxl_afu {
 	unsigned int spa_size;
 	int spa_order;
 	int spa_max_procs;
-	unsigned int psl_virq;
+	u64 pp_offset;
+};
+
+struct cxl_afu_guest {
+	u64 handle;
+	phys_addr_t p2n_phys;
+	u64 p2n_size;
+	int max_ints;
+};
+
+struct cxl_afu {
+	struct cxl_afu_native *native;
+	struct cxl_afu_guest *guest;
+	irq_hw_number_t serr_hwirq;
+	unsigned int serr_virq;
+	char *psl_irq_name;
+	char *err_irq_name;
+	void __iomem *p2n_mmio;
+	phys_addr_t psn_phys;
+	u64 pp_size;
+
+	struct cxl *adapter;
+	struct device dev;
+	struct cdev afu_cdev_s, afu_cdev_m, afu_cdev_d;
+	struct device *chardev_s, *chardev_m, *chardev_d;
+	struct idr contexts_idr;
+	struct dentry *debugfs;
+	struct mutex contexts_lock;
+	spinlock_t afu_cntl_lock;
+
+	/* AFU error buffer fields and bin attribute for sysfs */
+	u64 eb_len, eb_offset;
+	struct bin_attribute attr_eb;
 
 	/* pointer to the vphb */
 	struct pci_controller *phb;
@@ -488,11 +500,34 @@ struct cxl_context {
 	struct rcu_head rcu;
 };
 
-struct cxl {
+struct cxl_native {
+	u64 afu_desc_off;
+	u64 afu_desc_size;
 	void __iomem *p1_mmio;
 	void __iomem *p2_mmio;
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
+	u64 ps_off;
+};
+
+struct cxl_guest {
+	struct platform_device *pdev;
+	int irq_nranges;
+	struct cdev cdev;
+	irq_hw_number_t irq_base_offset;
+	struct irq_avail *irq_avail;
+	spinlock_t irq_alloc_lock;
+	u64 handle;
+	char *status;
+	u16 vendor;
+	u16 device;
+	u16 subsystem_vendor;
+	u16 subsystem;
+};
+
+struct cxl {
+	struct cxl_native *native;
+	struct cxl_guest *guest;
 	spinlock_t afu_list_lock;
 	struct cxl_afu *afu[CXL_MAX_SLICES];
 	struct device dev;
@@ -503,9 +538,6 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
-	u64 afu_desc_off;
-	u64 afu_desc_size;
-	u64 ps_off;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;
@@ -570,7 +602,7 @@ static inline bool cxl_adapter_link_ok(struct cxl *cxl)
 static inline void __iomem *_cxl_p1_addr(struct cxl *cxl, cxl_p1_reg_t reg)
 {
 	WARN_ON(!cpu_has_feature(CPU_FTR_HVMODE));
-	return cxl->p1_mmio + cxl_reg_off(reg);
+	return cxl->native->p1_mmio + cxl_reg_off(reg);
 }
 
 static inline void cxl_p1_write(struct cxl *cxl, cxl_p1_reg_t reg, u64 val)
@@ -590,7 +622,7 @@ static inline u64 cxl_p1_read(struct cxl *cxl, cxl_p1_reg_t reg)
 static inline void __iomem *_cxl_p1n_addr(struct cxl_afu *afu, cxl_p1n_reg_t reg)
 {
 	WARN_ON(!cpu_has_feature(CPU_FTR_HVMODE));
-	return afu->p1n_mmio + cxl_reg_off(reg);
+	return afu->native->p1n_mmio + cxl_reg_off(reg);
 }
 
 static inline void cxl_p1n_write(struct cxl_afu *afu, cxl_p1n_reg_t reg, u64 val)

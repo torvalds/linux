@@ -270,7 +270,7 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		/* Multiplexed PSL Interrupt */
-		ctx->irqs.offset[0] = ctx->afu->psl_hwirq;
+		ctx->irqs.offset[0] = ctx->afu->native->psl_hwirq;
 		ctx->irqs.range[0] = 1;
 	}
 
