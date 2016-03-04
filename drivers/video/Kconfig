@@ -26,6 +26,8 @@ source "drivers/gpu/drm/Kconfig"
 
 source "drivers/gpu/rogue_m/Kconfig"
 
+source "drivers/gpu/arm/midgard/Kconfig"
+
 menu "Frame buffer Devices"
 source "drivers/video/fbdev/Kconfig"
 endmenu
