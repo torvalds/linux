@@ -56,6 +56,7 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
+#include <asm/siginfo.h>
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
@@ -871,7 +872,7 @@ out:
 	exception_exit(prev_state);
 }
 
-void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
+void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 	const char *str)
 {
 	siginfo_t info = { 0 };
@@ -928,7 +929,13 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	default:
 		scnprintf(b, sizeof(b), "%s instruction in kernel code", str);
 		die_if_kernel(b, regs);
-		force_sig(SIGTRAP, current);
+		if (si_code) {
+			info.si_signo = SIGTRAP;
+			info.si_code = si_code;
+			force_sig_info(SIGTRAP, &info, current);
+		} else {
+			force_sig(SIGTRAP, current);
+		}
 	}
 }
 
@@ -1012,7 +1019,7 @@ asmlinkage void do_bp(struct pt_regs *regs)
 		break;
 	}
 
-	do_trap_or_bp(regs, bcode, "Break");
+	do_trap_or_bp(regs, bcode, TRAP_BRKPT, "Break");
 
 out:
 	set_fs(seg);
@@ -1054,7 +1061,7 @@ asmlinkage void do_tr(struct pt_regs *regs)
 			tcode = (opcode >> 6) & ((1 << 10) - 1);
 	}
 
-	do_trap_or_bp(regs, tcode, "Trap");
+	do_trap_or_bp(regs, tcode, 0, "Trap");
 
 out:
 	set_fs(seg);
@@ -1492,6 +1499,7 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
  */
 asmlinkage void do_watch(struct pt_regs *regs)
 {
+	siginfo_t info = { .si_signo = SIGTRAP, .si_code = TRAP_HWBKPT };
 	enum ctx_state prev_state;
 	u32 cause;
 
@@ -1512,7 +1520,7 @@ asmlinkage void do_watch(struct pt_regs *regs)
 	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
 		mips_read_watch_registers();
 		local_irq_enable();
-		force_sig(SIGTRAP, current);
+		force_sig_info(SIGTRAP, &info, current);
 	} else {
 		mips_clear_watch_registers();
 		local_irq_enable();
