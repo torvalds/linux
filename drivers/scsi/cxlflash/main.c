@@ -726,10 +726,10 @@ static void term_mc(struct cxlflash_cfg *cfg, enum undo_level level)
  */
 static void term_afu(struct cxlflash_cfg *cfg)
 {
-	term_mc(cfg, UNDO_START);
-
 	if (cfg->afu)
 		stop_afu(cfg);
+
+	term_mc(cfg, UNDO_START);
 
 	pr_debug("%s: returning\n", __func__);
 }
@@ -2492,8 +2492,8 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 		if (unlikely(rc))
 			dev_err(dev, "%s: Failed to mark user contexts!(%d)\n",
 				__func__, rc);
-		term_mc(cfg, UNDO_START);
 		stop_afu(cfg);
+		term_mc(cfg, UNDO_START);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		cfg->state = STATE_FAILTERM;
