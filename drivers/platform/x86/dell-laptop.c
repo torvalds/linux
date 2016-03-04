@@ -273,20 +273,6 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 	{ }
 };
 
-static inline int dell_smi_error(int value)
-{
-	switch (value) {
-	case 0: /* Completed successfully */
-		return 0;
-	case -1: /* Completed with error */
-		return -EIO;
-	case -2: /* Function not supported */
-		return -ENXIO;
-	default: /* Unknown error */
-		return -EINVAL;
-	}
-}
-
 /*
  * Derived from information in smbios-wireless-ctl:
  *

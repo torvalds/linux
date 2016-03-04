@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
+#include <linux/err.h>
 #include <linux/gfp.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -38,6 +39,21 @@ static int da_command_address;
 static int da_command_code;
 static int da_num_tokens;
 static struct calling_interface_token *da_tokens;
+
+int dell_smi_error(int value)
+{
+	switch (value) {
+	case 0: /* Completed successfully */
+		return 0;
+	case -1: /* Completed with error */
+		return -EIO;
+	case -2: /* Function not supported */
+		return -ENXIO;
+	default: /* Unknown error */
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_GPL(dell_smi_error);
 
 struct calling_interface_buffer *dell_smbios_get_buffer(void)
 {
