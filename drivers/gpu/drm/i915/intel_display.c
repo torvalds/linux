@@ -13613,16 +13613,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (!state->legacy_cursor_update)
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
-	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		intel_post_plane_update(to_intel_crtc_state(old_crtc_state));
-
-		if (put_domains[i])
-			modeset_put_power_domains(dev_priv, put_domains[i]);
-	}
-
-	if (intel_state->modeset)
-		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
-
 	/*
 	 * Now that the vblank has passed, we can go ahead and program the
 	 * optimal watermarks on platforms that need two-step watermark
@@ -13636,6 +13626,16 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (dev_priv->display.optimize_watermarks)
 			dev_priv->display.optimize_watermarks(intel_cstate);
 	}
+
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		intel_post_plane_update(to_intel_crtc_state(old_crtc_state));
+
+		if (put_domains[i])
+			modeset_put_power_domains(dev_priv, put_domains[i]);
+	}
+
+	if (intel_state->modeset)
+		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
