@@ -9,6 +9,7 @@ Required properties:
 - compatible: Must be:
   - Tegra124: "nvidia,tegra124-xusb"
   - Tegra132: "nvidia,tegra132-xusb", "nvidia,tegra124-xusb"
+  - Tegra210: "nvidia,tegra210-xusb"
 - reg: Must contain the base and length of the xHCI host registers, XUSB FPCI
   registers and XUSB IPFS registers.
 - reg-names: Must contain the following entries:
@@ -50,6 +51,15 @@ For Tegra124 and Tegra132:
 - hvdd-usb-ss-supply: High-voltage PCIe/USB3 power supply. Must supply 3.3 V.
 - hvdd-usb-ss-pll-e-supply: High-voltage PLLE power supply. Must supply 3.3 V.
 
+For Tegra210:
+- dvddio-pex-supply: PCIe/USB3 analog logic power supply. Must supply 1.05 V.
+- hvddio-pex-supply: High-voltage PCIe/USB3 power supply. Must supply 1.8 V.
+- avdd-usb-supply: USB controller power supply. Must supply 3.3 V.
+- avdd-pll-utmip-supply: UTMI PLL power supply. Must supply 1.8 V.
+- avdd-pll-uerefe-supply: PLLE reference PLL power supply. Must supply 1.05 V.
+- dvdd-pex-pll-supply: PCIe/USB3 PLL power supply. Must supply 1.05 V.
+- hvdd-pex-pll-e-supply: High-voltage PLLE power supply. Must supply 1.8 V.
+
 Optional properties:
 --------------------
 - phys: Must contain an entry for each entry in phy-names.
@@ -58,6 +68,8 @@ Optional properties:
   following PHYs are available:
   - Tegra124: usb2-0, usb2-1, usb2-2, hsic-0, hsic-1, usb3-0, usb3-1
   - Tegra132: usb2-0, usb2-1, usb2-2, hsic-0, hsic-1, usb3-0, usb3-1
+  - Tegra210: usb2-0, usb2-1, usb2-2, usb2-3, hsic-0, usb3-0, usb3-1, usb3-2,
+              usb3-3
 
 Example:
 --------
