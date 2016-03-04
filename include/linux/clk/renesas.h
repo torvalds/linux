@@ -25,7 +25,7 @@ void r8a7779_clocks_init(u32 mode);
 void rcar_gen2_clocks_init(u32 mode);
 
 void cpg_mstp_add_clk_domain(struct device_node *np);
-int cpg_mstp_attach_dev(struct generic_pm_domain *domain, struct device *dev);
-void cpg_mstp_detach_dev(struct generic_pm_domain *domain, struct device *dev);
+int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev);
+void cpg_mstp_detach_dev(struct generic_pm_domain *unused, struct device *dev);
 
 #endif
