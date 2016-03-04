@@ -596,7 +596,7 @@ config SND_SOC_RT298
 	depends on I2C
 
 config SND_SOC_RT5616
-	tristate
+	tristate "Realtek RT5616 CODEC"
 
 config SND_SOC_RT5631
 	tristate "Realtek ALC5631/RT5631 CODEC"
