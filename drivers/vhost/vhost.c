@@ -1658,6 +1658,20 @@ void vhost_add_used_and_signal_n(struct vhost_dev *dev,
 }
 EXPORT_SYMBOL_GPL(vhost_add_used_and_signal_n);
 
+/* return true if we're sure that avaiable ring is empty */
+bool vhost_vq_avail_empty(struct vhost_dev *dev, struct vhost_virtqueue *vq)
+{
+	__virtio16 avail_idx;
+	int r;
+
+	r = __get_user(avail_idx, &vq->avail->idx);
+	if (r)
+		return false;
+
+	return vhost16_to_cpu(vq, avail_idx) == vq->avail_idx;
+}
+EXPORT_SYMBOL_GPL(vhost_vq_avail_empty);
+
 /* OK, now we need to know about added descriptors. */
 bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
