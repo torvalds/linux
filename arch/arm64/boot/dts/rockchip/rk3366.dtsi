@@ -363,6 +363,24 @@
 		status = "disabled";
 	};
 
+	usb_host0_echi: usb@ff480000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xff480000 0x0 0x20000>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_HOST>;
+		clock-names = "sclk_otgphy0", "hclk_host0";
+		status = "disabled";
+	};
+
+	usb_host0_ohci: usb@ff4a0000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xff4a0000 0x0 0x20000>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_OTG_PHY0>, <&cru HCLK_HOST>;
+		clock-names = "sclk_otgphy0", "hclk_host0";
+		status = "disabled";
+	};
+
 	usb_otg: usb@ff4c0000 {
 		compatible = "rockchip,rk3368-usb", "rockchip,rk3066-usb",
 			     "snps,dwc2";
