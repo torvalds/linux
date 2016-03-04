@@ -133,5 +133,4 @@ void rxrpc_kernel_free_skb(struct sk_buff *skb)
 {
 	rxrpc_free_skb(skb);
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_free_skb);

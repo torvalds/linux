@@ -195,9 +195,9 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
  * wholly encrypt a packet (level 2 security)
  */
 static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
-					struct sk_buff *skb,
-					u32 data_size,
-					void *sechdr)
+				       struct sk_buff *skb,
+				       u32 data_size,
+				       void *sechdr)
 {
 	const struct rxrpc_key_token *token;
 	struct rxkad_level2_hdr rxkhdr
@@ -251,9 +251,9 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
  * checksum an RxRPC packet header
  */
 static int rxkad_secure_packet(const struct rxrpc_call *call,
-				struct sk_buff *skb,
-				size_t data_size,
-				void *sechdr)
+			       struct sk_buff *skb,
+			       size_t data_size,
+			       void *sechdr)
 {
 	struct rxrpc_skb_priv *sp;
 	struct blkcipher_desc desc;

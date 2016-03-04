@@ -415,7 +415,7 @@ out:
 }
 
 /*
- * handle rejectance of a call by userspace
+ * Handle rejection of a call by userspace
  * - reject the call at the front of the queue
  */
 int rxrpc_reject_call(struct rxrpc_sock *rx)
@@ -495,7 +495,6 @@ struct rxrpc_call *rxrpc_kernel_accept_call(struct socket *sock,
 	_leave(" = %p", call);
 	return call;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_accept_call);
 
 /**
@@ -514,5 +513,4 @@ int rxrpc_kernel_reject_call(struct socket *sock)
 	_leave(" = %d", ret);
 	return ret;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_reject_call);

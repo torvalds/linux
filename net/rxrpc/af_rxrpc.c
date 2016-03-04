@@ -121,7 +121,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
  */
 static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
-	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) saddr;
+	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)saddr;
 	struct sock *sk = sock->sk;
 	struct rxrpc_local *local;
 	struct rxrpc_sock *rx = rxrpc_sk(sk), *prx;
@@ -142,7 +142,7 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	memcpy(&rx->srx, srx, sizeof(rx->srx));
 
-	/* find a local transport endpoint if we don't have one already */
+	/* Find or create a local transport endpoint to use */
 	local = rxrpc_lookup_local(&rx->srx);
 	if (IS_ERR(local)) {
 		ret = PTR_ERR(local);
@@ -297,7 +297,6 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 
 	if (!srx)
 		srx = &rx->srx;
-
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
@@ -319,7 +318,6 @@ out_notrans:
 	_leave(" = %p", call);
 	return call;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_begin_call);
 
 /**
@@ -335,7 +333,6 @@ void rxrpc_kernel_end_call(struct rxrpc_call *call)
 	rxrpc_remove_user_ID(call->socket, call);
 	rxrpc_put_call(call);
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_end_call);
 
 /**
@@ -616,7 +613,7 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 	if (!net_eq(net, &init_net))
 		return -EAFNOSUPPORT;
 
-	/* we support transport protocol UDP only */
+	/* we support transport protocol UDP/UDP6 only */
 	if (protocol != PF_INET)
 		return -EPROTONOSUPPORT;
 

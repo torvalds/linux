@@ -16,7 +16,7 @@
 	BUG_ON(atomic_read((X)) >> (sizeof(atomic_t) - 2) == \
 	       (POISON_FREE << 8 | POISON_FREE))
 #else
-#define CHECK_SLAB_OKAY(X) do {} while(0)
+#define CHECK_SLAB_OKAY(X) do {} while (0)
 #endif
 
 #define FCRYPT_BSIZE 8
@@ -726,7 +726,7 @@ do {								\
 		printk(KERN_ERR "RxRPC: Assertion failed\n");	\
 		BUG();						\
 	}							\
-} while(0)
+} while (0)
 
 #define ASSERTCMP(X, OP, Y)						\
 do {									\
@@ -739,7 +739,7 @@ do {									\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		BUG();							\
 	}								\
-} while(0)
+} while (0)
 
 #define ASSERTIF(C, X)						\
 do {								\
@@ -748,7 +748,7 @@ do {								\
 		printk(KERN_ERR "RxRPC: Assertion failed\n");	\
 		BUG();						\
 	}							\
-} while(0)
+} while (0)
 
 #define ASSERTIFCMP(C, X, OP, Y)					\
 do {									\
@@ -761,25 +761,25 @@ do {									\
 		       (unsigned long)(X), (unsigned long)(Y));		\
 		BUG();							\
 	}								\
-} while(0)
+} while (0)
 
 #else
 
 #define ASSERT(X)				\
 do {						\
-} while(0)
+} while (0)
 
 #define ASSERTCMP(X, OP, Y)			\
 do {						\
-} while(0)
+} while (0)
 
 #define ASSERTIF(C, X)				\
 do {						\
-} while(0)
+} while (0)
 
 #define ASSERTIFCMP(C, X, OP, Y)		\
 do {						\
-} while(0)
+} while (0)
 
 #endif /* __KDEBUGALL */
 
@@ -836,9 +836,9 @@ do {							\
 	CHECK_SLAB_OKAY(&(CALL)->usage);		\
 	if (atomic_inc_return(&(CALL)->usage) == 1)	\
 		BUG();					\
-} while(0)
+} while (0)
 
 #define rxrpc_put_call(CALL)				\
 do {							\
 	__rxrpc_put_call(CALL);				\
-} while(0)
+} while (0)

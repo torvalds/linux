@@ -115,7 +115,6 @@ void rxrpc_UDP_error_report(struct sock *sk)
 	/* pass the transport ref to error_handler to release */
 	skb_queue_tail(&trans->error_queue, skb);
 	rxrpc_queue_work(&trans->error_handler);
-
 	_leave("");
 }
 

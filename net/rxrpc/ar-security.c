@@ -167,7 +167,7 @@ int rxrpc_init_server_conn_security(struct rxrpc_connection *conn)
 	struct rxrpc_sock *rx;
 	struct key *key;
 	key_ref_t kref;
-	char kdesc[5+1+3+1];
+	char kdesc[5 + 1 + 3 + 1];
 
 	_enter("");
 
