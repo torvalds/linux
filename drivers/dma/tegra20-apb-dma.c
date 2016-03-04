@@ -1292,25 +1292,6 @@ static const struct tegra_dma_chip_data tegra148_dma_chip_data = {
 	.support_separate_wcount_reg = true,
 };
 
-
-static const struct of_device_id tegra_dma_of_match[] = {
-	{
-		.compatible = "nvidia,tegra148-apbdma",
-		.data = &tegra148_dma_chip_data,
-	}, {
-		.compatible = "nvidia,tegra114-apbdma",
-		.data = &tegra114_dma_chip_data,
-	}, {
-		.compatible = "nvidia,tegra30-apbdma",
-		.data = &tegra30_dma_chip_data,
-	}, {
-		.compatible = "nvidia,tegra20-apbdma",
-		.data = &tegra20_dma_chip_data,
-	}, {
-	},
-};
-MODULE_DEVICE_TABLE(of, tegra_dma_of_match);
-
 static int tegra_dma_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
@@ -1609,6 +1590,24 @@ static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 			   NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_dma_pm_suspend, tegra_dma_pm_resume)
 };
+
+static const struct of_device_id tegra_dma_of_match[] = {
+	{
+		.compatible = "nvidia,tegra148-apbdma",
+		.data = &tegra148_dma_chip_data,
+	}, {
+		.compatible = "nvidia,tegra114-apbdma",
+		.data = &tegra114_dma_chip_data,
+	}, {
+		.compatible = "nvidia,tegra30-apbdma",
+		.data = &tegra30_dma_chip_data,
+	}, {
+		.compatible = "nvidia,tegra20-apbdma",
+		.data = &tegra20_dma_chip_data,
+	}, {
+	},
+};
+MODULE_DEVICE_TABLE(of, tegra_dma_of_match);
 
 static struct platform_driver tegra_dmac_driver = {
 	.driver = {
