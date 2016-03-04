@@ -228,15 +228,17 @@
 };
 
 &flexcan1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_flexcan1>;
+	pinctrl-1 = <&pinctrl_flexcan1>;
 	xceiver-supply = <&reg_can1_3v3>;
 	status = "disabled";
 };
 
 &flexcan2 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_flexcan2>;
+	pinctrl-1 = <&pinctrl_flexcan2>;
 	xceiver-supply = <&reg_can2_3v3>;
 	status = "disabled";
 };
