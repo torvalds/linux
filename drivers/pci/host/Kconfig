@@ -202,4 +202,11 @@ config PCI_HOST_THUNDER_PEM
 	help
 	  Say Y here if you want PCIe support for CN88XX Cavium Thunder SoCs.
 
+config PCI_HOST_THUNDER_ECAM
+	bool "Cavium Thunder ECAM controller to on-chip devices on pass-1.x silicon"
+	depends on OF && ARM64
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
+
 endmenu
