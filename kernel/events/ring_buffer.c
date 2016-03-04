@@ -288,6 +288,13 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 		goto err;
 
 	/*
+	 * If rb::aux_mmap_count is zero (and rb_has_aux() above went through),
+	 * the aux buffer is in perf_mmap_close(), about to get freed.
+	 */
+	if (!atomic_read(&rb->aux_mmap_count))
+		goto err;
+
+	/*
 	 * Nesting is not supported for AUX area, make sure nested
 	 * writers are caught early
 	 */
