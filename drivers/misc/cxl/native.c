@@ -42,7 +42,7 @@ static int afu_control(struct cxl_afu *afu, u64 command,
 			goto out;
 		}
 
-		if (!cxl_ops->link_ok(afu->adapter)) {
+		if (!cxl_ops->link_ok(afu->adapter, afu)) {
 			afu->enabled = enabled;
 			rc = -EIO;
 			goto out;
@@ -92,7 +92,7 @@ static int native_afu_reset(struct cxl_afu *afu)
 
 static int native_afu_check_and_enable(struct cxl_afu *afu)
 {
-	if (!cxl_ops->link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		WARN(1, "Refusing to enable afu while link down!\n");
 		return -EIO;
 	}
@@ -114,7 +114,7 @@ int cxl_psl_purge(struct cxl_afu *afu)
 
 	pr_devel("PSL purge request\n");
 
-	if (!cxl_ops->link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		dev_warn(&afu->dev, "PSL Purge called with link down, ignoring\n");
 		rc = -EIO;
 		goto out;
@@ -136,7 +136,7 @@ int cxl_psl_purge(struct cxl_afu *afu)
 			rc = -EBUSY;
 			goto out;
 		}
-		if (!cxl_ops->link_ok(afu->adapter)) {
+		if (!cxl_ops->link_ok(afu->adapter, afu)) {
 			rc = -EIO;
 			goto out;
 		}
@@ -250,7 +250,7 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 			dev_warn(&adapter->dev, "WARNING: CXL adapter wide TLBIA timed out!\n");
 			return -EBUSY;
 		}
-		if (!cxl_ops->link_ok(adapter))
+		if (!cxl_ops->link_ok(adapter, NULL))
 			return -EIO;
 		cpu_relax();
 	}
@@ -261,7 +261,7 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 			dev_warn(&adapter->dev, "WARNING: CXL adapter wide SLBIA timed out!\n");
 			return -EBUSY;
 		}
-		if (!cxl_ops->link_ok(adapter))
+		if (!cxl_ops->link_ok(adapter, NULL))
 			return -EIO;
 		cpu_relax();
 	}
@@ -302,7 +302,7 @@ static void slb_invalid(struct cxl_context *ctx)
 	cxl_p1_write(adapter, CXL_PSL_SLBIA, CXL_TLB_SLB_IQ_LPIDPID);
 
 	while (1) {
-		if (!cxl_ops->link_ok(adapter))
+		if (!cxl_ops->link_ok(adapter, NULL))
 			break;
 		slbia = cxl_p1_read(adapter, CXL_PSL_SLBIA);
 		if (!(slbia & CXL_TLB_SLB_P))
@@ -333,7 +333,7 @@ static int do_process_element_cmd(struct cxl_context *ctx,
 			rc = -EBUSY;
 			goto out;
 		}
-		if (!cxl_ops->link_ok(ctx->afu->adapter)) {
+		if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu)) {
 			dev_warn(&ctx->afu->dev, "WARNING: Device link down, aborting Process Element Command!\n");
 			rc = -EIO;
 			goto out;
@@ -389,7 +389,7 @@ static int terminate_process_element(struct cxl_context *ctx)
 	 * should always succeed: it's not running if the hw has gone
 	 * away and is being reset.
 	 */
-	if (cxl_ops->link_ok(ctx->afu->adapter))
+	if (cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_TERMINATE,
 					    CXL_PE_SOFTWARE_STATE_V | CXL_PE_SOFTWARE_STATE_T);
 	ctx->elem->software_state = 0;	/* Remove Valid bit */
@@ -408,7 +408,7 @@ static int remove_process_element(struct cxl_context *ctx)
 	/* We could be asked to remove when the hw is down. Again, if
 	 * the hw is down, the PE is gone, so we succeed.
 	 */
-	if (cxl_ops->link_ok(ctx->afu->adapter))
+	if (cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		rc = do_process_element_cmd(ctx, CXL_SPA_SW_CMD_REMOVE, 0);
 
 	if (!rc)
@@ -650,7 +650,7 @@ static int native_afu_activate_mode(struct cxl_afu *afu, int mode)
 	if (!(mode & afu->modes_supported))
 		return -EINVAL;
 
-	if (!cxl_ops->link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		WARN(1, "Device link is down, refusing to activate!\n");
 		return -EIO;
 	}
@@ -666,7 +666,7 @@ static int native_afu_activate_mode(struct cxl_afu *afu, int mode)
 static int native_attach_process(struct cxl_context *ctx, bool kernel,
 				u64 wed, u64 amr)
 {
-	if (!cxl_ops->link_ok(ctx->afu->adapter)) {
+	if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu)) {
 		WARN(1, "Device link is down, refusing to attach process!\n");
 		return -EIO;
 	}
@@ -718,7 +718,7 @@ static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 	/* If the adapter has gone away, we can't get any meaningful
 	 * information.
 	 */
-	if (!cxl_ops->link_ok(afu->adapter))
+	if (!cxl_ops->link_ok(afu->adapter, afu))
 		return -EIO;
 
 	info->dsisr = cxl_p2n_read(afu, CXL_PSL_DSISR_An);
@@ -975,7 +975,7 @@ static bool native_support_attributes(const char *attr_name,
 
 static int native_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 {
-	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
+	if (unlikely(!cxl_ops->link_ok(afu->adapter, afu)))
 		return -EIO;
 	if (unlikely(off >= afu->crs_len))
 		return -ERANGE;
@@ -986,7 +986,7 @@ static int native_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 
 static int native_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off, u32 *out)
 {
-	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
+	if (unlikely(!cxl_ops->link_ok(afu->adapter, afu)))
 		return -EIO;
 	if (unlikely(off >= afu->crs_len))
 		return -ERANGE;
@@ -1021,7 +1021,7 @@ static int native_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off, u8 *out)
 
 static int native_afu_cr_write32(struct cxl_afu *afu, int cr, u64 off, u32 in)
 {
-	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
+	if (unlikely(!cxl_ops->link_ok(afu->adapter, afu)))
 		return -EIO;
 	if (unlikely(off >= afu->crs_len))
 		return -ERANGE;

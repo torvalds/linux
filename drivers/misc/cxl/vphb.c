@@ -49,7 +49,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
 
-	if (!cxl_ops->link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter, afu)) {
 		dev_warn(&dev->dev, "%s: Device link is down, refusing to enable AFU\n", __func__);
 		return false;
 	}

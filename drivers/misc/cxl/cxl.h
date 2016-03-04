@@ -379,6 +379,8 @@ struct cxl_afu_guest {
 	phys_addr_t p2n_phys;
 	u64 p2n_size;
 	int max_ints;
+	struct mutex recovery_lock;
+	int previous_state;
 };
 
 struct cxl_afu {
@@ -617,7 +619,7 @@ struct cxl_process_element {
 	__be32 software_state;
 } __packed;
 
-static inline bool cxl_adapter_link_ok(struct cxl *cxl)
+static inline bool cxl_adapter_link_ok(struct cxl *cxl, struct cxl_afu *afu)
 {
 	struct pci_dev *pdev;
 
@@ -636,13 +638,13 @@ static inline void __iomem *_cxl_p1_addr(struct cxl *cxl, cxl_p1_reg_t reg)
 
 static inline void cxl_p1_write(struct cxl *cxl, cxl_p1_reg_t reg, u64 val)
 {
-	if (likely(cxl_adapter_link_ok(cxl)))
+	if (likely(cxl_adapter_link_ok(cxl, NULL)))
 		out_be64(_cxl_p1_addr(cxl, reg), val);
 }
 
 static inline u64 cxl_p1_read(struct cxl *cxl, cxl_p1_reg_t reg)
 {
-	if (likely(cxl_adapter_link_ok(cxl)))
+	if (likely(cxl_adapter_link_ok(cxl, NULL)))
 		return in_be64(_cxl_p1_addr(cxl, reg));
 	else
 		return ~0ULL;
@@ -656,13 +658,13 @@ static inline void __iomem *_cxl_p1n_addr(struct cxl_afu *afu, cxl_p1n_reg_t reg
 
 static inline void cxl_p1n_write(struct cxl_afu *afu, cxl_p1n_reg_t reg, u64 val)
 {
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
+	if (likely(cxl_adapter_link_ok(afu->adapter, afu)))
 		out_be64(_cxl_p1n_addr(afu, reg), val);
 }
 
 static inline u64 cxl_p1n_read(struct cxl_afu *afu, cxl_p1n_reg_t reg)
 {
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
+	if (likely(cxl_adapter_link_ok(afu->adapter, afu)))
 		return in_be64(_cxl_p1n_addr(afu, reg));
 	else
 		return ~0ULL;
@@ -675,13 +677,13 @@ static inline void __iomem *_cxl_p2n_addr(struct cxl_afu *afu, cxl_p2n_reg_t reg
 
 static inline void cxl_p2n_write(struct cxl_afu *afu, cxl_p2n_reg_t reg, u64 val)
 {
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
+	if (likely(cxl_adapter_link_ok(afu->adapter, afu)))
 		out_be64(_cxl_p2n_addr(afu, reg), val);
 }
 
 static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 {
-	if (likely(cxl_adapter_link_ok(afu->adapter)))
+	if (likely(cxl_adapter_link_ok(afu->adapter, afu)))
 		return in_be64(_cxl_p2n_addr(afu, reg));
 	else
 		return ~0ULL;
@@ -857,7 +859,7 @@ struct cxl_backend_ops {
 			u64 wed, u64 amr);
 	int (*detach_process)(struct cxl_context *ctx);
 	bool (*support_attributes)(const char *attr_name, enum cxl_attrs type);
-	bool (*link_ok)(struct cxl *cxl);
+	bool (*link_ok)(struct cxl *cxl, struct cxl_afu *afu);
 	void (*release_afu)(struct device *dev);
 	ssize_t (*afu_read_err_buffer)(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);

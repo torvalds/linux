@@ -15,6 +15,46 @@
 #include "hcalls.h"
 #include "trace.h"
 
+#define CXL_ERROR_DETECTED_EVENT	1
+#define CXL_SLOT_RESET_EVENT		2
+#define CXL_RESUME_EVENT		3
+
+static void pci_error_handlers(struct cxl_afu *afu,
+				int bus_error_event,
+				pci_channel_state_t state)
+{
+	struct pci_dev *afu_dev;
+
+	if (afu->phb == NULL)
+		return;
+
+	list_for_each_entry(afu_dev, &afu->phb->bus->devices, bus_list) {
+		if (!afu_dev->driver)
+			continue;
+
+		switch (bus_error_event) {
+		case CXL_ERROR_DETECTED_EVENT:
+			afu_dev->error_state = state;
+
+			if (afu_dev->driver->err_handler &&
+			    afu_dev->driver->err_handler->error_detected)
+				afu_dev->driver->err_handler->error_detected(afu_dev, state);
+		break;
+		case CXL_SLOT_RESET_EVENT:
+			afu_dev->error_state = state;
+
+			if (afu_dev->driver->err_handler &&
+			    afu_dev->driver->err_handler->slot_reset)
+				afu_dev->driver->err_handler->slot_reset(afu_dev);
+		break;
+		case CXL_RESUME_EVENT:
+			if (afu_dev->driver->err_handler &&
+			    afu_dev->driver->err_handler->resume)
+				afu_dev->driver->err_handler->resume(afu_dev);
+		break;
+		}
+	}
+}
 
 static irqreturn_t guest_handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr,
 					u64 errstat)
@@ -133,6 +173,22 @@ static irqreturn_t guest_psl_irq(int irq, void *data)
 	return rc;
 }
 
+static int afu_read_error_state(struct cxl_afu *afu, int *state_out)
+{
+	u64 state;
+	int rc = 0;
+
+	rc = cxl_h_read_error_state(afu->guest->handle, &state);
+	if (!rc) {
+		WARN_ON(state != H_STATE_NORMAL &&
+			state != H_STATE_DISABLE &&
+			state != H_STATE_TEMP_UNAVAILABLE &&
+			state != H_STATE_PERM_UNAVAILABLE);
+		*state_out = state & 0xffffffff;
+	}
+	return rc;
+}
+
 static irqreturn_t guest_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
@@ -201,10 +257,26 @@ static int irq_free_range(struct cxl *adapter, int irq, int len)
 
 static int guest_reset(struct cxl *adapter)
 {
-	int rc;
+	struct cxl_afu *afu = NULL;
+	int i, rc;
 
 	pr_devel("Adapter reset request\n");
+	for (i = 0; i < adapter->slices; i++) {
+		if ((afu = adapter->afu[i])) {
+			pci_error_handlers(afu, CXL_ERROR_DETECTED_EVENT,
+					pci_channel_io_frozen);
+			cxl_context_detach_all(afu);
+		}
+	}
+
 	rc = cxl_h_reset_adapter(adapter->guest->handle);
+	for (i = 0; i < adapter->slices; i++) {
+		if (!rc && (afu = adapter->afu[i])) {
+			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
+					pci_channel_io_normal);
+			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
+		}
+	}
 	return rc;
 }
 
@@ -556,7 +628,7 @@ static int guest_detach_process(struct cxl_context *ctx)
 	pr_devel("in %s\n", __func__);
 	trace_cxl_detach(ctx);
 
-	if (!cxl_ops->link_ok(ctx->afu->adapter))
+	if (!cxl_ops->link_ok(ctx->afu->adapter, ctx->afu))
 		return -EIO;
 
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
@@ -730,8 +802,95 @@ static void guest_unmap_slice_regs(struct cxl_afu *afu)
 		iounmap(afu->p2n_mmio);
 }
 
-static bool guest_link_ok(struct cxl *cxl)
+static int afu_update_state(struct cxl_afu *afu)
 {
+	int rc, cur_state;
+
+	rc = afu_read_error_state(afu, &cur_state);
+	if (rc)
+		return rc;
+
+	if (afu->guest->previous_state == cur_state)
+		return 0;
+
+	pr_devel("AFU(%d) update state to %#x\n", afu->slice, cur_state);
+
+	switch (cur_state) {
+	case H_STATE_NORMAL:
+		afu->guest->previous_state = cur_state;
+		rc = 1;
+		break;
+
+	case H_STATE_DISABLE:
+		pci_error_handlers(afu, CXL_ERROR_DETECTED_EVENT,
+				pci_channel_io_frozen);
+
+		cxl_context_detach_all(afu);
+		if ((rc = cxl_ops->afu_reset(afu)))
+			pr_devel("reset hcall failed %d\n", rc);
+
+		rc = afu_read_error_state(afu, &cur_state);
+		if (!rc && cur_state == H_STATE_NORMAL) {
+			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
+					pci_channel_io_normal);
+			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
+			rc = 1;
+		}
+		afu->guest->previous_state = 0;
+		break;
+
+	case H_STATE_TEMP_UNAVAILABLE:
+		afu->guest->previous_state = cur_state;
+		break;
+
+	case H_STATE_PERM_UNAVAILABLE:
+		dev_err(&afu->dev, "AFU is in permanent error state\n");
+		pci_error_handlers(afu, CXL_ERROR_DETECTED_EVENT,
+				pci_channel_io_perm_failure);
+		afu->guest->previous_state = cur_state;
+		break;
+
+	default:
+		pr_err("Unexpected AFU(%d) error state: %#x\n",
+		       afu->slice, cur_state);
+		return -EINVAL;
+	}
+
+	return rc;
+}
+
+static int afu_do_recovery(struct cxl_afu *afu)
+{
+	int rc;
+
+	/* many threads can arrive here, in case of detach_all for example.
+	 * Only one needs to drive the recovery
+	 */
+	if (mutex_trylock(&afu->guest->recovery_lock)) {
+		rc = afu_update_state(afu);
+		mutex_unlock(&afu->guest->recovery_lock);
+		return rc;
+	}
+	return 0;
+}
+
+static bool guest_link_ok(struct cxl *cxl, struct cxl_afu *afu)
+{
+	int state;
+
+	if (afu) {
+		if (afu_read_error_state(afu, &state) ||
+			state != H_STATE_NORMAL) {
+			if (afu_do_recovery(afu) > 0) {
+				/* check again in case we've just fixed it */
+				if (!afu_read_error_state(afu, &state) &&
+					state == H_STATE_NORMAL)
+					return true;
+			}
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -769,6 +928,8 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 		kfree(afu);
 		return -ENOMEM;
 	}
+
+	mutex_init(&afu->guest->recovery_lock);
 
 	if ((rc = dev_set_name(&afu->dev, "afu%i.%i",
 					  adapter->adapter_num,

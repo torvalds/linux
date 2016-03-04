@@ -220,7 +220,7 @@ int __detach_context(struct cxl_context *ctx)
 	 * If detach fails when hw is down, we don't care.
 	 */
 	WARN_ON(cxl_ops->detach_process(ctx) &&
-		cxl_ops->link_ok(ctx->afu->adapter));
+		cxl_ops->link_ok(ctx->afu->adapter, ctx->afu));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 
 	/* release the reference to the group leader and mm handling pid */

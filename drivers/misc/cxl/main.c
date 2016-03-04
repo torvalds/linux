@@ -48,7 +48,7 @@ int cxl_afu_slbia(struct cxl_afu *afu)
 		/* If the adapter has gone down, we can assume that we
 		 * will PERST it and that will invalidate everything.
 		 */
-		if (!cxl_ops->link_ok(afu->adapter))
+		if (!cxl_ops->link_ok(afu->adapter, afu))
 			return -EIO;
 		cpu_relax();
 	}
