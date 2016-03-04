@@ -115,6 +115,7 @@ struct vhost_virtqueue {
 	/* Ring endianness requested by userspace for cross-endian support. */
 	bool user_be;
 #endif
+	u32 busyloop_timeout;
 };
 
 struct vhost_dev {
