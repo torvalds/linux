@@ -519,14 +519,14 @@ struct cxl {
 	bool perst_same_image;
 };
 
-int cxl_alloc_one_irq(struct cxl *adapter);
-void cxl_release_one_irq(struct cxl *adapter, int hwirq);
-int cxl_alloc_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter, unsigned int num);
-void cxl_release_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter);
-int cxl_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq);
+int cxl_pci_alloc_one_irq(struct cxl *adapter);
+void cxl_pci_release_one_irq(struct cxl *adapter, int hwirq);
+int cxl_pci_alloc_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter, unsigned int num);
+void cxl_pci_release_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter);
+int cxl_pci_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq);
 int cxl_update_image_control(struct cxl *adapter);
-int cxl_reset(struct cxl *adapter);
-void cxl_release_afu(struct device *dev);
+int cxl_pci_reset(struct cxl *adapter);
+void cxl_pci_release_afu(struct device *dev);
 
 /* common == phyp + powernv */
 struct cxl_process_element_common {
@@ -623,7 +623,7 @@ static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 		return ~0ULL;
 }
 
-ssize_t cxl_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
+ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);
 
 
@@ -663,12 +663,12 @@ struct cxl *cxl_alloc_adapter(void);
 struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice);
 int cxl_afu_select_best_mode(struct cxl_afu *afu);
 
-int cxl_register_psl_irq(struct cxl_afu *afu);
-void cxl_release_psl_irq(struct cxl_afu *afu);
-int cxl_register_psl_err_irq(struct cxl *adapter);
-void cxl_release_psl_err_irq(struct cxl *adapter);
-int cxl_register_serr_irq(struct cxl_afu *afu);
-void cxl_release_serr_irq(struct cxl_afu *afu);
+int cxl_native_register_psl_irq(struct cxl_afu *afu);
+void cxl_native_release_psl_irq(struct cxl_afu *afu);
+int cxl_native_register_psl_err_irq(struct cxl *adapter);
+void cxl_native_release_psl_err_irq(struct cxl *adapter);
+int cxl_native_register_serr_irq(struct cxl_afu *afu);
+void cxl_native_release_serr_irq(struct cxl_afu *afu);
 int afu_register_irqs(struct cxl_context *ctx, u32 count);
 void afu_release_irqs(struct cxl_context *ctx, void *cookie);
 void afu_irq_name_free(struct cxl_context *ctx);

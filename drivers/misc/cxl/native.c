@@ -80,7 +80,7 @@ int cxl_afu_disable(struct cxl_afu *afu)
 }
 
 /* This will disable as well as reset */
-static int __cxl_afu_reset(struct cxl_afu *afu)
+static int native_afu_reset(struct cxl_afu *afu)
 {
 	pr_devel("AFU reset request\n");
 
@@ -90,7 +90,7 @@ static int __cxl_afu_reset(struct cxl_afu *afu)
 			   false);
 }
 
-static int cxl_afu_check_and_enable(struct cxl_afu *afu)
+static int native_afu_check_and_enable(struct cxl_afu *afu)
 {
 	if (!cxl_ops->link_ok(afu->adapter)) {
 		WARN(1, "Refusing to enable afu while link down!\n");
@@ -631,7 +631,7 @@ static int deactivate_dedicated_process(struct cxl_afu *afu)
 	return 0;
 }
 
-static int cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode)
+static int native_afu_deactivate_mode(struct cxl_afu *afu, int mode)
 {
 	if (mode == CXL_MODE_DIRECTED)
 		return deactivate_afu_directed(afu);
@@ -640,7 +640,7 @@ static int cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode)
 	return 0;
 }
 
-static int cxl_afu_activate_mode(struct cxl_afu *afu, int mode)
+static int native_afu_activate_mode(struct cxl_afu *afu, int mode)
 {
 	if (!mode)
 		return 0;
@@ -660,7 +660,8 @@ static int cxl_afu_activate_mode(struct cxl_afu *afu, int mode)
 	return -EINVAL;
 }
 
-static int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u64 amr)
+static int native_attach_process(struct cxl_context *ctx, bool kernel,
+				u64 wed, u64 amr)
 {
 	if (!cxl_ops->link_ok(ctx->afu->adapter)) {
 		WARN(1, "Device link is down, refusing to attach process!\n");
@@ -697,7 +698,7 @@ static inline int detach_process_native_afu_directed(struct cxl_context *ctx)
 	return 0;
 }
 
-static int cxl_detach_process(struct cxl_context *ctx)
+static int native_detach_process(struct cxl_context *ctx)
 {
 	trace_cxl_detach(ctx);
 
@@ -707,7 +708,7 @@ static int cxl_detach_process(struct cxl_context *ctx)
 	return detach_process_native_afu_directed(ctx);
 }
 
-static int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info)
+static int native_get_irq_info(struct cxl_afu *afu, struct cxl_irq_info *info)
 {
 	u64 pidtid;
 
@@ -729,7 +730,8 @@ static int cxl_get_irq(struct cxl_afu *afu, struct cxl_irq_info *info)
 	return 0;
 }
 
-static irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr, u64 errstat)
+static irqreturn_t native_handle_psl_slice_error(struct cxl_context *ctx,
+						u64 dsisr, u64 errstat)
 {
 	u64 fir1, fir2, fir_slice, serr, afu_debug;
 
@@ -762,7 +764,7 @@ static irqreturn_t fail_psl_irq(struct cxl_afu *afu, struct cxl_irq_info *irq_in
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
+static irqreturn_t native_irq_multiplexed(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	struct cxl_context *ctx;
@@ -770,7 +772,7 @@ static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
 	int ph = cxl_p2n_read(afu, CXL_PSL_PEHandle_An) & 0xffff;
 	int ret;
 
-	if ((ret = cxl_get_irq(afu, &irq_info))) {
+	if ((ret = native_get_irq_info(afu, &irq_info))) {
 		WARN(1, "Unable to get CXL IRQ Info: %i\n", ret);
 		return fail_psl_irq(afu, &irq_info);
 	}
@@ -791,7 +793,7 @@ static irqreturn_t cxl_irq_multiplexed(int irq, void *data)
 	return fail_psl_irq(afu, &irq_info);
 }
 
-static irqreturn_t cxl_slice_irq_err(int irq, void *data)
+static irqreturn_t native_slice_irq_err(int irq, void *data)
 {
 	struct cxl_afu *afu = data;
 	u64 fir_slice, errstat, serr, afu_debug;
@@ -812,7 +814,7 @@ static irqreturn_t cxl_slice_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cxl_irq_err(int irq, void *data)
+static irqreturn_t native_irq_err(int irq, void *data)
 {
 	struct cxl *adapter = data;
 	u64 fir1, fir2, err_ivte;
@@ -833,7 +835,7 @@ static irqreturn_t cxl_irq_err(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int cxl_register_psl_err_irq(struct cxl *adapter)
+int cxl_native_register_psl_err_irq(struct cxl *adapter)
 {
 	int rc;
 
@@ -842,7 +844,7 @@ int cxl_register_psl_err_irq(struct cxl *adapter)
 	if (!adapter->irq_name)
 		return -ENOMEM;
 
-	if ((rc = cxl_register_one_irq(adapter, cxl_irq_err, adapter,
+	if ((rc = cxl_register_one_irq(adapter, native_irq_err, adapter,
 				       &adapter->err_hwirq,
 				       &adapter->err_virq,
 				       adapter->irq_name))) {
@@ -856,7 +858,7 @@ int cxl_register_psl_err_irq(struct cxl *adapter)
 	return 0;
 }
 
-void cxl_release_psl_err_irq(struct cxl *adapter)
+void cxl_native_release_psl_err_irq(struct cxl *adapter)
 {
 	if (adapter->err_virq != irq_find_mapping(NULL, adapter->err_hwirq))
 		return;
@@ -867,7 +869,7 @@ void cxl_release_psl_err_irq(struct cxl *adapter)
 	kfree(adapter->irq_name);
 }
 
-int cxl_register_serr_irq(struct cxl_afu *afu)
+int cxl_native_register_serr_irq(struct cxl_afu *afu)
 {
 	u64 serr;
 	int rc;
@@ -877,7 +879,7 @@ int cxl_register_serr_irq(struct cxl_afu *afu)
 	if (!afu->err_irq_name)
 		return -ENOMEM;
 
-	if ((rc = cxl_register_one_irq(afu->adapter, cxl_slice_irq_err, afu,
+	if ((rc = cxl_register_one_irq(afu->adapter, native_slice_irq_err, afu,
 				       &afu->serr_hwirq,
 				       &afu->serr_virq, afu->err_irq_name))) {
 		kfree(afu->err_irq_name);
@@ -892,7 +894,7 @@ int cxl_register_serr_irq(struct cxl_afu *afu)
 	return 0;
 }
 
-void cxl_release_serr_irq(struct cxl_afu *afu)
+void cxl_native_release_serr_irq(struct cxl_afu *afu)
 {
 	if (afu->serr_virq != irq_find_mapping(NULL, afu->serr_hwirq))
 		return;
@@ -903,7 +905,7 @@ void cxl_release_serr_irq(struct cxl_afu *afu)
 	kfree(afu->err_irq_name);
 }
 
-int cxl_register_psl_irq(struct cxl_afu *afu)
+int cxl_native_register_psl_irq(struct cxl_afu *afu)
 {
 	int rc;
 
@@ -912,7 +914,7 @@ int cxl_register_psl_irq(struct cxl_afu *afu)
 	if (!afu->psl_irq_name)
 		return -ENOMEM;
 
-	if ((rc = cxl_register_one_irq(afu->adapter, cxl_irq_multiplexed, afu,
+	if ((rc = cxl_register_one_irq(afu->adapter, native_irq_multiplexed, afu,
 				    &afu->psl_hwirq, &afu->psl_virq,
 				    afu->psl_irq_name))) {
 		kfree(afu->psl_irq_name);
@@ -921,7 +923,7 @@ int cxl_register_psl_irq(struct cxl_afu *afu)
 	return rc;
 }
 
-void cxl_release_psl_irq(struct cxl_afu *afu)
+void cxl_native_release_psl_irq(struct cxl_afu *afu)
 {
 	if (afu->psl_virq != irq_find_mapping(NULL, afu->psl_hwirq))
 		return;
@@ -945,7 +947,7 @@ static void recover_psl_err(struct cxl_afu *afu, u64 errstat)
 	cxl_p2n_write(afu, CXL_PSL_ErrStat_An, errstat);
 }
 
-static int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask)
+static int native_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask)
 {
 	trace_cxl_psl_irq_ack(ctx, tfc);
 	if (tfc)
@@ -961,7 +963,7 @@ int cxl_check_error(struct cxl_afu *afu)
 	return (cxl_p1n_read(afu, CXL_PSL_SCNTL_An) == ~0ULL);
 }
 
-static int cxl_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
+static int native_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 {
 	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
 		return -EIO;
@@ -972,7 +974,7 @@ static int cxl_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 	return 0;
 }
 
-static int cxl_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off, u32 *out)
+static int native_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off, u32 *out)
 {
 	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
 		return -EIO;
@@ -983,25 +985,25 @@ static int cxl_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off, u32 *out)
 	return 0;
 }
 
-static int cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off, u16 *out)
+static int native_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off, u16 *out)
 {
 	u64 aligned_off = off & ~0x3L;
 	u32 val;
 	int rc;
 
-	rc = cxl_afu_cr_read32(afu, cr, aligned_off, &val);
+	rc = native_afu_cr_read32(afu, cr, aligned_off, &val);
 	if (!rc)
 		*out = (val >> ((off & 0x3) * 8)) & 0xffff;
 	return rc;
 }
 
-static int cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off, u8 *out)
+static int native_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off, u8 *out)
 {
 	u64 aligned_off = off & ~0x3L;
 	u32 val;
 	int rc;
 
-	rc = cxl_afu_cr_read32(afu, cr, aligned_off, &val);
+	rc = native_afu_cr_read32(afu, cr, aligned_off, &val);
 	if (!rc)
 		*out = (val >> ((off & 0x3) * 8)) & 0xff;
 	return rc;
@@ -1009,26 +1011,26 @@ static int cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off, u8 *out)
 
 const struct cxl_backend_ops cxl_native_ops = {
 	.module = THIS_MODULE,
-	.adapter_reset = cxl_reset,
-	.alloc_one_irq = cxl_alloc_one_irq,
-	.release_one_irq = cxl_release_one_irq,
-	.alloc_irq_ranges = cxl_alloc_irq_ranges,
-	.release_irq_ranges = cxl_release_irq_ranges,
-	.setup_irq = cxl_setup_irq,
-	.handle_psl_slice_error = handle_psl_slice_error,
+	.adapter_reset = cxl_pci_reset,
+	.alloc_one_irq = cxl_pci_alloc_one_irq,
+	.release_one_irq = cxl_pci_release_one_irq,
+	.alloc_irq_ranges = cxl_pci_alloc_irq_ranges,
+	.release_irq_ranges = cxl_pci_release_irq_ranges,
+	.setup_irq = cxl_pci_setup_irq,
+	.handle_psl_slice_error = native_handle_psl_slice_error,
 	.psl_interrupt = NULL,
-	.ack_irq = cxl_ack_irq,
-	.attach_process = cxl_attach_process,
-	.detach_process = cxl_detach_process,
+	.ack_irq = native_ack_irq,
+	.attach_process = native_attach_process,
+	.detach_process = native_detach_process,
 	.link_ok = cxl_adapter_link_ok,
-	.release_afu = cxl_release_afu,
-	.afu_read_err_buffer = cxl_afu_read_err_buffer,
-	.afu_check_and_enable = cxl_afu_check_and_enable,
-	.afu_activate_mode = cxl_afu_activate_mode,
-	.afu_deactivate_mode = cxl_afu_deactivate_mode,
-	.afu_reset = __cxl_afu_reset,
-	.afu_cr_read8 = cxl_afu_cr_read8,
-	.afu_cr_read16 = cxl_afu_cr_read16,
-	.afu_cr_read32 = cxl_afu_cr_read32,
-	.afu_cr_read64 = cxl_afu_cr_read64,
+	.release_afu = cxl_pci_release_afu,
+	.afu_read_err_buffer = cxl_pci_afu_read_err_buffer,
+	.afu_check_and_enable = native_afu_check_and_enable,
+	.afu_activate_mode = native_afu_activate_mode,
+	.afu_deactivate_mode = native_afu_deactivate_mode,
+	.afu_reset = native_afu_reset,
+	.afu_cr_read8 = native_afu_cr_read8,
+	.afu_cr_read16 = native_afu_cr_read16,
+	.afu_cr_read32 = native_afu_cr_read32,
+	.afu_cr_read64 = native_afu_cr_read64,
 };
