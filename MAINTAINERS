@@ -10941,7 +10941,7 @@ F:	net/tipc/
 
 TILE ARCHITECTURE
 M:	Chris Metcalf <cmetcalf@mellanox.com>
-W:	http://www.ezchip.com/scm/
+W:	http://www.mellanox.com/repository/solutions/tile-scm/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cmetcalf/linux-tile.git
 S:	Supported
 F:	arch/tile/
