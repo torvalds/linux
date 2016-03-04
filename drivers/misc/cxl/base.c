@@ -84,3 +84,10 @@ void unregister_cxl_calls(struct cxl_calls *calls)
 	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(unregister_cxl_calls);
+
+int cxl_update_properties(struct device_node *dn,
+			  struct property *new_prop)
+{
+	return of_update_property(dn, new_prop);
+}
+EXPORT_SYMBOL_GPL(cxl_update_properties);
