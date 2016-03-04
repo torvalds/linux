@@ -76,7 +76,6 @@ struct device *cxl_get_phys_dev(struct pci_dev *dev)
 
 	return afu->adapter->dev.parent;
 }
-EXPORT_SYMBOL_GPL(cxl_get_phys_dev);
 
 int cxl_release_context(struct cxl_context *ctx)
 {
