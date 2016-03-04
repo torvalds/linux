@@ -39,6 +39,14 @@ struct qed_update_vport_params {
 	struct qed_update_vport_rss_params rss_params;
 };
 
+struct qed_start_vport_params {
+	bool remove_inner_vlan;
+	bool gro_enable;
+	bool drop_ttl0;
+	u8 vport_id;
+	u16 mtu;
+};
+
 struct qed_stop_rxq_params {
 	u8 rss_id;
 	u8 rx_queue_id;
@@ -118,9 +126,7 @@ struct qed_eth_ops {
 			     void *cookie);
 
 	int (*vport_start)(struct qed_dev *cdev,
-			   u8 vport_id, u16 mtu,
-			   u8 drop_ttl0_flg,
-			   u8 inner_vlan_removal_en_flg);
+			   struct qed_start_vport_params *params);
 
 	int (*vport_stop)(struct qed_dev *cdev,
 			  u8 vport_id);

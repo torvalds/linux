@@ -2466,11 +2466,12 @@ static int qede_stop_queues(struct qede_dev *edev)
 static int qede_start_queues(struct qede_dev *edev)
 {
 	int rc, tc, i;
-	int vport_id = 0, drop_ttl0_flg = 1, vlan_removal_en = 1;
+	int vlan_removal_en = 1;
 	struct qed_dev *cdev = edev->cdev;
 	struct qed_update_vport_rss_params *rss_params = &edev->rss_params;
 	struct qed_update_vport_params vport_update_params;
 	struct qed_queue_start_common_params q_params;
+	struct qed_start_vport_params start = {0};
 
 	if (!edev->num_rss) {
 		DP_ERR(edev,
@@ -2478,10 +2479,12 @@ static int qede_start_queues(struct qede_dev *edev)
 		return -EINVAL;
 	}
 
-	rc = edev->ops->vport_start(cdev, vport_id,
-				    edev->ndev->mtu,
-				    drop_ttl0_flg,
-				    vlan_removal_en);
+	start.mtu = edev->ndev->mtu;
+	start.vport_id = 0;
+	start.drop_ttl0 = true;
+	start.remove_inner_vlan = vlan_removal_en;
+
+	rc = edev->ops->vport_start(cdev, &start);
 
 	if (rc) {
 		DP_ERR(edev, "Start V-PORT failed %d\n", rc);
@@ -2490,7 +2493,7 @@ static int qede_start_queues(struct qede_dev *edev)
 
 	DP_VERBOSE(edev, NETIF_MSG_IFUP,
 		   "Start vport ramrod passed, vport_id = %d, MTU = %d, vlan_removal_en = %d\n",
-		   vport_id, edev->ndev->mtu + 0xe, vlan_removal_en);
+		   start.vport_id, edev->ndev->mtu + 0xe, vlan_removal_en);
 
 	for_each_rss(i) {
 		struct qede_fastpath *fp = &edev->fp_array[i];
@@ -2555,7 +2558,7 @@ static int qede_start_queues(struct qede_dev *edev)
 
 	/* Prepare and send the vport enable */
 	memset(&vport_update_params, 0, sizeof(vport_update_params));
-	vport_update_params.vport_id = vport_id;
+	vport_update_params.vport_id = start.vport_id;
 	vport_update_params.update_vport_active_flg = 1;
 	vport_update_params.vport_active_flg = 1;
 

@@ -132,16 +132,29 @@ struct qed_sp_vport_update_params {
 	struct qed_filter_accept_flags	accept_flags;
 };
 
+enum qed_tpa_mode {
+	QED_TPA_MODE_NONE,
+	QED_TPA_MODE_UNUSED,
+	QED_TPA_MODE_GRO,
+	QED_TPA_MODE_MAX
+};
+
+struct qed_sp_vport_start_params {
+	enum qed_tpa_mode	tpa_mode;
+	bool			remove_inner_vlan;
+	bool			drop_ttl0;
+	u8			max_buffers_per_cqe;
+	u32			concrete_fid;
+	u16			opaque_fid;
+	u8			vport_id;
+	u16			mtu;
+};
+
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
 
 static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
-			      u32 concrete_fid,
-			      u16 opaque_fid,
-			      u8 vport_id,
-			      u16 mtu,
-			      u8 drop_ttl0_flg,
-			      u8 inner_vlan_removal_en_flg)
+			      struct qed_sp_vport_start_params *p_params)
 {
 	struct vport_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent =  NULL;
@@ -150,13 +163,13 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 	u16 rx_mode = 0;
 	u8 abs_vport_id = 0;
 
-	rc = qed_fw_vport(p_hwfn, vport_id, &abs_vport_id);
+	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
 	if (rc != 0)
 		return rc;
 
 	memset(&init_data, 0, sizeof(init_data));
 	init_data.cid = qed_spq_get_cid(p_hwfn);
-	init_data.opaque_fid = opaque_fid;
+	init_data.opaque_fid = p_params->opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
@@ -168,9 +181,9 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod		= &p_ent->ramrod.vport_start;
 	p_ramrod->vport_id	= abs_vport_id;
 
-	p_ramrod->mtu			= cpu_to_le16(mtu);
-	p_ramrod->inner_vlan_removal_en = inner_vlan_removal_en_flg;
-	p_ramrod->drop_ttl0_en		= drop_ttl0_flg;
+	p_ramrod->mtu			= cpu_to_le16(p_params->mtu);
+	p_ramrod->inner_vlan_removal_en	= p_params->remove_inner_vlan;
+	p_ramrod->drop_ttl0_en		= p_params->drop_ttl0;
 
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_UCAST_DROP_ALL, 1);
 	SET_FIELD(rx_mode, ETH_VPORT_RX_MODE_MCAST_DROP_ALL, 1);
@@ -181,9 +194,26 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 	memset(&p_ramrod->tpa_param, 0,
 	       sizeof(struct eth_vport_tpa_param));
 
+	p_ramrod->tpa_param.max_buff_num = p_params->max_buffers_per_cqe;
+
+	switch (p_params->tpa_mode) {
+	case QED_TPA_MODE_GRO:
+		p_ramrod->tpa_param.tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
+		p_ramrod->tpa_param.tpa_max_size = (u16)-1;
+		p_ramrod->tpa_param.tpa_min_size_to_cont = p_params->mtu / 2;
+		p_ramrod->tpa_param.tpa_min_size_to_start = p_params->mtu / 2;
+		p_ramrod->tpa_param.tpa_ipv4_en_flg = 1;
+		p_ramrod->tpa_param.tpa_ipv6_en_flg = 1;
+		p_ramrod->tpa_param.tpa_pkt_split_flg = 1;
+		p_ramrod->tpa_param.tpa_gro_consistent_flg = 1;
+		break;
+	default:
+		break;
+	}
+
 	/* Software Function ID in hwfn (PFs are 0 - 15, VFs are 16 - 135) */
 	p_ramrod->sw_fid = qed_concrete_to_sw_fid(p_hwfn->cdev,
-						  concrete_fid);
+						  p_params->concrete_fid);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
@@ -1592,24 +1622,25 @@ static void qed_register_eth_ops(struct qed_dev *cdev,
 }
 
 static int qed_start_vport(struct qed_dev *cdev,
-			   u8 vport_id,
-			   u16 mtu,
-			   u8 drop_ttl0_flg,
-			   u8 inner_vlan_removal_en_flg)
+			   struct qed_start_vport_params *params)
 {
 	int rc, i;
 
 	for_each_hwfn(cdev, i) {
+		struct qed_sp_vport_start_params start = { 0 };
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 
-		rc = qed_sp_vport_start(p_hwfn,
-					p_hwfn->hw_info.concrete_fid,
-					p_hwfn->hw_info.opaque_fid,
-					vport_id,
-					mtu,
-					drop_ttl0_flg,
-					inner_vlan_removal_en_flg);
+		start.tpa_mode = params->gro_enable ? QED_TPA_MODE_GRO :
+							QED_TPA_MODE_NONE;
+		start.remove_inner_vlan = params->remove_inner_vlan;
+		start.drop_ttl0 = params->drop_ttl0;
+		start.opaque_fid = p_hwfn->hw_info.opaque_fid;
+		start.concrete_fid = p_hwfn->hw_info.concrete_fid;
+		start.vport_id = params->vport_id;
+		start.max_buffers_per_cqe = 16;
+		start.mtu = params->mtu;
 
+		rc = qed_sp_vport_start(p_hwfn, &start);
 		if (rc) {
 			DP_ERR(cdev, "Failed to start VPORT\n");
 			return rc;
@@ -1619,7 +1650,7 @@ static int qed_start_vport(struct qed_dev *cdev,
 
 		DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
 			   "Started V-PORT %d with MTU %d\n",
-			   vport_id, mtu);
+			   start.vport_id, start.mtu);
 	}
 
 	qed_reset_vport_stats(cdev);
