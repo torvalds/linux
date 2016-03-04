@@ -797,7 +797,6 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	__be32 *iptr;
 	int rdmalen, status, rmerr;
 	unsigned long cwnd;
-	u32 credits;
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
 
@@ -928,15 +927,9 @@ out:
 	if (req->rl_nchunks)
 		r_xprt->rx_ia.ri_ops->ro_unmap_sync(r_xprt, req);
 
-	credits = be32_to_cpu(headerp->rm_credit);
-	if (credits == 0)
-		credits = 1;	/* don't deadlock */
-	else if (credits > r_xprt->rx_buf.rb_max_requests)
-		credits = r_xprt->rx_buf.rb_max_requests;
-
 	spin_lock_bh(&xprt->transport_lock);
 	cwnd = xprt->cwnd;
-	xprt->cwnd = credits << RPC_CWNDSHIFT;
+	xprt->cwnd = atomic_read(&r_xprt->rx_buf.rb_credits) << RPC_CWNDSHIFT;
 	if (xprt->cwnd > cwnd)
 		xprt_release_rqst_cong(rqst->rq_task);
 
