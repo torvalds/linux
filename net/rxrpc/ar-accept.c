@@ -185,7 +185,7 @@ invalid_service:
 	read_unlock_bh(&local->services_lock);
 
 	read_lock_bh(&call->state_lock);
-	if (!test_bit(RXRPC_CALL_RELEASE, &call->flags) &&
+	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
 	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events)) {
 		rxrpc_get_call(call);
 		rxrpc_queue_call(call);
