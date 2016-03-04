@@ -383,7 +383,7 @@ static int cyapa_open(struct input_dev *input)
 		 * when in operational mode.
 		 */
 		error = cyapa->ops->set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0, false);
+				PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_ACTIVE);
 		if (error) {
 			dev_warn(dev, "set active power failed: %d\n", error);
 			goto out;
@@ -424,7 +424,8 @@ static void cyapa_close(struct input_dev *input)
 	pm_runtime_set_suspended(dev);
 
 	if (cyapa->operational)
-		cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0, false);
+		cyapa->ops->set_power_mode(cyapa,
+				PWR_MODE_OFF, 0, CYAPA_PM_DEACTIVE);
 
 	mutex_unlock(&cyapa->state_sync_lock);
 }
@@ -534,7 +535,7 @@ static void cyapa_enable_irq_for_cmd(struct cyapa *cyapa)
 		 */
 		if (!input || cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
-				PWR_MODE_FULL_ACTIVE, 0, false);
+				PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_ACTIVE);
 		/* Gen3 always using polling mode for command. */
 		if (cyapa->gen >= CYAPA_GEN5)
 			enable_irq(cyapa->client->irq);
@@ -550,7 +551,7 @@ static void cyapa_disable_irq_for_cmd(struct cyapa *cyapa)
 			disable_irq(cyapa->client->irq);
 		if (!input || cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
-						   PWR_MODE_OFF, 0, false);
+					PWR_MODE_OFF, 0, CYAPA_PM_ACTIVE);
 	}
 }
 
@@ -617,7 +618,8 @@ static int cyapa_initialize(struct cyapa *cyapa)
 
 	/* Power down the device until we need it. */
 	if (cyapa->operational)
-		cyapa->ops->set_power_mode(cyapa, PWR_MODE_OFF, 0, false);
+		cyapa->ops->set_power_mode(cyapa,
+				PWR_MODE_OFF, 0, CYAPA_PM_ACTIVE);
 
 	return 0;
 }
@@ -634,7 +636,7 @@ static int cyapa_reinitialize(struct cyapa *cyapa)
 	/* Avoid command failures when TP was in OFF state. */
 	if (cyapa->operational)
 		cyapa->ops->set_power_mode(cyapa,
-					   PWR_MODE_FULL_ACTIVE, 0, false);
+				PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_ACTIVE);
 
 	error = cyapa_detect(cyapa);
 	if (error)
@@ -654,7 +656,7 @@ out:
 		/* Reset to power OFF state to save power when no user open. */
 		if (cyapa->operational)
 			cyapa->ops->set_power_mode(cyapa,
-						   PWR_MODE_OFF, 0, false);
+					PWR_MODE_OFF, 0, CYAPA_PM_DEACTIVE);
 	} else if (!error && cyapa->operational) {
 		/*
 		 * Make sure only enable runtime PM when device is
@@ -1392,7 +1394,7 @@ static int __maybe_unused cyapa_suspend(struct device *dev)
 		power_mode = device_may_wakeup(dev) ? cyapa->suspend_power_mode
 						    : PWR_MODE_OFF;
 		error = cyapa->ops->set_power_mode(cyapa, power_mode,
-				cyapa->suspend_sleep_time, true);
+				cyapa->suspend_sleep_time, CYAPA_PM_SUSPEND);
 		if (error)
 			dev_err(dev, "suspend set power mode failed: %d\n",
 					error);
@@ -1447,7 +1449,7 @@ static int __maybe_unused cyapa_runtime_suspend(struct device *dev)
 	error = cyapa->ops->set_power_mode(cyapa,
 			cyapa->runtime_suspend_power_mode,
 			cyapa->runtime_suspend_sleep_time,
-			false);
+			CYAPA_PM_RUNTIME_SUSPEND);
 	if (error)
 		dev_warn(dev, "runtime suspend failed: %d\n", error);
 
@@ -1460,7 +1462,7 @@ static int __maybe_unused cyapa_runtime_resume(struct device *dev)
 	int error;
 
 	error = cyapa->ops->set_power_mode(cyapa,
-					   PWR_MODE_FULL_ACTIVE, 0, false);
+			PWR_MODE_FULL_ACTIVE, 0, CYAPA_PM_RUNTIME_RESUME);
 	if (error)
 		dev_warn(dev, "runtime resume failed: %d\n", error);
 
