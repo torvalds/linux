@@ -1118,6 +1118,7 @@ struct intel_gen6_power_mgmt {
 	u8 efficient_freq;	/* AKA RPe. Pre-determined balanced frequency */
 	u8 rp1_freq;		/* "less than" RP0 power/freqency */
 	u8 rp0_freq;		/* Non-overclocked max frequency. */
+	u16 gpll_ref_freq;	/* vlv/chv GPLL reference frequency */
 
 	u8 up_threshold; /* Current %busy required to uplock */
 	u8 down_threshold; /* Current %busy required to downclock */

@@ -147,14 +147,11 @@ static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	return vco_freq[hpll_freq] * 1000;
 }
 
-static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
-				  const char *name, u32 reg)
+int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+		      const char *name, u32 reg, int ref_freq)
 {
 	u32 val;
 	int divider;
-
-	if (dev_priv->hpll_freq == 0)
-		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
 
 	mutex_lock(&dev_priv->sb_lock);
 	val = vlv_cck_read(dev_priv, reg);
@@ -166,7 +163,17 @@ static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 	     (divider << CCK_FREQUENCY_STATUS_SHIFT),
 	     "%s change in progress\n", name);
 
-	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
+	return DIV_ROUND_CLOSEST(ref_freq << 1, divider + 1);
+}
+
+static int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+				  const char *name, u32 reg)
+{
+	if (dev_priv->hpll_freq == 0)
+		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
+
+	return vlv_get_cck_clock(dev_priv, name, reg,
+				 dev_priv->hpll_freq);
 }
 
 static int
