@@ -775,10 +775,10 @@ static struct rtable *geneve_get_v4_rt(struct sk_buff *skb,
 				       struct flowi4 *fl4,
 				       struct ip_tunnel_info *info)
 {
+	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct geneve_dev *geneve = netdev_priv(dev);
 	struct dst_cache *dst_cache;
 	struct rtable *rt = NULL;
-	bool use_cache = true;
 	__u8 tos;
 
 	memset(fl4, 0, sizeof(*fl4));
@@ -804,7 +804,6 @@ static struct rtable *geneve_get_v4_rt(struct sk_buff *skb,
 		dst_cache = &geneve->dst_cache;
 	}
 
-	use_cache = use_cache && !skb->mark;
 	if (use_cache) {
 		rt = dst_cache_get_ip4(dst_cache, &fl4->saddr);
 		if (rt)
@@ -832,11 +831,11 @@ static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
 					   struct flowi6 *fl6,
 					   struct ip_tunnel_info *info)
 {
+	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct geneve_dev *geneve = netdev_priv(dev);
 	struct geneve_sock *gs6 = geneve->sock6;
 	struct dst_entry *dst = NULL;
 	struct dst_cache *dst_cache;
-	bool use_cache = true;
 	__u8 prio;
 
 	memset(fl6, 0, sizeof(*fl6));
@@ -862,7 +861,6 @@ static struct dst_entry *geneve_get_v6_dst(struct sk_buff *skb,
 		dst_cache = &geneve->dst_cache;
 	}
 
-	use_cache = use_cache && !skb->mark;
 	if (use_cache) {
 		dst = dst_cache_get_ip6(dst_cache, &fl6->saddr);
 		if (dst)

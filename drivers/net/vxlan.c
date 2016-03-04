@@ -1756,17 +1756,15 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan,
 				      struct sk_buff *skb, int oif, u8 tos,
 				      __be32 daddr, __be32 *saddr,
 				      struct dst_cache *dst_cache,
-				      struct ip_tunnel_info *info)
+				      const struct ip_tunnel_info *info)
 {
+	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct rtable *rt = NULL;
-	bool use_cache = false;
 	struct flowi4 fl4;
 
-	/* when the ip_tunnel_info is availble, the tos used for lookup is
-	 * packet independent, so we can use the cache
-	 */
-	if (!skb->mark && (!tos || info)) {
-		use_cache = true;
+	if (tos && !info)
+		use_cache = false;
+	if (use_cache) {
 		rt = dst_cache_get_ip4(dst_cache, saddr);
 		if (rt)
 			return rt;
@@ -1794,13 +1792,15 @@ static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 					  struct sk_buff *skb, int oif,
 					  const struct in6_addr *daddr,
 					  struct in6_addr *saddr,
-					  struct dst_cache *dst_cache)
+					  struct dst_cache *dst_cache,
+					  const struct ip_tunnel_info *info)
 {
+	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct dst_entry *ndst;
 	struct flowi6 fl6;
 	int err;
 
-	if (!skb->mark) {
+	if (use_cache) {
 		ndst = dst_cache_get_ip6(dst_cache, saddr);
 		if (ndst)
 			return ndst;
@@ -1820,7 +1820,7 @@ static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 		return ERR_PTR(err);
 
 	*saddr = fl6.saddr;
-	if (!skb->mark)
+	if (use_cache)
 		dst_cache_set_ip6(dst_cache, ndst, saddr);
 	return ndst;
 }
@@ -2018,7 +2018,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		ndst = vxlan6_get_route(vxlan, skb,
 					rdst ? rdst->remote_ifindex : 0,
 					&dst->sin6.sin6_addr, &saddr,
-					dst_cache);
+					dst_cache, info);
 		if (IS_ERR(ndst)) {
 			netdev_dbg(dev, "no route to %pI6\n",
 				   &dst->sin6.sin6_addr);
@@ -2387,7 +2387,7 @@ static int vxlan_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 			return -EINVAL;
 		ndst = vxlan6_get_route(vxlan, skb, 0,
 					&info->key.u.ipv6.dst,
-					&info->key.u.ipv6.src, NULL);
+					&info->key.u.ipv6.src, NULL, info);
 		if (IS_ERR(ndst))
 			return PTR_ERR(ndst);
 		dst_release(ndst);

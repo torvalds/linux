@@ -140,6 +140,7 @@ struct ip_tunnel {
 #define TUNNEL_CRIT_OPT		__cpu_to_be16(0x0400)
 #define TUNNEL_GENEVE_OPT	__cpu_to_be16(0x0800)
 #define TUNNEL_VXLAN_OPT	__cpu_to_be16(0x1000)
+#define TUNNEL_NOCACHE		__cpu_to_be16(0x2000)
 
 #define TUNNEL_OPTIONS_PRESENT	(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT)
 
@@ -204,6 +205,20 @@ static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 	if (sizeof(*key) != IP_TUNNEL_KEY_SIZE)
 		memset((unsigned char *)key + IP_TUNNEL_KEY_SIZE,
 		       0, sizeof(*key) - IP_TUNNEL_KEY_SIZE);
+}
+
+static inline bool
+ip_tunnel_dst_cache_usable(const struct sk_buff *skb,
+			   const struct ip_tunnel_info *info)
+{
+	if (skb->mark)
+		return false;
+	if (!info)
+		return true;
+	if (info->key.tun_flags & TUNNEL_NOCACHE)
+		return false;
+
+	return true;
 }
 
 static inline unsigned short ip_tunnel_info_af(const struct ip_tunnel_info
