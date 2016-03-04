@@ -666,6 +666,18 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	stm->dev.parent = parent;
 	stm->dev.release = stm_device_release;
 
+	mutex_init(&stm->link_mutex);
+	spin_lock_init(&stm->link_lock);
+	INIT_LIST_HEAD(&stm->link_list);
+
+	/* initialize the object before it is accessible via sysfs */
+	spin_lock_init(&stm->mc_lock);
+	mutex_init(&stm->policy_mutex);
+	stm->sw_nmasters = nmasters;
+	stm->owner = owner;
+	stm->data = stm_data;
+	stm_data->stm = stm;
+
 	err = kobject_set_name(&stm->dev.kobj, "%s", stm_data->name);
 	if (err)
 		goto err_device;
@@ -673,17 +685,6 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	err = device_add(&stm->dev);
 	if (err)
 		goto err_device;
-
-	mutex_init(&stm->link_mutex);
-	spin_lock_init(&stm->link_lock);
-	INIT_LIST_HEAD(&stm->link_list);
-
-	spin_lock_init(&stm->mc_lock);
-	mutex_init(&stm->policy_mutex);
-	stm->sw_nmasters = nmasters;
-	stm->owner = owner;
-	stm->data = stm_data;
-	stm_data->stm = stm;
 
 	return 0;
 
