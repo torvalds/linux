@@ -445,7 +445,7 @@ struct dasd_device {
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
 	struct dasd_discipline *base_discipline;
-	char *private;
+	void *private;
 	struct dasd_path path_data;
 
 	/* Device state and target state. */
