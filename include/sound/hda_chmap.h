@@ -7,6 +7,9 @@
 
 #include <sound/hdaudio.h>
 
+
+#define SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE 80
+
 struct hdac_cea_channel_speaker_allocation {
 	int ca_index;
 	int speakers[8];
@@ -24,12 +27,13 @@ struct hdac_chmap_ops {
 	 */
 	int (*chmap_cea_alloc_validate_get_type)(struct hdac_chmap *chmap,
 		struct hdac_cea_channel_speaker_allocation *cap, int channels);
-	void (*cea_alloc_to_tlv_chmap)
-		(struct hdac_cea_channel_speaker_allocation *cap,
+	void (*cea_alloc_to_tlv_chmap)(struct hdac_chmap *hchmap,
+		struct hdac_cea_channel_speaker_allocation *cap,
 		unsigned int *chmap, int channels);
 
 	/* check that the user-given chmap is supported */
-	int (*chmap_validate)(int ca, int channels, unsigned char *chmap);
+	int (*chmap_validate)(struct hdac_chmap *hchmap, int ca,
+			int channels, unsigned char *chmap);
 
 	void (*get_chmap)(struct hdac_device *hdac, int pcm_idx,
 					unsigned char *chmap);
