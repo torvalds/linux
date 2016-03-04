@@ -1725,8 +1725,12 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 
 	sc->args = sc->tp_format->format.fields;
 	sc->nr_args = sc->tp_format->format.nr_fields;
-	/* drop nr field - not relevant here; does not exist on older kernels */
-	if (sc->args && strcmp(sc->args->name, "nr") == 0) {
+	/*
+	 * We need to check and discard the first variable '__syscall_nr'
+	 * or 'nr' that mean the syscall number. It is needless here.
+	 * So drop '__syscall_nr' or 'nr' field but does not exist on older kernels.
+	 */
+	if (sc->args && (!strcmp(sc->args->name, "__syscall_nr") || !strcmp(sc->args->name, "nr"))) {
 		sc->args = sc->args->next;
 		--sc->nr_args;
 	}

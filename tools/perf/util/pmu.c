@@ -124,6 +124,17 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	lc = setlocale(LC_NUMERIC, NULL);
 
 	/*
+	 * The lc string may be allocated in static storage,
+	 * so get a dynamic copy to make it survive setlocale
+	 * call below.
+	 */
+	lc = strdup(lc);
+	if (!lc) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	/*
 	 * force to C locale to ensure kernel
 	 * scale string is converted correctly.
 	 * kernel uses default C locale.
@@ -134,6 +145,8 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 
 	/* restore locale */
 	setlocale(LC_NUMERIC, lc);
+
+	free((char *) lc);
 
 	ret = 0;
 error:

@@ -103,6 +103,7 @@ static int __test__rdpmc(void)
 
 	sigfillset(&sa.sa_mask);
 	sa.sa_sigaction = segfault_handler;
+	sa.sa_flags = 0;
 	sigaction(SIGSEGV, &sa, NULL);
 
 	fd = sys_perf_event_open(&attr, 0, -1, -1,

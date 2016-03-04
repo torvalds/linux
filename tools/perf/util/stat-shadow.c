@@ -2,6 +2,7 @@
 #include "evsel.h"
 #include "stat.h"
 #include "color.h"
+#include "pmu.h"
 
 enum {
 	CTX_BIT_USER	= 1 << 0,
@@ -14,6 +15,13 @@ enum {
 
 #define NUM_CTX CTX_BIT_MAX
 
+/*
+ * AGGR_GLOBAL: Use CPU 0
+ * AGGR_SOCKET: Use first CPU of socket
+ * AGGR_CORE: Use first CPU of core
+ * AGGR_NONE: Use matching CPU
+ * AGGR_THREAD: Not supported?
+ */
 static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
 static struct stats runtime_cycles_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_stalled_cycles_front_stats[NUM_CTX][MAX_NR_CPUS];
@@ -28,8 +36,14 @@ static struct stats runtime_dtlb_cache_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_cycles_in_tx_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_transaction_stats[NUM_CTX][MAX_NR_CPUS];
 static struct stats runtime_elision_stats[NUM_CTX][MAX_NR_CPUS];
+static bool have_frontend_stalled;
 
 struct stats walltime_nsecs_stats;
+
+void perf_stat__init_shadow_stats(void)
+{
+	have_frontend_stalled = pmu_have_event("cpu", "stalled-cycles-frontend");
+}
 
 static int evsel_context(struct perf_evsel *evsel)
 {
@@ -310,13 +324,13 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 		total = avg_stats(&runtime_stalled_cycles_front_stats[ctx][cpu]);
 		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[ctx][cpu]));
 
-		out->new_line(ctxp);
 		if (total && avg) {
+			out->new_line(ctxp);
 			ratio = total / avg;
 			print_metric(ctxp, NULL, "%7.2f ",
 					"stalled cycles per insn",
 					ratio);
-		} else {
+		} else if (have_frontend_stalled) {
 			print_metric(ctxp, NULL, NULL,
 				     "stalled cycles per insn", 0);
 		}
