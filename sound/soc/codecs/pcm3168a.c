@@ -400,13 +400,12 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	struct pcm3168a_priv *pcm3168a = snd_soc_codec_get_drvdata(codec);
 	bool tx, master_mode;
 	u32 val, mask, shift, reg;
-	unsigned int rate, channels, fmt, ratio, max_ratio;
+	unsigned int rate, fmt, ratio, max_ratio;
 	int i, min_frame_size;
 	snd_pcm_format_t format;
 
 	rate = params_rate(params);
 	format = params_format(params);
-	channels = params_channels(params);
 
 	ratio = pcm3168a->sysclk / rate;
 
