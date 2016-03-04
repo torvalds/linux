@@ -1279,7 +1279,7 @@ u32 skl_plane_ctl_rotation(unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
-bool intel_csr_load_program(struct drm_i915_private *);
+void intel_csr_load_program(struct drm_i915_private *);
 void intel_csr_ucode_fini(struct drm_i915_private *);
 
 /* intel_dp.c */
