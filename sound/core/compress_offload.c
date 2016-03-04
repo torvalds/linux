@@ -704,7 +704,7 @@ static int snd_compress_wait_for_drain(struct snd_compr_stream *stream)
 
 	/*
 	 * We are called with lock held. So drop the lock while we wait for
-	 * drain complete notfication from the driver
+	 * drain complete notification from the driver
 	 *
 	 * It is expected that driver will notify the drain completion and then
 	 * stream will be moved to SETUP state, even if draining resulted in an
@@ -759,7 +759,7 @@ static int snd_compr_next_track(struct snd_compr_stream *stream)
 	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING)
 		return -EPERM;
 
-	/* you can signal next track isf this is intended to be a gapless stream
+	/* you can signal next track if this is intended to be a gapless stream
 	 * and current track metadata is set
 	 */
 	if (stream->metadata_set == false)
