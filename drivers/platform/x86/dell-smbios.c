@@ -40,7 +40,7 @@ static int da_command_code;
 static int da_num_tokens;
 static struct calling_interface_token *da_tokens;
 
-int dell_smi_error(int value)
+int dell_smbios_error(int value)
 {
 	switch (value) {
 	case 0: /* Completed successfully */
@@ -53,7 +53,7 @@ int dell_smi_error(int value)
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL_GPL(dell_smi_error);
+EXPORT_SYMBOL_GPL(dell_smbios_error);
 
 struct calling_interface_buffer *dell_smbios_get_buffer(void)
 {

@@ -433,7 +433,7 @@ static int dell_rfkill_set(void *data, bool blocked)
 
  out:
 	dell_smbios_release_buffer();
-	return dell_smi_error(ret);
+	return dell_smbios_error(ret);
 }
 
 /* Must be called with the buffer held */
@@ -876,7 +876,7 @@ static int dell_send_intensity(struct backlight_device *bd)
 	else
 		dell_smbios_send_request(1, 1);
 
-	ret = dell_smi_error(buffer->output[0]);
+	ret = dell_smbios_error(buffer->output[0]);
 
 	dell_smbios_release_buffer();
 	return ret;
@@ -901,7 +901,7 @@ static int dell_get_intensity(struct backlight_device *bd)
 		dell_smbios_send_request(0, 1);
 
 	if (buffer->output[0])
-		ret = dell_smi_error(buffer->output[0]);
+		ret = dell_smbios_error(buffer->output[0]);
 	else
 		ret = buffer->output[1];
 
@@ -1160,7 +1160,7 @@ static int kbd_get_info(struct kbd_info *info)
 	ret = buffer->output[0];
 
 	if (ret) {
-		ret = dell_smi_error(ret);
+		ret = dell_smbios_error(ret);
 		goto out;
 	}
 
@@ -1249,7 +1249,7 @@ static int kbd_get_state(struct kbd_state *state)
 	ret = buffer->output[0];
 
 	if (ret) {
-		ret = dell_smi_error(ret);
+		ret = dell_smbios_error(ret);
 		goto out;
 	}
 
@@ -1286,7 +1286,7 @@ static int kbd_set_state(struct kbd_state *state)
 	ret = buffer->output[0];
 	dell_smbios_release_buffer();
 
-	return dell_smi_error(ret);
+	return dell_smbios_error(ret);
 }
 
 static int kbd_set_state_safe(struct kbd_state *state, struct kbd_state *old)
@@ -1329,7 +1329,7 @@ static int kbd_set_token_bit(u8 bit)
 	ret = buffer->output[0];
 	dell_smbios_release_buffer();
 
-	return dell_smi_error(ret);
+	return dell_smbios_error(ret);
 }
 
 static int kbd_get_token_bit(u8 bit)
@@ -1354,7 +1354,7 @@ static int kbd_get_token_bit(u8 bit)
 	dell_smbios_release_buffer();
 
 	if (ret)
-		return dell_smi_error(ret);
+		return dell_smbios_error(ret);
 
 	return (val == token->value);
 }

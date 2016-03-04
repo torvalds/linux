@@ -35,7 +35,7 @@ struct calling_interface_token {
 	};
 };
 
-int dell_smi_error(int value);
+int dell_smbios_error(int value);
 
 struct calling_interface_buffer *dell_smbios_get_buffer(void);
 void dell_smbios_clear_buffer(void);
