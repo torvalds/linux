@@ -228,7 +228,7 @@ static long afu_ioctl_process_element(struct cxl_context *ctx,
 {
 	pr_devel("%s: pe: %i\n", __func__, ctx->pe);
 
-	if (copy_to_user(upe, &ctx->pe, sizeof(__u32)))
+	if (copy_to_user(upe, &ctx->external_pe, sizeof(__u32)))
 		return -EFAULT;
 
 	return 0;

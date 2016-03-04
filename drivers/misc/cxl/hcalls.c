@@ -11,7 +11,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <asm/hvcall.h>
 #include <asm/byteorder.h>
 #include "hcalls.h"
 

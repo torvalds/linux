@@ -285,9 +285,6 @@ static int __init init_cxl(void)
 {
 	int rc = 0;
 
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
-		return -EPERM;
-
 	if ((rc = cxl_file_init()))
 		return rc;
 
@@ -296,8 +293,17 @@ static int __init init_cxl(void)
 	if ((rc = register_cxl_calls(&cxl_calls)))
 		goto err;
 
-	cxl_ops = &cxl_native_ops;
-	if ((rc = pci_register_driver(&cxl_pci_driver)))
+	if (cpu_has_feature(CPU_FTR_HVMODE)) {
+		cxl_ops = &cxl_native_ops;
+		rc = pci_register_driver(&cxl_pci_driver);
+	}
+#ifdef CONFIG_PPC_PSERIES
+	else {
+		cxl_ops = &cxl_guest_ops;
+		rc = platform_driver_register(&cxl_of_driver);
+	}
+#endif
+	if (rc)
 		goto err1;
 
 	return 0;
@@ -312,7 +318,12 @@ err:
 
 static void exit_cxl(void)
 {
-	pci_unregister_driver(&cxl_pci_driver);
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		pci_unregister_driver(&cxl_pci_driver);
+#ifdef CONFIG_PPC_PSERIES
+	else
+		platform_driver_unregister(&cxl_of_driver);
+#endif
 
 	cxl_debugfs_exit();
 	cxl_file_exit();

@@ -12,6 +12,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <asm/hvcall.h>
 #include "cxl.h"
 
 #define SG_BUFFER_SIZE 4096

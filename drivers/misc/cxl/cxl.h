@@ -433,6 +433,12 @@ struct cxl_irq_name {
 	char *name;
 };
 
+struct irq_avail {
+	irq_hw_number_t offset;
+	irq_hw_number_t range;
+	unsigned long   *bitmap;
+};
+
 /*
  * This is a cxl context.  If the PSL is in dedicated mode, there will be one
  * of these per AFU.  If in AFU directed there can be lots of these.
@@ -488,7 +494,19 @@ struct cxl_context {
 
 	struct cxl_process_element *elem;
 
-	int pe; /* process element handle */
+	/*
+	 * pe is the process element handle, assigned by this driver when the
+	 * context is initialized.
+	 *
+	 * external_pe is the PE shown outside of cxl.
+	 * On bare-metal, pe=external_pe, because we decide what the handle is.
+	 * In a guest, we only find out about the pe used by pHyp when the
+	 * context is attached, and that's the value we want to report outside
+	 * of cxl.
+	 */
+	int pe;
+	int external_pe;
+
 	u32 irq_count;
 	bool pe_inserted;
 	bool master;
@@ -782,6 +800,7 @@ void cxl_pci_vphb_reconfigure(struct cxl_afu *afu);
 void cxl_pci_vphb_remove(struct cxl_afu *afu);
 
 extern struct pci_driver cxl_pci_driver;
+extern struct platform_driver cxl_of_driver;
 int afu_allocate_irqs(struct cxl_context *ctx, u32 count);
 
 int afu_open(struct inode *inode, struct file *file);
@@ -791,6 +810,21 @@ int afu_mmap(struct file *file, struct vm_area_struct *vm);
 unsigned int afu_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t afu_read(struct file *file, char __user *buf, size_t count, loff_t *off);
 extern const struct file_operations afu_fops;
+
+struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_device *dev);
+void cxl_guest_remove_adapter(struct cxl *adapter);
+int cxl_of_read_adapter_handle(struct cxl *adapter, struct device_node *np);
+int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np);
+ssize_t cxl_guest_read_adapter_vpd(struct cxl *adapter, void *buf, size_t len);
+ssize_t cxl_guest_read_afu_vpd(struct cxl_afu *afu, void *buf, size_t len);
+int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_np);
+void cxl_guest_remove_afu(struct cxl_afu *afu);
+int cxl_of_read_afu_handle(struct cxl_afu *afu, struct device_node *afu_np);
+int cxl_of_read_afu_properties(struct cxl_afu *afu, struct device_node *afu_np);
+int cxl_guest_add_chardev(struct cxl *adapter);
+void cxl_guest_remove_chardev(struct cxl *adapter);
+void cxl_guest_reload_module(struct cxl *adapter);
+int cxl_of_probe(struct platform_device *pdev);
 
 struct cxl_backend_ops {
 	struct module *module;
@@ -824,6 +858,7 @@ struct cxl_backend_ops {
 	int (*afu_cr_read64)(struct cxl_afu *afu, int cr_idx, u64 offset, u64 *val);
 };
 extern const struct cxl_backend_ops cxl_native_ops;
+extern const struct cxl_backend_ops cxl_guest_ops;
 extern const struct cxl_backend_ops *cxl_ops;
 
 #endif
