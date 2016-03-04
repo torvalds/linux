@@ -728,7 +728,8 @@ void rxrpc_data_ready(struct sock *sk)
 	     sp->hdr.flags & RXRPC_CLIENT_INITIATED ? "ToServer" : "ToClient",
 	     sp->hdr.epoch, sp->hdr.cid, sp->hdr.callNumber);
 
-	if (sp->hdr.type == 0 || sp->hdr.type >= RXRPC_N_PACKET_TYPES) {
+	if (sp->hdr.type >= RXRPC_N_PACKET_TYPES ||
+	    !((RXRPC_SUPPORTED_PACKET_TYPES >> sp->hdr.type) & 1)) {
 		_proto("Rx Bad Packet Type %u", sp->hdr.type);
 		goto bad_message;
 	}

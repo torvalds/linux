@@ -70,6 +70,17 @@ struct rxrpc_wire_header {
 
 extern const char *rxrpc_pkts[];
 
+#define RXRPC_SUPPORTED_PACKET_TYPES (			\
+		(1 << RXRPC_PACKET_TYPE_DATA) |		\
+		(1 << RXRPC_PACKET_TYPE_ACK) |		\
+		(1 << RXRPC_PACKET_TYPE_BUSY) |		\
+		(1 << RXRPC_PACKET_TYPE_ABORT) |	\
+		(1 << RXRPC_PACKET_TYPE_ACKALL) |	\
+		(1 << RXRPC_PACKET_TYPE_CHALLENGE) |	\
+		(1 << RXRPC_PACKET_TYPE_RESPONSE) |	\
+		/*(1 << RXRPC_PACKET_TYPE_DEBUG) | */	\
+		(1 << RXRPC_PACKET_TYPE_VERSION))
+
 /*****************************************************************************/
 /*
  * jumbo packet secondary header
