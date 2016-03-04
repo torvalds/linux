@@ -19,6 +19,9 @@
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
+#include <linux/delay.h>
+#include <linux/of.h>
+
 
 /* Register map */
 /* control section */
@@ -184,6 +187,128 @@ rv3029_i2c_set_sr(struct i2c_client *client, u8 val)
 	if (sr < 0)
 		return -EIO;
 	return 0;
+}
+
+static int rv3029_eeprom_busywait(struct i2c_client *client)
+{
+	int i, ret;
+	u8 sr;
+
+	for (i = 100; i > 0; i--) {
+		ret = rv3029_i2c_get_sr(client, &sr);
+		if (ret < 0)
+			break;
+		if (!(sr & RV3029_STATUS_EEBUSY))
+			break;
+		usleep_range(1000, 10000);
+	}
+	if (i <= 0) {
+		dev_err(&client->dev, "EEPROM busy wait timeout.\n");
+		return -ETIMEDOUT;
+	}
+
+	return ret;
+}
+
+static int rv3029_eeprom_exit(struct i2c_client *client)
+{
+	/* Re-enable eeprom refresh */
+	return rv3029_i2c_update_bits(client, RV3029_ONOFF_CTRL,
+				      RV3029_ONOFF_CTRL_EERE,
+				      RV3029_ONOFF_CTRL_EERE);
+}
+
+static int rv3029_eeprom_enter(struct i2c_client *client)
+{
+	int ret;
+	u8 sr;
+
+	/* Check whether we are in the allowed voltage range. */
+	ret = rv3029_i2c_get_sr(client, &sr);
+	if (ret < 0)
+		return ret;
+	if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
+		/* We clear the bits and retry once just in case
+		 * we had a brown out in early startup.
+		 */
+		sr &= ~RV3029_STATUS_VLOW1;
+		sr &= ~RV3029_STATUS_VLOW2;
+		ret = rv3029_i2c_set_sr(client, sr);
+		if (ret < 0)
+			return ret;
+		usleep_range(1000, 10000);
+		ret = rv3029_i2c_get_sr(client, &sr);
+		if (ret < 0)
+			return ret;
+		if (sr & (RV3029_STATUS_VLOW1 | RV3029_STATUS_VLOW2)) {
+			dev_err(&client->dev,
+				"Supply voltage is too low to safely access the EEPROM.\n");
+			return -ENODEV;
+		}
+	}
+
+	/* Disable eeprom refresh. */
+	ret = rv3029_i2c_update_bits(client, RV3029_ONOFF_CTRL,
+				     RV3029_ONOFF_CTRL_EERE, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Wait for any previous eeprom accesses to finish. */
+	ret = rv3029_eeprom_busywait(client);
+	if (ret < 0)
+		rv3029_eeprom_exit(client);
+
+	return ret;
+}
+
+static int rv3029_eeprom_read(struct i2c_client *client, u8 reg,
+			      u8 buf[], size_t len)
+{
+	int ret, err;
+
+	err = rv3029_eeprom_enter(client);
+	if (err < 0)
+		return err;
+
+	ret = rv3029_i2c_read_regs(client, reg, buf, len);
+
+	err = rv3029_eeprom_exit(client);
+	if (err < 0)
+		return err;
+
+	return ret;
+}
+
+static int rv3029_eeprom_write(struct i2c_client *client, u8 reg,
+			       u8 const buf[], size_t len)
+{
+	int ret, err;
+	size_t i;
+	u8 tmp;
+
+	err = rv3029_eeprom_enter(client);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < len; i++, reg++) {
+		ret = rv3029_i2c_read_regs(client, reg, &tmp, 1);
+		if (ret < 0)
+			break;
+		if (tmp != buf[i]) {
+			ret = rv3029_i2c_write_regs(client, reg, &buf[i], 1);
+			if (ret < 0)
+				break;
+		}
+		ret = rv3029_eeprom_busywait(client);
+		if (ret < 0)
+			break;
+	}
+
+	err = rv3029_eeprom_exit(client);
+	if (err < 0)
+		return err;
+
+	return ret;
 }
 
 static int
