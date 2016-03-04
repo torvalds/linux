@@ -37,6 +37,7 @@
 #include <linux/string.h>
 #include <linux/dmi.h>
 #include <acpi/video.h>
+#include "dell-smbios.h"
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
@@ -47,9 +48,28 @@ MODULE_LICENSE("GPL");
 #define DELL_DESCRIPTOR_GUID "8D9DDCBC-A997-11DA-B012-B622A1EF5492"
 
 static u32 dell_wmi_interface_version;
+static bool wmi_requires_smbios_request;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
 MODULE_ALIAS("wmi:"DELL_DESCRIPTOR_GUID);
+
+static int __init dmi_matched(const struct dmi_system_id *dmi)
+{
+	wmi_requires_smbios_request = 1;
+	return 1;
+}
+
+static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Vostro V131",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro V131"),
+		},
+	},
+	{ }
+};
 
 /*
  * Certain keys are flagged as KE_IGNORE. All of these are either
@@ -597,6 +617,38 @@ static int __init dell_wmi_check_descriptor_buffer(void)
 	return 0;
 }
 
+/*
+ * According to Dell SMBIOS documentation:
+ *
+ * 17  3  Application Program Registration
+ *
+ *     cbArg1 Application ID 1 = 0x00010000
+ *     cbArg2 Application ID 2
+ *            QUICKSET/DCP = 0x51534554 "QSET"
+ *            ALS Driver   = 0x416c7353 "AlsS"
+ *            Latitude ON  = 0x4c6f6e52 "LonR"
+ *     cbArg3 Application version or revision number
+ *     cbArg4 0 = Unregister application
+ *            1 = Register application
+ *     cbRes1 Standard return codes (0, -1, -2)
+ */
+
+static int dell_wmi_events_set_enabled(bool enable)
+{
+	struct calling_interface_buffer *buffer;
+	int ret;
+
+	buffer = dell_smbios_get_buffer();
+	buffer->input[0] = 0x10000;
+	buffer->input[1] = 0x51534554;
+	buffer->input[3] = enable;
+	dell_smbios_send_request(17, 3);
+	ret = buffer->output[0];
+	dell_smbios_release_buffer();
+
+	return dell_smbios_error(ret);
+}
+
 static int __init dell_wmi_init(void)
 {
 	int err;
@@ -624,12 +676,26 @@ static int __init dell_wmi_init(void)
 		return -ENODEV;
 	}
 
+	dmi_check_system(dell_wmi_smbios_list);
+
+	if (wmi_requires_smbios_request) {
+		err = dell_wmi_events_set_enabled(true);
+		if (err) {
+			pr_err("Failed to enable WMI events\n");
+			wmi_remove_notify_handler(DELL_EVENT_GUID);
+			dell_wmi_input_destroy();
+			return err;
+		}
+	}
+
 	return 0;
 }
 module_init(dell_wmi_init);
 
 static void __exit dell_wmi_exit(void)
 {
+	if (wmi_requires_smbios_request)
+		dell_wmi_events_set_enabled(false);
 	wmi_remove_notify_handler(DELL_EVENT_GUID);
 	dell_wmi_input_destroy();
 }
