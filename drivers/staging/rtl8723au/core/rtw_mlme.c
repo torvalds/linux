@@ -1617,19 +1617,10 @@ rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv)
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 	phead = get_list_head(queue);
-	list_for_each_entry_safe(pnetwork, ptmp, phead, list) {
-		if (!pnetwork) {
-			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				 "%s: return _FAIL:(pnetwork == NULL)\n",
-				 __func__);
-			goto exit;
-		}
-
+	list_for_each_entry_safe(pnetwork, ptmp, phead, list)
 		rtw_check_join_candidate(pmlmepriv, &candidate, pnetwork);
-	}
-
-exit:
 	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+
 	return candidate;
 }
 
