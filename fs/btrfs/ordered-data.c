@@ -1010,7 +1010,7 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 	for (; node; node = rb_prev(node)) {
 		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 
-		/* We treat this entry as if it doesnt exist */
+		/* We treat this entry as if it doesn't exist */
 		if (test_bit(BTRFS_ORDERED_UPDATED_ISIZE, &test->flags))
 			continue;
 		if (test->file_offset + test->len <= disk_i_size)

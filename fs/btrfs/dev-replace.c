@@ -858,7 +858,7 @@ int btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		 * not called and the the filesystem is remounted
 		 * in degraded state. This does not stop the
 		 * dev_replace procedure. It needs to be canceled
-		 * manually if the cancelation is wanted.
+		 * manually if the cancellation is wanted.
 		 */
 		break;
 	}

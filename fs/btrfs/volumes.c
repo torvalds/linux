@@ -2749,7 +2749,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
 	    em->start + em->len < chunk_offset) {
 		/*
 		 * This is a logic error, but we don't want to just rely on the
-		 * user having built with ASSERT enabled, so if ASSERT doens't
+		 * user having built with ASSERT enabled, so if ASSERT doesn't
 		 * do anything we still error out.
 		 */
 		ASSERT(0);
@@ -4119,7 +4119,7 @@ out:
  * Callback for btrfs_uuid_tree_iterate().
  * returns:
  * 0	check succeeded, the entry is not outdated.
- * < 0	if an error occured.
+ * < 0	if an error occurred.
  * > 0	if the check failed, which means the caller shall remove the entry.
  */
 static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
