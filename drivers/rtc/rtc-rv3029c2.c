@@ -10,9 +10,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * NOTE: Currently this driver only supports the bare minimum for read
- * and write the RTC and alarms. The extra features provided by this chip
- * (trickle charger, eeprom, T° compensation) are unavailable.
  */
 
 #include <linux/module.h>
@@ -528,6 +525,107 @@ static int rv3029_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return rv3029_i2c_set_time(to_i2c_client(dev), tm);
 }
 
+static const struct rv3029_trickle_tab_elem {
+	u32 r;		/* resistance in ohms */
+	u8 conf;	/* trickle config bits */
+} rv3029_trickle_tab[] = {
+	{
+		.r	= 1076,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_5K |
+			  RV3029_TRICKLE_20K | RV3029_TRICKLE_80K,
+	}, {
+		.r	= 1091,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_5K |
+			  RV3029_TRICKLE_20K,
+	}, {
+		.r	= 1137,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_5K |
+			  RV3029_TRICKLE_80K,
+	}, {
+		.r	= 1154,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_5K,
+	}, {
+		.r	= 1371,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_20K |
+			  RV3029_TRICKLE_80K,
+	}, {
+		.r	= 1395,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_20K,
+	}, {
+		.r	= 1472,
+		.conf	= RV3029_TRICKLE_1K | RV3029_TRICKLE_80K,
+	}, {
+		.r	= 1500,
+		.conf	= RV3029_TRICKLE_1K,
+	}, {
+		.r	= 3810,
+		.conf	= RV3029_TRICKLE_5K | RV3029_TRICKLE_20K |
+			  RV3029_TRICKLE_80K,
+	}, {
+		.r	= 4000,
+		.conf	= RV3029_TRICKLE_5K | RV3029_TRICKLE_20K,
+	}, {
+		.r	= 4706,
+		.conf	= RV3029_TRICKLE_5K | RV3029_TRICKLE_80K,
+	}, {
+		.r	= 5000,
+		.conf	= RV3029_TRICKLE_5K,
+	}, {
+		.r	= 16000,
+		.conf	= RV3029_TRICKLE_20K | RV3029_TRICKLE_80K,
+	}, {
+		.r	= 20000,
+		.conf	= RV3029_TRICKLE_20K,
+	}, {
+		.r	= 80000,
+		.conf	= RV3029_TRICKLE_80K,
+	},
+};
+
+static void rv3029_trickle_config(struct i2c_client *client)
+{
+	struct device_node *of_node = client->dev.of_node;
+	const struct rv3029_trickle_tab_elem *elem;
+	int i, err;
+	u32 ohms;
+	u8 eectrl;
+
+	if (!of_node)
+		return;
+
+	/* Configure the trickle charger. */
+	err = rv3029_eeprom_read(client, RV3029_CONTROL_E2P_EECTRL,
+				 &eectrl, 1);
+	if (err < 0) {
+		dev_err(&client->dev,
+			"Failed to read trickle charger config\n");
+		return;
+	}
+	err = of_property_read_u32(of_node, "trickle-resistor-ohms", &ohms);
+	if (err) {
+		/* Disable trickle charger. */
+		eectrl &= ~RV3029_TRICKLE_MASK;
+	} else {
+		/* Enable trickle charger. */
+		for (i = 0; i < ARRAY_SIZE(rv3029_trickle_tab); i++) {
+			elem = &rv3029_trickle_tab[i];
+			if (elem->r >= ohms)
+				break;
+		}
+		eectrl &= ~RV3029_TRICKLE_MASK;
+		eectrl |= elem->conf;
+		dev_info(&client->dev,
+			 "Trickle charger enabled at %d ohms resistance.\n",
+			 elem->r);
+	}
+	err = rv3029_eeprom_write(client, RV3029_CONTROL_E2P_EECTRL,
+				  &eectrl, 1);
+	if (err < 0) {
+		dev_err(&client->dev,
+			"Failed to write trickle charger config\n");
+	}
+}
+
 static const struct rtc_class_ops rv3029_rtc_ops = {
 	.read_time	= rv3029_rtc_read_time,
 	.set_time	= rv3029_rtc_set_time,
@@ -557,6 +655,8 @@ static int rv3029_probe(struct i2c_client *client,
 		dev_err(&client->dev, "reading status failed\n");
 		return rc;
 	}
+
+	rv3029_trickle_config(client);
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
 				       &rv3029_rtc_ops, THIS_MODULE);
