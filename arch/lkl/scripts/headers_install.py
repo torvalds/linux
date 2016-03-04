@@ -25,8 +25,8 @@ def find_headers(path):
     f.close()
 
 def has_lkl_prefix(w):
-    return w.startswith("lkl") or w.startswith("_lkl") or w.startswith("LKL") or \
-        w.startswith("_LKL") or w.startswith("__LKL")
+  return w.startswith("lkl") or w.startswith("_lkl") or w.startswith("__lkl") \
+         or w.startswith("LKL") or w.startswith("_LKL") or w.startswith("__LKL")
 
 def find_symbols(regexp, store):
     for h in headers:
@@ -53,11 +53,11 @@ def find_ml_symbols(regexp, store):
 
 def find_enums(block_regexp, symbol_regexp, store):
     for h in headers:
-        for i in block_regexp.finditer(open(h).read()):
+        # remove comments
+        content = re.sub(re.compile("(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", open(h).read())
+        for i in block_regexp.finditer(content):
             for j in reversed(i.groups()):
                 if j:
-                    # remove comments
-                    j = re.sub(re.compile("(\/\*(\*(?!\/)|[^*])*\*\/)", re.S|re.M), " ", j)
                     for k in symbol_regexp.finditer(j):
                         for l in k.groups():
                             if l:
