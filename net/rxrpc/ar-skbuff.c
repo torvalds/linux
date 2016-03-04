@@ -34,7 +34,7 @@ static void rxrpc_request_final_ACK(struct rxrpc_call *call)
 		/* get an extra ref on the call for the final-ACK generator to
 		 * release */
 		rxrpc_get_call(call);
-		set_bit(RXRPC_CALL_ACK_FINAL, &call->events);
+		set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 		if (try_to_del_timer_sync(&call->ack_timer) >= 0)
 			rxrpc_queue_call(call);
 		break;
@@ -59,7 +59,7 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 
 	spin_lock_bh(&call->lock);
 
-	_debug("hard ACK #%u", ntohl(sp->hdr.seq));
+	_debug("hard ACK #%u", sp->hdr.seq);
 
 	for (loop = 0; loop < RXRPC_ACKR_WINDOW_ASZ; loop++) {
 		call->ackr_window[loop] >>= 1;
@@ -67,7 +67,7 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 			call->ackr_window[loop + 1] << (BITS_PER_LONG - 1);
 	}
 
-	seq = ntohl(sp->hdr.seq);
+	seq = sp->hdr.seq;
 	ASSERTCMP(seq, ==, call->rx_data_eaten + 1);
 	call->rx_data_eaten = seq;
 
@@ -133,5 +133,4 @@ void rxrpc_kernel_free_skb(struct sk_buff *skb)
 {
 	rxrpc_free_skb(skb);
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_free_skb);
