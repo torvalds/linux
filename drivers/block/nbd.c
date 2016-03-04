@@ -753,8 +753,7 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *nbd,
 	}
 
 	case NBD_SET_BLKSIZE: {
-		loff_t bsize = nbd->bytesize;
-		do_div(bsize, arg);
+		loff_t bsize = div_s64(nbd->bytesize, arg);
 
 		return nbd_size_set(nbd, bdev, arg, bsize);
 	}
