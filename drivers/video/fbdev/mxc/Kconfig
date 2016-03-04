@@ -33,6 +33,11 @@ config FB_MXC_TRULY_WVGA_SYNC_PANEL
 	depends on FB_MXC_SYNC_PANEL
 	depends on FB_MXC_MIPI_DSI || FB_MXC_MIPI_DSI_SAMSUNG
 
+config FB_MXC_TRULY_PANEL_TFT3P5079E
+	tristate "TRULY Panel TFT3P5079E"
+	depends on FB_MXC_SYNC_PANEL
+	depends on FB_MXC_MIPI_DSI_SAMSUNG
+
 config FB_MXC_LDB
 	tristate "MXC LDB"
 	depends on FB_MXC_SYNC_PANEL

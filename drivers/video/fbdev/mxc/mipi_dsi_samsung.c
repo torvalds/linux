@@ -56,6 +56,12 @@ static struct mipi_dsi_match_lcd mipi_dsi_lcd_db[] = {
 	 {mipid_hx8369_get_lcd_videomode, mipid_hx8369_lcd_setup}
 	},
 #endif
+#ifdef CONFIG_FB_MXC_TRULY_PANEL_TFT3P5079E
+	{
+	 "TRULY-WVGA-TFT3P5079E",
+	 {mipid_otm8018b_get_lcd_videomode, mipid_otm8018b_lcd_setup}
+	},
+#endif
 	{
 	"", {NULL, NULL}
 	}
