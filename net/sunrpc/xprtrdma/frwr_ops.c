@@ -158,6 +158,8 @@ __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 
 	sg_init_table(f->sg, depth);
 
+	init_completion(&f->fr_linv_done);
+
 	return 0;
 
 out_mr_err:
@@ -244,39 +246,76 @@ frwr_op_maxpages(struct rpcrdma_xprt *r_xprt)
 		     rpcrdma_max_segments(r_xprt) * ia->ri_max_frmr_depth);
 }
 
-/* If FAST_REG or LOCAL_INV failed, indicate the frmr needs
- * to be reset.
- *
- * WARNING: Only wr_id and status are reliable at this point
- */
 static void
-__frwr_sendcompletion_flush(struct ib_wc *wc, struct rpcrdma_mw *r)
+__frwr_sendcompletion_flush(struct ib_wc *wc, struct rpcrdma_frmr *frmr,
+			    const char *wr)
 {
-	if (likely(wc->status == IB_WC_SUCCESS))
-		return;
-
-	/* WARNING: Only wr_id and status are reliable at this point */
-	r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-	if (wc->status == IB_WC_WR_FLUSH_ERR)
-		dprintk("RPC:       %s: frmr %p flushed\n", __func__, r);
-	else
-		pr_warn("RPC:       %s: frmr %p error, status %s (%d)\n",
-			__func__, r, ib_wc_status_msg(wc->status), wc->status);
-
-	r->frmr.fr_state = FRMR_IS_STALE;
+	frmr->fr_state = FRMR_IS_STALE;
+	if (wc->status != IB_WC_WR_FLUSH_ERR)
+		pr_err("rpcrdma: %s: %s (%u/0x%x)\n",
+		       wr, ib_wc_status_msg(wc->status),
+		       wc->status, wc->vendor_err);
 }
 
+/**
+ * frwr_wc_fastreg - Invoked by RDMA provider for each polled FastReg WC
+ * @cq:	completion queue (ignored)
+ * @wc:	completed WR
+ *
+ */
 static void
-frwr_sendcompletion(struct ib_wc *wc)
+frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 {
-	struct rpcrdma_mw *r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-	struct rpcrdma_frmr *f = &r->frmr;
+	struct rpcrdma_frmr *frmr;
+	struct ib_cqe *cqe;
 
-	if (unlikely(wc->status != IB_WC_SUCCESS))
-		__frwr_sendcompletion_flush(wc, r);
+	/* WARNING: Only wr_cqe and status are reliable at this point */
+	if (wc->status != IB_WC_SUCCESS) {
+		cqe = wc->wr_cqe;
+		frmr = container_of(cqe, struct rpcrdma_frmr, fr_cqe);
+		__frwr_sendcompletion_flush(wc, frmr, "fastreg");
+	}
+}
 
-	if (f->fr_waiter)
-		complete(&f->fr_linv_done);
+/**
+ * frwr_wc_localinv - Invoked by RDMA provider for each polled LocalInv WC
+ * @cq:	completion queue (ignored)
+ * @wc:	completed WR
+ *
+ */
+static void
+frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct rpcrdma_frmr *frmr;
+	struct ib_cqe *cqe;
+
+	/* WARNING: Only wr_cqe and status are reliable at this point */
+	if (wc->status != IB_WC_SUCCESS) {
+		cqe = wc->wr_cqe;
+		frmr = container_of(cqe, struct rpcrdma_frmr, fr_cqe);
+		__frwr_sendcompletion_flush(wc, frmr, "localinv");
+	}
+}
+
+/**
+ * frwr_wc_localinv - Invoked by RDMA provider for each polled LocalInv WC
+ * @cq:	completion queue (ignored)
+ * @wc:	completed WR
+ *
+ * Awaken anyone waiting for an MR to finish being fenced.
+ */
+static void
+frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct rpcrdma_frmr *frmr;
+	struct ib_cqe *cqe;
+
+	/* WARNING: Only wr_cqe and status are reliable at this point */
+	cqe = wc->wr_cqe;
+	frmr = container_of(cqe, struct rpcrdma_frmr, fr_cqe);
+	if (wc->status != IB_WC_SUCCESS)
+		__frwr_sendcompletion_flush(wc, frmr, "localinv");
+	complete_all(&frmr->fr_linv_done);
 }
 
 static int
@@ -313,7 +352,6 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
-		r->mw_sendcompletion = frwr_sendcompletion;
 		r->frmr.fr_xprt = r_xprt;
 	}
 
@@ -350,7 +388,6 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	} while (mw->frmr.fr_state != FRMR_IS_INVALID);
 	frmr = &mw->frmr;
 	frmr->fr_state = FRMR_IS_VALID;
-	frmr->fr_waiter = false;
 	mr = frmr->fr_mr;
 	reg_wr = &frmr->fr_regwr;
 
@@ -400,7 +437,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	reg_wr->wr.next = NULL;
 	reg_wr->wr.opcode = IB_WR_REG_MR;
-	reg_wr->wr.wr_id = (uintptr_t)mw;
+	frmr->fr_cqe.done = frwr_wc_fastreg;
+	reg_wr->wr.wr_cqe = &frmr->fr_cqe;
 	reg_wr->wr.num_sge = 0;
 	reg_wr->wr.send_flags = 0;
 	reg_wr->mr = mr;
@@ -437,12 +475,12 @@ __frwr_prepare_linv_wr(struct rpcrdma_mr_seg *seg)
 	struct rpcrdma_frmr *f = &mw->frmr;
 	struct ib_send_wr *invalidate_wr;
 
-	f->fr_waiter = false;
 	f->fr_state = FRMR_IS_INVALID;
 	invalidate_wr = &f->fr_invwr;
 
 	memset(invalidate_wr, 0, sizeof(*invalidate_wr));
-	invalidate_wr->wr_id = (unsigned long)(void *)mw;
+	f->fr_cqe.done = frwr_wc_localinv;
+	invalidate_wr->wr_cqe = &f->fr_cqe;
 	invalidate_wr->opcode = IB_WR_LOCAL_INV;
 	invalidate_wr->ex.invalidate_rkey = f->fr_mr->rkey;
 
@@ -511,8 +549,8 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * are complete.
 	 */
 	f->fr_invwr.send_flags = IB_SEND_SIGNALED;
-	f->fr_waiter = true;
-	init_completion(&f->fr_linv_done);
+	f->fr_cqe.done = frwr_wc_localinv_wake;
+	reinit_completion(&f->fr_linv_done);
 	INIT_CQCOUNT(&r_xprt->rx_ep);
 
 	/* Transport disconnect drains the receive CQ before it
@@ -564,7 +602,8 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	invalidate_wr = &mw->frmr.fr_invwr;
 
 	memset(invalidate_wr, 0, sizeof(*invalidate_wr));
-	invalidate_wr->wr_id = (uintptr_t)mw;
+	frmr->fr_cqe.done = frwr_wc_localinv;
+	invalidate_wr->wr_cqe = &frmr->fr_cqe;
 	invalidate_wr->opcode = IB_WR_LOCAL_INV;
 	invalidate_wr->ex.invalidate_rkey = frmr->fr_mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
