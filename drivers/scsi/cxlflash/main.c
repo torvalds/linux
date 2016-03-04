@@ -1407,7 +1407,7 @@ static int start_context(struct cxlflash_cfg *cfg)
  */
 static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 {
-	struct pci_dev *dev = cfg->parent_dev;
+	struct pci_dev *dev = cfg->dev;
 	int rc = 0;
 	int ro_start, ro_size, i, j, k;
 	ssize_t vpd_size;
@@ -1416,7 +1416,7 @@ static int read_vpd(struct cxlflash_cfg *cfg, u64 wwpn[])
 	char *wwpn_vpd_tags[NUM_FC_PORTS] = { "V5", "V6" };
 
 	/* Get the VPD data from the device */
-	vpd_size = pci_read_vpd(dev, 0, sizeof(vpd_data), vpd_data);
+	vpd_size = cxl_read_adapter_vpd(dev, vpd_data, sizeof(vpd_data));
 	if (unlikely(vpd_size <= 0)) {
 		dev_err(&dev->dev, "%s: Unable to read VPD (size = %ld)\n",
 		       __func__, vpd_size);
@@ -2392,7 +2392,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 {
 	struct Scsi_Host *host;
 	struct cxlflash_cfg *cfg = NULL;
-	struct device *phys_dev;
 	struct dev_dependent_vals *ddv;
 	int rc = 0;
 
@@ -2457,19 +2456,6 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&cfg->lluns);
 
 	pci_set_drvdata(pdev, cfg);
-
-	/*
-	 * Use the special service provided to look up the physical
-	 * PCI device, since we are called on the probe of the virtual
-	 * PCI host bus (vphb)
-	 */
-	phys_dev = cxl_get_phys_dev(pdev);
-	if (!dev_is_pci(phys_dev)) {
-		dev_err(&pdev->dev, "%s: not a pci dev\n", __func__);
-		rc = -ENODEV;
-		goto out_remove;
-	}
-	cfg->parent_dev = to_pci_dev(phys_dev);
 
 	cfg->cxl_afu = cxl_pci_to_afu(pdev);
 
