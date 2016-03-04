@@ -252,6 +252,10 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
  * The ordering is similar to that of perf_output_{begin,end}, with
  * the exception of (B), which should be taken care of by the pmu
  * driver, since ordering rules will differ depending on hardware.
+ *
+ * Call this from pmu::start(); see the comment in perf_aux_output_end()
+ * about its use in pmu callbacks. Both can also be called from the PMI
+ * handler if needed.
  */
 void *perf_aux_output_begin(struct perf_output_handle *handle,
 			    struct perf_event *event)
@@ -323,6 +327,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	return handle->rb->aux_priv;
 
 err_put:
+	/* can't be last */
 	rb_free_aux(rb);
 
 err:
@@ -337,6 +342,10 @@ err:
  * aux_head and posting a PERF_RECORD_AUX into the perf buffer. It is the
  * pmu driver's responsibility to observe ordering rules of the hardware,
  * so that all the data is externally visible before this is called.
+ *
+ * Note: this has to be called from pmu::stop() callback, as the assumption
+ * of the AUX buffer management code is that after pmu::stop(), the AUX
+ * transaction must be stopped and therefore drop the AUX reference count.
  */
 void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 			 bool truncated)
@@ -384,6 +393,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 	handle->event = NULL;
 
 	local_set(&rb->aux_nest, 0);
+	/* can't be last */
 	rb_free_aux(rb);
 	ring_buffer_put(rb);
 }
