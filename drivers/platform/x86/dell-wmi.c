@@ -111,7 +111,7 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 	{ KE_IGNORE, 0xe020, { KEY_MUTE } },
 
 	/* Shortcut and audio panel keys */
-	{ KE_IGNORE, 0xe025, { KEY_RESERVED } },
+	{ KE_KEY, 0xe025, { KEY_PROG4 } },
 	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
 
 	{ KE_IGNORE, 0xe02e, { KEY_VOLUMEDOWN } },
@@ -233,6 +233,9 @@ static void dell_wmi_process_key(int reported_key)
 	if ((key->keycode == KEY_BRIGHTNESSUP ||
 	     key->keycode == KEY_BRIGHTNESSDOWN) &&
 	    acpi_video_handles_brightness_key_presses())
+		return;
+
+	if (reported_key == 0xe025 && !wmi_requires_smbios_request)
 		return;
 
 	sparse_keymap_report_entry(dell_wmi_input_dev, key, 1, true);
