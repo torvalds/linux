@@ -623,11 +623,6 @@ static inline u64 cxl_p2n_read(struct cxl_afu *afu, cxl_p2n_reg_t reg)
 		return ~0ULL;
 }
 
-u64 cxl_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off);
-u32 cxl_afu_cr_read32(struct cxl_afu *afu, int cr, u64 off);
-u16 cxl_afu_cr_read16(struct cxl_afu *afu, int cr, u64 off);
-u8 cxl_afu_cr_read8(struct cxl_afu *afu, int cr, u64 off);
-
 ssize_t cxl_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);
 
@@ -666,10 +661,6 @@ void cxl_sysfs_afu_m_remove(struct cxl_afu *afu);
 
 struct cxl *cxl_alloc_adapter(void);
 struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice);
-
-int cxl_afu_activate_mode(struct cxl_afu *afu, int mode);
-int _cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode);
-int cxl_afu_deactivate_mode(struct cxl_afu *afu);
 int cxl_afu_select_best_mode(struct cxl_afu *afu);
 
 int cxl_register_psl_irq(struct cxl_afu *afu);
@@ -681,8 +672,6 @@ void cxl_release_serr_irq(struct cxl_afu *afu);
 int afu_register_irqs(struct cxl_context *ctx, u32 count);
 void afu_release_irqs(struct cxl_context *ctx, void *cookie);
 void afu_irq_name_free(struct cxl_context *ctx);
-irqreturn_t handle_psl_slice_error(struct cxl_context *ctx, u64 dsisr,
-				u64 errstat);
 
 int cxl_debugfs_init(void);
 void cxl_debugfs_exit(void);
@@ -727,18 +716,10 @@ int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
 			void *cookie, irq_hw_number_t *dest_hwirq,
 			unsigned int *dest_virq, const char *name);
 
-int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
-			    u64 amr);
-int cxl_detach_process(struct cxl_context *ctx);
-
-int cxl_ack_irq(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
-
 int cxl_check_error(struct cxl_afu *afu);
 int cxl_afu_slbia(struct cxl_afu *afu);
 int cxl_tlb_slb_invalidate(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
-int __cxl_afu_reset(struct cxl_afu *afu);
-int cxl_afu_check_and_enable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
 void cxl_stop_trace(struct cxl *cxl);
@@ -756,5 +737,39 @@ int afu_mmap(struct file *file, struct vm_area_struct *vm);
 unsigned int afu_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t afu_read(struct file *file, char __user *buf, size_t count, loff_t *off);
 extern const struct file_operations afu_fops;
+
+struct cxl_backend_ops {
+	struct module *module;
+	int (*adapter_reset)(struct cxl *adapter);
+	int (*alloc_one_irq)(struct cxl *adapter);
+	void (*release_one_irq)(struct cxl *adapter, int hwirq);
+	int (*alloc_irq_ranges)(struct cxl_irq_ranges *irqs,
+				struct cxl *adapter, unsigned int num);
+	void (*release_irq_ranges)(struct cxl_irq_ranges *irqs,
+				struct cxl *adapter);
+	int (*setup_irq)(struct cxl *adapter, unsigned int hwirq,
+			unsigned int virq);
+	irqreturn_t (*handle_psl_slice_error)(struct cxl_context *ctx,
+					u64 dsisr, u64 errstat);
+	irqreturn_t (*psl_interrupt)(int irq, void *data);
+	int (*ack_irq)(struct cxl_context *ctx, u64 tfc, u64 psl_reset_mask);
+	int (*attach_process)(struct cxl_context *ctx, bool kernel,
+			u64 wed, u64 amr);
+	int (*detach_process)(struct cxl_context *ctx);
+	bool (*link_ok)(struct cxl *cxl);
+	void (*release_afu)(struct device *dev);
+	ssize_t (*afu_read_err_buffer)(struct cxl_afu *afu, char *buf,
+				loff_t off, size_t count);
+	int (*afu_check_and_enable)(struct cxl_afu *afu);
+	int (*afu_activate_mode)(struct cxl_afu *afu, int mode);
+	int (*afu_deactivate_mode)(struct cxl_afu *afu, int mode);
+	int (*afu_reset)(struct cxl_afu *afu);
+	int (*afu_cr_read8)(struct cxl_afu *afu, int cr_idx, u64 offset, u8 *val);
+	int (*afu_cr_read16)(struct cxl_afu *afu, int cr_idx, u64 offset, u16 *val);
+	int (*afu_cr_read32)(struct cxl_afu *afu, int cr_idx, u64 offset, u32 *val);
+	int (*afu_cr_read64)(struct cxl_afu *afu, int cr_idx, u64 offset, u64 *val);
+};
+extern const struct cxl_backend_ops cxl_native_ops;
+extern const struct cxl_backend_ops *cxl_ops;
 
 #endif

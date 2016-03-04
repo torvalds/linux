@@ -100,7 +100,7 @@ EXPORT_SYMBOL_GPL(cxl_allocate_afu_irqs);
 void cxl_free_afu_irqs(struct cxl_context *ctx)
 {
 	afu_irq_name_free(ctx);
-	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
+	cxl_ops->release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 }
 EXPORT_SYMBOL_GPL(cxl_free_afu_irqs);
 
@@ -176,7 +176,7 @@ int cxl_start_context(struct cxl_context *ctx, u64 wed,
 
 	cxl_ctx_get();
 
-	if ((rc = cxl_attach_process(ctx, kernel, wed , 0))) {
+	if ((rc = cxl_ops->attach_process(ctx, kernel, wed, 0))) {
 		put_pid(ctx->pid);
 		cxl_ctx_put();
 		goto out;
@@ -342,11 +342,11 @@ int cxl_afu_reset(struct cxl_context *ctx)
 	struct cxl_afu *afu = ctx->afu;
 	int rc;
 
-	rc = __cxl_afu_reset(afu);
+	rc = cxl_ops->afu_reset(afu);
 	if (rc)
 		return rc;
 
-	return cxl_afu_check_and_enable(afu);
+	return cxl_ops->afu_check_and_enable(afu);
 }
 EXPORT_SYMBOL_GPL(cxl_afu_reset);
 

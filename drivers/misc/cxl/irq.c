@@ -79,7 +79,8 @@ irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 	if (dsisr & CXL_PSL_DSISR_An_UR)
 		pr_devel("CXL interrupt: AURP PTE not found\n");
 	if (dsisr & CXL_PSL_DSISR_An_PE)
-		return handle_psl_slice_error(ctx, dsisr, irq_info->errstat);
+		return cxl_ops->handle_psl_slice_error(ctx, dsisr,
+						irq_info->errstat);
 	if (dsisr & CXL_PSL_DSISR_An_AE) {
 		pr_devel("CXL interrupt: AFU Error 0x%016llx\n", irq_info->afu_err);
 
@@ -103,7 +104,7 @@ irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 			wake_up_all(&ctx->wq);
 		}
 
-		cxl_ack_irq(ctx, CXL_PSL_TFC_An_A, 0);
+		cxl_ops->ack_irq(ctx, CXL_PSL_TFC_An_A, 0);
 		return IRQ_HANDLED;
 	}
 	if (dsisr & CXL_PSL_DSISR_An_OC)
@@ -167,7 +168,8 @@ unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
 		return 0;
 	}
 
-	cxl_setup_irq(adapter, hwirq, virq);
+	if (cxl_ops->setup_irq)
+		cxl_ops->setup_irq(adapter, hwirq, virq);
 
 	pr_devel("hwirq %#lx mapped to virq %u\n", hwirq, virq);
 
@@ -195,7 +197,7 @@ int cxl_register_one_irq(struct cxl *adapter,
 {
 	int hwirq, virq;
 
-	if ((hwirq = cxl_alloc_one_irq(adapter)) < 0)
+	if ((hwirq = cxl_ops->alloc_one_irq(adapter)) < 0)
 		return hwirq;
 
 	if (!(virq = cxl_map_irq(adapter, hwirq, handler, cookie, name)))
@@ -207,7 +209,7 @@ int cxl_register_one_irq(struct cxl *adapter,
 	return 0;
 
 err:
-	cxl_release_one_irq(adapter, hwirq);
+	cxl_ops->release_one_irq(adapter, hwirq);
 	return -ENOMEM;
 }
 
@@ -230,7 +232,8 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	/* Initialize the list head to hold irq names */
 	INIT_LIST_HEAD(&ctx->irq_names);
 
-	if ((rc = cxl_alloc_irq_ranges(&ctx->irqs, ctx->afu->adapter, count)))
+	if ((rc = cxl_ops->alloc_irq_ranges(&ctx->irqs, ctx->afu->adapter,
+							count)))
 		return rc;
 
 	/* Multiplexed PSL Interrupt */
@@ -268,7 +271,7 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	return 0;
 
 out:
-	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
+	cxl_ops->release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 	afu_irq_name_free(ctx);
 	return -ENOMEM;
 }
@@ -319,7 +322,7 @@ void afu_release_irqs(struct cxl_context *ctx, void *cookie)
 	}
 
 	afu_irq_name_free(ctx);
-	cxl_release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
+	cxl_ops->release_irq_ranges(&ctx->irqs, ctx->afu->adapter);
 
 	ctx->irq_count = 0;
 }

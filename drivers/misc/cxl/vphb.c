@@ -49,7 +49,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
 
-	if (!cxl_adapter_link_ok(afu->adapter)) {
+	if (!cxl_ops->link_ok(afu->adapter)) {
 		dev_warn(&dev->dev, "%s: Device link is down, refusing to enable AFU\n", __func__);
 		return false;
 	}
@@ -66,7 +66,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 		return false;
 	dev->dev.archdata.cxl_ctx = ctx;
 
-	return (cxl_afu_check_and_enable(afu) == 0);
+	return (cxl_ops->afu_check_and_enable(afu) == 0);
 }
 
 static void cxl_pci_disable_device(struct pci_dev *dev)
@@ -161,7 +161,7 @@ static inline bool cxl_config_link_ok(struct pci_bus *bus)
 	if (phb == NULL)
 		return false;
 	afu = (struct cxl_afu *)phb->private_data;
-	return cxl_adapter_link_ok(afu->adapter);
+	return cxl_ops->link_ok(afu->adapter);
 }
 
 static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
