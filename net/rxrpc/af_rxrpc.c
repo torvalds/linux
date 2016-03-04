@@ -748,7 +748,7 @@ static int rxrpc_release(struct socket *sock)
  * RxRPC network protocol
  */
 static const struct proto_ops rxrpc_rpc_ops = {
-	.family		= PF_UNIX,
+	.family		= PF_RXRPC,
 	.owner		= THIS_MODULE,
 	.release	= rxrpc_release,
 	.bind		= rxrpc_bind,
