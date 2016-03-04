@@ -381,8 +381,6 @@ fail:
 	kfree(clock);
 }
 
-
-#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
 struct cpg_mssr_clk_domain {
 	struct generic_pm_domain genpd;
 	struct device_node *np;
@@ -497,15 +495,6 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	of_genpd_add_provider_simple(np, genpd);
 	return 0;
 }
-#else
-static inline int cpg_mssr_add_clk_domain(struct device *dev,
-					  const unsigned int *core_pm_clks,
-					  unsigned int num_core_pm_clks)
-{
-	return 0;
-}
-#endif /* !CONFIG_PM_GENERIC_DOMAINS_OF */
-
 
 static const struct of_device_id cpg_mssr_match[] = {
 #ifdef CONFIG_ARCH_R8A7795
