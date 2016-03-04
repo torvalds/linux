@@ -418,36 +418,10 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 
 	amd_sched_fence_signal(s_fence);
-	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-		cancel_delayed_work(&s_fence->dwork);
-		spin_lock_irqsave(&sched->fence_list_lock, flags);
-		list_del_init(&s_fence->list);
-		spin_unlock_irqrestore(&sched->fence_list_lock, flags);
-	}
+
 	trace_amd_sched_process_job(s_fence);
 	fence_put(&s_fence->base);
 	wake_up_interruptible(&sched->wake_up_worker);
-}
-
-static void amd_sched_fence_work_func(struct work_struct *work)
-{
-	struct amd_sched_fence *s_fence =
-		container_of(work, struct amd_sched_fence, dwork.work);
-	struct amd_gpu_scheduler *sched = s_fence->sched;
-	struct amd_sched_fence *entity, *tmp;
-	unsigned long flags;
-
-	DRM_ERROR("[%s] scheduler is timeout!\n", sched->name);
-
-	/* Clean all pending fences */
-	spin_lock_irqsave(&sched->fence_list_lock, flags);
-	list_for_each_entry_safe(entity, tmp, &sched->fence_list, list) {
-		DRM_ERROR("  fence no %d\n", entity->base.seqno);
-		cancel_delayed_work(&entity->dwork);
-		list_del_init(&entity->list);
-		fence_put(&entity->base);
-	}
-	spin_unlock_irqrestore(&sched->fence_list_lock, flags);
 }
 
 static int amd_sched_main(void *param)
@@ -456,8 +430,6 @@ static int amd_sched_main(void *param)
 	struct amd_gpu_scheduler *sched = (struct amd_gpu_scheduler *)param;
 	int r, count;
 
-	spin_lock_init(&sched->fence_list_lock);
-	INIT_LIST_HEAD(&sched->fence_list);
 	sched_setscheduler(current, SCHED_FIFO, &sparam);
 
 	while (!kthread_should_stop()) {
@@ -465,7 +437,6 @@ static int amd_sched_main(void *param)
 		struct amd_sched_fence *s_fence;
 		struct amd_sched_job *sched_job;
 		struct fence *fence;
-		unsigned long flags;
 
 		wait_event_interruptible(sched->wake_up_worker,
 			(entity = amd_sched_select_entity(sched)) ||
@@ -479,14 +450,6 @@ static int amd_sched_main(void *param)
 			continue;
 
 		s_fence = sched_job->s_fence;
-
-		if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-			INIT_DELAYED_WORK(&s_fence->dwork, amd_sched_fence_work_func);
-			schedule_delayed_work(&s_fence->dwork, sched->timeout);
-			spin_lock_irqsave(&sched->fence_list_lock, flags);
-			list_add_tail(&s_fence->list, &sched->fence_list);
-			spin_unlock_irqrestore(&sched->fence_list_lock, flags);
-		}
 
 		atomic_inc(&sched->hw_rq_count);
 		amd_sched_job_pre_schedule(sched, sched_job);

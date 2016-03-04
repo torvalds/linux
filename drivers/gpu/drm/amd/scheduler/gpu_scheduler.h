@@ -74,8 +74,6 @@ struct amd_sched_fence {
 	struct amd_gpu_scheduler	*sched;
 	spinlock_t			lock;
 	void                            *owner;
-	struct delayed_work		dwork;
-	struct list_head		list;
 	struct amd_sched_job 	*s_job;
 };
 
@@ -127,8 +125,6 @@ struct amd_gpu_scheduler {
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
-	struct list_head		fence_list;
-	spinlock_t			fence_list_lock;
 	struct task_struct		*thread;
 	struct list_head	ring_mirror_list;
 	spinlock_t			job_list_lock;
