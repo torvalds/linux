@@ -37,7 +37,7 @@ static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
 
 /* local epoch for detecting local-end reset */
-__be32 rxrpc_epoch;
+u32 rxrpc_epoch;
 
 /* current debugging ID */
 atomic_t rxrpc_debug_id;
@@ -125,7 +125,6 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	struct sock *sk = sock->sk;
 	struct rxrpc_local *local;
 	struct rxrpc_sock *rx = rxrpc_sk(sk), *prx;
-	__be16 service_id;
 	int ret;
 
 	_enter("%p,%p,%d", rx, saddr, len);
@@ -152,14 +151,12 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	rx->local = local;
 	if (srx->srx_service) {
-		service_id = htons(srx->srx_service);
 		write_lock_bh(&local->services_lock);
 		list_for_each_entry(prx, &local->services, listen_link) {
-			if (prx->service_id == service_id)
+			if (prx->srx.srx_service == srx->srx_service)
 				goto service_in_use;
 		}
 
-		rx->service_id = service_id;
 		list_add_tail(&rx->listen_link, &local->services);
 		write_unlock_bh(&local->services_lock);
 
@@ -276,7 +273,6 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	struct rxrpc_transport *trans;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	__be16 service_id;
 
 	_enter(",,%x,%lx", key_serial(key), user_call_ID);
 
@@ -299,16 +295,15 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		atomic_inc(&trans->usage);
 	}
 
-	service_id = rx->service_id;
-	if (srx)
-		service_id = htons(srx->srx_service);
+	if (!srx)
+		srx = &rx->srx;
 
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
 		key = NULL; /* a no-security key */
 
-	bundle = rxrpc_get_bundle(rx, trans, key, service_id, gfp);
+	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, gfp);
 	if (IS_ERR(bundle)) {
 		call = ERR_CAST(bundle);
 		goto out;
@@ -425,7 +420,6 @@ static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	rx->trans = trans;
-	rx->service_id = htons(srx->srx_service);
 	rx->sk.sk_state = RXRPC_CLIENT_CONNECTED;
 
 	release_sock(&rx->sk);
@@ -778,7 +772,7 @@ static struct proto rxrpc_proto = {
 	.name		= "RXRPC",
 	.owner		= THIS_MODULE,
 	.obj_size	= sizeof(struct rxrpc_sock),
-	.max_header	= sizeof(struct rxrpc_header),
+	.max_header	= sizeof(struct rxrpc_wire_header),
 };
 
 static const struct net_proto_family rxrpc_family_ops = {
@@ -796,7 +790,7 @@ static int __init af_rxrpc_init(void)
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
-	rxrpc_epoch = htonl(get_seconds());
+	rxrpc_epoch = get_seconds();
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(

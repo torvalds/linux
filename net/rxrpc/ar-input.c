@@ -310,8 +310,8 @@ static void rxrpc_assume_implicit_ackall(struct rxrpc_call *call, u32 serial)
 void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	__be32 _abort_code;
-	u32 serial, hi_serial, seq, abort_code;
+	__be32 wtmp;
+	u32 hi_serial, abort_code;
 
 	_enter("%p,%p", call, skb);
 
@@ -330,16 +330,15 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 	/* track the latest serial number on this connection for ACK packet
 	 * information */
-	serial = ntohl(sp->hdr.serial);
 	hi_serial = atomic_read(&call->conn->hi_serial);
-	while (serial > hi_serial)
+	while (sp->hdr.serial > hi_serial)
 		hi_serial = atomic_cmpxchg(&call->conn->hi_serial, hi_serial,
-					   serial);
+					   sp->hdr.serial);
 
 	/* request ACK generation for any ACK or DATA packet that requests
 	 * it */
 	if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
-		_proto("ACK Requested on %%%u", serial);
+		_proto("ACK Requested on %%%u", sp->hdr.serial);
 		rxrpc_propose_ACK(call, RXRPC_ACK_REQUESTED, sp->hdr.serial, false);
 	}
 
@@ -347,12 +346,11 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_PACKET_TYPE_ABORT:
 		_debug("abort");
 
-		if (skb_copy_bits(skb, 0, &_abort_code,
-				  sizeof(_abort_code)) < 0)
+		if (skb_copy_bits(skb, 0, &wtmp, sizeof(wtmp)) < 0)
 			goto protocol_error;
 
-		abort_code = ntohl(_abort_code);
-		_proto("Rx ABORT %%%u { %x }", serial, abort_code);
+		abort_code = ntohl(wtmp);
+		_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
 
 		write_lock_bh(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE) {
@@ -364,7 +362,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		goto free_packet_unlock;
 
 	case RXRPC_PACKET_TYPE_BUSY:
-		_proto("Rx BUSY %%%u", serial);
+		_proto("Rx BUSY %%%u", sp->hdr.serial);
 
 		if (call->conn->out_clientflag)
 			goto protocol_error;
@@ -382,15 +380,13 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		}
 
 	default:
-		_proto("Rx %s %%%u", rxrpc_pkts[sp->hdr.type], serial);
+		_proto("Rx %s %%%u", rxrpc_pkts[sp->hdr.type], sp->hdr.serial);
 		goto protocol_error;
 
 	case RXRPC_PACKET_TYPE_DATA:
-		seq = ntohl(sp->hdr.seq);
+		_proto("Rx DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
-		_proto("Rx DATA %%%u { #%u }", serial, seq);
-
-		if (seq == 0)
+		if (sp->hdr.seq == 0)
 			goto protocol_error;
 
 		call->ackr_prev_seq = sp->hdr.seq;
@@ -398,9 +394,9 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		/* received data implicitly ACKs all of the request packets we
 		 * sent when we're acting as a client */
 		if (call->state == RXRPC_CALL_CLIENT_AWAIT_REPLY)
-			rxrpc_assume_implicit_ackall(call, serial);
+			rxrpc_assume_implicit_ackall(call, sp->hdr.serial);
 
-		switch (rxrpc_fast_process_data(call, skb, seq)) {
+		switch (rxrpc_fast_process_data(call, skb, sp->hdr.seq)) {
 		case 0:
 			skb = NULL;
 			goto done;
@@ -481,12 +477,12 @@ static void rxrpc_process_jumbo_packet(struct rxrpc_call *call,
 		if (!pskb_pull(jumbo, sizeof(jhdr)))
 			BUG();
 
-		sp->hdr.seq	= htonl(ntohl(sp->hdr.seq) + 1);
-		sp->hdr.serial	= htonl(ntohl(sp->hdr.serial) + 1);
+		sp->hdr.seq	+= 1;
+		sp->hdr.serial	+= 1;
 		sp->hdr.flags	= jhdr.flags;
 		sp->hdr._rsvd	= jhdr._rsvd;
 
-		_proto("Rx DATA Jumbo %%%u", ntohl(sp->hdr.serial) - 1);
+		_proto("Rx DATA Jumbo %%%u", sp->hdr.serial - 1);
 
 		rxrpc_fast_process_packet(call, part);
 		part = NULL;
@@ -607,6 +603,35 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 	rxrpc_queue_work(&local->event_processor);
 }
 
+/*
+ * Extract the wire header from a packet and translate the byte order.
+ */
+static noinline
+int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
+{
+	struct rxrpc_wire_header whdr;
+
+	/* dig out the RxRPC connection details */
+	if (skb_copy_bits(skb, sizeof(struct udphdr), &whdr, sizeof(whdr)) < 0)
+		return -EBADMSG;
+	if (!pskb_pull(skb, sizeof(struct udphdr) + sizeof(whdr)))
+		BUG();
+
+	memset(sp, 0, sizeof(*sp));
+	sp->hdr.epoch		= ntohl(whdr.epoch);
+	sp->hdr.cid		= ntohl(whdr.cid);
+	sp->hdr.callNumber	= ntohl(whdr.callNumber);
+	sp->hdr.seq		= ntohl(whdr.seq);
+	sp->hdr.serial		= ntohl(whdr.serial);
+	sp->hdr.flags		= whdr.flags;
+	sp->hdr.type		= whdr.type;
+	sp->hdr.userStatus	= whdr.userStatus;
+	sp->hdr.securityIndex	= whdr.securityIndex;
+	sp->hdr._rsvd		= ntohs(whdr._rsvd);
+	sp->hdr.serviceId	= ntohs(whdr.serviceId);
+	return 0;
+}
+
 static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 					       struct sk_buff *skb,
 					       struct rxrpc_skb_priv *sp)
@@ -686,27 +711,22 @@ void rxrpc_data_ready(struct sock *sk)
 
 	UDP_INC_STATS_BH(&init_net, UDP_MIB_INDATAGRAMS, 0);
 
-	/* the socket buffer we have is owned by UDP, with UDP's data all over
-	 * it, but we really want our own */
+	/* The socket buffer we have is owned by UDP, with UDP's data all over
+	 * it, but we really want our own data there.
+	 */
 	skb_orphan(skb);
 	sp = rxrpc_skb(skb);
-	memset(sp, 0, sizeof(*sp));
 
 	_net("Rx UDP packet from %08x:%04hu",
 	     ntohl(ip_hdr(skb)->saddr), ntohs(udp_hdr(skb)->source));
 
 	/* dig out the RxRPC connection details */
-	if (skb_copy_bits(skb, sizeof(struct udphdr), &sp->hdr,
-			  sizeof(sp->hdr)) < 0)
+	if (rxrpc_extract_header(sp, skb) < 0)
 		goto bad_message;
-	if (!pskb_pull(skb, sizeof(struct udphdr) + sizeof(sp->hdr)))
-		BUG();
 
 	_net("Rx RxRPC %s ep=%x call=%x:%x",
 	     sp->hdr.flags & RXRPC_CLIENT_INITIATED ? "ToServer" : "ToClient",
-	     ntohl(sp->hdr.epoch),
-	     ntohl(sp->hdr.cid),
-	     ntohl(sp->hdr.callNumber));
+	     sp->hdr.epoch, sp->hdr.cid, sp->hdr.callNumber);
 
 	if (sp->hdr.type == 0 || sp->hdr.type >= RXRPC_N_PACKET_TYPES) {
 		_proto("Rx Bad Packet Type %u", sp->hdr.type);
@@ -737,14 +757,9 @@ void rxrpc_data_ready(struct sock *sk)
 		rxrpc_put_connection(conn);
 	} else {
 		struct rxrpc_call *call;
-		u8 in_clientflag = 0;
 
-		if (sp->hdr.flags & RXRPC_CLIENT_INITIATED)
-			in_clientflag = RXRPC_CLIENT_INITIATED;
-		call = rxrpc_find_call_hash(in_clientflag, sp->hdr.cid,
-					    sp->hdr.callNumber, sp->hdr.epoch,
-					    sp->hdr.serviceId, local, AF_INET,
-					    (u8 *)&ip_hdr(skb)->saddr);
+		call = rxrpc_find_call_hash(&sp->hdr, local,
+					    AF_INET, &ip_hdr(skb)->saddr);
 		if (call)
 			rxrpc_post_packet_to_call(call, skb);
 		else
@@ -759,7 +774,7 @@ cant_route_call:
 	_debug("can't route call");
 	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED &&
 	    sp->hdr.type == RXRPC_PACKET_TYPE_DATA) {
-		if (sp->hdr.seq == cpu_to_be32(1)) {
+		if (sp->hdr.seq == 1) {
 			_debug("first packet");
 			skb_queue_tail(&local->accept_queue, skb);
 			rxrpc_queue_work(&local->acceptor);

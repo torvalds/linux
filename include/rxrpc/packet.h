@@ -22,7 +22,7 @@ typedef __be32	rxrpc_serial_net_t; /* on-the-wire Rx message serial number */
  * on-the-wire Rx packet header
  * - all multibyte fields should be in network byte order
  */
-struct rxrpc_header {
+struct rxrpc_wire_header {
 	__be32		epoch;		/* client boot timestamp */
 
 	__be32		cid;		/* connection and channel ID */
@@ -67,8 +67,6 @@ struct rxrpc_header {
 	__be16		serviceId;	/* service ID */
 
 } __packed;
-
-#define __rxrpc_header_off(X) offsetof(struct rxrpc_header,X)
 
 extern const char *rxrpc_pkts[];
 

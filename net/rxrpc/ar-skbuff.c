@@ -59,7 +59,7 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 
 	spin_lock_bh(&call->lock);
 
-	_debug("hard ACK #%u", ntohl(sp->hdr.seq));
+	_debug("hard ACK #%u", sp->hdr.seq);
 
 	for (loop = 0; loop < RXRPC_ACKR_WINDOW_ASZ; loop++) {
 		call->ackr_window[loop] >>= 1;
@@ -67,7 +67,7 @@ static void rxrpc_hard_ACK_data(struct rxrpc_call *call,
 			call->ackr_window[loop + 1] << (BITS_PER_LONG - 1);
 	}
 
-	seq = ntohl(sp->hdr.seq);
+	seq = sp->hdr.seq;
 	ASSERTCMP(seq, ==, call->rx_data_eaten + 1);
 	call->rx_data_eaten = seq;
 

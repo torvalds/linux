@@ -91,7 +91,7 @@ static const s8 rxrpc_ack_priority[] = {
  * propose an ACK be sent
  */
 void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-			 __be32 serial, bool immediate)
+			 u32 serial, bool immediate)
 {
 	unsigned long expiry;
 	s8 prior = rxrpc_ack_priority[ack_reason];
@@ -99,8 +99,7 @@ void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 	ASSERTCMP(prior, >, 0);
 
 	_enter("{%d},%s,%%%x,%u",
-	       call->debug_id, rxrpc_acks(ack_reason), ntohl(serial),
-	       immediate);
+	       call->debug_id, rxrpc_acks(ack_reason), serial, immediate);
 
 	if (prior < rxrpc_ack_priority[call->ackr_reason]) {
 		if (immediate)
@@ -139,7 +138,7 @@ void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		expiry = rxrpc_requested_ack_delay;
 		if (!expiry)
 			goto cancel_timer;
-		if (!immediate || serial == cpu_to_be32(1)) {
+		if (!immediate || serial == 1) {
 			_debug("run defer timer");
 			goto run_timer;
 		}
@@ -157,7 +156,7 @@ run_timer:
 	return;
 
 cancel_timer:
-	_debug("cancel timer %%%u", ntohl(serial));
+	_debug("cancel timer %%%u", serial);
 	try_to_del_timer_sync(&call->ack_timer);
 	read_lock_bh(&call->state_lock);
 	if (call->state <= RXRPC_CALL_COMPLETE &&
@@ -170,7 +169,7 @@ cancel_timer:
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       __be32 serial, bool immediate)
+		       u32 serial, bool immediate)
 {
 	s8 prior = rxrpc_ack_priority[ack_reason];
 
@@ -214,8 +213,8 @@ static void rxrpc_set_resend(struct rxrpc_call *call, u8 resend,
  */
 static void rxrpc_resend(struct rxrpc_call *call)
 {
+	struct rxrpc_wire_header *whdr;
 	struct rxrpc_skb_priv *sp;
-	struct rxrpc_header *hdr;
 	struct sk_buff *txb;
 	unsigned long *p_txb, resend_at;
 	bool stop;
@@ -247,14 +246,13 @@ static void rxrpc_resend(struct rxrpc_call *call)
 			sp->need_resend = false;
 
 			/* each Tx packet has a new serial number */
-			sp->hdr.serial =
-				htonl(atomic_inc_return(&call->conn->serial));
+			sp->hdr.serial = atomic_inc_return(&call->conn->serial);
 
-			hdr = (struct rxrpc_header *) txb->head;
-			hdr->serial = sp->hdr.serial;
+			whdr = (struct rxrpc_wire_header *)txb->head;
+			whdr->serial = htonl(sp->hdr.serial);
 
 			_proto("Tx DATA %%%u { #%d }",
-			       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
+			       sp->hdr.serial, sp->hdr.seq);
 			if (rxrpc_send_packet(call->conn->trans, txb) < 0) {
 				stop = true;
 				sp->resend_at = jiffies + 3;
@@ -428,7 +426,7 @@ static void rxrpc_rotate_tx_window(struct rxrpc_call *call, u32 hard)
 	int tail = call->acks_tail, old_tail;
 	int win = CIRC_CNT(call->acks_head, tail, call->acks_winsz);
 
-	_enter("{%u,%u},%u", call->acks_hard, win, hard);
+	kenter("{%u,%u},%u", call->acks_hard, win, hard);
 
 	ASSERTCMP(hard - call->acks_hard, <=, win);
 
@@ -478,11 +476,11 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 		sp = rxrpc_skb(skb);
 
 		_debug("drain OOS packet %d [%d]",
-		       ntohl(sp->hdr.seq), call->rx_first_oos);
+		       sp->hdr.seq, call->rx_first_oos);
 
-		if (ntohl(sp->hdr.seq) != call->rx_first_oos) {
+		if (sp->hdr.seq != call->rx_first_oos) {
 			skb_queue_head(&call->rx_oos_queue, skb);
-			call->rx_first_oos = ntohl(rxrpc_skb(skb)->hdr.seq);
+			call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			_debug("requeue %p {%u}", skb, call->rx_first_oos);
 		} else {
 			skb->mark = RXRPC_SKB_MARK_DATA;
@@ -496,8 +494,7 @@ static int rxrpc_drain_rx_oos_queue(struct rxrpc_call *call)
 			/* find out what the next packet is */
 			skb = skb_peek(&call->rx_oos_queue);
 			if (skb)
-				call->rx_first_oos =
-					ntohl(rxrpc_skb(skb)->hdr.seq);
+				call->rx_first_oos = rxrpc_skb(skb)->hdr.seq;
 			else
 				call->rx_first_oos = 0;
 			_debug("peek %p {%u}", skb, call->rx_first_oos);
@@ -522,7 +519,7 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 	u32 seq;
 
 	sp = rxrpc_skb(skb);
-	seq = ntohl(sp->hdr.seq);
+	seq = sp->hdr.seq;
 	_enter(",,{%u}", seq);
 
 	skb->destructor = rxrpc_packet_destructor;
@@ -535,9 +532,8 @@ static void rxrpc_insert_oos_packet(struct rxrpc_call *call,
 
 	skb_queue_walk(&call->rx_oos_queue, p) {
 		psp = rxrpc_skb(p);
-		if (ntohl(psp->hdr.seq) > seq) {
-			_debug("insert oos #%u before #%u",
-			       seq, ntohl(psp->hdr.seq));
+		if (psp->hdr.seq > seq) {
+			_debug("insert oos #%u before #%u", seq, psp->hdr.seq);
 			skb_insert(p, skb, &call->rx_oos_queue);
 			goto inserted;
 		}
@@ -586,7 +582,7 @@ static void rxrpc_zap_tx_window(struct rxrpc_call *call)
 
 		skb = (struct sk_buff *) _skb;
 		sp = rxrpc_skb(skb);
-		_debug("+++ clear Tx %u", ntohl(sp->hdr.seq));
+		_debug("+++ clear Tx %u", sp->hdr.seq);
 		rxrpc_free_skb(skb);
 	}
 
@@ -657,8 +653,7 @@ process_further:
 		/* data packets that wind up here have been received out of
 		 * order, need security processing or are jumbo packets */
 	case RXRPC_PACKET_TYPE_DATA:
-		_proto("OOSQ DATA %%%u { #%u }",
-		       ntohl(sp->hdr.serial), ntohl(sp->hdr.seq));
+		_proto("OOSQ DATA %%%u { #%u }", sp->hdr.serial, sp->hdr.seq);
 
 		/* secured packets must be verified and possibly decrypted */
 		if (rxrpc_verify_packet(call, skb, _abort_code) < 0)
@@ -676,7 +671,7 @@ process_further:
 		if (!skb_pull(skb, sizeof(ack)))
 			BUG();
 
-		latest = ntohl(sp->hdr.serial);
+		latest = sp->hdr.serial;
 		hard = ntohl(ack.firstPacket);
 		tx = atomic_read(&call->sequence);
 
@@ -881,9 +876,9 @@ void rxrpc_process_call(struct work_struct *work)
 {
 	struct rxrpc_call *call =
 		container_of(work, struct rxrpc_call, processor);
+	struct rxrpc_wire_header whdr;
 	struct rxrpc_ackpacket ack;
 	struct rxrpc_ackinfo ackinfo;
-	struct rxrpc_header hdr;
 	struct msghdr msg;
 	struct kvec iov[5];
 	enum rxrpc_call_event genbit;
@@ -891,7 +886,7 @@ void rxrpc_process_call(struct work_struct *work)
 	__be32 data, pad;
 	size_t len;
 	int loop, nbit, ioc, ret, mtu;
-	u32 abort_code = RX_PROTOCOL_ERROR;
+	u32 serial, abort_code = RX_PROTOCOL_ERROR;
 	u8 *acks = NULL;
 
 	//printk("\n--------------------\n");
@@ -912,20 +907,20 @@ void rxrpc_process_call(struct work_struct *work)
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	hdr.epoch	= call->conn->epoch;
-	hdr.cid		= call->cid;
-	hdr.callNumber	= call->call_id;
-	hdr.seq		= 0;
-	hdr.type	= RXRPC_PACKET_TYPE_ACK;
-	hdr.flags	= call->conn->out_clientflag;
-	hdr.userStatus	= 0;
-	hdr.securityIndex = call->conn->security_ix;
-	hdr._rsvd	= 0;
-	hdr.serviceId	= call->conn->service_id;
+	whdr.epoch	= htonl(call->conn->epoch);
+	whdr.cid	= htonl(call->cid);
+	whdr.callNumber	= htonl(call->call_id);
+	whdr.seq	= 0;
+	whdr.type	= RXRPC_PACKET_TYPE_ACK;
+	whdr.flags	= call->conn->out_clientflag;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = call->conn->security_ix;
+	whdr._rsvd	= 0;
+	whdr.serviceId	= htons(call->service_id);
 
 	memset(iov, 0, sizeof(iov));
-	iov[0].iov_base	= &hdr;
-	iov[0].iov_len	= sizeof(hdr);
+	iov[0].iov_base	= &whdr;
+	iov[0].iov_len	= sizeof(whdr);
 
 	/* deal with events of a final nature */
 	if (test_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
@@ -966,7 +961,7 @@ void rxrpc_process_call(struct work_struct *work)
 	}
 
 	if (test_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events)) {
-		hdr.type = RXRPC_PACKET_TYPE_BUSY;
+		whdr.type = RXRPC_PACKET_TYPE_BUSY;
 		genbit = RXRPC_CALL_EV_REJECT_BUSY;
 		goto send_message;
 	}
@@ -977,7 +972,7 @@ void rxrpc_process_call(struct work_struct *work)
 		if (rxrpc_post_message(call, RXRPC_SKB_MARK_LOCAL_ERROR,
 				       ECONNABORTED, true) < 0)
 			goto no_mem;
-		hdr.type = RXRPC_PACKET_TYPE_ABORT;
+		whdr.type = RXRPC_PACKET_TYPE_ABORT;
 		data = htonl(call->abort_code);
 		iov[1].iov_base = &data;
 		iov[1].iov_len = sizeof(data);
@@ -996,9 +991,9 @@ void rxrpc_process_call(struct work_struct *work)
 		call->ackr_reason = 0;
 
 		spin_lock_bh(&call->lock);
-		ack.serial = call->ackr_serial;
-		ack.previousPacket = call->ackr_prev_seq;
-		ack.firstPacket = htonl(call->rx_data_eaten + 1);
+		ack.serial	= htonl(call->ackr_serial);
+		ack.previousPacket = htonl(call->ackr_prev_seq);
+		ack.firstPacket	= htonl(call->rx_data_eaten + 1);
 		spin_unlock_bh(&call->lock);
 
 		pad = 0;
@@ -1100,13 +1095,11 @@ void rxrpc_process_call(struct work_struct *work)
 		//hdr.flags	= RXRPC_SLOW_START_OK;
 		ack.bufferSpace	= htons(8);
 		ack.maxSkew	= 0;
-		ack.serial	= 0;
-		ack.reason	= 0;
 
 		spin_lock_bh(&call->lock);
-		ack.reason = call->ackr_reason;
-		ack.serial = call->ackr_serial;
-		ack.previousPacket = call->ackr_prev_seq;
+		ack.reason	= call->ackr_reason;
+		ack.serial	= htonl(call->ackr_serial);
+		ack.previousPacket = htonl(call->ackr_prev_seq);
 		ack.firstPacket = htonl(call->rx_data_eaten + 1);
 
 		ack.nAcks = 0;
@@ -1225,9 +1218,10 @@ send_ACK:
 	ackinfo.rxMTU	= htonl(rxrpc_rx_mtu);
 	ackinfo.jumbo_max = htonl(rxrpc_rx_jumbo_max);
 
-	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
+	serial = atomic_inc_return(&call->conn->serial);
+	whdr.serial = htonl(serial);
 	_proto("Tx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
-	       ntohl(hdr.serial),
+	       serial,
 	       ntohs(ack.maxSkew),
 	       ntohl(ack.firstPacket),
 	       ntohl(ack.previousPacket),
@@ -1243,8 +1237,9 @@ send_ACK:
 send_message:
 	_debug("send message");
 
-	hdr.serial = htonl(atomic_inc_return(&call->conn->serial));
-	_proto("Tx %s %%%u", rxrpc_pkts[hdr.type], ntohl(hdr.serial));
+	serial = atomic_inc_return(&call->conn->serial);
+	whdr.serial = htonl(serial);
+	_proto("Tx %s %%%u", rxrpc_pkts[whdr.type], serial);
 send_message_2:
 
 	len = iov[0].iov_len;
@@ -1327,8 +1322,7 @@ maybe_reschedule:
 	if (call->state >= RXRPC_CALL_COMPLETE &&
 	    !list_empty(&call->accept_link)) {
 		_debug("X unlinking once-pending call %p { e=%lx f=%lx c=%x }",
-		       call, call->events, call->flags,
-		       ntohl(call->conn->cid));
+		       call, call->events, call->flags, call->conn->cid);
 
 		read_lock_bh(&call->state_lock);
 		if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
@@ -1346,7 +1340,7 @@ error:
 	 * this means there's a race between clearing the flag and setting the
 	 * work pending bit and the work item being processed again */
 	if (call->events && !work_pending(&call->processor)) {
-		_debug("jumpstart %x", ntohl(call->conn->cid));
+		_debug("jumpstart %x", call->conn->cid);
 		rxrpc_queue_call(call);
 	}
 

@@ -70,10 +70,29 @@ struct rxrpc_sock {
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
 	struct sockaddr_rxrpc	srx;		/* local address */
 	sa_family_t		proto;		/* protocol created with */
-	__be16			service_id;	/* service ID of local/remote service */
 };
 
 #define rxrpc_sk(__sk) container_of((__sk), struct rxrpc_sock, sk)
+
+/*
+ * CPU-byteorder normalised Rx packet header.
+ */
+struct rxrpc_host_header {
+	u32		epoch;		/* client boot timestamp */
+	u32		cid;		/* connection and channel ID */
+	u32		callNumber;	/* call ID (0 for connection-level packets) */
+	u32		seq;		/* sequence number of pkt in call stream */
+	u32		serial;		/* serial number of pkt sent to network */
+	u8		type;		/* packet type */
+	u8		flags;		/* packet flags */
+	u8		userStatus;	/* app-layer defined status */
+	u8		securityIndex;	/* security protocol ID */
+	union {
+		u16	_rsvd;		/* reserved */
+		u16	cksum;		/* kerberos security checksum */
+	};
+	u16		serviceId;	/* service ID */
+} __packed;
 
 /*
  * RxRPC socket buffer private variables
@@ -89,7 +108,7 @@ struct rxrpc_skb_priv {
 		bool		need_resend;	/* T if needs resending */
 	};
 
-	struct rxrpc_header	hdr;		/* RxRPC packet header from this packet */
+	struct rxrpc_host_header hdr;		/* RxRPC packet header from this packet */
 };
 
 #define rxrpc_skb(__skb) ((struct rxrpc_skb_priv *) &(__skb)->cb)
@@ -230,7 +249,7 @@ struct rxrpc_conn_bundle {
 	atomic_t		usage;
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		num_conns;	/* number of connections in this bundle */
-	__be16			service_id;	/* service ID */
+	u16			service_id;	/* Service ID for this bundle */
 	u8			security_ix;	/* security type */
 };
 
@@ -260,7 +279,6 @@ struct rxrpc_connection {
 	rwlock_t		lock;		/* access lock */
 	spinlock_t		state_lock;	/* state-change lock */
 	atomic_t		usage;
-	u32			real_conn_id;	/* connection ID (host-endian) */
 	enum {					/* current state of connection */
 		RXRPC_CONN_UNUSED,		/* - connection not yet attempted */
 		RXRPC_CONN_CLIENT,		/* - client connection */
@@ -282,11 +300,9 @@ struct rxrpc_connection {
 	u8			security_size;	/* security header size */
 	u32			security_level;	/* security level negotiated */
 	u32			security_nonce;	/* response re-use preventer */
-
-	/* the following are all in net order */
-	__be32			epoch;		/* epoch of this connection */
-	__be32			cid;		/* connection ID */
-	__be16			service_id;	/* service ID */
+	u32			epoch;		/* epoch of this connection */
+	u32			cid;		/* connection ID */
+	u16			service_id;	/* service ID for this connection */
 	u8			security_ix;	/* security type */
 	u8			in_clientflag;	/* RXRPC_CLIENT_INITIATED if we are server */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
@@ -406,9 +422,9 @@ struct rxrpc_call {
 	rxrpc_seq_t		rx_data_eaten;	/* last data seq ID consumed by recvmsg */
 	rxrpc_seq_t		rx_first_oos;	/* first packet in rx_oos_queue (or 0) */
 	rxrpc_seq_t		ackr_win_top;	/* top of ACK window (rx_data_eaten is bottom) */
-	rxrpc_seq_net_t		ackr_prev_seq;	/* previous sequence number received */
+	rxrpc_seq_t		ackr_prev_seq;	/* previous sequence number received */
 	u8			ackr_reason;	/* reason to ACK */
-	__be32			ackr_serial;	/* serial of packet being ACK'd */
+	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
 	atomic_t		ackr_not_idle;	/* number of packets in Rx queue */
 
 	/* received packet records, 1 bit per record */
@@ -420,11 +436,10 @@ struct rxrpc_call {
 	u8			in_clientflag;	/* Copy of conn->in_clientflag for hashing */
 	struct rxrpc_local	*local;		/* Local endpoint. Used for hashing. */
 	sa_family_t		proto;		/* Frame protocol */
-	/* the following should all be in net order */
-	__be32			cid;		/* connection ID + channel index  */
-	__be32			call_id;	/* call ID on connection  */
-	__be32			epoch;		/* epoch of this connection */
-	__be16			service_id;	/* service ID */
+	u32			call_id;	/* call ID on connection  */
+	u32			cid;		/* connection ID plus channel index */
+	u32			epoch;		/* epoch of this connection */
+	u16			service_id;	/* service ID */
 	union {					/* Peer IP address for hashing */
 		__be32	ipv4_addr;
 		__u8	ipv6_addr[16];		/* Anticipates eventual IPv6 support */
@@ -449,7 +464,7 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
  * af_rxrpc.c
  */
 extern atomic_t rxrpc_n_skbs;
-extern __be32 rxrpc_epoch;
+extern u32 rxrpc_epoch;
 extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
@@ -470,8 +485,8 @@ extern unsigned rxrpc_rx_window_size;
 extern unsigned rxrpc_rx_mtu;
 extern unsigned rxrpc_rx_jumbo_max;
 
-void __rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
-void rxrpc_propose_ACK(struct rxrpc_call *, u8, __be32, bool);
+void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
+void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_process_call(struct work_struct *);
 
 /*
@@ -483,15 +498,15 @@ extern struct kmem_cache *rxrpc_call_jar;
 extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
 
-struct rxrpc_call *rxrpc_find_call_hash(u8,  __be32, __be32, __be32,
-					__be16, void *, sa_family_t, const u8 *);
+struct rxrpc_call *rxrpc_find_call_hash(struct rxrpc_host_header *,
+					void *, sa_family_t, const void *);
 struct rxrpc_call *rxrpc_get_client_call(struct rxrpc_sock *,
 					 struct rxrpc_transport *,
 					 struct rxrpc_conn_bundle *,
 					 unsigned long, int, gfp_t);
 struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *,
 				       struct rxrpc_connection *,
-				       struct rxrpc_header *, gfp_t);
+				       struct rxrpc_host_header *, gfp_t);
 struct rxrpc_call *rxrpc_find_server_call(struct rxrpc_sock *, unsigned long);
 void rxrpc_release_call(struct rxrpc_call *);
 void rxrpc_release_calls_on_socket(struct rxrpc_sock *);
@@ -507,16 +522,16 @@ extern rwlock_t rxrpc_connection_lock;
 
 struct rxrpc_conn_bundle *rxrpc_get_bundle(struct rxrpc_sock *,
 					   struct rxrpc_transport *,
-					   struct key *, __be16, gfp_t);
+					   struct key *, u16, gfp_t);
 void rxrpc_put_bundle(struct rxrpc_transport *, struct rxrpc_conn_bundle *);
 int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_transport *,
 		       struct rxrpc_conn_bundle *, struct rxrpc_call *, gfp_t);
 void rxrpc_put_connection(struct rxrpc_connection *);
 void __exit rxrpc_destroy_all_connections(void);
 struct rxrpc_connection *rxrpc_find_connection(struct rxrpc_transport *,
-					       struct rxrpc_header *);
+					       struct rxrpc_host_header *);
 extern struct rxrpc_connection *
-rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_header *,
+rxrpc_incoming_connection(struct rxrpc_transport *, struct rxrpc_host_header *,
 			  gfp_t);
 
 /*

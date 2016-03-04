@@ -27,7 +27,7 @@
  * generate a connection-level abort
  */
 static int rxrpc_busy(struct rxrpc_local *local, struct sockaddr_rxrpc *srx,
-		      struct rxrpc_header *hdr)
+		      struct rxrpc_wire_header *whdr)
 {
 	struct msghdr msg;
 	struct kvec iov[1];
@@ -36,25 +36,21 @@ static int rxrpc_busy(struct rxrpc_local *local, struct sockaddr_rxrpc *srx,
 
 	_enter("%d,,", local->debug_id);
 
+	whdr->type	= RXRPC_PACKET_TYPE_BUSY;
+	whdr->serial	= htonl(1);
+
 	msg.msg_name	= &srx->transport.sin;
 	msg.msg_namelen	= sizeof(srx->transport.sin);
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
 
-	hdr->seq	= 0;
-	hdr->type	= RXRPC_PACKET_TYPE_BUSY;
-	hdr->flags	= 0;
-	hdr->userStatus	= 0;
-	hdr->_rsvd	= 0;
-
-	iov[0].iov_base	= hdr;
-	iov[0].iov_len	= sizeof(*hdr);
+	iov[0].iov_base	= whdr;
+	iov[0].iov_len	= sizeof(*whdr);
 
 	len = iov[0].iov_len;
 
-	hdr->serial = htonl(1);
-	_proto("Tx BUSY %%%u", ntohl(hdr->serial));
+	_proto("Tx BUSY %%1");
 
 	ret = kernel_sendmsg(local->socket, &msg, iov, 1, len);
 	if (ret < 0) {
@@ -211,8 +207,8 @@ void rxrpc_accept_incoming_calls(struct work_struct *work)
 	struct rxrpc_skb_priv *sp;
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_sock *rx;
+	struct rxrpc_wire_header whdr;
 	struct sk_buff *skb;
-	__be16 service_id;
 	int ret;
 
 	_enter("%d", local->debug_id);
@@ -240,6 +236,19 @@ process_next_packet:
 
 	sp = rxrpc_skb(skb);
 
+	/* Set up a response packet header in case we need it */
+	whdr.epoch	= htonl(sp->hdr.epoch);
+	whdr.cid	= htonl(sp->hdr.cid);
+	whdr.callNumber	= htonl(sp->hdr.callNumber);
+	whdr.seq	= htonl(sp->hdr.seq);
+	whdr.serial	= 0;
+	whdr.flags	= 0;
+	whdr.type	= 0;
+	whdr.userStatus	= 0;
+	whdr.securityIndex = sp->hdr.securityIndex;
+	whdr._rsvd	= 0;
+	whdr.serviceId	= htons(sp->hdr.serviceId);
+
 	/* determine the remote address */
 	memset(&srx, 0, sizeof(srx));
 	srx.srx_family = AF_RXRPC;
@@ -256,10 +265,9 @@ process_next_packet:
 	}
 
 	/* get the socket providing the service */
-	service_id = sp->hdr.serviceId;
 	read_lock_bh(&local->services_lock);
 	list_for_each_entry(rx, &local->services, listen_link) {
-		if (rx->service_id == service_id &&
+		if (rx->srx.srx_service == sp->hdr.serviceId &&
 		    rx->sk.sk_state != RXRPC_CLOSE)
 			goto found_service;
 	}
@@ -267,7 +275,7 @@ process_next_packet:
 	goto invalid_service;
 
 found_service:
-	_debug("found service %hd", ntohs(rx->service_id));
+	_debug("found service %hd", rx->srx.srx_service);
 	if (sk_acceptq_is_full(&rx->sk))
 		goto backlog_full;
 	sk_acceptq_added(&rx->sk);
@@ -296,7 +304,7 @@ found_service:
 backlog_full:
 	read_unlock_bh(&local->services_lock);
 busy:
-	rxrpc_busy(local, &srx, &sp->hdr);
+	rxrpc_busy(local, &srx, &whdr);
 	rxrpc_free_skb(skb);
 	goto process_next_packet;
 
