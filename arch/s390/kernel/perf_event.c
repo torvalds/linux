@@ -238,7 +238,7 @@ void perf_callchain_kernel(struct perf_callchain_entry *entry,
 	dump_trace(__perf_callchain_kernel, entry, NULL, regs->gprs[15]);
 }
 
-/* Perf defintions for PMU event attributes in sysfs */
+/* Perf definitions for PMU event attributes in sysfs */
 ssize_t cpumf_events_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *page)
 {
