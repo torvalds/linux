@@ -1649,7 +1649,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (test_kvm_facility(vcpu->kvm, 50) && test_kvm_facility(vcpu->kvm, 73))
 		vcpu->arch.sie_block->ecb |= 0x10;
 
-	vcpu->arch.sie_block->ecb2  = 8;
+	if (test_kvm_facility(vcpu->kvm, 8))
+		vcpu->arch.sie_block->ecb2 |= 0x08;
 	vcpu->arch.sie_block->eca   = 0xC1002000U;
 	if (sclp.has_siif)
 		vcpu->arch.sie_block->eca |= 1;
