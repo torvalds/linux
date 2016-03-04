@@ -1393,6 +1393,11 @@ nr_pages_store(struct device *dev, struct device_attribute *attr,
 	do {
 		end = memchr(p, ',', len);
 		s = kstrndup(p, end ? end - p : len, GFP_KERNEL);
+		if (!s) {
+			ret = -ENOMEM;
+			goto free_win;
+		}
+
 		ret = kstrtoul(s, 10, &val);
 		kfree(s);
 
