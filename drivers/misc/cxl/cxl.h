@@ -688,6 +688,7 @@ void cxl_prefault(struct cxl_context *ctx, u64 wed);
 
 struct cxl *get_cxl_adapter(int num);
 int cxl_alloc_sst(struct cxl_context *ctx);
+void cxl_dump_debug_buffer(void *addr, size_t size);
 
 void init_cxl_native(void);
 
@@ -701,16 +702,34 @@ unsigned int cxl_map_irq(struct cxl *adapter, irq_hw_number_t hwirq,
 void cxl_unmap_irq(unsigned int virq, void *cookie);
 int __detach_context(struct cxl_context *ctx);
 
-/* This matches the layout of the H_COLLECT_CA_INT_INFO retbuf */
+/*
+ * This must match the layout of the H_COLLECT_CA_INT_INFO retbuf defined
+ * in PAPR.
+ * A word about endianness: a pointer to this structure is passed when
+ * calling the hcall. However, it is not a block of memory filled up by
+ * the hypervisor. The return values are found in registers, and copied
+ * one by one when returning from the hcall. See the end of the call to
+ * plpar_hcall9() in hvCall.S
+ * As a consequence:
+ * - we don't need to do any endianness conversion
+ * - the pid and tid are an exception. They are 32-bit values returned in
+ *   the same 64-bit register. So we do need to worry about byte ordering.
+ */
 struct cxl_irq_info {
 	u64 dsisr;
 	u64 dar;
 	u64 dsr;
+#ifndef CONFIG_CPU_LITTLE_ENDIAN
 	u32 pid;
 	u32 tid;
+#else
+	u32 tid;
+	u32 pid;
+#endif
 	u64 afu_err;
 	u64 errstat;
-	u64 padding[3]; /* to match the expected retbuf size for plpar_hcall9 */
+	u64 proc_handle;
+	u64 padding[2]; /* to match the expected retbuf size for plpar_hcall9 */
 };
 
 void cxl_assign_psn_space(struct cxl_context *ctx);
