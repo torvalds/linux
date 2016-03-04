@@ -109,20 +109,20 @@ static void
 __frwr_recovery_worker(struct work_struct *work)
 {
 	struct rpcrdma_mw *r = container_of(work, struct rpcrdma_mw,
-					    r.frmr.fr_work);
-	struct rpcrdma_xprt *r_xprt = r->r.frmr.fr_xprt;
+					    frmr.fr_work);
+	struct rpcrdma_xprt *r_xprt = r->frmr.fr_xprt;
 	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
 	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
 
-	if (ib_dereg_mr(r->r.frmr.fr_mr))
+	if (ib_dereg_mr(r->frmr.fr_mr))
 		goto out_fail;
 
-	r->r.frmr.fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
-	if (IS_ERR(r->r.frmr.fr_mr))
+	r->frmr.fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
+	if (IS_ERR(r->frmr.fr_mr))
 		goto out_fail;
 
 	dprintk("RPC:       %s: recovered FRMR %p\n", __func__, r);
-	r->r.frmr.fr_state = FRMR_IS_INVALID;
+	r->frmr.fr_state = FRMR_IS_INVALID;
 	rpcrdma_put_mw(r_xprt, r);
 	return;
 
@@ -137,15 +137,15 @@ out_fail:
 static void
 __frwr_queue_recovery(struct rpcrdma_mw *r)
 {
-	INIT_WORK(&r->r.frmr.fr_work, __frwr_recovery_worker);
-	queue_work(frwr_recovery_wq, &r->r.frmr.fr_work);
+	INIT_WORK(&r->frmr.fr_work, __frwr_recovery_worker);
+	queue_work(frwr_recovery_wq, &r->frmr.fr_work);
 }
 
 static int
 __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 	    unsigned int depth)
 {
-	struct rpcrdma_frmr *f = &r->r.frmr;
+	struct rpcrdma_frmr *f = &r->frmr;
 	int rc;
 
 	f->fr_mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, depth);
@@ -179,11 +179,11 @@ __frwr_release(struct rpcrdma_mw *r)
 {
 	int rc;
 
-	rc = ib_dereg_mr(r->r.frmr.fr_mr);
+	rc = ib_dereg_mr(r->frmr.fr_mr);
 	if (rc)
 		dprintk("RPC:       %s: ib_dereg_mr status %i\n",
 			__func__, rc);
-	kfree(r->r.frmr.sg);
+	kfree(r->frmr.sg);
 }
 
 static int
@@ -263,14 +263,14 @@ __frwr_sendcompletion_flush(struct ib_wc *wc, struct rpcrdma_mw *r)
 		pr_warn("RPC:       %s: frmr %p error, status %s (%d)\n",
 			__func__, r, ib_wc_status_msg(wc->status), wc->status);
 
-	r->r.frmr.fr_state = FRMR_IS_STALE;
+	r->frmr.fr_state = FRMR_IS_STALE;
 }
 
 static void
 frwr_sendcompletion(struct ib_wc *wc)
 {
 	struct rpcrdma_mw *r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-	struct rpcrdma_frmr *f = &r->r.frmr;
+	struct rpcrdma_frmr *f = &r->frmr;
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		__frwr_sendcompletion_flush(wc, r);
@@ -314,7 +314,7 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
 		r->mw_sendcompletion = frwr_sendcompletion;
-		r->r.frmr.fr_xprt = r_xprt;
+		r->frmr.fr_xprt = r_xprt;
 	}
 
 	return 0;
@@ -347,8 +347,8 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		mw = rpcrdma_get_mw(r_xprt);
 		if (!mw)
 			return -ENOMEM;
-	} while (mw->r.frmr.fr_state != FRMR_IS_INVALID);
-	frmr = &mw->r.frmr;
+	} while (mw->frmr.fr_state != FRMR_IS_INVALID);
+	frmr = &mw->frmr;
 	frmr->fr_state = FRMR_IS_VALID;
 	frmr->fr_waiter = false;
 	mr = frmr->fr_mr;
@@ -434,7 +434,7 @@ static struct ib_send_wr *
 __frwr_prepare_linv_wr(struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_mw *mw = seg->rl_mw;
-	struct rpcrdma_frmr *f = &mw->r.frmr;
+	struct rpcrdma_frmr *f = &mw->frmr;
 	struct ib_send_wr *invalidate_wr;
 
 	f->fr_waiter = false;
@@ -455,7 +455,7 @@ __frwr_dma_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 {
 	struct ib_device *device = r_xprt->rx_ia.ri_device;
 	struct rpcrdma_mw *mw = seg->rl_mw;
-	struct rpcrdma_frmr *f = &mw->r.frmr;
+	struct rpcrdma_frmr *f = &mw->frmr;
 
 	seg->rl_mw = NULL;
 
@@ -504,7 +504,7 @@ frwr_op_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 		i += seg->mr_nsegs;
 	}
-	f = &seg->rl_mw->r.frmr;
+	f = &seg->rl_mw->frmr;
 
 	/* Strong send queue ordering guarantees that when the
 	 * last WR in the chain completes, all WRs in the chain
@@ -553,7 +553,7 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	struct rpcrdma_mr_seg *seg1 = seg;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mw *mw = seg1->rl_mw;
-	struct rpcrdma_frmr *frmr = &mw->r.frmr;
+	struct rpcrdma_frmr *frmr = &mw->frmr;
 	struct ib_send_wr *invalidate_wr, *bad_wr;
 	int rc, nsegs = seg->mr_nsegs;
 
@@ -561,7 +561,7 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 
 	seg1->rl_mw = NULL;
 	frmr->fr_state = FRMR_IS_INVALID;
-	invalidate_wr = &mw->r.frmr.fr_invwr;
+	invalidate_wr = &mw->frmr.fr_invwr;
 
 	memset(invalidate_wr, 0, sizeof(*invalidate_wr));
 	invalidate_wr->wr_id = (uintptr_t)mw;
