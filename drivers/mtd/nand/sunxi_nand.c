@@ -514,20 +514,10 @@ static void sunxi_nfc_cmd_ctrl(struct mtd_info *mtd, int dat,
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	int ret;
-	u32 tmp;
 
 	ret = sunxi_nfc_wait_cmd_fifo_empty(nfc);
 	if (ret)
 		return;
-
-	if (ctrl & NAND_CTRL_CHANGE) {
-		tmp = readl(nfc->regs + NFC_REG_CTL);
-		if (ctrl & NAND_NCE)
-			tmp |= NFC_CE_CTL;
-		else
-			tmp &= ~NFC_CE_CTL;
-		writel(tmp, nfc->regs + NFC_REG_CTL);
-	}
 
 	if (dat == NAND_CMD_NONE && (ctrl & NAND_NCE) &&
 	    !(ctrl & (NAND_CLE | NAND_ALE))) {
