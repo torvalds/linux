@@ -616,6 +616,19 @@
 		reg = <0x0 0xff770000 0x0 0x1000>;
 	};
 
+	spdif: spdif@ff880000 {
+		compatible = "rockchip,rk3366-spdif";
+		reg = <0x0 0xff880000 0x0 0x1000>;
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		dmas = <&dmac_bus 3>;
+		dma-names = "tx";
+		clock-names = "hclk", "mclk";
+		clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF_8CH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_bus>;
+		status = "disabled";
+	};
+
 	i2s_2ch: i2s-2ch@ff890000 {
 		compatible = "rockchip,rk3366-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff890000 0x0 0x1000>;
@@ -1037,6 +1050,13 @@
 					<4 22 RK_FUNC_1 &pcfg_pull_none>,
 					<4 23 RK_FUNC_1 &pcfg_pull_none>,
 					<4 24 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		spdif {
+			spdif_bus: spdif-bus {
+				rockchip,pins =
+					<5 19 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
