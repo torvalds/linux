@@ -1819,7 +1819,8 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	u8 compat[sizeof(struct bpf_tunnel_key)];
 	struct ip_tunnel_info *info;
 
-	if (unlikely(flags & ~(BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX)))
+	if (unlikely(flags & ~(BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX |
+			       BPF_F_DONT_FRAGMENT)))
 		return -EINVAL;
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
@@ -1844,6 +1845,9 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	info->mode = IP_TUNNEL_INFO_TX;
 
 	info->key.tun_flags = TUNNEL_KEY | TUNNEL_CSUM;
+	if (flags & BPF_F_DONT_FRAGMENT)
+		info->key.tun_flags |= TUNNEL_DONT_FRAGMENT;
+
 	info->key.tun_id = cpu_to_be64(from->tunnel_id);
 	info->key.tos = from->tunnel_tos;
 	info->key.ttl = from->tunnel_ttl;
