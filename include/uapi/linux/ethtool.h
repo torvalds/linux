@@ -13,6 +13,7 @@
 #ifndef _UAPI_LINUX_ETHTOOL_H
 #define _UAPI_LINUX_ETHTOOL_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
@@ -1215,7 +1216,7 @@ enum ethtool_sfeatures_retval_bits {
 struct ethtool_per_queue_op {
 	__u32	cmd;
 	__u32	sub_command;
-	__u32	queue_mask[DIV_ROUND_UP(MAX_NUM_QUEUE, 32)];
+	__u32	queue_mask[__KERNEL_DIV_ROUND_UP(MAX_NUM_QUEUE, 32)];
 	char	data[];
 };
 
