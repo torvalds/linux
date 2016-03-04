@@ -36,6 +36,14 @@ struct hdac_chmap_ops {
 	void (*set_chmap)(struct hdac_device *hdac, int pcm_idx,
 			unsigned char *chmap, int prepared);
 	bool (*is_pcm_attached)(struct hdac_device *hdac, int pcm_idx);
+
+	/* get and set channel assigned to each HDMI ASP (audio sample packet) slot */
+	int (*pin_get_slot_channel)(struct hdac_device *codec,
+			hda_nid_t pin_nid, int asp_slot);
+	int (*pin_set_slot_channel)(struct hdac_device *codec,
+			hda_nid_t pin_nid, int asp_slot, int channel);
+	void (*set_channel_count)(struct hdac_device *codec,
+				hda_nid_t cvt_nid, int chs);
 };
 
 struct hdac_chmap {
@@ -44,4 +52,6 @@ struct hdac_chmap {
 	struct hdac_device *hdac;
 };
 
+void snd_hdac_register_chmap_ops(struct hdac_device *hdac,
+				struct hdac_chmap *chmap);
 #endif /* __SOUND_HDA_CHMAP_H */
