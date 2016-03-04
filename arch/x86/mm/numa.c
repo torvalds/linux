@@ -469,7 +469,7 @@ static void __init numa_clear_kernel_node_hotplug(void)
 {
 	int i, nid;
 	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
-	unsigned long start, end;
+	phys_addr_t start, end;
 	struct memblock_region *r;
 
 	/*

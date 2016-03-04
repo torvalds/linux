@@ -101,7 +101,7 @@ static void sirfsoc_pwrc_close(struct input_dev *input)
 static const struct of_device_id sirfsoc_pwrc_of_match[] = {
 	{ .compatible = "sirf,prima2-pwrc" },
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, sirfsoc_pwrc_of_match);
 
 static int sirfsoc_pwrc_probe(struct platform_device *pdev)

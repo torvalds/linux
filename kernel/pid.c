@@ -588,7 +588,7 @@ void __init pidhash_init(void)
 
 void __init pidmap_init(void)
 {
-	/* Veryify no one has done anything silly */
+	/* Verify no one has done anything silly: */
 	BUILD_BUG_ON(PID_MAX_LIMIT >= PIDNS_HASH_ADDING);
 
 	/* bump default and minimum pid_max based on number of cpus */

@@ -873,6 +873,62 @@ static inline void mlxsw_reg_spvm_pack(char *payload, u8 local_port,
 	}
 }
 
+/* SPAFT - Switch Port Acceptable Frame Types
+ * ------------------------------------------
+ * The Switch Port Acceptable Frame Types register configures the frame
+ * admittance of the port.
+ */
+#define MLXSW_REG_SPAFT_ID 0x2010
+#define MLXSW_REG_SPAFT_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_spaft = {
+	.id = MLXSW_REG_SPAFT_ID,
+	.len = MLXSW_REG_SPAFT_LEN,
+};
+
+/* reg_spaft_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: CPU port is not supported (all tag types are allowed).
+ */
+MLXSW_ITEM32(reg, spaft, local_port, 0x00, 16, 8);
+
+/* reg_spaft_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, sub_port, 0x00, 8, 8);
+
+/* reg_spaft_allow_untagged
+ * When set, untagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_untagged, 0x04, 31, 1);
+
+/* reg_spaft_allow_prio_tagged
+ * When set, priority tagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_prio_tagged, 0x04, 30, 1);
+
+/* reg_spaft_allow_tagged
+ * When set, tagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_tagged, 0x04, 29, 1);
+
+static inline void mlxsw_reg_spaft_pack(char *payload, u8 local_port,
+					bool allow_untagged)
+{
+	MLXSW_REG_ZERO(spaft, payload);
+	mlxsw_reg_spaft_local_port_set(payload, local_port);
+	mlxsw_reg_spaft_allow_untagged_set(payload, allow_untagged);
+	mlxsw_reg_spaft_allow_prio_tagged_set(payload, true);
+	mlxsw_reg_spaft_allow_tagged_set(payload, true);
+}
+
 /* SFGC - Switch Flooding Group Configuration
  * ------------------------------------------
  * The following register controls the association of flooding tables and MIDs
@@ -1043,6 +1099,92 @@ static inline void mlxsw_reg_sftr_pack(char *payload,
 	mlxsw_reg_sftr_port_set(payload, port, set);
 	mlxsw_reg_sftr_port_mask_set(payload, port, 1);
 }
+
+/* SFDF - Switch Filtering DB Flush
+ * --------------------------------
+ * The switch filtering DB flush register is used to flush the FDB.
+ * Note that FDB notifications are flushed as well.
+ */
+#define MLXSW_REG_SFDF_ID 0x2013
+#define MLXSW_REG_SFDF_LEN 0x14
+
+static const struct mlxsw_reg_info mlxsw_reg_sfdf = {
+	.id = MLXSW_REG_SFDF_ID,
+	.len = MLXSW_REG_SFDF_LEN,
+};
+
+/* reg_sfdf_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfdf, swid, 0x00, 24, 8);
+
+enum mlxsw_reg_sfdf_flush_type {
+	MLXSW_REG_SFDF_FLUSH_PER_SWID,
+	MLXSW_REG_SFDF_FLUSH_PER_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_PORT,
+	MLXSW_REG_SFDF_FLUSH_PER_PORT_AND_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_LAG,
+	MLXSW_REG_SFDF_FLUSH_PER_LAG_AND_FID,
+};
+
+/* reg_sfdf_flush_type
+ * Flush type.
+ * 0 - All SWID dynamic entries are flushed.
+ * 1 - All FID dynamic entries are flushed.
+ * 2 - All dynamic entries pointing to port are flushed.
+ * 3 - All FID dynamic entries pointing to port are flushed.
+ * 4 - All dynamic entries pointing to LAG are flushed.
+ * 5 - All FID dynamic entries pointing to LAG are flushed.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, flush_type, 0x04, 28, 4);
+
+/* reg_sfdf_flush_static
+ * Static.
+ * 0 - Flush only dynamic entries.
+ * 1 - Flush both dynamic and static entries.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, flush_static, 0x04, 24, 1);
+
+static inline void mlxsw_reg_sfdf_pack(char *payload,
+				       enum mlxsw_reg_sfdf_flush_type type)
+{
+	MLXSW_REG_ZERO(sfdf, payload);
+	mlxsw_reg_sfdf_flush_type_set(payload, type);
+	mlxsw_reg_sfdf_flush_static_set(payload, true);
+}
+
+/* reg_sfdf_fid
+ * FID to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, fid, 0x0C, 0, 16);
+
+/* reg_sfdf_system_port
+ * Port to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, system_port, 0x0C, 0, 16);
+
+/* reg_sfdf_port_fid_system_port
+ * Port to flush, pointed to by FID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, port_fid_system_port, 0x08, 0, 16);
+
+/* reg_sfdf_lag_id
+ * LAG ID to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, lag_id, 0x0C, 0, 10);
+
+/* reg_sfdf_lag_fid_lag_id
+ * LAG ID to flush, pointed to by FID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, lag_fid_lag_id, 0x08, 0, 10);
 
 /* SLDR - Switch LAG Descriptor Register
  * -----------------------------------------
@@ -1701,20 +1843,20 @@ MLXSW_ITEM32(reg, pmlp, width, 0x00, 0, 8);
  * Module number.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0x00, false);
 
 /* reg_pmlp_tx_lane
  * Tx Lane. When rxtx field is cleared, this field is used for Rx as well.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 2, 0x04, 16, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 2, 0x04, 0x00, false);
 
 /* reg_pmlp_rx_lane
  * Rx Lane. When rxtx field is cleared, this field is ignored and Rx lane is
  * equal to Tx lane.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 2, 0x04, 24, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 2, 0x04, 0x00, false);
 
 static inline void mlxsw_reg_pmlp_pack(char *payload, u8 local_port)
 {
@@ -3117,10 +3259,14 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SPVID";
 	case MLXSW_REG_SPVM_ID:
 		return "SPVM";
+	case MLXSW_REG_SPAFT_ID:
+		return "SPAFT";
 	case MLXSW_REG_SFGC_ID:
 		return "SFGC";
 	case MLXSW_REG_SFTR_ID:
 		return "SFTR";
+	case MLXSW_REG_SFDF_ID:
+		return "SFDF";
 	case MLXSW_REG_SLDR_ID:
 		return "SLDR";
 	case MLXSW_REG_SLCR_ID:

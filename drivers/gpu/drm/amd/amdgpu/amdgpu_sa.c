@@ -354,12 +354,15 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 
 		for (i = 0, count = 0; i < AMDGPU_MAX_RINGS; ++i)
 			if (fences[i])
-				fences[count++] = fences[i];
+				fences[count++] = fence_get(fences[i]);
 
 		if (count) {
 			spin_unlock(&sa_manager->wq.lock);
 			t = fence_wait_any_timeout(fences, count, false,
 						   MAX_SCHEDULE_TIMEOUT);
+			for (i = 0; i < count; ++i)
+				fence_put(fences[i]);
+
 			r = (t > 0) ? 0 : t;
 			spin_lock(&sa_manager->wq.lock);
 		} else {

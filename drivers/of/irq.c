@@ -635,6 +635,13 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 		msi_base = be32_to_cpup(msi_map + 2);
 		rid_len = be32_to_cpup(msi_map + 3);
 
+		if (rid_base & ~map_mask) {
+			dev_err(parent_dev,
+				"Invalid msi-map translation - msi-map-mask (0x%x) ignores rid-base (0x%x)\n",
+				map_mask, rid_base);
+			return rid_out;
+		}
+
 		msi_controller_node = of_find_node_by_phandle(phandle);
 
 		matched = (masked_rid >= rid_base &&
@@ -654,7 +661,7 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 	if (!matched)
 		return rid_out;
 
-	rid_out = masked_rid + msi_base;
+	rid_out = masked_rid - rid_base + msi_base;
 	dev_dbg(dev,
 		"msi-map at: %s, using mask %08x, rid-base: %08x, msi-base: %08x, length: %08x, rid: %08x -> %08x\n",
 		dev_name(parent_dev), map_mask, rid_base, msi_base,
@@ -679,18 +686,6 @@ u32 of_msi_map_rid(struct device *dev, struct device_node *msi_np, u32 rid_in)
 	return __of_msi_map_rid(dev, &msi_np, rid_in);
 }
 
-static struct irq_domain *__of_get_msi_domain(struct device_node *np,
-					      enum irq_domain_bus_token token)
-{
-	struct irq_domain *d;
-
-	d = irq_find_matching_host(np, token);
-	if (!d)
-		d = irq_find_host(np);
-
-	return d;
-}
-
 /**
  * of_msi_map_get_device_domain - Use msi-map to find the relevant MSI domain
  * @dev: device for which the mapping is to be done.
@@ -706,7 +701,7 @@ struct irq_domain *of_msi_map_get_device_domain(struct device *dev, u32 rid)
 	struct device_node *np = NULL;
 
 	__of_msi_map_rid(dev, &np, rid);
-	return __of_get_msi_domain(np, DOMAIN_BUS_PCI_MSI);
+	return irq_find_matching_host(np, DOMAIN_BUS_PCI_MSI);
 }
 
 /**
@@ -730,7 +725,7 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 	/* Check for a single msi-parent property */
 	msi_np = of_parse_phandle(np, "msi-parent", 0);
 	if (msi_np && !of_property_read_bool(msi_np, "#msi-cells")) {
-		d = __of_get_msi_domain(msi_np, token);
+		d = irq_find_matching_host(msi_np, token);
 		if (!d)
 			of_node_put(msi_np);
 		return d;
@@ -744,7 +739,7 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 		while (!of_parse_phandle_with_args(np, "msi-parent",
 						   "#msi-cells",
 						   index, &args)) {
-			d = __of_get_msi_domain(args.np, token);
+			d = irq_find_matching_host(args.np, token);
 			if (d)
 				return d;
 

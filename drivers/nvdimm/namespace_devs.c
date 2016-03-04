@@ -1277,10 +1277,12 @@ static ssize_t mode_show(struct device *dev,
 
 	device_lock(dev);
 	claim = ndns->claim;
-	if (pmem_should_map_pages(dev) || (claim && is_nd_pfn(claim)))
-		mode = "memory";
-	else if (claim && is_nd_btt(claim))
+	if (claim && is_nd_btt(claim))
 		mode = "safe";
+	else if (claim && is_nd_pfn(claim))
+		mode = "memory";
+	else if (!claim && pmem_should_map_pages(dev))
+		mode = "memory";
 	else
 		mode = "raw";
 	rc = sprintf(buf, "%s\n", mode);

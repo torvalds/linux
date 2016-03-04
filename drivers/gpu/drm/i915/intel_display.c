@@ -1351,18 +1351,21 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	bool cur_state;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
+	enum intel_display_power_domain power_domain;
 
 	/* if we need the pipe quirk it must be always on */
 	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
 	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
 		state = true;
 
-	if (!intel_display_power_is_enabled(dev_priv,
-				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
-		cur_state = false;
-	} else {
+	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
 		u32 val = I915_READ(PIPECONF(cpu_transcoder));
 		cur_state = !!(val & PIPECONF_ENABLE);
+
+		intel_display_power_put(dev_priv, power_domain);
+	} else {
+		cur_state = false;
 	}
 
 	I915_STATE_WARN(cur_state != state,
@@ -2946,7 +2949,7 @@ u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
 	struct i915_vma *vma;
 	u64 offset;
 
-	intel_fill_fb_ggtt_view(&view, intel_plane->base.fb,
+	intel_fill_fb_ggtt_view(&view, intel_plane->base.state->fb,
 				intel_plane->base.state);
 
 	vma = i915_gem_obj_to_ggtt_view(obj, &view);
@@ -8171,18 +8174,22 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	uint32_t tmp;
+	bool ret;
 
-	if (!intel_display_power_is_enabled(dev_priv,
-					    POWER_DOMAIN_PIPE(crtc->pipe)))
+	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
+	ret = false;
+
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
-		return false;
+		goto out;
 
 	if (IS_G4X(dev) || IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
 		switch (tmp & PIPECONF_BPC_MASK) {
@@ -8262,7 +8269,12 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->base.adjusted_mode.crtc_clock =
 		pipe_config->port_clock / pipe_config->pixel_multiplier;
 
-	return true;
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void ironlake_init_pch_refclk(struct drm_device *dev)
@@ -9366,18 +9378,21 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	uint32_t tmp;
+	bool ret;
 
-	if (!intel_display_power_is_enabled(dev_priv,
-					    POWER_DOMAIN_PIPE(crtc->pipe)))
+	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
 
+	ret = false;
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
-		return false;
+		goto out;
 
 	switch (tmp & PIPECONF_BPC_MASK) {
 	case PIPECONF_6BPC:
@@ -9440,7 +9455,12 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 	ironlake_get_pfit_config(crtc, pipe_config);
 
-	return true;
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
@@ -9950,12 +9970,17 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum intel_display_power_domain pfit_domain;
+	enum intel_display_power_domain power_domain;
+	unsigned long power_domain_mask;
 	uint32_t tmp;
+	bool ret;
 
-	if (!intel_display_power_is_enabled(dev_priv,
-					 POWER_DOMAIN_PIPE(crtc->pipe)))
+	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+	power_domain_mask = BIT(power_domain);
+
+	ret = false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
@@ -9982,13 +10007,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			pipe_config->cpu_transcoder = TRANSCODER_EDP;
 	}
 
-	if (!intel_display_power_is_enabled(dev_priv,
-			POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
-		return false;
+	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		goto out;
+	power_domain_mask |= BIT(power_domain);
 
 	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
 	if (!(tmp & PIPECONF_ENABLE))
-		return false;
+		goto out;
 
 	haswell_get_ddi_port_state(crtc, pipe_config);
 
@@ -9998,14 +10024,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		skl_init_scalers(dev, crtc, pipe_config);
 	}
 
-	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-
 	if (INTEL_INFO(dev)->gen >= 9) {
 		pipe_config->scaler_state.scaler_id = -1;
 		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
 	}
 
-	if (intel_display_power_is_enabled(dev_priv, pfit_domain)) {
+	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
+	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
+		power_domain_mask |= BIT(power_domain);
 		if (INTEL_INFO(dev)->gen >= 9)
 			skylake_get_pfit_config(crtc, pipe_config);
 		else
@@ -10023,7 +10049,13 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->pixel_multiplier = 1;
 	}
 
-	return true;
+	ret = true;
+
+out:
+	for_each_power_domain(power_domain, power_domain_mask)
+		intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void i845_update_cursor(struct drm_crtc *crtc, u32 base, bool on)
@@ -12075,11 +12107,21 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 		pipe_config->pipe_bpp = connector->base.display_info.bpc*3;
 	}
 
-	/* Clamp bpp to 8 on screens without EDID 1.4 */
-	if (connector->base.display_info.bpc == 0 && bpp > 24) {
-		DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
-			      bpp);
-		pipe_config->pipe_bpp = 24;
+	/* Clamp bpp to default limit on screens without EDID 1.4 */
+	if (connector->base.display_info.bpc == 0) {
+		int type = connector->base.connector_type;
+		int clamp_bpp = 24;
+
+		/* Fall back to 18 bpp when DP sink capability is unknown. */
+		if (type == DRM_MODE_CONNECTOR_DisplayPort ||
+		    type == DRM_MODE_CONNECTOR_eDP)
+			clamp_bpp = 18;
+
+		if (bpp > clamp_bpp) {
+			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of %d\n",
+				      bpp, clamp_bpp);
+			pipe_config->pipe_bpp = clamp_bpp;
+		}
 	}
 }
 
@@ -13620,13 +13662,15 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
 	val = I915_READ(PCH_DPLL(pll->id));
 	hw_state->dpll = val;
 	hw_state->fp0 = I915_READ(PCH_FP0(pll->id));
 	hw_state->fp1 = I915_READ(PCH_FP1(pll->id));
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 
 	return val & DPLL_VCO_ENABLE;
 }
@@ -13883,11 +13927,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
 
-	/* use scaler when colorkey is not required */
-	if (INTEL_INFO(plane->dev)->gen >= 9 &&
-	    state->ckey.flags == I915_SET_COLORKEY_NONE) {
-		min_scale = 1;
-		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+	if (INTEL_INFO(plane->dev)->gen >= 9) {
+		/* use scaler when colorkey is not required */
+		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+			min_scale = 1;
+			max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+		}
 		can_position = true;
 	}
 
@@ -15557,10 +15602,12 @@ void i915_redisable_vga(struct drm_device *dev)
 	 * level, just check if the power well is enabled instead of trying to
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses. */
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_VGA))
+	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_VGA))
 		return;
 
 	i915_redisable_vga_power_on(dev);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_VGA);
 }
 
 static bool primary_get_hw_state(struct intel_plane *plane)

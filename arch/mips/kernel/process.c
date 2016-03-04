@@ -65,12 +65,10 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	status = regs->cp0_status & ~(ST0_CU0|ST0_CU1|ST0_FR|KU_MASK);
 	status |= KU_USER;
 	regs->cp0_status = status;
-	clear_used_math();
-	clear_fpu_owner();
-	init_dsp();
-	clear_thread_flag(TIF_USEDMSA);
+	lose_fpu(0);
 	clear_thread_flag(TIF_MSA_CTX_LIVE);
-	disable_msa();
+	clear_used_math();
+	init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 }

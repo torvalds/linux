@@ -444,9 +444,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 * PCI devices of the PE are expected to be removed prior
 	 * to PE reset.
 	 */
-	if (!edev->pe->bus)
+	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
 		edev->pe->bus = pci_find_bus(hose->global_number,
 					     pdn->busno);
+		if (edev->pe->bus)
+			edev->pe->state |= EEH_PE_PRI_BUS;
+	}
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
