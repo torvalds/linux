@@ -1447,6 +1447,12 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 		return -EFAULT;
 
 	switch (flags & BPF_F_HDR_FIELD_MASK) {
+	case 0:
+		if (unlikely(from != 0))
+			return -EINVAL;
+
+		csum_replace_by_diff(ptr, to);
+		break;
 	case 2:
 		csum_replace2(ptr, from, to);
 		break;
