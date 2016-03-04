@@ -604,7 +604,7 @@ static void cxl_unmap_slice_regs(struct cxl_afu *afu)
 	}
 }
 
-static void cxl_release_afu(struct device *dev)
+void cxl_release_afu(struct device *dev)
 {
 	struct cxl_afu *afu = to_cxl_afu(dev);
 
@@ -614,28 +614,6 @@ static void cxl_release_afu(struct device *dev)
 	cxl_release_spa(afu);
 
 	kfree(afu);
-}
-
-static struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
-{
-	struct cxl_afu *afu;
-
-	if (!(afu = kzalloc(sizeof(struct cxl_afu), GFP_KERNEL)))
-		return NULL;
-
-	afu->adapter = adapter;
-	afu->dev.parent = &adapter->dev;
-	afu->dev.release = cxl_release_afu;
-	afu->slice = slice;
-	idr_init(&afu->contexts_idr);
-	mutex_init(&afu->contexts_lock);
-	spin_lock_init(&afu->afu_cntl_lock);
-	mutex_init(&afu->spa_mutex);
-
-	afu->prefault_mode = CXL_PREFAULT_NONE;
-	afu->irqs_max = afu->adapter->user_irqs;
-
-	return afu;
 }
 
 /* Expects AFU struct to have recently been zeroed out */
@@ -1103,30 +1081,6 @@ static void cxl_release_adapter(struct device *dev)
 	cxl_remove_adapter_nr(adapter);
 
 	kfree(adapter);
-}
-
-static struct cxl *cxl_alloc_adapter(void)
-{
-	struct cxl *adapter;
-
-	if (!(adapter = kzalloc(sizeof(struct cxl), GFP_KERNEL)))
-		return NULL;
-
-	spin_lock_init(&adapter->afu_list_lock);
-
-	if (cxl_alloc_adapter_nr(adapter))
-		goto err1;
-
-	if (dev_set_name(&adapter->dev, "card%i", adapter->adapter_num))
-		goto err2;
-
-	return adapter;
-
-err2:
-	cxl_remove_adapter_nr(adapter);
-err1:
-	kfree(adapter);
-	return NULL;
 }
 
 #define CXL_PSL_ErrIVTE_tberror (0x1ull << (63-31))

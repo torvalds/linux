@@ -32,6 +32,27 @@ uint cxl_verbose;
 module_param_named(verbose, cxl_verbose, uint, 0600);
 MODULE_PARM_DESC(verbose, "Enable verbose dmesg output");
 
+int cxl_afu_slbia(struct cxl_afu *afu)
+{
+	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
+
+	pr_devel("cxl_afu_slbia issuing SLBIA command\n");
+	cxl_p2n_write(afu, CXL_SLBIA_An, CXL_TLB_SLB_IQ_ALL);
+	while (cxl_p2n_read(afu, CXL_SLBIA_An) & CXL_TLB_SLB_P) {
+		if (time_after_eq(jiffies, timeout)) {
+			dev_warn(&afu->dev, "WARNING: CXL AFU SLBIA timed out!\n");
+			return -EBUSY;
+		}
+		/* If the adapter has gone down, we can assume that we
+		 * will PERST it and that will invalidate everything.
+		 */
+		if (!cxl_adapter_link_ok(afu->adapter))
+			return -EIO;
+		cpu_relax();
+	}
+	return 0;
+}
+
 static inline void _cxl_slbia(struct cxl_context *ctx, struct mm_struct *mm)
 {
 	struct task_struct *task;
@@ -172,6 +193,52 @@ int cxl_alloc_adapter_nr(struct cxl *adapter)
 void cxl_remove_adapter_nr(struct cxl *adapter)
 {
 	idr_remove(&cxl_adapter_idr, adapter->adapter_num);
+}
+
+struct cxl *cxl_alloc_adapter(void)
+{
+	struct cxl *adapter;
+
+	if (!(adapter = kzalloc(sizeof(struct cxl), GFP_KERNEL)))
+		return NULL;
+
+	spin_lock_init(&adapter->afu_list_lock);
+
+	if (cxl_alloc_adapter_nr(adapter))
+		goto err1;
+
+	if (dev_set_name(&adapter->dev, "card%i", adapter->adapter_num))
+		goto err2;
+
+	return adapter;
+
+err2:
+	cxl_remove_adapter_nr(adapter);
+err1:
+	kfree(adapter);
+	return NULL;
+}
+
+struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice)
+{
+	struct cxl_afu *afu;
+
+	if (!(afu = kzalloc(sizeof(struct cxl_afu), GFP_KERNEL)))
+		return NULL;
+
+	afu->adapter = adapter;
+	afu->dev.parent = &adapter->dev;
+	afu->dev.release = cxl_release_afu;
+	afu->slice = slice;
+	idr_init(&afu->contexts_idr);
+	mutex_init(&afu->contexts_lock);
+	spin_lock_init(&afu->afu_cntl_lock);
+	mutex_init(&afu->spa_mutex);
+
+	afu->prefault_mode = CXL_PREFAULT_NONE;
+	afu->irqs_max = afu->adapter->user_irqs;
+
+	return afu;
 }
 
 int cxl_afu_select_best_mode(struct cxl_afu *afu)

@@ -93,7 +93,7 @@ static irqreturn_t schedule_cxl_fault(struct cxl_context *ctx, u64 dsisr, u64 da
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
+irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
 {
 	struct cxl_context *ctx = data;
 	u64 dsisr, dar;
@@ -291,12 +291,12 @@ void cxl_unmap_irq(unsigned int virq, void *cookie)
 	irq_dispose_mapping(virq);
 }
 
-static int cxl_register_one_irq(struct cxl *adapter,
-				irq_handler_t handler,
-				void *cookie,
-				irq_hw_number_t *dest_hwirq,
-				unsigned int *dest_virq,
-				const char *name)
+int cxl_register_one_irq(struct cxl *adapter,
+			irq_handler_t handler,
+			void *cookie,
+			irq_hw_number_t *dest_hwirq,
+			unsigned int *dest_virq,
+			const char *name)
 {
 	int hwirq, virq;
 

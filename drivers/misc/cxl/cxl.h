@@ -526,6 +526,7 @@ void cxl_release_irq_ranges(struct cxl_irq_ranges *irqs, struct cxl *adapter);
 int cxl_setup_irq(struct cxl *adapter, unsigned int hwirq, unsigned int virq);
 int cxl_update_image_control(struct cxl *adapter);
 int cxl_reset(struct cxl *adapter);
+void cxl_release_afu(struct device *dev);
 
 /* common == phyp + powernv */
 struct cxl_process_element_common {
@@ -679,6 +680,9 @@ void cxl_sysfs_afu_remove(struct cxl_afu *afu);
 int cxl_sysfs_afu_m_add(struct cxl_afu *afu);
 void cxl_sysfs_afu_m_remove(struct cxl_afu *afu);
 
+struct cxl *cxl_alloc_adapter(void);
+struct cxl_afu *cxl_alloc_afu(struct cxl *adapter, int slice);
+
 int cxl_afu_activate_mode(struct cxl_afu *afu, int mode);
 int _cxl_afu_deactivate_mode(struct cxl_afu *afu, int mode);
 int cxl_afu_deactivate_mode(struct cxl_afu *afu);
@@ -733,6 +737,11 @@ struct cxl_irq_info {
 };
 
 void cxl_assign_psn_space(struct cxl_context *ctx);
+irqreturn_t cxl_irq(int irq, void *ctx, struct cxl_irq_info *irq_info);
+int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
+			void *cookie, irq_hw_number_t *dest_hwirq,
+			unsigned int *dest_virq, const char *name);
+
 int cxl_attach_process(struct cxl_context *ctx, bool kernel, u64 wed,
 			    u64 amr);
 int cxl_detach_process(struct cxl_context *ctx);

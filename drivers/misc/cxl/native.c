@@ -265,27 +265,6 @@ int cxl_tlb_slb_invalidate(struct cxl *adapter)
 	return 0;
 }
 
-int cxl_afu_slbia(struct cxl_afu *afu)
-{
-	unsigned long timeout = jiffies + (HZ * CXL_TIMEOUT);
-
-	pr_devel("cxl_afu_slbia issuing SLBIA command\n");
-	cxl_p2n_write(afu, CXL_SLBIA_An, CXL_TLB_SLB_IQ_ALL);
-	while (cxl_p2n_read(afu, CXL_SLBIA_An) & CXL_TLB_SLB_P) {
-		if (time_after_eq(jiffies, timeout)) {
-			dev_warn(&afu->dev, "WARNING: CXL AFU SLBIA timed out!\n");
-			return -EBUSY;
-		}
-		/* If the adapter has gone down, we can assume that we
-		 * will PERST it and that will invalidate everything.
-		 */
-		if (!cxl_adapter_link_ok(afu->adapter))
-			return -EIO;
-		cpu_relax();
-	}
-	return 0;
-}
-
 static int cxl_write_sstp(struct cxl_afu *afu, u64 sstp0, u64 sstp1)
 {
 	int rc;
