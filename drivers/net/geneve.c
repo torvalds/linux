@@ -940,7 +940,7 @@ static netdev_tx_t geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		u8 vni[3];
 
 		tunnel_id_to_vni(key->tun_id, vni);
-		if (key->tun_flags & TUNNEL_GENEVE_OPT)
+		if (info->options_len)
 			opts = ip_tunnel_info_opts(info);
 
 		if (key->tun_flags & TUNNEL_CSUM)
@@ -1027,7 +1027,7 @@ static netdev_tx_t geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		u8 vni[3];
 
 		tunnel_id_to_vni(key->tun_id, vni);
-		if (key->tun_flags & TUNNEL_GENEVE_OPT)
+		if (info->options_len)
 			opts = ip_tunnel_info_opts(info);
 
 		if (key->tun_flags & TUNNEL_CSUM)
