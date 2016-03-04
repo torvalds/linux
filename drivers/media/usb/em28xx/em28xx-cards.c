@@ -37,6 +37,7 @@
 #include <media/i2c-addr.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
+#include <sound/ac97_codec.h>
 
 #include "em28xx.h"
 
@@ -2563,6 +2564,36 @@ static inline void em28xx_set_model(struct em28xx *dev)
 	dev->def_i2c_bus = dev->board.def_i2c_bus;
 }
 
+/* Wait until AC97_RESET reports the expected value reliably before proceeding.
+ * We also check that two unrelated registers accesses don't return the same
+ * value to avoid premature return.
+ * This procedure helps ensuring AC97 register accesses are reliable.
+ */
+static int em28xx_wait_until_ac97_features_equals(struct em28xx *dev,
+						  int expected_feat)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(2000);
+	int feat, powerdown;
+
+	while (time_is_after_jiffies(timeout)) {
+		feat = em28xx_read_ac97(dev, AC97_RESET);
+		if (feat < 0)
+			return feat;
+
+		powerdown = em28xx_read_ac97(dev, AC97_POWERDOWN);
+		if (powerdown < 0)
+			return powerdown;
+
+		if (feat == expected_feat && feat != powerdown)
+			return 0;
+
+		msleep(50);
+	}
+
+	em28xx_warn("AC97 registers access is not reliable !\n");
+	return -ETIMEDOUT;
+}
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
@@ -2667,6 +2698,13 @@ static void em28xx_pre_card_setup(struct em28xx *dev)
 		msleep(70);
 		em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xfd);
 		msleep(70);
+		break;
+
+	case EM2860_BOARD_TERRATEC_GRABBY:
+		/* HACK?: Ensure AC97 register reading is reliable before
+		 * proceeding. In practice, this will wait about 1.6 seconds.
+		 */
+		em28xx_wait_until_ac97_features_equals(dev, 0x6a90);
 		break;
 	}
 
