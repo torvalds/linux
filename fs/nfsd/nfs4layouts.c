@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
+#include <linux/blkdev.h>
 #include <linux/kmod.h>
 #include <linux/file.h>
 #include <linux/jhash.h>
@@ -28,6 +29,9 @@ static const struct lock_manager_operations nfsd4_layouts_lm_ops;
 const struct nfsd4_layout_ops *nfsd4_layout_ops[LAYOUT_TYPE_MAX] =  {
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
 	[LAYOUT_BLOCK_VOLUME]	= &bl_layout_ops,
+#endif
+#ifdef CONFIG_NFSD_SCSILAYOUT
+	[LAYOUT_SCSI]		= &scsi_layout_ops,
 #endif
 };
 
@@ -123,11 +127,23 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 	if (!(exp->ex_flags & NFSEXP_PNFS))
 		return;
 
+	/*
+	 * Check if the file system supports exporting a block-like layout.
+	 * If the block device supports reservations prefer the SCSI layout,
+	 * otherwise advertise the block layout.
+	 */
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
 	if (sb->s_export_op->get_uuid &&
 	    sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks)
 		exp->ex_layout_type = LAYOUT_BLOCK_VOLUME;
+#endif
+#ifdef CONFIG_NFSD_SCSILAYOUT
+	/* overwrite block layout selection if needed */
+	if (sb->s_export_op->map_blocks &&
+	    sb->s_export_op->commit_blocks &&
+	    sb->s_bdev && sb->s_bdev->bd_disk->fops->pr_ops)
+		exp->ex_layout_type = LAYOUT_SCSI;
 #endif
 }
 
@@ -594,8 +610,6 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 
 	rpc_ntop((struct sockaddr *)&clp->cl_addr, addr_str, sizeof(addr_str));
 
-	trace_layout_recall_fail(&ls->ls_stid.sc_stateid);
-
 	printk(KERN_WARNING
 		"nfsd: client %s failed to respond to layout recall. "
 		"  Fencing..\n", addr_str);
@@ -630,6 +644,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 		container_of(cb, struct nfs4_layout_stateid, ls_recall);
 	struct nfsd_net *nn;
 	ktime_t now, cutoff;
+	const struct nfsd4_layout_ops *ops;
 	LIST_HEAD(reaplist);
 
 
@@ -665,7 +680,13 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 		/*
 		 * Unknown error or non-responding client, we'll need to fence.
 		 */
-		nfsd4_cb_layout_fail(ls);
+		trace_layout_recall_fail(&ls->ls_stid.sc_stateid);
+
+		ops = nfsd4_layout_ops[ls->ls_layout_type];
+		if (ops->fence_client)
+			ops->fence_client(ls);
+		else
+			nfsd4_cb_layout_fail(ls);
 		return -1;
 	}
 }
