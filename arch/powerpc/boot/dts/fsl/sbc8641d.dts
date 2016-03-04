@@ -20,6 +20,7 @@
 	compatible = "wind,sbc8641";
 	#address-cells = <1>;
 	#size-cells = <1>;
+	interrupt-parent = <&mpic>;
 
 	aliases {
 		ethernet0 = &enet0;
@@ -70,8 +71,7 @@
 		#size-cells = <1>;
 		compatible = "fsl,mpc8641-localbus", "simple-bus";
 		reg = <0xf8005000 0x1000>;
-		interrupts = <19 2>;
-		interrupt-parent = <&mpic>;
+		interrupts = <19 2 0 0>;
 
 		ranges = <0 0 0xff000000 0x01000000	// 16MB Boot flash
 			  1 0 0xf0000000 0x00010000	// 64KB EEPROM
@@ -137,8 +137,7 @@
 		mcm@1000 {
 			compatible = "fsl,mpc8641-mcm", "fsl,mcm";
 			reg = <0x1000 0x1000>;
-			interrupts = <17 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <17 2 0 0>;
 		};
 
 		i2c@3000 {
@@ -147,8 +146,7 @@
 			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <43 2 0 0>;
 			dfsrr;
 		};
 
@@ -158,8 +156,7 @@
 			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <0x3100 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <43 2 0 0>;
 			dfsrr;
 		};
 
@@ -175,32 +172,28 @@
 						"fsl,eloplus-dma-channel";
 				reg = <0x0 0x80>;
 				cell-index = <0>;
-				interrupt-parent = <&mpic>;
-				interrupts = <20 2>;
+				interrupts = <20 2 0 0>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x80 0x80>;
 				cell-index = <1>;
-				interrupt-parent = <&mpic>;
-				interrupts = <21 2>;
+				interrupts = <21 2 0 0>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x100 0x80>;
 				cell-index = <2>;
-				interrupt-parent = <&mpic>;
-				interrupts = <22 2>;
+				interrupts = <22 2 0 0>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x180 0x80>;
 				cell-index = <3>;
-				interrupt-parent = <&mpic>;
-				interrupts = <23 2>;
+				interrupts = <23 2 0 0>;
 			};
 		};
 
@@ -214,8 +207,7 @@
 			reg = <0x24000 0x1000>;
 			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <29 2 30  2 34 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <29 2 0 0 30  2 0 0 34 2 0 0>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
@@ -255,8 +247,7 @@
 			reg = <0x25000 0x1000>;
 			ranges = <0x0 0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <35 2 36 2 40 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <35 2 0 0 36 2 0 0 40 2 0 0>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
@@ -284,8 +275,7 @@
 			reg = <0x26000 0x1000>;
 			ranges = <0x0 0x26000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <31 2 32 2 33 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <31 2 0 0 32 2 0 0 33 2 0 0>;
 			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;
 			phy-connection-type = "rgmii-id";
@@ -313,8 +303,7 @@
 			reg = <0x27000 0x1000>;
 			ranges = <0x0 0x27000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <37 2 38 2 39 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <37 2 0 0 38 2 0 0 39 2 0 0>;
 			tbi-handle = <&tbi3>;
 			phy-handle = <&phy3>;
 			phy-connection-type = "rgmii-id";
@@ -338,8 +327,7 @@
 			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4500 0x100>;
 			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <42 2 0 0>;
 		};
 
 		serial1: serial@4600 {
@@ -348,17 +336,16 @@
 			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
-			interrupts = <28 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <28 2 0 0>;
 		};
 
 		mpic: pic@40000 {
 			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <4>;
 			reg = <0x40000 0x40000>;
-			compatible = "chrp,open-pic";
+			compatible = "fsl,mpic", "chrp,open-pic";
 			device_type = "open-pic";
 			big-endian;
 		};
@@ -373,16 +360,14 @@
 	pci0: pcie@f8008000 {
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
 		reg = <0xf8008000 0x1000>;
 		bus-range = <0x0 0xff>;
 		ranges = <0x02000000 0x0 0x80000000 0x80000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00100000>;
-		clock-frequency = <33333333>;
-		interrupt-parent = <&mpic>;
-		interrupts = <24 2>;
+		clock-frequency = <100000000>;
+		interrupts = <24 2 0 0>;
 		interrupt-map-mask = <0xff00 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */
@@ -411,16 +396,14 @@
 	pci1: pcie@f8009000 {
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
 		reg = <0xf8009000 0x1000>;
 		bus-range = <0 0xff>;
 		ranges = <0x02000000 0x0 0xa0000000 0xa0000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0xe3000000 0x0 0x00100000>;
-		clock-frequency = <33333333>;
-		interrupt-parent = <&mpic>;
-		interrupts = <25 2>;
+		clock-frequency = <100000000>;
+		interrupts = <25 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */

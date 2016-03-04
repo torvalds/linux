@@ -16,6 +16,7 @@
 	compatible = "fsl,mpc8641hpcn";
 	#address-cells = <2>;
 	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
 
 	aliases {
 		ethernet0 = &enet0;
@@ -66,8 +67,7 @@
 		#size-cells = <1>;
 		compatible = "fsl,mpc8641-localbus", "simple-bus";
 		reg = <0x0f 0xffe05000 0x0 0x1000>;
-		interrupts = <19 2>;
-		interrupt-parent = <&mpic>;
+		interrupts = <19 2 0 0>;
 
 		ranges = <0 0 0xf 0xef800000 0x00800000
 			  2 0 0xf 0xffdf8000 0x00008000
@@ -118,8 +118,7 @@
 		mcm@1000 {
 			compatible = "fsl,mpc8641-mcm", "fsl,mcm";
 			reg = <0x1000 0x1000>;
-			interrupts = <17 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <17 2 0 0>;
 		};
 
 		i2c@3000 {
@@ -128,8 +127,7 @@
 			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <43 2 0 0>;
 			dfsrr;
 		};
 
@@ -139,8 +137,7 @@
 			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <0x3100 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <43 2 0 0>;
 			dfsrr;
 		};
 
@@ -156,32 +153,28 @@
 						"fsl,eloplus-dma-channel";
 				reg = <0x0 0x80>;
 				cell-index = <0>;
-				interrupt-parent = <&mpic>;
-				interrupts = <20 2>;
+				interrupts = <20 2 0 0>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x80 0x80>;
 				cell-index = <1>;
-				interrupt-parent = <&mpic>;
-				interrupts = <21 2>;
+				interrupts = <21 2 0 0>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x100 0x80>;
 				cell-index = <2>;
-				interrupt-parent = <&mpic>;
-				interrupts = <22 2>;
+				interrupts = <22 2 0 0>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8641-dma-channel",
 						"fsl,eloplus-dma-channel";
 				reg = <0x180 0x80>;
 				cell-index = <3>;
-				interrupt-parent = <&mpic>;
-				interrupts = <23 2>;
+				interrupts = <23 2 0 0>;
 			};
 		};
 
@@ -195,8 +188,7 @@
 			reg = <0x24000 0x1000>;
 			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <29 2 30 2 34 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <29 2 0 0 30 2 0 0 34 2 0 0>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
@@ -208,23 +200,19 @@
 				reg = <0x520 0x20>;
 
 				phy0: ethernet-phy@0 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
+					interrupts = <10 1 0 0>;
 					reg = <0>;
 				};
 				phy1: ethernet-phy@1 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
+					interrupts = <10 1 0 0>;
 					reg = <1>;
 				};
 				phy2: ethernet-phy@2 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
+					interrupts = <10 1 0 0>;
 					reg = <2>;
 				};
 				phy3: ethernet-phy@3 {
-					interrupt-parent = <&mpic>;
-					interrupts = <10 1>;
+					interrupts = <10 1 0 0>;
 					reg = <3>;
 				};
 				tbi0: tbi-phy@11 {
@@ -244,8 +232,7 @@
 			reg = <0x25000 0x1000>;
 			ranges = <0x0 0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <35 2 36 2 40 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <35 2 0 0 36 2 0 0 40 2 0 0>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
@@ -273,8 +260,7 @@
 			reg = <0x26000 0x1000>;
 			ranges = <0x0 0x26000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <31 2 32 2 33 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <31 2 0 0 32 2 0 0 33 2 0 0>;
 			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;
 			phy-connection-type = "rgmii-id";
@@ -302,8 +288,7 @@
 			reg = <0x27000 0x1000>;
 			ranges = <0x0 0x27000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <37 2 38 2 39 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <37 2 0 0 38 2 0 0 39 2 0 0>;
 			tbi-handle = <&tbi3>;
 			phy-handle = <&phy3>;
 			phy-connection-type = "rgmii-id";
@@ -327,8 +312,7 @@
 			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4500 0x100>;
 			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <42 2 0 0>;
 		};
 
 		serial1: serial@4600 {
@@ -337,16 +321,15 @@
 			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
-			interrupts = <28 2>;
-			interrupt-parent = <&mpic>;
+			interrupts = <28 2 0 0>;
 		};
 
 		mpic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
-			#interrupt-cells = <2>;
+			#interrupt-cells = <4>;
 			reg = <0x40000 0x40000>;
-			compatible = "chrp,open-pic";
+			compatible = "fsl,mpic", "chrp,open-pic";
 			device_type = "open-pic";
 		};
 
@@ -361,16 +344,14 @@
 		cell-index = <0>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
 		reg = <0x0f 0xffe08000 0x0 0x1000>;
 		bus-range = <0x0 0xff>;
 		ranges = <0x02000000 0x0 0xe0000000 0x0c 0x00000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0x0f 0xffc00000 0x0 0x00010000>;
-		clock-frequency = <33333333>;
-		interrupt-parent = <&mpic>;
-		interrupts = <24 2>;
+		clock-frequency = <100000000>;
+		interrupts = <24 2 0 0>;
 		interrupt-map-mask = <0xff00 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x11 func 0 - PCI slot 1 */
@@ -511,7 +492,6 @@
 					  0x0 0x00010000>;
 				isa@1e {
 					device_type = "isa";
-					#interrupt-cells = <2>;
 					#size-cells = <1>;
 					#address-cells = <2>;
 					reg = <0xf000 0 0 0 0>;
@@ -528,8 +508,7 @@
 						#address-cells = <0>;
 						#interrupt-cells = <2>;
 						compatible = "chrp,iic";
-						interrupts = <9 2>;
-						interrupt-parent = <&mpic>;
+						interrupts = <9 2 0 0>;
 					};
 
 					i8042@60 {
@@ -537,8 +516,7 @@
 						#address-cells = <1>;
 						reg = <1 0x60 1 1 0x64 1>;
 						interrupts = <1 3 12 3>;
-						interrupt-parent =
-							<&i8259>;
+						interrupt-parent = <&i8259>;
 
 						keyboard@0 {
 							reg = <0>;
@@ -570,16 +548,14 @@
 		cell-index = <1>;
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
-		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
 		reg = <0x0f 0xffe09000 0x0 0x1000>;
 		bus-range = <0x0 0xff>;
 		ranges = <0x02000000 0x0 0xe0000000 0x0c 0x20000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0x0f 0xffc10000 0x0 0x00010000>;
-		clock-frequency = <33333333>;
-		interrupt-parent = <&mpic>;
-		interrupts = <25 2>;
+		clock-frequency = <100000000>;
+		interrupts = <25 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
 			/* IDSEL 0x0 */
