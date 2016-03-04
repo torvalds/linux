@@ -401,7 +401,8 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	int ret;
 
 	_enter(",{%d},%ld",
-	       CIRC_SPACE(call->acks_head, call->acks_tail, call->acks_winsz),
+	       CIRC_SPACE(call->acks_head, ACCESS_ONCE(call->acks_tail),
+			  call->acks_winsz),
 	       *timeo);
 
 	add_wait_queue(&call->tx_waitq, &myself);
@@ -409,7 +410,7 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		ret = 0;
-		if (CIRC_SPACE(call->acks_head, call->acks_tail,
+		if (CIRC_SPACE(call->acks_head, ACCESS_ONCE(call->acks_tail),
 			       call->acks_winsz) > 0)
 			break;
 		if (signal_pending(current)) {
@@ -570,7 +571,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 			_debug("alloc");
 
-			if (CIRC_SPACE(call->acks_head, call->acks_tail,
+			if (CIRC_SPACE(call->acks_head,
+				       ACCESS_ONCE(call->acks_tail),
 				       call->acks_winsz) <= 0) {
 				ret = -EAGAIN;
 				if (msg->msg_flags & MSG_DONTWAIT)
@@ -686,7 +688,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->hdr.flags = conn->out_clientflag;
 			if (msg_data_left(msg) == 0 && !more)
 				sp->hdr.flags |= RXRPC_LAST_PACKET;
-			else if (CIRC_SPACE(call->acks_head, call->acks_tail,
+			else if (CIRC_SPACE(call->acks_head,
+					    ACCESS_ONCE(call->acks_tail),
 					    call->acks_winsz) > 1)
 				sp->hdr.flags |= RXRPC_MORE_PACKETS;
 			if (more && seq & 1)
