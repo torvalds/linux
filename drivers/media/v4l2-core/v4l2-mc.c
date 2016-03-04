@@ -240,7 +240,9 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 {
 	struct v4l2_fh *fh = q->owner;
 
-	return v4l_enable_media_source(fh->vdev);
+	if (fh && fh->vdev)
+		return v4l_enable_media_source(fh->vdev);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
 
