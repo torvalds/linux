@@ -27,9 +27,8 @@ static irqreturn_t schedule_cxl_fault(struct cxl_context *ctx, u64 dsisr, u64 da
 	return IRQ_HANDLED;
 }
 
-irqreturn_t cxl_irq(int irq, void *data, struct cxl_irq_info *irq_info)
+irqreturn_t cxl_irq(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_info)
 {
-	struct cxl_context *ctx = data;
 	u64 dsisr, dar;
 
 	dsisr = irq_info->dsisr;

@@ -714,7 +714,7 @@ struct cxl_irq_info {
 };
 
 void cxl_assign_psn_space(struct cxl_context *ctx);
-irqreturn_t cxl_irq(int irq, void *ctx, struct cxl_irq_info *irq_info);
+irqreturn_t cxl_irq(int irq, struct cxl_context *ctx, struct cxl_irq_info *irq_info);
 int cxl_register_one_irq(struct cxl *adapter, irq_handler_t handler,
 			void *cookie, irq_hw_number_t *dest_hwirq,
 			unsigned int *dest_virq, const char *name);
