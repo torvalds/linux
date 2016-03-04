@@ -28,7 +28,7 @@ unsigned rxrpc_max_call_lifetime = 60 * HZ;
  */
 unsigned rxrpc_dead_call_expiry = 2 * HZ;
 
-const char *const rxrpc_call_states[] = {
+const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",

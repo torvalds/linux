@@ -886,10 +886,11 @@ void rxrpc_process_call(struct work_struct *work)
 	struct rxrpc_header hdr;
 	struct msghdr msg;
 	struct kvec iov[5];
+	enum rxrpc_call_event genbit;
 	unsigned long bits;
 	__be32 data, pad;
 	size_t len;
-	int genbit, loop, nbit, ioc, ret, mtu;
+	int loop, nbit, ioc, ret, mtu;
 	u32 abort_code = RX_PROTOCOL_ERROR;
 	u8 *acks = NULL;
 
