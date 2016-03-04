@@ -831,9 +831,7 @@ static int gb_camera_connection_init(struct gb_connection *connection)
 	 * Create the data connection between camera module CDSI0 and APB CDS1.
 	 * The CPort IDs are hardcoded by the ES2 bridges.
 	 */
-	/* FIXME: remove E2EFC */
-	cport_flags = GB_SVC_CPORT_FLAG_E2EFC | GB_SVC_CPORT_FLAG_CSD_N |
-			GB_SVC_CPORT_FLAG_CSV_N;
+	cport_flags = GB_SVC_CPORT_FLAG_CSD_N | GB_SVC_CPORT_FLAG_CSV_N;
 	ret = gb_svc_connection_create(svc, connection->intf->interface_id,
 				       ES2_APB_CDSI0_CPORT, svc->ap_intf_id,
 				       ES2_APB_CDSI1_CPORT, cport_flags);
