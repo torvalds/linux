@@ -1845,6 +1845,8 @@ static int sunxi_nfc_remove(struct platform_device *pdev)
 	struct sunxi_nfc *nfc = platform_get_drvdata(pdev);
 
 	sunxi_nand_chips_cleanup(nfc);
+	clk_disable_unprepare(nfc->mod_clk);
+	clk_disable_unprepare(nfc->ahb_clk);
 
 	return 0;
 }
