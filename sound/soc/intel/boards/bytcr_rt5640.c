@@ -340,15 +340,31 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 	struct sst_acpi_mach *mach;
+	const char *i2c_name = NULL;
+	int i;
+	int dai_index;
 
 	/* register the soc card */
 	byt_rt5640_card.dev = &pdev->dev;
 	mach = byt_rt5640_card.dev->platform_data;
 
+	/* fix index of codec dai */
+	dai_index = MERR_DPCM_COMPR + 1;
+	for (i = 0; i < ARRAY_SIZE(byt_rt5640_dais); i++) {
+		if (!strcmp(byt_rt5640_dais[i].codec_name, "i2c-10EC5640:00")) {
+			dai_index = i;
+			break;
+		}
+	}
+
 	/* fixup codec name based on HID */
-	snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
-		 "%s%s%s", "i2c-", mach->id, ":00");
-	byt_rt5640_dais[MERR_DPCM_COMPR+1].codec_name = byt_rt5640_codec_name;
+	i2c_name = sst_acpi_find_name_from_hid(mach->id);
+	if (i2c_name != NULL) {
+		snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
+			"%s%s", "i2c-", i2c_name);
+
+		byt_rt5640_dais[dai_index].codec_name = byt_rt5640_codec_name;
+	}
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5640_quirk_table);
