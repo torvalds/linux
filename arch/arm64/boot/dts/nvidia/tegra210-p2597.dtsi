@@ -1268,6 +1268,9 @@
 		no-1-8-v;
 
 		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
+
+		vqmmc-supply = <&vddio_sdmmc>;
+		vmmc-supply = <&vdd_3v3_sd>;
 	};
 
 	regulators {
@@ -1322,6 +1325,20 @@
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
 			regulator-boot-on;
+		};
+
+		vdd_3v3_sd: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "VDD_3V3_SD";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			vin-supply = <&vdd_3v3_sys>;
+
+			regulator-enable-ramp-delay = <472>;
+			regulator-disable-ramp-delay = <4880>;
 		};
 	};
 
