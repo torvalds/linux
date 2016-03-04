@@ -192,14 +192,6 @@ struct tipc_link {
 static const char *link_co_err = "Link tunneling error, ";
 static const char *link_rst_msg = "Resetting link ";
 
-/* Properties valid for media, bearar and link */
-static const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
-	[TIPC_NLA_PROP_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_PROP_PRIO]		= { .type = NLA_U32 },
-	[TIPC_NLA_PROP_TOL]		= { .type = NLA_U32 },
-	[TIPC_NLA_PROP_WIN]		= { .type = NLA_U32 }
-};
-
 /* Send states for broadcast NACKs
  */
 enum {

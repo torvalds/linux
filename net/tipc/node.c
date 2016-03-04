@@ -41,6 +41,7 @@
 #include "socket.h"
 #include "bcast.h"
 #include "discover.h"
+#include "netlink.h"
 
 #define INVALID_NODE_SIG	0x10000
 
@@ -162,28 +163,6 @@ struct tipc_sock_conn {
 	u32 peer_port;
 	u32 peer_node;
 	struct list_head list;
-};
-
-static const struct nla_policy tipc_nl_link_policy[TIPC_NLA_LINK_MAX + 1] = {
-	[TIPC_NLA_LINK_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_LINK_NAME] = {
-		.type = NLA_STRING,
-		.len = TIPC_MAX_LINK_NAME
-	},
-	[TIPC_NLA_LINK_MTU]		= { .type = NLA_U32 },
-	[TIPC_NLA_LINK_BROADCAST]	= { .type = NLA_FLAG },
-	[TIPC_NLA_LINK_UP]		= { .type = NLA_FLAG },
-	[TIPC_NLA_LINK_ACTIVE]		= { .type = NLA_FLAG },
-	[TIPC_NLA_LINK_PROP]		= { .type = NLA_NESTED },
-	[TIPC_NLA_LINK_STATS]		= { .type = NLA_NESTED },
-	[TIPC_NLA_LINK_RX]		= { .type = NLA_U32 },
-	[TIPC_NLA_LINK_TX]		= { .type = NLA_U32 }
-};
-
-static const struct nla_policy tipc_nl_node_policy[TIPC_NLA_NODE_MAX + 1] = {
-	[TIPC_NLA_NODE_UNSPEC]		= { .type = NLA_UNSPEC },
-	[TIPC_NLA_NODE_ADDR]		= { .type = NLA_U32 },
-	[TIPC_NLA_NODE_UP]		= { .type = NLA_FLAG }
 };
 
 static struct tipc_link *node_active_link(struct tipc_node *n, int sel)

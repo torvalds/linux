@@ -48,19 +48,12 @@
 #include <linux/tipc_netlink.h>
 #include "core.h"
 #include "bearer.h"
+#include "netlink.h"
 
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
 
 #define UDP_MIN_HEADROOM        28
-
-static const struct nla_policy tipc_nl_udp_policy[TIPC_NLA_UDP_MAX + 1] = {
-	[TIPC_NLA_UDP_UNSPEC]	= {.type = NLA_UNSPEC},
-	[TIPC_NLA_UDP_LOCAL]	= {.type = NLA_BINARY,
-				   .len = sizeof(struct sockaddr_storage)},
-	[TIPC_NLA_UDP_REMOTE]	= {.type = NLA_BINARY,
-				   .len = sizeof(struct sockaddr_storage)},
-};
 
 /**
  * struct udp_media_addr - IP/UDP addressing information
