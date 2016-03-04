@@ -2480,6 +2480,11 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	if (codec_has_acomp(codec)) {
 		codec->depop_delay = 0;
 		spec->i915_audio_ops.audio_ptr = codec;
+		/* intel_audio_codec_enable() or intel_audio_codec_disable()
+		 * will call pin_eld_notify with using audio_ptr pointer
+		 * We need make sure audio_ptr is really setup
+		 */
+		wmb();
 		spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
 		snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
 	}
