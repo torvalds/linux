@@ -39,7 +39,7 @@ static int kbasep_mem_profile_seq_show(struct seq_file *sfile, void *data)
 	err = seq_write(sfile, kctx->mem_profile_data, kctx->mem_profile_size);
 
 	if (!err)
-		err = seq_putc(sfile, '\n');
+		seq_putc(sfile, '\n');
 
 	mutex_unlock(&kctx->mem_profile_lock);
 

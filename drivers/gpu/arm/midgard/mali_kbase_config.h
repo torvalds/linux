@@ -66,20 +66,18 @@ struct kbase_device;
  */
 struct kbase_platform_funcs_conf {
 	/**
-	 * platform_init_func 
-         *      - platform specific init function pointer
+	 * platform_init_func - platform specific init function pointer
 	 * @kbdev - kbase_device pointer
 	 *
-	 * Returns 0 on success,
-         * negative error code otherwise.
+	 * Returns 0 on success, negative error code otherwise.
 	 *
 	 * Function pointer for platform specific initialization or NULL if no
 	 * initialization function is required. At the point this the GPU is
 	 * not active and its power and clocks are in unknown (platform specific
 	 * state) as kbase doesn't yet have control of power and clocks.
 	 *
-	 * The platform specific private pointer kbase_device::platform_context 
-         * can be accessed (and possibly initialized) in here.
+	 * The platform specific private pointer kbase_device::platform_context
+	 * can be accessed (and possibly initialized) in here.
 	 */
 	int (*platform_init_func)(struct kbase_device *kbdev);
 	/**

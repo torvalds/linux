@@ -66,7 +66,7 @@ config MALI_MIDGARD_DVFS
 config MALI_MIDGARD_RT_PM
 	bool "Enable Runtime power management"
 	depends on MALI_MIDGARD
-	depends on PM_RUNTIME
+	depends on PM
 	default y
 	help
 	  Choose this option to enable runtime power management in the Mali Midgard DDK.

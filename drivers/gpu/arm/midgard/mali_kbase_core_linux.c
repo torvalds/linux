@@ -14,7 +14,8 @@
  *
  */
 
-
+#define ENABLE_DEBUG_LOG
+#include "platform/rk/custom_log.h"
 
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_gpuprops.h>
@@ -48,6 +49,7 @@
 #include <linux/syscalls.h>
 #endif /* CONFIG_KDS */
 
+#include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -1293,7 +1295,7 @@ static int kbase_open(struct inode *inode, struct file *filp)
 	  */
 #else
 	debugfs_create_bool("infinite_cache", 0644, kctx->kctx_dentry,
-			&kctx->infinite_cache_active);
+			(bool*)&(kctx->infinite_cache_active));
 #endif /* CONFIG_MALI_COH_USER */
 
 	mutex_init(&kctx->mem_profile_lock);
@@ -3158,7 +3160,7 @@ static int kbase_device_debugfs_init(struct kbase_device *kbdev)
 #ifndef CONFIG_MALI_COH_USER
 	debugfs_create_bool("infinite_cache", 0644,
 			debugfs_ctx_defaults_directory,
-			&kbdev->infinite_cache_active_default);
+			(bool*)&(kbdev->infinite_cache_active_default));
 #endif /* CONFIG_MALI_COH_USER */
 
 	debugfs_create_size_t("mem_pool_max_size", 0644,
@@ -3533,12 +3535,6 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 	int err = 0;
 	int i;
 
-	printk(KERN_INFO "arm_release_ver of this mali_ko is '%s', rk_ko_ver is '%d', built at '%s', on '%s'.",
-           MALI_RELEASE_NAME,
-           ROCKCHIP_VERSION,
-           __TIME__,
-           __DATE__);
-
 #ifdef CONFIG_OF
 	err = kbase_platform_early_init();
 	if (err) {
@@ -3648,7 +3644,7 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)) && defined(CONFIG_OF) \
 			&& defined(CONFIG_PM_OPP)
 	/* Register the OPPs if they are available in device tree */
-	if (of_init_opp_table(kbdev->dev) < 0)
+	if (dev_pm_opp_of_add_table(kbdev->dev) < 0)
 		dev_dbg(kbdev->dev, "OPP table not found\n");
 #endif
 
@@ -3688,7 +3684,7 @@ out_sysfs:
 	kbase_common_device_remove(kbdev);
 out_common_init:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-	of_free_opp_table(kbdev->dev);
+	dev_pm_opp_of_remove_table(kbdev->dev);
 #endif
 	clk_disable_unprepare(kbdev->clock);
 out_clock_prepare:

@@ -64,8 +64,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 
-#if defined(CONFIG_PM_RUNTIME) || \
-	(defined(CONFIG_PM) && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
+#if defined(CONFIG_PM)
 #define KBASE_PM_RUNTIME 1
 #endif
 
