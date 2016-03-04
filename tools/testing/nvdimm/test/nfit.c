@@ -223,6 +223,7 @@ static int nfit_test_cmd_set_config_data(struct nd_cmd_set_config_hdr *nd_cmd,
 }
 
 #define NFIT_TEST_ARS_RECORDS 4
+#define NFIT_TEST_CLEAR_ERR_UNIT 256
 
 static int nfit_test_cmd_ars_cap(struct nd_cmd_ars_cap *nd_cmd,
 		unsigned int buf_len)
@@ -233,6 +234,7 @@ static int nfit_test_cmd_ars_cap(struct nd_cmd_ars_cap *nd_cmd,
 	nd_cmd->max_ars_out = sizeof(struct nd_cmd_ars_status)
 		+ NFIT_TEST_ARS_RECORDS * sizeof(struct nd_ars_record);
 	nd_cmd->status = (ND_ARS_PERSISTENT | ND_ARS_VOLATILE) << 16;
+	nd_cmd->clear_err_unit = NFIT_TEST_CLEAR_ERR_UNIT;
 
 	return 0;
 }
@@ -306,6 +308,28 @@ static int nfit_test_cmd_ars_status(struct ars_state *ars_state,
 	return 0;
 }
 
+static int nfit_test_cmd_clear_error(struct nd_cmd_clear_error *clear_err,
+		unsigned int buf_len, int *cmd_rc)
+{
+	const u64 mask = NFIT_TEST_CLEAR_ERR_UNIT - 1;
+	if (buf_len < sizeof(*clear_err))
+		return -EINVAL;
+
+	if ((clear_err->address & mask) || (clear_err->length & mask))
+		return -EINVAL;
+
+	/*
+	 * Report 'all clear' success for all commands even though a new
+	 * scrub will find errors again.  This is enough to have the
+	 * error removed from the 'badblocks' tracking in the pmem
+	 * driver.
+	 */
+	clear_err->status = 0;
+	clear_err->cleared = clear_err->length;
+	*cmd_rc = 0;
+	return 0;
+}
+
 static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc)
@@ -364,6 +388,9 @@ static int nfit_test_ctl(struct nvdimm_bus_descriptor *nd_desc,
 		case ND_CMD_ARS_STATUS:
 			rc = nfit_test_cmd_ars_status(ars_state, buf, buf_len,
 					cmd_rc);
+			break;
+		case ND_CMD_CLEAR_ERROR:
+			rc = nfit_test_cmd_clear_error(buf, buf_len, cmd_rc);
 			break;
 		default:
 			return -ENOTTY;
@@ -1230,6 +1257,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_dsm_force_en);
 }
 
 static void nfit_test1_setup(struct nfit_test *t)
@@ -1290,6 +1318,7 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_CAP, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_START, &acpi_desc->bus_dsm_force_en);
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_dsm_force_en);
+	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_dsm_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,

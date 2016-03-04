@@ -421,6 +421,12 @@ static const struct nd_cmd_desc __nd_cmd_bus_descs[] = {
 		.out_num = 3,
 		.out_sizes = { 4, 4, UINT_MAX, },
 	},
+	[ND_CMD_CLEAR_ERROR] = {
+		.in_num = 2,
+		.in_sizes = { 8, 8, },
+		.out_num = 3,
+		.out_sizes = { 4, 4, 8, },
+	},
 };
 
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd)
@@ -489,6 +495,13 @@ void wait_nvdimm_bus_probe_idle(struct device *dev)
 	} while (true);
 }
 
+static int pmem_active(struct device *dev, void *data)
+{
+	if (is_nd_pmem(dev) && dev->driver)
+		return -EBUSY;
+	return 0;
+}
+
 /* set_config requires an idle interleave set */
 static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
 		struct nvdimm *nvdimm, unsigned int cmd)
@@ -502,6 +515,11 @@ static int nd_cmd_clear_to_send(struct nvdimm_bus *nvdimm_bus,
 		if (rc)
 			return rc;
 	}
+
+	/* require clear error to go through the pmem driver */
+	if (!nvdimm && cmd == ND_CMD_CLEAR_ERROR)
+		return device_for_each_child(&nvdimm_bus->dev, NULL,
+				pmem_active);
 
 	if (!nvdimm || cmd != ND_CMD_SET_CONFIG_DATA)
 		return 0;
@@ -551,6 +569,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		case ND_CMD_VENDOR:
 		case ND_CMD_SET_CONFIG_DATA:
 		case ND_CMD_ARS_START:
+		case ND_CMD_CLEAR_ERROR:
 			dev_dbg(&nvdimm_bus->dev, "'%s' command while read-only.\n",
 					nvdimm ? nvdimm_cmd_name(cmd)
 					: nvdimm_bus_cmd_name(cmd));

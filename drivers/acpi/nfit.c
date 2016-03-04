@@ -87,6 +87,7 @@ static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
 
 static int xlat_status(void *buf, unsigned int cmd)
 {
+	struct nd_cmd_clear_error *clear_err;
 	struct nd_cmd_ars_status *ars_status;
 	struct nd_cmd_ars_start *ars_start;
 	struct nd_cmd_ars_cap *ars_cap;
@@ -148,6 +149,15 @@ static int xlat_status(void *buf, unsigned int cmd)
 		/* Unknown status */
 		if (ars_status->status >> 16)
 			return -EIO;
+		break;
+	case ND_CMD_CLEAR_ERROR:
+		clear_err = buf;
+		if (clear_err->status & 0xffff)
+			return -EIO;
+		if (!clear_err->cleared)
+			return -EIO;
+		if (clear_err->length > clear_err->cleared)
+			return clear_err->cleared;
 		break;
 	default:
 		break;
@@ -1002,7 +1012,7 @@ static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
 	if (!adev)
 		return;
 
-	for (i = ND_CMD_ARS_CAP; i <= ND_CMD_ARS_STATUS; i++)
+	for (i = ND_CMD_ARS_CAP; i <= ND_CMD_CLEAR_ERROR; i++)
 		if (acpi_check_dsm(adev->handle, uuid, 1, 1ULL << i))
 			set_bit(i, &nd_desc->dsm_mask);
 }
