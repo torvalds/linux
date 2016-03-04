@@ -460,6 +460,7 @@ config GPIO_XGENE_SB
 	tristate "APM X-Gene GPIO standby controller support"
 	depends on ARCH_XGENE && OF_GPIO
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  This driver supports the GPIO block within the APM X-Gene
 	  Standby Domain. Say yes here to enable the GPIO functionality.
