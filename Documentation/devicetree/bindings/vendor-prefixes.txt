@@ -71,6 +71,7 @@ dmo	Data Modul AG
 ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
+eeti	eGalax_eMPIA Technology Inc
 elan	Elan Microelectronic Corp.
 emmicro	EM Microelectronic
 energymicro	Silicon Laboratories (formerly Energy Micro AS)
