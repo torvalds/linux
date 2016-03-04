@@ -59,18 +59,18 @@ struct hdac_chmap {
 
 void snd_hdac_register_chmap_ops(struct hdac_device *hdac,
 				struct hdac_chmap *chmap);
-int hdmi_channel_allocation(struct hdac_device *hdac, int spk_alloc,
+int snd_hdac_channel_allocation(struct hdac_device *hdac, int spk_alloc,
 			int channels, bool chmap_set,
 			bool non_pcm, unsigned char *map);
-int hdmi_get_active_channels(int ca);
-void hdmi_setup_channel_mapping(struct hdac_chmap *chmap,
+int snd_hdac_get_active_channels(int ca);
+void snd_hdac_setup_channel_mapping(struct hdac_chmap *chmap,
 		       hda_nid_t pin_nid, bool non_pcm, int ca,
 		       int channels, unsigned char *map,
 		       bool chmap_set);
-void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen);
-struct hdac_cea_channel_speaker_allocation *hdmi_get_ch_alloc_from_ca(int ca);
-int to_spk_mask(unsigned char c);
-int spk_to_chmap(int spk);
+void snd_hdac_print_channel_allocation(int spk_alloc, char *buf, int buflen);
+struct hdac_cea_channel_speaker_allocation *snd_hdac_get_ch_alloc_from_ca(int ca);
+int snd_hdac_chmap_to_spk_mask(unsigned char c);
+int snd_hdac_spk_to_chmap(int spk);
 int snd_hdac_add_chmap_ctls(struct snd_pcm *pcm, int pcm_idx,
 				struct hdac_chmap *chmap);
 #endif /* __SOUND_HDA_CHMAP_H */

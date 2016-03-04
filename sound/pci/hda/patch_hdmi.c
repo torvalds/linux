@@ -687,11 +687,11 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 
 	eld = &per_pin->sink_eld;
 
-	ca = hdmi_channel_allocation(&codec->core,
+	ca = snd_hdac_channel_allocation(&codec->core,
 			eld->info.spk_alloc, channels,
 			per_pin->chmap_set, non_pcm, per_pin->chmap);
 
-	active_channels = hdmi_get_active_channels(ca);
+	active_channels = snd_hdac_get_active_channels(ca);
 
 	chmap->ops.set_channel_count(&codec->core, per_pin->cvt_nid,
 						active_channels);
@@ -700,7 +700,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	 * always configure channel mapping, it may have been changed by the
 	 * user in the meantime
 	 */
-	hdmi_setup_channel_mapping(&spec->chmap,
+	snd_hdac_setup_channel_mapping(&spec->chmap,
 				pin_nid, non_pcm, ca, channels,
 				per_pin->chmap, per_pin->chmap_set);
 
@@ -3115,9 +3115,9 @@ static int atihdmi_paired_chmap_validate(struct hdac_chmap *chmap,
 
 	/* check that only channel pairs need to be remapped on old pre-rev3 ATI/AMD */
 
-	cap = hdmi_get_ch_alloc_from_ca(ca);
+	cap = snd_hdac_get_ch_alloc_from_ca(ca);
 	for (i = 0; i < chs; ++i) {
-		int mask = to_spk_mask(map[i]);
+		int mask = snd_hdac_chmap_to_spk_mask(map[i]);
 		bool ok = false;
 		bool companion_ok = false;
 
@@ -3133,7 +3133,7 @@ static int atihdmi_paired_chmap_validate(struct hdac_chmap *chmap,
 				if (i % 2 == 0 && i + 1 < chs) {
 					/* even channel, check the odd companion */
 					int comp_chan_idx = 7 - atihdmi_paired_swap_fc_lfe(j + 1);
-					int comp_mask_req = to_spk_mask(map[i+1]);
+					int comp_mask_req = snd_hdac_chmap_to_spk_mask(map[i+1]);
 					int comp_mask_act = cap->speakers[comp_chan_idx];
 
 					if (comp_mask_req == comp_mask_act)
@@ -3270,7 +3270,7 @@ static void atihdmi_paired_cea_alloc_to_tlv_chmap(struct hdac_chmap *hchmap,
 			continue;
 		}
 
-		chmap[count++] = spk_to_chmap(spk);
+		chmap[count++] = snd_hdac_spk_to_chmap(spk);
 	}
 
 	WARN_ON(count != channels);

@@ -243,7 +243,7 @@ static int get_channel_allocation_order(int ca)
 	return i;
 }
 
-void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
+void snd_hdac_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 {
 	int i, j;
 
@@ -254,7 +254,7 @@ void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
 	}
 	buf[j] = '\0';	/* necessary when j == 0 */
 }
-EXPORT_SYMBOL_GPL(snd_print_channel_allocation);
+EXPORT_SYMBOL_GPL(snd_hdac_print_channel_allocation);
 
 /*
  * The transformation takes two steps:
@@ -312,7 +312,7 @@ static int hdmi_channel_allocation_spk_alloc_blk(struct hdac_device *codec,
 		}
 	}
 
-	snd_print_channel_allocation(spk_alloc, buf, sizeof(buf));
+	snd_hdac_print_channel_allocation(spk_alloc, buf, sizeof(buf));
 	dev_dbg(&codec->dev, "HDMI: select CA 0x%x for %d-channel allocation: %s\n",
 		    ca, channels, buf);
 
@@ -412,7 +412,7 @@ static struct channel_map_table map_tables[] = {
 };
 
 /* from ALSA API channel position to speaker bit mask */
-int to_spk_mask(unsigned char c)
+int snd_hdac_chmap_to_spk_mask(unsigned char c)
 {
 	struct channel_map_table *t = map_tables;
 
@@ -422,12 +422,12 @@ int to_spk_mask(unsigned char c)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(to_spk_mask);
+EXPORT_SYMBOL_GPL(snd_hdac_chmap_to_spk_mask);
 
 /* from ALSA API channel position to CEA slot */
 static int to_cea_slot(int ordered_ca, unsigned char pos)
 {
-	int mask = to_spk_mask(pos);
+	int mask = snd_hdac_chmap_to_spk_mask(pos);
 	int i;
 
 	if (mask) {
@@ -441,7 +441,7 @@ static int to_cea_slot(int ordered_ca, unsigned char pos)
 }
 
 /* from speaker bit mask to ALSA API channel position */
-int spk_to_chmap(int spk)
+int snd_hdac_spk_to_chmap(int spk)
 {
 	struct channel_map_table *t = map_tables;
 
@@ -451,14 +451,14 @@ int spk_to_chmap(int spk)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spk_to_chmap);
+EXPORT_SYMBOL_GPL(snd_hdac_spk_to_chmap);
 
 /* from CEA slot to ALSA API channel position */
 static int from_cea_slot(int ordered_ca, unsigned char slot)
 {
 	int mask = channel_allocations[ordered_ca].speakers[7 - slot];
 
-	return spk_to_chmap(mask);
+	return snd_hdac_spk_to_chmap(mask);
 }
 
 /* get the CA index corresponding to the given ALSA API channel map */
@@ -467,7 +467,7 @@ static int hdmi_manual_channel_allocation(int chs, unsigned char *map)
 	int i, spks = 0, spk_mask = 0;
 
 	for (i = 0; i < chs; i++) {
-		int mask = to_spk_mask(map[i]);
+		int mask = snd_hdac_chmap_to_spk_mask(map[i]);
 
 		if (mask) {
 			spk_mask |= mask;
@@ -530,7 +530,7 @@ static void hdmi_setup_fake_chmap(unsigned char *map, int ca)
 	}
 }
 
-void hdmi_setup_channel_mapping(struct hdac_chmap *chmap,
+void snd_hdac_setup_channel_mapping(struct hdac_chmap *chmap,
 				       hda_nid_t pin_nid, bool non_pcm, int ca,
 				       int channels, unsigned char *map,
 				       bool chmap_set)
@@ -545,23 +545,23 @@ void hdmi_setup_channel_mapping(struct hdac_chmap *chmap,
 
 	hdmi_debug_channel_mapping(chmap, pin_nid);
 }
-EXPORT_SYMBOL_GPL(hdmi_setup_channel_mapping);
+EXPORT_SYMBOL_GPL(snd_hdac_setup_channel_mapping);
 
-int hdmi_get_active_channels(int ca)
+int snd_hdac_get_active_channels(int ca)
 {
 	int ordered_ca = get_channel_allocation_order(ca);
 
 	return channel_allocations[ordered_ca].channels;
 }
-EXPORT_SYMBOL_GPL(hdmi_get_active_channels);
+EXPORT_SYMBOL_GPL(snd_hdac_get_active_channels);
 
-struct hdac_cea_channel_speaker_allocation *hdmi_get_ch_alloc_from_ca(int ca)
+struct hdac_cea_channel_speaker_allocation *snd_hdac_get_ch_alloc_from_ca(int ca)
 {
 	return &channel_allocations[get_channel_allocation_order(ca)];
 }
-EXPORT_SYMBOL_GPL(hdmi_get_ch_alloc_from_ca);
+EXPORT_SYMBOL_GPL(snd_hdac_get_ch_alloc_from_ca);
 
-int hdmi_channel_allocation(struct hdac_device *hdac, int spk_alloc,
+int snd_hdac_channel_allocation(struct hdac_device *hdac, int spk_alloc,
 		int channels, bool chmap_set, bool non_pcm, unsigned char *map)
 {
 	int ca;
@@ -577,7 +577,7 @@ int hdmi_channel_allocation(struct hdac_device *hdac, int spk_alloc,
 
 	return ca;
 }
-EXPORT_SYMBOL_GPL(hdmi_channel_allocation);
+EXPORT_SYMBOL_GPL(snd_hdac_channel_allocation);
 
 /*
  * ALSA API channel-map control callbacks
@@ -619,7 +619,7 @@ static void hdmi_cea_alloc_to_tlv_chmap(struct hdac_chmap *hchmap,
 		if (!spk)
 			continue;
 
-		chmap[count++] = spk_to_chmap(spk);
+		chmap[count++] = snd_hdac_spk_to_chmap(spk);
 	}
 
 	WARN_ON(count != channels);

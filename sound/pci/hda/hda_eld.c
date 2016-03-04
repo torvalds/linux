@@ -416,7 +416,7 @@ void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
 
 	if (e->spk_alloc) {
 		char buf[SND_PRINT_CHANNEL_ALLOCATION_ADVISED_BUFSIZE];
-		snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+		snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 		codec_dbg(codec, "HDMI: available speakers:%s\n", buf);
 	}
 
@@ -491,7 +491,7 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 	snd_iprintf(buffer, "support_ai\t\t%d\n", e->support_ai);
 	snd_iprintf(buffer, "audio_sync_delay\t%d\n", e->aud_synch_delay);
 
-	snd_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
+	snd_hdac_print_channel_allocation(e->spk_alloc, buf, sizeof(buf));
 	snd_iprintf(buffer, "speakers\t\t[0x%x]%s\n", e->spk_alloc, buf);
 
 	snd_iprintf(buffer, "sad_count\t\t%d\n", e->sad_count);
