@@ -22,25 +22,42 @@
 /* Register map */
 /* control section */
 #define RV3029_ONOFF_CTRL		0x00
+#define RV3029_ONOFF_CTRL_WE		BIT(0)
+#define RV3029_ONOFF_CTRL_TE		BIT(1)
+#define RV3029_ONOFF_CTRL_TAR		BIT(2)
+#define RV3029_ONOFF_CTRL_EERE		BIT(3)
+#define RV3029_ONOFF_CTRL_SRON		BIT(4)
+#define RV3029_ONOFF_CTRL_TD0		BIT(5)
+#define RV3029_ONOFF_CTRL_TD1		BIT(6)
+#define RV3029_ONOFF_CTRL_CLKINT	BIT(7)
 #define RV3029_IRQ_CTRL			0x01
-#define RV3029_IRQ_CTRL_AIE		(1 << 0)
+#define RV3029_IRQ_CTRL_AIE		BIT(0)
+#define RV3029_IRQ_CTRL_TIE		BIT(1)
+#define RV3029_IRQ_CTRL_V1IE		BIT(2)
+#define RV3029_IRQ_CTRL_V2IE		BIT(3)
+#define RV3029_IRQ_CTRL_SRIE		BIT(4)
 #define RV3029_IRQ_FLAGS		0x02
-#define RV3029_IRQ_FLAGS_AF		(1 << 0)
+#define RV3029_IRQ_FLAGS_AF		BIT(0)
+#define RV3029_IRQ_FLAGS_TF		BIT(1)
+#define RV3029_IRQ_FLAGS_V1IF		BIT(2)
+#define RV3029_IRQ_FLAGS_V2IF		BIT(3)
+#define RV3029_IRQ_FLAGS_SRF		BIT(4)
 #define RV3029_STATUS			0x03
-#define RV3029_STATUS_VLOW1		(1 << 2)
-#define RV3029_STATUS_VLOW2		(1 << 3)
-#define RV3029_STATUS_SR		(1 << 4)
-#define RV3029_STATUS_PON		(1 << 5)
-#define RV3029_STATUS_EEBUSY		(1 << 7)
+#define RV3029_STATUS_VLOW1		BIT(2)
+#define RV3029_STATUS_VLOW2		BIT(3)
+#define RV3029_STATUS_SR		BIT(4)
+#define RV3029_STATUS_PON		BIT(5)
+#define RV3029_STATUS_EEBUSY		BIT(7)
 #define RV3029_RST_CTRL			0x04
+#define RV3029_RST_CTRL_SYSR		BIT(4)
 #define RV3029_CONTROL_SECTION_LEN	0x05
 
 /* watch section */
 #define RV3029_W_SEC			0x08
 #define RV3029_W_MINUTES		0x09
 #define RV3029_W_HOURS			0x0A
-#define RV3029_REG_HR_12_24		(1<<6)  /* 24h/12h mode */
-#define RV3029_REG_HR_PM		(1<<5)  /* PM/AM bit in 12h mode */
+#define RV3029_REG_HR_12_24		BIT(6) /* 24h/12h mode */
+#define RV3029_REG_HR_PM		BIT(5) /* PM/AM bit in 12h mode */
 #define RV3029_W_DATE			0x0B
 #define RV3029_W_DAYS			0x0C
 #define RV3029_W_MONTHS			0x0D
@@ -67,16 +84,28 @@
 /* eeprom data section */
 #define RV3029_E2P_EEDATA1		0x28
 #define RV3029_E2P_EEDATA2		0x29
+#define RV3029_E2PDATA_SECTION_LEN	0x02
 
 /* eeprom control section */
 #define RV3029_CONTROL_E2P_EECTRL	0x30
-#define RV3029_TRICKLE_1K		(1<<0)  /*  1K resistance */
-#define RV3029_TRICKLE_5K		(1<<1)  /*  5K resistance */
-#define RV3029_TRICKLE_20K		(1<<2)  /* 20K resistance */
-#define RV3029_TRICKLE_80K		(1<<3)  /* 80K resistance */
-#define RV3029_CONTROL_E2P_XTALOFFSET	0x31
-#define RV3029_CONTROL_E2P_QCOEF	0x32
-#define RV3029_CONTROL_E2P_TURNOVER	0x33
+#define RV3029_EECTRL_THP		BIT(0) /* temp scan interval */
+#define RV3029_EECTRL_THE		BIT(1) /* thermometer enable */
+#define RV3029_EECTRL_FD0		BIT(2) /* CLKOUT */
+#define RV3029_EECTRL_FD1		BIT(3) /* CLKOUT */
+#define RV3029_TRICKLE_1K		BIT(4) /* 1.5K resistance */
+#define RV3029_TRICKLE_5K		BIT(5) /* 5K   resistance */
+#define RV3029_TRICKLE_20K		BIT(6) /* 20K  resistance */
+#define RV3029_TRICKLE_80K		BIT(7) /* 80K  resistance */
+#define RV3029_TRICKLE_MASK		(RV3029_TRICKLE_1K |\
+					 RV3029_TRICKLE_5K |\
+					 RV3029_TRICKLE_20K |\
+					 RV3029_TRICKLE_80K)
+#define RV3029_TRICKLE_SHIFT		4
+#define RV3029_CONTROL_E2P_XOFFS	0x31 /* XTAL offset */
+#define RV3029_CONTROL_E2P_XOFFS_SIGN	BIT(7) /* Sign: 1->pos, 0->neg */
+#define RV3029_CONTROL_E2P_QCOEF	0x32 /* XTAL temp drift coef */
+#define RV3029_CONTROL_E2P_TURNOVER	0x33 /* XTAL turnover temp (in *C) */
+#define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turnover temp mask */
 
 /* user ram section */
 #define RV3029_USR1_RAM_PAGE		0x38
