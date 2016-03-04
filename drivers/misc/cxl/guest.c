@@ -596,6 +596,30 @@ static int guest_afu_check_and_enable(struct cxl_afu *afu)
 	return 0;
 }
 
+static bool guest_support_attributes(const char *attr_name,
+				     enum cxl_attrs type)
+{
+	switch (type) {
+	case CXL_ADAPTER_ATTRS:
+		if ((strcmp(attr_name, "base_image") == 0) ||
+			(strcmp(attr_name, "load_image_on_perst") == 0) ||
+			(strcmp(attr_name, "perst_reloads_same_image") == 0) ||
+			(strcmp(attr_name, "image_loaded") == 0))
+			return false;
+		break;
+	case CXL_AFU_MASTER_ATTRS:
+		if ((strcmp(attr_name, "pp_mmio_off") == 0))
+			return false;
+		break;
+	case CXL_AFU_ATTRS:
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
 static int activate_afu_directed(struct cxl_afu *afu)
 {
 	int rc;
@@ -936,6 +960,7 @@ const struct cxl_backend_ops cxl_guest_ops = {
 	.ack_irq = guest_ack_irq,
 	.attach_process = guest_attach_process,
 	.detach_process = guest_detach_process,
+	.support_attributes = guest_support_attributes,
 	.link_ok = guest_link_ok,
 	.release_afu = guest_release_afu,
 	.afu_read_err_buffer = guest_afu_read_err_buffer,

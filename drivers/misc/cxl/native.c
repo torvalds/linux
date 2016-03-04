@@ -967,6 +967,12 @@ int cxl_check_error(struct cxl_afu *afu)
 	return (cxl_p1n_read(afu, CXL_PSL_SCNTL_An) == ~0ULL);
 }
 
+static bool native_support_attributes(const char *attr_name,
+				      enum cxl_attrs type)
+{
+	return true;
+}
+
 static int native_afu_cr_read64(struct cxl_afu *afu, int cr, u64 off, u64 *out)
 {
 	if (unlikely(!cxl_ops->link_ok(afu->adapter)))
@@ -1026,6 +1032,7 @@ const struct cxl_backend_ops cxl_native_ops = {
 	.ack_irq = native_ack_irq,
 	.attach_process = native_attach_process,
 	.detach_process = native_detach_process,
+	.support_attributes = native_support_attributes,
 	.link_ok = cxl_adapter_link_ok,
 	.release_afu = cxl_pci_release_afu,
 	.afu_read_err_buffer = cxl_pci_afu_read_err_buffer,

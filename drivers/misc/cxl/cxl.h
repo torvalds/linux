@@ -336,6 +336,12 @@ enum prefault_modes {
 	CXL_PREFAULT_ALL,
 };
 
+enum cxl_attrs {
+	CXL_ADAPTER_ATTRS,
+	CXL_AFU_MASTER_ATTRS,
+	CXL_AFU_ATTRS,
+};
+
 struct cxl_sste {
 	__be64 esid_data;
 	__be64 vsid_data;
@@ -844,6 +850,7 @@ struct cxl_backend_ops {
 	int (*attach_process)(struct cxl_context *ctx, bool kernel,
 			u64 wed, u64 amr);
 	int (*detach_process)(struct cxl_context *ctx);
+	bool (*support_attributes)(const char *attr_name, enum cxl_attrs type);
 	bool (*link_ok)(struct cxl *cxl);
 	void (*release_afu)(struct device *dev);
 	ssize_t (*afu_read_err_buffer)(struct cxl_afu *afu, char *buf,
