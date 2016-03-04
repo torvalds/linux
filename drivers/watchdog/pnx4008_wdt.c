@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/delay.h>
+#include <linux/reboot.h>
 #include <mach/hardware.h>
 
 /* WatchDog Timer - Chapter 23 Page 207 */
@@ -124,6 +126,19 @@ static int pnx4008_wdt_set_timeout(struct watchdog_device *wdd,
 	return 0;
 }
 
+static int pnx4008_restart_handler(struct watchdog_device *wdd,
+				   unsigned long mode, void *cmd)
+{
+	/* Instant assert of RESETOUT_N with pulse length 1mS */
+	writel(13000, WDTIM_PULSE(wdt_base));
+	writel(M_RES2 | RESFRC1 | RESFRC2, WDTIM_MCTRL(wdt_base));
+
+	/* Wait for watchdog to reset system */
+	mdelay(1000);
+
+	return NOTIFY_DONE;
+}
+
 static const struct watchdog_info pnx4008_wdt_ident = {
 	.options = WDIOF_CARDRESET | WDIOF_MAGICCLOSE |
 	    WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
@@ -135,6 +150,7 @@ static const struct watchdog_ops pnx4008_wdt_ops = {
 	.start = pnx4008_wdt_start,
 	.stop = pnx4008_wdt_stop,
 	.set_timeout = pnx4008_wdt_set_timeout,
+	.restart = pnx4008_restart_handler,
 };
 
 static struct watchdog_device pnx4008_wdd = {
@@ -169,6 +185,7 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 			WDIOF_CARDRESET : 0;
 	pnx4008_wdd.parent = &pdev->dev;
 	watchdog_set_nowayout(&pnx4008_wdd, nowayout);
+	watchdog_set_restart_priority(&pnx4008_wdd, 128);
 
 	pnx4008_wdt_stop(&pnx4008_wdd);	/* disable for now */
 
