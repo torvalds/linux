@@ -246,7 +246,7 @@ static inline void *get_egrbuf(const struct hfi1_ctxtdata *rcd, u64 rhf,
  */
 inline int hfi1_rcvbuf_validate(u32 size, u8 type, u16 *encoded)
 {
-	if (unlikely(!IS_ALIGNED(size, PAGE_SIZE)))
+	if (unlikely(!PAGE_ALIGNED(size)))
 		return 0;
 	if (unlikely(size < MIN_EAGER_BUFFER))
 		return 0;
