@@ -867,7 +867,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	while (start != mapping->it.last + 1) {
 		uint64_t last;
 
-		last = min((uint64_t)mapping->it.last, start + max_size);
+		last = min((uint64_t)mapping->it.last, start + max_size - 1);
 		r = amdgpu_vm_bo_update_mapping(adev, gtt, gtt_flags, vm,
 						start, last, flags, addr,
 						fence);
@@ -875,7 +875,7 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			return r;
 
 		start = last + 1;
-		addr += max_size;
+		addr += max_size * AMDGPU_GPU_PAGE_SIZE;
 	}
 
 	return 0;
