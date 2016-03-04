@@ -14,6 +14,9 @@
 
 #include <linux/acpi.h>
 
+/* translation fron HID to I2C name, needed for DAI codec_name */
+const char *sst_acpi_find_name_from_hid(const u8 hid[ACPI_ID_LEN]);
+
 /* acpi match */
 struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines);
 
