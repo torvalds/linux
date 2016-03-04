@@ -2,6 +2,7 @@
  * Micro Crystal RV-3029 rtc class driver
  *
  * Author: Gregory Hermant <gregory.hermant@calao-systems.com>
+ *         Michael Buesch <m@bues.ch>
  *
  * based on previously existing rtc class drivers
  *
@@ -143,6 +144,24 @@ rv3029_i2c_write_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 }
 
 static int
+rv3029_i2c_update_bits(struct i2c_client *client, u8 reg, u8 mask, u8 set)
+{
+	u8 buf;
+	int ret;
+
+	ret = rv3029_i2c_read_regs(client, reg, &buf, 1);
+	if (ret < 0)
+		return ret;
+	buf &= ~mask;
+	buf |= set & mask;
+	ret = rv3029_i2c_write_regs(client, reg, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int
 rv3029_i2c_get_sr(struct i2c_client *client, u8 *buf)
 {
 	int ret = rv3029_i2c_read_regs(client, RV3029_STATUS, buf, 1);
@@ -260,22 +279,13 @@ static int rv3029_rtc_i2c_alarm_set_irq(struct i2c_client *client,
 					int enable)
 {
 	int ret;
-	u8 buf[1];
 
-	/* enable AIE irq */
-	ret = rv3029_i2c_read_regs(client, RV3029_IRQ_CTRL, buf, 1);
+	/* enable/disable AIE irq */
+	ret = rv3029_i2c_update_bits(client, RV3029_IRQ_CTRL,
+				     RV3029_IRQ_CTRL_AIE,
+				     (enable ? RV3029_IRQ_CTRL_AIE : 0));
 	if (ret < 0) {
-		dev_err(&client->dev, "can't read INT reg\n");
-		return ret;
-	}
-	if (enable)
-		buf[0] |= RV3029_IRQ_CTRL_AIE;
-	else
-		buf[0] &= ~RV3029_IRQ_CTRL_AIE;
-
-	ret = rv3029_i2c_write_regs(client, RV3029_IRQ_CTRL, buf, 1);
-	if (ret < 0) {
-		dev_err(&client->dev, "can't set INT reg\n");
+		dev_err(&client->dev, "can't update INT reg\n");
 		return ret;
 	}
 
@@ -316,20 +326,11 @@ static int rv3029_rtc_i2c_set_alarm(struct i2c_client *client,
 		return ret;
 
 	if (alarm->enabled) {
-		u8 buf[1];
-
 		/* clear AF flag */
-		ret = rv3029_i2c_read_regs(client, RV3029_IRQ_FLAGS,
-					   buf, 1);
+		ret = rv3029_i2c_update_bits(client, RV3029_IRQ_FLAGS,
+					     RV3029_IRQ_FLAGS_AF, 0);
 		if (ret < 0) {
-			dev_err(&client->dev, "can't read alarm flag\n");
-			return ret;
-		}
-		buf[0] &= ~RV3029_IRQ_FLAGS_AF;
-		ret = rv3029_i2c_write_regs(client, RV3029_IRQ_FLAGS,
-					    buf, 1);
-		if (ret < 0) {
-			dev_err(&client->dev, "can't set alarm flag\n");
+			dev_err(&client->dev, "can't clear alarm flag\n");
 			return ret;
 		}
 		/* enable AIE irq */
@@ -454,5 +455,6 @@ static struct i2c_driver rv3029_driver = {
 module_i2c_driver(rv3029_driver);
 
 MODULE_AUTHOR("Gregory Hermant <gregory.hermant@calao-systems.com>");
+MODULE_AUTHOR("Michael Buesch <m@bues.ch>");
 MODULE_DESCRIPTION("Micro Crystal RV3029 RTC driver");
 MODULE_LICENSE("GPL");
