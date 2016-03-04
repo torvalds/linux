@@ -5303,15 +5303,12 @@ static void beiscsi_quiesce(struct beiscsi_hba *phba,
 	if (phba->msix_enabled) {
 		for (i = 0; i <= phba->num_cpus; i++) {
 			msix_vec = phba->msix_entries[i].vector;
-			synchronize_irq(msix_vec);
 			free_irq(msix_vec, &phwi_context->be_eq[i]);
 			kfree(phba->msi_name[i]);
 		}
 	} else
-		if (phba->pcidev->irq) {
-			synchronize_irq(phba->pcidev->irq);
+		if (phba->pcidev->irq)
 			free_irq(phba->pcidev->irq, phba);
-		}
 	pci_disable_msix(phba->pcidev);
 	cancel_delayed_work_sync(&phba->beiscsi_hw_check_task);
 
