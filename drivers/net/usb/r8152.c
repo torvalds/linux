@@ -3067,17 +3067,6 @@ static int rtl8152_open(struct net_device *netdev)
 
 	mutex_lock(&tp->control);
 
-	/* The WORK_ENABLE may be set when autoresume occurs */
-	if (test_bit(WORK_ENABLE, &tp->flags)) {
-		clear_bit(WORK_ENABLE, &tp->flags);
-		usb_kill_urb(tp->intr_urb);
-		cancel_delayed_work_sync(&tp->schedule);
-
-		/* disable the tx/rx, if the workqueue has enabled them. */
-		if (netif_carrier_ok(netdev))
-			tp->rtl_ops.disable(tp);
-	}
-
 	tp->rtl_ops.up(tp);
 
 	rtl8152_set_speed(tp, AUTONEG_ENABLE,
@@ -3123,12 +3112,6 @@ static int rtl8152_close(struct net_device *netdev)
 		rtl_stop_rx(tp);
 	} else {
 		mutex_lock(&tp->control);
-
-		/* The autosuspend may have been enabled and wouldn't
-		 * be disable when autoresume occurs, because the
-		 * netif_running() would be false.
-		 */
-		rtl_runtime_suspend_enable(tp, false);
 
 		tp->rtl_ops.down(tp);
 
@@ -3512,7 +3495,7 @@ static int rtl8152_resume(struct usb_interface *intf)
 		netif_device_attach(tp->netdev);
 	}
 
-	if (netif_running(tp->netdev)) {
+	if (netif_running(tp->netdev) && tp->netdev->flags & IFF_UP) {
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
 			rtl_runtime_suspend_enable(tp, false);
 			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
@@ -3532,12 +3515,22 @@ static int rtl8152_resume(struct usb_interface *intf)
 		}
 		usb_submit_urb(tp->intr_urb, GFP_KERNEL);
 	} else if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+		if (tp->netdev->flags & IFF_UP)
+			rtl_runtime_suspend_enable(tp, false);
 		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 	}
 
 	mutex_unlock(&tp->control);
 
 	return 0;
+}
+
+static int rtl8152_reset_resume(struct usb_interface *intf)
+{
+	struct r8152 *tp = usb_get_intfdata(intf);
+
+	clear_bit(SELECTIVE_SUSPEND, &tp->flags);
+	return rtl8152_resume(intf);
 }
 
 static void rtl8152_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -4291,7 +4284,7 @@ static struct usb_driver rtl8152_driver = {
 	.disconnect =	rtl8152_disconnect,
 	.suspend =	rtl8152_suspend,
 	.resume =	rtl8152_resume,
-	.reset_resume =	rtl8152_resume,
+	.reset_resume =	rtl8152_reset_resume,
 	.pre_reset =	rtl8152_pre_reset,
 	.post_reset =	rtl8152_post_reset,
 	.supports_autosuspend = 1,

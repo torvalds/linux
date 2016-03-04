@@ -5,6 +5,16 @@
 	compatible = "arm,versatile-pb";
 
 	amba {
+		/* The Versatile PB is using more SIC IRQ lines than the AB */
+		sic: intc@10003000 {
+			clear-mask = <0xffffffff>;
+			/*
+			 * Valid interrupt lines mask according to
+			 * figure 3-30 page 3-74 of ARM DUI 0224B
+			 */
+			valid-mask = <0x7fe003ff>;
+		};
+
 		gpio2: gpio@101e6000 {
 			compatible = "arm,pl061", "arm,primecell";
 			reg = <0x101e6000 0x1000>;
@@ -67,6 +77,13 @@
 		};
 
 		fpga {
+			mmc@5000 {
+				/*
+				 * Overrides the interrupt assignment from
+				 * the Versatile AB board file.
+				 */
+				interrupts-extended = <&sic 22 &sic 23>;
+			};
 			uart@9000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x9000 0x1000>;
@@ -86,7 +103,8 @@
 			mmc@b000 {
 				compatible = "arm,pl180", "arm,primecell";
 				reg = <0xb000 0x1000>;
-				interrupts-extended = <&vic 23 &sic 2>;
+				interrupt-parent = <&sic>;
+				interrupts = <1>, <2>;
 				clocks = <&xtal24mhz>, <&pclk>;
 				clock-names = "mclk", "apb_pclk";
 			};

@@ -426,15 +426,6 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->erasesize_mask = (1 << mtd->erasesize_shift) - 1;
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
-	if (mtd->dev.parent) {
-		if (!mtd->owner && mtd->dev.parent->driver)
-			mtd->owner = mtd->dev.parent->driver->owner;
-		if (!mtd->name)
-			mtd->name = dev_name(mtd->dev.parent);
-	} else {
-		pr_debug("mtd device won't show a device symlink in sysfs\n");
-	}
-
 	/* Some chips always power up locked. Unlock them now */
 	if ((mtd->flags & MTD_WRITEABLE) && (mtd->flags & MTD_POWERUP_LOCK)) {
 		error = mtd_unlock(mtd, 0, mtd->size);
@@ -549,6 +540,21 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 	return 0;
 }
 
+/*
+ * Set a few defaults based on the parent devices, if not provided by the
+ * driver
+ */
+static void mtd_set_dev_defaults(struct mtd_info *mtd)
+{
+	if (mtd->dev.parent) {
+		if (!mtd->owner && mtd->dev.parent->driver)
+			mtd->owner = mtd->dev.parent->driver->owner;
+		if (!mtd->name)
+			mtd->name = dev_name(mtd->dev.parent);
+	} else {
+		pr_debug("mtd device won't show a device symlink in sysfs\n");
+	}
+}
 
 /**
  * mtd_device_parse_register - parse partitions and register an MTD device.
@@ -586,6 +592,8 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 {
 	int ret;
 	struct mtd_partition *real_parts = NULL;
+
+	mtd_set_dev_defaults(mtd);
 
 	ret = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
 	if (ret <= 0 && nr_parts && parts) {

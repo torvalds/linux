@@ -149,9 +149,14 @@ int mdio_mux_init(struct device *dev,
 		}
 		cb->bus_number = v;
 		cb->parent = pb;
-		cb->mii_bus = mdiobus_alloc();
-		cb->mii_bus->priv = cb;
 
+		cb->mii_bus = mdiobus_alloc();
+		if (!cb->mii_bus) {
+			ret_val = -ENOMEM;
+			of_node_put(child_bus_node);
+			break;
+		}
+		cb->mii_bus->priv = cb;
 		cb->mii_bus->irq = cb->phy_irq;
 		cb->mii_bus->name = "mdio_mux";
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%x.%x",

@@ -89,7 +89,7 @@ static struct addr_marker address_markers[] = {
 	{ 0/* VMALLOC_START */, "vmalloc() Area" },
 	{ 0/*VMALLOC_END*/,     "vmalloc() End" },
 # ifdef CONFIG_HIGHMEM
-	{ 0/*PKMAP_BASE*/,      "Persisent kmap() Area" },
+	{ 0/*PKMAP_BASE*/,      "Persistent kmap() Area" },
 # endif
 	{ 0/*FIXADDR_START*/,   "Fixmap Area" },
 #endif

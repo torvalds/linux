@@ -94,7 +94,7 @@ nft_do_chain_netdev(void *priv, struct sk_buff *skb,
 {
 	struct nft_pktinfo pkt;
 
-	switch (eth_hdr(skb)->h_proto) {
+	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		nft_netdev_set_pktinfo_ipv4(&pkt, skb, state);
 		break;

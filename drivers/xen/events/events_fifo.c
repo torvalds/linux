@@ -281,7 +281,8 @@ static void handle_irq_for_port(unsigned port)
 
 static void consume_one_event(unsigned cpu,
 			      struct evtchn_fifo_control_block *control_block,
-			      unsigned priority, unsigned long *ready)
+			      unsigned priority, unsigned long *ready,
+			      bool drop)
 {
 	struct evtchn_fifo_queue *q = &per_cpu(cpu_queue, cpu);
 	uint32_t head;
@@ -313,13 +314,17 @@ static void consume_one_event(unsigned cpu,
 	if (head == 0)
 		clear_bit(priority, ready);
 
-	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port))
-		handle_irq_for_port(port);
+	if (evtchn_fifo_is_pending(port) && !evtchn_fifo_is_masked(port)) {
+		if (unlikely(drop))
+			pr_warn("Dropping pending event for port %u\n", port);
+		else
+			handle_irq_for_port(port);
+	}
 
 	q->head[priority] = head;
 }
 
-static void evtchn_fifo_handle_events(unsigned cpu)
+static void __evtchn_fifo_handle_events(unsigned cpu, bool drop)
 {
 	struct evtchn_fifo_control_block *control_block;
 	unsigned long ready;
@@ -331,9 +336,14 @@ static void evtchn_fifo_handle_events(unsigned cpu)
 
 	while (ready) {
 		q = find_first_bit(&ready, EVTCHN_FIFO_MAX_QUEUES);
-		consume_one_event(cpu, control_block, q, &ready);
+		consume_one_event(cpu, control_block, q, &ready, drop);
 		ready |= xchg(&control_block->ready, 0);
 	}
+}
+
+static void evtchn_fifo_handle_events(unsigned cpu)
+{
+	__evtchn_fifo_handle_events(cpu, false);
 }
 
 static void evtchn_fifo_resume(void)
@@ -419,6 +429,9 @@ static int evtchn_fifo_cpu_notification(struct notifier_block *self,
 	case CPU_UP_PREPARE:
 		if (!per_cpu(cpu_control_block, cpu))
 			ret = evtchn_fifo_alloc_control_block(cpu);
+		break;
+	case CPU_DEAD:
+		__evtchn_fifo_handle_events(cpu, true);
 		break;
 	default:
 		break;

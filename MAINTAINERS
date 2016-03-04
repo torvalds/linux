@@ -5578,7 +5578,7 @@ R:	Jesse Brandeburg <jesse.brandeburg@intel.com>
 R:	Shannon Nelson <shannon.nelson@intel.com>
 R:	Carolyn Wyborny <carolyn.wyborny@intel.com>
 R:	Don Skidmore <donald.c.skidmore@intel.com>
-R:	Matthew Vick <matthew.vick@intel.com>
+R:	Bruce Allan <bruce.w.allan@intel.com>
 R:	John Ronciak <john.ronciak@intel.com>
 R:	Mitch Williams <mitch.a.williams@intel.com>
 L:	intel-wired-lan@lists.osuosl.org
@@ -8380,6 +8380,14 @@ L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/pinctrl/samsung/
 
+PIN CONTROLLER - SINGLE
+M:	Tony Lindgren <tony@atomide.com>
+M:	Haojian Zhuang <haojian.zhuang@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-single.c
+
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <vireshk@kernel.org>
 L:	spear-devel@list.st.com
@@ -8945,6 +8953,13 @@ S:	Maintained
 F:	drivers/rpmsg/
 F:	Documentation/rpmsg.txt
 F:	include/linux/rpmsg.h
+
+RENESAS ETHERNET DRIVERS
+R:	Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+L:	netdev@vger.kernel.org
+L:	linux-sh@vger.kernel.org
+F:	drivers/net/ethernet/renesas/
+F:	include/linux/sh_eth.h
 
 RESET CONTROLLER FRAMEWORK
 M:	Philipp Zabel <p.zabel@pengutronix.de>

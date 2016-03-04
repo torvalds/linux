@@ -141,9 +141,9 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 	unsigned long pinmask = bgc->pin2mask(bgc, gpio);
 
 	if (bgc->dir & pinmask)
-		return bgc->read_reg(bgc->reg_set) & pinmask;
+		return !!(bgc->read_reg(bgc->reg_set) & pinmask);
 	else
-		return bgc->read_reg(bgc->reg_dat) & pinmask;
+		return !!(bgc->read_reg(bgc->reg_dat) & pinmask);
 }
 
 static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)

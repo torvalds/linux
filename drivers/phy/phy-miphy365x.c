@@ -566,22 +566,25 @@ static int miphy365x_probe(struct platform_device *pdev)
 
 		miphy_phy = devm_kzalloc(&pdev->dev, sizeof(*miphy_phy),
 					 GFP_KERNEL);
-		if (!miphy_phy)
-			return -ENOMEM;
+		if (!miphy_phy) {
+			ret = -ENOMEM;
+			goto put_child;
+		}
 
 		miphy_dev->phys[port] = miphy_phy;
 
 		phy = devm_phy_create(&pdev->dev, child, &miphy365x_ops);
 		if (IS_ERR(phy)) {
 			dev_err(&pdev->dev, "failed to create PHY\n");
-			return PTR_ERR(phy);
+			ret = PTR_ERR(phy);
+			goto put_child;
 		}
 
 		miphy_dev->phys[port]->phy = phy;
 
 		ret = miphy365x_of_probe(child, miphy_phy);
 		if (ret)
-			return ret;
+			goto put_child;
 
 		phy_set_drvdata(phy, miphy_dev->phys[port]);
 
@@ -591,12 +594,15 @@ static int miphy365x_probe(struct platform_device *pdev)
 					&miphy_phy->ctrlreg);
 		if (ret) {
 			dev_err(&pdev->dev, "No sysconfig offset found\n");
-			return ret;
+			goto put_child;
 		}
 	}
 
 	provider = devm_of_phy_provider_register(&pdev->dev, miphy365x_xlate);
 	return PTR_ERR_OR_ZERO(provider);
+put_child:
+	of_node_put(child);
+	return ret;
 }
 
 static const struct of_device_id miphy365x_of_match[] = {

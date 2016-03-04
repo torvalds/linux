@@ -3299,8 +3299,10 @@ static int be_msix_register(struct be_adapter *adapter)
 
 	return 0;
 err_msix:
-	for (i--, eqo = &adapter->eq_obj[i]; i >= 0; i--, eqo--)
+	for (i--; i >= 0; i--) {
+		eqo = &adapter->eq_obj[i];
 		free_irq(be_msix_vec_get(adapter, eqo), eqo);
+	}
 	dev_warn(&adapter->pdev->dev, "MSIX Request IRQ failed - err %d\n",
 		 status);
 	be_msix_disable(adapter);
@@ -3431,8 +3433,6 @@ static int be_close(struct net_device *netdev)
 		return 0;
 
 	be_disable_if_filters(adapter);
-
-	be_roce_dev_close(adapter);
 
 	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
 		for_all_evt_queues(adapter, eqo, i) {
@@ -3601,8 +3601,6 @@ static int be_open(struct net_device *netdev)
 		be_link_status_update(adapter, link_status);
 
 	netif_tx_start_all_queues(netdev);
-	be_roce_dev_open(adapter);
-
 #ifdef CONFIG_BE2NET_VXLAN
 	if (skyhawk_chip(adapter))
 		vxlan_get_rx_port(netdev);

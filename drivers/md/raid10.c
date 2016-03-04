@@ -1946,6 +1946,8 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 
 	first = i;
 	fbio = r10_bio->devs[i].bio;
+	fbio->bi_iter.bi_size = r10_bio->sectors << 9;
+	fbio->bi_iter.bi_idx = 0;
 
 	vcnt = (r10_bio->sectors + (PAGE_SIZE >> 9) - 1) >> (PAGE_SHIFT - 9);
 	/* now find blocks with errors */
@@ -1989,7 +1991,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		bio_reset(tbio);
 
 		tbio->bi_vcnt = vcnt;
-		tbio->bi_iter.bi_size = r10_bio->sectors << 9;
+		tbio->bi_iter.bi_size = fbio->bi_iter.bi_size;
 		tbio->bi_rw = WRITE;
 		tbio->bi_private = r10_bio;
 		tbio->bi_iter.bi_sector = r10_bio->devs[i].addr;

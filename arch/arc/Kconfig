@@ -445,6 +445,7 @@ config LINUX_LINK_BASE
 	  However some customers have peripherals mapped at this addr, so
 	  Linux needs to be scooted a bit.
 	  If you don't know what the above means, leave this setting alone.
+	  This needs to match memory start address specified in Device Tree
 
 config HIGHMEM
 	bool "High Memory Support"

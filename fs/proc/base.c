@@ -2494,6 +2494,7 @@ static ssize_t proc_coredump_filter_write(struct file *file,
 	mm = get_task_mm(task);
 	if (!mm)
 		goto out_no_mm;
+	ret = 0;
 
 	for (i = 0, mask = 1; i < MMF_DUMP_FILTER_BITS; i++, mask <<= 1) {
 		if (val & mask)

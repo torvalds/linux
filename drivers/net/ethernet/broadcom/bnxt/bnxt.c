@@ -2693,17 +2693,16 @@ static int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp)
 	req.ver_upd = DRV_VER_UPD;
 
 	if (BNXT_PF(bp)) {
-		unsigned long vf_req_snif_bmap[4];
+		DECLARE_BITMAP(vf_req_snif_bmap, 256);
 		u32 *data = (u32 *)vf_req_snif_bmap;
 
-		memset(vf_req_snif_bmap, 0, 32);
+		memset(vf_req_snif_bmap, 0, sizeof(vf_req_snif_bmap));
 		for (i = 0; i < ARRAY_SIZE(bnxt_vf_req_snif); i++)
 			__set_bit(bnxt_vf_req_snif[i], vf_req_snif_bmap);
 
-		for (i = 0; i < 8; i++) {
-			req.vf_req_fwd[i] = cpu_to_le32(*data);
-			data++;
-		}
+		for (i = 0; i < 8; i++)
+			req.vf_req_fwd[i] = cpu_to_le32(data[i]);
+
 		req.enables |=
 			cpu_to_le32(FUNC_DRV_RGTR_REQ_ENABLES_VF_REQ_FWD);
 	}
@@ -4603,7 +4602,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 			bp->nge_port_cnt = 1;
 	}
 
-	bp->state = BNXT_STATE_OPEN;
+	set_bit(BNXT_STATE_OPEN, &bp->state);
 	bnxt_enable_int(bp);
 	/* Enable TX queues */
 	bnxt_tx_enable(bp);
@@ -4679,8 +4678,10 @@ int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Change device state to avoid TX queue wake up's */
 	bnxt_tx_disable(bp);
 
-	bp->state = BNXT_STATE_CLOSED;
-	cancel_work_sync(&bp->sp_task);
+	clear_bit(BNXT_STATE_OPEN, &bp->state);
+	smp_mb__after_atomic();
+	while (test_bit(BNXT_STATE_IN_SP_TASK, &bp->state))
+		msleep(20);
 
 	/* Flush rings before disabling interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
@@ -5030,8 +5031,10 @@ static void bnxt_dbg_dump_states(struct bnxt *bp)
 static void bnxt_reset_task(struct bnxt *bp)
 {
 	bnxt_dbg_dump_states(bp);
-	if (netif_running(bp->dev))
-		bnxt_tx_disable(bp); /* prevent tx timout again */
+	if (netif_running(bp->dev)) {
+		bnxt_close_nic(bp, false, false);
+		bnxt_open_nic(bp, false, false);
+	}
 }
 
 static void bnxt_tx_timeout(struct net_device *dev)
@@ -5081,8 +5084,12 @@ static void bnxt_sp_task(struct work_struct *work)
 	struct bnxt *bp = container_of(work, struct bnxt, sp_task);
 	int rc;
 
-	if (bp->state != BNXT_STATE_OPEN)
+	set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+	smp_mb__after_atomic();
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 		return;
+	}
 
 	if (test_and_clear_bit(BNXT_RX_MASK_SP_EVENT, &bp->sp_event))
 		bnxt_cfg_rx_mode(bp);
@@ -5106,8 +5113,19 @@ static void bnxt_sp_task(struct work_struct *work)
 		bnxt_hwrm_tunnel_dst_port_free(
 			bp, TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN);
 	}
-	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event))
+	if (test_and_clear_bit(BNXT_RESET_TASK_SP_EVENT, &bp->sp_event)) {
+		/* bnxt_reset_task() calls bnxt_close_nic() which waits
+		 * for BNXT_STATE_IN_SP_TASK to clear.
+		 */
+		clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_lock();
 		bnxt_reset_task(bp);
+		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
+		rtnl_unlock();
+	}
+
+	smp_mb__before_atomic();
+	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 }
 
 static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
@@ -5186,7 +5204,7 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->timer.function = bnxt_timer;
 	bp->current_interval = BNXT_TIMER_INTERVAL;
 
-	bp->state = BNXT_STATE_CLOSED;
+	clear_bit(BNXT_STATE_OPEN, &bp->state);
 
 	return 0;
 

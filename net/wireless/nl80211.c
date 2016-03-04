@@ -7941,8 +7941,10 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	if (nla_get_flag(info->attrs[NL80211_ATTR_USE_RRM])) {
 		if (!(rdev->wiphy.features &
 		      NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES) ||
-		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET))
+		    !(rdev->wiphy.features & NL80211_FEATURE_QUIET)) {
+			kzfree(connkeys);
 			return -EINVAL;
+		}
 		connect.flags |= ASSOC_REQ_USE_RRM;
 	}
 
@@ -9503,6 +9505,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	if (new_triggers.tcp && new_triggers.tcp->sock)
 		sock_release(new_triggers.tcp->sock);
 	kfree(new_triggers.tcp);
+	kfree(new_triggers.nd_config);
 	return err;
 }
 #endif

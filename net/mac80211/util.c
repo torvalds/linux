@@ -1641,6 +1641,29 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	drv_stop(local);
 }
 
+static void ieee80211_flush_completed_scan(struct ieee80211_local *local,
+					   bool aborted)
+{
+	/* It's possible that we don't handle the scan completion in
+	 * time during suspend, so if it's still marked as completed
+	 * here, queue the work and flush it to clean things up.
+	 * Instead of calling the worker function directly here, we
+	 * really queue it to avoid potential races with other flows
+	 * scheduling the same work.
+	 */
+	if (test_bit(SCAN_COMPLETED, &local->scanning)) {
+		/* If coming from reconfiguration failure, abort the scan so
+		 * we don't attempt to continue a partial HW scan - which is
+		 * possible otherwise if (e.g.) the 2.4 GHz portion was the
+		 * completed scan, and a 5 GHz portion is still pending.
+		 */
+		if (aborted)
+			set_bit(SCAN_ABORTED, &local->scanning);
+		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
+		flush_delayed_work(&local->scan_work);
+	}
+}
+
 static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -1659,6 +1682,8 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 	local->resuming = false;
 	local->suspended = false;
 	local->in_reconfig = false;
+
+	ieee80211_flush_completed_scan(local, true);
 
 	/* scheduled scan clearly can't be running any more, but tell
 	 * cfg80211 and clear local state
@@ -1696,6 +1721,27 @@ static void ieee80211_assign_chanctx(struct ieee80211_local *local,
 		drv_assign_vif_chanctx(local, sdata, ctx);
 	}
 	mutex_unlock(&local->chanctx_mtx);
+}
+
+static void ieee80211_reconfig_stations(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	/* add STAs back */
+	mutex_lock(&local->sta_mtx);
+	list_for_each_entry(sta, &local->sta_list, list) {
+		enum ieee80211_sta_state state;
+
+		if (!sta->uploaded || sta->sdata != sdata)
+			continue;
+
+		for (state = IEEE80211_STA_NOTEXIST;
+		     state < sta->sta_state; state++)
+			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
+					      state + 1));
+	}
+	mutex_unlock(&local->sta_mtx);
 }
 
 int ieee80211_reconfig(struct ieee80211_local *local)
@@ -1833,48 +1879,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				WARN_ON(drv_add_chanctx(local, ctx));
 		mutex_unlock(&local->chanctx_mtx);
 
-		list_for_each_entry(sdata, &local->interfaces, list) {
-			if (!ieee80211_sdata_running(sdata))
-				continue;
-			ieee80211_assign_chanctx(local, sdata);
-		}
-
 		sdata = rtnl_dereference(local->monitor_sdata);
 		if (sdata && ieee80211_sdata_running(sdata))
 			ieee80211_assign_chanctx(local, sdata);
-	}
-
-	/* add STAs back */
-	mutex_lock(&local->sta_mtx);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		enum ieee80211_sta_state state;
-
-		if (!sta->uploaded)
-			continue;
-
-		/* AP-mode stations will be added later */
-		if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-			continue;
-
-		for (state = IEEE80211_STA_NOTEXIST;
-		     state < sta->sta_state; state++)
-			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
-					      state + 1));
-	}
-	mutex_unlock(&local->sta_mtx);
-
-	/* reconfigure tx conf */
-	if (hw->queues >= IEEE80211_NUM_ACS) {
-		list_for_each_entry(sdata, &local->interfaces, list) {
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-			    sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-			    !ieee80211_sdata_running(sdata))
-				continue;
-
-			for (i = 0; i < IEEE80211_NUM_ACS; i++)
-				drv_conf_tx(local, sdata, i,
-					    &sdata->tx_conf[i]);
-		}
 	}
 
 	/* reconfigure hardware */
@@ -1888,6 +1895,22 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		ieee80211_assign_chanctx(local, sdata);
+
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			break;
+		default:
+			ieee80211_reconfig_stations(sdata);
+			/* fall through */
+		case NL80211_IFTYPE_AP: /* AP stations are handled later */
+			for (i = 0; i < IEEE80211_NUM_ACS; i++)
+				drv_conf_tx(local, sdata, i,
+					    &sdata->tx_conf[i]);
+			break;
+		}
 
 		/* common change flags for all interface types */
 		changed = BSS_CHANGED_ERP_CTS_PROT |
@@ -2074,17 +2097,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
-	/* It's possible that we don't handle the scan completion in
-	 * time during suspend, so if it's still marked as completed
-	 * here, queue the work and flush it to clean things up.
-	 * Instead of calling the worker function directly here, we
-	 * really queue it to avoid potential races with other flows
-	 * scheduling the same work.
-	 */
-	if (test_bit(SCAN_COMPLETED, &local->scanning)) {
-		ieee80211_queue_delayed_work(&local->hw, &local->scan_work, 0);
-		flush_delayed_work(&local->scan_work);
-	}
+	ieee80211_flush_completed_scan(local, false);
 
 	if (local->open_count && !reconfig_due_to_wowlan)
 		drv_reconfig_complete(local, IEEE80211_RECONFIG_TYPE_SUSPEND);

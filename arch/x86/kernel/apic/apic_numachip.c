@@ -193,20 +193,17 @@ static int __init numachip_system_init(void)
 	case 1:
 		init_extra_mapping_uc(NUMACHIP_LCSR_BASE, NUMACHIP_LCSR_SIZE);
 		numachip_apic_icr_write = numachip1_apic_icr_write;
-		x86_init.pci.arch_init = pci_numachip_init;
 		break;
 	case 2:
 		init_extra_mapping_uc(NUMACHIP2_LCSR_BASE, NUMACHIP2_LCSR_SIZE);
 		numachip_apic_icr_write = numachip2_apic_icr_write;
-
-		/* Use MCFG config cycles rather than locked CF8 cycles */
-		raw_pci_ops = &pci_mmcfg;
 		break;
 	default:
 		return 0;
 	}
 
 	x86_cpuinit.fixup_cpu_id = fixup_cpu_id;
+	x86_init.pci.arch_init = pci_numachip_init;
 
 	return 0;
 }

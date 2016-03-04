@@ -53,6 +53,8 @@ struct ovs_conntrack_info {
 	struct md_labels labels;
 };
 
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info);
+
 static u16 key_to_nfproto(const struct sw_flow_key *key)
 {
 	switch (ntohs(key->eth.type)) {
@@ -141,6 +143,7 @@ static void __ovs_ct_update_key(struct sw_flow_key *key, u8 state,
  * previously sent the packet to conntrack via the ct action.
  */
 static void ovs_ct_update_key(const struct sk_buff *skb,
+			      const struct ovs_conntrack_info *info,
 			      struct sw_flow_key *key, bool post_ct)
 {
 	const struct nf_conntrack_zone *zone = &nf_ct_zone_dflt;
@@ -158,13 +161,15 @@ static void ovs_ct_update_key(const struct sk_buff *skb,
 		zone = nf_ct_zone(ct);
 	} else if (post_ct) {
 		state = OVS_CS_F_TRACKED | OVS_CS_F_INVALID;
+		if (info)
+			zone = &info->zone;
 	}
 	__ovs_ct_update_key(key, state, zone, ct);
 }
 
 void ovs_ct_fill_key(const struct sk_buff *skb, struct sw_flow_key *key)
 {
-	ovs_ct_update_key(skb, key, false);
+	ovs_ct_update_key(skb, NULL, key, false);
 }
 
 int ovs_ct_put_key(const struct sw_flow_key *key, struct sk_buff *skb)
@@ -418,7 +423,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		}
 	}
 
-	ovs_ct_update_key(skb, key, true);
+	ovs_ct_update_key(skb, info, key, true);
 
 	return 0;
 }
@@ -693,6 +698,10 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
+
+	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
+	nf_conntrack_get(&ct_info.ct->ct_general);
+
 	if (helper) {
 		err = ovs_ct_add_helper(&ct_info, helper, key, log);
 		if (err)
@@ -704,11 +713,9 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (err)
 		goto err_free_ct;
 
-	__set_bit(IPS_CONFIRMED_BIT, &ct_info.ct->status);
-	nf_conntrack_get(&ct_info.ct->ct_general);
 	return 0;
 err_free_ct:
-	nf_conntrack_free(ct_info.ct);
+	__ovs_ct_free_action(&ct_info);
 	return err;
 }
 
@@ -750,6 +757,11 @@ void ovs_ct_free_action(const struct nlattr *a)
 {
 	struct ovs_conntrack_info *ct_info = nla_data(a);
 
+	__ovs_ct_free_action(ct_info);
+}
+
+static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
+{
 	if (ct_info->helper)
 		module_put(ct_info->helper->me);
 	if (ct_info->ct)
