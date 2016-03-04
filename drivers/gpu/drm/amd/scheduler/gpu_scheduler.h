@@ -76,6 +76,7 @@ struct amd_sched_fence {
 	void                            *owner;
 	struct delayed_work		dwork;
 	struct list_head		list;
+	struct amd_sched_job 	*s_job;
 };
 
 struct amd_sched_job {
@@ -85,6 +86,7 @@ struct amd_sched_job {
 	bool	use_sched;	/* true if the job goes to scheduler */
 	struct fence_cb                cb_free_job;
 	struct work_struct             work_free_job;
+	struct list_head			   node;
 };
 
 extern const struct fence_ops amd_sched_fence_ops;
@@ -128,6 +130,8 @@ struct amd_gpu_scheduler {
 	struct list_head		fence_list;
 	spinlock_t			fence_list_lock;
 	struct task_struct		*thread;
+	struct list_head	ring_mirror_list;
+	spinlock_t			job_list_lock;
 };
 
 int amd_sched_init(struct amd_gpu_scheduler *sched,
@@ -151,4 +155,6 @@ int amd_sched_job_init(struct amd_sched_job *job,
 					struct amd_gpu_scheduler *sched,
 					struct amd_sched_entity *entity,
 					void *owner, struct fence **fence);
+void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
+								struct amd_sched_job *s_job);
 #endif

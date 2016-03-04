@@ -349,11 +349,14 @@ int amd_sched_job_init(struct amd_sched_job *job,
 						struct amd_sched_entity *entity,
 						void *owner, struct fence **fence)
 {
+	INIT_LIST_HEAD(&job->node);
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
 	if (!job->s_fence)
 		return -ENOMEM;
+
+	job->s_fence->s_job = job;
 
 	if (fence)
 		*fence = &job->s_fence->base;
@@ -408,6 +411,12 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	unsigned long flags;
 
 	atomic_dec(&sched->hw_rq_count);
+
+	/* remove job from ring_mirror_list */
+	spin_lock_irqsave(&sched->job_list_lock, flags);
+	list_del_init(&s_fence->s_job->node);
+	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+
 	amd_sched_fence_signal(s_fence);
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
 		cancel_delayed_work(&s_fence->dwork);
@@ -480,6 +489,7 @@ static int amd_sched_main(void *param)
 		}
 
 		atomic_inc(&sched->hw_rq_count);
+		amd_sched_job_pre_schedule(sched, sched_job);
 		fence = sched->ops->run_job(sched_job);
 		amd_sched_fence_scheduled(s_fence);
 		if (fence) {
@@ -527,6 +537,8 @@ int amd_sched_init(struct amd_gpu_scheduler *sched,
 
 	init_waitqueue_head(&sched->wake_up_worker);
 	init_waitqueue_head(&sched->job_scheduled);
+	INIT_LIST_HEAD(&sched->ring_mirror_list);
+	spin_lock_init(&sched->job_list_lock);
 	atomic_set(&sched->hw_rq_count, 0);
 	if (atomic_inc_return(&sched_fence_slab_ref) == 1) {
 		sched_fence_slab = kmem_cache_create(
