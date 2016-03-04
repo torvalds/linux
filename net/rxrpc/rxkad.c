@@ -787,10 +787,15 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	/* build the response packet */
 	memset(&resp, 0, sizeof(resp));
 
-	resp.version = RXKAD_VERSION;
-	resp.encrypted.epoch = htonl(conn->epoch);
-	resp.encrypted.cid = htonl(conn->cid);
-	resp.encrypted.securityIndex = htonl(conn->security_ix);
+	resp.version			= htonl(RXKAD_VERSION);
+	resp.encrypted.epoch		= htonl(conn->epoch);
+	resp.encrypted.cid		= htonl(conn->cid);
+	resp.encrypted.securityIndex	= htonl(conn->security_ix);
+	resp.encrypted.inc_nonce	= htonl(nonce + 1);
+	resp.encrypted.level		= htonl(conn->security_level);
+	resp.kvno			= htonl(token->kad->kvno);
+	resp.ticket_len			= htonl(token->kad->ticket_len);
+
 	resp.encrypted.call_id[0] =
 		htonl(conn->channels[0] ? conn->channels[0]->call_id : 0);
 	resp.encrypted.call_id[1] =
@@ -799,10 +804,6 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 		htonl(conn->channels[2] ? conn->channels[2]->call_id : 0);
 	resp.encrypted.call_id[3] =
 		htonl(conn->channels[3] ? conn->channels[3]->call_id : 0);
-	resp.encrypted.inc_nonce = htonl(nonce + 1);
-	resp.encrypted.level = htonl(conn->security_level);
-	resp.kvno = htonl(token->kad->kvno);
-	resp.ticket_len = htonl(token->kad->ticket_len);
 
 	/* calculate the response checksum and then do the encryption */
 	rxkad_calc_response_checksum(&resp);
