@@ -1820,7 +1820,6 @@ _base_free_irq(struct MPT3SAS_ADAPTER *ioc)
 			irq_set_affinity_hint(reply_q->vector, NULL);
 			free_cpumask_var(reply_q->affinity_hint);
 		}
-		synchronize_irq(reply_q->vector);
 		free_irq(reply_q->vector, reply_q);
 		kfree(reply_q);
 	}
