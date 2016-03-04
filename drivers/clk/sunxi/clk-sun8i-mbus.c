@@ -33,7 +33,7 @@ static DEFINE_SPINLOCK(sun8i_a23_mbus_lock);
 static void __init sun8i_a23_mbus_setup(struct device_node *node)
 {
 	int num_parents = of_clk_get_parent_count(node);
-	const char *parents[num_parents];
+	const char **parents;
 	const char *clk_name = node->name;
 	struct resource res;
 	struct clk_divider *div;
@@ -43,10 +43,14 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	void __iomem *reg;
 	int err;
 
+	parents = kcalloc(num_parents, sizeof(*parents), GFP_KERNEL);
+	if (!parents)
+		return;
+
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
 	if (!reg) {
 		pr_err("Could not get registers for sun8i-mbus-clk\n");
-		return;
+		goto err_free_parents;
 	}
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
@@ -90,6 +94,7 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	if (err)
 		goto err_unregister_clk;
 
+	kfree(parents); /* parents is deep copied */
 	/* The MBUS clocks needs to be always enabled */
 	__clk_get(clk);
 	clk_prepare_enable(clk);
@@ -109,5 +114,7 @@ err_unmap:
 	iounmap(reg);
 	of_address_to_resource(node, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
+err_free_parents:
+	kfree(parents);
 }
 CLK_OF_DECLARE(sun8i_a23_mbus, "allwinner,sun8i-a23-mbus-clk", sun8i_a23_mbus_setup);
