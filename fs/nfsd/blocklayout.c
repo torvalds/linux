@@ -13,37 +13,6 @@
 #define NFSDDBG_FACILITY	NFSDDBG_PNFS
 
 
-static int
-nfsd4_block_get_device_info_simple(struct super_block *sb,
-		struct nfsd4_getdeviceinfo *gdp)
-{
-	struct pnfs_block_deviceaddr *dev;
-	struct pnfs_block_volume *b;
-
-	dev = kzalloc(sizeof(struct pnfs_block_deviceaddr) +
-		      sizeof(struct pnfs_block_volume), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-	gdp->gd_device = dev;
-
-	dev->nr_volumes = 1;
-	b = &dev->volumes[0];
-
-	b->type = PNFS_BLOCK_VOLUME_SIMPLE;
-	b->simple.sig_len = PNFS_BLOCK_UUID_LEN;
-	return sb->s_export_op->get_uuid(sb, b->simple.sig, &b->simple.sig_len,
-			&b->simple.offset);
-}
-
-static __be32
-nfsd4_block_proc_getdeviceinfo(struct super_block *sb,
-		struct nfsd4_getdeviceinfo *gdp)
-{
-	if (sb->s_bdev != sb->s_bdev->bd_contains)
-		return nfserr_inval;
-	return nfserrno(nfsd4_block_get_device_info_simple(sb, gdp));
-}
-
 static __be32
 nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 		struct nfsd4_layoutget *args)
@@ -141,19 +110,12 @@ out_layoutunavailable:
 }
 
 static __be32
-nfsd4_block_proc_layoutcommit(struct inode *inode,
-		struct nfsd4_layoutcommit *lcp)
+nfsd4_block_commit_blocks(struct inode *inode, struct nfsd4_layoutcommit *lcp,
+		struct iomap *iomaps, int nr_iomaps)
 {
 	loff_t new_size = lcp->lc_last_wr + 1;
 	struct iattr iattr = { .ia_valid = 0 };
-	struct iomap *iomaps;
-	int nr_iomaps;
 	int error;
-
-	nr_iomaps = nfsd4_block_decode_layoutupdate(lcp->lc_up_layout,
-			lcp->lc_up_len, &iomaps, 1 << inode->i_blkbits);
-	if (nr_iomaps < 0)
-		return nfserrno(nr_iomaps);
 
 	if (lcp->lc_mtime.tv_nsec == UTIME_NOW ||
 	    timespec_compare(&lcp->lc_mtime, &inode->i_mtime) < 0)
@@ -170,6 +132,53 @@ nfsd4_block_proc_layoutcommit(struct inode *inode,
 			nr_iomaps, &iattr);
 	kfree(iomaps);
 	return nfserrno(error);
+}
+
+#ifdef CONFIG_NFSD_BLOCKLAYOUT
+static int
+nfsd4_block_get_device_info_simple(struct super_block *sb,
+		struct nfsd4_getdeviceinfo *gdp)
+{
+	struct pnfs_block_deviceaddr *dev;
+	struct pnfs_block_volume *b;
+
+	dev = kzalloc(sizeof(struct pnfs_block_deviceaddr) +
+		      sizeof(struct pnfs_block_volume), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+	gdp->gd_device = dev;
+
+	dev->nr_volumes = 1;
+	b = &dev->volumes[0];
+
+	b->type = PNFS_BLOCK_VOLUME_SIMPLE;
+	b->simple.sig_len = PNFS_BLOCK_UUID_LEN;
+	return sb->s_export_op->get_uuid(sb, b->simple.sig, &b->simple.sig_len,
+			&b->simple.offset);
+}
+
+static __be32
+nfsd4_block_proc_getdeviceinfo(struct super_block *sb,
+		struct nfsd4_getdeviceinfo *gdp)
+{
+	if (sb->s_bdev != sb->s_bdev->bd_contains)
+		return nfserr_inval;
+	return nfserrno(nfsd4_block_get_device_info_simple(sb, gdp));
+}
+
+static __be32
+nfsd4_block_proc_layoutcommit(struct inode *inode,
+		struct nfsd4_layoutcommit *lcp)
+{
+	struct iomap *iomaps;
+	int nr_iomaps;
+
+	nr_iomaps = nfsd4_block_decode_layoutupdate(lcp->lc_up_layout,
+			lcp->lc_up_len, &iomaps, 1 << inode->i_blkbits);
+	if (nr_iomaps < 0)
+		return nfserrno(nr_iomaps);
+
+	return nfsd4_block_commit_blocks(inode, lcp, iomaps, nr_iomaps);
 }
 
 const struct nfsd4_layout_ops bl_layout_ops = {
@@ -190,3 +199,4 @@ const struct nfsd4_layout_ops bl_layout_ops = {
 	.encode_layoutget	= nfsd4_block_encode_layoutget,
 	.proc_layoutcommit	= nfsd4_block_proc_layoutcommit,
 };
+#endif /* CONFIG_NFSD_BLOCKLAYOUT */
