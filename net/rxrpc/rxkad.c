@@ -142,7 +142,7 @@ static void rxkad_prime_packet_security(struct rxrpc_connection *conn)
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
 	memcpy(&conn->csum_iv, &tmpbuf.x[2], sizeof(conn->csum_iv));
-	ASSERTCMP(conn->csum_iv.n[0], ==, tmpbuf.x[2]);
+	ASSERTCMP((u32 __force)conn->csum_iv.n[0], ==, (u32 __force)tmpbuf.x[2]);
 
 	_leave("");
 }
