@@ -34,6 +34,15 @@ static void amdgpu_job_free_handler(struct work_struct *ws)
 	kfree(job);
 }
 
+void amdgpu_job_timeout_func(struct work_struct *work)
+{
+	struct amdgpu_job *job = container_of(work, struct amdgpu_job, base.work_tdr.work);
+	DRM_ERROR("ring %s timeout, last signaled seq=%u, last emitted seq=%u\n",
+				job->base.sched->name,
+				(uint32_t)atomic_read(&job->ring->fence_drv.last_seq),
+				job->ring->fence_drv.sync_seq);
+}
+
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job)
 {
@@ -103,7 +112,10 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 	if (!f)
 		return -EINVAL;
 
-	r = amd_sched_job_init(&job->base, &ring->sched, entity, owner, &fence);
+	r = amd_sched_job_init(&job->base, &ring->sched,
+							entity, owner,
+							amdgpu_job_timeout_func,
+							&fence);
 	if (r)
 		return r;
 
@@ -180,4 +192,6 @@ err:
 struct amd_sched_backend_ops amdgpu_sched_ops = {
 	.dependency = amdgpu_job_dependency,
 	.run_job = amdgpu_job_run,
+	.begin_job = amd_sched_job_begin,
+	.finish_job = amd_sched_job_finish,
 };

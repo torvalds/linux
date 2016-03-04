@@ -324,6 +324,40 @@ static void amd_sched_free_job(struct fence *f, struct fence_cb *cb) {
 	schedule_work(&job->work_free_job);
 }
 
+/* job_finish is called after hw fence signaled, and
+ * the job had already been deleted from ring_mirror_list
+ */
+void amd_sched_job_finish(struct amd_sched_job *s_job)
+{
+	struct amd_sched_job *next;
+	struct amd_gpu_scheduler *sched = s_job->sched;
+
+	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
+		cancel_delayed_work(&s_job->work_tdr); /*TODO: how to deal the case that tdr is running */
+
+		/* queue TDR for next job */
+		next = list_first_entry_or_null(&sched->ring_mirror_list,
+						struct amd_sched_job, node);
+
+		if (next) {
+			INIT_DELAYED_WORK(&next->work_tdr, s_job->timeout_callback);
+			schedule_delayed_work(&next->work_tdr, sched->timeout);
+		}
+	}
+}
+
+void amd_sched_job_begin(struct amd_sched_job *s_job)
+{
+	struct amd_gpu_scheduler *sched = s_job->sched;
+
+	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
+		list_first_entry_or_null(&sched->ring_mirror_list, struct amd_sched_job, node) == s_job)
+	{
+		INIT_DELAYED_WORK(&s_job->work_tdr, s_job->timeout_callback);
+		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
+	}
+}
+
 /**
  * Submit a job to the job queue
  *
@@ -347,6 +381,7 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 int amd_sched_job_init(struct amd_sched_job *job,
 						struct amd_gpu_scheduler *sched,
 						struct amd_sched_entity *entity,
+						void (*timeout_cb)(struct work_struct *work),
 						void *owner, struct fence **fence)
 {
 	INIT_LIST_HEAD(&job->node);
@@ -357,6 +392,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 		return -ENOMEM;
 
 	job->s_fence->s_job = job;
+	job->timeout_callback = timeout_cb;
 
 	if (fence)
 		*fence = &job->s_fence->base;
@@ -415,6 +451,7 @@ static void amd_sched_process_job(struct fence *f, struct fence_cb *cb)
 	/* remove job from ring_mirror_list */
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	list_del_init(&s_fence->s_job->node);
+	sched->ops->finish_job(s_fence->s_job);
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 
 	amd_sched_fence_signal(s_fence);

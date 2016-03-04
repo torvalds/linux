@@ -63,6 +63,7 @@ void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
 	unsigned long flags;
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
+	sched->ops->begin_job(s_job);
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 }
 
