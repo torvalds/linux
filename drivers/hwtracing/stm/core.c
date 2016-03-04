@@ -688,6 +688,8 @@ int stm_register_device(struct device *parent, struct stm_data *stm_data,
 	return 0;
 
 err_device:
+	unregister_chrdev(stm->major, stm_data->name);
+
 	/* matches device_initialize() above */
 	put_device(&stm->dev);
 err_free:
