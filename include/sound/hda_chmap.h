@@ -7,7 +7,7 @@
 
 #include <sound/hdaudio.h>
 
-struct cea_channel_speaker_allocation {
+struct hdac_cea_channel_speaker_allocation {
 	int ca_index;
 	int speakers[8];
 
@@ -23,9 +23,9 @@ struct hdac_chmap_ops {
 	 * for devices that have non-standard mapping requirements.
 	 */
 	int (*chmap_cea_alloc_validate_get_type)(struct hdac_chmap *chmap,
-		struct cea_channel_speaker_allocation *cap, int channels);
+		struct hdac_cea_channel_speaker_allocation *cap, int channels);
 	void (*cea_alloc_to_tlv_chmap)
-		(struct cea_channel_speaker_allocation *cap,
+		(struct hdac_cea_channel_speaker_allocation *cap,
 		unsigned int *chmap, int channels);
 
 	/* check that the user-given chmap is supported */
