@@ -230,6 +230,7 @@ static int intel_th_pti_probe(struct intel_th_device *thdev)
 
 static void intel_th_pti_remove(struct intel_th_device *thdev)
 {
+	sysfs_remove_group(&thdev->dev.kobj, &pti_output_group);
 }
 
 static struct intel_th_driver intel_th_pti_driver = {
