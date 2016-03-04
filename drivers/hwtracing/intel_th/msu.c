@@ -1478,10 +1478,6 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 	if (err)
 		return err;
 
-	err = sysfs_create_group(&dev->kobj, &msc_output_group);
-	if (err)
-		return err;
-
 	dev_set_drvdata(dev, msc);
 
 	return 0;
@@ -1489,7 +1485,6 @@ static int intel_th_msc_probe(struct intel_th_device *thdev)
 
 static void intel_th_msc_remove(struct intel_th_device *thdev)
 {
-	sysfs_remove_group(&thdev->dev.kobj, &msc_output_group);
 }
 
 static struct intel_th_driver intel_th_msc_driver = {
@@ -1498,6 +1493,7 @@ static struct intel_th_driver intel_th_msc_driver = {
 	.activate	= intel_th_msc_activate,
 	.deactivate	= intel_th_msc_deactivate,
 	.fops	= &intel_th_msc_fops,
+	.attr_group	= &msc_output_group,
 	.driver	= {
 		.name	= "msc",
 		.owner	= THIS_MODULE,
