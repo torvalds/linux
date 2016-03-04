@@ -231,7 +231,7 @@ static int rxrpc_fast_process_data(struct rxrpc_call *call,
 		_debug("drain rx oos now");
 		read_lock(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_DRAIN_RX_OOS, &call->events))
+		    !test_and_set_bit(RXRPC_CALL_EV_DRAIN_RX_OOS, &call->events))
 			rxrpc_queue_call(call);
 		read_unlock(&call->state_lock);
 	}
@@ -287,12 +287,12 @@ static void rxrpc_assume_implicit_ackall(struct rxrpc_call *call, u32 serial)
 		call->acks_latest = serial;
 
 		_debug("implicit ACKALL %%%u", call->acks_latest);
-		set_bit(RXRPC_CALL_RCVD_ACKALL, &call->events);
+		set_bit(RXRPC_CALL_EV_RCVD_ACKALL, &call->events);
 		write_unlock_bh(&call->state_lock);
 
 		if (try_to_del_timer_sync(&call->resend_timer) >= 0) {
-			clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
-			clear_bit(RXRPC_CALL_RESEND, &call->events);
+			clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
+			clear_bit(RXRPC_CALL_EV_RESEND, &call->events);
 			clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		}
 		break;
@@ -358,7 +358,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		if (call->state < RXRPC_CALL_COMPLETE) {
 			call->state = RXRPC_CALL_REMOTELY_ABORTED;
 			call->abort_code = abort_code;
-			set_bit(RXRPC_CALL_RCVD_ABORT, &call->events);
+			set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 			rxrpc_queue_call(call);
 		}
 		goto free_packet_unlock;
@@ -373,7 +373,7 @@ void rxrpc_fast_process_packet(struct rxrpc_call *call, struct sk_buff *skb)
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
 			call->state = RXRPC_CALL_SERVER_BUSY;
-			set_bit(RXRPC_CALL_RCVD_BUSY, &call->events);
+			set_bit(RXRPC_CALL_EV_RCVD_BUSY, &call->events);
 			rxrpc_queue_call(call);
 		case RXRPC_CALL_SERVER_BUSY:
 			goto free_packet_unlock;
@@ -433,7 +433,7 @@ protocol_error_locked:
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = RX_PROTOCOL_ERROR;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
 free_packet_unlock:
@@ -505,7 +505,7 @@ protocol_error:
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = RX_PROTOCOL_ERROR;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
 	write_unlock_bh(&call->state_lock);
@@ -530,7 +530,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 	read_lock(&call->state_lock);
 	switch (call->state) {
 	case RXRPC_CALL_LOCALLY_ABORTED:
-		if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events)) {
+		if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 			rxrpc_queue_call(call);
 			goto free_unlock;
 		}
@@ -546,7 +546,7 @@ static void rxrpc_post_packet_to_call(struct rxrpc_call *call,
 		/* resend last packet of a completed call */
 		_debug("final ack again");
 		rxrpc_get_call(call);
-		set_bit(RXRPC_CALL_ACK_FINAL, &call->events);
+		set_bit(RXRPC_CALL_EV_ACK_FINAL, &call->events);
 		rxrpc_queue_call(call);
 		goto free_unlock;
 	default:

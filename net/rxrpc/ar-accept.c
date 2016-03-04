@@ -186,7 +186,7 @@ invalid_service:
 
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events)) {
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events)) {
 		rxrpc_get_call(call);
 		rxrpc_queue_call(call);
 	}
@@ -379,7 +379,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 	rb_insert_color(&call->sock_node, &rx->calls);
 	if (test_and_set_bit(RXRPC_CALL_HAS_USERID, &call->flags))
 		BUG();
-	if (test_and_set_bit(RXRPC_CALL_ACCEPTED, &call->events))
+	if (test_and_set_bit(RXRPC_CALL_EV_ACCEPTED, &call->events))
 		BUG();
 	rxrpc_queue_call(call);
 
@@ -395,7 +395,7 @@ struct rxrpc_call *rxrpc_accept_call(struct rxrpc_sock *rx,
 out_release:
 	_debug("release %p", call);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 		rxrpc_queue_call(call);
 out_discard:
 	write_unlock_bh(&call->state_lock);
@@ -434,7 +434,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 	switch (call->state) {
 	case RXRPC_CALL_SERVER_ACCEPTING:
 		call->state = RXRPC_CALL_SERVER_BUSY;
-		if (test_and_set_bit(RXRPC_CALL_REJECT_BUSY, &call->events))
+		if (test_and_set_bit(RXRPC_CALL_EV_REJECT_BUSY, &call->events))
 			rxrpc_queue_call(call);
 		ret = 0;
 		goto out_release;
@@ -458,7 +458,7 @@ int rxrpc_reject_call(struct rxrpc_sock *rx)
 out_release:
 	_debug("release %p", call);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 		rxrpc_queue_call(call);
 out_discard:
 	write_unlock_bh(&call->state_lock);

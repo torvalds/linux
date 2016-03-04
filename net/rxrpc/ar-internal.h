@@ -311,23 +311,23 @@ enum rxrpc_call_flag {
  * Events that can be raised on a call.
  */
 enum rxrpc_call_event {
-	RXRPC_CALL_RCVD_ACKALL,		/* ACKALL or reply received */
-	RXRPC_CALL_RCVD_BUSY,		/* busy packet received */
-	RXRPC_CALL_RCVD_ABORT,		/* abort packet received */
-	RXRPC_CALL_RCVD_ERROR,		/* network error received */
-	RXRPC_CALL_ACK_FINAL,		/* need to generate final ACK (and release call) */
-	RXRPC_CALL_ACK,			/* need to generate ACK */
-	RXRPC_CALL_REJECT_BUSY,		/* need to generate busy message */
-	RXRPC_CALL_ABORT,		/* need to generate abort */
-	RXRPC_CALL_CONN_ABORT,		/* local connection abort generated */
-	RXRPC_CALL_RESEND_TIMER,	/* Tx resend timer expired */
-	RXRPC_CALL_RESEND,		/* Tx resend required */
-	RXRPC_CALL_DRAIN_RX_OOS,	/* drain the Rx out of sequence queue */
-	RXRPC_CALL_LIFE_TIMER,		/* call's lifetimer ran out */
-	RXRPC_CALL_ACCEPTED,		/* incoming call accepted by userspace app */
-	RXRPC_CALL_SECURED,		/* incoming call's connection is now secure */
-	RXRPC_CALL_POST_ACCEPT,		/* need to post an "accept?" message to the app */
-	RXRPC_CALL_RELEASE,		/* need to release the call's resources */
+	RXRPC_CALL_EV_RCVD_ACKALL,	/* ACKALL or reply received */
+	RXRPC_CALL_EV_RCVD_BUSY,	/* busy packet received */
+	RXRPC_CALL_EV_RCVD_ABORT,	/* abort packet received */
+	RXRPC_CALL_EV_RCVD_ERROR,	/* network error received */
+	RXRPC_CALL_EV_ACK_FINAL,	/* need to generate final ACK (and release call) */
+	RXRPC_CALL_EV_ACK,		/* need to generate ACK */
+	RXRPC_CALL_EV_REJECT_BUSY,	/* need to generate busy message */
+	RXRPC_CALL_EV_ABORT,		/* need to generate abort */
+	RXRPC_CALL_EV_CONN_ABORT,	/* local connection abort generated */
+	RXRPC_CALL_EV_RESEND_TIMER,	/* Tx resend timer expired */
+	RXRPC_CALL_EV_RESEND,		/* Tx resend required */
+	RXRPC_CALL_EV_DRAIN_RX_OOS,	/* drain the Rx out of sequence queue */
+	RXRPC_CALL_EV_LIFE_TIMER,	/* call's lifetimer ran out */
+	RXRPC_CALL_EV_ACCEPTED,		/* incoming call accepted by userspace app */
+	RXRPC_CALL_EV_SECURED,		/* incoming call's connection is now secure */
+	RXRPC_CALL_EV_POST_ACCEPT,	/* need to post an "accept?" message to the app */
+	RXRPC_CALL_EV_RELEASE,		/* need to release the call's resources */
 };
 
 /*
@@ -440,7 +440,7 @@ static inline void rxrpc_abort_call(struct rxrpc_call *call, u32 abort_code)
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		call->abort_code = abort_code;
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 	}
 	write_unlock_bh(&call->state_lock);
 }

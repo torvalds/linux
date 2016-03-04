@@ -452,7 +452,7 @@ struct rxrpc_call *rxrpc_incoming_call(struct rxrpc_sock *rx,
 		read_lock(&call->state_lock);
 		switch (call->state) {
 		case RXRPC_CALL_LOCALLY_ABORTED:
-			if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events))
+			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				rxrpc_queue_call(call);
 		case RXRPC_CALL_REMOTELY_ABORTED:
 			read_unlock(&call->state_lock);
@@ -686,7 +686,7 @@ void rxrpc_release_call(struct rxrpc_call *call)
 		_debug("+++ ABORTING STATE %d +++\n", call->state);
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = RX_CALL_DEAD;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		rxrpc_queue_call(call);
 	}
 	write_unlock(&call->state_lock);
@@ -763,10 +763,10 @@ static void rxrpc_mark_call_released(struct rxrpc_call *call)
 			_debug("abort call %p", call);
 			call->state = RXRPC_CALL_LOCALLY_ABORTED;
 			call->abort_code = RX_CALL_DEAD;
-			if (!test_and_set_bit(RXRPC_CALL_ABORT, &call->events))
+			if (!test_and_set_bit(RXRPC_CALL_EV_ABORT, &call->events))
 				sched = true;
 		}
-		if (!test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+		if (!test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 			sched = true;
 		if (sched)
 			rxrpc_queue_call(call);
@@ -975,7 +975,7 @@ static void rxrpc_call_life_expired(unsigned long _call)
 	_enter("{%d}", call->debug_id);
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		set_bit(RXRPC_CALL_LIFE_TIMER, &call->events);
+		set_bit(RXRPC_CALL_EV_LIFE_TIMER, &call->events);
 		rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);
@@ -995,7 +995,7 @@ static void rxrpc_resend_time_expired(unsigned long _call)
 		return;
 
 	clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
-	if (!test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+	if (!test_and_set_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events))
 		rxrpc_queue_call(call);
 }
 
@@ -1013,7 +1013,7 @@ static void rxrpc_ack_time_expired(unsigned long _call)
 
 	read_lock_bh(&call->state_lock);
 	if (call->state < RXRPC_CALL_COMPLETE &&
-	    !test_and_set_bit(RXRPC_CALL_ACK, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_ACK, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }

@@ -42,9 +42,9 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn, int state,
 			call->state = state;
 			call->abort_code = abort_code;
 			if (state == RXRPC_CALL_LOCALLY_ABORTED)
-				set_bit(RXRPC_CALL_CONN_ABORT, &call->events);
+				set_bit(RXRPC_CALL_EV_CONN_ABORT, &call->events);
 			else
-				set_bit(RXRPC_CALL_RCVD_ABORT, &call->events);
+				set_bit(RXRPC_CALL_EV_RCVD_ABORT, &call->events);
 			rxrpc_queue_call(call);
 		}
 		write_unlock(&call->state_lock);
@@ -132,7 +132,7 @@ static void rxrpc_call_is_secure(struct rxrpc_call *call)
 	if (call) {
 		read_lock(&call->state_lock);
 		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_SECURED, &call->events))
+		    !test_and_set_bit(RXRPC_CALL_EV_SECURED, &call->events))
 			rxrpc_queue_call(call);
 		read_unlock(&call->state_lock);
 	}

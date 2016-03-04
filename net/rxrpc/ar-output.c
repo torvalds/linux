@@ -111,11 +111,11 @@ static void rxrpc_send_abort(struct rxrpc_call *call, u32 abort_code)
 	if (call->state <= RXRPC_CALL_COMPLETE) {
 		call->state = RXRPC_CALL_LOCALLY_ABORTED;
 		call->abort_code = abort_code;
-		set_bit(RXRPC_CALL_ABORT, &call->events);
+		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		del_timer_sync(&call->resend_timer);
 		del_timer_sync(&call->ack_timer);
-		clear_bit(RXRPC_CALL_RESEND_TIMER, &call->events);
-		clear_bit(RXRPC_CALL_ACK, &call->events);
+		clear_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events);
+		clear_bit(RXRPC_CALL_EV_ACK, &call->events);
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		rxrpc_queue_call(call);
 	}
@@ -437,7 +437,7 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call)
 	if (try_to_del_timer_sync(&call->resend_timer) >= 0) {
 		clear_bit(RXRPC_CALL_RUN_RTIMER, &call->flags);
 		if (call->state < RXRPC_CALL_COMPLETE &&
-		    !test_and_set_bit(RXRPC_CALL_RESEND_TIMER, &call->events))
+		    !test_and_set_bit(RXRPC_CALL_EV_RESEND_TIMER, &call->events))
 			rxrpc_queue_call(call);
 	}
 	read_unlock_bh(&call->state_lock);

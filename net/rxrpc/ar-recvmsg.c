@@ -33,7 +33,7 @@ void rxrpc_remove_user_ID(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	read_lock_bh(&call->state_lock);
 	if (!test_bit(RXRPC_CALL_RELEASED, &call->flags) &&
-	    !test_and_set_bit(RXRPC_CALL_RELEASE, &call->events))
+	    !test_and_set_bit(RXRPC_CALL_EV_RELEASE, &call->events))
 		rxrpc_queue_call(call);
 	read_unlock_bh(&call->state_lock);
 }

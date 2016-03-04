@@ -222,7 +222,7 @@ void rxrpc_UDP_error_handler(struct work_struct *work)
 			if (call->state != RXRPC_CALL_COMPLETE &&
 			    call->state < RXRPC_CALL_NETWORK_ERROR) {
 				call->state = RXRPC_CALL_NETWORK_ERROR;
-				set_bit(RXRPC_CALL_RCVD_ERROR, &call->events);
+				set_bit(RXRPC_CALL_EV_RCVD_ERROR, &call->events);
 				rxrpc_queue_call(call);
 			}
 			write_unlock(&call->state_lock);
