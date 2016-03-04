@@ -4468,6 +4468,7 @@ put_shost:
 	scsi_host_put(phba->shost);
 free_kset:
 	iscsi_boot_destroy_kset(phba->boot_kset);
+	phba->boot_kset = NULL;
 	return -ENOMEM;
 }
 
