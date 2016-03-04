@@ -51,26 +51,6 @@
 #define RW_STATE_WORD0 3
 #define RW_STATE_WORD1 4
 
-/* Compute with 96 bit intermediate result: (a*b)/c */
-static u64 muldiv64(u64 a, u32 b, u32 c)
-{
-	union {
-		u64 ll;
-		struct {
-			u32 low, high;
-		} l;
-	} u, res;
-	u64 rl, rh;
-
-	u.ll = a;
-	rl = (u64)u.l.low * (u64)b;
-	rh = (u64)u.l.high * (u64)b;
-	rh += (rl >> 32);
-	res.l.high = div64_u64(rh, c);
-	res.l.low = div64_u64(((mod_64(rh, c) << 32) + (rl & 0xffffffff)), c);
-	return res.ll;
-}
-
 static void pit_set_gate(struct kvm_pit *pit, int channel, u32 val)
 {
 	struct kvm_kpit_channel_state *c = &pit->pit_state.channels[channel];
@@ -139,7 +119,7 @@ static int pit_get_count(struct kvm_pit *pit, int channel)
 	int counter;
 
 	t = kpit_elapsed(pit, c, channel);
-	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
+	d = mul_u64_u32_div(t, KVM_PIT_FREQ, NSEC_PER_SEC);
 
 	switch (c->mode) {
 	case 0:
@@ -166,7 +146,7 @@ static int pit_get_out(struct kvm_pit *pit, int channel)
 	int out;
 
 	t = kpit_elapsed(pit, c, channel);
-	d = muldiv64(t, KVM_PIT_FREQ, NSEC_PER_SEC);
+	d = mul_u64_u32_div(t, KVM_PIT_FREQ, NSEC_PER_SEC);
 
 	switch (c->mode) {
 	default:
@@ -338,7 +318,7 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 	    ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)
 		return;
 
-	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
+	interval = mul_u64_u32_div(val, NSEC_PER_SEC, KVM_PIT_FREQ);
 
 	pr_debug("create pit timer, interval is %llu nsec\n", interval);
 
