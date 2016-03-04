@@ -1390,7 +1390,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_store_bytes_proto = {
+static const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 	.func		= bpf_skb_store_bytes,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1421,7 +1421,7 @@ static u64 bpf_skb_load_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_load_bytes_proto = {
+static const struct bpf_func_proto bpf_skb_load_bytes_proto = {
 	.func		= bpf_skb_load_bytes,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1472,7 +1472,7 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_l3_csum_replace_proto = {
+static const struct bpf_func_proto bpf_l3_csum_replace_proto = {
 	.func		= bpf_l3_csum_replace,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1531,7 +1531,7 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_l4_csum_replace_proto = {
+static const struct bpf_func_proto bpf_l4_csum_replace_proto = {
 	.func		= bpf_l4_csum_replace,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1570,7 +1570,7 @@ static u64 bpf_csum_diff(u64 r1, u64 from_size, u64 r3, u64 to_size, u64 seed)
 	return csum_partial(sp->diff, diff_size, seed);
 }
 
-const struct bpf_func_proto bpf_csum_diff_proto = {
+static const struct bpf_func_proto bpf_csum_diff_proto = {
 	.func		= bpf_csum_diff,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1608,7 +1608,7 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	return dev_queue_xmit(skb2);
 }
 
-const struct bpf_func_proto bpf_clone_redirect_proto = {
+static const struct bpf_func_proto bpf_clone_redirect_proto = {
 	.func           = bpf_clone_redirect,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
@@ -1660,7 +1660,7 @@ int skb_do_redirect(struct sk_buff *skb)
 	return dev_queue_xmit(skb);
 }
 
-const struct bpf_func_proto bpf_redirect_proto = {
+static const struct bpf_func_proto bpf_redirect_proto = {
 	.func           = bpf_redirect,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
@@ -1799,7 +1799,7 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
+static const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
 	.func		= bpf_skb_get_tunnel_key,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1861,7 +1861,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
+static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.func		= bpf_skb_set_tunnel_key,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
