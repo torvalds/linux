@@ -160,6 +160,7 @@ struct qede_dev {
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
 
+	bool gro_disable;
 	struct list_head vlan_list;
 	u16 configured_vlans;
 	u16 non_configured_vlans;
@@ -188,6 +189,24 @@ struct sw_rx_data {
 	unsigned int page_offset;
 };
 
+enum qede_agg_state {
+	QEDE_AGG_STATE_NONE  = 0,
+	QEDE_AGG_STATE_START = 1,
+	QEDE_AGG_STATE_ERROR = 2
+};
+
+struct qede_agg_info {
+	struct sw_rx_data replace_buf;
+	dma_addr_t replace_buf_mapping;
+	struct sw_rx_data start_buf;
+	dma_addr_t start_buf_mapping;
+	struct eth_fast_path_rx_tpa_start_cqe start_cqe;
+	enum qede_agg_state agg_state;
+	struct sk_buff *skb;
+	int frag_id;
+	u16 vlan_tag;
+};
+
 struct qede_rx_queue {
 	__le16			*hw_cons_ptr;
 	struct sw_rx_data	*sw_rx_ring;
@@ -196,6 +215,9 @@ struct qede_rx_queue {
 	struct qed_chain	rx_bd_ring;
 	struct qed_chain	rx_comp_ring;
 	void __iomem		*hw_rxq_prod_addr;
+
+	/* GRO */
+	struct qede_agg_info	tpa_info[ETH_TPA_MAX_AGGS_NUM];
 
 	int			rx_buf_size;
 	unsigned int		rx_buf_seg_size;
