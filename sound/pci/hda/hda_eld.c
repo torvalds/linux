@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <asm/unaligned.h>
+#include <sound/hda_chmap.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 
@@ -40,20 +41,6 @@ enum cea_edid_versions {
 	CEA_EDID_VER_CEA861A	= 2,
 	CEA_EDID_VER_CEA861BCD	= 3,
 	CEA_EDID_VER_RESERVED	= 4,
-};
-
-static const char * const cea_speaker_allocation_names[] = {
-	/*  0 */ "FL/FR",
-	/*  1 */ "LFE",
-	/*  2 */ "FC",
-	/*  3 */ "RL/RR",
-	/*  4 */ "RC",
-	/*  5 */ "FLC/FRC",
-	/*  6 */ "RLC/RRC",
-	/*  7 */ "FLW/FRW",
-	/*  8 */ "FLH/FRH",
-	/*  9 */ "TC",
-	/* 10 */ "FCH",
 };
 
 static const char * const eld_connection_type_names[4] = {
@@ -417,18 +404,6 @@ static void hdmi_show_short_audio_desc(struct hda_codec *codec,
 		  "HDMI: supports coding type %s: channels = %d, rates =%s%s\n",
 		  cea_audio_coding_type_names[a->format],
 		  a->channels, buf, buf2);
-}
-
-void snd_print_channel_allocation(int spk_alloc, char *buf, int buflen)
-{
-	int i, j;
-
-	for (i = 0, j = 0; i < ARRAY_SIZE(cea_speaker_allocation_names); i++) {
-		if (spk_alloc & (1 << i))
-			j += snprintf(buf + j, buflen - j,  " %s",
-					cea_speaker_allocation_names[i]);
-	}
-	buf[j] = '\0';	/* necessary when j == 0 */
 }
 
 void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e)
