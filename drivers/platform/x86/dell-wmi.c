@@ -62,6 +62,14 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 static const struct dmi_system_id dell_wmi_smbios_list[] __initconst = {
 	{
 		.callback = dmi_matched,
+		.ident = "Dell Inspiron M5110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron M5110"),
+		},
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Dell Vostro V131",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -110,8 +118,11 @@ static const struct key_entry dell_wmi_legacy_keymap[] __initconst = {
 
 	{ KE_IGNORE, 0xe020, { KEY_MUTE } },
 
-	/* Shortcut and audio panel keys */
+	/* Dell Instant Launch key */
 	{ KE_KEY, 0xe025, { KEY_PROG4 } },
+	{ KE_KEY, 0xe029, { KEY_PROG4 } },
+
+	/* Audio panel key */
 	{ KE_IGNORE, 0xe026, { KEY_RESERVED } },
 
 	{ KE_IGNORE, 0xe02e, { KEY_VOLUMEDOWN } },
