@@ -177,9 +177,9 @@ struct gb_control_interface_version_response {
 
 struct gb_control_timesync_enable_request {
 	__u8	count;
-	__u64	frame_time;
-	__u32	strobe_delay;
-	__u32	refclk;
+	__le64	frame_time;
+	__le32	strobe_delay;
+	__le32	refclk;
 } __packed;
 /* timesync enable response has no payload */
 
