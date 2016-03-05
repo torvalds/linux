@@ -19,6 +19,7 @@
 #include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -640,6 +641,10 @@ struct regmap *__regmap_init(struct device *dev,
 		map->reg_stride = config->reg_stride;
 	else
 		map->reg_stride = 1;
+	if (is_power_of_2(map->reg_stride))
+		map->reg_stride_order = ilog2(map->reg_stride);
+	else
+		map->reg_stride_order = -1;
 	map->use_single_read = config->use_single_rw || !bus || !bus->read;
 	map->use_single_write = config->use_single_rw || !bus || !bus->write;
 	map->can_multi_write = config->can_multi_write && bus && bus->write;
@@ -1310,7 +1315,7 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	if (map->writeable_reg)
 		for (i = 0; i < val_len / map->format.val_bytes; i++)
 			if (!map->writeable_reg(map->dev,
-						reg + (i * map->reg_stride)))
+					       reg + regmap_get_offset(map, i)))
 				return -EINVAL;
 
 	if (!map->cache_bypass && map->format.parse_val) {
@@ -1318,7 +1323,8 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		int val_bytes = map->format.val_bytes;
 		for (i = 0; i < val_len / val_bytes; i++) {
 			ival = map->format.parse_val(val + (i * val_bytes));
-			ret = regcache_write(map, reg + (i * map->reg_stride),
+			ret = regcache_write(map,
+					     reg + regmap_get_offset(map, i),
 					     ival);
 			if (ret) {
 				dev_err(map->dev,
@@ -1848,8 +1854,9 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 				goto out;
 			}
 
-			ret = _regmap_write(map, reg + (i * map->reg_stride),
-					ival);
+			ret = _regmap_write(map,
+					    reg + regmap_get_offset(map, i),
+					    ival);
 			if (ret != 0)
 				goto out;
 		}
@@ -2421,7 +2428,7 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		 * cost as we expect to hit the cache.
 		 */
 		for (i = 0; i < val_count; i++) {
-			ret = _regmap_read(map, reg + (i * map->reg_stride),
+			ret = _regmap_read(map, reg + regmap_get_offset(map, i),
 					   &v);
 			if (ret != 0)
 				goto out;
@@ -2573,7 +2580,7 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 	} else {
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
-			ret = regmap_read(map, reg + (i * map->reg_stride),
+			ret = regmap_read(map, reg + regmap_get_offset(map, i),
 					  &ival);
 			if (ret != 0)
 				return ret;
