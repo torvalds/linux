@@ -1370,6 +1370,20 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	std	r6, VCPU_ACOP(r9)
 	stw	r7, VCPU_GUEST_PID(r9)
 	std	r8, VCPU_WORT(r9)
+	/*
+	 * Restore various registers to 0, where non-zero values
+	 * set by the guest could disrupt the host.
+	 */
+	li	r0, 0
+	mtspr	SPRN_IAMR, r0
+	mtspr	SPRN_CIABR, r0
+	mtspr	SPRN_DAWRX, r0
+	mtspr	SPRN_TCSCR, r0
+	mtspr	SPRN_WORT, r0
+	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
+	li	r0, 1
+	sldi	r0, r0, 31
+	mtspr	SPRN_MMCRS, r0
 8:
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
