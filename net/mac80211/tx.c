@@ -2458,7 +2458,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	/* Update skb pointers to various headers since this modified frame
 	 * is going to go through Linux networking code that may potentially
 	 * need things like pointer to IP header. */
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, nh_pos);
 	skb_set_transport_header(skb, h_pos);
 
@@ -3973,9 +3973,9 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 {
 	int ac = ieee802_1d_to_ac[tid & 7];
 
-	skb_set_mac_header(skb, 0);
-	skb_set_network_header(skb, 0);
-	skb_set_transport_header(skb, 0);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 
 	skb_set_queue_mapping(skb, ac);
 	skb->priority = tid;

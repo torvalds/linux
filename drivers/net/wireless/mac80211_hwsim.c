@@ -844,7 +844,7 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	hdr->rt_chbitmask = cpu_to_le16(flags);
 
 	skb->dev = hwsim_mon;
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
@@ -887,7 +887,7 @@ static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 	memcpy(hdr11->addr1, addr, ETH_ALEN);
 
 	skb->dev = hwsim_mon;
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
