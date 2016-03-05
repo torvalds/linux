@@ -402,8 +402,11 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 
 		data.requested_ui_label = power_state_convert(ps);
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
 	}
-	break;
+	case AMD_PP_EVENT_COMPLETE_INIT:
+		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
 	default:
 		break;
 	}
