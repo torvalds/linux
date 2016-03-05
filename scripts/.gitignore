@@ -3,6 +3,7 @@
 #
 conmakehash
 kallsyms
+kallsyms.exe
 pnmtologo
 unifdef
 ihex2fw
