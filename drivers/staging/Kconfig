@@ -72,8 +72,6 @@ source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/board/Kconfig"
 
-source "drivers/staging/gdm72xx/Kconfig"
-
 source "drivers/staging/gdm724x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
