@@ -748,9 +748,7 @@ batadv_tvlv_container_get(struct batadv_priv *bat_priv, u8 type, u8 version)
 		if (tvlv_tmp->tvlv_hdr.version != version)
 			continue;
 
-		if (!kref_get_unless_zero(&tvlv_tmp->refcount))
-			continue;
-
+		kref_get(&tvlv_tmp->refcount);
 		tvlv = tvlv_tmp;
 		break;
 	}
