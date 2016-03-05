@@ -57,7 +57,7 @@ static int regcache_hw_init(struct regmap *map)
 		bool cache_bypass = map->cache_bypass;
 		dev_warn(map->dev, "No cache defaults, reading back from HW\n");
 
-		/* Bypass the cache access till data read from HW*/
+		/* Bypass the cache access till data read from HW */
 		map->cache_bypass = true;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf) {
@@ -65,7 +65,7 @@ static int regcache_hw_init(struct regmap *map)
 			goto err_free;
 		}
 		ret = regmap_raw_read(map, 0, tmp_buf,
-				      map->num_reg_defaults_raw);
+				      map->cache_size_raw);
 		map->cache_bypass = cache_bypass;
 		if (ret < 0)
 			goto err_cache_free;
