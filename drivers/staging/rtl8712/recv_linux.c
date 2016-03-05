@@ -114,7 +114,7 @@ void r8712_recv_indicatepkt(struct _adapter *padapter,
 	precvpriv = &(padapter->recvpriv);
 	pfree_recv_queue = &(precvpriv->free_recv_queue);
 	skb = precv_frame->u.hdr.pkt;
-	if (skb == NULL)
+	if (!skb)
 		goto _recv_indicatepkt_drop;
 	skb->data = precv_frame->u.hdr.rx_data;
 	skb->len = precv_frame->u.hdr.len;
