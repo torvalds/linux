@@ -198,7 +198,7 @@ static const struct firmware *platform_config;
 #define RSA_ENGINE_TIMEOUT 100 /* ms */
 
 /* hardware mutex timeout, in ms */
-#define HM_TIMEOUT 4000 /* 4 s */
+#define HM_TIMEOUT 10 /* ms */
 
 /* 8051 memory access timeout, in us */
 #define DC8051_ACCESS_TIMEOUT 100 /* us */
