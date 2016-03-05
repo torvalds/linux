@@ -1170,6 +1170,9 @@ int sbus_request_slow(struct hfi1_devdata *dd,
 {
 	u64 reg, count = 0;
 
+	/* make sure fast mode is clear */
+	clear_sbus_fast_mode(dd);
+
 	sbus_request(dd, receiver_addr, data_addr, command, data_in);
 	write_csr(dd, ASIC_CFG_SBUS_EXECUTE,
 		  ASIC_CFG_SBUS_EXECUTE_EXECUTE_SMASK);

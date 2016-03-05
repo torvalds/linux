@@ -12934,91 +12934,6 @@ static void reset_cce_csrs(struct hfi1_devdata *dd)
 		write_csr(dd, CCE_INT_COUNTER_ARRAY32 + (8 * i), 0);
 }
 
-/* set ASIC CSRs to chip reset defaults */
-static void reset_asic_csrs(struct hfi1_devdata *dd)
-{
-	int i;
-
-	/*
-	 * If the HFIs are shared between separate nodes or VMs,
-	 * then more will need to be done here.  One idea is a module
-	 * parameter that returns early, letting the first power-on or
-	 * a known first load do the reset and blocking all others.
-	 */
-
-	if (!(dd->flags & HFI1_DO_INIT_ASIC))
-		return;
-
-	if (dd->icode != ICODE_FPGA_EMULATION) {
-		/* emulation does not have an SBus - leave these alone */
-		/*
-		 * All writes to ASIC_CFG_SBUS_REQUEST do something.
-		 * Notes:
-		 * o The reset is not zero if aimed at the core.  See the
-		 *   SBus documentation for details.
-		 * o If the SBus firmware has been updated (e.g. by the BIOS),
-		 *   will the reset revert that?
-		 */
-		/* ASIC_CFG_SBUS_REQUEST leave alone */
-		write_csr(dd, ASIC_CFG_SBUS_EXECUTE, 0);
-	}
-	/* ASIC_SBUS_RESULT read-only */
-	write_csr(dd, ASIC_STS_SBUS_COUNTERS, 0);
-	for (i = 0; i < ASIC_NUM_SCRATCH; i++)
-		write_csr(dd, ASIC_CFG_SCRATCH + (8 * i), 0);
-	write_csr(dd, ASIC_CFG_MUTEX, 0);	/* this will clear it */
-
-	/* We might want to retain this state across FLR if we ever use it */
-	write_csr(dd, ASIC_CFG_DRV_STR, 0);
-
-	/* ASIC_CFG_THERM_POLL_EN leave alone */
-	/* ASIC_STS_THERM read-only */
-	/* ASIC_CFG_RESET leave alone */
-
-	write_csr(dd, ASIC_PCIE_SD_HOST_CMD, 0);
-	/* ASIC_PCIE_SD_HOST_STATUS read-only */
-	write_csr(dd, ASIC_PCIE_SD_INTRPT_DATA_CODE, 0);
-	write_csr(dd, ASIC_PCIE_SD_INTRPT_ENABLE, 0);
-	/* ASIC_PCIE_SD_INTRPT_PROGRESS read-only */
-	write_csr(dd, ASIC_PCIE_SD_INTRPT_STATUS, ~0ull); /* clear */
-	/* ASIC_HFI0_PCIE_SD_INTRPT_RSPD_DATA read-only */
-	/* ASIC_HFI1_PCIE_SD_INTRPT_RSPD_DATA read-only */
-	for (i = 0; i < 16; i++)
-		write_csr(dd, ASIC_PCIE_SD_INTRPT_LIST + (8 * i), 0);
-
-	/* ASIC_GPIO_IN read-only */
-	write_csr(dd, ASIC_GPIO_OE, 0);
-	write_csr(dd, ASIC_GPIO_INVERT, 0);
-	write_csr(dd, ASIC_GPIO_OUT, 0);
-	write_csr(dd, ASIC_GPIO_MASK, 0);
-	/* ASIC_GPIO_STATUS read-only */
-	write_csr(dd, ASIC_GPIO_CLEAR, ~0ull);
-	/* ASIC_GPIO_FORCE leave alone */
-
-	/* ASIC_QSFP1_IN read-only */
-	write_csr(dd, ASIC_QSFP1_OE, 0);
-	write_csr(dd, ASIC_QSFP1_INVERT, 0);
-	write_csr(dd, ASIC_QSFP1_OUT, 0);
-	write_csr(dd, ASIC_QSFP1_MASK, 0);
-	/* ASIC_QSFP1_STATUS read-only */
-	write_csr(dd, ASIC_QSFP1_CLEAR, ~0ull);
-	/* ASIC_QSFP1_FORCE leave alone */
-
-	/* ASIC_QSFP2_IN read-only */
-	write_csr(dd, ASIC_QSFP2_OE, 0);
-	write_csr(dd, ASIC_QSFP2_INVERT, 0);
-	write_csr(dd, ASIC_QSFP2_OUT, 0);
-	write_csr(dd, ASIC_QSFP2_MASK, 0);
-	/* ASIC_QSFP2_STATUS read-only */
-	write_csr(dd, ASIC_QSFP2_CLEAR, ~0ull);
-	/* ASIC_QSFP2_FORCE leave alone */
-
-	write_csr(dd, ASIC_EEP_CTL_STAT, ASIC_EEP_CTL_STAT_RESETCSR);
-	/* this also writes a NOP command, clearing paging mode */
-	write_csr(dd, ASIC_EEP_ADDR_CMD, 0);
-	write_csr(dd, ASIC_EEP_DATA, 0);
-}
-
 /* set MISC CSRs to chip reset defaults */
 static void reset_misc_csrs(struct hfi1_devdata *dd)
 {
@@ -13428,14 +13343,11 @@ static void init_chip(struct hfi1_devdata *dd)
 			hfi1_pcie_flr(dd);
 			restore_pci_variables(dd);
 		}
-
-		reset_asic_csrs(dd);
 	} else {
 		dd_dev_info(dd, "Resetting CSRs with writes\n");
 		reset_cce_csrs(dd);
 		reset_txe_csrs(dd);
 		reset_rxe_csrs(dd);
-		reset_asic_csrs(dd);
 		reset_misc_csrs(dd);
 	}
 	/* clear the DC reset */
