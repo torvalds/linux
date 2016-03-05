@@ -66,6 +66,11 @@ set_a_bus_req(struct device *dev, struct device_attribute *attr,
 			return count;
 		}
 		ci->fsm.a_bus_req = 1;
+		if (ci->fsm.otg->state == OTG_STATE_A_PERIPHERAL) {
+			ci->gadget.host_request_flag = 1;
+			mutex_unlock(&ci->fsm.lock);
+			return count;
+		}
 	}
 
 	ci_otg_queue_work(ci);
@@ -144,8 +149,14 @@ set_b_bus_req(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&ci->fsm.lock);
 	if (buf[0] == '0')
 		ci->fsm.b_bus_req = 0;
-	else if (buf[0] == '1')
+	else if (buf[0] == '1') {
 		ci->fsm.b_bus_req = 1;
+		if (ci->fsm.otg->state == OTG_STATE_B_PERIPHERAL) {
+			ci->gadget.host_request_flag = 1;
+			mutex_unlock(&ci->fsm.lock);
+			return count;
+		}
+	}
 
 	ci_otg_queue_work(ci);
 	mutex_unlock(&ci->fsm.lock);
@@ -198,6 +209,7 @@ static unsigned otg_timer_ms[] = {
 	TA_AIDL_BDIS,
 	TB_ASE0_BRST,
 	TA_BIDL_ADIS,
+	TB_AIDL_BDIS,
 	TB_SE0_SRP,
 	TB_SRP_FAIL,
 	0,
@@ -309,6 +321,12 @@ static int a_bidl_adis_tmout(struct ci_hdrc *ci)
 	return 0;
 }
 
+static int b_aidl_bdis_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.a_bus_suspend = 1;
+	return 0;
+}
+
 static int b_se0_srp_tmout(struct ci_hdrc *ci)
 {
 	ci->fsm.b_se0_srp = 1;
@@ -353,6 +371,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	a_aidl_bdis_tmout,	/* A_AIDL_BDIS */
 	b_ase0_brst_tmout,	/* B_ASE0_BRST */
 	a_bidl_adis_tmout,	/* A_BIDL_ADIS */
+	b_aidl_bdis_tmout,	/* B_AIDL_BDIS */
 	b_se0_srp_tmout,	/* B_SE0_SRP */
 	b_srp_fail_tmout,	/* B_SRP_FAIL */
 	NULL,			/* A_WAIT_ENUM */
@@ -644,9 +663,9 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		if ((intr_sts & USBi_SLI) && port_conn && otg_bsess_vld) {
-			fsm->a_bus_suspend = 1;
-			ci_otg_queue_work(ci);
+			ci_otg_add_timer(ci, B_AIDL_BDIS);
 		} else if (intr_sts & USBi_PCI) {
+			ci_otg_del_timer(ci, B_AIDL_BDIS);
 			if (fsm->a_bus_suspend == 1)
 				fsm->a_bus_suspend = 0;
 		}
@@ -786,6 +805,10 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 	ci->fsm.id = hw_read_otgsc(ci, OTGSC_ID) ? 1 : 0;
 	ci->fsm.otg->state = OTG_STATE_UNDEFINED;
 	ci->fsm.ops = &ci_otg_ops;
+	ci->gadget.hnp_polling_support = 1;
+	ci->fsm.host_req_flag = devm_kzalloc(ci->dev, 1, GFP_KERNEL);
+	if (!ci->fsm.host_req_flag)
+		return -ENOMEM;
 
 	mutex_init(&ci->fsm.lock);
 
