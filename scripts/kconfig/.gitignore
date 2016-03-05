@@ -15,6 +15,7 @@ gconf.glade.h
 # configuration programs
 #
 conf
+conf.exe
 mconf
 nconf
 qconf
