@@ -254,7 +254,7 @@ int lkl_create_syscall_thread(void);
  *
  * Stop the system call thread associated with this host thread, if any.
  */
-int lkl_stop_syscall_thread();
+int lkl_stop_syscall_thread(void);
 
 #ifdef __cplusplus
 }
