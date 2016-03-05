@@ -793,10 +793,10 @@ static bool batadv_can_nc_with_orig(struct batadv_priv *bat_priv,
  *
  * Return: the nc_node if found, NULL otherwise.
  */
-static struct batadv_nc_node
-*batadv_nc_find_nc_node(struct batadv_orig_node *orig_node,
-			struct batadv_orig_node *orig_neigh_node,
-			bool in_coding)
+static struct batadv_nc_node *
+batadv_nc_find_nc_node(struct batadv_orig_node *orig_node,
+		       struct batadv_orig_node *orig_neigh_node,
+		       bool in_coding)
 {
 	struct batadv_nc_node *nc_node, *nc_node_out = NULL;
 	struct list_head *list;
@@ -835,11 +835,11 @@ static struct batadv_nc_node
  *
  * Return: the nc_node if found or created, NULL in case of an error.
  */
-static struct batadv_nc_node
-*batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
-		       struct batadv_orig_node *orig_node,
-		       struct batadv_orig_node *orig_neigh_node,
-		       bool in_coding)
+static struct batadv_nc_node *
+batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
+		      struct batadv_orig_node *orig_node,
+		      struct batadv_orig_node *orig_neigh_node,
+		      bool in_coding)
 {
 	struct batadv_nc_node *nc_node;
 	spinlock_t *lock; /* Used to lock list selected by "int in_coding" */
