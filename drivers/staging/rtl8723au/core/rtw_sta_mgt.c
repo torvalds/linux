@@ -200,7 +200,7 @@ int rtw_free_stainfo23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	struct hw_xmit *phwxmit;
 	int i;
 
-	if (psta == NULL)
+	if (!psta)
 		goto exit;
 
 	spin_lock_bh(&psta->lock);
@@ -350,7 +350,7 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	u32 index;
 	const u8 *addr;
 
-	if (hwaddr == NULL)
+	if (!hwaddr)
 		return NULL;
 
 	if (is_multicast_ether_addr(hwaddr))
@@ -383,7 +383,7 @@ int rtw_init_bcmc_stainfo23a(struct rtw_adapter *padapter)
 	int res = _SUCCESS;
 
 	psta = rtw_alloc_stainfo23a(pstapriv, bc_addr, GFP_KERNEL);
-	if (psta == NULL) {
+	if (!psta) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
 			 "rtw_alloc_stainfo23a fail\n");
