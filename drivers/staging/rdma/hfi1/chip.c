@@ -13815,11 +13815,6 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
  * Information can be shared between the two HFIs on the same ASIC
  * in the same OS.  This function finds the peer device and sets
  * up a shared structure.
- *
- * Certain chip functions need to be initialized only once per asic
- * instead of per-device. This function finds the peer device and
- * checks whether that chip initialization needs to be done by this
- * device.
  */
 static int init_asic_data(struct hfi1_devdata *dd)
 {
@@ -13836,13 +13831,6 @@ static int init_asic_data(struct hfi1_devdata *dd)
 			break;
 		}
 	}
-
-	/*
-	 * "Claim" the ASIC for initialization if it hasn't been
-	 " "claimed" yet.
-	 */
-	if (!peer || !(peer->flags & HFI1_DO_INIT_ASIC))
-		dd->flags |= HFI1_DO_INIT_ASIC;
 
 	if (peer) {
 		dd->asic_data = peer->asic_data;
