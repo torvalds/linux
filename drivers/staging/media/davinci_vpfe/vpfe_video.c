@@ -147,7 +147,7 @@ static int vpfe_prepare_pipeline(struct vpfe_video_device *video)
 	mutex_lock(&mdev->graph_mutex);
 	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
 	if (ret) {
-		mutex_unlock(&video->lock);
+		mutex_unlock(&mdev->graph_mutex);
 		return -ENOMEM;
 	}
 	media_entity_graph_walk_start(&graph, entity);
