@@ -1125,15 +1125,23 @@ static void turn_off_spicos(struct hfi1_devdata *dd, int flags)
  */
 void fabric_serdes_reset(struct hfi1_devdata *dd)
 {
+	int ret;
+
 	if (!fw_fabric_serdes_load)
 		return;
+
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd,
+			   "Cannot acquire SBus resource to reset fabric SerDes - perhaps you should reboot\n");
+		return;
+	}
+	set_sbus_fast_mode(dd);
 
 	if (is_ax(dd)) {
 		/* A0 serdes do not work with a re-download */
 		u8 ra = fabric_serdes_broadcast[dd->hfi1_id];
 
-		acquire_hw_mutex(dd);
-		set_sbus_fast_mode(dd);
 		/* place SerDes in reset and disable SPICO */
 		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000011);
 		/* wait 100 refclk cycles @ 156.25MHz => 640ns */
@@ -1142,26 +1150,20 @@ void fabric_serdes_reset(struct hfi1_devdata *dd)
 		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000010);
 		/* turn SPICO enable on */
 		sbus_request(dd, ra, 0x07, WRITE_SBUS_RECEIVER, 0x00000002);
-		clear_sbus_fast_mode(dd);
-		release_hw_mutex(dd);
-		return;
+	} else {
+		turn_off_spicos(dd, SPICO_FABRIC);
+		/*
+		 * No need for firmware retry - what to download has already
+		 * been decided.
+		 * No need to pay attention to the load return - the only
+		 * failure is a validation failure, which has already been
+		 * checked by the initial download.
+		 */
+		(void)load_fabric_serdes_firmware(dd, &fw_fabric);
 	}
 
-	acquire_hw_mutex(dd);
-	set_sbus_fast_mode(dd);
-
-	turn_off_spicos(dd, SPICO_FABRIC);
-	/*
-	 * No need for firmware retry - what to download has already been
-	 * decided.
-	 * No need to pay attention to the load return - the only failure
-	 * is a validation failure, which has already been checked by the
-	 * initial download.
-	 */
-	(void)load_fabric_serdes_firmware(dd, &fw_fabric);
-
 	clear_sbus_fast_mode(dd);
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_SBUS);
 }
 
 /* Access to the SBus in this routine should probably be serialized */
@@ -1598,7 +1600,7 @@ int load_firmware(struct hfi1_devdata *dd)
 	int ret;
 
 	if (fw_fabric_serdes_load) {
-		ret = acquire_hw_mutex(dd);
+		ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
 		if (ret)
 			return ret;
 
@@ -1614,7 +1616,7 @@ int load_firmware(struct hfi1_devdata *dd)
 		} while (retry_firmware(dd, ret));
 
 		clear_sbus_fast_mode(dd);
-		release_hw_mutex(dd);
+		release_chip_resource(dd, CR_SBUS);
 		if (ret)
 			return ret;
 	}
@@ -1995,7 +1997,7 @@ int get_platform_config_field(struct hfi1_devdata *dd,
  * Download the firmware needed for the Gen3 PCIe SerDes.  An update
  * to the SBus firmware is needed before updating the PCIe firmware.
  *
- * Note: caller must be holding the HW mutex.
+ * Note: caller must be holding the SBus resource.
  */
 int load_pcie_firmware(struct hfi1_devdata *dd)
 {

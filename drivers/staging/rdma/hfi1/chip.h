@@ -669,6 +669,9 @@ bool check_chip_resource(struct hfi1_devdata *dd, u32 resource,
 void init_chip_resources(struct hfi1_devdata *dd);
 void finish_chip_resources(struct hfi1_devdata *dd);
 
+/* ms wait time for access to an SBus resoure */
+#define SBUS_TIMEOUT 4000 /* long enough for a FW download and SBR */
+
 void fabric_serdes_reset(struct hfi1_devdata *dd);
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 

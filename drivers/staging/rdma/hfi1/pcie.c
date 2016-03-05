@@ -773,7 +773,7 @@ static int load_eq_table(struct hfi1_devdata *dd, const u8 eq[11][3], u8 fs,
 /*
  * Steps to be done after the PCIe firmware is downloaded and
  * before the SBR for the Pcie Gen3.
- * The hardware mutex is already being held.
+ * The SBus resource is already being held.
  */
 static void pcie_post_steps(struct hfi1_devdata *dd)
 {
@@ -1012,10 +1012,13 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 		goto done_no_mutex;
 	}
 
-	/* hold the HW mutex across the firmware download and SBR */
-	ret = acquire_hw_mutex(dd);
-	if (ret)
+	/* hold the SBus resource across the firmware download and SBR */
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		dd_dev_err(dd, "%s: unable to acquire SBus resource\n",
+			   __func__);
 		return ret;
+	}
 
 	/* make sure thermal polling is not causing interrupts */
 	therm = read_csr(dd, ASIC_CFG_THERM_POLL_EN);
@@ -1324,7 +1327,7 @@ done:
 		dd_dev_info(dd, "%s: Re-enable therm polling\n",
 			    __func__);
 	}
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_SBUS);
 done_no_mutex:
 	/* return no error if it is OK to be at current speed */
 	if (ret && !return_error) {

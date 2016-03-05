@@ -14324,7 +14324,12 @@ static int thermal_init(struct hfi1_devdata *dd)
 	    !(dd->flags & HFI1_DO_INIT_ASIC))
 		return ret;
 
-	acquire_hw_mutex(dd);
+	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
+	if (ret) {
+		THERM_FAILURE(dd, ret, "Acquire SBus");
+		return ret;
+	}
+
 	dd_dev_info(dd, "Initializing thermal sensor\n");
 	/* Disable polling of thermal readings */
 	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x0);
@@ -14372,7 +14377,7 @@ static int thermal_init(struct hfi1_devdata *dd)
 	/* Enable polling of thermal readings */
 	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x1);
 done:
-	release_hw_mutex(dd);
+	release_chip_resource(dd, CR_SBUS);
 	return ret;
 }
 
