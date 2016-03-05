@@ -978,7 +978,7 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 				return -EFAULT;
 		} else {
 			if (copy_from_user(ac->params,
-					   data + 2 * sizeof(u32), size))
+					   data + 2, size))
 				return -EFAULT;
 		}
 
