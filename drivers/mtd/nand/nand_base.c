@@ -566,8 +566,8 @@ void nand_wait_ready(struct mtd_info *mtd)
 		cond_resched();
 	} while (time_before(jiffies, timeo));
 
-	pr_warn_ratelimited(
-		"timeout while waiting for chip to become ready\n");
+	if (!chip->dev_ready(mtd))
+		pr_warn_ratelimited("timeout while waiting for chip to become ready\n");
 out:
 	led_trigger_event(nand_led_trigger, LED_OFF);
 }
