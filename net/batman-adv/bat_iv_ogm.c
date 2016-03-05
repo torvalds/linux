@@ -987,9 +987,15 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	list_for_each_entry_rcu(tmp_hard_iface, &batadv_hardif_list, list) {
 		if (tmp_hard_iface->soft_iface != hard_iface->soft_iface)
 			continue;
+
+		if (!kref_get_unless_zero(&tmp_hard_iface->refcount))
+			continue;
+
 		batadv_iv_ogm_queue_add(bat_priv, *ogm_buff,
 					*ogm_buff_len, hard_iface,
 					tmp_hard_iface, 1, send_time);
+
+		batadv_hardif_put(tmp_hard_iface);
 	}
 	rcu_read_unlock();
 
@@ -1767,8 +1773,13 @@ static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 		if (hard_iface->soft_iface != bat_priv->soft_iface)
 			continue;
 
+		if (!kref_get_unless_zero(&hard_iface->refcount))
+			continue;
+
 		batadv_iv_ogm_process_per_outif(skb, ogm_offset, orig_node,
 						if_incoming, hard_iface);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 

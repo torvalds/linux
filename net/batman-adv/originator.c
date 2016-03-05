@@ -1160,6 +1160,9 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 		if (hard_iface->soft_iface != bat_priv->soft_iface)
 			continue;
 
+		if (!kref_get_unless_zero(&hard_iface->refcount))
+			continue;
+
 		best_neigh_node = batadv_find_best_neighbor(bat_priv,
 							    orig_node,
 							    hard_iface);
@@ -1167,6 +1170,8 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 				    best_neigh_node);
 		if (best_neigh_node)
 			batadv_neigh_node_put(best_neigh_node);
+
+		batadv_hardif_put(hard_iface);
 	}
 	rcu_read_unlock();
 
