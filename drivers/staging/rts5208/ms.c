@@ -2468,7 +2468,7 @@ static u16 ms_get_l2p_tbl(struct rtsx_chip *chip, int seg_no, u16 log_off)
 	struct ms_info *ms_card = &chip->ms_card;
 	struct zone_entry *segment;
 
-	if (ms_card->segment == NULL)
+	if (!ms_card->segment)
 		return 0xFFFF;
 
 	segment = &(ms_card->segment[seg_no]);
@@ -2485,7 +2485,7 @@ static void ms_set_l2p_tbl(struct rtsx_chip *chip,
 	struct ms_info *ms_card = &chip->ms_card;
 	struct zone_entry *segment;
 
-	if (ms_card->segment == NULL)
+	if (!ms_card->segment)
 		return;
 
 	segment = &(ms_card->segment[seg_no]);
@@ -2589,7 +2589,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	dev_dbg(rtsx_dev(chip), "ms_build_l2p_tbl: %d\n", seg_no);
 
-	if (ms_card->segment == NULL) {
+	if (!ms_card->segment) {
 		retval = ms_init_l2p_tbl(chip);
 		if (retval != STATUS_SUCCESS) {
 			rtsx_trace(chip);
@@ -2610,7 +2610,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 
 	segment = &(ms_card->segment[seg_no]);
 
-	if (segment->l2p_table == NULL) {
+	if (!segment->l2p_table) {
 		segment->l2p_table = vmalloc(table_size * 2);
 		if (!segment->l2p_table) {
 			rtsx_trace(chip);
@@ -2619,7 +2619,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 	}
 	memset((u8 *)(segment->l2p_table), 0xff, table_size * 2);
 
-	if (segment->free_table == NULL) {
+	if (!segment->free_table) {
 		segment->free_table = vmalloc(MS_FREE_TABLE_CNT * 2);
 		if (!segment->free_table) {
 			rtsx_trace(chip);
