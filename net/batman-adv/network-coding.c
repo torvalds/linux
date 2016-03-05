@@ -856,8 +856,7 @@ batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
 	if (!nc_node)
 		return NULL;
 
-	if (!kref_get_unless_zero(&orig_neigh_node->refcount))
-		goto free;
+	kref_get(&orig_neigh_node->refcount);
 
 	/* Initialize nc_node */
 	INIT_LIST_HEAD(&nc_node->list);
@@ -884,10 +883,6 @@ batadv_nc_get_nc_node(struct batadv_priv *bat_priv,
 	spin_unlock_bh(lock);
 
 	return nc_node;
-
-free:
-	kfree(nc_node);
-	return NULL;
 }
 
 /**
