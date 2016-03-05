@@ -3118,6 +3118,7 @@ static int do_last(struct nameidata *nd,
 			return error;
 
 		BUG_ON(nd->inode != dir->d_inode);
+		BUG_ON(nd->flags & LOOKUP_RCU);
 	} else {
 		/* create side of things */
 		/*
@@ -3172,12 +3173,6 @@ retry_lookup:
 	}
 
 	/*
-	 * create/update audit record if it already exists.
-	 */
-	if (d_is_positive(path.dentry))
-		audit_inode(nd->name, path.dentry, 0);
-
-	/*
 	 * If atomic_open() acquired write access it is dropped now due to
 	 * possible mount and symlink following (this might be optimized away if
 	 * necessary...)
@@ -3186,6 +3181,16 @@ retry_lookup:
 		mnt_drop_write(nd->path.mnt);
 		got_write = false;
 	}
+
+	if (unlikely(d_is_negative(path.dentry))) {
+		path_to_nameidata(&path, nd);
+		return -ENOENT;
+	}
+
+	/*
+	 * create/update audit record if it already exists.
+	 */
+	audit_inode(nd->name, path.dentry, 0);
 
 	if (unlikely((open_flag & (O_EXCL | O_CREAT)) == (O_EXCL | O_CREAT))) {
 		path_to_nameidata(&path, nd);
@@ -3196,12 +3201,7 @@ retry_lookup:
 	if (unlikely(error < 0))
 		return error;
 
-	BUG_ON(nd->flags & LOOKUP_RCU);
 	seq = 0;	/* out of RCU mode, so the value doesn't matter */
-	if (unlikely(d_is_negative(path.dentry))) {
-		path_to_nameidata(&path, nd);
-		return -ENOENT;
-	}
 	inode = d_backing_inode(path.dentry);
 finish_lookup:
 	if (nd->depth)
