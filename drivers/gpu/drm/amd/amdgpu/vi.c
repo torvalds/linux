@@ -1071,26 +1071,22 @@ static int vi_common_early_init(void *handle)
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
-		adev->has_uvd = false;
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = 0x1;
 		break;
 	case CHIP_FIJI:
-		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
 	case CHIP_TONGA:
-		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-		adev->has_uvd = true;
 		adev->cg_flags = 0;
 		/* Disable UVD pg */
 		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;

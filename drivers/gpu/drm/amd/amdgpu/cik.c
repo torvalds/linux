@@ -2025,8 +2025,6 @@ static int cik_common_early_init(void *handle)
 
 	adev->asic_funcs = &cik_asic_funcs;
 
-	adev->has_uvd = true;
-
 	adev->rev_id = cik_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
 	switch (adev->asic_type) {
