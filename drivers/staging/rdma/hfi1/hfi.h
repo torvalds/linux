@@ -805,6 +805,12 @@ struct hfi1_temp {
 	u8 triggers;      /* temperature triggers */
 };
 
+/* common data between shared ASIC HFIs */
+struct hfi1_asic_data {
+	struct hfi1_devdata *dds[2];	/* back pointers */
+	struct mutex asic_resource_mutex;
+};
+
 /* device data struct now contains only "general per-device" info.
  * fields related to a physical IB port are in a hfi1_pportdata struct.
  */
@@ -879,6 +885,9 @@ struct hfi1_devdata {
 	/* SPC freeze waitqueue and variable */
 	wait_queue_head_t		  sdma_unfreeze_wq;
 	atomic_t			  sdma_unfreeze_count;
+
+	/* common data between shared ASIC HFIs in this OS */
+	struct hfi1_asic_data *asic_data;
 
 	/* hfi1_pportdata, points to array of (physical) port-specific
 	 * data structs, indexed by pidx (0..n-1)

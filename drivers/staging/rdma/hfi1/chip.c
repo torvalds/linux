@@ -13800,15 +13800,20 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
 	((dev)->base_guid & ~(1ULL << GUID_HFI_INDEX_SHIFT))
 
 /*
+ * Information can be shared between the two HFIs on the same ASIC
+ * in the same OS.  This function finds the peer device and sets
+ * up a shared structure.
+ *
  * Certain chip functions need to be initialized only once per asic
  * instead of per-device. This function finds the peer device and
  * checks whether that chip initialization needs to be done by this
  * device.
  */
-static void asic_should_init(struct hfi1_devdata *dd)
+static int init_asic_data(struct hfi1_devdata *dd)
 {
 	unsigned long flags;
 	struct hfi1_devdata *tmp, *peer = NULL;
+	int ret = 0;
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 	/* Find our peer device */
@@ -13826,7 +13831,22 @@ static void asic_should_init(struct hfi1_devdata *dd)
 	 */
 	if (!peer || !(peer->flags & HFI1_DO_INIT_ASIC))
 		dd->flags |= HFI1_DO_INIT_ASIC;
+
+	if (peer) {
+		dd->asic_data = peer->asic_data;
+	} else {
+		dd->asic_data = kzalloc(sizeof(*dd->asic_data), GFP_KERNEL);
+		if (!dd->asic_data) {
+			ret = -ENOMEM;
+			goto done;
+		}
+		mutex_init(&dd->asic_data->asic_resource_mutex);
+	}
+	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
+
+done:
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	return ret;
 }
 
 /*
@@ -14076,8 +14096,10 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* needs to be done before we look for the peer device */
 	read_guid(dd);
 
-	/* should this device init the ASIC block? */
-	asic_should_init(dd);
+	/* set up shared ASIC data with peer device */
+	ret = init_asic_data(dd);
+	if (ret)
+		goto bail_cleanup;
 
 	/* obtain chip sizes, reset chip CSRs */
 	init_chip(dd);
