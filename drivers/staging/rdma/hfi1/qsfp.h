@@ -235,3 +235,7 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len);
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len);
+int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		   int len);
+int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		  int len);

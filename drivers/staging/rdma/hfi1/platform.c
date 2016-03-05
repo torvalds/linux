@@ -601,23 +601,30 @@ static void apply_tunings(
 static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			    u32 *ptr_rx_preset, u32 *ptr_total_atten)
 {
-	int ret = 0;
+	int ret;
 	u16 lss = ppd->link_speed_supported, lse = ppd->link_speed_enabled;
 	u8 *cache = ppd->qsfp_info.cache;
+
+	ret = acquire_chip_resource(ppd->dd, qsfp_resource(ppd->dd), QSFP_WAIT);
+	if (ret) {
+		dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
+			   __func__, (int)ppd->dd->hfi1_id);
+		return ret;
+	}
 
 	ppd->qsfp_info.limiting_active = 1;
 
 	ret = set_qsfp_tx(ppd, 0);
 	if (ret)
-		return ret;
+		goto bail_unlock;
 
 	ret = qual_power(ppd);
 	if (ret)
-		return ret;
+		goto bail_unlock;
 
 	ret = qual_bitrate(ppd);
 	if (ret)
-		return ret;
+		goto bail_unlock;
 
 	if (ppd->qsfp_info.reset_needed) {
 		reset_qsfp(ppd);
@@ -629,7 +636,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 
 	ret = set_qsfp_high_power(ppd);
 	if (ret)
-		return ret;
+		goto bail_unlock;
 
 	if (cache[QSFP_EQ_INFO_OFFS] & 0x4) {
 		ret = get_platform_config_field(
@@ -639,7 +646,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			ptr_tx_preset, 4);
 		if (ret) {
 			*ptr_tx_preset = OPA_INVALID_INDEX;
-			return ret;
+			goto bail_unlock;
 		}
 	} else {
 		ret = get_platform_config_field(
@@ -649,7 +656,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 			ptr_tx_preset, 4);
 		if (ret) {
 			*ptr_tx_preset = OPA_INVALID_INDEX;
-			return ret;
+			goto bail_unlock;
 		}
 	}
 
@@ -658,7 +665,7 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 		PORT_TABLE_RX_PRESET_IDX, ptr_rx_preset, 4);
 	if (ret) {
 		*ptr_rx_preset = OPA_INVALID_INDEX;
-		return ret;
+		goto bail_unlock;
 	}
 
 	if ((lss & OPA_LINK_SPEED_25G) && (lse & OPA_LINK_SPEED_25G))
@@ -677,6 +684,9 @@ static int tune_active_qsfp(struct hfi1_pportdata *ppd, u32 *ptr_tx_preset,
 	apply_rx_amplitude_settings(ppd, *ptr_rx_preset, *ptr_tx_preset);
 
 	ret = set_qsfp_tx(ppd, 1);
+
+bail_unlock:
+	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
 	return ret;
 }
 

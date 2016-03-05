@@ -1048,8 +1048,6 @@ struct hfi1_devdata {
 
 	struct platform_config platform_config;
 	struct platform_config_cache pcfg_cache;
-	/* control high-level access to qsfp */
-	struct mutex qsfp_i2c_mutex;
 
 	struct diag_client *diag_client;
 	spinlock_t hfi1_diag_trans_lock; /* protect diag observer ops */
@@ -1936,6 +1934,18 @@ static inline void setextled(struct hfi1_devdata *dd, u32 on)
 		write_csr(dd, DCC_CFG_LED_CNTRL, 0x1F);
 	else
 		write_csr(dd, DCC_CFG_LED_CNTRL, 0x10);
+}
+
+/* return the i2c resource given the target */
+static inline u32 i2c_target(u32 target)
+{
+	return target ? CR_I2C2 : CR_I2C1;
+}
+
+/* return the i2c chain chip resource that this HFI uses for QSFP */
+static inline u32 qsfp_resource(struct hfi1_devdata *dd)
+{
+	return i2c_target(dd->hfi1_id);
 }
 
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);

@@ -6267,8 +6267,8 @@ void handle_8051_request(struct work_struct *work)
 					cdr_ctrl_byte &= ~(1 << i);
 			}
 		}
-		qsfp_write(ppd, ppd->dd->hfi1_id, QSFP_CDR_CTRL_BYTE_OFFS,
-			   &cdr_ctrl_byte, 1);
+		one_qsfp_write(ppd, dd->hfi1_id, QSFP_CDR_CTRL_BYTE_OFFS,
+			       &cdr_ctrl_byte, 1);
 		hreq_response(dd, HREQ_SUCCESS, data);
 		refresh_qsfp_cache(ppd, &ppd->qsfp_info);
 		break;
@@ -9290,8 +9290,8 @@ void qsfp_event(struct work_struct *work)
 	if (qd->check_interrupt_flags) {
 		u8 qsfp_interrupt_status[16] = {0,};
 
-		if (qsfp_read(ppd, dd->hfi1_id, 6,
-			      &qsfp_interrupt_status[0], 16) != 16) {
+		if (one_qsfp_read(ppd, dd->hfi1_id, 6,
+				  &qsfp_interrupt_status[0], 16) != 16) {
 			dd_dev_info(dd,
 				    "%s: Failed to read status of QSFP module\n",
 				    __func__);
@@ -9845,7 +9845,17 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	if (ppd->port_type == PORT_TYPE_QSFP &&
 	    ppd->qsfp_info.limiting_active &&
 	    qsfp_mod_present(ppd)) {
-		set_qsfp_tx(ppd, 0);
+		int ret;
+
+		ret = acquire_chip_resource(dd, qsfp_resource(dd), QSFP_WAIT);
+		if (ret == 0) {
+			set_qsfp_tx(ppd, 0);
+			release_chip_resource(dd, qsfp_resource(dd));
+		} else {
+			/* not fatal, but should warn */
+			dd_dev_err(dd,
+				   "Unable to acquire lock to turn off QSFP TX\n");
+		}
 	}
 
 	/*

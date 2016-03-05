@@ -672,6 +672,9 @@ void finish_chip_resources(struct hfi1_devdata *dd);
 /* ms wait time for access to an SBus resoure */
 #define SBUS_TIMEOUT 4000 /* long enough for a FW download and SBR */
 
+/* ms wait time for a qsfp (i2c) chain to become available */
+#define QSFP_WAIT 20000 /* long enough for FW update to the F4 uc */
+
 void fabric_serdes_reset(struct hfi1_devdata *dd);
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 

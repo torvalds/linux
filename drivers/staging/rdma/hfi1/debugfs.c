@@ -465,16 +465,22 @@ static ssize_t __i2c_debugfs_write(struct file *file, const char __user *buf,
 		goto _free;
 	}
 
+	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
+	if (ret)
+		goto _free;
+
 	total_written = i2c_write(ppd, target, i2c_addr, offset, buff, count);
 	if (total_written < 0) {
 		ret = total_written;
-		goto _free;
+		goto _release;
 	}
 
 	*ppos += total_written;
 
 	ret = total_written;
 
+ _release:
+	release_chip_resource(ppd->dd, i2c_target(target));
  _free:
 	kfree(buff);
  _return:
@@ -526,10 +532,14 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 		goto _return;
 	}
 
+	ret = acquire_chip_resource(ppd->dd, i2c_target(target), 0);
+	if (ret)
+		goto _free;
+
 	total_read = i2c_read(ppd, target, i2c_addr, offset, buff, count);
 	if (total_read < 0) {
 		ret = total_read;
-		goto _free;
+		goto _release;
 	}
 
 	*ppos += total_read;
@@ -537,11 +547,13 @@ static ssize_t __i2c_debugfs_read(struct file *file, char __user *buf,
 	ret = copy_to_user(buf, buff, total_read);
 	if (ret > 0) {
 		ret = -EFAULT;
-		goto _free;
+		goto _release;
 	}
 
 	ret = total_read;
 
+ _release:
+	release_chip_resource(ppd->dd, i2c_target(target));
  _free:
 	kfree(buff);
  _return:
@@ -592,7 +604,7 @@ static ssize_t __qsfp_debugfs_write(struct file *file, const char __user *buf,
 		goto _free;
 	}
 
-	total_written = qsfp_write(ppd, target, *ppos, buff, count);
+	total_written = one_qsfp_write(ppd, target, *ppos, buff, count);
 	if (total_written < 0) {
 		ret = total_written;
 		goto _free;
@@ -646,7 +658,7 @@ static ssize_t __qsfp_debugfs_read(struct file *file, char __user *buf,
 		goto _return;
 	}
 
-	total_read = qsfp_read(ppd, target, *ppos, buff, count);
+	total_read = one_qsfp_read(ppd, target, *ppos, buff, count);
 	if (total_read < 0) {
 		ret = total_read;
 		goto _free;

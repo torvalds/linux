@@ -59,7 +59,7 @@
 #define I2C_MAX_RETRY 4
 
 /*
- * Unlocked i2c write.  Must hold dd->qsfp_i2c_mutex.
+ * Raw i2c write.  No set-up or lock checking.
  */
 static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		       int offset, void *bp, int len)
@@ -88,15 +88,16 @@ static int __i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 	return cnt;
 }
 
+/*
+ * Caller must hold the i2c chain resource.
+ */
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	      void *bp, int len)
 {
-	struct hfi1_devdata *dd = ppd->dd;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dd->qsfp_i2c_mutex);
-	if (ret)
-		return ret;
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
 	ret = hfi1_twsi_reset(ppd->dd, target);
@@ -104,18 +105,14 @@ int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "I2C chain %d write interface reset failed\n",
 				 target);
-		goto done;
+		return ret;
 	}
 
-	ret = __i2c_write(ppd, target, i2c_addr, offset, bp, len);
-
-done:
-	mutex_unlock(&dd->qsfp_i2c_mutex);
-	return ret;
+	return __i2c_write(ppd, target, i2c_addr, offset, bp, len);
 }
 
 /*
- * Unlocked i2c read.  Must hold dd->qsfp_i2c_mutex.
+ * Raw i2c read.  No set-up or lock checking.
  */
 static int __i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
 		      int offset, void *bp, int len)
@@ -157,15 +154,16 @@ exit:
 	return ret;
 }
 
+/*
+ * Caller must hold the i2c chain resource.
+ */
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 	     void *bp, int len)
 {
-	struct hfi1_devdata *dd = ppd->dd;
 	int ret;
 
-	ret = mutex_lock_interruptible(&dd->qsfp_i2c_mutex);
-	if (ret)
-		return ret;
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
 	ret = hfi1_twsi_reset(ppd->dd, target);
@@ -173,19 +171,17 @@ int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr, int offset,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "I2C chain %d read interface reset failed\n",
 				 target);
-		goto done;
+		return ret;
 	}
 
-	ret = __i2c_read(ppd, target, i2c_addr, offset, bp, len);
-
-done:
-	mutex_unlock(&dd->qsfp_i2c_mutex);
-	return ret;
+	return __i2c_read(ppd, target, i2c_addr, offset, bp, len);
 }
 
 /*
  * Write page n, offset m of QSFP memory as defined by SFF 8636
  * by writing @addr = ((256 * n) + m)
+ *
+ * Caller must hold the i2c chain resource.
  */
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	       int len)
@@ -196,9 +192,8 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	ret = mutex_lock_interruptible(&ppd->dd->qsfp_i2c_mutex);
-	if (ret)
-		return ret;
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
 	ret = hfi1_twsi_reset(ppd->dd, target);
@@ -206,7 +201,6 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "QSFP chain %d write interface reset failed\n",
 				 target);
-		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
 		return ret;
 	}
 
@@ -242,16 +236,36 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		addr += ret;
 	}
 
-	mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-
 	if (ret < 0)
 		return ret;
 	return count;
 }
 
 /*
+ * Perform a stand-alone single QSFP write.  Acquire the resource, do the
+ * read, then release the resource.
+ */
+int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		   int len)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 resource = qsfp_resource(dd);
+	int ret;
+
+	ret = acquire_chip_resource(dd, resource, QSFP_WAIT);
+	if (ret)
+		return ret;
+	ret = qsfp_write(ppd, target, addr, bp, len);
+	release_chip_resource(dd, resource);
+
+	return ret;
+}
+
+/*
  * Access page n, offset m of QSFP memory as defined by SFF 8636
  * by reading @addr = ((256 * n) + m)
+ *
+ * Caller must hold the i2c chain resource.
  */
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	      int len)
@@ -262,9 +276,8 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 	int ret;
 	u8 page;
 
-	ret = mutex_lock_interruptible(&ppd->dd->qsfp_i2c_mutex);
-	if (ret)
-		return ret;
+	if (!check_chip_resource(ppd->dd, qsfp_resource(ppd->dd), __func__))
+		return -EACCES;
 
 	/* make sure the TWSI bus is in a sane state */
 	ret = hfi1_twsi_reset(ppd->dd, target);
@@ -272,7 +285,6 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		hfi1_dev_porterr(ppd->dd, ppd->port,
 				 "QSFP chain %d read interface reset failed\n",
 				 target);
-		mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
 		return ret;
 	}
 
@@ -309,11 +321,29 @@ int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 		addr += ret;
 	}
 
-	mutex_unlock(&ppd->dd->qsfp_i2c_mutex);
-
 	if (ret < 0)
 		return ret;
 	return count;
+}
+
+/*
+ * Perform a stand-alone single QSFP read.  Acquire the resource, do the
+ * read, then release the resource.
+ */
+int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
+		  int len)
+{
+	struct hfi1_devdata *dd = ppd->dd;
+	u32 resource = qsfp_resource(dd);
+	int ret;
+
+	ret = acquire_chip_resource(dd, resource, QSFP_WAIT);
+	if (ret)
+		return ret;
+	ret = qsfp_read(ppd, target, addr, bp, len);
+	release_chip_resource(dd, resource);
+
+	return ret;
 }
 
 /*
@@ -341,8 +371,12 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 
 	if (!qsfp_mod_present(ppd)) {
 		ret = -ENODEV;
-		goto bail;
+		goto bail_no_release;
 	}
+
+	ret = acquire_chip_resource(ppd->dd, qsfp_resource(ppd->dd), QSFP_WAIT);
+	if (ret)
+		goto bail_no_release;
 
 	ret = qsfp_read(ppd, target, 0, cache, QSFP_PAGESIZE);
 	if (ret != QSFP_PAGESIZE) {
@@ -406,6 +440,8 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 		}
 	}
 
+	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
+
 	spin_lock_irqsave(&ppd->qsfp_info.qsfp_lock, flags);
 	ppd->qsfp_info.cache_valid = 1;
 	ppd->qsfp_info.cache_refresh_required = 0;
@@ -414,6 +450,8 @@ int refresh_qsfp_cache(struct hfi1_pportdata *ppd, struct qsfp_data *cp)
 	return 0;
 
 bail:
+	release_chip_resource(ppd->dd, qsfp_resource(ppd->dd));
+bail_no_release:
 	memset(cache, 0, (QSFP_MAX_NUM_PAGES * 128));
 	return ret;
 }
