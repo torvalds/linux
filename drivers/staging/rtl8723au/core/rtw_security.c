@@ -634,7 +634,7 @@ int rtw_tkip_encrypt23a(struct rtw_adapter *padapter,
 					     &pattrib->ra[0]);
 	}
 
-	if (stainfo == NULL) {
+	if (!stainfo) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 			 "%s: stainfo == NULL!!!\n", __func__);
 		DBG_8723A("%s, psta == NUL\n", __func__);
@@ -731,7 +731,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 
 	stainfo = rtw_get_stainfo23a(&padapter->stapriv,
 				     &prxattrib->ta[0]);
-	if (stainfo == NULL) {
+	if (!stainfo) {
 		RT_TRACE(_module_rtl871x_security_c_, _drv_err_,
 			 "%s: stainfo == NULL!!!\n", __func__);
 		return _FAIL;
