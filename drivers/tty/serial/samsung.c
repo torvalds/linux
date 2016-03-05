@@ -601,14 +601,21 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 {
 	struct uart_port *port = &ourport->port;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
+	unsigned int fifocnt = 0;
 	int max_count = port->fifosize;
 
 	while (max_count-- > 0) {
-		ufcon = rd_regl(port, S3C2410_UFCON);
-		ufstat = rd_regl(port, S3C2410_UFSTAT);
-
-		if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
-			break;
+		/*
+		 * Receive all characters known to be in FIFO
+		 * before reading FIFO level again
+		 */
+		if (fifocnt == 0) {
+			ufstat = rd_regl(port, S3C2410_UFSTAT);
+			fifocnt = s3c24xx_serial_rx_fifocnt(ourport, ufstat);
+			if (fifocnt == 0)
+				break;
+		}
+		fifocnt--;
 
 		uerstat = rd_regl(port, S3C2410_UERSTAT);
 		ch = rd_regb(port, S3C2410_URXH);
@@ -623,6 +630,7 @@ static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 				}
 			} else {
 				if (txe) {
+					ufcon = rd_regl(port, S3C2410_UFCON);
 					ufcon |= S3C2410_UFCON_RESETRX;
 					wr_regl(port, S3C2410_UFCON, ufcon);
 					rx_enabled(port) = 1;
