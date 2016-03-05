@@ -847,6 +847,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 {
 	struct hnae_ae_dev *ae_dev = &dsaf_dev->ae_dev;
+	static atomic_t id = ATOMIC_INIT(-1);
 
 	switch (dsaf_dev->dsaf_ver) {
 	case AE_VERSION_1:
@@ -858,6 +859,9 @@ int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 	default:
 		break;
 	}
+
+	snprintf(ae_dev->name, AE_NAME_SIZE, "%s%d", DSAF_DEVICE_NAME,
+		 (int)atomic_inc_return(&id));
 	ae_dev->ops = &hns_dsaf_ops;
 	ae_dev->dev = dsaf_dev->dev;
 

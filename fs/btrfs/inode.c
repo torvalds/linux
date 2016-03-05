@@ -5717,6 +5717,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	char *name_ptr;
 	int name_len;
 	int is_curr = 0;	/* ctx->pos points to the current index? */
+	bool emitted;
 
 	/* FIXME, use a real flag for deciding about the key type */
 	if (root->fs_info->tree_root == root)
@@ -5745,6 +5746,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	if (ret < 0)
 		goto err;
 
+	emitted = false;
 	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -5824,6 +5826,7 @@ skip:
 
 			if (over)
 				goto nopos;
+			emitted = true;
 			di_len = btrfs_dir_name_len(leaf, di) +
 				 btrfs_dir_data_len(leaf, di) + sizeof(*di);
 			di_cur += di_len;
@@ -5836,10 +5839,19 @@ next:
 	if (key_type == BTRFS_DIR_INDEX_KEY) {
 		if (is_curr)
 			ctx->pos++;
-		ret = btrfs_readdir_delayed_dir_index(ctx, &ins_list);
+		ret = btrfs_readdir_delayed_dir_index(ctx, &ins_list, &emitted);
 		if (ret)
 			goto nopos;
 	}
+
+	/*
+	 * If we haven't emitted any dir entry, we must not touch ctx->pos as
+	 * it was was set to the termination value in previous call. We assume
+	 * that "." and ".." were emitted if we reach this point and set the
+	 * termination value as well for an empty directory.
+	 */
+	if (ctx->pos > 2 && !emitted)
+		goto nopos;
 
 	/* Reached end of directory/root. Bump pos past the last item. */
 	ctx->pos++;
@@ -7116,21 +7128,41 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	if (ret)
 		return ERR_PTR(ret);
 
-	em = create_pinned_em(inode, start, ins.offset, start, ins.objectid,
-			      ins.offset, ins.offset, ins.offset, 0);
-	if (IS_ERR(em)) {
-		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
-		return em;
-	}
-
+	/*
+	 * Create the ordered extent before the extent map. This is to avoid
+	 * races with the fast fsync path that would lead to it logging file
+	 * extent items that point to disk extents that were not yet written to.
+	 * The fast fsync path collects ordered extents into a local list and
+	 * then collects all the new extent maps, so we must create the ordered
+	 * extent first and make sure the fast fsync path collects any new
+	 * ordered extents after collecting new extent maps as well.
+	 * The fsync path simply can not rely on inode_dio_wait() because it
+	 * causes deadlock with AIO.
+	 */
 	ret = btrfs_add_ordered_extent_dio(inode, start, ins.objectid,
 					   ins.offset, ins.offset, 0);
 	if (ret) {
 		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
-		free_extent_map(em);
 		return ERR_PTR(ret);
 	}
 
+	em = create_pinned_em(inode, start, ins.offset, start, ins.objectid,
+			      ins.offset, ins.offset, ins.offset, 0);
+	if (IS_ERR(em)) {
+		struct btrfs_ordered_extent *oe;
+
+		btrfs_free_reserved_extent(root, ins.objectid, ins.offset, 1);
+		oe = btrfs_lookup_ordered_extent(inode, start);
+		ASSERT(oe);
+		if (WARN_ON(!oe))
+			return em;
+		set_bit(BTRFS_ORDERED_IOERR, &oe->flags);
+		set_bit(BTRFS_ORDERED_IO_DONE, &oe->flags);
+		btrfs_remove_ordered_extent(inode, oe);
+		/* Once for our lookup and once for the ordered extents tree. */
+		btrfs_put_ordered_extent(oe);
+		btrfs_put_ordered_extent(oe);
+	}
 	return em;
 }
 

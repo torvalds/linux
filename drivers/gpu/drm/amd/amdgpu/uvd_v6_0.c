@@ -532,7 +532,7 @@ static int uvd_v6_0_start(struct amdgpu_device *adev)
 	uvd_v6_0_mc_resume(adev);
 
 	/* Set dynamic clock gating in S/W control mode */
-	if (adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG) {
+	if (adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG) {
 		if (adev->flags & AMD_IS_APU)
 			cz_set_uvd_clock_gating_branches(adev, false);
 		else
@@ -1000,7 +1000,7 @@ static int uvd_v6_0_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
 
-	if (!(adev->cg_flags & AMDGPU_CG_SUPPORT_UVD_MGCG))
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_UVD_MGCG))
 		return 0;
 
 	if (enable) {
@@ -1029,6 +1029,9 @@ static int uvd_v6_0_set_powergating_state(void *handle,
 	 * the smc and the hw blocks
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_UVD))
+		return 0;
 
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);

@@ -1670,8 +1670,10 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* setup afmt */
 	radeon_afmt_init(rdev);
 
-	radeon_fbdev_init(rdev);
-	drm_kms_helper_poll_init(rdev->ddev);
+	if (!list_empty(&rdev->ddev->mode_config.connector_list)) {
+		radeon_fbdev_init(rdev);
+		drm_kms_helper_poll_init(rdev->ddev);
+	}
 
 	/* do pm late init */
 	ret = radeon_pm_late_init(rdev);

@@ -16,7 +16,7 @@ struct sock_reuseport {
 };
 
 extern int reuseport_alloc(struct sock *sk);
-extern int reuseport_add_sock(struct sock *sk, const struct sock *sk2);
+extern int reuseport_add_sock(struct sock *sk, struct sock *sk2);
 extern void reuseport_detach_sock(struct sock *sk);
 extern struct sock *reuseport_select_sock(struct sock *sk,
 					  u32 hash,

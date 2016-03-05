@@ -385,11 +385,6 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 			*total_flags |= FIF_PSPOLL;
 	}
 
-	/*
-	 * Check if there is any work left for us.
-	 */
-	if (rt2x00dev->packet_filter == *total_flags)
-		return;
 	rt2x00dev->packet_filter = *total_flags;
 
 	rt2x00dev->ops->lib->config_filter(rt2x00dev, *total_flags);
