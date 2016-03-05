@@ -906,8 +906,11 @@ void hfi1_do_send(struct rvt_qp *qp)
 						*ps.ppd->dd->send_schedule);
 					return;
 				}
-				cond_resched();
-				this_cpu_inc(*ps.ppd->dd->send_schedule);
+				if (!irqs_disabled()) {
+					cond_resched();
+					this_cpu_inc(
+					   *ps.ppd->dd->send_schedule);
+				}
 				timeout = jiffies + (timeout_int) / 8;
 			}
 			spin_lock_irqsave(&qp->s_lock, flags);
