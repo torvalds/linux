@@ -3491,6 +3491,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	ro		[KNL] Mount root device read-only on boot
 
+	rockchip.usb_uart
+			Enable the uart passthrough on the designated usb port
+			on Rockchip SoCs. When active, the signals of the
+			debug-uart get routed to the D+ and D- pins of the usb
+			port and the regular usb controller gets disabled.
+
 	root=		[KNL] Root filesystem
 			See name_to_dev_t comment in init/do_mounts.c.
 
