@@ -14331,7 +14331,7 @@ static int thermal_init(struct hfi1_devdata *dd)
 	int ret = 0;
 
 	if (dd->icode != ICODE_RTL_SILICON ||
-	    !(dd->flags & HFI1_DO_INIT_ASIC))
+	    check_chip_resource(dd, CR_THERM_INIT, NULL))
 		return ret;
 
 	ret = acquire_chip_resource(dd, CR_SBUS, SBUS_TIMEOUT);
@@ -14386,6 +14386,12 @@ static int thermal_init(struct hfi1_devdata *dd)
 
 	/* Enable polling of thermal readings */
 	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x1);
+
+	/* Set initialized flag */
+	ret = acquire_chip_resource(dd, CR_THERM_INIT, 0);
+	if (ret)
+		THERM_FAILURE(dd, ret, "Unable to set thermal init flag");
+
 done:
 	release_chip_resource(dd, CR_SBUS);
 	return ret;
