@@ -470,6 +470,7 @@ again:
 			goto inv_err;
 do_write:
 		if (wqe->length == 0)
+			break;
 		if (unlikely(!rvt_rkey_ok(qp, &qp->r_sge.sge, wqe->length,
 					  wqe->rdma_wr.remote_addr,
 					  wqe->rdma_wr.rkey,
