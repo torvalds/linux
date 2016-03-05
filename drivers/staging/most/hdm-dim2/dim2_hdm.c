@@ -817,7 +817,7 @@ static int dim2_probe(struct platform_device *pdev)
 	kobj = most_register_interface(&dev->most_iface);
 	if (IS_ERR(kobj)) {
 		ret = PTR_ERR(kobj);
-		pr_err("failed to register MOST interface\n");
+		dev_err(&pdev->dev, "failed to register MOST interface\n");
 		goto err_stop_thread;
 	}
 
@@ -827,7 +827,7 @@ static int dim2_probe(struct platform_device *pdev)
 
 	ret = startup_dim(pdev);
 	if (ret) {
-		pr_err("failed to initialize DIM2\n");
+		dev_err(&pdev->dev, "failed to initialize DIM2\n");
 		goto err_destroy_bus;
 	}
 
