@@ -1931,7 +1931,7 @@ jme_wait_link(struct jme_adapter *jme)
 static void
 jme_powersave_phy(struct jme_adapter *jme)
 {
-	if (jme->reg_pmcs) {
+	if (jme->reg_pmcs && device_may_wakeup(&jme->pdev->dev)) {
 		jme_set_100m_half(jme);
 		if (jme->reg_pmcs & (PMCS_LFEN | PMCS_LREN))
 			jme_wait_link(jme);
@@ -2652,8 +2652,6 @@ jme_set_wol(struct net_device *netdev,
 	if (wol->wolopts & WAKE_MAGIC)
 		jme->reg_pmcs |= PMCS_MFEN;
 
-	device_set_wakeup_enable(&jme->pdev->dev, !!(jme->reg_pmcs));
-
 	return 0;
 }
 
@@ -3178,7 +3176,7 @@ jme_init_one(struct pci_dev *pdev,
 	jme->mii_if.mdio_write = jme_mdio_write;
 
 	jme_clear_pm_disable_wol(jme);
-	device_set_wakeup_enable(&pdev->dev, true);
+	device_init_wakeup(&pdev->dev, true);
 
 	jme_set_phyfifo_5level(jme);
 	jme->pcirev = pdev->revision;
