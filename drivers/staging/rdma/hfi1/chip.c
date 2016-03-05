@@ -13368,6 +13368,7 @@ static void init_chip(struct hfi1_devdata *dd)
 	 */
 	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
 	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
+	init_chip_resources(dd);
 }
 
 static void init_early_variables(struct hfi1_devdata *dd)
@@ -13794,6 +13795,7 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
 	free_cntrs(dd);
 	free_rcverr(dd);
 	clean_up_interrupts(dd);
+	finish_chip_resources(dd);
 }
 
 #define HFI_BASE_GUID(dev) \
