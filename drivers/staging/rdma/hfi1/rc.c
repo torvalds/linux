@@ -2500,7 +2500,7 @@ send_last:
 	return;
 
 rnr_nak:
-	qp->r_nak_state = IB_RNR_NAK | qp->r_min_rnr_timer;
+	qp->r_nak_state = qp->r_min_rnr_timer | IB_RNR_NAK;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue RNR NAK for later */
 	rc_defered_ack(rcd, qp);

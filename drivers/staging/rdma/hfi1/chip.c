@@ -9810,7 +9810,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 
 	if (do_transition) {
 		ret = set_physical_link_state(dd,
-					      PLS_OFFLINE | (rem_reason << 8));
+					      (rem_reason << 8) | PLS_OFFLINE);
 
 		if (ret != HCMD_SUCCESS) {
 			dd_dev_err(dd,
@@ -14465,8 +14465,8 @@ static void handle_temp_err(struct hfi1_devdata *dd)
 	 */
 	ppd->driver_link_ready = 0;
 	ppd->link_enabled = 0;
-	set_physical_link_state(dd, PLS_OFFLINE |
-				(OPA_LINKDOWN_REASON_SMA_DISABLED << 8));
+	set_physical_link_state(dd, (OPA_LINKDOWN_REASON_SMA_DISABLED << 8) |
+				PLS_OFFLINE);
 	/*
 	 * Step 2: Shutdown LCB and 8051
 	 *         After shutdown, do not restore DC_CFG_RESET value.

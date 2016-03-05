@@ -762,8 +762,8 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 
 	/* set the default partition key */
 	write_kctxt_csr(dd, hw_context, SC(CHECK_PARTITION_KEY),
-			(DEFAULT_PKEY &
-			 SC(CHECK_PARTITION_KEY_VALUE_MASK)) <<
+			(SC(CHECK_PARTITION_KEY_VALUE_MASK) &
+			 DEFAULT_PKEY) <<
 			SC(CHECK_PARTITION_KEY_VALUE_SHIFT));
 
 	/* per context type checks */
