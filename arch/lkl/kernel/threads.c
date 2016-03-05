@@ -3,33 +3,7 @@
 #include <linux/sched.h>
 #include <asm/host_ops.h>
 
-static int threads_counter;
-static void *threads_counter_lock;
-
-static inline void threads_counter_inc(void)
-{
-	lkl_ops->sem_down(threads_counter_lock);
-	threads_counter++;
-	lkl_ops->sem_up(threads_counter_lock);
-}
-
-static inline void threads_counter_dec(void)
-{
-	lkl_ops->sem_down(threads_counter_lock);
-	threads_counter--;
-	lkl_ops->sem_up(threads_counter_lock);
-}
-
-static inline int threads_counter_get(void)
-{
-	int counter;
-
-	lkl_ops->sem_down(threads_counter_lock);
-	counter = threads_counter;
-	lkl_ops->sem_up(threads_counter_lock);
-
-	return counter;
-}
+static volatile int threads_counter;
 
 struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 {
@@ -123,7 +97,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	if (ei.dead) {
 		lkl_ops->sem_free(ei.sched_sem);
-		threads_counter_dec();
+		__sync_fetch_and_sub(&threads_counter, 1);
 		lkl_ops->thread_exit();
 	}
 
@@ -175,7 +149,7 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 		return -ENOMEM;
 	}
 
-	threads_counter_inc();
+	__sync_fetch_and_add(&threads_counter, 1);
 
 	return 0;
 }
@@ -209,13 +183,6 @@ int threads_init(void)
 		goto out;
 	}
 
-	threads_counter_lock = lkl_ops->sem_alloc(1);
-	if (!threads_counter_lock) {
-		pr_early("lkl: failed to alllocate threads counter lock\n");
-		ret = -ENOMEM;
-		goto out_free_init_sched_sem;
-	}
-
 	return 0;
 
 out_free_init_sched_sem:
@@ -241,9 +208,8 @@ void threads_cleanup(void)
 		kill_thread(ti->exit_info);
 	}
 
-	while (threads_counter_get())
+	while (threads_counter)
 		;
 
 	lkl_ops->sem_free(init_thread_union.thread_info.sched_sem);
-	lkl_ops->sem_free(threads_counter_lock);
 }
