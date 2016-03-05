@@ -74,6 +74,44 @@ static struct orangefs_kernel_op_s *orangefs_devreq_remove_op(__u64 tag)
 	return NULL;
 }
 
+/* Returns whether any FS are still pending remounted */
+static int mark_all_pending_mounts(void)
+{
+	int unmounted = 1;
+	struct orangefs_sb_info_s *orangefs_sb = NULL;
+
+	spin_lock(&orangefs_superblocks_lock);
+	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
+		/* All of these file system require a remount */
+		orangefs_sb->mount_pending = 1;
+		unmounted = 0;
+	}
+	spin_unlock(&orangefs_superblocks_lock);
+	return unmounted;
+}
+
+/*
+ * Determine if a given file system needs to be remounted or not
+ *  Returns -1 on error
+ *           0 if already mounted
+ *           1 if needs remount
+ */
+static int fs_mount_pending(__s32 fsid)
+{
+	int mount_pending = -1;
+	struct orangefs_sb_info_s *orangefs_sb = NULL;
+
+	spin_lock(&orangefs_superblocks_lock);
+	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
+		if (orangefs_sb->fs_id == fsid) {
+			mount_pending = orangefs_sb->mount_pending;
+			break;
+		}
+	}
+	spin_unlock(&orangefs_superblocks_lock);
+	return mount_pending;
+}
+
 static int orangefs_devreq_open(struct inode *inode, struct file *file)
 {
 	int ret = -EINVAL;
@@ -447,44 +485,6 @@ Enomem:
 	op->downcall.status = -(ORANGEFS_ERROR_BIT | 8);
 	ret = -ENOMEM;
 	goto wakeup;
-}
-
-/* Returns whether any FS are still pending remounted */
-static int mark_all_pending_mounts(void)
-{
-	int unmounted = 1;
-	struct orangefs_sb_info_s *orangefs_sb = NULL;
-
-	spin_lock(&orangefs_superblocks_lock);
-	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
-		/* All of these file system require a remount */
-		orangefs_sb->mount_pending = 1;
-		unmounted = 0;
-	}
-	spin_unlock(&orangefs_superblocks_lock);
-	return unmounted;
-}
-
-/*
- * Determine if a given file system needs to be remounted or not
- *  Returns -1 on error
- *           0 if already mounted
- *           1 if needs remount
- */
-int fs_mount_pending(__s32 fsid)
-{
-	int mount_pending = -1;
-	struct orangefs_sb_info_s *orangefs_sb = NULL;
-
-	spin_lock(&orangefs_superblocks_lock);
-	list_for_each_entry(orangefs_sb, &orangefs_superblocks, list) {
-		if (orangefs_sb->fs_id == fsid) {
-			mount_pending = orangefs_sb->mount_pending;
-			break;
-		}
-	}
-	spin_unlock(&orangefs_superblocks_lock);
-	return mount_pending;
 }
 
 /*

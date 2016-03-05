@@ -523,7 +523,6 @@ int orangefs_dev_init(void);
 void orangefs_dev_cleanup(void);
 int is_daemon_in_service(void);
 bool __is_daemon_in_service(void);
-int fs_mount_pending(__s32 fsid);
 
 /*
  * defined in orangefs-utils.c
