@@ -2224,7 +2224,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		retval = -EFAULT;
 		goto done;
 	}
-	if (size & (~PAGE_MASK)) {
+	if (offset_in_page(size)) {
 		retval = -EFAULT;
 		goto done;
 	}
