@@ -20,7 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
-#include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
@@ -52,7 +51,6 @@ struct ds3232 {
 	struct regmap *regmap;
 	int irq;
 	struct rtc_device *rtc;
-	struct work_struct work;
 
 	/* The mutex protects alarm operations, and prevents a race
 	 * between the enable_irq() in the workqueue and the free_irq()
@@ -60,7 +58,6 @@ struct ds3232 {
 	 */
 	struct mutex mutex;
 	bool suspended;
-	int exiting;
 };
 
 static int ds3232_check_rtc_status(struct device *dev)
@@ -314,23 +311,6 @@ static irqreturn_t ds3232_irq(int irq, void *dev_id)
 {
 	struct device *dev = dev_id;
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
-
-	disable_irq_nosync(irq);
-
-	/*
-	 * If rtc as a wakeup source, can't schedule the work
-	 * at system resume flow, because at this time the i2c bus
-	 * has not been resumed.
-	 */
-	if (!ds3232->suspended)
-		schedule_work(&ds3232->work);
-
-	return IRQ_HANDLED;
-}
-
-static void ds3232_work(struct work_struct *work)
-{
-	struct ds3232 *ds3232 = container_of(work, struct ds3232, work);
 	int ret;
 	int stat, control;
 
@@ -343,8 +323,8 @@ static void ds3232_work(struct work_struct *work)
 	if (stat & DS3232_REG_SR_A1F) {
 		ret = regmap_read(ds3232->regmap, DS3232_REG_CR, &control);
 		if (ret) {
-			pr_warn("Read Control Register error - Disable IRQ%d\n",
-				ds3232->irq);
+			dev_warn(ds3232->dev,
+				 "Read Control Register error %d\n", ret);
 		} else {
 			/* disable alarm1 interrupt */
 			control &= ~(DS3232_REG_CR_A1IE);
@@ -368,14 +348,13 @@ static void ds3232_work(struct work_struct *work)
 			}
 
 			rtc_update_irq(ds3232->rtc, 1, RTC_AF | RTC_IRQF);
-
-			if (!ds3232->exiting)
-				enable_irq(ds3232->irq);
 		}
 	}
 
 unlock:
 	mutex_unlock(&ds3232->mutex);
+
+	return IRQ_HANDLED;
 }
 
 static const struct rtc_class_ops ds3232_rtc_ops = {
@@ -401,7 +380,6 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	ds3232->dev = dev;
 	dev_set_drvdata(dev, ds3232);
 
-	INIT_WORK(&ds3232->work, ds3232_work);
 	mutex_init(&ds3232->mutex);
 
 	ret = ds3232_check_rtc_status(dev);
@@ -409,8 +387,10 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 		return ret;
 
 	if (ds3232->irq > 0) {
-		ret = devm_request_irq(dev, ds3232->irq, ds3232_irq,
-				       IRQF_SHARED, name, dev);
+		ret = devm_request_threaded_irq(dev, ds3232->irq, NULL,
+						ds3232_irq,
+						IRQF_SHARED | IRQF_ONESHOT,
+						name, dev);
 		if (ret) {
 			ds3232->irq = 0;
 			dev_err(dev, "unable to request IRQ\n");
@@ -423,33 +403,14 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	return PTR_ERR_OR_ZERO(ds3232->rtc);
 }
 
-static int ds3232_remove(struct device *dev)
-{
-	struct ds3232 *ds3232 = dev_get_drvdata(dev);
-
-	if (ds3232->irq > 0) {
-		mutex_lock(&ds3232->mutex);
-		ds3232->exiting = 1;
-		mutex_unlock(&ds3232->mutex);
-
-		devm_free_irq(dev, ds3232->irq, dev);
-		cancel_work_sync(&ds3232->work);
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int ds3232_suspend(struct device *dev)
 {
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
 
-	if (device_can_wakeup(dev)) {
-		ds3232->suspended = true;
-		if (irq_set_irq_wake(ds3232->irq, 1)) {
+	if (device_may_wakeup(dev)) {
+		if (enable_irq_wake(ds3232->irq))
 			dev_warn_once(dev, "Cannot set wakeup source\n");
-			ds3232->suspended = false;
-		}
 	}
 
 	return 0;
@@ -459,14 +420,8 @@ static int ds3232_resume(struct device *dev)
 {
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
 
-	if (ds3232->suspended) {
-		ds3232->suspended = false;
-
-		/* Clear the hardware alarm pend flag */
-		schedule_work(&ds3232->work);
-
-		irq_set_irq_wake(ds3232->irq, 0);
-	}
+	if (device_may_wakeup(dev))
+		disable_irq_wake(ds3232->irq);
 
 	return 0;
 }
@@ -497,11 +452,6 @@ static int ds3232_i2c_probe(struct i2c_client *client,
 	return ds3232_probe(&client->dev, regmap, client->irq, client->name);
 }
 
-static int ds3232_i2c_remove(struct i2c_client *client)
-{
-	return ds3232_remove(&client->dev);
-}
-
 static const struct i2c_device_id ds3232_id[] = {
 	{ "ds3232", 0 },
 	{ }
@@ -514,7 +464,6 @@ static struct i2c_driver ds3232_driver = {
 		.pm	= &ds3232_pm_ops,
 	},
 	.probe = ds3232_i2c_probe,
-	.remove = ds3232_i2c_remove,
 	.id_table = ds3232_id,
 };
 
@@ -611,17 +560,11 @@ static int ds3234_probe(struct spi_device *spi)
 	return ds3232_probe(&spi->dev, regmap, spi->irq, "ds3234");
 }
 
-static int ds3234_remove(struct spi_device *spi)
-{
-	return ds3232_remove(&spi->dev);
-}
-
 static struct spi_driver ds3234_driver = {
 	.driver = {
 		.name	 = "ds3234",
 	},
 	.probe	 = ds3234_probe,
-	.remove = ds3234_remove,
 };
 
 static int ds3234_register_driver(void)
