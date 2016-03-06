@@ -218,10 +218,12 @@ xfs_end_io(
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
 	int		error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	/*
+	 * Set an error if the mount has shut down and proceed with end I/O
+	 * processing so it can perform whatever cleanups are necessary.
+	 */
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		ioend->io_error = -EIO;
-		goto done;
-	}
 
 	/*
 	 * For unwritten extents we need to issue transactions to convert a
@@ -1702,14 +1704,22 @@ xfs_vm_write_failed(
 		if (block_start >= to)
 			break;
 
-		if (!buffer_delay(bh))
+		/*
+		 * Process delalloc and unwritten buffers beyond EOF. We can
+		 * encounter unwritten buffers in the event that a file has
+		 * post-EOF unwritten extents and an extending write happens to
+		 * fail (e.g., an unaligned write that also involves a delalloc
+		 * to the same page).
+		 */
+		if (!buffer_delay(bh) && !buffer_unwritten(bh))
 			continue;
 
 		if (!buffer_new(bh) && block_offset < i_size_read(inode))
 			continue;
 
-		xfs_vm_kill_delalloc_range(inode, block_offset,
-					   block_offset + bh->b_size);
+		if (buffer_delay(bh))
+			xfs_vm_kill_delalloc_range(inode, block_offset,
+						   block_offset + bh->b_size);
 
 		/*
 		 * This buffer does not contain data anymore. make sure anyone
@@ -1720,6 +1730,7 @@ xfs_vm_write_failed(
 		clear_buffer_mapped(bh);
 		clear_buffer_new(bh);
 		clear_buffer_dirty(bh);
+		clear_buffer_unwritten(bh);
 	}
 
 }
