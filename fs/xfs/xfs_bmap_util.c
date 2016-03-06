@@ -202,10 +202,12 @@ xfs_bmap_rtalloc(
 		ralen = MAXEXTLEN / mp->m_sb.sb_rextsize;
 
 	/*
-	 * Lock out other modifications to the RT bitmap inode.
+	 * Lock out modifications to both the RT bitmap and summary inodes
 	 */
 	xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(ap->tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+	xfs_ilock(mp->m_rsumip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(ap->tp, mp->m_rsumip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If it's an allocation to an empty file at offset 0,

@@ -42,6 +42,31 @@
  */
 
 /*
+ * Real time buffers need verifiers to avoid runtime warnings during IO.
+ * We don't have anything to verify, however, so these are just dummy
+ * operations.
+ */
+static void
+xfs_rtbuf_verify_read(
+	struct xfs_buf	*bp)
+{
+	return;
+}
+
+static void
+xfs_rtbuf_verify_write(
+	struct xfs_buf	*bp)
+{
+	return;
+}
+
+const struct xfs_buf_ops xfs_rtbuf_ops = {
+	.name = "rtbuf",
+	.verify_read = xfs_rtbuf_verify_read,
+	.verify_write = xfs_rtbuf_verify_write,
+};
+
+/*
  * Get a buffer for the bitmap or summary file block specified.
  * The buffer is returned read and locked.
  */
@@ -68,9 +93,12 @@ xfs_rtbuf_get(
 	ASSERT(map.br_startblock != NULLFSBLOCK);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 				   XFS_FSB_TO_DADDR(mp, map.br_startblock),
-				   mp->m_bsize, 0, &bp, NULL);
+				   mp->m_bsize, 0, &bp, &xfs_rtbuf_ops);
 	if (error)
 		return error;
+
+	xfs_trans_buf_set_type(tp, bp, issum ? XFS_BLFT_RTSUMMARY_BUF
+					     : XFS_BLFT_RTBITMAP_BUF);
 	*bpp = bp;
 	return 0;
 }
