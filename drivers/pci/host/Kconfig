@@ -16,6 +16,16 @@ config PCI_MVEBU
 	depends on ARCH_MVEBU || ARCH_DOVE
 	depends on OF
 
+config PCIE_XILINX_NWL
+	bool "NWL PCIe Core"
+	depends on ARCH_ZYNQMP
+	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
+	help
+	 Say 'Y' here if you want kernel support for Xilinx
+	 NWL PCIe controller. The controller can act as Root Port
+	 or End Point. The current option selection will only
+	 support root port enabling.
+
 config PCIE_DW
 	bool
 
