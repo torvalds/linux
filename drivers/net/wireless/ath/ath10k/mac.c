@@ -4421,6 +4421,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_peer *peer;
 	enum wmi_sta_powersave_param param;
 	int ret = 0;
 	u32 value;
@@ -4620,6 +4621,24 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 			goto err_vdev_delete;
 		}
+
+		spin_lock_bh(&ar->data_lock);
+
+		peer = ath10k_peer_find(ar, arvif->vdev_id, vif->addr);
+		if (!peer) {
+			ath10k_warn(ar, "failed to lookup peer %pM on vdev %i\n",
+				    vif->addr, arvif->vdev_id);
+			spin_unlock_bh(&ar->data_lock);
+			ret = -ENOENT;
+			goto err_peer_delete;
+		}
+
+		arvif->peer_id = find_first_bit(peer->peer_ids,
+						ATH10K_MAX_NUM_PEER_IDS);
+
+		spin_unlock_bh(&ar->data_lock);
+	} else {
+		arvif->peer_id = HTT_INVALID_PEERID;
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
@@ -5501,6 +5520,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k_peer *peer;
 	int ret = 0;
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
@@ -5550,6 +5570,24 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			ath10k_mac_dec_num_stations(arvif, sta);
 			goto exit;
 		}
+
+		spin_lock_bh(&ar->data_lock);
+
+		peer = ath10k_peer_find(ar, arvif->vdev_id, sta->addr);
+		if (!peer) {
+			ath10k_warn(ar, "failed to lookup peer %pM on vdev %i\n",
+				    vif->addr, arvif->vdev_id);
+			spin_unlock_bh(&ar->data_lock);
+			ath10k_peer_delete(ar, arvif->vdev_id, sta->addr);
+			ath10k_mac_dec_num_stations(arvif, sta);
+			ret = -ENOENT;
+			goto exit;
+		}
+
+		arsta->peer_id = find_first_bit(peer->peer_ids,
+						ATH10K_MAX_NUM_PEER_IDS);
+
+		spin_unlock_bh(&ar->data_lock);
 
 		if (!sta->tdls)
 			goto exit;

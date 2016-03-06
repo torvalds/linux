@@ -313,6 +313,7 @@ struct ath10k_sta {
 	u32 bw;
 	u32 nss;
 	u32 smps;
+	u16 peer_id;
 
 	struct work_struct update_wk;
 
@@ -335,6 +336,7 @@ struct ath10k_vif {
 	struct list_head list;
 
 	u32 vdev_id;
+	u16 peer_id;
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
 	u32 beacon_interval;
