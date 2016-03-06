@@ -1605,7 +1605,29 @@ static struct dentry *lookup_slow(const struct qstr *name,
 {
 	struct dentry *dentry;
 	inode_lock(dir->d_inode);
-	dentry = __lookup_hash(name, dir, flags);
+	dentry = d_lookup(dir, name);
+	if (unlikely(dentry)) {
+		if ((dentry->d_flags & DCACHE_OP_REVALIDATE) &&
+		    !(flags & LOOKUP_NO_REVAL)) {
+			int error = d_revalidate(dentry, flags);
+			if (unlikely(error <= 0)) {
+				if (!error)
+					d_invalidate(dentry);
+				dput(dentry);
+				dentry = ERR_PTR(error);
+			}
+		}
+		if (dentry) {
+			inode_unlock(dir->d_inode);
+			return dentry;
+		}
+	}
+	dentry = d_alloc(dir, name);
+	if (unlikely(!dentry)) {
+		inode_unlock(dir->d_inode);
+		return ERR_PTR(-ENOMEM);
+	}
+	dentry = lookup_real(dir->d_inode, dentry, flags);
 	inode_unlock(dir->d_inode);
 	return dentry;
 }
@@ -2425,31 +2447,21 @@ mountpoint_last(struct nameidata *nd, struct path *path)
 		if (error)
 			return error;
 		dentry = dget(nd->path.dentry);
-		goto done;
-	}
-
-	inode_lock(dir->d_inode);
-	dentry = d_lookup(dir, &nd->last);
-	if (!dentry) {
-		/*
-		 * No cached dentry. Mounted dentries are pinned in the cache,
-		 * so that means that this dentry is probably a symlink or the
-		 * path doesn't actually point to a mounted dentry.
-		 */
-		dentry = d_alloc(dir, &nd->last);
+	} else {
+		dentry = d_lookup(dir, &nd->last);
 		if (!dentry) {
-			inode_unlock(dir->d_inode);
-			return -ENOMEM;
-		}
-		dentry = lookup_real(dir->d_inode, dentry, nd->flags);
-		if (IS_ERR(dentry)) {
-			inode_unlock(dir->d_inode);
-			return PTR_ERR(dentry);
+			/*
+			 * No cached dentry. Mounted dentries are pinned in the
+			 * cache, so that means that this dentry is probably
+			 * a symlink or the path doesn't actually point
+			 * to a mounted dentry.
+			 */
+			dentry = lookup_slow(&nd->last, dir,
+					     nd->flags | LOOKUP_NO_REVAL);
+			if (IS_ERR(dentry))
+				return PTR_ERR(dentry);
 		}
 	}
-	inode_unlock(dir->d_inode);
-
-done:
 	if (d_is_negative(dentry)) {
 		dput(dentry);
 		return -ENOENT;
