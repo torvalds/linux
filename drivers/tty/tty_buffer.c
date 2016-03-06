@@ -37,29 +37,6 @@
 
 #define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
 
-/*
- * If all tty flip buffers have been processed by flush_to_ldisc() or
- * dropped by tty_buffer_flush(), check if the linked pty has been closed.
- * If so, wake the reader/poll to process
- */
-static inline void check_other_closed(struct tty_struct *tty)
-{
-	unsigned long flags, old;
-
-	/* transition from TTY_OTHER_CLOSED => TTY_OTHER_DONE must be atomic */
-	for (flags = ACCESS_ONCE(tty->flags);
-	     test_bit(TTY_OTHER_CLOSED, &flags);
-	     ) {
-		old = flags;
-		__set_bit(TTY_OTHER_DONE, &flags);
-		flags = cmpxchg(&tty->flags, old, flags);
-		if (old == flags) {
-			wake_up_interruptible(&tty->read_wait);
-			break;
-		}
-	}
-}
-
 /**
  *	tty_buffer_lock_exclusive	-	gain exclusive access to buffer
  *	tty_buffer_unlock_exclusive	-	release exclusive access
@@ -253,8 +230,6 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 
 	if (ld && ld->ops->flush_buffer)
 		ld->ops->flush_buffer(tty);
-
-	check_other_closed(tty);
 
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
@@ -505,10 +480,8 @@ static void flush_to_ldisc(struct work_struct *work)
 		 */
 		count = smp_load_acquire(&head->commit) - head->read;
 		if (!count) {
-			if (next == NULL) {
-				check_other_closed(tty);
+			if (next == NULL)
 				break;
-			}
 			buf->head = next;
 			tty_buffer_free(port, head);
 			continue;
@@ -596,4 +569,9 @@ bool tty_buffer_restart_work(struct tty_port *port)
 bool tty_buffer_cancel_work(struct tty_port *port)
 {
 	return cancel_work_sync(&port->buf.work);
+}
+
+void tty_buffer_flush_work(struct tty_port *port)
+{
+	flush_work(&port->buf.work);
 }
