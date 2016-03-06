@@ -407,15 +407,15 @@ static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
  */
 static unsigned long init_altmap_base(resource_size_t base)
 {
-	unsigned long base_pfn = __phys_to_pfn(base);
+	unsigned long base_pfn = PHYS_PFN(base);
 
 	return PFN_SECTION_ALIGN_DOWN(base_pfn);
 }
 
 static unsigned long init_altmap_reserve(resource_size_t base)
 {
-	unsigned long reserve = __phys_to_pfn(SZ_8K);
-	unsigned long base_pfn = __phys_to_pfn(base);
+	unsigned long reserve = PHYS_PFN(SZ_8K);
+	unsigned long base_pfn = PHYS_PFN(base);
 
 	reserve += base_pfn - PFN_SECTION_ALIGN_DOWN(base_pfn);
 	return reserve;
@@ -458,7 +458,7 @@ static int __nvdimm_namespace_attach_pfn(struct nd_pfn *nd_pfn)
 					le64_to_cpu(nd_pfn->pfn_sb->npfns),
 					nd_pfn->npfns);
 		altmap = & __altmap;
-		altmap->free = __phys_to_pfn(pmem->data_offset - SZ_8K);
+		altmap->free = PHYS_PFN(pmem->data_offset - SZ_8K);
 		altmap->alloc = 0;
 	} else {
 		rc = -ENXIO;
