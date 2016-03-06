@@ -757,9 +757,9 @@ void MACvSetMISCFifo(struct vnt_private *priv, unsigned short wOffset,
 
 	if (wOffset > 273)
 		return;
-	VNSvOutPortW(io_base + MAC_REG_MISCFFNDEX, wOffset);
+	iowrite16(wOffset, io_base + MAC_REG_MISCFFNDEX);
 	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
-	VNSvOutPortW(io_base + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
+	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 }
 
 bool MACbPSWakeup(struct vnt_private *priv)
@@ -826,9 +826,9 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	pr_debug("1. wOffset: %d, Data: %X, KeyCtl:%X\n",
 		 wOffset, dwData, wKeyCtl);
 
-	VNSvOutPortW(io_base + MAC_REG_MISCFFNDEX, wOffset);
+	iowrite16(wOffset, io_base + MAC_REG_MISCFFNDEX);
 	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
-	VNSvOutPortW(io_base + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
+	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 	wOffset++;
 
 	dwData = 0;
@@ -841,9 +841,9 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	dwData |= *(pbyAddr+0);
 	pr_debug("2. wOffset: %d, Data: %X\n", wOffset, dwData);
 
-	VNSvOutPortW(io_base + MAC_REG_MISCFFNDEX, wOffset);
+	iowrite16(wOffset, io_base + MAC_REG_MISCFFNDEX);
 	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
-	VNSvOutPortW(io_base + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
+	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 	wOffset++;
 
 	wOffset += (uKeyIdx * 4);
@@ -851,9 +851,9 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 		/* always push 128 bits */
 		pr_debug("3.(%d) wOffset: %d, Data: %X\n",
 			 ii, wOffset+ii, *pdwKey);
-		VNSvOutPortW(io_base + MAC_REG_MISCFFNDEX, wOffset+ii);
+		iowrite16(wOffset + ii, io_base + MAC_REG_MISCFFNDEX);
 		iowrite32(*pdwKey++, io_base + MAC_REG_MISCFFDATA);
-		VNSvOutPortW(io_base + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
+		iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 	}
 }
 
@@ -879,7 +879,7 @@ void MACvDisableKeyEntry(struct vnt_private *priv, unsigned int uEntryIdx)
 	wOffset = MISCFIFO_KEYETRY0;
 	wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
-	VNSvOutPortW(io_base + MAC_REG_MISCFFNDEX, wOffset);
+	iowrite16(wOffset, io_base + MAC_REG_MISCFFNDEX);
 	iowrite32(0, io_base + MAC_REG_MISCFFDATA);
-	VNSvOutPortW(io_base + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
+	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 }
