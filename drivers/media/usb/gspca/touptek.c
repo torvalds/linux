@@ -211,7 +211,7 @@ static int val_reply(struct gspca_dev *gspca_dev, const char *reply, int rc)
 
 static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
 {
-	char buff[1];
+	char *buff = gspca_dev->usb_buf;
 	int rc;
 
 	PDEBUG(D_USBO,
@@ -438,7 +438,7 @@ static void configure_encrypted(struct gspca_dev *gspca_dev)
 static int configure(struct gspca_dev *gspca_dev)
 {
 	int rc;
-	uint8_t buff[4];
+	char *buff = gspca_dev->usb_buf;
 
 	PDEBUG(D_STREAM, "configure()\n");
 
