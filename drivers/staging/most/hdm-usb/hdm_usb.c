@@ -1299,7 +1299,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		tmp_cap->num_buffers_streaming = BUF_CHAIN_SIZE;
 		tmp_cap->data_type = MOST_CH_CONTROL | MOST_CH_ASYNC |
 				     MOST_CH_ISOC_AVP | MOST_CH_SYNC;
-		if (ep_desc->bEndpointAddress & USB_DIR_IN)
+		if (usb_endpoint_dir_in(ep_desc))
 			tmp_cap->direction = MOST_CH_RX;
 		else
 			tmp_cap->direction = MOST_CH_TX;
