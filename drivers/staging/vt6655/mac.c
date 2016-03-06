@@ -545,14 +545,14 @@ void MACvInitialize(struct vnt_private *priv)
  * Parameters:
  *  In:
  *      io_base        - Base Address for MAC
- *      dwCurrDescAddr  - Descriptor Address
+ *      curr_desc_addr  - Descriptor Address
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
+void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -567,7 +567,7 @@ void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 			break;
 	}
 
-	iowrite32(dwCurrDescAddr, io_base + MAC_REG_RXDMAPTR0);
+	iowrite32(curr_desc_addr, io_base + MAC_REG_RXDMAPTR0);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_RXDMACTL0);
 }
@@ -579,14 +579,14 @@ void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
  * Parameters:
  *  In:
  *      io_base        - Base Address for MAC
- *      dwCurrDescAddr  - Descriptor Address
+ *      curr_desc_addr  - Descriptor Address
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
+void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 curr_desc_addr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -601,7 +601,7 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 			break;
 	}
 
-	iowrite32(dwCurrDescAddr, io_base + MAC_REG_RXDMAPTR1);
+	iowrite32(curr_desc_addr, io_base + MAC_REG_RXDMAPTR1);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_RXDMACTL1);
 
@@ -614,7 +614,7 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
  * Parameters:
  *  In:
  *      io_base        - Base Address for MAC
- *      dwCurrDescAddr  - Descriptor Address
+ *      curr_desc_addr  - Descriptor Address
  *  Out:
  *      none
  *
@@ -622,7 +622,7 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
  *
  */
 void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
-			      u32 dwCurrDescAddr)
+			      u32 curr_desc_addr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -637,7 +637,7 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
 			break;
 	}
 
-	iowrite32(dwCurrDescAddr, io_base + MAC_REG_TXDMAPTR0);
+	iowrite32(curr_desc_addr, io_base + MAC_REG_TXDMAPTR0);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_TXDMACTL0);
 }
@@ -649,7 +649,7 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
  * Parameters:
  *  In:
  *      io_base        - Base Address for MAC
- *      dwCurrDescAddr  - Descriptor Address
+ *      curr_desc_addr  - Descriptor Address
  *  Out:
  *      none
  *
@@ -658,7 +658,7 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
  */
 /* TxDMA1 = AC0DMA */
 void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
-			      u32 dwCurrDescAddr)
+			      u32 curr_desc_addr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -674,18 +674,18 @@ void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
 	}
 	if (ww == W_MAX_TIMEOUT)
 		pr_debug(" DBG_PORT80(0x26)\n");
-	iowrite32(dwCurrDescAddr, io_base + MAC_REG_AC0DMAPTR);
+	iowrite32(curr_desc_addr, io_base + MAC_REG_AC0DMAPTR);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_AC0DMACTL);
 }
 
 void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *priv,
-			   u32 dwCurrDescAddr)
+			   u32 curr_desc_addr)
 {
 	if (iTxType == TYPE_AC0DMA)
-		MACvSetCurrAC0DescAddrEx(priv, dwCurrDescAddr);
+		MACvSetCurrAC0DescAddrEx(priv, curr_desc_addr);
 	else if (iTxType == TYPE_TXDMA0)
-		MACvSetCurrTx0DescAddrEx(priv, dwCurrDescAddr);
+		MACvSetCurrTx0DescAddrEx(priv, curr_desc_addr);
 }
 
 /*

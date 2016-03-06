@@ -916,19 +916,19 @@ bool MACbSafeStop(struct vnt_private *);
 bool MACbShutdown(struct vnt_private *);
 void MACvInitialize(struct vnt_private *);
 void MACvSetCurrRx0DescAddr(struct vnt_private *,
-			    u32 dwCurrDescAddr);
+			    u32 curr_desc_addr);
 void MACvSetCurrRx1DescAddr(struct vnt_private *,
-			    u32 dwCurrDescAddr);
+			    u32 curr_desc_addr);
 void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *,
-			   u32 dwCurrDescAddr);
+			   u32 curr_desc_addr);
 void MACvSetCurrTx0DescAddrEx(struct vnt_private *,
-			      u32 dwCurrDescAddr);
+			      u32 curr_desc_addr);
 void MACvSetCurrAC0DescAddrEx(struct vnt_private *,
-			      u32 dwCurrDescAddr);
+			      u32 curr_desc_addr);
 void MACvSetCurrSyncDescAddrEx(struct vnt_private *,
-			       u32 dwCurrDescAddr);
+			       u32 curr_desc_addr);
 void MACvSetCurrATIMDescAddrEx(struct vnt_private *,
-			       u32 dwCurrDescAddr);
+			       u32 curr_desc_addr);
 void MACvTimer0MicroSDelay(struct vnt_private *, unsigned int uDelay);
 void MACvOneShotTimer1MicroSec(struct vnt_private *, unsigned int uDelayTime);
 
