@@ -748,14 +748,14 @@ void MACvOneShotTimer1MicroSec(struct vnt_private *priv, unsigned int uDelayTime
 }
 
 void MACvSetMISCFifo(struct vnt_private *priv, unsigned short offset,
-		     u32 dwData)
+		     u32 data)
 {
 	void __iomem *io_base = priv->PortOffset;
 
 	if (offset > 273)
 		return;
 	iowrite16(offset, io_base + MAC_REG_MISCFFNDEX);
-	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
+	iowrite32(data, io_base + MAC_REG_MISCFFDATA);
 	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 }
 
@@ -804,7 +804,7 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short offset;
-	u32 dwData;
+	u32 data;
 	int     ii;
 
 	if (byLocalID <= 1)
@@ -814,30 +814,30 @@ void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 	offset = MISCFIFO_KEYETRY0;
 	offset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
 
-	dwData = 0;
-	dwData |= wKeyCtl;
-	dwData <<= 16;
-	dwData |= MAKEWORD(*(pbyAddr+4), *(pbyAddr+5));
+	data = 0;
+	data |= wKeyCtl;
+	data <<= 16;
+	data |= MAKEWORD(*(pbyAddr + 4), *(pbyAddr + 5));
 	pr_debug("1. offset: %d, Data: %X, KeyCtl:%X\n",
-		 offset, dwData, wKeyCtl);
+		 offset, data, wKeyCtl);
 
 	iowrite16(offset, io_base + MAC_REG_MISCFFNDEX);
-	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
+	iowrite32(data, io_base + MAC_REG_MISCFFDATA);
 	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 	offset++;
 
-	dwData = 0;
-	dwData |= *(pbyAddr+3);
-	dwData <<= 8;
-	dwData |= *(pbyAddr+2);
-	dwData <<= 8;
-	dwData |= *(pbyAddr+1);
-	dwData <<= 8;
-	dwData |= *(pbyAddr+0);
-	pr_debug("2. offset: %d, Data: %X\n", offset, dwData);
+	data = 0;
+	data |= *(pbyAddr + 3);
+	data <<= 8;
+	data |= *(pbyAddr + 2);
+	data <<= 8;
+	data |= *(pbyAddr + 1);
+	data <<= 8;
+	data |= *pbyAddr;
+	pr_debug("2. offset: %d, Data: %X\n", offset, data);
 
 	iowrite16(offset, io_base + MAC_REG_MISCFFNDEX);
-	iowrite32(dwData, io_base + MAC_REG_MISCFFDATA);
+	iowrite32(data, io_base + MAC_REG_MISCFFDATA);
 	iowrite16(MISCFFCTL_WRITE, io_base + MAC_REG_MISCFFCTL);
 	offset++;
 
