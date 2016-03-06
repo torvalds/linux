@@ -247,16 +247,6 @@ config RTC_DRV_DS1672
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1672.
 
-config RTC_DRV_DS3232
-	tristate "Dallas/Maxim DS3232"
-	help
-	  If you say yes here you get support for Dallas Semiconductor
-	  DS3232 real-time clock chips. If an interrupt is associated
-	  with the device, the alarm functionality is supported.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called rtc-ds3232.
-
 config RTC_DRV_HYM8563
 	tristate "Haoyu Microelectronics HYM8563"
 	depends on OF
@@ -733,15 +723,6 @@ config RTC_DRV_MAX6902
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max6902.
 
-config RTC_DRV_DS3234
-	tristate "Maxim/Dallas DS3234"
-	help
-	  If you say yes here you get support for the
-	  Maxim/Dallas DS3234 SPI RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-ds3234.
-
 config RTC_DRV_PCF2123
 	tristate "NXP PCF2123"
 	help
@@ -760,6 +741,31 @@ config RTC_DRV_MCP795
 	  will be called rtc-mcp795.
 
 endif # SPI_MASTER
+
+#
+# Helper to resolve issues with configs that have SPI enabled but I2C
+# modular.  See SND_SOC_I2C_AND_SPI for more information
+#
+config RTC_I2C_AND_SPI
+	tristate
+	default m if I2C=m
+	default y if I2C=y
+	default y if SPI_MASTER=y
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+
+comment "SPI and I2C RTC drivers"
+
+config RTC_DRV_DS3232
+	tristate "Dallas/Maxim DS3232/DS3234"
+	depends on RTC_I2C_AND_SPI
+	help
+	  If you say yes here you get support for Dallas Semiconductor
+	  DS3232 and DS3234 real-time clock chips. If an interrupt is associated
+	  with the device, the alarm functionality is supported.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called rtc-ds3232.
 
 comment "Platform RTC drivers"
 

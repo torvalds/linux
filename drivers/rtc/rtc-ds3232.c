@@ -1,8 +1,9 @@
 /*
- * RTC client/driver for the Maxim/Dallas DS3232 Real-Time Clock over I2C
+ * RTC client/driver for the Maxim/Dallas DS3232/DS3234 Real-Time Clock
  *
  * Copyright (C) 2009-2011 Freescale Semiconductor.
  * Author: Jack Lan <jack.lan@freescale.com>
+ * Copyright (C) 2008 MIMOMax Wireless Ltd.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -16,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/workqueue.h>
@@ -481,6 +483,8 @@ static const struct dev_pm_ops ds3232_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ds3232_suspend, ds3232_resume)
 };
 
+#if IS_ENABLED(CONFIG_I2C)
+
 static int ds3232_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
@@ -520,8 +524,165 @@ static struct i2c_driver ds3232_driver = {
 	.remove = ds3232_i2c_remove,
 	.id_table = ds3232_id,
 };
-module_i2c_driver(ds3232_driver);
+
+static int ds3232_register_driver(void)
+{
+	return i2c_add_driver(&ds3232_driver);
+}
+
+static void ds3232_unregister_driver(void)
+{
+	i2c_del_driver(&ds3232_driver);
+}
+
+#else
+
+static int ds3232_register_driver(void)
+{
+	return 0;
+}
+
+static void ds3232_unregister_driver(void)
+{
+}
+
+#endif
+
+#if IS_ENABLED(CONFIG_SPI_MASTER)
+
+static int ds3234_probe(struct spi_device *spi)
+{
+	int res;
+	unsigned int tmp;
+	static const struct regmap_config config = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.write_flag_mask = 0x80,
+	};
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_spi(spi, &config);
+	if (IS_ERR(regmap)) {
+		dev_err(&spi->dev, "%s: regmap allocation failed: %ld\n",
+			__func__, PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
+
+	spi->mode = SPI_MODE_3;
+	spi->bits_per_word = 8;
+	spi_setup(spi);
+
+	res = regmap_read(regmap, DS3232_REG_SECONDS, &tmp);
+	if (res)
+		return res;
+
+	/* Control settings
+	 *
+	 * CONTROL_REG
+	 * BIT 7	6	5	4	3	2	1	0
+	 *     EOSC	BBSQW	CONV	RS2	RS1	INTCN	A2IE	A1IE
+	 *
+	 *     0	0	0	1	1	1	0	0
+	 *
+	 * CONTROL_STAT_REG
+	 * BIT 7	6	5	4	3	2	1	0
+	 *     OSF	BB32kHz	CRATE1	CRATE0	EN32kHz	BSY	A2F	A1F
+	 *
+	 *     1	0	0	0	1	0	0	0
+	 */
+	res = regmap_read(regmap, DS3232_REG_CR, &tmp);
+	if (res)
+		return res;
+	res = regmap_write(regmap, DS3232_REG_CR, tmp & 0x1c);
+	if (res)
+		return res;
+
+	res = regmap_read(regmap, DS3232_REG_SR, &tmp);
+	if (res)
+		return res;
+	res = regmap_write(regmap, DS3232_REG_SR, tmp & 0x88);
+	if (res)
+		return res;
+
+	/* Print our settings */
+	res = regmap_read(regmap, DS3232_REG_CR, &tmp);
+	if (res)
+		return res;
+	dev_info(&spi->dev, "Control Reg: 0x%02x\n", tmp);
+
+	res = regmap_read(regmap, DS3232_REG_SR, &tmp);
+	if (res)
+		return res;
+	dev_info(&spi->dev, "Ctrl/Stat Reg: 0x%02x\n", tmp);
+
+	return ds3232_probe(&spi->dev, regmap, spi->irq, "ds3234");
+}
+
+static int ds3234_remove(struct spi_device *spi)
+{
+	return ds3232_remove(&spi->dev);
+}
+
+static struct spi_driver ds3234_driver = {
+	.driver = {
+		.name	 = "ds3234",
+	},
+	.probe	 = ds3234_probe,
+	.remove = ds3234_remove,
+};
+
+static int ds3234_register_driver(void)
+{
+	return spi_register_driver(&ds3234_driver);
+}
+
+static void ds3234_unregister_driver(void)
+{
+	spi_unregister_driver(&ds3234_driver);
+}
+
+#else
+
+static int ds3234_register_driver(void)
+{
+	return 0;
+}
+
+static void ds3234_unregister_driver(void)
+{
+}
+
+#endif
+
+static int __init ds323x_init(void)
+{
+	int ret;
+
+	ret = ds3232_register_driver();
+	if (ret) {
+		pr_err("Failed to register ds3232 driver: %d\n", ret);
+		return ret;
+	}
+
+	ret = ds3234_register_driver();
+	if (ret) {
+		pr_err("Failed to register ds3234 driver: %d\n", ret);
+		ds3232_unregister_driver();
+	}
+
+	return ret;
+}
+module_init(ds323x_init)
+
+static void __exit ds323x_exit(void)
+{
+	ds3234_unregister_driver();
+	ds3232_unregister_driver();
+}
+module_exit(ds323x_exit)
 
 MODULE_AUTHOR("Srikanth Srinivasan <srikanth.srinivasan@freescale.com>");
-MODULE_DESCRIPTION("Maxim/Dallas DS3232 RTC Driver");
+MODULE_AUTHOR("Dennis Aberilla <denzzzhome@yahoo.com>");
+MODULE_DESCRIPTION("Maxim/Dallas DS3232/DS3234 RTC Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:ds3234");
