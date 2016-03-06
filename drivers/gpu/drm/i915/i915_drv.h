@@ -1988,6 +1988,9 @@ enum hdmi_force_audio {
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 struct drm_i915_gem_object_ops {
+	unsigned int flags;
+#define I915_GEM_OBJECT_HAS_STRUCT_PAGE 0x1
+
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
 	 * of pages before to binding them into the GTT, and put_pages() is
@@ -2003,6 +2006,7 @@ struct drm_i915_gem_object_ops {
 	 */
 	int (*get_pages)(struct drm_i915_gem_object *);
 	void (*put_pages)(struct drm_i915_gem_object *);
+
 	int (*dmabuf_export)(struct drm_i915_gem_object *);
 	void (*release)(struct drm_i915_gem_object *);
 };

@@ -987,6 +987,10 @@ set_rcvbuf:
 		sk->sk_incoming_cpu = val;
 		break;
 
+	case SO_CNX_ADVICE:
+		if (val == 1)
+			dst_negative_advice(sk);
+		break;
 	default:
 		ret = -ENOPROTOOPT;
 		break;

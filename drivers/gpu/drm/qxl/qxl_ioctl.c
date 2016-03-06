@@ -168,7 +168,8 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		       cmd->command_size))
 		return -EFAULT;
 
-	reloc_info = kmalloc(sizeof(struct qxl_reloc_info) * cmd->relocs_num, GFP_KERNEL);
+	reloc_info = kmalloc_array(cmd->relocs_num,
+				   sizeof(struct qxl_reloc_info), GFP_KERNEL);
 	if (!reloc_info)
 		return -ENOMEM;
 

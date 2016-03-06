@@ -39,10 +39,10 @@
 
 #include "qede.h"
 
-static const char version[] = "QLogic QL4xxx 40G/100G Ethernet Driver qede "
-			      DRV_MODULE_VERSION "\n";
+static char version[] =
+	"QLogic FastLinQ 4xxxx Ethernet Driver qede " DRV_MODULE_VERSION "\n";
 
-MODULE_DESCRIPTION("QLogic 40G/100G Ethernet Driver");
+MODULE_DESCRIPTION("QLogic FastLinQ 4xxxx Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -53,7 +53,7 @@ MODULE_PARM_DESC(debug, " Default debug msglevel");
 static const struct qed_eth_ops *qed_ops;
 
 #define CHIP_NUM_57980S_40		0x1634
-#define CHIP_NUM_57980S_10		0x1635
+#define CHIP_NUM_57980S_10		0x1666
 #define CHIP_NUM_57980S_MF		0x1636
 #define CHIP_NUM_57980S_100		0x1644
 #define CHIP_NUM_57980S_50		0x1654
@@ -380,6 +380,28 @@ static int map_frag_to_bd(struct qede_dev *edev,
 	return 0;
 }
 
+/* +2 for 1st BD for headers and 2nd BD for headlen (if required) */
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+static bool qede_pkt_req_lin(struct qede_dev *edev, struct sk_buff *skb,
+			     u8 xmit_type)
+{
+	int allowed_frags = ETH_TX_MAX_BDS_PER_NON_LSO_PACKET - 1;
+
+	if (xmit_type & XMIT_LSO) {
+		int hlen;
+
+		hlen = skb_transport_header(skb) +
+		       tcp_hdrlen(skb) - skb->data;
+
+		/* linear payload would require its own BD */
+		if (skb_headlen(skb) > hlen)
+			allowed_frags--;
+	}
+
+	return (skb_shinfo(skb)->nr_frags > allowed_frags);
+}
+#endif
+
 /* Main transmit function */
 static
 netdev_tx_t qede_start_xmit(struct sk_buff *skb,
@@ -407,15 +429,21 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb,
 	txq = QEDE_TX_QUEUE(edev, txq_index);
 	netdev_txq = netdev_get_tx_queue(ndev, txq_index);
 
-	/* Current code doesn't support SKB linearization, since the max number
-	 * of skb frags can be passed in the FW HSI.
-	 */
-	BUILD_BUG_ON(MAX_SKB_FRAGS > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET);
-
 	WARN_ON(qed_chain_get_elem_left(&txq->tx_pbl) <
 			       (MAX_SKB_FRAGS + 1));
 
 	xmit_type = qede_xmit_type(edev, skb, &ipv6_ext);
+
+#if ((MAX_SKB_FRAGS + 2) > ETH_TX_MAX_BDS_PER_NON_LSO_PACKET)
+	if (qede_pkt_req_lin(edev, skb, xmit_type)) {
+		if (skb_linearize(skb)) {
+			DP_NOTICE(edev,
+				  "SKB linearization failed - silently dropping this SKB\n");
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+	}
+#endif
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
 	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
@@ -2752,13 +2780,17 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 	}
 
 	if (link->link_up) {
-		DP_NOTICE(edev, "Link is up\n");
-		netif_tx_start_all_queues(edev->ndev);
-		netif_carrier_on(edev->ndev);
+		if (!netif_carrier_ok(edev->ndev)) {
+			DP_NOTICE(edev, "Link is up\n");
+			netif_tx_start_all_queues(edev->ndev);
+			netif_carrier_on(edev->ndev);
+		}
 	} else {
-		DP_NOTICE(edev, "Link is down\n");
-		netif_tx_disable(edev->ndev);
-		netif_carrier_off(edev->ndev);
+		if (netif_carrier_ok(edev->ndev)) {
+			DP_NOTICE(edev, "Link is down\n");
+			netif_tx_disable(edev->ndev);
+			netif_carrier_off(edev->ndev);
+		}
 	}
 }
 

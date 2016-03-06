@@ -448,7 +448,7 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	struct qed_cxt_mngr *p_mngr;
 	u32 i;
 
-	p_mngr = kzalloc(sizeof(*p_mngr), GFP_ATOMIC);
+	p_mngr = kzalloc(sizeof(*p_mngr), GFP_KERNEL);
 	if (!p_mngr) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_cxt_mngr'\n");
 		return -ENOMEM;

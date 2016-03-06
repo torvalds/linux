@@ -1632,7 +1632,7 @@ static int xgbe_setup_tc(struct net_device *netdev, u32 handle, __be16 proto,
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	u8 tc;
 
-	if (handle != TC_H_ROOT || tc_to_netdev->type != TC_SETUP_MQPRIO)
+	if (tc_to_netdev->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc = tc_to_netdev->tc;

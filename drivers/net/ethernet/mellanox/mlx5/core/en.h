@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,6 +29,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#ifndef __MLX5_EN_H__
+#define __MLX5_EN_H__
 
 #include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
@@ -38,6 +40,7 @@
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/cq.h>
+#include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/transobj.h>
 #include "wq.h"
@@ -69,6 +72,11 @@
 
 #define MLX5E_NUM_MAIN_GROUPS 9
 
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+#define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
+#define MLX5E_MIN_BW_ALLOC 1   /* Min percentage of BW allocation */
+#endif
+
 static const char vport_strings[][ETH_GSTRING_LEN] = {
 	/* vport statistics */
 	"rx_packets",
@@ -95,12 +103,15 @@ static const char vport_strings[][ETH_GSTRING_LEN] = {
 	/* SW counters */
 	"tso_packets",
 	"tso_bytes",
+	"tso_inner_packets",
+	"tso_inner_bytes",
 	"lro_packets",
 	"lro_bytes",
 	"rx_csum_good",
 	"rx_csum_none",
 	"rx_csum_sw",
 	"tx_csum_offload",
+	"tx_csum_inner",
 	"tx_queue_stopped",
 	"tx_queue_wake",
 	"tx_queue_dropped",
@@ -133,18 +144,21 @@ struct mlx5e_vport_stats {
 	/* SW counters */
 	u64 tso_packets;
 	u64 tso_bytes;
+	u64 tso_inner_packets;
+	u64 tso_inner_bytes;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 rx_csum_good;
 	u64 rx_csum_none;
 	u64 rx_csum_sw;
 	u64 tx_csum_offload;
+	u64 tx_csum_inner;
 	u64 tx_queue_stopped;
 	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 rx_wqe_err;
 
-#define NUM_VPORT_COUNTERS     32
+#define NUM_VPORT_COUNTERS     35
 };
 
 static const char pport_strings[][ETH_GSTRING_LEN] = {
@@ -244,23 +258,31 @@ static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
 	"tso_packets",
 	"tso_bytes",
+	"tso_inner_packets",
+	"tso_inner_bytes",
+	"csum_offload_inner",
+	"nop",
 	"csum_offload_none",
 	"stopped",
 	"wake",
 	"dropped",
-	"nop"
 };
 
 struct mlx5e_sq_stats {
+	/* commonly accessed in data path */
 	u64 packets;
 	u64 tso_packets;
 	u64 tso_bytes;
+	u64 tso_inner_packets;
+	u64 tso_inner_bytes;
+	u64 csum_offload_inner;
+	u64 nop;
+	/* less likely accessed in data path */
 	u64 csum_offload_none;
 	u64 stopped;
 	u64 wake;
 	u64 dropped;
-	u64 nop;
-#define NUM_SQ_STATS 8
+#define NUM_SQ_STATS 11
 };
 
 struct mlx5e_stats {
@@ -272,7 +294,6 @@ struct mlx5e_params {
 	u8  log_sq_size;
 	u8  log_rq_size;
 	u16 num_channels;
-	u8  default_vlan_prio;
 	u8  num_tc;
 	u16 rx_cq_moderation_usec;
 	u16 rx_cq_moderation_pkts;
@@ -285,6 +306,9 @@ struct mlx5e_params {
 	u8  rss_hfunc;
 	u8  toeplitz_hash_key[40];
 	u32 indirection_rqt[MLX5E_INDIR_RQT_SIZE];
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	struct ieee_ets ets;
+#endif
 };
 
 struct mlx5e_tstamp {
@@ -364,6 +388,7 @@ struct mlx5e_sq_dma {
 
 enum {
 	MLX5E_SQ_STATE_WAKE_TXQ_ENABLE,
+	MLX5E_SQ_STATE_BF_ENABLE,
 };
 
 struct mlx5e_sq {
@@ -392,7 +417,6 @@ struct mlx5e_sq {
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
 	void __iomem              *uar_map;
-	void __iomem              *uar_bf_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        bf_buf_size;
@@ -491,6 +515,11 @@ struct mlx5e_vlan_db {
 	bool          filter_disabled;
 };
 
+struct mlx5e_vxlan_db {
+	spinlock_t			lock; /* protect vxlan table */
+	struct radix_tree_root		tree;
+};
+
 struct mlx5e_flow_table {
 	int num_groups;
 	struct mlx5_flow_table		*t;
@@ -505,7 +534,6 @@ struct mlx5e_flow_tables {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	int                        default_vlan_prio;
 	struct mlx5e_sq            **txq_to_sq_map;
 	int channeltc_to_txq_map[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 	/* priv data path fields - end */
@@ -526,9 +554,9 @@ struct mlx5e_priv {
 	struct mlx5e_flow_tables   fts;
 	struct mlx5e_eth_addr_db   eth_addr;
 	struct mlx5e_vlan_db       vlan;
+	struct mlx5e_vxlan_db      vxlan;
 
 	struct mlx5e_params        params;
-	spinlock_t                 async_events_spinlock; /* sync hw events */
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
 	struct delayed_work        update_stats_work;
@@ -636,16 +664,12 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 * doorbell
 	 */
 	wmb();
-
-	if (bf_sz) {
-		__iowrite64_copy(sq->uar_bf_map + ofst, &wqe->ctrl, bf_sz);
-
-		/* flush the write-combining mapped buffer */
-		wmb();
-
-	} else {
+	if (bf_sz)
+		__iowrite64_copy(sq->uar_map + ofst, &wqe->ctrl, bf_sz);
+	else
 		mlx5_write64((__be32 *)&wqe->ctrl, sq->uar_map + ofst, NULL);
-	}
+	/* flush the write-combining mapped buffer */
+	wmb();
 
 	sq->bf_offset ^= sq->bf_buf_size;
 }
@@ -665,4 +689,11 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+extern const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops;
+int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets);
+#endif
+
 u16 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev);
+
+#endif /* __MLX5_EN_H__ */

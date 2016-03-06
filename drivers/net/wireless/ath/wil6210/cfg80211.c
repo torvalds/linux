@@ -422,6 +422,11 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	if (sme->privacy && !rsn_eid)
 		wil_info(wil, "WSC connection\n");
 
+	if (sme->pbss) {
+		wil_err(wil, "connect - PBSS not yet supported\n");
+		return -EOPNOTSUPP;
+	}
+
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
 			       IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
@@ -947,6 +952,11 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (!channel) {
 		wil_err(wil, "AP: No channel???\n");
 		return -EINVAL;
+	}
+
+	if (info->pbss) {
+		wil_err(wil, "AP: PBSS not yet supported\n");
+		return -EOPNOTSUPP;
 	}
 
 	switch (info->hidden_ssid) {

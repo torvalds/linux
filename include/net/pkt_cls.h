@@ -392,4 +392,21 @@ struct tc_cls_u32_offload {
 	};
 };
 
+/* tca flags definitions */
+#define TCA_CLS_FLAGS_SKIP_HW 1
+
+static inline bool tc_should_offload(struct net_device *dev, u32 flags)
+{
+	if (!(dev->features & NETIF_F_HW_TC))
+		return false;
+
+	if (flags & TCA_CLS_FLAGS_SKIP_HW)
+		return false;
+
+	if (!dev->netdev_ops->ndo_setup_tc)
+		return false;
+
+	return true;
+}
+
 #endif

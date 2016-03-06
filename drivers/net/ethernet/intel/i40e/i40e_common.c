@@ -1239,7 +1239,13 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
 	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
 		    I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
 		    I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
-	for (cnt = 0; cnt < grst_del + 10; cnt++) {
+
+	/* It can take upto 15 secs for GRST steady state.
+	 * Bump it to 16 secs max to be safe.
+	 */
+	grst_del = grst_del * 20;
+
+	for (cnt = 0; cnt < grst_del; cnt++) {
 		reg = rd32(hw, I40E_GLGEN_RSTAT);
 		if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
 			break;
@@ -1881,6 +1887,32 @@ i40e_status i40e_aq_set_phy_int_mask(struct i40e_hw *hw,
 					  i40e_aqc_opc_set_phy_int_mask);
 
 	cmd->event_mask = cpu_to_le16(mask);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_aq_set_phy_debug
+ * @hw: pointer to the hw struct
+ * @cmd_flags: debug command flags
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Reset the external PHY.
+ **/
+enum i40e_status_code i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
+					struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_set_phy_debug *cmd =
+		(struct i40e_aqc_set_phy_debug *)&desc.params.raw;
+	enum i40e_status_code status;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_set_phy_debug);
+
+	cmd->command_flags = cmd_flags;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
@@ -3850,7 +3882,7 @@ i40e_status i40e_set_filter_control(struct i40e_hw *hw,
 		return ret;
 
 	/* Read the PF Queue Filter control register */
-	val = rd32(hw, I40E_PFQF_CTL_0);
+	val = i40e_read_rx_ctl(hw, I40E_PFQF_CTL_0);
 
 	/* Program required PE hash buckets for the PF */
 	val &= ~I40E_PFQF_CTL_0_PEHSIZE_MASK;
@@ -3887,7 +3919,7 @@ i40e_status i40e_set_filter_control(struct i40e_hw *hw,
 	if (settings->enable_macvlan)
 		val |= I40E_PFQF_CTL_0_MACVLAN_ENA_MASK;
 
-	wr32(hw, I40E_PFQF_CTL_0, val);
+	i40e_write_rx_ctl(hw, I40E_PFQF_CTL_0, val);
 
 	return 0;
 }
@@ -4213,4 +4245,455 @@ i40e_status i40e_aq_configure_partition_bw(struct i40e_hw *hw,
 				       cmd_details);
 
 	return status;
+}
+
+/**
+ * i40e_read_phy_register
+ * @hw: pointer to the HW structure
+ * @page: registers page number
+ * @reg: register address in the page
+ * @phy_adr: PHY address on MDIO interface
+ * @value: PHY register value
+ *
+ * Reads specified PHY register value
+ **/
+i40e_status i40e_read_phy_register(struct i40e_hw *hw,
+				   u8 page, u16 reg, u8 phy_addr,
+				   u16 *value)
+{
+	i40e_status status = I40E_ERR_TIMEOUT;
+	u32 command = 0;
+	u16 retry = 1000;
+	u8 port_num = hw->func_caps.mdio_port_num;
+
+	command = (reg << I40E_GLGEN_MSCA_MDIADD_SHIFT) |
+		  (page << I40E_GLGEN_MSCA_DEVADD_SHIFT) |
+		  (phy_addr << I40E_GLGEN_MSCA_PHYADD_SHIFT) |
+		  (I40E_MDIO_OPCODE_ADDRESS) |
+		  (I40E_MDIO_STCODE) |
+		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
+		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
+	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
+	do {
+		command = rd32(hw, I40E_GLGEN_MSCA(port_num));
+		if (!(command & I40E_GLGEN_MSCA_MDICMD_MASK)) {
+			status = 0;
+			break;
+		}
+		usleep_range(10, 20);
+		retry--;
+	} while (retry);
+
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_PHY,
+			   "PHY: Can't write command to external PHY.\n");
+		goto phy_read_end;
+	}
+
+	command = (page << I40E_GLGEN_MSCA_DEVADD_SHIFT) |
+		  (phy_addr << I40E_GLGEN_MSCA_PHYADD_SHIFT) |
+		  (I40E_MDIO_OPCODE_READ) |
+		  (I40E_MDIO_STCODE) |
+		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
+		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
+	status = I40E_ERR_TIMEOUT;
+	retry = 1000;
+	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
+	do {
+		command = rd32(hw, I40E_GLGEN_MSCA(port_num));
+		if (!(command & I40E_GLGEN_MSCA_MDICMD_MASK)) {
+			status = 0;
+			break;
+		}
+		usleep_range(10, 20);
+		retry--;
+	} while (retry);
+
+	if (!status) {
+		command = rd32(hw, I40E_GLGEN_MSRWD(port_num));
+		*value = (command & I40E_GLGEN_MSRWD_MDIRDDATA_MASK) >>
+			 I40E_GLGEN_MSRWD_MDIRDDATA_SHIFT;
+	} else {
+		i40e_debug(hw, I40E_DEBUG_PHY,
+			   "PHY: Can't read register value from external PHY.\n");
+	}
+
+phy_read_end:
+	return status;
+}
+
+/**
+ * i40e_write_phy_register
+ * @hw: pointer to the HW structure
+ * @page: registers page number
+ * @reg: register address in the page
+ * @phy_adr: PHY address on MDIO interface
+ * @value: PHY register value
+ *
+ * Writes value to specified PHY register
+ **/
+i40e_status i40e_write_phy_register(struct i40e_hw *hw,
+				    u8 page, u16 reg, u8 phy_addr,
+				    u16 value)
+{
+	i40e_status status = I40E_ERR_TIMEOUT;
+	u32 command = 0;
+	u16 retry = 1000;
+	u8 port_num = hw->func_caps.mdio_port_num;
+
+	command = (reg << I40E_GLGEN_MSCA_MDIADD_SHIFT) |
+		  (page << I40E_GLGEN_MSCA_DEVADD_SHIFT) |
+		  (phy_addr << I40E_GLGEN_MSCA_PHYADD_SHIFT) |
+		  (I40E_MDIO_OPCODE_ADDRESS) |
+		  (I40E_MDIO_STCODE) |
+		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
+		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
+	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
+	do {
+		command = rd32(hw, I40E_GLGEN_MSCA(port_num));
+		if (!(command & I40E_GLGEN_MSCA_MDICMD_MASK)) {
+			status = 0;
+			break;
+		}
+		usleep_range(10, 20);
+		retry--;
+	} while (retry);
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_PHY,
+			   "PHY: Can't write command to external PHY.\n");
+		goto phy_write_end;
+	}
+
+	command = value << I40E_GLGEN_MSRWD_MDIWRDATA_SHIFT;
+	wr32(hw, I40E_GLGEN_MSRWD(port_num), command);
+
+	command = (page << I40E_GLGEN_MSCA_DEVADD_SHIFT) |
+		  (phy_addr << I40E_GLGEN_MSCA_PHYADD_SHIFT) |
+		  (I40E_MDIO_OPCODE_WRITE) |
+		  (I40E_MDIO_STCODE) |
+		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
+		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
+	status = I40E_ERR_TIMEOUT;
+	retry = 1000;
+	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
+	do {
+		command = rd32(hw, I40E_GLGEN_MSCA(port_num));
+		if (!(command & I40E_GLGEN_MSCA_MDICMD_MASK)) {
+			status = 0;
+			break;
+		}
+		usleep_range(10, 20);
+		retry--;
+	} while (retry);
+
+phy_write_end:
+	return status;
+}
+
+/**
+ * i40e_get_phy_address
+ * @hw: pointer to the HW structure
+ * @dev_num: PHY port num that address we want
+ * @phy_addr: Returned PHY address
+ *
+ * Gets PHY address for current port
+ **/
+u8 i40e_get_phy_address(struct i40e_hw *hw, u8 dev_num)
+{
+	u8 port_num = hw->func_caps.mdio_port_num;
+	u32 reg_val = rd32(hw, I40E_GLGEN_MDIO_I2C_SEL(port_num));
+
+	return (u8)(reg_val >> ((dev_num + 1) * 5)) & 0x1f;
+}
+
+/**
+ * i40e_blink_phy_led
+ * @hw: pointer to the HW structure
+ * @time: time how long led will blinks in secs
+ * @interval: gap between LED on and off in msecs
+ *
+ * Blinks PHY link LED
+ **/
+i40e_status i40e_blink_phy_link_led(struct i40e_hw *hw,
+				    u32 time, u32 interval)
+{
+	i40e_status status = 0;
+	u32 i;
+	u16 led_ctl;
+	u16 gpio_led_port;
+	u16 led_reg;
+	u16 led_addr = I40E_PHY_LED_PROV_REG_1;
+	u8 phy_addr = 0;
+	u8 port_num;
+
+	i = rd32(hw, I40E_PFGEN_PORTNUM);
+	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
+	phy_addr = i40e_get_phy_address(hw, port_num);
+
+	for (gpio_led_port = 0; gpio_led_port < 3; gpio_led_port++,
+	     led_addr++) {
+		status = i40e_read_phy_register(hw, I40E_PHY_COM_REG_PAGE,
+						led_addr, phy_addr, &led_reg);
+		if (status)
+			goto phy_blinking_end;
+		led_ctl = led_reg;
+		if (led_reg & I40E_PHY_LED_LINK_MODE_MASK) {
+			led_reg = 0;
+			status = i40e_write_phy_register(hw,
+							 I40E_PHY_COM_REG_PAGE,
+							 led_addr, phy_addr,
+							 led_reg);
+			if (status)
+				goto phy_blinking_end;
+			break;
+		}
+	}
+
+	if (time > 0 && interval > 0) {
+		for (i = 0; i < time * 1000; i += interval) {
+			status = i40e_read_phy_register(hw,
+							I40E_PHY_COM_REG_PAGE,
+							led_addr, phy_addr,
+							&led_reg);
+			if (status)
+				goto restore_config;
+			if (led_reg & I40E_PHY_LED_MANUAL_ON)
+				led_reg = 0;
+			else
+				led_reg = I40E_PHY_LED_MANUAL_ON;
+			status = i40e_write_phy_register(hw,
+							 I40E_PHY_COM_REG_PAGE,
+							 led_addr, phy_addr,
+							 led_reg);
+			if (status)
+				goto restore_config;
+			msleep(interval);
+		}
+	}
+
+restore_config:
+	status = i40e_write_phy_register(hw, I40E_PHY_COM_REG_PAGE, led_addr,
+					 phy_addr, led_ctl);
+
+phy_blinking_end:
+	return status;
+}
+
+/**
+ * i40e_led_get_phy - return current on/off mode
+ * @hw: pointer to the hw struct
+ * @led_addr: address of led register to use
+ * @val: original value of register to use
+ *
+ **/
+i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
+			     u16 *val)
+{
+	i40e_status status = 0;
+	u16 gpio_led_port;
+	u8 phy_addr = 0;
+	u16 reg_val;
+	u16 temp_addr;
+	u8 port_num;
+	u32 i;
+
+	temp_addr = I40E_PHY_LED_PROV_REG_1;
+	i = rd32(hw, I40E_PFGEN_PORTNUM);
+	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
+	phy_addr = i40e_get_phy_address(hw, port_num);
+
+	for (gpio_led_port = 0; gpio_led_port < 3; gpio_led_port++,
+	     temp_addr++) {
+		status = i40e_read_phy_register(hw, I40E_PHY_COM_REG_PAGE,
+						temp_addr, phy_addr, &reg_val);
+		if (status)
+			return status;
+		*val = reg_val;
+		if (reg_val & I40E_PHY_LED_LINK_MODE_MASK) {
+			*led_addr = temp_addr;
+			break;
+		}
+	}
+	return status;
+}
+
+/**
+ * i40e_led_set_phy
+ * @hw: pointer to the HW structure
+ * @on: true or false
+ * @mode: original val plus bit for set or ignore
+ * Set led's on or off when controlled by the PHY
+ *
+ **/
+i40e_status i40e_led_set_phy(struct i40e_hw *hw, bool on,
+			     u16 led_addr, u32 mode)
+{
+	i40e_status status = 0;
+	u16 led_ctl = 0;
+	u16 led_reg = 0;
+	u8 phy_addr = 0;
+	u8 port_num;
+	u32 i;
+
+	i = rd32(hw, I40E_PFGEN_PORTNUM);
+	port_num = (u8)(i & I40E_PFGEN_PORTNUM_PORT_NUM_MASK);
+	phy_addr = i40e_get_phy_address(hw, port_num);
+
+	status = i40e_read_phy_register(hw, I40E_PHY_COM_REG_PAGE, led_addr,
+					phy_addr, &led_reg);
+	if (status)
+		return status;
+	led_ctl = led_reg;
+	if (led_reg & I40E_PHY_LED_LINK_MODE_MASK) {
+		led_reg = 0;
+		status = i40e_write_phy_register(hw, I40E_PHY_COM_REG_PAGE,
+						 led_addr, phy_addr, led_reg);
+		if (status)
+			return status;
+	}
+	status = i40e_read_phy_register(hw, I40E_PHY_COM_REG_PAGE,
+					led_addr, phy_addr, &led_reg);
+	if (status)
+		goto restore_config;
+	if (on)
+		led_reg = I40E_PHY_LED_MANUAL_ON;
+	else
+		led_reg = 0;
+	status = i40e_write_phy_register(hw, I40E_PHY_COM_REG_PAGE,
+					 led_addr, phy_addr, led_reg);
+	if (status)
+		goto restore_config;
+	if (mode & I40E_PHY_LED_MODE_ORIG) {
+		led_ctl = (mode & I40E_PHY_LED_MODE_MASK);
+		status = i40e_write_phy_register(hw,
+						 I40E_PHY_COM_REG_PAGE,
+						 led_addr, phy_addr, led_ctl);
+	}
+	return status;
+restore_config:
+	status = i40e_write_phy_register(hw, I40E_PHY_COM_REG_PAGE, led_addr,
+					 phy_addr, led_ctl);
+	return status;
+}
+
+/**
+ * i40e_aq_rx_ctl_read_register - use FW to read from an Rx control register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ * @reg_val: ptr to register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Use the firmware to read the Rx control register,
+ * especially useful if the Rx unit is under heavy pressure
+ **/
+i40e_status i40e_aq_rx_ctl_read_register(struct i40e_hw *hw,
+				u32 reg_addr, u32 *reg_val,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_rx_ctl_reg_read_write *cmd_resp =
+		(struct i40e_aqc_rx_ctl_reg_read_write *)&desc.params.raw;
+	i40e_status status;
+
+	if (!reg_val)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_rx_ctl_reg_read);
+
+	cmd_resp->address = cpu_to_le32(reg_addr);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	if (status == 0)
+		*reg_val = le32_to_cpu(cmd_resp->value);
+
+	return status;
+}
+
+/**
+ * i40e_read_rx_ctl - read from an Rx control register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ **/
+u32 i40e_read_rx_ctl(struct i40e_hw *hw, u32 reg_addr)
+{
+	i40e_status status = 0;
+	bool use_register;
+	int retry = 5;
+	u32 val = 0;
+
+	use_register = (hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver < 5);
+	if (!use_register) {
+do_retry:
+		status = i40e_aq_rx_ctl_read_register(hw, reg_addr, &val, NULL);
+		if (hw->aq.asq_last_status == I40E_AQ_RC_EAGAIN && retry) {
+			usleep_range(1000, 2000);
+			retry--;
+			goto do_retry;
+		}
+	}
+
+	/* if the AQ access failed, try the old-fashioned way */
+	if (status || use_register)
+		val = rd32(hw, reg_addr);
+
+	return val;
+}
+
+/**
+ * i40e_aq_rx_ctl_write_register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ * @reg_val: register value
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Use the firmware to write to an Rx control register,
+ * especially useful if the Rx unit is under heavy pressure
+ **/
+i40e_status i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
+				u32 reg_addr, u32 reg_val,
+				struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	struct i40e_aqc_rx_ctl_reg_read_write *cmd =
+		(struct i40e_aqc_rx_ctl_reg_read_write *)&desc.params.raw;
+	i40e_status status;
+
+	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_rx_ctl_reg_write);
+
+	cmd->address = cpu_to_le32(reg_addr);
+	cmd->value = cpu_to_le32(reg_val);
+
+	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+
+	return status;
+}
+
+/**
+ * i40e_write_rx_ctl - write to an Rx control register
+ * @hw: pointer to the hw struct
+ * @reg_addr: register address
+ * @reg_val: register value
+ **/
+void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val)
+{
+	i40e_status status = 0;
+	bool use_register;
+	int retry = 5;
+
+	use_register = (hw->aq.api_maj_ver == 1) && (hw->aq.api_min_ver < 5);
+	if (!use_register) {
+do_retry:
+		status = i40e_aq_rx_ctl_write_register(hw, reg_addr,
+						       reg_val, NULL);
+		if (hw->aq.asq_last_status == I40E_AQ_RC_EAGAIN && retry) {
+			usleep_range(1000, 2000);
+			retry--;
+			goto do_retry;
+		}
+	}
+
+	/* if the AQ access failed, try the old-fashioned way */
+	if (status || use_register)
+		wr32(hw, reg_addr, reg_val);
 }

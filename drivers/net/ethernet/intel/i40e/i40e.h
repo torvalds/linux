@@ -111,6 +111,7 @@
 #define I40E_OEM_VER_PATCH_MASK    0xff
 #define I40E_OEM_VER_BUILD_SHIFT   8
 #define I40E_OEM_VER_SHIFT         24
+#define I40E_PHY_DEBUG_PORT        BIT(4)
 
 /* The values in here are decimal coded as hex as is the case in the NVM map*/
 #define I40E_CURRENT_NVM_VERSION_HI 0x2
@@ -355,6 +356,7 @@ struct i40e_pf {
 #define I40E_FLAG_NO_DCB_SUPPORT		BIT_ULL(45)
 #define I40E_FLAG_USE_SET_LLDP_MIB		BIT_ULL(46)
 #define I40E_FLAG_STOP_FW_LLDP			BIT_ULL(47)
+#define I40E_FLAG_HAVE_10GBASET_PHY		BIT_ULL(48)
 #define I40E_FLAG_PF_MAC			BIT_ULL(50)
 
 	/* tracks features that get auto disabled by errors */
@@ -440,6 +442,7 @@ struct i40e_pf {
 
 	u32 ioremap_len;
 	u32 fd_inv;
+	u16 phy_led_val;
 };
 
 struct i40e_mac_filter {
@@ -518,13 +521,6 @@ struct i40e_vsi {
 	struct i40e_ring **tx_rings;
 
 	u16 work_limit;
-	/* high bit set means dynamic, use accessor routines to read/write.
-	 * hardware only supports 2us resolution for the ITR registers.
-	 * these values always store the USER setting, and must be converted
-	 * before programming to a register.
-	 */
-	u16 rx_itr_setting;
-	u16 tx_itr_setting;
 	u16 int_rate_limit;  /* value in usecs */
 
 	u16 rss_table_size; /* HW RSS table size */

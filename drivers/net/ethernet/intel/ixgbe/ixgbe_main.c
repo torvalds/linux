@@ -8400,9 +8400,6 @@ int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 
 	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
 	    tc->type == TC_SETUP_CLSU32) {
-		if (!(dev->features & NETIF_F_HW_TC))
-			return -EINVAL;
-
 		switch (tc->cls_u32->command) {
 		case TC_CLSU32_NEW_KNODE:
 		case TC_CLSU32_REPLACE_KNODE:
@@ -8422,7 +8419,7 @@ int __ixgbe_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		}
 	}
 
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	return ixgbe_setup_tc(dev, tc->tc);

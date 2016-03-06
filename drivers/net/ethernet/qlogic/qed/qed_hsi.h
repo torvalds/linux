@@ -968,7 +968,7 @@ struct igu_msix_vector {
 
 enum init_modes {
 	MODE_BB_A0,
-	MODE_RESERVED,
+	MODE_BB_B0,
 	MODE_RESERVED2,
 	MODE_ASIC,
 	MODE_RESERVED3,

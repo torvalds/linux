@@ -24,12 +24,13 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2016.0"
+#define BATADV_SOURCE_VERSION "2016.1"
 #endif
 
 /* B.A.T.M.A.N. parameters */
 
 #define BATADV_TQ_MAX_VALUE 255
+#define BATADV_THROUGHPUT_MAX_VALUE 0xFFFFFFFF
 #define BATADV_JITTER 20
 
 /* Time To Live of broadcast messages */
@@ -59,6 +60,15 @@
 #define BATADV_TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define BATADV_TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define BATADV_TQ_TOTAL_BIDRECT_LIMIT 1
+
+/* B.A.T.M.A.N. V */
+#define BATADV_THROUGHPUT_DEFAULT_VALUE 10 /* 1 Mbps */
+#define BATADV_ELP_PROBES_PER_NODE 2
+#define BATADV_ELP_MIN_PROBE_SIZE 200 /* bytes */
+#define BATADV_ELP_PROBE_MAX_TX_DIFF 100 /* milliseconds */
+#define BATADV_ELP_MAX_AGE 64
+#define BATADV_OGM_MAX_ORIGDIFF 5
+#define BATADV_OGM_MAX_AGE 64
 
 /* number of OGMs sent with the last tt diff */
 #define BATADV_TT_OGM_APPEND_MAX 3
@@ -99,11 +109,6 @@
  * at most from the primary one in order to be still considered acceptable
  */
 #define BATADV_TQ_SIMILARITY_THRESHOLD 50
-
-/* how much worse secondary interfaces may be to be considered as bonding
- * candidates
- */
-#define BATADV_BONDING_TQ_THRESHOLD	50
 
 /* should not be bigger than 512 bytes or change the size of
  * forw_packet->direct_link_flags

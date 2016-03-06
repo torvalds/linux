@@ -36,10 +36,10 @@
  */
 static int port_cost(struct net_device *dev)
 {
-	struct ethtool_cmd ecmd;
+	struct ethtool_link_ksettings ecmd;
 
-	if (!__ethtool_get_settings(dev, &ecmd)) {
-		switch (ethtool_cmd_speed(&ecmd)) {
+	if (!__ethtool_get_link_ksettings(dev, &ecmd)) {
+		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
 		case SPEED_1000:
@@ -223,6 +223,31 @@ static void destroy_nbp_rcu(struct rcu_head *head)
 	destroy_nbp(p);
 }
 
+static unsigned get_max_headroom(struct net_bridge *br)
+{
+	unsigned max_headroom = 0;
+	struct net_bridge_port *p;
+
+	list_for_each_entry(p, &br->port_list, list) {
+		unsigned dev_headroom = netdev_get_fwd_headroom(p->dev);
+
+		if (dev_headroom > max_headroom)
+			max_headroom = dev_headroom;
+	}
+
+	return max_headroom;
+}
+
+static void update_headroom(struct net_bridge *br, int new_hr)
+{
+	struct net_bridge_port *p;
+
+	list_for_each_entry(p, &br->port_list, list)
+		netdev_set_rx_headroom(p->dev, new_hr);
+
+	br->dev->needed_headroom = new_hr;
+}
+
 /* Delete port(interface) from bridge is done in two steps.
  * via RCU. First step, marks device as down. That deletes
  * all the timers and stops new packets from flowing through.
@@ -248,6 +273,9 @@ static void del_nbp(struct net_bridge_port *p)
 	br_ifinfo_notify(RTM_DELLINK, p);
 
 	list_del_rcu(&p->list);
+	if (netdev_get_fwd_headroom(dev) == br->dev->needed_headroom)
+		update_headroom(br, get_max_headroom(br));
+	netdev_reset_rx_headroom(dev);
 
 	nbp_vlan_flush(p);
 	br_fdb_delete_by_port(br, p, 0, 1);
@@ -438,6 +466,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 {
 	struct net_bridge_port *p;
 	int err = 0;
+	unsigned br_hr, dev_hr;
 	bool changed_addr;
 
 	/* Don't allow bridging non-ethernet like devices, or DSA-enabled
@@ -505,8 +534,12 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	netdev_update_features(br->dev);
 
-	if (br->dev->needed_headroom < dev->needed_headroom)
-		br->dev->needed_headroom = dev->needed_headroom;
+	br_hr = br->dev->needed_headroom;
+	dev_hr = netdev_get_fwd_headroom(dev);
+	if (br_hr < dev_hr)
+		update_headroom(br, dev_hr);
+	else
+		netdev_set_rx_headroom(dev, br_hr);
 
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");

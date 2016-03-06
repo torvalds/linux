@@ -49,15 +49,29 @@
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
-/* send out an already prepared packet to the given address via the
- * specified batman interface
+/**
+ * batadv_send_skb_packet - send an already prepared packet
+ * @skb: the packet to send
+ * @hard_iface: the interface to use to send the broadcast packet
+ * @dst_addr: the payload destination
+ *
+ * Send out an already prepared packet to the given neighbor or broadcast it
+ * using the specified interface. Either hard_iface or neigh_node must be not
+ * NULL.
+ * If neigh_node is NULL, then the packet is broadcasted using hard_iface,
+ * otherwise it is sent as unicast to the given neighbor.
+ *
+ * Return: NET_TX_DROP in case of error or the result of dev_queue_xmit(skb)
+ * otherwise
  */
 int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
 			   const u8 *dst_addr)
 {
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
+
+	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto send_skb_err;
@@ -98,6 +112,35 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 send_skb_err:
 	kfree_skb(skb);
 	return NET_XMIT_DROP;
+}
+
+int batadv_send_broadcast_skb(struct sk_buff *skb,
+			      struct batadv_hard_iface *hard_iface)
+{
+	return batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
+}
+
+int batadv_send_unicast_skb(struct sk_buff *skb,
+			    struct batadv_neigh_node *neigh)
+{
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	struct batadv_hardif_neigh_node *hardif_neigh;
+#endif
+	int ret;
+
+	ret = batadv_send_skb_packet(skb, neigh->if_incoming, neigh->addr);
+
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	hardif_neigh = batadv_hardif_neigh_get(neigh->if_incoming, neigh->addr);
+
+	if ((hardif_neigh) && (ret != NET_XMIT_DROP))
+		hardif_neigh->bat_v.last_unicast_tx = jiffies;
+
+	if (hardif_neigh)
+		batadv_hardif_neigh_put(hardif_neigh);
+#endif
+
+	return ret;
 }
 
 /**
@@ -146,14 +189,13 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	if (recv_if && batadv_nc_skb_forward(skb, neigh_node)) {
 		ret = NET_XMIT_POLICED;
 	} else {
-		batadv_send_skb_packet(skb, neigh_node->if_incoming,
-				       neigh_node->addr);
+		batadv_send_unicast_skb(skb, neigh_node);
 		ret = NET_XMIT_SUCCESS;
 	}
 
 out:
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 
 	return ret;
 }
@@ -246,7 +288,7 @@ bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
 	ret = true;
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return ret;
 }
 
@@ -317,7 +359,7 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 
 out:
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	if (ret == NET_XMIT_DROP)
 		kfree_skb(skb);
 	return ret;
@@ -409,9 +451,9 @@ static void batadv_forw_packet_free(struct batadv_forw_packet *forw_packet)
 {
 	kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
-		batadv_hardif_free_ref(forw_packet->if_incoming);
+		batadv_hardif_put(forw_packet->if_incoming);
 	if (forw_packet->if_outgoing)
-		batadv_hardif_free_ref(forw_packet->if_outgoing);
+		batadv_hardif_put(forw_packet->if_outgoing);
 	kfree(forw_packet);
 }
 
@@ -497,7 +539,7 @@ out_and_inc:
 	atomic_inc(&bat_priv->bcast_queue_left);
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	return NETDEV_TX_BUSY;
 }
 
@@ -538,8 +580,7 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
-			batadv_send_skb_packet(skb1, hard_iface,
-					       batadv_broadcast_addr);
+			batadv_send_broadcast_skb(skb1, hard_iface);
 	}
 	rcu_read_unlock();
 

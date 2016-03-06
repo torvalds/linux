@@ -247,8 +247,9 @@ struct ieee802154_ops {
  */
 static inline __le16 ieee802154_get_fc_from_skb(const struct sk_buff *skb)
 {
-	/* return some invalid fc on failure */
-	if (unlikely(skb->len < 2)) {
+	/* check if we can fc at skb_mac_header of sk buffer */
+	if (unlikely(!skb_mac_header_was_set(skb) ||
+		     (skb_tail_pointer(skb) - skb_mac_header(skb)) < 2)) {
 		WARN_ON(1);
 		return cpu_to_le16(0);
 	}

@@ -65,6 +65,7 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
 	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
+	ARG_CONST_STACK_SIZE_OR_ZERO, /* number of bytes accessed from stack or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
@@ -237,6 +238,7 @@ extern const struct bpf_func_proto bpf_get_current_uid_gid_proto;
 extern const struct bpf_func_proto bpf_get_current_comm_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_push_proto;
 extern const struct bpf_func_proto bpf_skb_vlan_pop_proto;
+extern const struct bpf_func_proto bpf_get_stackid_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

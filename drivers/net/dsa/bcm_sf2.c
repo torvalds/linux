@@ -483,16 +483,17 @@ static int bcm_sf2_sw_fast_age_port(struct dsa_switch  *ds, int port)
 }
 
 static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
-			      u32 br_port_mask)
+			      struct net_device *bridge)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	unsigned int i;
 	u32 reg, p_ctl;
 
+	priv->port_sts[port].bridge_dev = bridge;
 	p_ctl = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(port));
 
 	for (i = 0; i < priv->hw_params.num_ports; i++) {
-		if (!((1 << i) & br_port_mask))
+		if (priv->port_sts[i].bridge_dev != bridge)
 			continue;
 
 		/* Add this local port to the remote port VLAN control
@@ -515,10 +516,10 @@ static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port,
-			       u32 br_port_mask)
+static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct net_device *bridge = priv->port_sts[port].bridge_dev;
 	unsigned int i;
 	u32 reg, p_ctl;
 
@@ -526,7 +527,7 @@ static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port,
 
 	for (i = 0; i < priv->hw_params.num_ports; i++) {
 		/* Don't touch the remaining ports */
-		if (!((1 << i) & br_port_mask))
+		if (priv->port_sts[i].bridge_dev != bridge)
 			continue;
 
 		reg = core_readl(priv, CORE_PORT_VLAN_CTL_PORT(i));
@@ -541,6 +542,7 @@ static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port,
 
 	core_writel(priv, p_ctl, CORE_PORT_VLAN_CTL_PORT(port));
 	priv->port_sts[port].vlan_ctl_mask = p_ctl;
+	priv->port_sts[port].bridge_dev = NULL;
 
 	return 0;
 }

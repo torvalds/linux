@@ -1598,7 +1598,6 @@ rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
 
 	if (!wops->port_obj_vlan_add)
 		return -EOPNOTSUPP;
-		return 0;
 	return wops->port_obj_vlan_add(rocker_port, vlan, trans);
 }
 

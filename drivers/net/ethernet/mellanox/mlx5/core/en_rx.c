@@ -167,14 +167,15 @@ static inline bool is_first_ethertype_ip(struct sk_buff *skb)
 static inline void mlx5e_handle_csum(struct net_device *netdev,
 				     struct mlx5_cqe64 *cqe,
 				     struct mlx5e_rq *rq,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb,
+				     bool   lro)
 {
 	if (unlikely(!(netdev->features & NETIF_F_RXCSUM)))
 		goto csum_none;
 
-	if (likely(cqe->hds_ip_ext & CQE_L4_OK)) {
+	if (lro) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else if (is_first_ethertype_ip(skb)) {
+	} else if (likely(is_first_ethertype_ip(skb))) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		rq->stats.csum_sw++;
@@ -211,7 +212,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		mlx5e_fill_hwstamp(tstamp, get_cqe_ts(cqe), skb_hwtstamps(skb));
 
-	mlx5e_handle_csum(netdev, cqe, rq, skb);
+	mlx5e_handle_csum(netdev, cqe, rq, skb, !!lro_num_seg);
 
 	skb->protocol = eth_type_trans(skb, netdev);
 

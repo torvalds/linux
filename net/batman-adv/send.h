@@ -28,12 +28,16 @@
 struct sk_buff;
 struct work_struct;
 
-int batadv_send_skb_packet(struct sk_buff *skb,
-			   struct batadv_hard_iface *hard_iface,
-			   const u8 *dst_addr);
 int batadv_send_skb_to_orig(struct sk_buff *skb,
 			    struct batadv_orig_node *orig_node,
 			    struct batadv_hard_iface *recv_if);
+int batadv_send_skb_packet(struct sk_buff *skb,
+			   struct batadv_hard_iface *hard_iface,
+			   const u8 *dst_addr);
+int batadv_send_broadcast_skb(struct sk_buff *skb,
+			      struct batadv_hard_iface *hard_iface);
+int batadv_send_unicast_skb(struct sk_buff *skb,
+			    struct batadv_neigh_node *neigh_node);
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface);
 int batadv_add_bcast_packet_to_list(struct batadv_priv *bat_priv,
 				    const struct sk_buff *skb,

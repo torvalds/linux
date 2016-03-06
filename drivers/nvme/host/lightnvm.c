@@ -146,9 +146,10 @@ struct nvme_nvm_command {
 	};
 };
 
+#define NVME_NVM_LP_MLC_PAIRS 886
 struct nvme_nvm_lp_mlc {
 	__u16			num_pairs;
-	__u8			pairs[886];
+	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
 };
 
 struct nvme_nvm_lp_tbl {
@@ -282,9 +283,14 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 			memcpy(dst->lptbl.id, src->lptbl.id, 8);
 			dst->lptbl.mlc.num_pairs =
 					le16_to_cpu(src->lptbl.mlc.num_pairs);
-			/* 4 bits per pair */
+
+			if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
+				pr_err("nvm: number of MLC pairs not supported\n");
+				return -EINVAL;
+			}
+
 			memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
-						dst->lptbl.mlc.num_pairs >> 1);
+						dst->lptbl.mlc.num_pairs);
 		}
 	}
 

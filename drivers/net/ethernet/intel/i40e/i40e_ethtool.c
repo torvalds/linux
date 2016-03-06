@@ -1826,28 +1826,52 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			    enum ethtool_phys_id_state state)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	i40e_status ret = 0;
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	int blink_freq = 2;
+	u16 temp_status;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		pf->led_status = i40e_led_get(hw);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
+			pf->led_status = i40e_led_get(hw);
+		} else {
+			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_PORT, NULL);
+			ret = i40e_led_get_phy(hw, &temp_status,
+					       &pf->phy_led_val);
+			pf->led_status = temp_status;
+		}
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		i40e_led_set(hw, 0xF, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+			i40e_led_set(hw, 0xf, false);
+		else
+			ret = i40e_led_set_phy(hw, true, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_OFF:
-		i40e_led_set(hw, 0x0, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+			i40e_led_set(hw, 0x0, false);
+		else
+			ret = i40e_led_set_phy(hw, false, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		i40e_led_set(hw, pf->led_status, false);
+		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
+			i40e_led_set(hw, false, pf->led_status);
+		} else {
+			ret = i40e_led_set_phy(hw, false, pf->led_status,
+					       (pf->phy_led_val |
+					       I40E_PHY_LED_MODE_ORIG));
+			i40e_aq_set_phy_debug(hw, 0, NULL);
+		}
 		break;
 	default:
 		break;
 	}
-
-	return 0;
+		if (ret)
+			return -ENOENT;
+		else
+			return 0;
 }
 
 /* NOTE: i40e hardware uses a conversion factor of 2 for Interrupt
@@ -1855,8 +1879,9 @@ static int i40e_set_phys_id(struct net_device *netdev,
  * 125us (8000 interrupts per second) == ITR(62)
  */
 
-static int i40e_get_coalesce(struct net_device *netdev,
-			     struct ethtool_coalesce *ec)
+static int __i40e_get_coalesce(struct net_device *netdev,
+			       struct ethtool_coalesce *ec,
+			       int queue)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -1864,14 +1889,24 @@ static int i40e_get_coalesce(struct net_device *netdev,
 	ec->tx_max_coalesced_frames_irq = vsi->work_limit;
 	ec->rx_max_coalesced_frames_irq = vsi->work_limit;
 
-	if (ITR_IS_DYNAMIC(vsi->rx_itr_setting))
+	/* rx and tx usecs has per queue value. If user doesn't specify the queue,
+	 * return queue 0's value to represent.
+	 */
+	if (queue < 0) {
+		queue = 0;
+	} else if (queue >= vsi->num_queue_pairs) {
+		return -EINVAL;
+	}
+
+	if (ITR_IS_DYNAMIC(vsi->rx_rings[queue]->rx_itr_setting))
 		ec->use_adaptive_rx_coalesce = 1;
 
-	if (ITR_IS_DYNAMIC(vsi->tx_itr_setting))
+	if (ITR_IS_DYNAMIC(vsi->tx_rings[queue]->tx_itr_setting))
 		ec->use_adaptive_tx_coalesce = 1;
 
-	ec->rx_coalesce_usecs = vsi->rx_itr_setting & ~I40E_ITR_DYNAMIC;
-	ec->tx_coalesce_usecs = vsi->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->rx_coalesce_usecs = vsi->rx_rings[queue]->rx_itr_setting & ~I40E_ITR_DYNAMIC;
+	ec->tx_coalesce_usecs = vsi->tx_rings[queue]->tx_itr_setting & ~I40E_ITR_DYNAMIC;
+
 	/* we use the _usecs_high to store/set the interrupt rate limit
 	 * that the hardware supports, that almost but not quite
 	 * fits the original intent of the ethtool variable,
@@ -1884,15 +1919,63 @@ static int i40e_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int i40e_set_coalesce(struct net_device *netdev,
+static int i40e_get_coalesce(struct net_device *netdev,
 			     struct ethtool_coalesce *ec)
 {
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_q_vector *q_vector;
-	struct i40e_vsi *vsi = np->vsi;
+	return __i40e_get_coalesce(netdev, ec, -1);
+}
+
+static int i40e_get_per_queue_coalesce(struct net_device *netdev, u32 queue,
+				       struct ethtool_coalesce *ec)
+{
+	return __i40e_get_coalesce(netdev, ec, queue);
+}
+
+static void i40e_set_itr_per_queue(struct i40e_vsi *vsi,
+				   struct ethtool_coalesce *ec,
+				   int queue)
+{
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	u16 vector;
+	struct i40e_q_vector *q_vector;
+	u16 vector, intrl;
+
+	intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
+
+	vsi->rx_rings[queue]->rx_itr_setting = ec->rx_coalesce_usecs;
+	vsi->tx_rings[queue]->tx_itr_setting = ec->tx_coalesce_usecs;
+
+	if (ec->use_adaptive_rx_coalesce)
+		vsi->rx_rings[queue]->rx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->rx_rings[queue]->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	if (ec->use_adaptive_tx_coalesce)
+		vsi->tx_rings[queue]->tx_itr_setting |= I40E_ITR_DYNAMIC;
+	else
+		vsi->tx_rings[queue]->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+
+	q_vector = vsi->rx_rings[queue]->q_vector;
+	q_vector->rx.itr = ITR_TO_REG(vsi->rx_rings[queue]->rx_itr_setting);
+	vector = vsi->base_vector + q_vector->v_idx;
+	wr32(hw, I40E_PFINT_ITRN(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
+
+	q_vector = vsi->tx_rings[queue]->q_vector;
+	q_vector->tx.itr = ITR_TO_REG(vsi->tx_rings[queue]->tx_itr_setting);
+	vector = vsi->base_vector + q_vector->v_idx;
+	wr32(hw, I40E_PFINT_ITRN(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
+
+	wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
+	i40e_flush(hw);
+}
+
+static int __i40e_set_coalesce(struct net_device *netdev,
+			       struct ethtool_coalesce *ec,
+			       int queue)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
 	int i;
 
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
@@ -1909,57 +1992,53 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	vector = vsi->base_vector;
-	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
-		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-	} else if (ec->rx_coalesce_usecs == 0) {
-		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
+	if (ec->rx_coalesce_usecs == 0) {
 		if (ec->use_adaptive_rx_coalesce)
 			netif_info(pf, drv, netdev, "rx-usecs=0, need to disable adaptive-rx for a complete disable\n");
-	} else {
-		netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
-		return -EINVAL;
+	} else if ((ec->rx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
+		   (ec->rx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+			netif_info(pf, drv, netdev, "Invalid value, rx-usecs range is 0-8160\n");
+			return -EINVAL;
 	}
 
 	vsi->int_rate_limit = ec->rx_coalesce_usecs_high;
 
-	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
-		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-	} else if (ec->tx_coalesce_usecs == 0) {
-		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
+	if (ec->tx_coalesce_usecs == 0) {
 		if (ec->use_adaptive_tx_coalesce)
 			netif_info(pf, drv, netdev, "tx-usecs=0, need to disable adaptive-tx for a complete disable\n");
+	} else if ((ec->tx_coalesce_usecs < (I40E_MIN_ITR << 1)) ||
+		   (ec->tx_coalesce_usecs > (I40E_MAX_ITR << 1))) {
+			netif_info(pf, drv, netdev, "Invalid value, tx-usecs range is 0-8160\n");
+			return -EINVAL;
+	}
+
+	/* rx and tx usecs has per queue value. If user doesn't specify the queue,
+	 * apply to all queues.
+	 */
+	if (queue < 0) {
+		for (i = 0; i < vsi->num_queue_pairs; i++)
+			i40e_set_itr_per_queue(vsi, ec, i);
+	} else if (queue < vsi->num_queue_pairs) {
+		i40e_set_itr_per_queue(vsi, ec, queue);
 	} else {
-		netif_info(pf, drv, netdev,
-			   "Invalid value, tx-usecs range is 0-8160\n");
+		netif_info(pf, drv, netdev, "Invalid queue value, queue range is 0 - %d\n",
+			   vsi->num_queue_pairs - 1);
 		return -EINVAL;
 	}
 
-	if (ec->use_adaptive_rx_coalesce)
-		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		vsi->rx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	if (ec->use_adaptive_tx_coalesce)
-		vsi->tx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
-
-	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
-		u16 intrl = INTRL_USEC_TO_REG(vsi->int_rate_limit);
-
-		q_vector = vsi->q_vectors[i];
-		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);
-		wr32(hw, I40E_PFINT_ITRN(0, vector - 1), q_vector->rx.itr);
-		q_vector->tx.itr = ITR_TO_REG(vsi->tx_itr_setting);
-		wr32(hw, I40E_PFINT_ITRN(1, vector - 1), q_vector->tx.itr);
-		wr32(hw, I40E_PFINT_RATEN(vector - 1), intrl);
-		i40e_flush(hw);
-	}
-
 	return 0;
+}
+
+static int i40e_set_coalesce(struct net_device *netdev,
+			     struct ethtool_coalesce *ec)
+{
+	return __i40e_set_coalesce(netdev, ec, -1);
+}
+
+static int i40e_set_per_queue_coalesce(struct net_device *netdev, u32 queue,
+				       struct ethtool_coalesce *ec)
+{
+	return __i40e_set_coalesce(netdev, ec, queue);
 }
 
 /**
@@ -2157,8 +2236,8 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 {
 	struct i40e_hw *hw = &pf->hw;
-	u64 hena = (u64)rd32(hw, I40E_PFQF_HENA(0)) |
-		   ((u64)rd32(hw, I40E_PFQF_HENA(1)) << 32);
+	u64 hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
+		   ((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
 
 	/* RSS does not support anything other than hashing
 	 * to queues on src and dst IPs and ports
@@ -2267,8 +2346,8 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		return -EINVAL;
 	}
 
-	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
-	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), (u32)hena);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 	i40e_flush(hw);
 
 	/* Save setting for future output/update */
@@ -2847,6 +2926,8 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_ts_info		= i40e_get_ts_info,
 	.get_priv_flags		= i40e_get_priv_flags,
 	.set_priv_flags		= i40e_set_priv_flags,
+	.get_per_queue_coalesce	= i40e_get_per_queue_coalesce,
+	.set_per_queue_coalesce	= i40e_set_per_queue_coalesce,
 };
 
 void i40e_set_ethtool_ops(struct net_device *netdev)

@@ -596,7 +596,7 @@ static int be_mcc_notify_wait(struct be_adapter *adapter)
 	int status;
 	struct be_mcc_wrb *wrb;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
-	u16 index = mcc_obj->q.head;
+	u32 index = mcc_obj->q.head;
 	struct be_cmd_resp_hdr *resp;
 
 	index_dec(&index, mcc_obj->q.len);

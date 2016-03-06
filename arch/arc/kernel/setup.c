@@ -45,6 +45,7 @@ struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
+	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	unsigned long perip_space;
@@ -53,7 +54,11 @@ static void read_arc_build_cfg_regs(void)
 	READ_BCR(AUX_IDENTITY, cpu->core);
 	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
-	READ_BCR(ARC_REG_TIMERS_BCR, cpu->timers);
+	READ_BCR(ARC_REG_TIMERS_BCR, timer);
+	cpu->extn.timer0 = timer.t0;
+	cpu->extn.timer1 = timer.t1;
+	cpu->extn.rtc = timer.rtc;
+
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
@@ -208,9 +213,9 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       (unsigned int)(arc_get_core_freq() / 10000) % 100);
 
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
-		       IS_AVAIL1(cpu->timers.t0, "Timer0 "),
-		       IS_AVAIL1(cpu->timers.t1, "Timer1 "),
-		       IS_AVAIL2(cpu->timers.rtc, "64-bit RTC ",
+		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
+		       IS_AVAIL1(cpu->extn.timer1, "Timer1 "),
+		       IS_AVAIL2(cpu->extn.rtc, "Local-64-bit-Ctr ",
 				 CONFIG_ARC_HAS_RTC));
 
 	n += i = scnprintf(buf + n, len - n, "%s%s%s%s%s",
@@ -293,13 +298,13 @@ static void arc_chk_core_config(void)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int fpu_enabled;
 
-	if (!cpu->timers.t0)
+	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");
 
-	if (!cpu->timers.t1)
+	if (!cpu->extn.timer1)
 		panic("Timer1 is not present!\n");
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->timers.rtc)
+	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->extn.rtc)
 		panic("RTC is not present\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
@@ -334,6 +339,7 @@ static void arc_chk_core_config(void)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
 
 	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
+	    IS_ENABLED(CONFIG_ARC_HAS_LLSC) &&
 	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
 		panic("llock/scond livelock workaround missing\n");
 }

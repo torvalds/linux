@@ -154,6 +154,7 @@ static const struct of_device_id whitelist_phys[] = {
 	{ .compatible = "marvell,88E1111", },
 	{ .compatible = "marvell,88e1116", },
 	{ .compatible = "marvell,88e1118", },
+	{ .compatible = "marvell,88e1145", },
 	{ .compatible = "marvell,88e1149r", },
 	{ .compatible = "marvell,88e1310", },
 	{ .compatible = "marvell,88E1510", },
@@ -210,7 +211,6 @@ static bool of_mdiobus_child_is_phy(struct device_node *child)
 int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
 	struct device_node *child;
-	const __be32 *paddr;
 	bool scanphys = false;
 	int addr, rc;
 
@@ -245,8 +245,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	/* auto scan for PHYs with empty reg property */
 	for_each_available_child_of_node(np, child) {
 		/* Skip PHYs with reg property set */
-		paddr = of_get_property(child, "reg", NULL);
-		if (paddr)
+		if (of_find_property(child, "reg", NULL))
 			continue;
 
 		for (addr = 0; addr < PHY_MAX_ADDR; addr++) {

@@ -299,6 +299,8 @@ static const struct bpf_func_proto *kprobe_prog_func_proto(enum bpf_func_id func
 		return &bpf_perf_event_read_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_perf_event_output_proto;
+	case BPF_FUNC_get_stackid:
+		return &bpf_get_stackid_proto;
 	default:
 		return NULL;
 	}

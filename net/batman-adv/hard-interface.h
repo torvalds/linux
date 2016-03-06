@@ -64,11 +64,11 @@ void batadv_update_min_mtu(struct net_device *soft_iface);
 void batadv_hardif_release(struct kref *ref);
 
 /**
- * batadv_hardif_free_ref - decrement the hard interface refcounter and possibly
+ * batadv_hardif_put - decrement the hard interface refcounter and possibly
  *  release it
  * @hard_iface: the hard interface to free
  */
-static inline void batadv_hardif_free_ref(struct batadv_hard_iface *hard_iface)
+static inline void batadv_hardif_put(struct batadv_hard_iface *hard_iface)
 {
 	kref_put(&hard_iface->refcount, batadv_hardif_release);
 }

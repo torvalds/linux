@@ -849,9 +849,9 @@ static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
 }
 
 /* Grab a WRB header for xmit */
-static u16 be_tx_get_wrb_hdr(struct be_tx_obj *txo)
+static u32 be_tx_get_wrb_hdr(struct be_tx_obj *txo)
 {
-	u16 head = txo->q.head;
+	u32 head = txo->q.head;
 
 	queue_head_inc(&txo->q);
 	return head;
@@ -895,7 +895,7 @@ static void be_tx_setup_wrb_frag(struct be_tx_obj *txo, dma_addr_t busaddr,
  * WRBs of the current packet are unmapped. Invoked to handle tx setup errors.
  */
 static void be_xmit_restore(struct be_adapter *adapter,
-			    struct be_tx_obj *txo, u16 head, bool map_single,
+			    struct be_tx_obj *txo, u32 head, bool map_single,
 			    u32 copied)
 {
 	struct device *dev;
@@ -930,7 +930,7 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 	struct device *dev = &adapter->pdev->dev;
 	struct be_queue_info *txq = &txo->q;
 	bool map_single = false;
-	u16 head = txq->head;
+	u32 head = txq->head;
 	dma_addr_t busaddr;
 	int len;
 
@@ -1123,6 +1123,8 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 					   struct sk_buff *skb,
 					   struct be_wrb_params *wrb_params)
 {
+	int err;
+
 	/* Lancer, SH and BE3 in SRIOV mode have a bug wherein
 	 * packets that are 32b or less may cause a transmit stall
 	 * on that port. The workaround is to pad such packets
@@ -1138,6 +1140,13 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 		if (!skb)
 			return NULL;
 	}
+
+	/* The stack can send us skbs with length greater than
+	 * what the HW can handle. Trim the extra bytes.
+	 */
+	WARN_ON_ONCE(skb->len > BE_MAX_GSO_SIZE);
+	err = pskb_trim(skb, BE_MAX_GSO_SIZE);
+	WARN_ON(err);
 
 	return skb;
 }
@@ -1990,7 +1999,7 @@ static struct be_rx_page_info *get_rx_page_info(struct be_rx_obj *rxo)
 	struct be_adapter *adapter = rxo->adapter;
 	struct be_rx_page_info *rx_page_info;
 	struct be_queue_info *rxq = &rxo->q;
-	u16 frag_idx = rxq->tail;
+	u32 frag_idx = rxq->tail;
 
 	rx_page_info = &rxo->page_info_tbl[frag_idx];
 	BUG_ON(!rx_page_info->page);
@@ -2401,10 +2410,11 @@ static u16 be_tx_compl_process(struct be_adapter *adapter,
 {
 	struct sk_buff **sent_skbs = txo->sent_skb_list;
 	struct be_queue_info *txq = &txo->q;
-	u16 frag_index, num_wrbs = 0;
 	struct sk_buff *skb = NULL;
 	bool unmap_skb_hdr = false;
 	struct be_eth_wrb *wrb;
+	u16 num_wrbs = 0;
+	u32 frag_index;
 
 	do {
 		if (sent_skbs[txq->tail]) {
@@ -2516,10 +2526,11 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 
 static void be_tx_compl_clean(struct be_adapter *adapter)
 {
-	u16 end_idx, notified_idx, cmpl = 0, timeo = 0, num_wrbs = 0;
 	struct device *dev = &adapter->pdev->dev;
+	u16 cmpl = 0, timeo = 0, num_wrbs = 0;
 	struct be_tx_compl_info *txcp;
 	struct be_queue_info *txq;
+	u32 end_idx, notified_idx;
 	struct be_tx_obj *txo;
 	int i, pending_txqs;
 
@@ -4848,7 +4859,7 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->flags |= IFF_MULTICAST;
 
-	netif_set_gso_max_size(netdev, 65535 - ETH_HLEN);
+	netif_set_gso_max_size(netdev, BE_MAX_GSO_SIZE - ETH_HLEN);
 
 	netdev->netdev_ops = &be_netdev_ops;
 
@@ -5456,6 +5467,8 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
+	be_roce_dev_remove(adapter);
+
 	if (!be_check_error(adapter, BE_ERROR_EEH)) {
 		be_set_error(adapter, BE_ERROR_EEH);
 
@@ -5519,6 +5532,8 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	status = be_resume(adapter);
 	if (status)
 		goto err;
+
+	be_roce_dev_add(adapter);
 
 	be_schedule_err_detection(adapter, ERR_DETECTION_DELAY);
 	return;

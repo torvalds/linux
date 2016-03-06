@@ -197,7 +197,7 @@ struct vxlan_dev {
 #define VXLAN_F_L2MISS			0x08
 #define VXLAN_F_L3MISS			0x10
 #define VXLAN_F_IPV6			0x20
-#define VXLAN_F_UDP_CSUM		0x40
+#define VXLAN_F_UDP_ZERO_CSUM_TX	0x40
 #define VXLAN_F_UDP_ZERO_CSUM6_TX	0x80
 #define VXLAN_F_UDP_ZERO_CSUM6_RX	0x100
 #define VXLAN_F_REMCSUM_TX		0x200

@@ -147,7 +147,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn,
 	u32 size;
 
 	/* Allocate mcp_info structure */
-	p_hwfn->mcp_info = kzalloc(sizeof(*p_hwfn->mcp_info), GFP_ATOMIC);
+	p_hwfn->mcp_info = kzalloc(sizeof(*p_hwfn->mcp_info), GFP_KERNEL);
 	if (!p_hwfn->mcp_info)
 		goto err;
 	p_info = p_hwfn->mcp_info;
@@ -161,10 +161,10 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn,
 	}
 
 	size = MFW_DRV_MSG_MAX_DWORDS(p_info->mfw_mb_length) * sizeof(u32);
-	p_info->mfw_mb_cur = kzalloc(size, GFP_ATOMIC);
+	p_info->mfw_mb_cur = kzalloc(size, GFP_KERNEL);
 	p_info->mfw_mb_shadow =
 		kzalloc(sizeof(u32) * MFW_DRV_MSG_MAX_DWORDS(
-				p_info->mfw_mb_length), GFP_ATOMIC);
+				p_info->mfw_mb_length), GFP_KERNEL);
 	if (!p_info->mfw_mb_shadow || !p_info->mfw_mb_addr)
 		goto err;
 

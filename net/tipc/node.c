@@ -225,9 +225,10 @@ static unsigned int tipc_hashfn(u32 addr)
 
 static void tipc_node_kref_release(struct kref *kref)
 {
-	struct tipc_node *node = container_of(kref, struct tipc_node, kref);
+	struct tipc_node *n = container_of(kref, struct tipc_node, kref);
 
-	tipc_node_delete(node);
+	kfree(n->bc_entry.link);
+	kfree_rcu(n, rcu);
 }
 
 static void tipc_node_put(struct tipc_node *node)
@@ -245,23 +246,23 @@ static void tipc_node_get(struct tipc_node *node)
  */
 static struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_node *node;
+	unsigned int thash = tipc_hashfn(addr);
 
 	if (unlikely(!in_own_cluster_exact(net, addr)))
 		return NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(node, &tn->node_htable[tipc_hashfn(addr)],
-				 hash) {
-		if (node->addr == addr) {
-			tipc_node_get(node);
-			rcu_read_unlock();
-			return node;
-		}
+	hlist_for_each_entry_rcu(node, &tn->node_htable[thash], hash) {
+		if (node->addr != addr)
+			continue;
+		if (!kref_get_unless_zero(&node->kref))
+			node = NULL;
+		break;
 	}
 	rcu_read_unlock();
-	return NULL;
+	return node;
 }
 
 static void tipc_node_read_lock(struct tipc_node *n)
@@ -346,12 +347,6 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	skb_queue_head_init(&n->bc_entry.inputq2);
 	for (i = 0; i < MAX_BEARERS; i++)
 		spin_lock_init(&n->links[i].lock);
-	hlist_add_head_rcu(&n->hash, &tn->node_htable[tipc_hashfn(addr)]);
-	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
-		if (n->addr < temp_node->addr)
-			break;
-	}
-	list_add_tail_rcu(&n->list, &temp_node->list);
 	n->state = SELF_DOWN_PEER_LEAVING;
 	n->signature = INVALID_NODE_SIG;
 	n->active_links[0] = INVALID_BEARER_ID;
@@ -372,6 +367,12 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	tipc_node_get(n);
 	setup_timer(&n->timer, tipc_node_timeout, (unsigned long)n);
 	n->keepalive_intv = U32_MAX;
+	hlist_add_head_rcu(&n->hash, &tn->node_htable[tipc_hashfn(addr)]);
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		if (n->addr < temp_node->addr)
+			break;
+	}
+	list_add_tail_rcu(&n->list, &temp_node->list);
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n;
@@ -395,21 +396,20 @@ static void tipc_node_delete(struct tipc_node *node)
 {
 	list_del_rcu(&node->list);
 	hlist_del_rcu(&node->hash);
-	kfree(node->bc_entry.link);
-	kfree_rcu(node, rcu);
+	tipc_node_put(node);
+
+	del_timer_sync(&node->timer);
+	tipc_node_put(node);
 }
 
 void tipc_node_stop(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_node *node, *t_node;
 
 	spin_lock_bh(&tn->node_list_lock);
-	list_for_each_entry_safe(node, t_node, &tn->node_list, list) {
-		if (del_timer(&node->timer))
-			tipc_node_put(node);
-		tipc_node_put(node);
-	}
+	list_for_each_entry_safe(node, t_node, &tn->node_list, list)
+		tipc_node_delete(node);
 	spin_unlock_bh(&tn->node_list_lock);
 }
 
@@ -530,9 +530,7 @@ static void tipc_node_timeout(unsigned long data)
 		if (rc & TIPC_LINK_DOWN_EVT)
 			tipc_node_link_down(n, bearer_id, false);
 	}
-	if (!mod_timer(&n->timer, jiffies + n->keepalive_intv))
-		tipc_node_get(n);
-	tipc_node_put(n);
+	mod_timer(&n->timer, jiffies + n->keepalive_intv);
 }
 
 /**

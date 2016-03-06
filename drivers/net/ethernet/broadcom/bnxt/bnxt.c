@@ -69,7 +69,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define BNXT_RX_DMA_OFFSET NET_SKB_PAD
 #define BNXT_RX_COPY_THRESH 256
 
-#define BNXT_TX_PUSH_THRESH 92
+#define BNXT_TX_PUSH_THRESH 164
 
 enum board_idx {
 	BCM57301,
@@ -223,11 +223,12 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (free_size == bp->tx_ring_size && length <= bp->tx_push_thresh) {
-		struct tx_push_bd *push = txr->tx_push;
-		struct tx_bd *tx_push = &push->txbd1;
-		struct tx_bd_ext *tx_push1 = &push->txbd2;
-		void *pdata = tx_push1 + 1;
-		int j;
+		struct tx_push_buffer *tx_push_buf = txr->tx_push;
+		struct tx_push_bd *tx_push = &tx_push_buf->push_bd;
+		struct tx_bd_ext *tx_push1 = &tx_push->txbd2;
+		void *pdata = tx_push_buf->data;
+		u64 *end;
+		int j, push_len;
 
 		/* Set COAL_NOW to be ready quickly for the next push */
 		tx_push->tx_bd_len_flags_type =
@@ -247,6 +248,9 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_push1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
 		tx_push1->tx_bd_cfa_action = cpu_to_le32(cfa_action);
 
+		end = PTR_ALIGN(pdata + length + 1, 8) - 1;
+		*end = 0;
+
 		skb_copy_from_linear_data(skb, pdata, len);
 		pdata += len;
 		for (j = 0; j < last_frag; j++) {
@@ -261,22 +265,29 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			pdata += skb_frag_size(frag);
 		}
 
-		memcpy(txbd, tx_push, sizeof(*txbd));
+		txbd->tx_bd_len_flags_type = tx_push->tx_bd_len_flags_type;
+		txbd->tx_bd_haddr = txr->data_mapping;
 		prod = NEXT_TX(prod);
 		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
 		memcpy(txbd, tx_push1, sizeof(*txbd));
 		prod = NEXT_TX(prod);
-		push->doorbell =
+		tx_push->doorbell =
 			cpu_to_le32(DB_KEY_TX_PUSH | DB_LONG_TX_PUSH | prod);
 		txr->tx_prod = prod;
 
 		netdev_tx_sent_queue(txq, skb->len);
 
-		__iowrite64_copy(txr->tx_doorbell, push,
-				 (length + sizeof(*push) + 8) / 8);
+		push_len = (length + sizeof(*tx_push) + 7) / 8;
+		if (push_len > 16) {
+			__iowrite64_copy(txr->tx_doorbell, tx_push_buf, 16);
+			__iowrite64_copy(txr->tx_doorbell + 4, tx_push_buf + 1,
+					 push_len - 16);
+		} else {
+			__iowrite64_copy(txr->tx_doorbell, tx_push_buf,
+					 push_len);
+		}
 
 		tx_buf->is_push = 1;
-
 		goto tx_done;
 	}
 
@@ -1228,13 +1239,17 @@ static int bnxt_async_event_process(struct bnxt *bp,
 	switch (event_id) {
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 		set_bit(BNXT_LINK_CHNG_SP_EVENT, &bp->sp_event);
-		schedule_work(&bp->sp_task);
+		break;
+	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD:
+		set_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event);
 		break;
 	default:
 		netdev_err(bp->dev, "unhandled ASYNC event (id 0x%x)\n",
 			   event_id);
-		break;
+		goto async_event_process_exit;
 	}
+	schedule_work(&bp->sp_task);
+async_event_process_exit:
 	return 0;
 }
 
@@ -1753,7 +1768,7 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 		push_size  = L1_CACHE_ALIGN(sizeof(struct tx_push_bd) +
 					bp->tx_push_thresh);
 
-		if (push_size > 128) {
+		if (push_size > 256) {
 			push_size = 0;
 			bp->tx_push_thresh = 0;
 		}
@@ -1772,7 +1787,6 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 			return rc;
 
 		if (bp->tx_push_size) {
-			struct tx_bd *txbd;
 			dma_addr_t mapping;
 
 			/* One pre-allocated DMA buffer to backup
@@ -1786,13 +1800,11 @@ static int bnxt_alloc_tx_rings(struct bnxt *bp)
 			if (!txr->tx_push)
 				return -ENOMEM;
 
-			txbd = &txr->tx_push->txbd1;
-
 			mapping = txr->tx_push_mapping +
 				sizeof(struct tx_push_bd);
-			txbd->tx_bd_haddr = cpu_to_le64(mapping);
+			txr->data_mapping = cpu_to_le64(mapping);
 
-			memset(txbd + 1, 0, sizeof(struct tx_bd_ext));
+			memset(txr->tx_push, 0, sizeof(struct tx_push_bd));
 		}
 		ring->queue_id = bp->q_info[j].queue_id;
 		if (i % bp->tx_nr_rings_per_tc == (bp->tx_nr_rings_per_tc - 1))
@@ -2588,28 +2600,27 @@ alloc_mem_err:
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 			    u16 cmpl_ring, u16 target_id)
 {
-	struct hwrm_cmd_req_hdr *req = request;
+	struct input *req = request;
 
-	req->cmpl_ring_req_type =
-		cpu_to_le32(req_type | (cmpl_ring << HWRM_CMPL_RING_SFT));
-	req->target_id_seq_id = cpu_to_le32(target_id << HWRM_TARGET_FID_SFT);
+	req->req_type = cpu_to_le16(req_type);
+	req->cmpl_ring = cpu_to_le16(cmpl_ring);
+	req->target_id = cpu_to_le16(target_id);
 	req->resp_addr = cpu_to_le64(bp->hwrm_cmd_resp_dma_addr);
 }
 
-int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
+static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
+				 int timeout, bool silent)
 {
 	int i, intr_process, rc;
-	struct hwrm_cmd_req_hdr *req = msg;
+	struct input *req = msg;
 	u32 *data = msg;
 	__le32 *resp_len, *valid;
 	u16 cp_ring_id, len = 0;
 	struct hwrm_err_output *resp = bp->hwrm_cmd_resp_addr;
 
-	req->target_id_seq_id |= cpu_to_le32(bp->hwrm_cmd_seq++);
+	req->seq_id = cpu_to_le16(bp->hwrm_cmd_seq++);
 	memset(resp, 0, PAGE_SIZE);
-	cp_ring_id = (le32_to_cpu(req->cmpl_ring_req_type) &
-		      HWRM_CMPL_RING_MASK) >>
-		     HWRM_CMPL_RING_SFT;
+	cp_ring_id = le16_to_cpu(req->cmpl_ring);
 	intr_process = (cp_ring_id == INVALID_HW_RING_ID) ? 0 : 1;
 
 	/* Write request msg to hwrm channel */
@@ -2620,11 +2631,13 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 	/* currently supports only one outstanding message */
 	if (intr_process)
-		bp->hwrm_intr_seq_id = le32_to_cpu(req->target_id_seq_id) &
-				       HWRM_SEQ_ID_MASK;
+		bp->hwrm_intr_seq_id = le16_to_cpu(req->seq_id);
 
 	/* Ring channel doorbell */
 	writel(1, bp->bar0 + 0x100);
+
+	if (!timeout)
+		timeout = DFLT_HWRM_CMD_TIMEOUT;
 
 	i = 0;
 	if (intr_process) {
@@ -2636,7 +2649,7 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (bp->hwrm_intr_seq_id != HWRM_SEQ_ID_INVALID) {
 			netdev_err(bp->dev, "Resp cmpl intr err msg: 0x%x\n",
-				   req->cmpl_ring_req_type);
+				   le16_to_cpu(req->req_type));
 			return -1;
 		}
 	} else {
@@ -2652,8 +2665,8 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (i >= timeout) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d\n",
-				   timeout, req->cmpl_ring_req_type,
-				   req->target_id_seq_id, *resp_len);
+				   timeout, le16_to_cpu(req->req_type),
+				   le16_to_cpu(req->seq_id), *resp_len);
 			return -1;
 		}
 
@@ -2667,20 +2680,23 @@ int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 		if (i >= timeout) {
 			netdev_err(bp->dev, "Error (timeout: %d) msg {0x%x 0x%x} len:%d v:%d\n",
-				   timeout, req->cmpl_ring_req_type,
-				   req->target_id_seq_id, len, *valid);
+				   timeout, le16_to_cpu(req->req_type),
+				   le16_to_cpu(req->seq_id), len, *valid);
 			return -1;
 		}
 	}
 
 	rc = le16_to_cpu(resp->error_code);
-	if (rc) {
+	if (rc && !silent)
 		netdev_err(bp->dev, "hwrm req_type 0x%x seq id 0x%x error 0x%x\n",
 			   le16_to_cpu(resp->req_type),
 			   le16_to_cpu(resp->seq_id), rc);
-		return rc;
-	}
-	return 0;
+	return rc;
+}
+
+int _hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
+{
+	return bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, false);
 }
 
 int hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
@@ -2689,6 +2705,17 @@ int hwrm_send_message(struct bnxt *bp, void *msg, u32 msg_len, int timeout)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	rc = _hwrm_send_message(bp, msg, msg_len, timeout);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+int hwrm_send_message_silent(struct bnxt *bp, void *msg, u32 msg_len,
+			     int timeout)
+{
+	int rc;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = bnxt_hwrm_do_send_msg(bp, msg, msg_len, timeout, true);
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -3509,47 +3536,82 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
+	u32 buf_tmrs, u16 flags,
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+{
+	req->flags = cpu_to_le16(flags);
+	req->num_cmpl_dma_aggr = cpu_to_le16((u16)max_bufs);
+	req->num_cmpl_dma_aggr_during_int = cpu_to_le16(max_bufs >> 16);
+	req->cmpl_aggr_dma_tmr = cpu_to_le16((u16)buf_tmrs);
+	req->cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmrs >> 16);
+	/* Minimum time between 2 interrupts set to buf_tmr x 2 */
+	req->int_lat_tmr_min = cpu_to_le16((u16)buf_tmrs * 2);
+	req->int_lat_tmr_max = cpu_to_le16((u16)buf_tmrs * 4);
+	req->num_cmpl_aggr_int = cpu_to_le16((u16)max_bufs * 4);
+}
+
 int bnxt_hwrm_set_coal(struct bnxt *bp)
 {
 	int i, rc = 0;
-	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req_rx = {0},
+							   req_tx = {0}, *req;
 	u16 max_buf, max_buf_irq;
 	u16 buf_tmr, buf_tmr_irq;
 	u32 flags;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS,
-			       -1, -1);
+	bnxt_hwrm_cmd_hdr_init(bp, &req_rx,
+			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
+	bnxt_hwrm_cmd_hdr_init(bp, &req_tx,
+			       HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS, -1, -1);
 
-	/* Each rx completion (2 records) should be DMAed immediately */
-	max_buf = min_t(u16, bp->coal_bufs / 4, 2);
+	/* Each rx completion (2 records) should be DMAed immediately.
+	 * DMA 1/4 of the completion buffers at a time.
+	 */
+	max_buf = min_t(u16, bp->rx_coal_bufs / 4, 2);
 	/* max_buf must not be zero */
 	max_buf = clamp_t(u16, max_buf, 1, 63);
-	max_buf_irq = clamp_t(u16, bp->coal_bufs_irq, 1, 63);
-	buf_tmr = max_t(u16, bp->coal_ticks / 4, 1);
-	buf_tmr_irq = max_t(u16, bp->coal_ticks_irq, 1);
+	max_buf_irq = clamp_t(u16, bp->rx_coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks);
+	/* buf timer set to 1/4 of interrupt timer */
+	buf_tmr = max_t(u16, buf_tmr / 4, 1);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->rx_coal_ticks_irq);
+	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
 
 	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
 
 	/* RING_IDLE generates more IRQs for lower latency.  Enable it only
 	 * if coal_ticks is less than 25 us.
 	 */
-	if (BNXT_COAL_TIMER_TO_USEC(bp->coal_ticks) < 25)
+	if (bp->rx_coal_ticks < 25)
 		flags |= RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_RING_IDLE;
 
-	req.flags = cpu_to_le16(flags);
-	req.num_cmpl_dma_aggr = cpu_to_le16(max_buf);
-	req.num_cmpl_dma_aggr_during_int = cpu_to_le16(max_buf_irq);
-	req.cmpl_aggr_dma_tmr = cpu_to_le16(buf_tmr);
-	req.cmpl_aggr_dma_tmr_during_int = cpu_to_le16(buf_tmr_irq);
-	req.int_lat_tmr_min = cpu_to_le16(buf_tmr);
-	req.int_lat_tmr_max = cpu_to_le16(bp->coal_ticks);
-	req.num_cmpl_aggr_int = cpu_to_le16(bp->coal_bufs);
+	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
+				  buf_tmr_irq << 16 | buf_tmr, flags, &req_rx);
+
+	/* max_buf must not be zero */
+	max_buf = clamp_t(u16, bp->tx_coal_bufs, 1, 63);
+	max_buf_irq = clamp_t(u16, bp->tx_coal_bufs_irq, 1, 63);
+	buf_tmr = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks);
+	/* buf timer set to 1/4 of interrupt timer */
+	buf_tmr = max_t(u16, buf_tmr / 4, 1);
+	buf_tmr_irq = BNXT_USEC_TO_COAL_TIMER(bp->tx_coal_ticks_irq);
+	buf_tmr_irq = max_t(u16, buf_tmr_irq, 1);
+
+	flags = RING_CMPL_RING_CFG_AGGINT_PARAMS_REQ_FLAGS_TIMER_RESET;
+	bnxt_hwrm_set_coal_params(bp, max_buf_irq << 16 | max_buf,
+				  buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < bp->cp_nr_rings; i++) {
-		req.ring_id = cpu_to_le16(bp->grp_info[i].cp_fw_ring_id);
+		struct bnxt_napi *bnapi = bp->bnapi[i];
 
-		rc = _hwrm_send_message(bp, &req, sizeof(req),
+		req = &req_rx;
+		if (!bnapi->rx_ring)
+			req = &req_tx;
+		req->ring_id = cpu_to_le16(bp->grp_info[i].cp_fw_ring_id);
+
+		rc = _hwrm_send_message(bp, req, sizeof(*req),
 					HWRM_CMD_TIMEOUT);
 		if (rc)
 			break;
@@ -3758,9 +3820,13 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 			    resp->hwrm_intf_upd);
 		netdev_warn(bp->dev, "Please update firmware with HWRM interface 1.0.0 or newer.\n");
 	}
-	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "bc %d.%d.%d rm %d.%d.%d",
+	snprintf(bp->fw_ver_str, BC_HWRM_STR_LEN, "%d.%d.%d/%d.%d.%d",
 		 resp->hwrm_fw_maj, resp->hwrm_fw_min, resp->hwrm_fw_bld,
 		 resp->hwrm_intf_maj, resp->hwrm_intf_min, resp->hwrm_intf_upd);
+
+	bp->hwrm_cmd_timeout = le16_to_cpu(resp->def_req_timeout);
+	if (!bp->hwrm_cmd_timeout)
+		bp->hwrm_cmd_timeout = DFLT_HWRM_CMD_TIMEOUT;
 
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4546,19 +4612,17 @@ static int bnxt_update_phy_setting(struct bnxt *bp)
 	if (!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) &&
 	    link_info->force_pause_setting != link_info->req_flow_ctrl)
 		update_pause = true;
-	if (link_info->req_duplex != link_info->duplex_setting)
-		update_link = true;
 	if (!(link_info->autoneg & BNXT_AUTONEG_SPEED)) {
 		if (BNXT_AUTO_MODE(link_info->auto_mode))
 			update_link = true;
 		if (link_info->req_link_speed != link_info->force_link_speed)
 			update_link = true;
+		if (link_info->req_duplex != link_info->duplex_setting)
+			update_link = true;
 	} else {
 		if (link_info->auto_mode == BNXT_LINK_AUTO_NONE)
 			update_link = true;
 		if (link_info->advertising != link_info->auto_link_speeds)
-			update_link = true;
-		if (link_info->req_link_speed != link_info->auto_link_speed)
 			update_link = true;
 	}
 
@@ -4636,7 +4700,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (link_re_init) {
 		rc = bnxt_update_phy_setting(bp);
 		if (rc)
-			goto open_err;
+			netdev_warn(bp->dev, "failed to update phy settings\n");
 	}
 
 	if (irq_re_init) {
@@ -4654,6 +4718,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Enable TX queues */
 	bnxt_tx_enable(bp);
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
+	bnxt_update_link(bp, true);
 
 	return 0;
 
@@ -5284,10 +5349,16 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->rx_ring_size = BNXT_DEFAULT_RX_RING_SIZE;
 	bp->tx_ring_size = BNXT_DEFAULT_TX_RING_SIZE;
 
-	bp->coal_ticks = BNXT_USEC_TO_COAL_TIMER(4);
-	bp->coal_bufs = 20;
-	bp->coal_ticks_irq = BNXT_USEC_TO_COAL_TIMER(1);
-	bp->coal_bufs_irq = 2;
+	/* tick values in micro seconds */
+	bp->rx_coal_ticks = 12;
+	bp->rx_coal_bufs = 30;
+	bp->rx_coal_ticks_irq = 1;
+	bp->rx_coal_bufs_irq = 2;
+
+	bp->tx_coal_ticks = 25;
+	bp->tx_coal_bufs = 30;
+	bp->tx_coal_ticks_irq = 2;
+	bp->tx_coal_bufs_irq = 2;
 
 	init_timer(&bp->timer);
 	bp->timer.data = (unsigned long)bp;
@@ -5376,7 +5447,7 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	struct bnxt *bp = netdev_priv(dev);
 	u8 tc;
 
-	if (handle != TC_H_ROOT || ntc->type != TC_SETUP_MQPRIO)
+	if (ntc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc = ntc->tc;
@@ -5552,6 +5623,8 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 			}
 		}
 	}
+	if (test_and_clear_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event))
+		netdev_info(bp->dev, "Receive PF driver unload event!");
 }
 
 #else
@@ -5667,7 +5740,6 @@ static int bnxt_probe_phy(struct bnxt *bp)
 {
 	int rc = 0;
 	struct bnxt_link_info *link_info = &bp->link_info;
-	char phy_ver[PHY_VER_STR_LEN];
 
 	rc = bnxt_update_link(bp, false);
 	if (rc) {
@@ -5677,27 +5749,16 @@ static int bnxt_probe_phy(struct bnxt *bp)
 	}
 
 	/*initialize the ethool setting copy with NVM settings */
-	if (BNXT_AUTO_MODE(link_info->auto_mode))
-		link_info->autoneg |= BNXT_AUTONEG_SPEED;
-
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if (link_info->auto_pause_setting == BNXT_LINK_PAUSE_BOTH)
-			link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
+	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+		link_info->autoneg = BNXT_AUTONEG_SPEED |
+				     BNXT_AUTONEG_FLOW_CTRL;
+		link_info->advertising = link_info->auto_link_speeds;
 		link_info->req_flow_ctrl = link_info->auto_pause_setting;
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	} else {
+		link_info->req_link_speed = link_info->force_link_speed;
+		link_info->req_duplex = link_info->duplex_setting;
 		link_info->req_flow_ctrl = link_info->force_pause_setting;
 	}
-	link_info->req_duplex = link_info->duplex_setting;
-	if (link_info->autoneg & BNXT_AUTONEG_SPEED)
-		link_info->req_link_speed = link_info->auto_link_speed;
-	else
-		link_info->req_link_speed = link_info->force_link_speed;
-	link_info->advertising = link_info->auto_link_speeds;
-	snprintf(phy_ver, PHY_VER_STR_LEN, " ph %d.%d.%d",
-		 link_info->phy_ver[0],
-		 link_info->phy_ver[1],
-		 link_info->phy_ver[2]);
-	strcat(bp->fw_ver_str, phy_ver);
 	return rc;
 }
 

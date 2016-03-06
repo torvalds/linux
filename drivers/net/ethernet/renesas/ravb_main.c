@@ -1130,7 +1130,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 	if (netif_running(ndev)) {
 		netif_device_detach(ndev);
 		/* Stop PTP Clock driver */
-		ravb_ptp_stop(ndev);
+		if (priv->chip_id == RCAR_GEN2)
+			ravb_ptp_stop(ndev);
 		/* Wait for DMA stopping */
 		error = ravb_stop_dma(ndev);
 		if (error) {
@@ -1161,7 +1162,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 		ravb_emac_init(ndev);
 
 		/* Initialise PTP Clock driver */
-		ravb_ptp_init(ndev, priv->pdev);
+		if (priv->chip_id == RCAR_GEN2)
+			ravb_ptp_init(ndev, priv->pdev);
 
 		netif_device_attach(ndev);
 	}
@@ -1289,7 +1291,8 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	netif_tx_stop_all_queues(ndev);
 
 	/* Stop PTP Clock driver */
-	ravb_ptp_stop(ndev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_stop(ndev);
 
 	/* Wait for DMA stopping */
 	ravb_stop_dma(ndev);
@@ -1302,7 +1305,8 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	ravb_emac_init(ndev);
 
 	/* Initialise PTP Clock driver */
-	ravb_ptp_init(ndev, priv->pdev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_init(ndev, priv->pdev);
 
 	netif_tx_start_all_queues(ndev);
 }
@@ -1797,10 +1801,6 @@ static int ravb_probe(struct platform_device *pdev)
 		ravb_modify(ndev, CCC, CCC_OPC, CCC_OPC_CONFIG |
 			    CCC_GAC | CCC_CSEL_HPB);
 	}
-
-	/* Set CSEL value */
-	ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_CSEL) | CCC_CSEL_HPB,
-		   CCC);
 
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);

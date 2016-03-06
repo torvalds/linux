@@ -302,6 +302,10 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 "    rx_rings[%i]: vsi = %p, q_vector = %p\n",
 			 i, rx_ring->vsi,
 			 rx_ring->q_vector);
+		dev_info(&pf->pdev->dev,
+			 "    rx_rings[%i]: rx_itr_setting = %d (%s)\n",
+			 i, rx_ring->rx_itr_setting,
+			 ITR_IS_DYNAMIC(rx_ring->rx_itr_setting) ? "dynamic" : "fixed");
 	}
 	for (i = 0; i < vsi->num_queue_pairs; i++) {
 		struct i40e_ring *tx_ring = ACCESS_ONCE(vsi->tx_rings[i]);
@@ -352,14 +356,15 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 		dev_info(&pf->pdev->dev,
 			 "    tx_rings[%i]: DCB tc = %d\n",
 			 i, tx_ring->dcb_tc);
+		dev_info(&pf->pdev->dev,
+			 "    tx_rings[%i]: tx_itr_setting = %d (%s)\n",
+			 i, tx_ring->tx_itr_setting,
+			 ITR_IS_DYNAMIC(tx_ring->tx_itr_setting) ? "dynamic" : "fixed");
 	}
 	rcu_read_unlock();
 	dev_info(&pf->pdev->dev,
-		 "    work_limit = %d, rx_itr_setting = %d (%s), tx_itr_setting = %d (%s)\n",
-		 vsi->work_limit, vsi->rx_itr_setting,
-		 ITR_IS_DYNAMIC(vsi->rx_itr_setting) ? "dynamic" : "fixed",
-		 vsi->tx_itr_setting,
-		 ITR_IS_DYNAMIC(vsi->tx_itr_setting) ? "dynamic" : "fixed");
+		 "    work_limit = %d\n",
+		 vsi->work_limit);
 	dev_info(&pf->pdev->dev,
 		 "    max_frame = %d, rx_hdr_len = %d, rx_buf_len = %d dtype = %d\n",
 		 vsi->max_frame, vsi->rx_hdr_len, vsi->rx_buf_len, vsi->dtype);

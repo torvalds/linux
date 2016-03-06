@@ -53,7 +53,6 @@ config IWLWIFI_LEDS
 
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
-	depends on m
 	help
 	  This is the driver that supports the DVM firmware. The list
 	  of the devices that use this firmware is available here:

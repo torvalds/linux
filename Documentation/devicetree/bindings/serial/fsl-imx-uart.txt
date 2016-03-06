@@ -9,7 +9,7 @@ Optional properties:
 - fsl,uart-has-rtscts : Indicate the uart has rts and cts
 - fsl,irda-mode : Indicate the uart supports irda mode
 - fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
-                  is DCE mode by default.
+                  in DCE mode by default.
 
 Note: Each uart controller should have an alias correctly numbered
 in "aliases" node.

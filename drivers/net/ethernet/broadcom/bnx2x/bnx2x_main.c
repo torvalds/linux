@@ -59,7 +59,7 @@
 #include <linux/semaphore.h>
 #include <linux/stringify.h>
 #include <linux/vmalloc.h>
-#if IS_ENABLED(CONFIG_GENEVE)
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
 #include <net/geneve.h>
 #endif
 #include "bnx2x.h"
@@ -10078,7 +10078,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 	}
 }
 
-#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_GENEVE)
+#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_BNX2X_GENEVE)
 static int bnx2x_udp_port_update(struct bnx2x *bp)
 {
 	struct bnx2x_func_switch_update_params *switch_update_params;
@@ -10201,7 +10201,7 @@ static void bnx2x_del_vxlan_port(struct net_device *netdev,
 }
 #endif
 
-#if IS_ENABLED(CONFIG_GENEVE)
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
 static void bnx2x_add_geneve_port(struct net_device *netdev,
 				  sa_family_t sa_family, __be16 port)
 {
@@ -10327,7 +10327,7 @@ sp_rtnl_not_reset:
 			       &bp->sp_rtnl_state))
 		bnx2x_update_mng_version(bp);
 
-#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_GENEVE)
+#if defined(CONFIG_BNX2X_VXLAN) || IS_ENABLED(CONFIG_BNX2X_GENEVE)
 	if (test_and_clear_bit(BNX2X_SP_RTNL_CHANGE_UDP_PORT,
 			       &bp->sp_rtnl_state)) {
 		if (bnx2x_udp_port_update(bp)) {
@@ -10344,7 +10344,7 @@ sp_rtnl_not_reset:
 			if (!bp->udp_tunnel_ports[BNX2X_UDP_PORT_VXLAN].count)
 				vxlan_get_rx_port(bp->dev);
 #endif
-#if IS_ENABLED(CONFIG_GENEVE)
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
 			if (!bp->udp_tunnel_ports[BNX2X_UDP_PORT_GENEVE].count)
 				geneve_get_rx_port(bp->dev);
 #endif
@@ -12557,7 +12557,7 @@ static int bnx2x_open(struct net_device *dev)
 	if (IS_PF(bp))
 		vxlan_get_rx_port(dev);
 #endif
-#if IS_ENABLED(CONFIG_GENEVE)
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
 	if (IS_PF(bp))
 		geneve_get_rx_port(dev);
 #endif
@@ -13078,7 +13078,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_add_vxlan_port	= bnx2x_add_vxlan_port,
 	.ndo_del_vxlan_port	= bnx2x_del_vxlan_port,
 #endif
-#if IS_ENABLED(CONFIG_GENEVE)
+#if IS_ENABLED(CONFIG_BNX2X_GENEVE)
 	.ndo_add_geneve_port	= bnx2x_add_geneve_port,
 	.ndo_del_geneve_port	= bnx2x_del_geneve_port,
 #endif

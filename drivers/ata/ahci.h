@@ -250,6 +250,7 @@ enum {
 	AHCI_HFLAG_MULTI_MSI		= 0,
 	AHCI_HFLAG_MULTI_MSIX		= 0,
 #endif
+	AHCI_HFLAG_WAKE_BEFORE_STOP	= (1 << 22), /* wake before DMA stop */
 
 	/* ap->flags bits */
 

@@ -571,7 +571,7 @@ int efx_setup_tc(struct net_device *net_dev, u32 handle, __be16 proto,
 	unsigned tc, num_tc;
 	int rc;
 
-	if (handle != TC_H_ROOT || ntc->type != TC_SETUP_MQPRIO)
+	if (ntc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	num_tc = ntc->tc;

@@ -9206,7 +9206,7 @@ static void perf_event_init_cpu(int cpu)
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 
 	mutex_lock(&swhash->hlist_mutex);
-	if (swhash->hlist_refcount > 0) {
+	if (swhash->hlist_refcount > 0 && !swevent_hlist_deref(swhash)) {
 		struct swevent_hlist *hlist;
 
 		hlist = kzalloc_node(sizeof(*hlist), GFP_KERNEL, cpu_to_node(cpu));
@@ -9282,11 +9282,9 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	switch (action & ~CPU_TASKS_FROZEN) {
 
 	case CPU_UP_PREPARE:
-	case CPU_DOWN_FAILED:
 		perf_event_init_cpu(cpu);
 		break;
 
-	case CPU_UP_CANCELED:
 	case CPU_DOWN_PREPARE:
 		perf_event_exit_cpu(cpu);
 		break;

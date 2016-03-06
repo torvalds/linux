@@ -44,7 +44,7 @@ struct qed_ptt_pool {
 int qed_ptt_pool_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_ptt_pool *p_pool = kmalloc(sizeof(*p_pool),
-					      GFP_ATOMIC);
+					      GFP_KERNEL);
 	int i;
 
 	if (!p_pool)

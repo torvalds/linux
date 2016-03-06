@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/errno.h>
+#include <net/devlink.h>
 
 #include "mlx4.h"
 
@@ -249,3 +250,11 @@ void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto, int 
 	return result;
 }
 EXPORT_SYMBOL_GPL(mlx4_get_protocol_dev);
+
+struct devlink_port *mlx4_get_devlink_port(struct mlx4_dev *dev, int port)
+{
+	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
+
+	return &info->devlink_port;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_devlink_port);
