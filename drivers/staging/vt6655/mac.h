@@ -916,24 +916,24 @@ bool MACbSafeStop(struct vnt_private *);
 bool MACbShutdown(struct vnt_private *);
 void MACvInitialize(struct vnt_private *);
 void MACvSetCurrRx0DescAddr(struct vnt_private *,
-			    unsigned long dwCurrDescAddr);
+			    u32 dwCurrDescAddr);
 void MACvSetCurrRx1DescAddr(struct vnt_private *,
-			    unsigned long dwCurrDescAddr);
+			    u32 dwCurrDescAddr);
 void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *,
-			   unsigned long dwCurrDescAddr);
+			   u32 dwCurrDescAddr);
 void MACvSetCurrTx0DescAddrEx(struct vnt_private *,
-			      unsigned long dwCurrDescAddr);
+			      u32 dwCurrDescAddr);
 void MACvSetCurrAC0DescAddrEx(struct vnt_private *,
-			      unsigned long dwCurrDescAddr);
+			      u32 dwCurrDescAddr);
 void MACvSetCurrSyncDescAddrEx(struct vnt_private *,
-			       unsigned long dwCurrDescAddr);
+			       u32 dwCurrDescAddr);
 void MACvSetCurrATIMDescAddrEx(struct vnt_private *,
-			       unsigned long dwCurrDescAddr);
+			       u32 dwCurrDescAddr);
 void MACvTimer0MicroSDelay(struct vnt_private *, unsigned int uDelay);
 void MACvOneShotTimer1MicroSec(struct vnt_private *, unsigned int uDelayTime);
 
 void MACvSetMISCFifo(struct vnt_private *, unsigned short wOffset,
-		     unsigned long dwData);
+		     u32 dwData);
 
 bool MACbPSWakeup(struct vnt_private *);
 

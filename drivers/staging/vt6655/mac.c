@@ -264,17 +264,17 @@ void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
 
 	/* restore CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR */
 	VNSvOutPortD(io_base + MAC_REG_TXDMAPTR0,
-		     *(unsigned long *)(cxt_buf + MAC_REG_TXDMAPTR0));
+		     *(u32 *)(cxt_buf + MAC_REG_TXDMAPTR0));
 	VNSvOutPortD(io_base + MAC_REG_AC0DMAPTR,
-		     *(unsigned long *)(cxt_buf + MAC_REG_AC0DMAPTR));
+		     *(u32 *)(cxt_buf + MAC_REG_AC0DMAPTR));
 	VNSvOutPortD(io_base + MAC_REG_BCNDMAPTR,
-		     *(unsigned long *)(cxt_buf + MAC_REG_BCNDMAPTR));
+		     *(u32 *)(cxt_buf + MAC_REG_BCNDMAPTR));
 
 	VNSvOutPortD(io_base + MAC_REG_RXDMAPTR0,
-		     *(unsigned long *)(cxt_buf + MAC_REG_RXDMAPTR0));
+		     *(u32 *)(cxt_buf + MAC_REG_RXDMAPTR0));
 
 	VNSvOutPortD(io_base + MAC_REG_RXDMAPTR1,
-		     *(unsigned long *)(cxt_buf + MAC_REG_RXDMAPTR1));
+		     *(u32 *)(cxt_buf + MAC_REG_RXDMAPTR1));
 }
 
 /*
@@ -557,7 +557,7 @@ void MACvInitialize(struct vnt_private *priv)
  * Return Value: none
  *
  */
-void MACvSetCurrRx0DescAddr(struct vnt_private *priv, unsigned long dwCurrDescAddr)
+void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -591,7 +591,7 @@ void MACvSetCurrRx0DescAddr(struct vnt_private *priv, unsigned long dwCurrDescAd
  * Return Value: none
  *
  */
-void MACvSetCurrRx1DescAddr(struct vnt_private *priv, unsigned long dwCurrDescAddr)
+void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -627,7 +627,7 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, unsigned long dwCurrDescAd
  *
  */
 void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
-			      unsigned long dwCurrDescAddr)
+			      u32 dwCurrDescAddr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -663,7 +663,7 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
  */
 /* TxDMA1 = AC0DMA */
 void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
-			      unsigned long dwCurrDescAddr)
+			      u32 dwCurrDescAddr)
 {
 	void __iomem *io_base = priv->PortOffset;
 	unsigned short ww;
@@ -685,7 +685,7 @@ void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
 }
 
 void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *priv,
-			   unsigned long dwCurrDescAddr)
+			   u32 dwCurrDescAddr)
 {
 	if (iTxType == TYPE_AC0DMA)
 		MACvSetCurrAC0DescAddrEx(priv, dwCurrDescAddr);
@@ -753,7 +753,7 @@ void MACvOneShotTimer1MicroSec(struct vnt_private *priv, unsigned int uDelayTime
 }
 
 void MACvSetMISCFifo(struct vnt_private *priv, unsigned short wOffset,
-		     unsigned long dwData)
+		     u32 dwData)
 {
 	void __iomem *io_base = priv->PortOffset;
 
