@@ -1185,8 +1185,10 @@ xfs_diflags_to_iflags(
 		inode->i_flags |= S_SYNC;
 	if (flags & XFS_DIFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
-	if (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
-	    ip->i_d.di_flags2 & XFS_DIFLAG2_DAX)
+	if (S_ISREG(inode->i_mode) &&
+	    ip->i_mount->m_sb.sb_blocksize == PAGE_SIZE &&
+	    (ip->i_mount->m_flags & XFS_MOUNT_DAX ||
+	     ip->i_d.di_flags2 & XFS_DIFLAG2_DAX))
 		inode->i_flags |= S_DAX;
 }
 
