@@ -1109,27 +1109,10 @@ xlog_verify_head(
 	bool			tmp_wrapped;
 
 	/*
-	 * Search backwards through the log looking for the log record header
-	 * block. This wraps all the way back around to the head so something is
-	 * seriously wrong if we can't find it.
-	 */
-	found = xlog_rseek_logrec_hdr(log, *head_blk, *head_blk, 1, bp, rhead_blk,
-				      rhead, wrapped);
-	if (found < 0)
-		return found;
-	if (!found) {
-		xfs_warn(log->l_mp, "%s: couldn't find sync record", __func__);
-		return -EIO;
-	}
-
-	*tail_blk = BLOCK_LSN(be64_to_cpu((*rhead)->h_tail_lsn));
-
-	/*
-	 * Now that we have a tail block, check the head of the log for torn
-	 * writes. Search again until we hit the tail or the maximum number of
-	 * log record I/Os that could have been in flight at one time. Use a
-	 * temporary buffer so we don't trash the rhead/bp pointer from the
-	 * call above.
+	 * Check the head of the log for torn writes. Search backwards from the
+	 * head until we hit the tail or the maximum number of log record I/Os
+	 * that could have been in flight at one time. Use a temporary buffer so
+	 * we don't trash the rhead/bp pointers from the caller.
 	 */
 	tmp_bp = xlog_get_bp(log, 1);
 	if (!tmp_bp)
@@ -1254,6 +1237,7 @@ xlog_find_tail(
 	 */
 	if ((error = xlog_find_head(log, head_blk)))
 		return error;
+	ASSERT(*head_blk < INT_MAX);
 
 	bp = xlog_get_bp(log, 1);
 	if (!bp)
@@ -1271,12 +1255,26 @@ xlog_find_tail(
 	}
 
 	/*
+	 * Search backwards through the log looking for the log record header
+	 * block. This wraps all the way back around to the head so something is
+	 * seriously wrong if we can't find it.
+	 */
+	error = xlog_rseek_logrec_hdr(log, *head_blk, *head_blk, 1, bp,
+				      &rhead_blk, &rhead, &wrapped);
+	if (error < 0)
+		return error;
+	if (!error) {
+		xfs_warn(log->l_mp, "%s: couldn't find sync record", __func__);
+		return -EIO;
+	}
+	*tail_blk = BLOCK_LSN(be64_to_cpu(rhead->h_tail_lsn));
+
+	/*
 	 * Trim the head block back to skip over torn records. We can have
 	 * multiple log I/Os in flight at any time, so we assume CRC failures
 	 * back through the previous several records are torn writes and skip
 	 * them.
 	 */
-	ASSERT(*head_blk < INT_MAX);
 	error = xlog_verify_head(log, head_blk, tail_blk, bp, &rhead_blk,
 				 &rhead, &wrapped);
 	if (error)
