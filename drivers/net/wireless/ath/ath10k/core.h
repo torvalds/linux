@@ -297,6 +297,9 @@ struct ath10k_dfs_stats {
 
 struct ath10k_peer {
 	struct list_head list;
+	struct ieee80211_vif *vif;
+	struct ieee80211_sta *sta;
+
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	DECLARE_BITMAP(peer_ids, ATH10K_MAX_NUM_PEER_IDS);
@@ -791,6 +794,7 @@ struct ath10k {
 
 	struct list_head arvifs;
 	struct list_head peers;
+	struct ath10k_peer *peer_map[ATH10K_MAX_NUM_PEER_IDS];
 	wait_queue_head_t peer_mapping_wq;
 
 	/* protected by conf_mutex */

@@ -203,6 +203,7 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt peer map vdev %d peer %pM id %d\n",
 		   ev->vdev_id, ev->addr, ev->peer_id);
 
+	ar->peer_map[ev->peer_id] = peer;
 	set_bit(ev->peer_id, peer->peer_ids);
 exit:
 	spin_unlock_bh(&ar->data_lock);
@@ -225,6 +226,7 @@ void ath10k_peer_unmap_event(struct ath10k_htt *htt,
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
 		   peer->vdev_id, peer->addr, ev->peer_id);
 
+	ar->peer_map[ev->peer_id] = NULL;
 	clear_bit(ev->peer_id, peer->peer_ids);
 
 	if (bitmap_empty(peer->peer_ids, ATH10K_MAX_NUM_PEER_IDS)) {

@@ -618,10 +618,15 @@ ath10k_mac_get_any_chandef_iter(struct ieee80211_hw *hw,
 	*def = &conf->def;
 }
 
-static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr,
+static int ath10k_peer_create(struct ath10k *ar,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      u32 vdev_id,
+			      const u8 *addr,
 			      enum wmi_peer_type peer_type)
 {
 	struct ath10k_vif *arvif;
+	struct ath10k_peer *peer;
 	int num_peers = 0;
 	int ret;
 
@@ -649,6 +654,22 @@ static int ath10k_peer_create(struct ath10k *ar, u32 vdev_id, const u8 *addr,
 			    addr, vdev_id, ret);
 		return ret;
 	}
+
+	spin_lock_bh(&ar->data_lock);
+
+	peer = ath10k_peer_find(ar, vdev_id, addr);
+	if (!peer) {
+		ath10k_warn(ar, "failed to find peer %pM on vdev %i after creation\n",
+			    addr, vdev_id);
+		ath10k_wmi_peer_delete(ar, vdev_id, addr);
+		spin_unlock_bh(&ar->data_lock);
+		return -ENOENT;
+	}
+
+	peer->vif = vif;
+	peer->sta = sta;
+
+	spin_unlock_bh(&ar->data_lock);
 
 	ar->num_peers++;
 
@@ -731,6 +752,7 @@ static int ath10k_peer_delete(struct ath10k *ar, u32 vdev_id, const u8 *addr)
 static void ath10k_peer_cleanup(struct ath10k *ar, u32 vdev_id)
 {
 	struct ath10k_peer *peer, *tmp;
+	int peer_id;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -741,6 +763,11 @@ static void ath10k_peer_cleanup(struct ath10k *ar, u32 vdev_id)
 
 		ath10k_warn(ar, "removing stale peer %pM from vdev_id %d\n",
 			    peer->addr, vdev_id);
+
+		for_each_set_bit(peer_id, peer->peer_ids,
+				 ATH10K_MAX_NUM_PEER_IDS) {
+			ar->peer_map[peer_id] = NULL;
+		}
 
 		list_del(&peer->list);
 		kfree(peer);
@@ -3506,7 +3533,8 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 				   peer_addr, vdev_id);
 
 		if (!peer) {
-			ret = ath10k_peer_create(ar, vdev_id, peer_addr,
+			ret = ath10k_peer_create(ar, NULL, NULL, vdev_id,
+						 peer_addr,
 						 WMI_PEER_TYPE_DEFAULT);
 			if (ret)
 				ath10k_warn(ar, "failed to create peer %pM on vdev %d: %d\n",
@@ -4614,8 +4642,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
 	    arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
-		ret = ath10k_peer_create(ar, arvif->vdev_id, vif->addr,
-					 WMI_PEER_TYPE_DEFAULT);
+		ret = ath10k_peer_create(ar, vif, NULL, arvif->vdev_id,
+					 vif->addr, WMI_PEER_TYPE_DEFAULT);
 		if (ret) {
 			ath10k_warn(ar, "failed to create vdev %i peer for AP/IBSS: %d\n",
 				    arvif->vdev_id, ret);
@@ -4749,7 +4777,9 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ath10k_peer *peer;
 	int ret;
+	int i;
 
 	cancel_work_sync(&arvif->ap_csa_work);
 	cancel_delayed_work_sync(&arvif->connection_loss_work);
@@ -4802,6 +4832,20 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 		ar->num_peers--;
 		spin_unlock_bh(&ar->data_lock);
 	}
+
+	spin_lock_bh(&ar->data_lock);
+	for (i = 0; i < ARRAY_SIZE(ar->peer_map); i++) {
+		peer = ar->peer_map[i];
+		if (!peer)
+			continue;
+
+		if (peer->vif == vif) {
+			ath10k_warn(ar, "found vif peer %pM entry on vdev %i after it was supposedly removed\n",
+				    vif->addr, arvif->vdev_id);
+			peer->vif = NULL;
+		}
+	}
+	spin_unlock_bh(&ar->data_lock);
 
 	ath10k_peer_cleanup(ar, arvif->vdev_id);
 
@@ -5522,6 +5566,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
 	struct ath10k_peer *peer;
 	int ret = 0;
+	int i;
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE) {
@@ -5562,8 +5607,8 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		if (sta->tdls)
 			peer_type = WMI_PEER_TYPE_TDLS;
 
-		ret = ath10k_peer_create(ar, arvif->vdev_id, sta->addr,
-					 peer_type);
+		ret = ath10k_peer_create(ar, vif, sta, arvif->vdev_id,
+					 sta->addr, peer_type);
 		if (ret) {
 			ath10k_warn(ar, "failed to add peer %pM for vdev %d when adding a new sta: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
@@ -5650,6 +5695,20 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 				    sta->addr, arvif->vdev_id, ret);
 
 		ath10k_mac_dec_num_stations(arvif, sta);
+
+		spin_lock_bh(&ar->data_lock);
+		for (i = 0; i < ARRAY_SIZE(ar->peer_map); i++) {
+			peer = ar->peer_map[i];
+			if (!peer)
+				continue;
+
+			if (peer->sta == sta) {
+				ath10k_warn(ar, "found sta peer %pM entry on vdev %i after it was supposedly removed\n",
+					    sta->addr, arvif->vdev_id);
+				peer->sta = NULL;
+			}
+		}
+		spin_unlock_bh(&ar->data_lock);
 
 		if (!sta->tdls)
 			goto exit;
