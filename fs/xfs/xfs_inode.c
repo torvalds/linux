@@ -3293,7 +3293,7 @@ cluster_corrupt_out:
 		 * mark it as stale and brelse.
 		 */
 		if (bp->b_iodone) {
-			XFS_BUF_UNDONE(bp);
+			bp->b_flags &= ~XBF_DONE;
 			xfs_buf_stale(bp);
 			xfs_buf_ioerror(bp, -EIO);
 			xfs_buf_ioend(bp);

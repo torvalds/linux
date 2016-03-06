@@ -190,7 +190,7 @@ xlog_bread_noalign(
 	ASSERT(nbblks <= bp->b_length);
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
-	XFS_BUF_READ(bp);
+	bp->b_flags |= XBF_READ;
 	bp->b_io_length = nbblks;
 	bp->b_error = 0;
 
@@ -275,7 +275,6 @@ xlog_bwrite(
 	ASSERT(nbblks <= bp->b_length);
 
 	XFS_BUF_SET_ADDR(bp, log->l_logBBstart + blk_no);
-	XFS_BUF_ZEROFLAGS(bp);
 	xfs_buf_hold(bp);
 	xfs_buf_lock(bp);
 	bp->b_io_length = nbblks;
@@ -4998,10 +4997,9 @@ xlog_do_recover(
 	 * updates, re-read in the superblock and reverify it.
 	 */
 	bp = xfs_getsb(log->l_mp, 0);
-	XFS_BUF_UNDONE(bp);
-	ASSERT(!(XFS_BUF_ISWRITE(bp)));
-	XFS_BUF_READ(bp);
-	XFS_BUF_UNASYNC(bp);
+	bp->b_flags &= ~(XBF_DONE | XBF_ASYNC);
+	ASSERT(!(bp->b_flags & XBF_WRITE));
+	bp->b_flags |= XBF_READ;
 	bp->b_ops = &xfs_sb_buf_ops;
 
 	error = xfs_buf_submit_wait(bp);

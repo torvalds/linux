@@ -1284,7 +1284,7 @@ xfs_getsb(
 	}
 
 	xfs_buf_hold(bp);
-	ASSERT(XFS_BUF_ISDONE(bp));
+	ASSERT(bp->b_flags & XBF_DONE);
 	return bp;
 }
 
