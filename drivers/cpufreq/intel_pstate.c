@@ -881,12 +881,6 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu)
 	core_pct = int_tofp(sample->aperf) * int_tofp(100);
 	core_pct = div64_u64(core_pct, int_tofp(sample->mperf));
 
-	sample->freq = fp_toint(
-		mul_fp(int_tofp(
-			cpu->pstate.max_pstate_physical *
-			cpu->pstate.scaling / 100),
-			core_pct));
-
 	sample->core_pct_busy = (int32_t)core_pct;
 }
 
@@ -918,6 +912,12 @@ static inline void intel_pstate_sample(struct cpudata *cpu, u64 time)
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
 	cpu->prev_tsc = tsc;
+}
+
+static inline int32_t get_avg_frequency(struct cpudata *cpu)
+{
+	return div64_u64(cpu->pstate.max_pstate_physical * cpu->sample.aperf *
+		cpu->pstate.scaling, cpu->sample.mperf);
 }
 
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
@@ -1015,7 +1015,7 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 		sample->mperf,
 		sample->aperf,
 		sample->tsc,
-		sample->freq);
+		get_avg_frequency(cpu));
 }
 
 static void intel_pstate_update_util(struct update_util_data *data, u64 time,
@@ -1104,7 +1104,7 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 	if (!cpu)
 		return 0;
 	sample = &cpu->sample;
-	return sample->freq;
+	return get_avg_frequency(cpu);
 }
 
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
