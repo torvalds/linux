@@ -240,29 +240,27 @@ void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
 void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
 {
 	void __iomem *io_base = priv->PortOffset;
-	int         ii;
 
 	MACvSelectPage1(io_base);
 	/* restore page1 */
-	for (ii = 0; ii < MAC_MAX_CONTEXT_SIZE_PAGE1; ii++)
-		VNSvOutPortB((io_base + ii),
-			     *(cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0 + ii));
+	memcpy_toio(io_base, cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0,
+		    MAC_MAX_CONTEXT_SIZE_PAGE1);
 
 	MACvSelectPage0(io_base);
 
 	/* restore RCR,TCR,IMR... */
-	for (ii = MAC_REG_RCR; ii < MAC_REG_ISR; ii++)
-		VNSvOutPortB(io_base + ii, *(cxt_buf + ii));
+	memcpy_toio(io_base + MAC_REG_RCR, cxt_buf + MAC_REG_RCR,
+		    MAC_REG_ISR - MAC_REG_RCR);
 
 	/* restore MAC Config. */
-	for (ii = MAC_REG_LRT; ii < MAC_REG_PAGE1SEL; ii++)
-		VNSvOutPortB(io_base + ii, *(cxt_buf + ii));
+	memcpy_toio(io_base + MAC_REG_LRT, cxt_buf + MAC_REG_LRT,
+		    MAC_REG_PAGE1SEL - MAC_REG_LRT);
 
 	VNSvOutPortB(io_base + MAC_REG_CFG, *(cxt_buf + MAC_REG_CFG));
 
 	/* restore PS Config. */
-	for (ii = MAC_REG_PSCFG; ii < MAC_REG_BBREGCTL; ii++)
-		VNSvOutPortB(io_base + ii, *(cxt_buf + ii));
+	memcpy_toio(io_base + MAC_REG_PSCFG, cxt_buf + MAC_REG_PSCFG,
+		    MAC_REG_BBREGCTL - MAC_REG_PSCFG);
 
 	/* restore CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR */
 	VNSvOutPortD(io_base + MAC_REG_TXDMAPTR0,
