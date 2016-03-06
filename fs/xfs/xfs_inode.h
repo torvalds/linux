@@ -437,6 +437,8 @@ int	xfs_update_prealloc_flags(struct xfs_inode *ip,
 int	xfs_zero_eof(struct xfs_inode *ip, xfs_off_t offset,
 		     xfs_fsize_t isize, bool *did_zeroing);
 int	xfs_iozero(struct xfs_inode *ip, loff_t pos, size_t count);
+loff_t	__xfs_seek_hole_data(struct inode *inode, loff_t start,
+			     loff_t eof, int whence);
 
 
 /* from xfs_iops.c */
