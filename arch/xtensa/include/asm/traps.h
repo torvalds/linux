@@ -65,4 +65,13 @@ static inline void spill_registers(void)
 #endif
 }
 
+struct debug_table {
+	/* Pointer to debug exception handler */
+	void (*debug_exception)(void);
+	/* Temporary register save area */
+	unsigned long debug_save[1];
+};
+
+void debug_exception(void);
+
 #endif /* _XTENSA_TRAPS_H */

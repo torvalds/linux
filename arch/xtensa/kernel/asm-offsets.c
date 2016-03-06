@@ -23,6 +23,7 @@
 #include <linux/kbuild.h>
 
 #include <asm/ptrace.h>
+#include <asm/traps.h>
 #include <asm/uaccess.h>
 
 int main(void)
@@ -116,6 +117,11 @@ int main(void)
 	DEFINE(_CLONE_VM, CLONE_VM);
 	DEFINE(_CLONE_UNTRACED, CLONE_UNTRACED);
 	DEFINE(PG_ARCH_1, PG_arch_1);
+
+	/* struct debug_table */
+	DEFINE(DT_DEBUG_EXCEPTION,
+	       offsetof(struct debug_table, debug_exception));
+	DEFINE(DT_DEBUG_SAVE, offsetof(struct debug_table, debug_save));
 
 	return 0;
 }

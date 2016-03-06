@@ -157,6 +157,8 @@ COPROCESSOR(7),
 
 DEFINE_PER_CPU(unsigned long, exc_table[EXC_TABLE_SIZE/4]);
 
+DEFINE_PER_CPU(struct debug_table, debug_table);
+
 void die(const char*, struct pt_regs*, long);
 
 static inline void
@@ -372,6 +374,15 @@ static void trap_init_excsave(void)
 	__asm__ __volatile__("wsr  %0, excsave1\n" : : "a" (excsave1));
 }
 
+static void trap_init_debug(void)
+{
+	unsigned long debugsave = (unsigned long)this_cpu_ptr(&debug_table);
+
+	this_cpu_ptr(&debug_table)->debug_exception = debug_exception;
+	__asm__ __volatile__("wsr %0, excsave" __stringify(XCHAL_DEBUGLEVEL)
+			     :: "a"(debugsave));
+}
+
 /*
  * Initialize dispatch tables.
  *
@@ -415,12 +426,14 @@ void __init trap_init(void)
 
 	/* Initialize EXCSAVE_1 to hold the address of the exception table. */
 	trap_init_excsave();
+	trap_init_debug();
 }
 
 #ifdef CONFIG_SMP
 void secondary_trap_init(void)
 {
 	trap_init_excsave();
+	trap_init_debug();
 }
 #endif
 

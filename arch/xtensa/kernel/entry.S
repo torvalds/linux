@@ -789,36 +789,32 @@ ENTRY(debug_exception)
 
 	movi	a2, 1 << PS_EXCM_BIT
 	or	a2, a0, a2
-	movi	a0, debug_exception	# restore a3, debug jump vector
 	wsr	a2, ps
-	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 
 	/* Switch to kernel/user stack, restore jump vector, and save a0 */
 
 	bbsi.l	a2, PS_UM_BIT, 2f	# jump if user mode
 
 	addi	a2, a1, -16-PT_SIZE	# assume kernel stack
+3:
+	l32i	a0, a3, DT_DEBUG_SAVE
+	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_AREG0
 	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
+	xsr	a3, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	xsr	a0, depc
 	s32i	a3, a2, PT_AREG3
 	s32i	a0, a2, PT_AREG2
 	mov	a1, a2
+
+	rsr	a2, ps
+	bbsi.l	a2, PS_UM_BIT, _user_exception
 	j	_kernel_exception
 
 2:	rsr	a2, excsave1
 	l32i	a2, a2, EXC_TABLE_KSTK	# load kernel stack pointer
-	s32i	a0, a2, PT_AREG0
-	movi	a0, 0
-	s32i	a1, a2, PT_AREG1
-	s32i	a0, a2, PT_DEPC
-	xsr	a0, depc
-	s32i	a3, a2, PT_AREG3
-	s32i	a0, a2, PT_AREG2
-	mov	a1, a2
-	j	_user_exception
+	j	3b
 
 	/* Debug exception while in exception mode. */
 1:	j	1b	// FIXME!!
