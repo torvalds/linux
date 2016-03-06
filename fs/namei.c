@@ -1220,8 +1220,8 @@ static int follow_managed(struct path *path, struct nameidata *nd)
 
 	if (need_mntput && path->mnt == mnt)
 		mntput(path->mnt);
-	if (ret == -EISDIR)
-		ret = 0;
+	if (ret == -EISDIR || !ret)
+		ret = 1;
 	if (need_mntput)
 		nd->flags |= LOOKUP_JUMPED;
 	if (unlikely(ret < 0))
@@ -1533,7 +1533,7 @@ static int lookup_fast(struct nameidata *nd,
 		if (unlikely(!dentry)) {
 			if (unlazy_walk(nd, NULL, 0))
 				return -ECHILD;
-			return 1;
+			return 0;
 		}
 
 		/*
@@ -1573,22 +1573,20 @@ static int lookup_fast(struct nameidata *nd,
 			path->mnt = mnt;
 			path->dentry = dentry;
 			if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
-				return 0;
+				return 1;
 			if (unlazy_walk(nd, dentry, seq))
 				return -ECHILD;
 		}
 	} else {
 		dentry = __d_lookup(parent, &nd->last);
 		if (unlikely(!dentry))
-			return 1;
+			return 0;
 		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
 			status = d_revalidate(dentry, nd->flags);
 	}
 	if (unlikely(status <= 0)) {
-		if (!status) {
+		if (!status)
 			d_invalidate(dentry);
-			status = 1;
-		}
 		dput(dentry);
 		return status;
 	}
@@ -1600,7 +1598,7 @@ static int lookup_fast(struct nameidata *nd,
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd);
-	if (likely(!err))
+	if (likely(err > 0))
 		*inode = d_backing_inode(path->dentry);
 	return err;
 }
@@ -1724,7 +1722,7 @@ static int walk_component(struct nameidata *nd, int flags)
 		return err;
 	}
 	err = lookup_fast(nd, &path, &inode, &seq);
-	if (unlikely(err)) {
+	if (unlikely(err <= 0)) {
 		if (err < 0)
 			return err;
 
@@ -3101,7 +3099,7 @@ static int do_last(struct nameidata *nd,
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 		/* we _can_ be in RCU mode here */
 		error = lookup_fast(nd, &path, &inode, &seq);
-		if (likely(!error))
+		if (likely(error > 0))
 			goto finish_lookup;
 
 		if (error < 0)
