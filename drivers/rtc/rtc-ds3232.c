@@ -262,6 +262,8 @@ static int ds3232_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		goto out;
 
 	ret = regmap_bulk_write(ds3232->regmap, DS3232_REG_ALARM1, buf, 4);
+	if (ret)
+		goto out;
 
 	if (alarm->enabled) {
 		control |= DS3232_REG_CR_A1IE;
@@ -272,7 +274,7 @@ out:
 	return ret;
 }
 
-static void ds3232_update_alarm(struct device *dev, unsigned int enabled)
+static int ds3232_update_alarm(struct device *dev, unsigned int enabled)
 {
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
 	int control;
@@ -308,10 +310,12 @@ static void ds3232_update_alarm(struct device *dev, unsigned int enabled)
 	else
 		/* disable alarm1 interrupt */
 		control &= ~(DS3232_REG_CR_A1IE);
-	regmap_write(ds3232->regmap, DS3232_REG_CR, control);
+	ret = regmap_write(ds3232->regmap, DS3232_REG_CR, control);
 
 unlock:
 	mutex_unlock(&ds3232->mutex);
+
+	return ret;
 }
 
 static int ds3232_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -321,9 +325,7 @@ static int ds3232_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	if (ds3232->irq <= 0)
 		return -EINVAL;
 
-	ds3232_update_alarm(dev, enabled);
-
-	return 0;
+	return ds3232_update_alarm(dev, enabled);
 }
 
 static irqreturn_t ds3232_irq(int irq, void *dev_id)
@@ -364,11 +366,24 @@ static void ds3232_work(struct work_struct *work)
 		} else {
 			/* disable alarm1 interrupt */
 			control &= ~(DS3232_REG_CR_A1IE);
-			regmap_write(ds3232->regmap, DS3232_REG_CR, control);
+			ret = regmap_write(ds3232->regmap, DS3232_REG_CR,
+					   control);
+			if (ret) {
+				dev_warn(ds3232->dev,
+					 "Write Control Register error %d\n",
+					 ret);
+				goto unlock;
+			}
 
 			/* clear the alarm pend flag */
 			stat &= ~DS3232_REG_SR_A1F;
-			regmap_write(ds3232->regmap, DS3232_REG_SR, stat);
+			ret = regmap_write(ds3232->regmap, DS3232_REG_SR, stat);
+			if (ret) {
+				dev_warn(ds3232->dev,
+					 "Write Status Register error %d\n",
+					 ret);
+				goto unlock;
+			}
 
 			rtc_update_irq(ds3232->rtc, 1, RTC_AF | RTC_IRQF);
 
