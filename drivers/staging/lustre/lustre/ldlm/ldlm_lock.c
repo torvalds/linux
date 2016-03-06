@@ -890,8 +890,7 @@ static void search_granted_lock(struct list_head *queue,
 	list_for_each(tmp, queue) {
 		lock = list_entry(tmp, struct ldlm_lock, l_res_link);
 
-		mode_end = list_entry(lock->l_sl_mode.prev,
-					  struct ldlm_lock, l_sl_mode);
+		mode_end = list_prev_entry(lock, l_sl_mode);
 
 		if (lock->l_req_mode != req->l_req_mode) {
 			/* jump to last lock of mode group */
@@ -911,9 +910,7 @@ static void search_granted_lock(struct list_head *queue,
 		if (lock->l_resource->lr_type == LDLM_IBITS) {
 			for (;;) {
 				policy_end =
-					list_entry(lock->l_sl_policy.prev,
-						       struct ldlm_lock,
-						       l_sl_policy);
+					list_prev_entry(lock, l_sl_policy);
 
 				if (lock->l_policy_data.l_inodebits.bits ==
 				    req->l_policy_data.l_inodebits.bits) {

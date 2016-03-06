@@ -60,8 +60,7 @@ ksocknal_next_tx_carrier(ksock_conn_t *conn)
 		/* no more packets queued */
 		conn->ksnc_tx_carrier = NULL;
 	} else {
-		conn->ksnc_tx_carrier = list_entry(tx->tx_list.next,
-						       ksock_tx_t, tx_list);
+		conn->ksnc_tx_carrier = list_next_entry(tx, tx_list);
 		LASSERT(conn->ksnc_tx_carrier->tx_msg.ksm_type == tx->tx_msg.ksm_type);
 	}
 }
