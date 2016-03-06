@@ -1752,6 +1752,11 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,
 				u8 max_subfrms_amsdu);
 void ath10k_htt_hif_tx_complete(struct ath10k *ar, struct sk_buff *skb);
+int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
+			     __le32 token,
+			     __le16 fetch_seq_num,
+			     struct htt_tx_fetch_record *records,
+			     size_t num_records);
 
 void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
 			       bool is_mgmt);

@@ -526,6 +526,59 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	return 0;
 }
 
+int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
+			     __le32 token,
+			     __le16 fetch_seq_num,
+			     struct htt_tx_fetch_record *records,
+			     size_t num_records)
+{
+	struct sk_buff *skb;
+	struct htt_cmd *cmd;
+	u16 resp_id;
+	int len = 0;
+	int ret;
+
+	len += sizeof(cmd->hdr);
+	len += sizeof(cmd->tx_fetch_resp);
+	len += sizeof(cmd->tx_fetch_resp.records[0]) * num_records;
+
+	skb = ath10k_htc_alloc_skb(ar, len);
+	if (!skb)
+		return -ENOMEM;
+
+	resp_id = 0; /* TODO: allocate resp_id */
+	ret = 0;
+	if (ret)
+		goto err_free_skb;
+
+	skb_put(skb, len);
+	cmd = (struct htt_cmd *)skb->data;
+	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_TX_FETCH_RESP;
+	cmd->tx_fetch_resp.resp_id = cpu_to_le16(resp_id);
+	cmd->tx_fetch_resp.fetch_seq_num = fetch_seq_num;
+	cmd->tx_fetch_resp.num_records = cpu_to_le16(num_records);
+	cmd->tx_fetch_resp.token = token;
+
+	memcpy(cmd->tx_fetch_resp.records, records,
+	       sizeof(records[0]) * num_records);
+
+	ret = ath10k_htc_send(&ar->htc, ar->htt.eid, skb);
+	if (ret) {
+		ath10k_warn(ar, "failed to submit htc command: %d\n", ret);
+		goto err_free_resp_id;
+	}
+
+	return 0;
+
+err_free_resp_id:
+	(void)resp_id; /* TODO: free resp_id */
+
+err_free_skb:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 static u8 ath10k_htt_tx_get_vdev_id(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);

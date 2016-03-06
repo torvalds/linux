@@ -1982,6 +1982,198 @@ static void ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 	tasklet_schedule(&htt->rx_replenish_task);
 }
 
+static void ath10k_htt_rx_tx_fetch_resp_id_confirm(struct ath10k *ar,
+						   const __le32 *resp_ids,
+						   int num_resp_ids)
+{
+	int i;
+	u32 resp_id;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch confirm num_resp_ids %d\n",
+		   num_resp_ids);
+
+	for (i = 0; i < num_resp_ids; i++) {
+		resp_id = le32_to_cpu(resp_ids[i]);
+
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch confirm resp_id %u\n",
+			   resp_id);
+
+		/* TODO: free resp_id */
+	}
+}
+
+static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
+{
+	struct htt_resp *resp = (struct htt_resp *)skb->data;
+	struct htt_tx_fetch_record *record;
+	size_t len;
+	size_t max_num_bytes;
+	size_t max_num_msdus;
+	const __le32 *resp_ids;
+	u16 num_records;
+	u16 num_resp_ids;
+	u16 peer_id;
+	u8 tid;
+	int i;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind\n");
+
+	len = sizeof(resp->hdr) + sizeof(resp->tx_fetch_ind);
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_fetch_ind event: buffer too short\n");
+		return;
+	}
+
+	num_records = le16_to_cpu(resp->tx_fetch_ind.num_records);
+	num_resp_ids = le16_to_cpu(resp->tx_fetch_ind.num_resp_ids);
+
+	len += sizeof(resp->tx_fetch_ind.records[0]) * num_records;
+	len += sizeof(resp->tx_fetch_ind.resp_ids[0]) * num_resp_ids;
+
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_fetch_ind event: too many records/resp_ids\n");
+		return;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind num records %hu num resps %hu seq %hu\n",
+		   num_records, num_resp_ids,
+		   le16_to_cpu(resp->tx_fetch_ind.fetch_seq_num));
+
+	/* TODO: runtime sanity checks */
+
+	for (i = 0; i < num_records; i++) {
+		record = &resp->tx_fetch_ind.records[i];
+		peer_id = MS(le16_to_cpu(record->info),
+			     HTT_TX_FETCH_RECORD_INFO_PEER_ID);
+		tid = MS(le16_to_cpu(record->info),
+			 HTT_TX_FETCH_RECORD_INFO_TID);
+		max_num_msdus = le16_to_cpu(record->num_msdus);
+		max_num_bytes = le32_to_cpu(record->num_bytes);
+
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch record %i peer_id %hu tid %hhu msdus %zu bytes %zu\n",
+			   i, peer_id, tid, max_num_msdus, max_num_bytes);
+
+		if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
+		    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
+			ath10k_warn(ar, "received out of range peer_id %hu tid %hhu\n",
+				    peer_id, tid);
+			continue;
+		}
+
+		/* TODO: dequeue and submit tx to device */
+	}
+
+	resp_ids = ath10k_htt_get_tx_fetch_ind_resp_ids(&resp->tx_fetch_ind);
+	ath10k_htt_rx_tx_fetch_resp_id_confirm(ar, resp_ids, num_resp_ids);
+
+	/* TODO: generate and send fetch response to device */
+}
+
+static void ath10k_htt_rx_tx_fetch_confirm(struct ath10k *ar,
+					   struct sk_buff *skb)
+{
+	const struct htt_resp *resp = (void *)skb->data;
+	size_t len;
+	int num_resp_ids;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch confirm\n");
+
+	len = sizeof(resp->hdr) + sizeof(resp->tx_fetch_confirm);
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_fetch_confirm event: buffer too short\n");
+		return;
+	}
+
+	num_resp_ids = le16_to_cpu(resp->tx_fetch_confirm.num_resp_ids);
+	len += sizeof(resp->tx_fetch_confirm.resp_ids[0]) * num_resp_ids;
+
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_fetch_confirm event: resp_ids buffer overflow\n");
+		return;
+	}
+
+	ath10k_htt_rx_tx_fetch_resp_id_confirm(ar,
+					       resp->tx_fetch_confirm.resp_ids,
+					       num_resp_ids);
+}
+
+static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
+					     struct sk_buff *skb)
+{
+	const struct htt_resp *resp = (void *)skb->data;
+	const struct htt_tx_mode_switch_record *record;
+	size_t len;
+	size_t num_records;
+	enum htt_tx_mode_switch_mode mode;
+	bool enable;
+	u16 info0;
+	u16 info1;
+	u16 threshold;
+	u16 peer_id;
+	u8 tid;
+	int i;
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx mode switch ind\n");
+
+	len = sizeof(resp->hdr) + sizeof(resp->tx_mode_switch_ind);
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_mode_switch_ind event: buffer too short\n");
+		return;
+	}
+
+	info0 = le16_to_cpu(resp->tx_mode_switch_ind.info0);
+	info1 = le16_to_cpu(resp->tx_mode_switch_ind.info1);
+
+	enable = !!(info0 & HTT_TX_MODE_SWITCH_IND_INFO0_ENABLE);
+	num_records = MS(info0, HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD);
+	mode = MS(info1, HTT_TX_MODE_SWITCH_IND_INFO1_MODE);
+	threshold = MS(info1, HTT_TX_MODE_SWITCH_IND_INFO1_THRESHOLD);
+
+	ath10k_dbg(ar, ATH10K_DBG_HTT,
+		   "htt rx tx mode switch ind info0 0x%04hx info1 0x%04hx enable %d num records %zd mode %d threshold %hu\n",
+		   info0, info1, enable, num_records, mode, threshold);
+
+	len += sizeof(resp->tx_mode_switch_ind.records[0]) * num_records;
+
+	if (unlikely(skb->len < len)) {
+		ath10k_warn(ar, "received corrupted tx_mode_switch_mode_ind event: too many records\n");
+		return;
+	}
+
+	switch (mode) {
+	case HTT_TX_MODE_SWITCH_PUSH:
+	case HTT_TX_MODE_SWITCH_PUSH_PULL:
+		break;
+	default:
+		ath10k_warn(ar, "received invalid tx_mode_switch_mode_ind mode %d, ignoring\n",
+			    mode);
+		return;
+	}
+
+	if (!enable)
+		return;
+
+	/* TODO: apply configuration */
+
+	for (i = 0; i < num_records; i++) {
+		record = &resp->tx_mode_switch_ind.records[i];
+		info0 = le16_to_cpu(record->info0);
+		peer_id = MS(info0, HTT_TX_MODE_SWITCH_RECORD_INFO0_PEER_ID);
+		tid = MS(info0, HTT_TX_MODE_SWITCH_RECORD_INFO0_TID);
+
+		if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
+		    unlikely(tid >= ar->htt.tx_q_state.num_tids)) {
+			ath10k_warn(ar, "received out of range peer_id %hu tid %hhu\n",
+				    peer_id, tid);
+			continue;
+		}
+
+		/* TODO: apply configuration */
+	}
+
+	/* TODO: apply configuration */
+}
+
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -2120,9 +2312,13 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
 	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
+		ath10k_htt_rx_tx_fetch_ind(ar, skb);
+		break;
 	case HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM:
+		ath10k_htt_rx_tx_fetch_confirm(ar, skb);
+		break;
 	case HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND:
-		/* TODO: Implement pull-push logic */
+		ath10k_htt_rx_tx_mode_switch_ind(ar, skb);
 		break;
 	case HTT_T2H_MSG_TYPE_EN_STATS:
 	default:
