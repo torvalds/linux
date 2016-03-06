@@ -114,7 +114,7 @@ xfs_find_handle(
 		handle.ha_fid.fid_len = sizeof(xfs_fid_t) -
 					sizeof(handle.ha_fid.fid_len);
 		handle.ha_fid.fid_pad = 0;
-		handle.ha_fid.fid_gen = ip->i_d.di_gen;
+		handle.ha_fid.fid_gen = inode->i_generation;
 		handle.ha_fid.fid_ino = ip->i_ino;
 
 		hsize = XFS_HSIZE(handle);
@@ -963,7 +963,7 @@ xfs_set_diflags(
 		di_flags |= XFS_DIFLAG_NODEFRAG;
 	if (xflags & FS_XFLAG_FILESTREAM)
 		di_flags |= XFS_DIFLAG_FILESTREAM;
-	if (S_ISDIR(ip->i_d.di_mode)) {
+	if (S_ISDIR(VFS_I(ip)->i_mode)) {
 		if (xflags & FS_XFLAG_RTINHERIT)
 			di_flags |= XFS_DIFLAG_RTINHERIT;
 		if (xflags & FS_XFLAG_NOSYMLINKS)
@@ -972,7 +972,7 @@ xfs_set_diflags(
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 		if (xflags & FS_XFLAG_PROJINHERIT)
 			di_flags |= XFS_DIFLAG_PROJINHERIT;
-	} else if (S_ISREG(ip->i_d.di_mode)) {
+	} else if (S_ISREG(VFS_I(ip)->i_mode)) {
 		if (xflags & FS_XFLAG_REALTIME)
 			di_flags |= XFS_DIFLAG_REALTIME;
 		if (xflags & FS_XFLAG_EXTSIZE)
@@ -1128,14 +1128,14 @@ xfs_ioctl_setattr_check_extsize(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(ip->i_d.di_mode))
+	if ((fa->fsx_xflags & FS_XFLAG_EXTSIZE) && !S_ISREG(VFS_I(ip)->i_mode))
 		return -EINVAL;
 
 	if ((fa->fsx_xflags & FS_XFLAG_EXTSZINHERIT) &&
-	    !S_ISDIR(ip->i_d.di_mode))
+	    !S_ISDIR(VFS_I(ip)->i_mode))
 		return -EINVAL;
 
-	if (S_ISREG(ip->i_d.di_mode) && ip->i_d.di_nextents &&
+	if (S_ISREG(VFS_I(ip)->i_mode) && ip->i_d.di_nextents &&
 	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
 		return -EINVAL;
 
@@ -1256,9 +1256,9 @@ xfs_ioctl_setattr(
 	 * successful return from chown()
 	 */
 
-	if ((ip->i_d.di_mode & (S_ISUID|S_ISGID)) &&
+	if ((VFS_I(ip)->i_mode & (S_ISUID|S_ISGID)) &&
 	    !capable_wrt_inode_uidgid(VFS_I(ip), CAP_FSETID))
-		ip->i_d.di_mode &= ~(S_ISUID|S_ISGID);
+		VFS_I(ip)->i_mode &= ~(S_ISUID|S_ISGID);
 
 	/* Change the ownerships and register project quota modifications */
 	if (xfs_get_projid(ip) != fa->fsx_projid) {

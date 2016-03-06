@@ -121,7 +121,7 @@ xfs_iformat_fork(
 		return -EFSCORRUPTED;
 	}
 
-	switch (ip->i_d.di_mode & S_IFMT) {
+	switch (VFS_I(ip)->i_mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:

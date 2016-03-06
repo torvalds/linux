@@ -75,18 +75,10 @@ xfs_trans_ichgtime(
 
 	tv = current_fs_time(inode->i_sb);
 
-	if ((flags & XFS_ICHGTIME_MOD) &&
-	    !timespec_equal(&inode->i_mtime, &tv)) {
+	if (flags & XFS_ICHGTIME_MOD)
 		inode->i_mtime = tv;
-		ip->i_d.di_mtime.t_sec = tv.tv_sec;
-		ip->i_d.di_mtime.t_nsec = tv.tv_nsec;
-	}
-	if ((flags & XFS_ICHGTIME_CHG) &&
-	    !timespec_equal(&inode->i_ctime, &tv)) {
+	if (flags & XFS_ICHGTIME_CHG)
 		inode->i_ctime = tv;
-		ip->i_d.di_ctime.t_sec = tv.tv_sec;
-		ip->i_d.di_ctime.t_nsec = tv.tv_nsec;
-	}
 }
 
 /*
@@ -125,7 +117,7 @@ xfs_trans_log_inode(
 	 */
 	if (!(ip->i_itemp->ili_item.li_desc->lid_flags & XFS_LID_DIRTY) &&
 	    IS_I_VERSION(VFS_I(ip))) {
-		ip->i_d.di_changecount = ++VFS_I(ip)->i_version;
+		VFS_I(ip)->i_version++;
 		flags |= XFS_ILOG_CORE;
 	}
 

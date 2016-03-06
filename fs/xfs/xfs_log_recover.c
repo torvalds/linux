@@ -2865,7 +2865,7 @@ xfs_recover_inode_owner_change(
 		return -ENOMEM;
 
 	/* instantiate the inode */
-	xfs_dinode_from_disk(&ip->i_d, dip);
+	xfs_inode_from_disk(ip, dip);
 	ASSERT(ip->i_d.di_version >= 3);
 
 	error = xfs_iformat_fork(ip, dip);
@@ -2911,7 +2911,7 @@ xlog_recover_inode_pass2(
 	int			error;
 	int			attr_index;
 	uint			fields;
-	xfs_icdinode_t		*dicp;
+	struct xfs_log_dinode	*ldip;
 	uint			isize;
 	int			need_free = 0;
 
@@ -2964,8 +2964,8 @@ xlog_recover_inode_pass2(
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	dicp = item->ri_buf[1].i_addr;
-	if (unlikely(dicp->di_magic != XFS_DINODE_MAGIC)) {
+	ldip = item->ri_buf[1].i_addr;
+	if (unlikely(ldip->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_alert(mp,
 			"%s: Bad inode log record, rec ptr 0x%p, ino %Ld",
 			__func__, item, in_f->ilf_ino);
@@ -3001,13 +3001,13 @@ xlog_recover_inode_pass2(
 	 * to skip replay when the on disk inode is newer than the log one
 	 */
 	if (!xfs_sb_version_hascrc(&mp->m_sb) &&
-	    dicp->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
+	    ldip->di_flushiter < be16_to_cpu(dip->di_flushiter)) {
 		/*
 		 * Deal with the wrap case, DI_MAX_FLUSH is less
 		 * than smaller numbers
 		 */
 		if (be16_to_cpu(dip->di_flushiter) == DI_MAX_FLUSH &&
-		    dicp->di_flushiter < (DI_MAX_FLUSH >> 1)) {
+		    ldip->di_flushiter < (DI_MAX_FLUSH >> 1)) {
 			/* do nothing */
 		} else {
 			trace_xfs_log_recover_inode_skip(log, in_f);
@@ -3017,13 +3017,13 @@ xlog_recover_inode_pass2(
 	}
 
 	/* Take the opportunity to reset the flush iteration count */
-	dicp->di_flushiter = 0;
+	ldip->di_flushiter = 0;
 
-	if (unlikely(S_ISREG(dicp->di_mode))) {
-		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
-		    (dicp->di_format != XFS_DINODE_FMT_BTREE)) {
+	if (unlikely(S_ISREG(ldip->di_mode))) {
+		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
+		    (ldip->di_format != XFS_DINODE_FMT_BTREE)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
-					 XFS_ERRLEVEL_LOW, mp, dicp);
+					 XFS_ERRLEVEL_LOW, mp, ldip);
 			xfs_alert(mp,
 		"%s: Bad regular inode log record, rec ptr 0x%p, "
 		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
@@ -3031,12 +3031,12 @@ xlog_recover_inode_pass2(
 			error = -EFSCORRUPTED;
 			goto out_release;
 		}
-	} else if (unlikely(S_ISDIR(dicp->di_mode))) {
-		if ((dicp->di_format != XFS_DINODE_FMT_EXTENTS) &&
-		    (dicp->di_format != XFS_DINODE_FMT_BTREE) &&
-		    (dicp->di_format != XFS_DINODE_FMT_LOCAL)) {
+	} else if (unlikely(S_ISDIR(ldip->di_mode))) {
+		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
+		    (ldip->di_format != XFS_DINODE_FMT_BTREE) &&
+		    (ldip->di_format != XFS_DINODE_FMT_LOCAL)) {
 			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
-					     XFS_ERRLEVEL_LOW, mp, dicp);
+					     XFS_ERRLEVEL_LOW, mp, ldip);
 			xfs_alert(mp,
 		"%s: Bad dir inode log record, rec ptr 0x%p, "
 		"ino ptr = 0x%p, ino bp = 0x%p, ino %Ld",
@@ -3045,32 +3045,32 @@ xlog_recover_inode_pass2(
 			goto out_release;
 		}
 	}
-	if (unlikely(dicp->di_nextents + dicp->di_anextents > dicp->di_nblocks)){
+	if (unlikely(ldip->di_nextents + ldip->di_anextents > ldip->di_nblocks)){
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
-				     XFS_ERRLEVEL_LOW, mp, dicp);
+				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
 	"dino bp 0x%p, ino %Ld, total extents = %d, nblocks = %Ld",
 			__func__, item, dip, bp, in_f->ilf_ino,
-			dicp->di_nextents + dicp->di_anextents,
-			dicp->di_nblocks);
+			ldip->di_nextents + ldip->di_anextents,
+			ldip->di_nblocks);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	if (unlikely(dicp->di_forkoff > mp->m_sb.sb_inodesize)) {
+	if (unlikely(ldip->di_forkoff > mp->m_sb.sb_inodesize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
-				     XFS_ERRLEVEL_LOW, mp, dicp);
+				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
 	"%s: Bad inode log record, rec ptr 0x%p, dino ptr 0x%p, "
 	"dino bp 0x%p, ino %Ld, forkoff 0x%x", __func__,
-			item, dip, bp, in_f->ilf_ino, dicp->di_forkoff);
+			item, dip, bp, in_f->ilf_ino, ldip->di_forkoff);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	isize = xfs_icdinode_size(dicp->di_version);
+	isize = xfs_log_dinode_size(ldip->di_version);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
 		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
-				     XFS_ERRLEVEL_LOW, mp, dicp);
+				     XFS_ERRLEVEL_LOW, mp, ldip);
 		xfs_alert(mp,
 			"%s: Bad inode log record length %d, rec ptr 0x%p",
 			__func__, item->ri_buf[1].i_len, item);
@@ -3078,8 +3078,8 @@ xlog_recover_inode_pass2(
 		goto out_release;
 	}
 
-	/* The core is in in-core format */
-	xfs_dinode_to_disk(dip, dicp);
+	/* recover the log dinode inode into the on disk inode */
+	xfs_log_dinode_to_disk(ldip, dip);
 
 	/* the rest is in on-disk format */
 	if (item->ri_buf[1].i_len > isize) {
@@ -4409,8 +4409,8 @@ xlog_recover_process_one_iunlink(
 	if (error)
 		goto fail_iput;
 
-	ASSERT(ip->i_d.di_nlink == 0);
-	ASSERT(ip->i_d.di_mode != 0);
+	ASSERT(VFS_I(ip)->i_nlink == 0);
+	ASSERT(VFS_I(ip)->i_mode != 0);
 
 	/* setup for the next pass */
 	agino = be32_to_cpu(dip->di_next_unlinked);

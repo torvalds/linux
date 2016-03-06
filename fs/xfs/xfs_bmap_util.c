@@ -823,7 +823,7 @@ bool
 xfs_can_free_eofblocks(struct xfs_inode *ip, bool force)
 {
 	/* prealloc/delalloc exists only on regular files */
-	if (!S_ISREG(ip->i_d.di_mode))
+	if (!S_ISREG(VFS_I(ip)->i_mode))
 		return false;
 
 	/*
@@ -1728,7 +1728,7 @@ xfs_swap_extents(
 	xfs_lock_two_inodes(ip, tip, XFS_MMAPLOCK_EXCL);
 
 	/* Verify that both files have the same format */
-	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
+	if ((VFS_I(ip)->i_mode & S_IFMT) != (VFS_I(tip)->i_mode & S_IFMT)) {
 		error = -EINVAL;
 		goto out_unlock;
 	}
