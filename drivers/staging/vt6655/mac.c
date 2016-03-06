@@ -558,7 +558,7 @@ void MACvSetCurrRx0DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 	unsigned short ww;
 	unsigned char byOrgDMACtl;
 
-	VNSvInPortB(io_base + MAC_REG_RXDMACTL0, &byOrgDMACtl);
+	byOrgDMACtl = ioread8(io_base + MAC_REG_RXDMACTL0);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_RXDMACTL0 + 2);
 
@@ -592,7 +592,7 @@ void MACvSetCurrRx1DescAddr(struct vnt_private *priv, u32 dwCurrDescAddr)
 	unsigned short ww;
 	unsigned char byOrgDMACtl;
 
-	VNSvInPortB(io_base + MAC_REG_RXDMACTL1, &byOrgDMACtl);
+	byOrgDMACtl = ioread8(io_base + MAC_REG_RXDMACTL1);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_RXDMACTL1 + 2);
 
@@ -628,7 +628,7 @@ void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
 	unsigned short ww;
 	unsigned char byOrgDMACtl;
 
-	VNSvInPortB(io_base + MAC_REG_TXDMACTL0, &byOrgDMACtl);
+	byOrgDMACtl = ioread8(io_base + MAC_REG_TXDMACTL0);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_TXDMACTL0 + 2);
 
@@ -664,7 +664,7 @@ void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
 	unsigned short ww;
 	unsigned char byOrgDMACtl;
 
-	VNSvInPortB(io_base + MAC_REG_AC0DMACTL, &byOrgDMACtl);
+	byOrgDMACtl = ioread8(io_base + MAC_REG_AC0DMACTL);
 	if (byOrgDMACtl & DMACTL_RUN)
 		iowrite8(DMACTL_RUN, io_base + MAC_REG_AC0DMACTL + 2);
 
@@ -713,7 +713,7 @@ void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay)
 	iowrite8((TMCTL_TMD | TMCTL_TE), io_base + MAC_REG_TMCTL0);
 	for (ii = 0; ii < 66; ii++) {  /* assume max PCI clock is 66Mhz */
 		for (uu = 0; uu < uDelay; uu++) {
-			VNSvInPortB(io_base + MAC_REG_TMCTL0, &byValue);
+			byValue = ioread8(io_base + MAC_REG_TMCTL0);
 			if ((byValue == 0) ||
 			    (byValue & TMCTL_TSUSP)) {
 				iowrite8(0, io_base + MAC_REG_TMCTL0);
