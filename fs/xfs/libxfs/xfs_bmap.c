@@ -5210,7 +5210,7 @@ xfs_bunmapi(
 			 * This is better than zeroing it.
 			 */
 			ASSERT(del.br_state == XFS_EXT_NORM);
-			ASSERT(xfs_trans_get_block_res(tp) > 0);
+			ASSERT(tp->t_blk_res > 0);
 			/*
 			 * If this spans a realtime extent boundary,
 			 * chop it back to the start of the one we end at.
@@ -5241,7 +5241,7 @@ xfs_bunmapi(
 				del.br_startblock += mod;
 			} else if ((del.br_startoff == start &&
 				    (del.br_state == XFS_EXT_UNWRITTEN ||
-				     xfs_trans_get_block_res(tp) == 0)) ||
+				     tp->t_blk_res == 0)) ||
 				   !xfs_sb_version_hasextflgbit(&mp->m_sb)) {
 				/*
 				 * Can't make it unwritten.  There isn't
@@ -5332,7 +5332,7 @@ xfs_bunmapi(
 		 * conversion to btree format, since the transaction
 		 * will be dirty.
 		 */
-		if (!wasdel && xfs_trans_get_block_res(tp) == 0 &&
+		if (!wasdel && tp->t_blk_res == 0 &&
 		    XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_EXTENTS &&
 		    XFS_IFORK_NEXTENTS(ip, whichfork) >= /* Note the >= */
 			XFS_IFORK_MAXEXT(ip, whichfork) &&
