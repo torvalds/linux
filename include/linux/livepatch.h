@@ -24,8 +24,6 @@
 #include <linux/module.h>
 #include <linux/ftrace.h>
 
-#if IS_ENABLED(CONFIG_LIVEPATCH)
-
 #include <asm/livepatch.h>
 
 enum klp_state {
@@ -133,7 +131,5 @@ int klp_register_patch(struct klp_patch *);
 int klp_unregister_patch(struct klp_patch *);
 int klp_enable_patch(struct klp_patch *);
 int klp_disable_patch(struct klp_patch *);
-
-#endif /* CONFIG_LIVEPATCH */
 
 #endif /* _LINUX_LIVEPATCH_H_ */
