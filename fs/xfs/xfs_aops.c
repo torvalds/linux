@@ -520,7 +520,8 @@ xfs_add_to_ioend(
 	struct list_head	*iolist)
 {
 	if (!wpc->ioend || wpc->io_type != wpc->ioend->io_type ||
-	    bh->b_blocknr != wpc->last_block + 1) {
+	    bh->b_blocknr != wpc->last_block + 1 ||
+	    offset != wpc->ioend->io_offset + wpc->ioend->io_size) {
 		struct xfs_ioend	*new;
 
 		if (wpc->ioend)
