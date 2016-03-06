@@ -417,7 +417,7 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 
 	ret = st->read_reg_32(dev, ADE7854_MASK0, &irqen);
 	if (ret)
-		goto error_ret;
+		return ret;
 
 	if (enable)
 		irqen |= BIT(17); /* 1: interrupt enabled when all periodical
@@ -426,10 +426,7 @@ static int ade7854_set_irq(struct device *dev, bool enable)
 		irqen &= ~BIT(17);
 
 	ret = st->write_reg_32(dev, ADE7854_MASK0, irqen);
-	if (ret)
-		goto error_ret;
 
-error_ret:
 	return ret;
 }
 
