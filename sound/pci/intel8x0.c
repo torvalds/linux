@@ -2980,8 +2980,8 @@ static int snd_intel8x0_inside_vm(struct pci_dev *pci)
 		goto fini;
 
 	/* check for known (emulated) devices */
-	if (pci->subsystem_vendor == 0x1af4 &&
-	    pci->subsystem_device == 0x1100) {
+	if (pci->subsystem_vendor == PCI_SUBVENDOR_ID_REDHAT_QUMRANET &&
+	    pci->subsystem_device == PCI_SUBDEVICE_ID_QEMU) {
 		/* KVM emulated sound, PCI SSID: 1af4:1100 */
 		msg = "enable KVM";
 	} else if (pci->subsystem_vendor == 0x1ab8) {
