@@ -1458,14 +1458,10 @@ static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 		if (dentry->d_flags & DCACHE_OP_REVALIDATE) {
 			error = d_revalidate(dentry, flags);
 			if (unlikely(error <= 0)) {
-				if (error < 0) {
-					dput(dentry);
-					return ERR_PTR(error);
-				} else {
+				if (!error)
 					d_invalidate(dentry);
-					dput(dentry);
-					dentry = NULL;
-				}
+				dput(dentry);
+				return ERR_PTR(error);
 			}
 		}
 	}
