@@ -1667,6 +1667,7 @@ struct ath10k_htt {
 	} txbuf;
 
 	struct {
+		bool enabled;
 		struct htt_q_state *vaddr;
 		dma_addr_t paddr;
 		u16 num_peers;
@@ -1758,6 +1759,8 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 			     struct htt_tx_fetch_record *records,
 			     size_t num_records);
 
+void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq);
 void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
 			       bool is_mgmt);
 int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt,

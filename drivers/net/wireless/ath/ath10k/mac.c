@@ -3725,6 +3725,7 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 		}
 
 		list_del_init(&artxq->list);
+		ath10k_htt_tx_txq_update(hw, txq);
 
 		if (artxq == last || (ret < 0 && ret != -ENOENT)) {
 			if (ret != -ENOENT)
@@ -3967,6 +3968,8 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 
 		tasklet_schedule(&ar->htt.txrx_compl_task);
 	}
+
+	ath10k_htt_tx_txq_update(hw, txq);
 }
 
 /* Must not be called with conf_mutex held as workers can use that also. */
