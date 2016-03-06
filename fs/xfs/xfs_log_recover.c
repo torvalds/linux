@@ -1276,6 +1276,37 @@ xlog_check_unmount_rec(
 	return 0;
 }
 
+static void
+xlog_set_state(
+	struct xlog		*log,
+	xfs_daddr_t		head_blk,
+	struct xlog_rec_header	*rhead,
+	xfs_daddr_t		rhead_blk,
+	bool			bump_cycle)
+{
+	/*
+	 * Reset log values according to the state of the log when we
+	 * crashed.  In the case where head_blk == 0, we bump curr_cycle
+	 * one because the next write starts a new cycle rather than
+	 * continuing the cycle of the last good log record.  At this
+	 * point we have guaranteed that all partial log records have been
+	 * accounted for.  Therefore, we know that the last good log record
+	 * written was complete and ended exactly on the end boundary
+	 * of the physical log.
+	 */
+	log->l_prev_block = rhead_blk;
+	log->l_curr_block = (int)head_blk;
+	log->l_curr_cycle = be32_to_cpu(rhead->h_cycle);
+	if (bump_cycle)
+		log->l_curr_cycle++;
+	atomic64_set(&log->l_tail_lsn, be64_to_cpu(rhead->h_tail_lsn));
+	atomic64_set(&log->l_last_sync_lsn, be64_to_cpu(rhead->h_lsn));
+	xlog_assign_grant_head(&log->l_reserve_head.grant, log->l_curr_cycle,
+					BBTOB(log->l_curr_block));
+	xlog_assign_grant_head(&log->l_write_head.grant, log->l_curr_cycle,
+					BBTOB(log->l_curr_block));
+}
+
 /*
  * Find the sync block number or the tail of the log.
  *
@@ -1356,26 +1387,9 @@ xlog_find_tail(
 		goto done;
 
 	/*
-	 * Reset log values according to the state of the log when we
-	 * crashed.  In the case where head_blk == 0, we bump curr_cycle
-	 * one because the next write starts a new cycle rather than
-	 * continuing the cycle of the last good log record.  At this
-	 * point we have guaranteed that all partial log records have been
-	 * accounted for.  Therefore, we know that the last good log record
-	 * written was complete and ended exactly on the end boundary
-	 * of the physical log.
+	 * Set the log state based on the current head record.
 	 */
-	log->l_prev_block = rhead_blk;
-	log->l_curr_block = (int)*head_blk;
-	log->l_curr_cycle = be32_to_cpu(rhead->h_cycle);
-	if (wrapped)
-		log->l_curr_cycle++;
-	atomic64_set(&log->l_tail_lsn, be64_to_cpu(rhead->h_tail_lsn));
-	atomic64_set(&log->l_last_sync_lsn, be64_to_cpu(rhead->h_lsn));
-	xlog_assign_grant_head(&log->l_reserve_head.grant, log->l_curr_cycle,
-					BBTOB(log->l_curr_block));
-	xlog_assign_grant_head(&log->l_write_head.grant, log->l_curr_cycle,
-					BBTOB(log->l_curr_block));
+	xlog_set_state(log, *head_blk, rhead, rhead_blk, wrapped);
 	tail_lsn = atomic64_read(&log->l_tail_lsn);
 
 	/*
