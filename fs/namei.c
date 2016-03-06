@@ -1448,12 +1448,11 @@ static int follow_dotdot(struct nameidata *nd)
  * dir->d_inode->i_mutex must be held
  */
 static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
-				    unsigned int flags, bool *need_lookup)
+				    unsigned int flags)
 {
 	struct dentry *dentry;
 	int error;
 
-	*need_lookup = false;
 	dentry = d_lookup(dir, name);
 	if (dentry) {
 		if (dentry->d_flags & DCACHE_OP_REVALIDATE) {
@@ -1469,14 +1468,6 @@ static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 				}
 			}
 		}
-	}
-
-	if (!dentry) {
-		dentry = d_alloc(dir, name);
-		if (unlikely(!dentry))
-			return ERR_PTR(-ENOMEM);
-
-		*need_lookup = true;
 	}
 	return dentry;
 }
@@ -1509,12 +1500,14 @@ static struct dentry *lookup_real(struct inode *dir, struct dentry *dentry,
 static struct dentry *__lookup_hash(struct qstr *name,
 		struct dentry *base, unsigned int flags)
 {
-	bool need_lookup;
-	struct dentry *dentry;
+	struct dentry *dentry = lookup_dcache(name, base, flags);
 
-	dentry = lookup_dcache(name, base, flags, &need_lookup);
-	if (!need_lookup)
+	if (dentry)
 		return dentry;
+
+	dentry = d_alloc(base, name);
+	if (unlikely(!dentry))
+		return ERR_PTR(-ENOMEM);
 
 	return lookup_real(base->d_inode, dentry, flags);
 }
@@ -3018,16 +3011,22 @@ static int lookup_open(struct nameidata *nd, struct path *path,
 	struct inode *dir_inode = dir->d_inode;
 	struct dentry *dentry;
 	int error;
-	bool need_lookup;
+	bool need_lookup = false;
 
 	*opened &= ~FILE_CREATED;
-	dentry = lookup_dcache(&nd->last, dir, nd->flags, &need_lookup);
+	dentry = lookup_dcache(&nd->last, dir, nd->flags);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	/* Cached positive dentry: will open in f_op->open */
-	if (!need_lookup && dentry->d_inode)
+	if (!dentry) {
+		dentry = d_alloc(dir, &nd->last);
+		if (unlikely(!dentry))
+			return -ENOMEM;
+		need_lookup = true;
+	} else if (dentry->d_inode) {
+		/* Cached positive dentry: will open in f_op->open */
 		goto out_no_open;
+	}
 
 	if ((nd->flags & LOOKUP_OPEN) && dir_inode->i_op->atomic_open) {
 		return atomic_open(nd, dentry, path, file, op, got_write,
