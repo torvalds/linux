@@ -1444,8 +1444,6 @@ static int follow_dotdot(struct nameidata *nd)
  * This looks up the name in dcache, possibly revalidates the old dentry and
  * allocates a new one if not found or not valid.  In the need_lookup argument
  * returns whether i_op->lookup is necessary.
- *
- * dir->d_inode->i_mutex must be held
  */
 static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 				    unsigned int flags)
@@ -2351,15 +2349,7 @@ struct dentry *lookup_one_len_unlocked(const char *name,
 	if (err)
 		return ERR_PTR(err);
 
-	/*
-	 * __d_lookup() is used to try to get a quick answer and avoid the
-	 * mutex.  A false-negative does no harm.
-	 */
-	ret = __d_lookup(base, &this);
-	if (ret && unlikely(ret->d_flags & DCACHE_OP_REVALIDATE)) {
-		dput(ret);
-		ret = NULL;
-	}
+	ret = lookup_dcache(&this, base, 0);
 	if (ret)
 		return ret;
 
