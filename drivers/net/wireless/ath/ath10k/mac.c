@@ -3669,6 +3669,7 @@ static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 	const bool is_presp = false;
 	struct ath10k *ar = hw->priv;
 	struct ath10k_htt *htt = &ar->htt;
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
 	struct ieee80211_vif *vif = txq->vif;
 	struct ieee80211_sta *sta = txq->sta;
 	enum ath10k_hw_txrx_mode txmode;
@@ -3707,6 +3708,10 @@ static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 
 		return ret;
 	}
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	artxq->num_fw_queued++;
+	spin_unlock_bh(&ar->htt.tx_lock);
 
 	return 0;
 }

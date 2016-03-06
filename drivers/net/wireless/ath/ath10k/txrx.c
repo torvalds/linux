@@ -55,7 +55,9 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	struct ath10k *ar = htt->ar;
 	struct device *dev = ar->dev;
 	struct ieee80211_tx_info *info;
+	struct ieee80211_txq *txq;
 	struct ath10k_skb_cb *skb_cb;
+	struct ath10k_txq *artxq;
 	struct sk_buff *msdu;
 	bool limit_mgmt_desc = false;
 
@@ -80,10 +82,15 @@ void ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	}
 
 	skb_cb = ATH10K_SKB_CB(msdu);
+	txq = skb_cb->txq;
+	artxq = (void *)txq->drv_priv;
 
 	if (unlikely(skb_cb->flags & ATH10K_SKB_F_MGMT) &&
 	    ar->hw_params.max_probe_resp_desc_thres)
 		limit_mgmt_desc = true;
+
+	if (txq)
+		artxq->num_fw_queued--;
 
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
 	ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
