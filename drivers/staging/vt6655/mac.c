@@ -765,7 +765,6 @@ void MACvSetMISCFifo(struct vnt_private *priv, unsigned short wOffset,
 bool MACbPSWakeup(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->PortOffset;
-	unsigned char byOrgValue;
 	unsigned int ww;
 	/* Read PSCTL */
 	if (MACbIsRegBitsOff(priv, MAC_REG_PSCTL, PSCTL_PS))
@@ -776,8 +775,7 @@ bool MACbPSWakeup(struct vnt_private *priv)
 
 	/* Check if SyncFlushOK */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
-		VNSvInPortB(io_base + MAC_REG_PSCTL, &byOrgValue);
-		if (byOrgValue & PSCTL_WAKEDONE)
+		if (ioread8(io_base + MAC_REG_PSCTL) & PSCTL_WAKEDONE)
 			break;
 	}
 	if (ww == W_MAX_TIMEOUT) {
