@@ -229,6 +229,7 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 	skb_queue_purge(&htt->tx_compl_q);
 	skb_queue_purge(&htt->rx_compl_q);
 	skb_queue_purge(&htt->rx_in_ord_compl_q);
+	skb_queue_purge(&htt->tx_fetch_ind_q);
 
 	ath10k_htt_rx_ring_free(htt);
 
@@ -569,6 +570,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	skb_queue_head_init(&htt->tx_compl_q);
 	skb_queue_head_init(&htt->rx_compl_q);
 	skb_queue_head_init(&htt->rx_in_ord_compl_q);
+	skb_queue_head_init(&htt->tx_fetch_ind_q);
 
 	tasklet_init(&htt->txrx_compl_task, ath10k_htt_txrx_compl_task,
 		     (unsigned long)htt);
@@ -2004,16 +2006,21 @@ static void ath10k_htt_rx_tx_fetch_resp_id_confirm(struct ath10k *ar,
 
 static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 {
+	struct ieee80211_hw *hw = ar->hw;
+	struct ieee80211_txq *txq;
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
 	struct htt_tx_fetch_record *record;
 	size_t len;
 	size_t max_num_bytes;
 	size_t max_num_msdus;
+	size_t num_bytes;
+	size_t num_msdus;
 	const __le32 *resp_ids;
 	u16 num_records;
 	u16 num_resp_ids;
 	u16 peer_id;
 	u8 tid;
+	int ret;
 	int i;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind\n");
@@ -2039,7 +2046,17 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		   num_records, num_resp_ids,
 		   le16_to_cpu(resp->tx_fetch_ind.fetch_seq_num));
 
-	/* TODO: runtime sanity checks */
+	if (!ar->htt.tx_q_state.enabled) {
+		ath10k_warn(ar, "received unexpected tx_fetch_ind event: not enabled\n");
+		return;
+	}
+
+	if (ar->htt.tx_q_state.mode == HTT_TX_MODE_SWITCH_PUSH) {
+		ath10k_warn(ar, "received unexpected tx_fetch_ind event: in push mode\n");
+		return;
+	}
+
+	rcu_read_lock();
 
 	for (i = 0; i < num_records; i++) {
 		record = &resp->tx_fetch_ind.records[i];
@@ -2060,13 +2077,56 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
-		/* TODO: dequeue and submit tx to device */
+		spin_lock_bh(&ar->data_lock);
+		txq = ath10k_mac_txq_lookup(ar, peer_id, tid);
+		spin_unlock_bh(&ar->data_lock);
+
+		/* It is okay to release the lock and use txq because RCU read
+		 * lock is held.
+		 */
+
+		if (unlikely(!txq)) {
+			ath10k_warn(ar, "failed to lookup txq for peer_id %hu tid %hhu\n",
+				    peer_id, tid);
+			continue;
+		}
+
+		num_msdus = 0;
+		num_bytes = 0;
+
+		while (num_msdus < max_num_msdus &&
+		       num_bytes < max_num_bytes) {
+			ret = ath10k_mac_tx_push_txq(hw, txq);
+			if (ret < 0)
+				break;
+
+			num_msdus++;
+			num_bytes += ret;
+		}
+
+		record->num_msdus = cpu_to_le16(num_msdus);
+		record->num_bytes = cpu_to_le32(num_bytes);
+
+		ath10k_htt_tx_txq_recalc(hw, txq);
 	}
+
+	rcu_read_unlock();
 
 	resp_ids = ath10k_htt_get_tx_fetch_ind_resp_ids(&resp->tx_fetch_ind);
 	ath10k_htt_rx_tx_fetch_resp_id_confirm(ar, resp_ids, num_resp_ids);
 
-	/* TODO: generate and send fetch response to device */
+	ret = ath10k_htt_tx_fetch_resp(ar,
+				       resp->tx_fetch_ind.token,
+				       resp->tx_fetch_ind.fetch_seq_num,
+				       resp->tx_fetch_ind.records,
+				       num_records);
+	if (unlikely(ret)) {
+		ath10k_warn(ar, "failed to submit tx fetch resp for token 0x%08x: %d\n",
+			    le32_to_cpu(resp->tx_fetch_ind.token), ret);
+		/* FIXME: request fw restart */
+	}
+
+	ath10k_htt_tx_txq_sync(ar);
 }
 
 static void ath10k_htt_rx_tx_fetch_confirm(struct ath10k *ar,
@@ -2102,6 +2162,8 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 {
 	const struct htt_resp *resp = (void *)skb->data;
 	const struct htt_tx_mode_switch_record *record;
+	struct ieee80211_txq *txq;
+	struct ath10k_txq *artxq;
 	size_t len;
 	size_t num_records;
 	enum htt_tx_mode_switch_mode mode;
@@ -2153,7 +2215,11 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 	if (!enable)
 		return;
 
-	/* TODO: apply configuration */
+	ar->htt.tx_q_state.enabled = enable;
+	ar->htt.tx_q_state.mode = mode;
+	ar->htt.tx_q_state.num_push_allowed = threshold;
+
+	rcu_read_lock();
 
 	for (i = 0; i < num_records; i++) {
 		record = &resp->tx_mode_switch_ind.records[i];
@@ -2168,10 +2234,29 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 			continue;
 		}
 
-		/* TODO: apply configuration */
+		spin_lock_bh(&ar->data_lock);
+		txq = ath10k_mac_txq_lookup(ar, peer_id, tid);
+		spin_unlock_bh(&ar->data_lock);
+
+		/* It is okay to release the lock and use txq because RCU read
+		 * lock is held.
+		 */
+
+		if (unlikely(!txq)) {
+			ath10k_warn(ar, "failed to lookup txq for peer_id %hu tid %hhu\n",
+				    peer_id, tid);
+			continue;
+		}
+
+		spin_lock_bh(&ar->htt.tx_lock);
+		artxq = (void *)txq->drv_priv;
+		artxq->num_push_allowed = le16_to_cpu(record->num_max_msdus);
+		spin_unlock_bh(&ar->htt.tx_lock);
 	}
 
-	/* TODO: apply configuration */
+	rcu_read_unlock();
+
+	ath10k_mac_tx_push_pending(ar);
 }
 
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
@@ -2313,8 +2398,9 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
 	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:
-		ath10k_htt_rx_tx_fetch_ind(ar, skb);
-		break;
+		skb_queue_tail(&htt->tx_fetch_ind_q, skb);
+		tasklet_schedule(&htt->txrx_compl_task);
+		return;
 	case HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM:
 		ath10k_htt_rx_tx_fetch_confirm(ar, skb);
 		break;
@@ -2350,6 +2436,7 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	struct sk_buff_head tx_q;
 	struct sk_buff_head rx_q;
 	struct sk_buff_head rx_ind_q;
+	struct sk_buff_head tx_ind_q;
 	struct htt_resp *resp;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -2357,6 +2444,7 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	__skb_queue_head_init(&tx_q);
 	__skb_queue_head_init(&rx_q);
 	__skb_queue_head_init(&rx_ind_q);
+	__skb_queue_head_init(&tx_ind_q);
 
 	spin_lock_irqsave(&htt->tx_compl_q.lock, flags);
 	skb_queue_splice_init(&htt->tx_compl_q, &tx_q);
@@ -2370,8 +2458,17 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 	skb_queue_splice_init(&htt->rx_in_ord_compl_q, &rx_ind_q);
 	spin_unlock_irqrestore(&htt->rx_in_ord_compl_q.lock, flags);
 
+	spin_lock_irqsave(&htt->tx_fetch_ind_q.lock, flags);
+	skb_queue_splice_init(&htt->tx_fetch_ind_q, &tx_ind_q);
+	spin_unlock_irqrestore(&htt->tx_fetch_ind_q.lock, flags);
+
 	while ((skb = __skb_dequeue(&tx_q))) {
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
+		dev_kfree_skb_any(skb);
+	}
+
+	while ((skb = __skb_dequeue(&tx_ind_q))) {
+		ath10k_htt_rx_tx_fetch_ind(ar, skb);
 		dev_kfree_skb_any(skb);
 	}
 

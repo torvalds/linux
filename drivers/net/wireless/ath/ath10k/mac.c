@@ -3656,14 +3656,48 @@ static void ath10k_mac_txq_unref(struct ath10k *ar, struct ieee80211_txq *txq)
 	spin_unlock_bh(&ar->htt.tx_lock);
 }
 
+struct ieee80211_txq *ath10k_mac_txq_lookup(struct ath10k *ar,
+					    u16 peer_id,
+					    u8 tid)
+{
+	struct ath10k_peer *peer;
+
+	lockdep_assert_held(&ar->data_lock);
+
+	peer = ar->peer_map[peer_id];
+	if (!peer)
+		return NULL;
+
+	if (peer->sta)
+		return peer->sta->txq[tid];
+	else if (peer->vif)
+		return peer->vif->txq;
+	else
+		return NULL;
+}
+
 static bool ath10k_mac_tx_can_push(struct ieee80211_hw *hw,
 				   struct ieee80211_txq *txq)
 {
-	return 1; /* TBD */
+	struct ath10k *ar = hw->priv;
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+
+	/* No need to get locks */
+
+	if (ar->htt.tx_q_state.mode == HTT_TX_MODE_SWITCH_PUSH)
+		return true;
+
+	if (ar->htt.num_pending_tx < ar->htt.tx_q_state.num_push_allowed)
+		return true;
+
+	if (artxq->num_fw_queued < artxq->num_push_allowed)
+		return true;
+
+	return false;
 }
 
-static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
-				  struct ieee80211_txq *txq)
+int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
+			   struct ieee80211_txq *txq)
 {
 	const bool is_mgmt = false;
 	const bool is_presp = false;
@@ -3675,6 +3709,7 @@ static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 	enum ath10k_hw_txrx_mode txmode;
 	enum ath10k_mac_tx_path txpath;
 	struct sk_buff *skb;
+	size_t skb_len;
 	int ret;
 
 	spin_lock_bh(&ar->htt.tx_lock);
@@ -3695,6 +3730,7 @@ static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 
 	ath10k_mac_tx_h_fill_cb(ar, vif, txq, skb);
 
+	skb_len = skb->len;
 	txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
 	txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
 
@@ -3713,7 +3749,7 @@ static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 	artxq->num_fw_queued++;
 	spin_unlock_bh(&ar->htt.tx_lock);
 
-	return 0;
+	return skb_len;
 }
 
 void ath10k_mac_tx_push_pending(struct ath10k *ar)

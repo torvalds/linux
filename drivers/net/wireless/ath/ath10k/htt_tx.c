@@ -64,6 +64,9 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	if (!ar->htt.tx_q_state.enabled)
 		return;
 
+	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH_PULL)
+		return;
+
 	if (txq->sta)
 		peer_id = arsta->peer_id;
 	else
@@ -101,6 +104,9 @@ static void __ath10k_htt_tx_txq_sync(struct ath10k *ar)
 	if (!ar->htt.tx_q_state.enabled)
 		return;
 
+	if (ar->htt.tx_q_state.mode != HTT_TX_MODE_SWITCH_PUSH_PULL)
+		return;
+
 	seq = le32_to_cpu(ar->htt.tx_q_state.vaddr->seq);
 	seq++;
 	ar->htt.tx_q_state.vaddr->seq = cpu_to_le32(seq);
@@ -113,6 +119,23 @@ static void __ath10k_htt_tx_txq_sync(struct ath10k *ar)
 				   ar->htt.tx_q_state.paddr,
 				   size,
 				   DMA_TO_DEVICE);
+}
+
+void ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq)
+{
+	struct ath10k *ar = hw->priv;
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	__ath10k_htt_tx_txq_recalc(hw, txq);
+	spin_unlock_bh(&ar->htt.tx_lock);
+}
+
+void ath10k_htt_tx_txq_sync(struct ath10k *ar)
+{
+	spin_lock_bh(&ar->htt.tx_lock);
+	__ath10k_htt_tx_txq_sync(ar);
+	spin_unlock_bh(&ar->htt.tx_lock);
 }
 
 void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
@@ -638,9 +661,13 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 {
 	struct sk_buff *skb;
 	struct htt_cmd *cmd;
-	u16 resp_id;
+	const u16 resp_id = 0;
 	int len = 0;
 	int ret;
+
+	/* Response IDs are echo-ed back only for host driver convienence
+	 * purposes. They aren't used for anything in the driver yet so use 0.
+	 */
 
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->tx_fetch_resp);
@@ -649,11 +676,6 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 	skb = ath10k_htc_alloc_skb(ar, len);
 	if (!skb)
 		return -ENOMEM;
-
-	resp_id = 0; /* TODO: allocate resp_id */
-	ret = 0;
-	if (ret)
-		goto err_free_skb;
 
 	skb_put(skb, len);
 	cmd = (struct htt_cmd *)skb->data;
@@ -669,13 +691,10 @@ int ath10k_htt_tx_fetch_resp(struct ath10k *ar,
 	ret = ath10k_htc_send(&ar->htc, ar->htt.eid, skb);
 	if (ret) {
 		ath10k_warn(ar, "failed to submit htc command: %d\n", ret);
-		goto err_free_resp_id;
+		goto err_free_skb;
 	}
 
 	return 0;
-
-err_free_resp_id:
-	(void)resp_id; /* TODO: free resp_id */
 
 err_free_skb:
 	dev_kfree_skb_any(skb);

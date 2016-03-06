@@ -312,6 +312,7 @@ struct ath10k_peer {
 struct ath10k_txq {
 	struct list_head list;
 	unsigned long num_fw_queued;
+	unsigned long num_push_allowed;
 };
 
 struct ath10k_sta {
