@@ -615,7 +615,6 @@ static struct platform_driver mvebu_uart_platform_driver = {
 	.probe	= mvebu_uart_probe,
 	.remove	= mvebu_uart_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name  = "mvebu-uart",
 		.of_match_table = of_match_ptr(mvebu_uart_of_match),
 	},
