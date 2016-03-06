@@ -272,7 +272,7 @@ out:
 	return ret;
 }
 
-static void ds3232_update_alarm(struct device *dev)
+static void ds3232_update_alarm(struct device *dev, unsigned int enabled)
 {
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
 	int control;
@@ -302,7 +302,7 @@ static void ds3232_update_alarm(struct device *dev)
 	if (ret)
 		goto unlock;
 
-	if (ds3232->rtc->irq_data & (RTC_AF | RTC_UF))
+	if (enabled || (ds3232->rtc->irq_data & RTC_UF))
 		/* enable alarm1 interrupt */
 		control |= DS3232_REG_CR_A1IE;
 	else
@@ -321,12 +321,8 @@ static int ds3232_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	if (ds3232->irq <= 0)
 		return -EINVAL;
 
-	if (enabled)
-		ds3232->rtc->irq_data |= RTC_AF;
-	else
-		ds3232->rtc->irq_data &= ~RTC_AF;
+	ds3232_update_alarm(dev, enabled);
 
-	ds3232_update_alarm(dev);
 	return 0;
 }
 
