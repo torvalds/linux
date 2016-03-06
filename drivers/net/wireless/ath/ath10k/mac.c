@@ -3358,13 +3358,11 @@ ath10k_mac_tx_h_get_txpath(struct ath10k *ar,
 
 static int ath10k_mac_tx_submit(struct ath10k *ar,
 				enum ath10k_hw_txrx_mode txmode,
+				enum ath10k_mac_tx_path txpath,
 				struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
-	enum ath10k_mac_tx_path txpath;
-	int ret;
-
-	txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
+	int ret = -EINVAL;
 
 	switch (txpath) {
 	case ATH10K_MAC_TX_HTT:
@@ -3398,6 +3396,7 @@ static int ath10k_mac_tx(struct ath10k *ar,
 			 struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta,
 			 enum ath10k_hw_txrx_mode txmode,
+			 enum ath10k_mac_tx_path txpath,
 			 struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = ar->hw;
@@ -3437,7 +3436,7 @@ static int ath10k_mac_tx(struct ath10k *ar,
 		}
 	}
 
-	ret = ath10k_mac_tx_submit(ar, txmode, skb);
+	ret = ath10k_mac_tx_submit(ar, txmode, txpath, skb);
 	if (ret) {
 		ath10k_warn(ar, "failed to submit frame: %d\n", ret);
 		return ret;
@@ -3465,6 +3464,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 	struct ath10k_peer *peer;
 	struct ath10k_vif *arvif;
 	enum ath10k_hw_txrx_mode txmode;
+	enum ath10k_mac_tx_path txpath;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_vif *vif;
 	struct ieee80211_sta *sta;
@@ -3533,8 +3533,9 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		}
 
 		txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
+		txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
 
-		ret = ath10k_mac_tx(ar, vif, sta, txmode, skb);
+		ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
 		if (ret) {
 			ath10k_warn(ar, "failed to transmit offchannel frame: %d\n",
 				    ret);
@@ -3758,19 +3759,53 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 			     struct sk_buff *skb)
 {
 	struct ath10k *ar = hw->priv;
+	struct ath10k_htt *htt = &ar->htt;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_sta *sta = control->sta;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 	enum ath10k_hw_txrx_mode txmode;
+	enum ath10k_mac_tx_path txpath;
+	bool is_htt;
+	bool is_mgmt;
+	bool is_presp;
 	int ret;
 
 	ath10k_mac_tx_h_fill_cb(ar, vif, skb);
 
 	txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
+	txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
+	is_htt = (txpath == ATH10K_MAC_TX_HTT ||
+		  txpath == ATH10K_MAC_TX_HTT_MGMT);
 
-	ret = ath10k_mac_tx(ar, vif, sta, txmode, skb);
-	if (ret)
+	if (is_htt) {
+		spin_lock_bh(&ar->htt.tx_lock);
+
+		is_mgmt = ieee80211_is_mgmt(hdr->frame_control);
+		is_presp = ieee80211_is_probe_resp(hdr->frame_control);
+
+		ret = ath10k_htt_tx_inc_pending(htt, is_mgmt, is_presp);
+		if (ret) {
+			ath10k_warn(ar, "failed to increase tx pending count: %d, dropping\n",
+				    ret);
+			spin_unlock_bh(&ar->htt.tx_lock);
+			ieee80211_free_txskb(ar->hw, skb);
+			return;
+		}
+
+		spin_unlock_bh(&ar->htt.tx_lock);
+	}
+
+	ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
+	if (ret) {
 		ath10k_warn(ar, "failed to transmit frame: %d\n", ret);
+		if (is_htt) {
+			spin_lock_bh(&ar->htt.tx_lock);
+			ath10k_htt_tx_dec_pending(htt, is_mgmt);
+			spin_unlock_bh(&ar->htt.tx_lock);
+		}
+		return;
+	}
 }
 
 /* Must not be called with conf_mutex held as workers can use that also. */

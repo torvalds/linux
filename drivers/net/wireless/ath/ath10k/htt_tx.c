@@ -22,9 +22,12 @@
 #include "txrx.h"
 #include "debug.h"
 
-void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc)
+void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
+			       bool is_mgmt)
 {
-	if (limit_mgmt_desc)
+	lockdep_assert_held(&htt->tx_lock);
+
+	if (is_mgmt)
 		htt->num_pending_mgmt_tx--;
 
 	htt->num_pending_tx--;
@@ -32,43 +35,31 @@ void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc)
 		ath10k_mac_tx_unlock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 }
 
-static void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
-				      bool limit_mgmt_desc)
-{
-	spin_lock_bh(&htt->tx_lock);
-	__ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
-	spin_unlock_bh(&htt->tx_lock);
-}
-
-static int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt,
-				     bool limit_mgmt_desc, bool is_probe_resp)
+int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt,
+			      bool is_mgmt,
+			      bool is_presp)
 {
 	struct ath10k *ar = htt->ar;
-	int ret = 0;
 
-	spin_lock_bh(&htt->tx_lock);
+	lockdep_assert_held(&htt->tx_lock);
 
-	if (htt->num_pending_tx >= htt->max_num_pending_tx) {
-		ret = -EBUSY;
-		goto exit;
-	}
+	if (htt->num_pending_tx >= htt->max_num_pending_tx)
+		return -EBUSY;
 
-	if (limit_mgmt_desc) {
-		if (is_probe_resp && (htt->num_pending_mgmt_tx >
-		    ar->hw_params.max_probe_resp_desc_thres)) {
-			ret = -EBUSY;
-			goto exit;
-		}
+	if (is_mgmt &&
+	    is_presp &&
+	    ar->hw_params.max_probe_resp_desc_thres &&
+	    ar->hw_params.max_probe_resp_desc_thres < htt->num_pending_mgmt_tx)
+		return -EBUSY;
+
+	if (is_mgmt)
 		htt->num_pending_mgmt_tx++;
-	}
 
 	htt->num_pending_tx++;
 	if (htt->num_pending_tx == htt->max_num_pending_tx)
 		ath10k_mac_tx_lock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 
-exit:
-	spin_unlock_bh(&htt->tx_lock);
-	return ret;
+	return 0;
 }
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)
@@ -576,20 +567,6 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int msdu_id = -1;
 	int res;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)msdu->data;
-	bool limit_mgmt_desc = false;
-	bool is_probe_resp = false;
-
-	if (ar->hw_params.max_probe_resp_desc_thres) {
-		limit_mgmt_desc = true;
-
-		if (ieee80211_is_probe_resp(hdr->frame_control))
-			is_probe_resp = true;
-	}
-
-	res = ath10k_htt_tx_inc_pending(htt, limit_mgmt_desc, is_probe_resp);
-
-	if (res)
-		goto err;
 
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->mgmt_tx);
@@ -598,7 +575,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
-		goto err_tx_dec;
+		goto err;
 
 	msdu_id = res;
 
@@ -649,8 +626,6 @@ err_free_msdu_id:
 	spin_lock_bh(&htt->tx_lock);
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
 	spin_unlock_bh(&htt->tx_lock);
-err_tx_dec:
-	ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 err:
 	return res;
 }
@@ -677,26 +652,12 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 	u32 frags_paddr = 0;
 	u32 txbuf_paddr;
 	struct htt_msdu_ext_desc *ext_desc = NULL;
-	bool limit_mgmt_desc = false;
-	bool is_probe_resp = false;
-
-	if (unlikely(ieee80211_is_mgmt(hdr->frame_control)) &&
-	    ar->hw_params.max_probe_resp_desc_thres) {
-		limit_mgmt_desc = true;
-
-		if (ieee80211_is_probe_resp(hdr->frame_control))
-			is_probe_resp = true;
-	}
-
-	res = ath10k_htt_tx_inc_pending(htt, limit_mgmt_desc, is_probe_resp);
-	if (res)
-		goto err;
 
 	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
 	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
-		goto err_tx_dec;
+		goto err;
 
 	msdu_id = res;
 
@@ -862,11 +823,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txmode,
 err_unmap_msdu:
 	dma_unmap_single(dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 err_free_msdu_id:
-	spin_lock_bh(&htt->tx_lock);
 	ath10k_htt_tx_free_msdu_id(htt, msdu_id);
-	spin_unlock_bh(&htt->tx_lock);
-err_tx_dec:
-	ath10k_htt_tx_dec_pending(htt, limit_mgmt_desc);
 err:
 	return res;
 }
