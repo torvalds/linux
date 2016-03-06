@@ -52,11 +52,6 @@ struct ds3232 {
 	int irq;
 	struct rtc_device *rtc;
 
-	/* The mutex protects alarm operations, and prevents a race
-	 * between the enable_irq() in the workqueue and the free_irq()
-	 * in the remove function.
-	 */
-	struct mutex mutex;
 	bool suspended;
 };
 
@@ -187,8 +182,6 @@ static int ds3232_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int ret;
 	u8 buf[4];
 
-	mutex_lock(&ds3232->mutex);
-
 	ret = regmap_read(ds3232->regmap, DS3232_REG_SR, &stat);
 	if (ret)
 		goto out;
@@ -215,7 +208,6 @@ static int ds3232_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	ret = 0;
 out:
-	mutex_unlock(&ds3232->mutex);
 	return ret;
 }
 
@@ -232,8 +224,6 @@ static int ds3232_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	if (ds3232->irq <= 0)
 		return -EINVAL;
-
-	mutex_lock(&ds3232->mutex);
 
 	buf[0] = bin2bcd(alarm->time.tm_sec);
 	buf[1] = bin2bcd(alarm->time.tm_min);
@@ -267,7 +257,6 @@ static int ds3232_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		ret = regmap_write(ds3232->regmap, DS3232_REG_CR, control);
 	}
 out:
-	mutex_unlock(&ds3232->mutex);
 	return ret;
 }
 
@@ -277,11 +266,9 @@ static int ds3232_update_alarm(struct device *dev, unsigned int enabled)
 	int control;
 	int ret;
 
-	mutex_lock(&ds3232->mutex);
-
 	ret = regmap_read(ds3232->regmap, DS3232_REG_CR, &control);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	if (enabled)
 		/* enable alarm1 interrupt */
@@ -290,9 +277,6 @@ static int ds3232_update_alarm(struct device *dev, unsigned int enabled)
 		/* disable alarm1 interrupt */
 		control &= ~(DS3232_REG_CR_A1IE);
 	ret = regmap_write(ds3232->regmap, DS3232_REG_CR, control);
-
-unlock:
-	mutex_unlock(&ds3232->mutex);
 
 	return ret;
 }
@@ -311,10 +295,11 @@ static irqreturn_t ds3232_irq(int irq, void *dev_id)
 {
 	struct device *dev = dev_id;
 	struct ds3232 *ds3232 = dev_get_drvdata(dev);
+	struct mutex *lock = &ds3232->rtc->ops_lock;
 	int ret;
 	int stat, control;
 
-	mutex_lock(&ds3232->mutex);
+	mutex_lock(lock);
 
 	ret = regmap_read(ds3232->regmap, DS3232_REG_SR, &stat);
 	if (ret)
@@ -352,7 +337,7 @@ static irqreturn_t ds3232_irq(int irq, void *dev_id)
 	}
 
 unlock:
-	mutex_unlock(&ds3232->mutex);
+	mutex_unlock(lock);
 
 	return IRQ_HANDLED;
 }
@@ -379,8 +364,6 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 	ds3232->irq = irq;
 	ds3232->dev = dev;
 	dev_set_drvdata(dev, ds3232);
-
-	mutex_init(&ds3232->mutex);
 
 	ret = ds3232_check_rtc_status(dev);
 	if (ret)
