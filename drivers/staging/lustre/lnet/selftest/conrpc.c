@@ -123,11 +123,10 @@ lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 
 	spin_lock(&console_session.ses_rpc_lock);
 
-	if (!list_empty(&console_session.ses_rpc_freelist)) {
-		crpc = list_entry(console_session.ses_rpc_freelist.next,
-				  lstcon_rpc_t, crp_link);
+	crpc = list_first_entry_or_null(&console_session.ses_rpc_freelist,
+					lstcon_rpc_t, crp_link);
+	if (crpc)
 		list_del_init(&crpc->crp_link);
-	}
 
 	spin_unlock(&console_session.ses_rpc_lock);
 

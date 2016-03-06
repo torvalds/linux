@@ -919,11 +919,10 @@ sfw_create_test_rpc(sfw_test_unit_t *tsu, lnet_process_id_t peer,
 	spin_lock(&tsi->tsi_lock);
 
 	LASSERT(sfw_test_active(tsi));
-
-	if (!list_empty(&tsi->tsi_free_rpcs)) {
 		/* pick request from buffer */
-		rpc = list_entry(tsi->tsi_free_rpcs.next,
-				 srpc_client_rpc_t, crpc_list);
+	rpc = list_first_entry_or_null(&tsi->tsi_free_rpcs,
+				       srpc_client_rpc_t, crpc_list);
+	if (rpc) {
 		LASSERT(nblk == rpc->crpc_bulk.bk_niov);
 		list_del_init(&rpc->crpc_list);
 	}
