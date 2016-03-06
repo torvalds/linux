@@ -1512,32 +1512,29 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	return lookup_real(base->d_inode, dentry, flags);
 }
 
-/*
- *  It's more convoluted than I'd like it to be, but... it's still fairly
- *  small and for now I'd prefer to have fast path as straight as possible.
- *  It _is_ time-critical.
- */
 static int lookup_fast(struct nameidata *nd,
 		       struct path *path, struct inode **inode,
 		       unsigned *seqp)
 {
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
-	int need_reval = 1;
 	int status = 1;
 	int err;
 
 	/*
 	 * Rename seqlock is not required here because in the off chance
-	 * of a false negative due to a concurrent rename, we're going to
-	 * do the non-racy lookup, below.
+	 * of a false negative due to a concurrent rename, the caller is
+	 * going to fall back to non-racy lookup.
 	 */
 	if (nd->flags & LOOKUP_RCU) {
 		unsigned seq;
 		bool negative;
 		dentry = __d_lookup_rcu(parent, &nd->last, &seq);
-		if (!dentry)
-			goto unlazy;
+		if (unlikely(!dentry)) {
+			if (unlazy_walk(nd, NULL, 0))
+				return -ECHILD;
+			return 1;
+		}
 
 		/*
 		 * This sequence count validates that the inode matches
@@ -1545,7 +1542,7 @@ static int lookup_fast(struct nameidata *nd,
 		 */
 		*inode = d_backing_inode(dentry);
 		negative = d_is_negative(dentry);
-		if (read_seqcount_retry(&dentry->d_seq, seq))
+		if (unlikely(read_seqcount_retry(&dentry->d_seq, seq)))
 			return -ECHILD;
 
 		/*
@@ -1555,63 +1552,57 @@ static int lookup_fast(struct nameidata *nd,
 		 * The memory barrier in read_seqcount_begin of child is
 		 *  enough, we can use __read_seqcount_retry here.
 		 */
-		if (__read_seqcount_retry(&parent->d_seq, nd->seq))
+		if (unlikely(__read_seqcount_retry(&parent->d_seq, nd->seq)))
 			return -ECHILD;
 
 		*seqp = seq;
-		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
 			status = d_revalidate(dentry, nd->flags);
-			if (unlikely(status <= 0)) {
-				if (status != -ECHILD)
-					need_reval = 0;
-				goto unlazy;
-			}
+		if (unlikely(status <= 0)) {
+			if (unlazy_walk(nd, dentry, seq))
+				return -ECHILD;
+			if (status == -ECHILD)
+				status = d_revalidate(dentry, nd->flags);
+		} else {
+			/*
+			 * Note: do negative dentry check after revalidation in
+			 * case that drops it.
+			 */
+			if (unlikely(negative))
+				return -ENOENT;
+			path->mnt = mnt;
+			path->dentry = dentry;
+			if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
+				return 0;
+			if (unlazy_walk(nd, dentry, seq))
+				return -ECHILD;
 		}
-		/*
-		 * Note: do negative dentry check after revalidation in
-		 * case that drops it.
-		 */
-		if (negative)
-			return -ENOENT;
-		path->mnt = mnt;
-		path->dentry = dentry;
-		if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
-			return 0;
-unlazy:
-		if (unlazy_walk(nd, dentry, seq))
-			return -ECHILD;
 	} else {
 		dentry = __d_lookup(parent, &nd->last);
+		if (unlikely(!dentry))
+			return 1;
+		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
+			status = d_revalidate(dentry, nd->flags);
 	}
-
-	if (unlikely(!dentry))
-		goto need_lookup;
-
-	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
-		status = d_revalidate(dentry, nd->flags);
 	if (unlikely(status <= 0)) {
-		if (status < 0) {
-			dput(dentry);
-			return status;
+		if (!status) {
+			d_invalidate(dentry);
+			status = 1;
 		}
-		d_invalidate(dentry);
 		dput(dentry);
-		goto need_lookup;
+		return status;
 	}
-
 	if (unlikely(d_is_negative(dentry))) {
 		dput(dentry);
 		return -ENOENT;
 	}
+
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd);
 	if (likely(!err))
 		*inode = d_backing_inode(path->dentry);
 	return err;
-
-need_lookup:
-	return 1;
 }
 
 /* Fast lookup failed, do it the slow way */
