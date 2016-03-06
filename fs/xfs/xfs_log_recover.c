@@ -1376,17 +1376,6 @@ xlog_find_tail(
 	*tail_blk = BLOCK_LSN(be64_to_cpu(rhead->h_tail_lsn));
 
 	/*
-	 * Trim the head block back to skip over torn records. We can have
-	 * multiple log I/Os in flight at any time, so we assume CRC failures
-	 * back through the previous several records are torn writes and skip
-	 * them.
-	 */
-	error = xlog_verify_head(log, head_blk, tail_blk, bp, &rhead_blk,
-				 &rhead, &wrapped);
-	if (error)
-		goto done;
-
-	/*
 	 * Set the log state based on the current head record.
 	 */
 	xlog_set_state(log, *head_blk, rhead, rhead_blk, wrapped);
@@ -1400,6 +1389,37 @@ xlog_find_tail(
 				       rhead_blk, bp, &clean);
 	if (error)
 		goto done;
+
+	/*
+	 * Verify the log head if the log is not clean (e.g., we have anything
+	 * but an unmount record at the head). This uses CRC verification to
+	 * detect and trim torn writes. If discovered, CRC failures are
+	 * considered torn writes and the log head is trimmed accordingly.
+	 *
+	 * Note that we can only run CRC verification when the log is dirty
+	 * because there's no guarantee that the log data behind an unmount
+	 * record is compatible with the current architecture.
+	 */
+	if (!clean) {
+		xfs_daddr_t	orig_head = *head_blk;
+
+		error = xlog_verify_head(log, head_blk, tail_blk, bp,
+					 &rhead_blk, &rhead, &wrapped);
+		if (error)
+			goto done;
+
+		/* update in-core state again if the head changed */
+		if (*head_blk != orig_head) {
+			xlog_set_state(log, *head_blk, rhead, rhead_blk,
+				       wrapped);
+			tail_lsn = atomic64_read(&log->l_tail_lsn);
+			error = xlog_check_unmount_rec(log, head_blk, tail_blk,
+						       rhead, rhead_blk, bp,
+						       &clean);
+			if (error)
+				goto done;
+		}
+	}
 
 	/*
 	 * Note that the unmount was clean. If the unmount was not clean, we
