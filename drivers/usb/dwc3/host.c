@@ -37,6 +37,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	xhci->dev.parent	= dwc->dev;
 	xhci->dev.dma_mask	= dwc->dev->dma_mask;
 	xhci->dev.dma_parms	= dwc->dev->dma_parms;
+	xhci->dev.archdata      = dwc->dev->archdata;
 
 	dwc->xhci = xhci;
 
