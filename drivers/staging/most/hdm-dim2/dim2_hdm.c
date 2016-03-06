@@ -251,7 +251,7 @@ static int try_start_dim_transfer(struct hdm_channel *hdm_ch)
 		return -EAGAIN;
 	}
 
-	mbo = list_entry(head->next, struct mbo, list);
+	mbo = list_first_entry(head, struct mbo, list);
 	buf_size = mbo->buffer_length;
 
 	BUG_ON(mbo->bus_address == 0);
@@ -362,7 +362,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 			break;
 		}
 
-		mbo = list_entry(head->next, struct mbo, list);
+		mbo = list_first_entry(head, struct mbo, list);
 		list_del(head->next);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
@@ -495,7 +495,7 @@ static void complete_all_mbos(struct list_head *head)
 			break;
 		}
 
-		mbo = list_entry(head->next, struct mbo, list);
+		mbo = list_first_entry(head, struct mbo, list);
 		list_del(head->next);
 		spin_unlock_irqrestore(&dim_lock, flags);
 
