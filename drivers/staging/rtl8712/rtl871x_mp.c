@@ -235,7 +235,7 @@ static u8 set_bb_reg(struct _adapter *pAdapter,
 	if (bitmask != bMaskDWord) {
 		org_value = r8712_bb_reg_read(pAdapter, offset);
 		bit_shift = bitshift(bitmask);
-		new_value = ((org_value & (~bitmask)) | (value << bit_shift));
+		new_value = (org_value & (~bitmask)) | (value << bit_shift);
 	} else {
 		new_value = value;
 	}
@@ -260,7 +260,7 @@ static u8 set_rf_reg(struct _adapter *pAdapter, u8 path, u8 offset, u32 bitmask,
 	if (bitmask != bMaskDWord) {
 		org_value = r8712_rf_reg_read(pAdapter, path, offset);
 		bit_shift = bitshift(bitmask);
-		new_value = ((org_value & (~bitmask)) | (value << bit_shift));
+		new_value = (org_value & (~bitmask)) | (value << bit_shift);
 	} else {
 		new_value = value;
 	}
@@ -327,10 +327,10 @@ void r8712_SetTxAGCOffset(struct _adapter *pAdapter, u32 ulTxAGCOffset)
 {
 	u32 TxAGCOffset_B, TxAGCOffset_C, TxAGCOffset_D, tmpAGC;
 
-	TxAGCOffset_B = (ulTxAGCOffset & 0x000000ff);
+	TxAGCOffset_B = ulTxAGCOffset & 0x000000ff;
 	TxAGCOffset_C = (ulTxAGCOffset & 0x0000ff00) >> 8;
 	TxAGCOffset_D = (ulTxAGCOffset & 0x00ff0000) >> 16;
-	tmpAGC = (TxAGCOffset_D << 8 | TxAGCOffset_C << 4 | TxAGCOffset_B);
+	tmpAGC = TxAGCOffset_D << 8 | TxAGCOffset_C << 4 | TxAGCOffset_B;
 	set_bb_reg(pAdapter, rFPGA0_TxGainStage,
 			(bXBTxAGC | bXCTxAGC | bXDTxAGC), tmpAGC);
 }
