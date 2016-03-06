@@ -66,22 +66,25 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			unsigned int len, unsigned int off, int rw,
 			sector_t sector)
 {
+	int rc = 0;
 	void *mem = kmap_atomic(page);
 	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
 	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
 
 	if (rw == READ) {
 		if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
-			return -EIO;
-		memcpy_from_pmem(mem + off, pmem_addr, len);
-		flush_dcache_page(page);
+			rc = -EIO;
+		else {
+			memcpy_from_pmem(mem + off, pmem_addr, len);
+			flush_dcache_page(page);
+		}
 	} else {
 		flush_dcache_page(page);
 		memcpy_to_pmem(pmem_addr, mem + off, len);
 	}
 
 	kunmap_atomic(mem);
-	return 0;
+	return rc;
 }
 
 static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
