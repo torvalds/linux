@@ -2242,6 +2242,7 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		}
 
 		ath10k_txrx_tx_unref(htt, &tx_done);
+		ath10k_mac_tx_push_pending(ar);
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_TX_COMPL_IND:
@@ -2373,6 +2374,8 @@ static void ath10k_htt_txrx_compl_task(unsigned long ptr)
 		ath10k_htt_rx_frm_tx_compl(htt->ar, skb);
 		dev_kfree_skb_any(skb);
 	}
+
+	ath10k_mac_tx_push_pending(ar);
 
 	while ((skb = __skb_dequeue(&rx_q))) {
 		resp = (struct htt_resp *)skb->data;

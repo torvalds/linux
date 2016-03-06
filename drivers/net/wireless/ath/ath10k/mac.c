@@ -3620,6 +3620,123 @@ void ath10k_mgmt_over_wmi_tx_work(struct work_struct *work)
 	}
 }
 
+static void ath10k_mac_txq_init(struct ieee80211_txq *txq)
+{
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+
+	if (!txq)
+		return;
+
+	INIT_LIST_HEAD(&artxq->list);
+}
+
+static void ath10k_mac_txq_unref(struct ath10k *ar, struct ieee80211_txq *txq)
+{
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+
+	if (!txq)
+		return;
+
+	spin_lock_bh(&ar->txqs_lock);
+	if (!list_empty(&artxq->list))
+		list_del_init(&artxq->list);
+	spin_unlock_bh(&ar->txqs_lock);
+}
+
+static bool ath10k_mac_tx_can_push(struct ieee80211_hw *hw,
+				   struct ieee80211_txq *txq)
+{
+	return 1; /* TBD */
+}
+
+static int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
+				  struct ieee80211_txq *txq)
+{
+	const bool is_mgmt = false;
+	const bool is_presp = false;
+	struct ath10k *ar = hw->priv;
+	struct ath10k_htt *htt = &ar->htt;
+	struct ieee80211_vif *vif = txq->vif;
+	struct ieee80211_sta *sta = txq->sta;
+	enum ath10k_hw_txrx_mode txmode;
+	enum ath10k_mac_tx_path txpath;
+	struct sk_buff *skb;
+	int ret;
+
+	spin_lock_bh(&ar->htt.tx_lock);
+	ret = ath10k_htt_tx_inc_pending(htt, is_mgmt, is_presp);
+	spin_unlock_bh(&ar->htt.tx_lock);
+
+	if (ret)
+		return ret;
+
+	skb = ieee80211_tx_dequeue(hw, txq);
+	if (!skb) {
+		spin_lock_bh(&ar->htt.tx_lock);
+		ath10k_htt_tx_dec_pending(htt, is_mgmt);
+		spin_unlock_bh(&ar->htt.tx_lock);
+
+		return -ENOENT;
+	}
+
+	ath10k_mac_tx_h_fill_cb(ar, vif, skb);
+
+	txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
+	txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
+
+	ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
+	if (unlikely(ret)) {
+		ath10k_warn(ar, "failed to push frame: %d\n", ret);
+
+		spin_lock_bh(&ar->htt.tx_lock);
+		ath10k_htt_tx_dec_pending(htt, is_mgmt);
+		spin_unlock_bh(&ar->htt.tx_lock);
+
+		return ret;
+	}
+
+	return 0;
+}
+
+void ath10k_mac_tx_push_pending(struct ath10k *ar)
+{
+	struct ieee80211_hw *hw = ar->hw;
+	struct ieee80211_txq *txq;
+	struct ath10k_txq *artxq;
+	struct ath10k_txq *last;
+	int ret;
+	int max;
+
+	spin_lock_bh(&ar->txqs_lock);
+	rcu_read_lock();
+
+	last = list_last_entry(&ar->txqs, struct ath10k_txq, list);
+	while (!list_empty(&ar->txqs)) {
+		artxq = list_first_entry(&ar->txqs, struct ath10k_txq, list);
+		txq = container_of((void *)artxq, struct ieee80211_txq,
+				   drv_priv);
+
+		/* Prevent aggressive sta/tid taking over tx queue */
+		max = 16;
+		while (max--) {
+			ret = ath10k_mac_tx_push_txq(hw, txq);
+			if (ret < 0)
+				break;
+		}
+
+		list_del_init(&artxq->list);
+
+		if (artxq == last || (ret < 0 && ret != -ENOENT)) {
+			if (ret != -ENOENT)
+				list_add_tail(&artxq->list, &ar->txqs);
+			break;
+		}
+	}
+
+	rcu_read_unlock();
+	spin_unlock_bh(&ar->txqs_lock);
+}
+
 /************/
 /* Scanning */
 /************/
@@ -3833,6 +3950,22 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 			spin_unlock_bh(&ar->htt.tx_lock);
 		}
 		return;
+	}
+}
+
+static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
+					struct ieee80211_txq *txq)
+{
+	struct ath10k *ar = hw->priv;
+	struct ath10k_txq *artxq = (void *)txq->drv_priv;
+
+	if (ath10k_mac_tx_can_push(hw, txq)) {
+		spin_lock_bh(&ar->txqs_lock);
+		if (list_empty(&artxq->list))
+			list_add_tail(&artxq->list, &ar->txqs);
+		spin_unlock_bh(&ar->txqs_lock);
+
+		tasklet_schedule(&ar->htt.txrx_compl_task);
 	}
 }
 
@@ -4462,6 +4595,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	memset(arvif, 0, sizeof(*arvif));
+	ath10k_mac_txq_init(vif->txq);
 
 	arvif->ar = ar;
 	arvif->vif = vif;
@@ -4859,6 +4993,8 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 	spin_lock_bh(&ar->htt.tx_lock);
 	ath10k_mac_vif_tx_unlock_all(arvif);
 	spin_unlock_bh(&ar->htt.tx_lock);
+
+	ath10k_mac_txq_unref(ar, vif->txq);
 
 	mutex_unlock(&ar->conf_mutex);
 }
@@ -5573,6 +5709,9 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		memset(arsta, 0, sizeof(*arsta));
 		arsta->arvif = arvif;
 		INIT_WORK(&arsta->update_wk, ath10k_sta_rc_update_wk);
+
+		for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+			ath10k_mac_txq_init(sta->txq[i]);
 	}
 
 	/* cancel must be done outside the mutex to avoid deadlock */
@@ -5709,6 +5848,9 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 			}
 		}
 		spin_unlock_bh(&ar->data_lock);
+
+		for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
+			ath10k_mac_txq_unref(ar, sta->txq[i]);
 
 		if (!sta->tdls)
 			goto exit;
@@ -7013,6 +7155,7 @@ ath10k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 
 static const struct ieee80211_ops ath10k_ops = {
 	.tx				= ath10k_mac_op_tx,
+	.wake_tx_queue			= ath10k_mac_op_wake_tx_queue,
 	.start				= ath10k_start,
 	.stop				= ath10k_stop,
 	.config				= ath10k_config,
@@ -7467,6 +7610,7 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->vif_data_size = sizeof(struct ath10k_vif);
 	ar->hw->sta_data_size = sizeof(struct ath10k_sta);
+	ar->hw->txq_data_size = sizeof(struct ath10k_txq);
 
 	ar->hw->max_listen_interval = ATH10K_MAX_HW_LISTEN_INTERVAL;
 

@@ -308,6 +308,10 @@ struct ath10k_peer {
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 };
 
+struct ath10k_txq {
+	struct list_head list;
+};
+
 struct ath10k_sta {
 	struct ath10k_vif *arvif;
 
@@ -791,7 +795,10 @@ struct ath10k {
 
 	/* protects shared structure data */
 	spinlock_t data_lock;
+	/* protects: ar->txqs, artxq->list */
+	spinlock_t txqs_lock;
 
+	struct list_head txqs;
 	struct list_head arvifs;
 	struct list_head peers;
 	struct ath10k_peer *peer_map[ATH10K_MAX_NUM_PEER_IDS];
