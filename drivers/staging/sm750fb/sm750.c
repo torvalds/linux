@@ -418,13 +418,16 @@ static int lynxfb_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 		ret = pci_save_state(pdev);
 		if (ret) {
-			pr_err("error:%d occurred in pci_save_state\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_save_state\n", ret);
 			return ret;
 		}
 
 		ret = pci_set_power_state(pdev, pci_choose_state(pdev, mesg));
 		if (ret) {
-			pr_err("error:%d occurred in pci_set_power_state\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_set_power_state\n",
+				ret);
 			return ret;
 		}
 	}
@@ -452,7 +455,8 @@ static int lynxfb_resume(struct pci_dev *pdev)
 
 	ret = pci_set_power_state(pdev, PCI_D0);
 	if (ret) {
-		pr_err("error:%d occurred in pci_set_power_state\n", ret);
+		dev_err(&pdev->dev,
+			"error:%d occurred in pci_set_power_state\n", ret);
 		return ret;
 	}
 
@@ -460,7 +464,9 @@ static int lynxfb_resume(struct pci_dev *pdev)
 		pci_restore_state(pdev);
 		ret = pci_enable_device(pdev);
 		if (ret) {
-			pr_err("error:%d occurred in pci_enable_device\n", ret);
+			dev_err(&pdev->dev,
+				"error:%d occurred in pci_enable_device\n",
+				ret);
 			return ret;
 		}
 		pci_set_master(pdev);
