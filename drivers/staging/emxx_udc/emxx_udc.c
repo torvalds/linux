@@ -2625,7 +2625,7 @@ static struct usb_request *nbu2ss_ep_alloc_request(
 
 	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
-		return 0;
+		return NULL;
 
 #ifdef USE_DMA
 	req->req.dma = DMA_ADDR_INVALID;
