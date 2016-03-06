@@ -184,14 +184,11 @@ void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit)
 void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode)
 {
 	void __iomem *io_base = priv->PortOffset;
-	unsigned char byOrgValue;
 
 	byLoopbackMode <<= 6;
 	/* set TCR */
-	VNSvInPortB(io_base + MAC_REG_TEST, &byOrgValue);
-	byOrgValue = byOrgValue & 0x3F;
-	byOrgValue = byOrgValue | byLoopbackMode;
-	iowrite8(byOrgValue, io_base + MAC_REG_TEST);
+	iowrite8((ioread8(io_base + MAC_REG_TEST) & 0x3f) | byLoopbackMode,
+		 io_base + MAC_REG_TEST);
 }
 
 /*
