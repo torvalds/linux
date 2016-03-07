@@ -223,7 +223,7 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "mcasp6_aux_gfclk_mux", "mcasp6_aux_gfclk_mux"),
 	DT_CLK(NULL, "mcasp7_ahclkx_mux", "mcasp7_ahclkx_mux"),
 	DT_CLK(NULL, "mcasp7_aux_gfclk_mux", "mcasp7_aux_gfclk_mux"),
-	DT_CLK(NULL, "mcasp8_ahclk_mux", "mcasp8_ahclk_mux"),
+	DT_CLK(NULL, "mcasp8_ahclkx_mux", "mcasp8_ahclkx_mux"),
 	DT_CLK(NULL, "mcasp8_aux_gfclk_mux", "mcasp8_aux_gfclk_mux"),
 	DT_CLK(NULL, "mmc1_fclk_mux", "mmc1_fclk_mux"),
 	DT_CLK(NULL, "mmc1_fclk_div", "mmc1_fclk_div"),
