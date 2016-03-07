@@ -740,6 +740,7 @@ static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
 		node->level = fmt->level;
 		perf_hpp_list__init(&node->hpp);
 
+		hists->nr_hpp_node++;
 		list_add_tail(&node->list, &hists->hpp_formats);
 	}
 

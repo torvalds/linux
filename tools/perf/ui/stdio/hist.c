@@ -412,7 +412,7 @@ static int hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp)
 
 static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 					 struct perf_hpp *hpp,
-					 int nr_sort_key, struct hists *hists,
+					 struct hists *hists,
 					 FILE *fp)
 {
 	const char *sep = symbol_conf.field_sep;
@@ -453,7 +453,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 
 	if (!sep)
 		ret = scnprintf(hpp->buf, hpp->size, "%*s",
-				(nr_sort_key - 1) * HIERARCHY_INDENT, "");
+				(hists->nr_hpp_node - 2) * HIERARCHY_INDENT, "");
 	advance_hpp(hpp, ret);
 
 	printed += fprintf(fp, "%s", buf);
@@ -504,12 +504,8 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	if (size == 0 || size > bfsz)
 		size = hpp.size = bfsz;
 
-	if (symbol_conf.report_hierarchy) {
-		int nr_sort = hists->nr_sort_keys;
-
-		return hist_entry__hierarchy_fprintf(he, &hpp, nr_sort,
-						     hists, fp);
-	}
+	if (symbol_conf.report_hierarchy)
+		return hist_entry__hierarchy_fprintf(he, &hpp, hists, fp);
 
 	hist_entry__snprintf(he, &hpp);
 
@@ -521,29 +517,29 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 	return ret;
 }
 
-static int print_hierarchy_indent(const char *sep, int nr_sort,
+static int print_hierarchy_indent(const char *sep, int indent,
 				  const char *line, FILE *fp)
 {
-	if (sep != NULL || nr_sort < 1)
+	if (sep != NULL || indent < 2)
 		return 0;
 
-	return fprintf(fp, "%-.*s", (nr_sort - 1) * HIERARCHY_INDENT, line);
+	return fprintf(fp, "%-.*s", (indent - 2) * HIERARCHY_INDENT, line);
 }
 
 static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				  const char *sep, FILE *fp)
 {
 	bool first = true;
-	int nr_sort;
+	int indent;
 	int depth;
 	unsigned width = 0;
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
 
-	nr_sort = hists->nr_sort_keys;
+	indent = hists->nr_hpp_node;
 
 	/* preserve max indent depth for column headers */
-	print_hierarchy_indent(sep, nr_sort, spaces, fp);
+	print_hierarchy_indent(sep, indent, spaces, fp);
 
 	hists__for_each_format(hists, fmt) {
 		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
@@ -582,7 +578,7 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	fprintf(fp, "\n# ");
 
 	/* preserve max indent depth for initial dots */
-	print_hierarchy_indent(sep, nr_sort, dots, fp);
+	print_hierarchy_indent(sep, indent, dots, fp);
 
 	first = true;
 	hists__for_each_format(hists, fmt) {

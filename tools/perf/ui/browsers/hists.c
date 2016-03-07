@@ -1280,7 +1280,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 					      struct hist_entry *entry,
 					      unsigned short row,
-					      int level, int nr_sort_keys)
+					      int level)
 {
 	int printed = 0;
 	int width = browser->b.width;
@@ -1294,7 +1294,7 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 		.current_entry	= current_entry,
 	};
 	int column = 0;
-	int hierarchy_indent = (nr_sort_keys - 1) * HIERARCHY_INDENT;
+	int hierarchy_indent = (entry->hists->nr_hpp_node - 2) * HIERARCHY_INDENT;
 
 	if (current_entry) {
 		browser->he_selection = entry;
@@ -1436,8 +1436,7 @@ show_callchain:
 }
 
 static int hist_browser__show_no_entry(struct hist_browser *browser,
-				       unsigned short row,
-				       int level, int nr_sort_keys)
+				       unsigned short row, int level)
 {
 	int width = browser->b.width;
 	bool current_entry = ui_browser__is_current_entry(&browser->b, row);
@@ -1445,6 +1444,7 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 	int column = 0;
 	int ret;
 	struct perf_hpp_fmt *fmt;
+	int indent = browser->hists->nr_hpp_node - 2;
 
 	if (current_entry) {
 		browser->he_selection = NULL;
@@ -1485,8 +1485,8 @@ static int hist_browser__show_no_entry(struct hist_browser *browser,
 		width -= ret;
 	}
 
-	ui_browser__write_nstring(&browser->b, "", nr_sort_keys * HIERARCHY_INDENT);
-	width -= nr_sort_keys * HIERARCHY_INDENT;
+	ui_browser__write_nstring(&browser->b, "", indent * HIERARCHY_INDENT);
+	width -= indent * HIERARCHY_INDENT;
 
 	if (column >= browser->b.horiz_scroll) {
 		char buf[32];
@@ -1553,7 +1553,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	struct perf_hpp_fmt *fmt;
 	size_t ret = 0;
 	int column = 0;
-	int nr_sort_keys = hists->nr_sort_keys;
+	int indent = hists->nr_hpp_node - 2;
 	bool first = true;
 
 	ret = scnprintf(buf, size, " ");
@@ -1577,7 +1577,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 	}
 
 	ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
-			(nr_sort_keys - 1) * HIERARCHY_INDENT, "");
+			indent * HIERARCHY_INDENT, "");
 	if (advance_hpp_check(&dummy_hpp, ret))
 		return ret;
 
@@ -1645,7 +1645,6 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
-	int nr_sort = hb->hists->nr_sort_keys;
 
 	if (hb->show_headers) {
 		hist_browser__show_headers(hb);
@@ -1672,14 +1671,12 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 
 		if (symbol_conf.report_hierarchy) {
 			row += hist_browser__show_hierarchy_entry(hb, h, row,
-								  h->depth,
-								  nr_sort);
+								  h->depth);
 			if (row == browser->rows)
 				break;
 
 			if (h->has_no_entry) {
-				hist_browser__show_no_entry(hb, row, h->depth,
-							    nr_sort);
+				hist_browser__show_no_entry(hb, row, h->depth);
 				row++;
 			}
 		} else {
