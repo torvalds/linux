@@ -217,7 +217,7 @@ struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_ioctl
 };
 
-static int proc_call_handler(void *data, int write, loff_t *ppos,
+static int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 			     void __user *buffer, size_t *lenp,
 			     int (*handler)(void *data, int write, loff_t pos,
 					    void __user *buffer, int len))
@@ -280,8 +280,8 @@ static int __proc_dobitmasks(void *data, int write,
 static int proc_dobitmasks(struct ctl_table *table, int write,
 			   void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_call_handler(table->data, write, ppos, buffer, lenp,
-				 __proc_dobitmasks);
+	return lprocfs_call_handler(table->data, write, ppos, buffer, lenp,
+				    __proc_dobitmasks);
 }
 
 static int __proc_dump_kernel(void *data, int write,
@@ -296,8 +296,8 @@ static int __proc_dump_kernel(void *data, int write,
 static int proc_dump_kernel(struct ctl_table *table, int write,
 			    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_call_handler(table->data, write, ppos, buffer, lenp,
-				 __proc_dump_kernel);
+	return lprocfs_call_handler(table->data, write, ppos, buffer, lenp,
+				    __proc_dump_kernel);
 }
 
 static int __proc_daemon_file(void *data, int write,
@@ -319,8 +319,8 @@ static int __proc_daemon_file(void *data, int write,
 static int proc_daemon_file(struct ctl_table *table, int write,
 			    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_call_handler(table->data, write, ppos, buffer, lenp,
-				 __proc_daemon_file);
+	return lprocfs_call_handler(table->data, write, ppos, buffer, lenp,
+				    __proc_daemon_file);
 }
 
 static int libcfs_force_lbug(struct ctl_table *table, int write,
@@ -389,8 +389,8 @@ static int __proc_cpt_table(void *data, int write,
 static int proc_cpt_table(struct ctl_table *table, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	return proc_call_handler(table->data, write, ppos, buffer, lenp,
-				 __proc_cpt_table);
+	return lprocfs_call_handler(table->data, write, ppos, buffer, lenp,
+				    __proc_cpt_table);
 }
 
 static struct ctl_table lnet_table[] = {
