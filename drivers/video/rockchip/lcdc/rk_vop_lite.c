@@ -111,7 +111,6 @@ static int vop_irq_disable(struct vop_device *vop_dev)
 {
 	spin_lock(&vop_dev->reg_lock);
 	if (likely(vop_dev->clk_on)) {
-		spin_lock(&vop_dev->reg_lock);
 		vop_writel(vop_dev, INTR_EN, 0xffff0000);
 		vop_writel(vop_dev, INTR_CLEAR, 0xffffffff);
 		vop_cfg_done(vop_dev);
@@ -2459,6 +2458,7 @@ static int vop_probe(struct platform_device *pdev)
 		if (!is_prmry_rk_lcdc_registered())
 			return -EPROBE_DEFER;
 	}
+
 	vop_dev = devm_kzalloc(dev, sizeof(struct vop_device), GFP_KERNEL);
 	if (!vop_dev)
 		return -ENOMEM;
@@ -2470,21 +2470,23 @@ static int vop_probe(struct platform_device *pdev)
 	/* enable power domain */
 	pm_runtime_enable(dev);
 
-	vop_dev->hclk = devm_clk_get(vop_dev->dev, "hclk_vop");
+	vop_dev->hclk = devm_clk_get(vop_dev->dev, "hclk_lcdc");
 	if (IS_ERR(vop_dev->hclk)) {
 		dev_err(vop_dev->dev, "failed to get hclk source\n");
 		return PTR_ERR(vop_dev->hclk);
 	}
-	vop_dev->aclk = devm_clk_get(vop_dev->dev, "aclk_vop");
+
+	vop_dev->aclk = devm_clk_get(vop_dev->dev, "aclk_lcdc");
 	if (IS_ERR(vop_dev->aclk)) {
 		dev_err(vop_dev->dev, "failed to get aclk source\n");
 		return PTR_ERR(vop_dev->aclk);
 	}
-	vop_dev->dclk = devm_clk_get(vop_dev->dev, "dclk_vop");
+	vop_dev->dclk = devm_clk_get(vop_dev->dev, "dclk_lcdc");
 	if (IS_ERR(vop_dev->dclk)) {
 		dev_err(vop_dev->dev, "failed to get dclk source\n");
 		return PTR_ERR(vop_dev->dclk);
 	}
+
 	clk_prepare(vop_dev->hclk);
 	clk_prepare(vop_dev->aclk);
 	clk_prepare(vop_dev->dclk);
