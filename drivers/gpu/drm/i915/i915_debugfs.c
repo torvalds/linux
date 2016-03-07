@@ -125,6 +125,32 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	return size;
 }
 
+static const char *get_blend_factor(enum drm_blend_factor factor)
+{
+	switch (factor) {
+	case DRM_BLEND_FACTOR_AUTO:
+		return "auto";
+	case DRM_BLEND_FACTOR_ZERO:
+		return "zero";
+	case DRM_BLEND_FACTOR_ONE:
+		return "one";
+	case DRM_BLEND_FACTOR_SRC_ALPHA:
+		return "src-alpha";
+	case DRM_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:
+		return "one-minus-src-alpha";
+	case DRM_BLEND_FACTOR_CONSTANT_ALPHA:
+		return "constant-alpha";
+	case DRM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA:
+		return "one-minus-constant-alpha";
+	case DRM_BLEND_FACTOR_CONSTANT_ALPHA_TIMES_SRC_ALPHA:
+		return "constant-alpha-times-src-alpha";
+	case DRM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA:
+		return "one-minus-constant-alpha-times-src-alpha";
+	default:
+		return "unknown";
+	}
+}
+
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
@@ -3022,7 +3048,7 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 
 		state = plane->state;
 
-		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s\n",
+		seq_printf(m, "\t--Plane id %d: type=%s, crtc_pos=%4dx%4d, crtc_size=%4dx%4d, src_pos=%d.%04ux%d.%04u, src_size=%d.%04ux%d.%04u, format=%s, rotation=%s blend_color=%x,%x,%x,%x(argb) blend_func=%s/%s\n",
 			   plane->base.id,
 			   plane_type(intel_plane->base.type),
 			   state->crtc_x, state->crtc_y,
@@ -3036,7 +3062,13 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 			   (state->src_h >> 16),
 			   ((state->src_h & 0xffff) * 15625) >> 10,
 			   state->fb ? drm_get_format_name(state->fb->pixel_format) : "N/A",
-			   plane_rotation(state->rotation));
+			   plane_rotation(state->rotation),
+			   (uint32_t) DRM_MODE_COLOR_ALPHA(16, state->blend_mode.color),
+			   (uint32_t) DRM_MODE_COLOR_RED(16, state->blend_mode.color),
+			   (uint32_t) DRM_MODE_COLOR_GREEN(16, state->blend_mode.color),
+			   (uint32_t) DRM_MODE_COLOR_BLUE(16, state->blend_mode.color),
+			   get_blend_factor(DRM_BLEND_FUNC_SRC_FACTOR(state->blend_mode.func)),
+			   get_blend_factor(DRM_BLEND_FUNC_DST_FACTOR(state->blend_mode.func)));
 	}
 }
 
