@@ -357,7 +357,6 @@ static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
 	struct sunxi_nand_rb *rb;
-	unsigned long timeo = (sunxi_nand->nand.state == FL_ERASING ? 400 : 20);
 	int ret;
 
 	if (sunxi_nand->selected < 0)
@@ -367,12 +366,6 @@ static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
 
 	switch (rb->type) {
 	case RB_NATIVE:
-		ret = !!(readl(nfc->regs + NFC_REG_ST) &
-			 NFC_RB_STATE(rb->info.nativeid));
-		if (ret)
-			break;
-
-		sunxi_nfc_wait_int(nfc, NFC_RB_B2R, timeo);
 		ret = !!(readl(nfc->regs + NFC_REG_ST) &
 			 NFC_RB_STATE(rb->info.nativeid));
 		break;
