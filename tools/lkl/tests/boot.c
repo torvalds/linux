@@ -345,32 +345,21 @@ static int netdev_id = -1;
 
 int test_netdev_add(char *str, int len)
 {
-	union lkl_netdev netdev = { -1, };
-	struct ifreq ifr = {
-		.ifr_flags = IFF_TAP | IFF_NO_PI,
-	};
-	int ret;
+	struct lkl_netdev *netdev;
+	int ret = 0;
 
-	strncpy(ifr.ifr_name, cla.tap_ifname, IFNAMSIZ);
-
-	ret = open("/dev/net/tun", O_RDWR|O_NONBLOCK);
-	if (ret < 0)
+	netdev = lkl_netdev_tap_create(cla.tap_ifname);
+	if (!netdev)
 		goto out;
 
-	netdev.fd = ret;
-
-	ret = ioctl(netdev.fd, TUNSETIFF, &ifr);
-	if (ret < 0)
-		goto out;
-
-	ret = lkl_netdev_add(netdev, NULL);
+	ret = lkl_netdev_add((struct lkl_netdev *)netdev, NULL);
 	if (ret < 0)
 		goto out;
 
 	netdev_id = ret;
 
 out:
-	snprintf(str, len, "%d %d %d", ret, netdev.fd, netdev_id);
+	snprintf(str, len, "%d %p %d", ret, netdev, netdev_id);
 	return ret >= 0 ? TEST_SUCCESS : TEST_FAILURE;
 }
 
