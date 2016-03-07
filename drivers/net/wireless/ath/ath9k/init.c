@@ -660,7 +660,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 
 	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_init_misc(sc);
-	ath_fill_led_pin(sc);
 	ath_chanctx_init(sc);
 	ath9k_offchannel_init(sc);
 

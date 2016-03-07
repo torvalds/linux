@@ -718,12 +718,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (!ath_complete_reset(sc, false))
 		ah->reset_power_on = false;
 
-	if (ah->led_pin >= 0) {
+	if (ah->led_pin >= 0)
 		ath9k_hw_set_gpio(ah, ah->led_pin,
 				  (ah->config.led_active_high) ? 1 : 0);
-		ath9k_hw_gpio_request_out(ah, ah->led_pin, NULL,
-					  AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	}
 
 	/*
 	 * Reset key cache to sane defaults (all entries cleared) instead of
@@ -867,11 +864,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
-	if (ah->led_pin >= 0) {
+	if (ah->led_pin >= 0)
 		ath9k_hw_set_gpio(ah, ah->led_pin,
 				  (ah->config.led_active_high) ? 0 : 1);
-		ath9k_hw_gpio_request_in(ah, ah->led_pin, NULL);
-	}
 
 	ath_prepare_reset(sc);
 
