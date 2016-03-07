@@ -1807,13 +1807,19 @@ static int omap_nand_probe(struct platform_device *pdev)
 		goto return_error;
 	}
 
+	/*
+	 * Bail out earlier to let NAND_ECC_SOFT code create its own
+	 * ecclayout instead of using ours.
+	 */
+	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_SW) {
+		nand_chip->ecc.mode = NAND_ECC_SOFT;
+		goto scan_tail;
+	}
+
 	/* populate MTD interface based on ECC scheme */
 	ecclayout		= &info->oobinfo;
+	nand_chip->ecc.layout	= ecclayout;
 	switch (info->ecc_opt) {
-	case OMAP_ECC_HAM1_CODE_SW:
-		nand_chip->ecc.mode = NAND_ECC_SOFT;
-		break;
-
 	case OMAP_ECC_HAM1_CODE_HW:
 		pr_info("nand: using OMAP_ECC_HAM1_CODE_HW\n");
 		nand_chip->ecc.mode             = NAND_ECC_HW;
@@ -1861,10 +1867,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->oobfree->offset	= 1 +
 				ecclayout->eccpos[ecclayout->eccbytes - 1] + 1;
 		/* software bch library is used for locating errors */
-		nand_chip->ecc.priv		= nand_bch_init(mtd,
-							nand_chip->ecc.size,
-							nand_chip->ecc.bytes,
-							&ecclayout);
+		nand_chip->ecc.priv		= nand_bch_init(mtd);
 		if (!nand_chip->ecc.priv) {
 			dev_err(&info->pdev->dev, "unable to use BCH library\n");
 			err = -EINVAL;
@@ -1925,10 +1928,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		ecclayout->oobfree->offset	= 1 +
 				ecclayout->eccpos[ecclayout->eccbytes - 1] + 1;
 		/* software bch library is used for locating errors */
-		nand_chip->ecc.priv		= nand_bch_init(mtd,
-							nand_chip->ecc.size,
-							nand_chip->ecc.bytes,
-							&ecclayout);
+		nand_chip->ecc.priv		= nand_bch_init(mtd);
 		if (!nand_chip->ecc.priv) {
 			dev_err(&info->pdev->dev, "unable to use BCH library\n");
 			err = -EINVAL;
@@ -2002,9 +2002,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 		goto return_error;
 	}
 
-	if (info->ecc_opt == OMAP_ECC_HAM1_CODE_SW)
-		goto scan_tail;
-
 	/* all OOB bytes from oobfree->offset till end off OOB are free */
 	ecclayout->oobfree->length = mtd->oobsize - ecclayout->oobfree->offset;
 	/* check if NAND device's OOB is enough to store ECC signatures */
@@ -2015,7 +2012,6 @@ static int omap_nand_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto return_error;
 	}
-	nand_chip->ecc.layout = ecclayout;
 
 scan_tail:
 	/* second phase scan */
