@@ -571,8 +571,8 @@ clear_err:
 	goto out;
 
 timeout:
-	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
-		 bus->adapter.name, bus->reg0 & 0xff);
+	DRM_DEBUG_KMS("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+		      bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0, 0);
 
 	/*
