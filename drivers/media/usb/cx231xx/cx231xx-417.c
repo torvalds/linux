@@ -966,6 +966,7 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	p_buffer = vmalloc(4096);
 	if (p_buffer == NULL) {
 		dprintk(2, "FAIL!!!\n");
+		vfree(p_current_fw);
 		return -1;
 	}
 
@@ -989,6 +990,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 	if (retval != 0) {
 		dev_err(dev->dev,
 			"%s: Error with mc417_register_write\n", __func__);
+		vfree(p_current_fw);
+		vfree(p_buffer);
 		return -1;
 	}
 
@@ -1001,6 +1004,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 			CX231xx_FIRM_IMAGE_NAME);
 		dev_err(dev->dev,
 			"Please fix your hotplug setup, the board will not work without firmware loaded!\n");
+		vfree(p_current_fw);
+		vfree(p_buffer);
 		return -1;
 	}
 
@@ -1009,6 +1014,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 			"ERROR: Firmware size mismatch (have %zd, expected %d)\n",
 			firmware->size, CX231xx_FIRM_IMAGE_SIZE);
 		release_firmware(firmware);
+		vfree(p_current_fw);
+		vfree(p_buffer);
 		return -1;
 	}
 
@@ -1016,6 +1023,8 @@ static int cx231xx_load_firmware(struct cx231xx *dev)
 		dev_err(dev->dev,
 			"ERROR: Firmware magic mismatch, wrong file?\n");
 		release_firmware(firmware);
+		vfree(p_current_fw);
+		vfree(p_buffer);
 		return -1;
 	}
 
