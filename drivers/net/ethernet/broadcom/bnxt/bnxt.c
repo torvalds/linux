@@ -2362,6 +2362,14 @@ static void bnxt_free_stats(struct bnxt *bp)
 	u32 size, i;
 	struct pci_dev *pdev = bp->pdev;
 
+	if (bp->hw_rx_port_stats) {
+		dma_free_coherent(&pdev->dev, bp->hw_port_stats_size,
+				  bp->hw_rx_port_stats,
+				  bp->hw_rx_port_stats_map);
+		bp->hw_rx_port_stats = NULL;
+		bp->flags &= ~BNXT_FLAG_PORT_STATS;
+	}
+
 	if (!bp->bnapi)
 		return;
 
@@ -2397,6 +2405,24 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 			return -ENOMEM;
 
 		cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
+	}
+
+	if (BNXT_PF(bp)) {
+		bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
+					 sizeof(struct tx_port_stats) + 1024;
+
+		bp->hw_rx_port_stats =
+			dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
+					   &bp->hw_rx_port_stats_map,
+					   GFP_KERNEL);
+		if (!bp->hw_rx_port_stats)
+			return -ENOMEM;
+
+		bp->hw_tx_port_stats = (void *)(bp->hw_rx_port_stats + 1) +
+				       512;
+		bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
+					   sizeof(struct rx_port_stats) + 512;
+		bp->flags |= BNXT_FLAG_PORT_STATS;
 	}
 	return 0;
 }
@@ -3834,6 +3860,23 @@ hwrm_ver_get_exit:
 	return rc;
 }
 
+static int bnxt_hwrm_port_qstats(struct bnxt *bp)
+{
+	int rc;
+	struct bnxt_pf_info *pf = &bp->pf;
+	struct hwrm_port_qstats_input req = {0};
+
+	if (!(bp->flags & BNXT_FLAG_PORT_STATS))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_map);
+	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_map);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	return rc;
+}
+
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)
 {
 	if (bp->vxlan_port_cnt) {
@@ -5232,6 +5275,10 @@ static void bnxt_timer(unsigned long data)
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnxt_restart_timer;
 
+	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS)) {
+		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
+		schedule_work(&bp->sp_task);
+	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -5282,6 +5329,9 @@ static void bnxt_sp_task(struct work_struct *work)
 		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 		rtnl_unlock();
 	}
+
+	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
+		bnxt_hwrm_port_qstats(bp);
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
