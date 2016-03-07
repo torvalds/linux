@@ -430,9 +430,7 @@ EXPORT_SYMBOL(drm_framebuffer_init);
 static void __drm_framebuffer_unregister(struct drm_device *dev,
 					 struct drm_framebuffer *fb)
 {
-	mutex_lock(&dev->mode_config.idr_mutex);
-	idr_remove(&dev->mode_config.crtc_idr, fb->base.id);
-	mutex_unlock(&dev->mode_config.idr_mutex);
+	drm_mode_object_put(dev, &fb->base);
 
 	fb->base.id = 0;
 }
