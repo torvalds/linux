@@ -42,6 +42,18 @@
 /* AMD-specific bits */
 #define MCI_STATUS_DEFERRED	(1ULL<<44)  /* declare an uncorrected error */
 #define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
+
+/*
+ * McaX field if set indicates a given bank supports MCA extensions:
+ *  - Deferred error interrupt type is specifiable by bank.
+ *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
+ *    But should not be used to determine MSR numbers.
+ *  - TCC bit is present in MCx_STATUS.
+ */
+#define MCI_CONFIG_MCAX		0x1
+#define MCI_IPID_MCATYPE	0xFFFF0000
+#define MCI_IPID_HWID		0xFFF
 
 /*
  * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
@@ -93,7 +105,9 @@
 
 /* AMD Scalable MCA */
 #define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
+#define MSR_AMD64_SMCA_MC0_IPID		0xc0002005
 #define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
+#define MSR_AMD64_SMCA_MCx_IPID(x)	(MSR_AMD64_SMCA_MC0_IPID + 0x10*(x))
 
 /*
  * This structure contains all data related to the MCE log.  Also
@@ -290,5 +304,50 @@ static inline void mcheck_intel_therm_init(void) { }
 struct cper_sec_mem_err;
 extern void apei_mce_report_mem_error(int corrected,
 				      struct cper_sec_mem_err *mem_err);
+
+/*
+ * Enumerate new IP types and HWID values in AMD processors which support
+ * Scalable MCA.
+ */
+#ifdef CONFIG_X86_MCE_AMD
+enum amd_ip_types {
+	SMCA_F17H_CORE = 0,	/* Core errors */
+	SMCA_DF,		/* Data Fabric */
+	SMCA_UMC,		/* Unified Memory Controller */
+	SMCA_PB,		/* Parameter Block */
+	SMCA_PSP,		/* Platform Security Processor */
+	SMCA_SMU,		/* System Management Unit */
+	N_AMD_IP_TYPES
+};
+
+struct amd_hwid {
+	const char *name;
+	unsigned int hwid;
+};
+
+extern struct amd_hwid amd_hwids[N_AMD_IP_TYPES];
+
+enum amd_core_mca_blocks {
+	SMCA_LS = 0,	/* Load Store */
+	SMCA_IF,	/* Instruction Fetch */
+	SMCA_L2_CACHE,	/* L2 cache */
+	SMCA_DE,	/* Decoder unit */
+	RES,		/* Reserved */
+	SMCA_EX,	/* Execution unit */
+	SMCA_FP,	/* Floating Point */
+	SMCA_L3_CACHE,	/* L3 cache */
+	N_CORE_MCA_BLOCKS
+};
+
+extern const char * const amd_core_mcablock_names[N_CORE_MCA_BLOCKS];
+
+enum amd_df_mca_blocks {
+	SMCA_CS = 0,	/* Coherent Slave */
+	SMCA_PIE,	/* Power management, Interrupts, etc */
+	N_DF_BLOCKS
+};
+
+extern const char * const amd_df_mcablock_names[N_DF_BLOCKS];
+#endif
 
 #endif /* _ASM_X86_MCE_H */

@@ -71,6 +71,35 @@ static const char * const th_names[] = {
 	"execution_unit",
 };
 
+/* Define HWID to IP type mappings for Scalable MCA */
+struct amd_hwid amd_hwids[] = {
+	[SMCA_F17H_CORE]	= { "f17h_core",	0xB0 },
+	[SMCA_DF]		= { "data_fabric",	0x2E },
+	[SMCA_UMC]		= { "umc",		0x96 },
+	[SMCA_PB]		= { "param_block",	0x5 },
+	[SMCA_PSP]		= { "psp",		0xFF },
+	[SMCA_SMU]		= { "smu",		0x1 },
+};
+EXPORT_SYMBOL_GPL(amd_hwids);
+
+const char * const amd_core_mcablock_names[] = {
+	[SMCA_LS]		= "load_store",
+	[SMCA_IF]		= "insn_fetch",
+	[SMCA_L2_CACHE]		= "l2_cache",
+	[SMCA_DE]		= "decode_unit",
+	[RES]			= "",
+	[SMCA_EX]		= "execution_unit",
+	[SMCA_FP]		= "floating_point",
+	[SMCA_L3_CACHE]		= "l3_cache",
+};
+EXPORT_SYMBOL_GPL(amd_core_mcablock_names);
+
+const char * const amd_df_mcablock_names[] = {
+	[SMCA_CS]		= "coherent_slave",
+	[SMCA_PIE]		= "pie",
+};
+EXPORT_SYMBOL_GPL(amd_df_mcablock_names);
+
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
 
