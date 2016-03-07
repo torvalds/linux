@@ -28,7 +28,7 @@ do { \
 	INIT_LIST_HEAD(list);         \
 } while (0)
 
-static inc_group_count(struct list_head *list,
+static void inc_group_count(struct list_head *list,
 		       struct parse_events_evlist *data)
 {
 	/* Count groups only have more than 1 members */
