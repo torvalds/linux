@@ -458,7 +458,8 @@ struct mlx5_ifc_ads_bits {
 };
 
 struct mlx5_ifc_flow_table_nic_cap_bits {
-	u8         reserved_at_0[0x200];
+	u8         nic_rx_multi_path_tirs[0x1];
+	u8         reserved_at_1[0x1ff];
 
 	struct mlx5_ifc_flow_table_prop_layout_bits flow_table_properties_nic_receive;
 

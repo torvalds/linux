@@ -68,6 +68,11 @@ struct fs_node {
 struct mlx5_flow_rule {
 	struct fs_node				node;
 	struct mlx5_flow_destination		dest_attr;
+	/* next_ft should be accessed under chain_lock and only of
+	 * destination type is FWD_NEXT_fT.
+	 */
+	struct list_head			next_ft;
+	u32					sw_action;
 };
 
 /* Type of children is mlx5_flow_group */
@@ -82,6 +87,10 @@ struct mlx5_flow_table {
 		unsigned int		required_groups;
 		unsigned int		num_groups;
 	} autogroup;
+	/* Protect fwd_rules */
+	struct mutex			lock;
+	/* FWD rules that point on this flow table */
+	struct list_head		fwd_rules;
 };
 
 /* Type of children is mlx5_flow_rule */

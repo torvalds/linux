@@ -38,6 +38,10 @@
 
 #define MLX5_FS_DEFAULT_FLOW_TAG 0x0
 
+enum {
+	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO	= 1 << 16,
+};
+
 #define LEFTOVERS_RULE_NUM	 2
 static inline void build_leftovers_ft_param(int *priority,
 					    int *n_ent,
