@@ -757,10 +757,6 @@ struct bnxt_ntuple_filter {
 #define BNXT_FLTR_UPDATE	1
 };
 
-#define BNXT_ALL_COPPER_ETHTOOL_SPEED				\
-	(ADVERTISED_100baseT_Full | ADVERTISED_1000baseT_Full |	\
-	 ADVERTISED_10000baseT_Full)
-
 struct bnxt_link_info {
 	u8			media_type;
 	u8			transceiver;

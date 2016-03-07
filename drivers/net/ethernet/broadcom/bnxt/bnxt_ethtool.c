@@ -696,16 +696,10 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return rc;
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		if (link_info->media_type != PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
-			netdev_err(dev, "Media type doesn't support autoneg\n");
-			rc = -EINVAL;
-			goto set_setting_exit;
-		}
-		if (cmd->advertising & ~(BNXT_ALL_COPPER_ETHTOOL_SPEED |
-					 ADVERTISED_Autoneg |
-					 ADVERTISED_TP |
-					 ADVERTISED_Pause |
-					 ADVERTISED_Asym_Pause)) {
+		u32 supported_spds = bnxt_fw_to_ethtool_support_spds(link_info);
+
+		if (cmd->advertising & ~(supported_spds | ADVERTISED_Autoneg |
+					 ADVERTISED_TP | ADVERTISED_FIBRE)) {
 			netdev_err(dev, "Unsupported advertising mask (adv: 0x%x)\n",
 				   cmd->advertising);
 			rc = -EINVAL;
