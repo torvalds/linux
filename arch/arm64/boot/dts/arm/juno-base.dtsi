@@ -105,13 +105,13 @@
 		clocks {
 			compatible = "arm,scpi-clocks";
 
-			scpi_dvfs: scpi_clocks@0 {
+			scpi_dvfs: scpi-dvfs {
 				compatible = "arm,scpi-dvfs-clocks";
 				#clock-cells = <1>;
 				clock-indices = <0>, <1>, <2>;
 				clock-output-names = "atlclk", "aplclk","gpuclk";
 			};
-			scpi_clk: scpi_clocks@3 {
+			scpi_clk: scpi-clk {
 				compatible = "arm,scpi-variable-clocks";
 				#clock-cells = <1>;
 				clock-indices = <3>;
@@ -153,7 +153,7 @@
 		clock-names = "pxlclk";
 
 		port {
-			hdlcd1_output: endpoint@0 {
+			hdlcd1_output: hdlcd1-endpoint {
 				remote-endpoint = <&tda998x_1_input>;
 			};
 		};
@@ -167,7 +167,7 @@
 		clock-names = "pxlclk";
 
 		port {
-			hdlcd0_output: endpoint@0 {
+			hdlcd0_output: hdlcd0-endpoint {
 				remote-endpoint = <&tda998x_0_input>;
 			};
 		};
@@ -195,7 +195,7 @@
 			compatible = "nxp,tda998x";
 			reg = <0x70>;
 			port {
-				tda998x_0_input: endpoint@0 {
+				tda998x_0_input: tda998x-0-endpoint {
 					remote-endpoint = <&hdlcd0_output>;
 				};
 			};
@@ -205,7 +205,7 @@
 			compatible = "nxp,tda998x";
 			reg = <0x71>;
 			port {
-				tda998x_1_input: endpoint@0 {
+				tda998x_1_input: tda998x-1-endpoint {
 					remote-endpoint = <&hdlcd1_output>;
 				};
 			};
@@ -242,7 +242,7 @@
 		      <0x00000008 0x80000000 0x1 0x80000000>;
 	};
 
-	smb {
+	smb@08000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
