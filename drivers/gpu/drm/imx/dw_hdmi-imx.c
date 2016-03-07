@@ -245,7 +245,16 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+	ret = dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+
+	/*
+	 * If dw_hdmi_bind() fails we'll never call dw_hdmi_unbind(),
+	 * which would have called the encoder cleanup.  Do it manually.
+	 */
+	if (ret)
+		drm_encoder_cleanup(encoder);
+
+	return ret;
 }
 
 static void dw_hdmi_imx_unbind(struct device *dev, struct device *master,
