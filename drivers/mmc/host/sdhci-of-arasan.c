@@ -118,7 +118,6 @@ static int sdhci_arasan_resume(struct device *dev)
 	ret = clk_enable(pltfm_host->clk);
 	if (ret) {
 		dev_err(dev, "Cannot enable SD clock.\n");
-		clk_disable(sdhci_arasan->clk_ahb);
 		return ret;
 	}
 
