@@ -1,0 +1,24 @@
+origin/drm-intel-fixes f6cede5b49e822ebc41a099fe41ab4989f64e2cb
+	Linux 4.5-rc7
+drm-upstream/drm-fixes 26bae5e04c3570728787f809b13546a8169fdf95
+	Merge tag 'drm/tegra/for-4.5-rc7' of git://anongit.freedesktop.org/tegra/linux into drm-fixes
+origin/drm-intel-next-fixes 48ea1e32c39db94c59b63580b965222c7782112f
+	drm/i915/gen9: Set PIN_ZONE_4G end to 4GB - 1 page
+origin/drm-intel-next-queued 2abc525bf5c62fd1f2a2994e5231842221dfdddb
+	drm/i915/gen9: Fix DMC firmware initialization
+drm-upstream/drm-next a90cc3f25065e5e8d5e336c75b04d5882912871f
+	Merge tag 'omapdrm-4.6' of git://git.kernel.org/pub/scm/linux/kernel/git/tomba/linux into drm-next
+sound-upstream/for-next bb63f726f98bec032c7322a9c36eb4167307d856
+	ALSA: hda - Use snd_hdac namespace prefix for chmap exported APIs
+sound-upstream/for-linus ad09ef2cce91e3a98a32e3bb0a5982a6e8920aa1
+	Merge tag 'asoc-fix-v4.5-rc6' of git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound into for-linus
+origin/topic/drm-fixes 3725af8869d64d1a912e21aebe76d42b32862463
+	drm/qxl: fix cursor position with non-zero hotspot
+origin/topic/drm-misc 9459545b9c966bd221e6e3129b635a4b0a9cf6c2
+	drm/atomic: Pass connector and state to update_connector_routing.
+origin/topic/kerneldoc 418645fdcc72b92df6817ec249e216700baa757a
+	drm: Enable markdown^Wasciidoc for gpu.tmpl
+origin/topic/core-for-CI 1d05ec51bfcbb93e60795a68b5b473abe0d55fac
+	intel_pstate: Update frequencies of policy->cpus only from ->set_policy()
+origin/topic/mode_fixup-optional b282e969b19997c8ff03f8ef9a6e765e7199093a
+	drm/ast: removed optional dummy crtc mode_fixup function.
