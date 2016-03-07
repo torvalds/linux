@@ -4935,6 +4935,22 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_dropped += le64_to_cpu(hw_stats->tx_drop_pkts);
 	}
 
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		struct rx_port_stats *rx = bp->hw_rx_port_stats;
+		struct tx_port_stats *tx = bp->hw_tx_port_stats;
+
+		stats->rx_crc_errors = le64_to_cpu(rx->rx_fcs_err_frames);
+		stats->rx_frame_errors = le64_to_cpu(rx->rx_align_err_frames);
+		stats->rx_length_errors = le64_to_cpu(rx->rx_undrsz_frames) +
+					  le64_to_cpu(rx->rx_ovrsz_frames) +
+					  le64_to_cpu(rx->rx_runt_frames);
+		stats->rx_errors = le64_to_cpu(rx->rx_false_carrier_frames) +
+				   le64_to_cpu(rx->rx_jbr_frames);
+		stats->collisions = le64_to_cpu(tx->tx_total_collisions);
+		stats->tx_fifo_errors = le64_to_cpu(tx->tx_fifo_underruns);
+		stats->tx_errors = le64_to_cpu(tx->tx_err);
+	}
+
 	return stats;
 }
 
