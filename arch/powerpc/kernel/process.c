@@ -983,7 +983,7 @@ void restore_tm_state(struct pt_regs *regs)
 static inline void save_sprs(struct thread_struct *t)
 {
 #ifdef CONFIG_ALTIVEC
-	if (cpu_has_feature(cpu_has_feature(CPU_FTR_ALTIVEC)))
+	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		t->vrsave = mfspr(SPRN_VRSAVE);
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
