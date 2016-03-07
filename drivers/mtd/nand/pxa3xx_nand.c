@@ -211,7 +211,6 @@ struct pxa3xx_nand_info {
 	struct dma_chan		*dma_chan;
 	dma_cookie_t		dma_cookie;
 	int			drcmr_dat;
-	int			drcmr_cmd;
 
 	unsigned char		*data_buff;
 	unsigned char		*oob_buff;
@@ -1804,15 +1803,6 @@ static int alloc_nand_resource(struct platform_device *pdev)
 			goto fail_disable_clk;
 		}
 		info->drcmr_dat = r->start;
-
-		r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (r == NULL) {
-			dev_err(&pdev->dev,
-				"no resource defined for cmd DMA\n");
-			ret = -ENXIO;
-			goto fail_disable_clk;
-		}
-		info->drcmr_cmd = r->start;
 	}
 
 	irq = platform_get_irq(pdev, 0);
