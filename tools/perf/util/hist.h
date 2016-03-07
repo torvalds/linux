@@ -233,6 +233,7 @@ struct perf_hpp_fmt {
 	int len;
 	int user_len;
 	int idx;
+	int level;
 };
 
 struct perf_hpp_list {

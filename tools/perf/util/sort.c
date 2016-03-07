@@ -1544,7 +1544,7 @@ static void hse_free(struct perf_hpp_fmt *fmt)
 }
 
 static struct hpp_sort_entry *
-__sort_dimension__alloc_hpp(struct sort_dimension *sd)
+__sort_dimension__alloc_hpp(struct sort_dimension *sd, int level)
 {
 	struct hpp_sort_entry *hse;
 
@@ -1572,6 +1572,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd)
 	hse->hpp.elide = false;
 	hse->hpp.len = 0;
 	hse->hpp.user_len = 0;
+	hse->hpp.level = level;
 
 	return hse;
 }
@@ -1581,7 +1582,8 @@ static void hpp_free(struct perf_hpp_fmt *fmt)
 	free(fmt);
 }
 
-static struct perf_hpp_fmt *__hpp_dimension__alloc_hpp(struct hpp_dimension *hd)
+static struct perf_hpp_fmt *__hpp_dimension__alloc_hpp(struct hpp_dimension *hd,
+						       int level)
 {
 	struct perf_hpp_fmt *fmt;
 
@@ -1590,6 +1592,7 @@ static struct perf_hpp_fmt *__hpp_dimension__alloc_hpp(struct hpp_dimension *hd)
 		INIT_LIST_HEAD(&fmt->list);
 		INIT_LIST_HEAD(&fmt->sort_list);
 		fmt->free = hpp_free;
+		fmt->level = level;
 	}
 
 	return fmt;
@@ -1611,9 +1614,9 @@ int hist_entry__filter(struct hist_entry *he, int type, const void *arg)
 	return hse->se->se_filter(he, type, arg);
 }
 
-static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd)
+static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd, int level)
 {
-	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd);
+	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, level);
 
 	if (hse == NULL)
 		return -1;
@@ -1625,7 +1628,7 @@ static int __sort_dimension__add_hpp_sort(struct sort_dimension *sd)
 static int __sort_dimension__add_hpp_output(struct perf_hpp_list *list,
 					    struct sort_dimension *sd)
 {
-	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd);
+	struct hpp_sort_entry *hse = __sort_dimension__alloc_hpp(sd, 0);
 
 	if (hse == NULL)
 		return -1;
@@ -1868,7 +1871,8 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 }
 
 static struct hpp_dynamic_entry *
-__alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
+__alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field,
+		      int level)
 {
 	struct hpp_dynamic_entry *hde;
 
@@ -1899,6 +1903,7 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field)
 	hde->hpp.elide = false;
 	hde->hpp.len = 0;
 	hde->hpp.user_len = 0;
+	hde->hpp.level = level;
 
 	return hde;
 }
@@ -1974,11 +1979,11 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 
 static int __dynamic_dimension__add(struct perf_evsel *evsel,
 				    struct format_field *field,
-				    bool raw_trace)
+				    bool raw_trace, int level)
 {
 	struct hpp_dynamic_entry *hde;
 
-	hde = __alloc_dynamic_entry(evsel, field);
+	hde = __alloc_dynamic_entry(evsel, field, level);
 	if (hde == NULL)
 		return -ENOMEM;
 
@@ -1988,14 +1993,14 @@ static int __dynamic_dimension__add(struct perf_evsel *evsel,
 	return 0;
 }
 
-static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace)
+static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace, int level)
 {
 	int ret;
 	struct format_field *field;
 
 	field = evsel->tp_format->format.fields;
 	while (field) {
-		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 		if (ret < 0)
 			return ret;
 
@@ -2004,7 +2009,8 @@ static int add_evsel_fields(struct perf_evsel *evsel, bool raw_trace)
 	return 0;
 }
 
-static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace)
+static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
+				  int level)
 {
 	int ret;
 	struct perf_evsel *evsel;
@@ -2013,7 +2019,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace)
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
-		ret = add_evsel_fields(evsel, raw_trace);
+		ret = add_evsel_fields(evsel, raw_trace, level);
 		if (ret < 0)
 			return ret;
 	}
@@ -2021,7 +2027,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace)
 }
 
 static int add_all_matching_fields(struct perf_evlist *evlist,
-				   char *field_name, bool raw_trace)
+				   char *field_name, bool raw_trace, int level)
 {
 	int ret = -ESRCH;
 	struct perf_evsel *evsel;
@@ -2035,14 +2041,15 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 		if (field == NULL)
 			continue;
 
-		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 		if (ret < 0)
 			break;
 	}
 	return ret;
 }
 
-static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
+static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok,
+			     int level)
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct perf_evsel *evsel;
@@ -2072,12 +2079,12 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 	}
 
 	if (!strcmp(field_name, "trace_fields")) {
-		ret = add_all_dynamic_fields(evlist, raw_trace);
+		ret = add_all_dynamic_fields(evlist, raw_trace, level);
 		goto out;
 	}
 
 	if (event_name == NULL) {
-		ret = add_all_matching_fields(evlist, field_name, raw_trace);
+		ret = add_all_matching_fields(evlist, field_name, raw_trace, level);
 		goto out;
 	}
 
@@ -2095,7 +2102,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 	}
 
 	if (!strcmp(field_name, "*")) {
-		ret = add_evsel_fields(evsel, raw_trace);
+		ret = add_evsel_fields(evsel, raw_trace, level);
 	} else {
 		field = pevent_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL) {
@@ -2104,7 +2111,7 @@ static int add_dynamic_entry(struct perf_evlist *evlist, const char *tok)
 			return -ENOENT;
 		}
 
-		ret = __dynamic_dimension__add(evsel, field, raw_trace);
+		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 	}
 
 out:
@@ -2112,12 +2119,12 @@ out:
 	return ret;
 }
 
-static int __sort_dimension__add(struct sort_dimension *sd)
+static int __sort_dimension__add(struct sort_dimension *sd, int level)
 {
 	if (sd->taken)
 		return 0;
 
-	if (__sort_dimension__add_hpp_sort(sd) < 0)
+	if (__sort_dimension__add_hpp_sort(sd, level) < 0)
 		return -1;
 
 	if (sd->entry->se_collapse)
@@ -2128,14 +2135,14 @@ static int __sort_dimension__add(struct sort_dimension *sd)
 	return 0;
 }
 
-static int __hpp_dimension__add(struct hpp_dimension *hd)
+static int __hpp_dimension__add(struct hpp_dimension *hd, int level)
 {
 	struct perf_hpp_fmt *fmt;
 
 	if (hd->taken)
 		return 0;
 
-	fmt = __hpp_dimension__alloc_hpp(hd);
+	fmt = __hpp_dimension__alloc_hpp(hd, level);
 	if (!fmt)
 		return -1;
 
@@ -2165,7 +2172,7 @@ static int __hpp_dimension__add_output(struct perf_hpp_list *list,
 	if (hd->taken)
 		return 0;
 
-	fmt = __hpp_dimension__alloc_hpp(hd);
+	fmt = __hpp_dimension__alloc_hpp(hd, 0);
 	if (!fmt)
 		return -1;
 
@@ -2180,8 +2187,8 @@ int hpp_dimension__add_output(unsigned col)
 	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
 }
 
-static int sort_dimension__add(const char *tok,
-			       struct perf_evlist *evlist __maybe_unused)
+static int sort_dimension__add(const char *tok, struct perf_evlist *evlist,
+			       int level)
 {
 	unsigned int i;
 
@@ -2220,7 +2227,7 @@ static int sort_dimension__add(const char *tok,
 			sort__has_thread = 1;
 		}
 
-		return __sort_dimension__add(sd);
+		return __sort_dimension__add(sd, level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
@@ -2229,7 +2236,7 @@ static int sort_dimension__add(const char *tok,
 		if (strncasecmp(tok, hd->name, strlen(tok)))
 			continue;
 
-		return __hpp_dimension__add(hd);
+		return __hpp_dimension__add(hd, level);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
@@ -2244,7 +2251,7 @@ static int sort_dimension__add(const char *tok,
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
 			sort__has_sym = 1;
 
-		__sort_dimension__add(sd);
+		__sort_dimension__add(sd, level);
 		return 0;
 	}
 
@@ -2260,11 +2267,11 @@ static int sort_dimension__add(const char *tok,
 		if (sd->entry == &sort_mem_daddr_sym)
 			sort__has_sym = 1;
 
-		__sort_dimension__add(sd);
+		__sort_dimension__add(sd, level);
 		return 0;
 	}
 
-	if (!add_dynamic_entry(evlist, tok))
+	if (!add_dynamic_entry(evlist, tok, level))
 		return 0;
 
 	return -ESRCH;
@@ -2274,10 +2281,11 @@ static int setup_sort_list(char *str, struct perf_evlist *evlist)
 {
 	char *tmp, *tok;
 	int ret = 0;
+	int level = 0;
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = sort_dimension__add(tok, evlist);
+		ret = sort_dimension__add(tok, evlist, level++);
 		if (ret == -EINVAL) {
 			error("Invalid --sort key: `%s'", tok);
 			break;
@@ -2667,7 +2675,7 @@ int setup_sorting(struct perf_evlist *evlist)
 		return err;
 
 	if (parent_pattern != default_parent_pattern) {
-		err = sort_dimension__add("parent", evlist);
+		err = sort_dimension__add("parent", evlist, -1);
 		if (err < 0)
 			return err;
 	}
