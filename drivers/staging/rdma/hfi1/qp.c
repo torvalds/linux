@@ -220,6 +220,7 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_AV) {
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 	}
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE &&
@@ -228,6 +229,7 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		qp->s_flags |= RVT_S_AHG_CLEAR;
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 	}
 }
 

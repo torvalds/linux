@@ -1005,12 +1005,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 	/* vl15 special case taken care of in ud.c */
 	sc5 = priv->s_sc;
-	sc = qp_to_send_context(qp, sc5);
+	sc = ps->s_txreq->psc;
 
-	if (!sc) {
-		ret = -EINVAL;
-		goto bail;
-	}
 	if (likely(pbc == 0)) {
 		u8 vl = sc_to_vlt(dd_from_ibdev(qp->ibqp.device), sc5);
 		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
