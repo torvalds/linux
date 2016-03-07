@@ -335,6 +335,23 @@ void amd_sched_entity_push_job(struct amd_sched_job *sched_job)
 		   amd_sched_entity_in(sched_job));
 }
 
+/* init a sched_job with basic field */
+int amd_sched_job_init(struct amd_sched_job *job,
+						struct amd_gpu_scheduler *sched,
+						struct amd_sched_entity *entity,
+						void *owner, struct fence **fence)
+{
+	job->sched = sched;
+	job->s_entity = entity;
+	job->s_fence = amd_sched_fence_create(entity, owner);
+	if (!job->s_fence)
+		return -ENOMEM;
+
+	if (fence)
+		*fence = &job->s_fence->base;
+	return 0;
+}
+
 /**
  * Return ture if we can push more jobs to the hw.
  */

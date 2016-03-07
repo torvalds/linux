@@ -862,27 +862,24 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			    union drm_amdgpu_cs *cs)
 {
 	struct amdgpu_ring *ring = p->job->ring;
-	struct amd_sched_fence *fence;
+	struct fence *fence;
 	struct amdgpu_job *job;
+	int r;
 
 	job = p->job;
 	p->job = NULL;
 
-	job->base.sched = &ring->sched;
-	job->base.s_entity = &p->ctx->rings[ring->idx].entity;
-	job->owner = p->filp;
-
-	fence = amd_sched_fence_create(job->base.s_entity, p->filp);
-	if (!fence) {
+	r = amd_sched_job_init(&job->base, &ring->sched,
+						&p->ctx->rings[ring->idx].entity,
+						p->filp, &fence);
+	if (r) {
 		amdgpu_job_free(job);
-		return -ENOMEM;
+		return r;
 	}
 
-	job->base.s_fence = fence;
-	p->fence = fence_get(&fence->base);
-
-	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring,
-					      &fence->base);
+	job->owner = p->filp;
+	p->fence = fence_get(fence);
+	cs->out.handle = amdgpu_ctx_add_fence(p->ctx, ring, fence);
 	job->ibs[job->num_ibs - 1].sequence = cs->out.handle;
 
 	trace_amdgpu_cs_ioctl(job);

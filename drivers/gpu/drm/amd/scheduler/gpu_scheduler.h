@@ -144,5 +144,8 @@ struct amd_sched_fence *amd_sched_fence_create(
 	struct amd_sched_entity *s_entity, void *owner);
 void amd_sched_fence_scheduled(struct amd_sched_fence *fence);
 void amd_sched_fence_signal(struct amd_sched_fence *fence);
-
+int amd_sched_job_init(struct amd_sched_job *job,
+					struct amd_gpu_scheduler *sched,
+					struct amd_sched_entity *entity,
+					void *owner, struct fence **fence);
 #endif

@@ -87,16 +87,19 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f)
 {
+	struct fence *fence;
+	int r;
 	job->ring = ring;
-	job->base.sched = &ring->sched;
-	job->base.s_entity = entity;
-	job->base.s_fence = amd_sched_fence_create(job->base.s_entity, owner);
-	if (!job->base.s_fence)
-		return -ENOMEM;
 
-	*f = fence_get(&job->base.s_fence->base);
+	if (!f)
+		return -EINVAL;
+
+	r = amd_sched_job_init(&job->base, &ring->sched, entity, owner, &fence);
+	if (r)
+		return r;
 
 	job->owner = owner;
+	*f = fence_get(fence);
 	amd_sched_entity_push_job(&job->base);
 
 	return 0;
