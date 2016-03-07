@@ -38,6 +38,10 @@ Required properties:
 			0 - NAND_fifoevent
 			1 - NAND_termcount
  - interrupt-cells:	Must be set to 2
+ - gpio-controller:	The GPMC driver implements a GPIO controller for the
+			GPMC WAIT pins that can be used as general purpose inputs.
+			0 maps to GPMC_WAIT0 pin.
+ - gpio-cells:		Must be set to 2
 
 Timing properties for child nodes. All are optional and default to 0.
 
@@ -138,6 +142,8 @@ Example for an AM33xx board:
 		ranges = <0 0 0x08000000 0x10000000>; /* CS0 @addr 0x8000000, size 0x10000000 */
 		interrupt-controller;
 		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		/* child nodes go here */
 	};
