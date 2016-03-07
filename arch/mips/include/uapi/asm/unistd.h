@@ -380,16 +380,17 @@
 #define __NR_userfaultfd		(__NR_Linux + 357)
 #define __NR_membarrier			(__NR_Linux + 358)
 #define __NR_mlock2			(__NR_Linux + 359)
+#define __NR_copy_file_range		(__NR_Linux + 360)
 
 /*
  * Offset of the last Linux o32 flavoured syscall
  */
-#define __NR_Linux_syscalls		359
+#define __NR_Linux_syscalls		360
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
 
 #define __NR_O32_Linux			4000
-#define __NR_O32_Linux_syscalls		359
+#define __NR_O32_Linux_syscalls		360
 
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
@@ -717,16 +718,17 @@
 #define __NR_userfaultfd		(__NR_Linux + 317)
 #define __NR_membarrier			(__NR_Linux + 318)
 #define __NR_mlock2			(__NR_Linux + 319)
+#define __NR_copy_file_range		(__NR_Linux + 320)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		319
+#define __NR_Linux_syscalls		320
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		319
+#define __NR_64_Linux_syscalls		320
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 
@@ -1058,15 +1060,16 @@
 #define __NR_userfaultfd		(__NR_Linux + 321)
 #define __NR_membarrier			(__NR_Linux + 322)
 #define __NR_mlock2			(__NR_Linux + 323)
+#define __NR_copy_file_range		(__NR_Linux + 324)
 
 /*
  * Offset of the last N32 flavoured syscall
  */
-#define __NR_Linux_syscalls		323
+#define __NR_Linux_syscalls		324
 
 #endif /* _MIPS_SIM == _MIPS_SIM_NABI32 */
 
 #define __NR_N32_Linux			6000
-#define __NR_N32_Linux_syscalls		323
+#define __NR_N32_Linux_syscalls		324
 
 #endif /* _UAPI_ASM_UNISTD_H */

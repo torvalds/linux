@@ -215,7 +215,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	struct drm_gem_cma_object *cma_obj;
 
 	if (size == 0)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	/* First, try to get a vc4_bo from the kernel BO cache. */
 	if (from_cache) {
@@ -237,7 +237,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 		if (IS_ERR(cma_obj)) {
 			DRM_ERROR("Failed to allocate from CMA:\n");
 			vc4_bo_stats_dump(vc4);
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 
@@ -259,8 +259,8 @@ int vc4_dumb_create(struct drm_file *file_priv,
 		args->size = args->pitch * args->height;
 
 	bo = vc4_bo_create(dev, args->size, false);
-	if (!bo)
-		return -ENOMEM;
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->base.base);
@@ -443,8 +443,8 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 	 * get zeroed, and that might leak data between users.
 	 */
 	bo = vc4_bo_create(dev, args->size, false);
-	if (!bo)
-		return -ENOMEM;
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->base.base);
@@ -496,8 +496,8 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	}
 
 	bo = vc4_bo_create(dev, args->size, true);
-	if (!bo)
-		return -ENOMEM;
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
 
 	ret = copy_from_user(bo->base.vaddr,
 			     (void __user *)(uintptr_t)args->data,

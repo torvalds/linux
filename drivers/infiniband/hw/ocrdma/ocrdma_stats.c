@@ -64,10 +64,11 @@ static int ocrdma_add_stat(char *start, char *pcur,
 	return cpy_len;
 }
 
-static bool ocrdma_alloc_stats_mem(struct ocrdma_dev *dev)
+bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev)
 {
 	struct stats_mem *mem = &dev->stats_mem;
 
+	mutex_init(&dev->stats_lock);
 	/* Alloc mbox command mem*/
 	mem->size = max_t(u32, sizeof(struct ocrdma_rdma_stats_req),
 			sizeof(struct ocrdma_rdma_stats_resp));
@@ -91,13 +92,14 @@ static bool ocrdma_alloc_stats_mem(struct ocrdma_dev *dev)
 	return true;
 }
 
-static void ocrdma_release_stats_mem(struct ocrdma_dev *dev)
+void ocrdma_release_stats_resources(struct ocrdma_dev *dev)
 {
 	struct stats_mem *mem = &dev->stats_mem;
 
 	if (mem->va)
 		dma_free_coherent(&dev->nic_info.pdev->dev, mem->size,
 				  mem->va, mem->pa);
+	mem->va = NULL;
 	kfree(mem->debugfs_mem);
 }
 
@@ -838,15 +840,9 @@ void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 				&dev->reset_stats, &ocrdma_dbg_ops))
 		goto err;
 
-	/* Now create dma_mem for stats mbx command */
-	if (!ocrdma_alloc_stats_mem(dev))
-		goto err;
-
-	mutex_init(&dev->stats_lock);
 
 	return;
 err:
-	ocrdma_release_stats_mem(dev);
 	debugfs_remove_recursive(dev->dir);
 	dev->dir = NULL;
 }
@@ -855,9 +851,7 @@ void ocrdma_rem_port_stats(struct ocrdma_dev *dev)
 {
 	if (!dev->dir)
 		return;
-	debugfs_remove(dev->dir);
-	mutex_destroy(&dev->stats_lock);
-	ocrdma_release_stats_mem(dev);
+	debugfs_remove_recursive(dev->dir);
 }
 
 void ocrdma_init_debugfs(void)

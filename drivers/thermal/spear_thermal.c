@@ -54,8 +54,7 @@ static struct thermal_zone_device_ops ops = {
 	.get_temp = thermal_get_temp,
 };
 
-#ifdef CONFIG_PM
-static int spear_thermal_suspend(struct device *dev)
+static int __maybe_unused spear_thermal_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct thermal_zone_device *spear_thermal = platform_get_drvdata(pdev);
@@ -72,7 +71,7 @@ static int spear_thermal_suspend(struct device *dev)
 	return 0;
 }
 
-static int spear_thermal_resume(struct device *dev)
+static int __maybe_unused spear_thermal_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct thermal_zone_device *spear_thermal = platform_get_drvdata(pdev);
@@ -94,7 +93,6 @@ static int spear_thermal_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(spear_thermal_pm_ops, spear_thermal_suspend,
 		spear_thermal_resume);
