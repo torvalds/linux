@@ -515,9 +515,8 @@ static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
 	return speed_mask;
 }
 
-static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
+static u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
-	u16 fw_speeds = link_info->auto_link_speeds;
 	u32 speed_mask = 0;
 
 	/* TODO: support 25GB, 40GB, 50GB with different cable type */
@@ -532,7 +531,26 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 		speed_mask |= ADVERTISED_10000baseT_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
 		speed_mask |= ADVERTISED_40000baseCR4_Full;
+
+	if ((fw_pause & BNXT_LINK_PAUSE_BOTH) == BNXT_LINK_PAUSE_BOTH)
+		speed_mask |= ADVERTISED_Pause;
+	else if (fw_pause & BNXT_LINK_PAUSE_TX)
+		speed_mask |= ADVERTISED_Asym_Pause;
+	else if (fw_pause & BNXT_LINK_PAUSE_RX)
+		speed_mask |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+
 	return speed_mask;
+}
+
+static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->auto_link_speeds;
+	u8 fw_pause = 0;
+
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		fw_pause = link_info->auto_pause_setting;
+
+	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
 }
 
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
@@ -579,17 +597,6 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
-	}
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) {
-		if ((link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
-		    BNXT_LINK_PAUSE_BOTH) {
-			cmd->advertising |= ADVERTISED_Pause;
-		} else {
-			cmd->advertising |= ADVERTISED_Asym_Pause;
-			if (link_info->auto_pause_setting &
-			    BNXT_LINK_PAUSE_RX)
-				cmd->advertising |= ADVERTISED_Pause;
-		}
 	}
 
 	cmd->port = PORT_NONE;
