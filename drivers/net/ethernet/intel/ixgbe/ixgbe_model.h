@@ -32,7 +32,6 @@
 
 struct ixgbe_mat_field {
 	unsigned int off;
-	unsigned int mask;
 	int (*val)(struct ixgbe_fdir_filter *input,
 		   union ixgbe_atr_input *mask,
 		   u32 val, u32 m);
@@ -58,9 +57,9 @@ static inline int ixgbe_mat_prgm_dip(struct ixgbe_fdir_filter *input,
 }
 
 static struct ixgbe_mat_field ixgbe_ipv4_fields[] = {
-	{ .off = 12, .mask = -1, .val = ixgbe_mat_prgm_sip,
+	{ .off = 12, .val = ixgbe_mat_prgm_sip,
 	  .type = IXGBE_ATR_FLOW_TYPE_IPV4},
-	{ .off = 16, .mask = -1, .val = ixgbe_mat_prgm_dip,
+	{ .off = 16, .val = ixgbe_mat_prgm_dip,
 	  .type = IXGBE_ATR_FLOW_TYPE_IPV4},
 	{ .val = NULL } /* terminal node */
 };
@@ -84,9 +83,9 @@ static inline int ixgbe_mat_prgm_dport(struct ixgbe_fdir_filter *input,
 };
 
 static struct ixgbe_mat_field ixgbe_tcp_fields[] = {
-	{.off = 0, .mask = 0xffff, .val = ixgbe_mat_prgm_sport,
+	{.off = 0, .val = ixgbe_mat_prgm_sport,
 	 .type = IXGBE_ATR_FLOW_TYPE_TCPV4},
-	{.off = 2, .mask = 0xffff, .val = ixgbe_mat_prgm_dport,
+	{.off = 2, .val = ixgbe_mat_prgm_dport,
 	 .type = IXGBE_ATR_FLOW_TYPE_TCPV4},
 	{ .val = NULL } /* terminal node */
 };
