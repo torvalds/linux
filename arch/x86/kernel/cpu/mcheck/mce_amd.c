@@ -1,5 +1,5 @@
 /*
- *  (c) 2005-2015 Advanced Micro Devices, Inc.
+ *  (c) 2005-2016 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
@@ -201,10 +201,7 @@ static int lvt_off_valid(struct threshold_block *b, int apic, u32 lo, u32 hi)
 	return 1;
 };
 
-/*
- * Called via smp_call_function_single(), must be called with correct
- * cpu affinity.
- */
+/* Reprogram MCx_MISC MSR behind this threshold bank. */
 static void threshold_restart_bank(void *_tr)
 {
 	struct thresh_restart *tr = _tr;
