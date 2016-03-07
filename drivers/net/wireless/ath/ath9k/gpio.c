@@ -74,7 +74,8 @@ void ath_fill_led_pin(struct ath_softc *sc)
 
 	if (ah->led_pin >= 0) {
 		if (!((1 << ah->led_pin) & AR_GPIO_OE_OUT_MASK))
-			ath9k_hw_request_gpio(ah, ah->led_pin, "ath9k-led");
+			ath9k_hw_gpio_request_out(ah, ah->led_pin, "ath9k-led",
+						  AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 		return;
 	}
 
@@ -90,7 +91,8 @@ void ath_fill_led_pin(struct ath_softc *sc)
 		ah->led_pin = ATH_LED_PIN_DEF;
 
 	/* Configure gpio 1 for output */
-	ath9k_hw_cfg_output(ah, ah->led_pin, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	ath9k_hw_gpio_request_out(ah, ah->led_pin, "ath9k-led",
+				  AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 
 	/* LED off, active low */
 	ath9k_hw_set_gpio(ah, ah->led_pin, (ah->config.led_active_high) ? 0 : 1);

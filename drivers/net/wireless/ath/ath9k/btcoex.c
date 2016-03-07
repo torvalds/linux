@@ -142,7 +142,8 @@ void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 		      btcoex_hw->btactive_gpio);
 
 	/* Configure the desired gpio port for input */
-	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btactive_gpio);
+	ath9k_hw_gpio_request_in(ah, btcoex_hw->btactive_gpio,
+				 "ath9k-btactive");
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_init_2wire);
 
@@ -166,9 +167,10 @@ void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 			btcoex_hw->btpriority_gpio);
 
 	/* Configure the desired GPIO ports for input */
-
-	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btactive_gpio);
-	ath9k_hw_cfg_gpio_input(ah, btcoex_hw->btpriority_gpio);
+	ath9k_hw_gpio_request_in(ah, btcoex_hw->btactive_gpio,
+				 "ath9k-btactive");
+	ath9k_hw_gpio_request_in(ah, btcoex_hw->btpriority_gpio,
+				 "ath9k-btpriority");
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_init_3wire);
 
@@ -201,8 +203,9 @@ static void ath9k_hw_btcoex_enable_2wire(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	/* Configure the desired GPIO port for TX_FRAME output */
-	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
-			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
+	ath9k_hw_gpio_request_out(ah, btcoex_hw->wlanactive_gpio,
+				  "ath9k-wlanactive",
+				  AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 }
 
 /*
@@ -271,7 +274,6 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex->bt_coex_mode);
 	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex->bt_coex_mode2);
 
-
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS0, btcoex->wlan_weight[0]);
 		REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS1, btcoex->wlan_weight[1]);
@@ -280,8 +282,6 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 				  btcoex->bt_weight[i]);
 	} else
 		REG_WRITE(ah, AR_BT_COEX_WEIGHT, btcoex->bt_coex_weights);
-
-
 
 	if (AR_SREV_9271(ah)) {
 		val = REG_READ(ah, 0x50040);
@@ -292,8 +292,9 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR_QUIET1, AR_QUIET1_QUIET_ACK_CTS_ENABLE, 1);
 	REG_RMW_FIELD(ah, AR_PCU_MISC, AR_PCU_BT_ANT_PREVENT_RX, 0);
 
-	ath9k_hw_cfg_output(ah, btcoex->wlanactive_gpio,
-			    AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
+	ath9k_hw_gpio_request_out(ah, btcoex->wlanactive_gpio,
+				  "ath9k-wlanactive",
+				  AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL);
 }
 
 static void ath9k_hw_btcoex_enable_mci(struct ath_hw *ah)
@@ -364,8 +365,8 @@ void ath9k_hw_btcoex_disable(struct ath_hw *ah)
 	if (!AR_SREV_9300_20_OR_LATER(ah))
 		ath9k_hw_set_gpio(ah, btcoex_hw->wlanactive_gpio, 0);
 
-	ath9k_hw_cfg_output(ah, btcoex_hw->wlanactive_gpio,
-			AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	ath9k_hw_gpio_request_out(ah, btcoex_hw->wlanactive_gpio,
+				  NULL, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 
 	if (btcoex_hw->scheme == ATH_BTCOEX_CFG_3WIRE) {
 		REG_WRITE(ah, AR_BT_COEX_MODE, AR_BT_QUIET | AR_BT_MODE);

@@ -3590,8 +3590,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		else
 			gpio = AR9300_EXT_LNA_CTL_GPIO_AR9485;
 
-		ath9k_hw_cfg_output(ah, gpio,
-				    AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
+		ath9k_hw_gpio_request_out(ah, gpio, NULL,
+					  AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
 	}
 
 	value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
