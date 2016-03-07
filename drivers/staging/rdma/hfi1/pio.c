@@ -1545,7 +1545,7 @@ static void sc_piobufavail(struct send_context *sc)
 		struct iowait *wait;
 
 		if (n == ARRAY_SIZE(qps))
-			goto full;
+			break;
 		wait = list_first_entry(list, struct iowait, list);
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
@@ -1554,12 +1554,14 @@ static void sc_piobufavail(struct send_context *sc)
 		qps[n++] = qp;
 	}
 	/*
-	 * Counting: only call wantpiobuf_intr() if there were waiters and they
-	 * are now all gone.
+	 * If there had been waiters and there are more
+	 * insure that we redo the force to avoid a potential hang.
 	 */
-	if (n)
+	if (n) {
 		hfi1_sc_wantpiobuf_intr(sc, 0);
-full:
+		if (!list_empty(list))
+			hfi1_sc_wantpiobuf_intr(sc, 1);
+	}
 	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
 
 	for (i = 0; i < n; i++)
