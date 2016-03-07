@@ -1417,7 +1417,6 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	unsigned long part;
 	unsigned int eblocks, eavailable, bad_blocks, spare_cnt;
 	uint64_t swap_size, use_size, size_limit;
-	struct nand_ecclayout *oinfo;
 	int ret;
 
 	parts = &partitions[0];
@@ -1444,13 +1443,6 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (PAGE_SIZE % mtd->writesize || mtd->writesize > PAGE_SIZE) {
 		printk(KERN_ERR "%s: PAGE_SIZE %lu not multiple of write size"
 			" %u\n", MTDSWAP_PREFIX, PAGE_SIZE, mtd->writesize);
-		return;
-	}
-
-	oinfo = mtd->ecclayout;
-	if (!oinfo) {
-		printk(KERN_ERR "%s: mtd%d does not have OOB\n",
-			MTDSWAP_PREFIX, mtd->index);
 		return;
 	}
 
