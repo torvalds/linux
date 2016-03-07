@@ -417,6 +417,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *fmt_node;
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
 	int ret, printed = 0;
@@ -428,10 +429,10 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	ret = scnprintf(hpp->buf, hpp->size, "%*s", he->depth * HIERARCHY_INDENT, "");
 	advance_hpp(hpp, ret);
 
-	hists__for_each_format(he->hists, fmt) {
-		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
-			break;
-
+	/* the first hpp_list_node is for overhead columns */
+	fmt_node = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_node, list);
+	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
 		/*
 		 * If there's no field_sep, we still need
 		 * to display initial '  '.
@@ -529,50 +530,49 @@ static int print_hierarchy_indent(const char *sep, int indent,
 static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 				  const char *sep, FILE *fp)
 {
-	bool first = true;
+	bool first_node, first_col;
 	int indent;
 	int depth;
 	unsigned width = 0;
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *fmt_node;
 
 	indent = hists->nr_hpp_node;
 
 	/* preserve max indent depth for column headers */
 	print_hierarchy_indent(sep, indent, spaces, fp);
 
-	hists__for_each_format(hists, fmt) {
-		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
-			break;
+	/* the first hpp_list_node is for overhead columns */
+	fmt_node = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_node, list);
 
-		if (!first)
-			fprintf(fp, "%s", sep ?: "  ");
-		else
-			first = false;
-
+	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
 		fmt->header(fmt, hpp, hists_to_evsel(hists));
-		fprintf(fp, "%s", hpp->buf);
+		fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
 	}
 
 	/* combine sort headers with ' / ' */
-	first = true;
-	hists__for_each_format(hists, fmt) {
-		if (!perf_hpp__is_sort_entry(fmt) && !perf_hpp__is_dynamic_entry(fmt))
-			continue;
-		if (perf_hpp__should_skip(fmt, hists))
-			continue;
-
-		if (!first)
+	first_node = true;
+	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
+		if (!first_node)
 			header_width += fprintf(fp, " / ");
-		else {
-			fprintf(fp, "%s", sep ?: "  ");
-			first = false;
+		first_node = false;
+
+		first_col = true;
+		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+			if (perf_hpp__should_skip(fmt, hists))
+				continue;
+
+			if (!first_col)
+				header_width += fprintf(fp, "+");
+			first_col = false;
+
+			fmt->header(fmt, hpp, hists_to_evsel(hists));
+			rtrim(hpp->buf);
+
+			header_width += fprintf(fp, "%s", ltrim(hpp->buf));
 		}
-
-		fmt->header(fmt, hpp, hists_to_evsel(hists));
-		rtrim(hpp->buf);
-
-		header_width += fprintf(fp, "%s", ltrim(hpp->buf));
 	}
 
 	fprintf(fp, "\n# ");
@@ -580,29 +580,35 @@ static int print_hierarchy_header(struct hists *hists, struct perf_hpp *hpp,
 	/* preserve max indent depth for initial dots */
 	print_hierarchy_indent(sep, indent, dots, fp);
 
-	first = true;
-	hists__for_each_format(hists, fmt) {
-		if (perf_hpp__is_sort_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
-			break;
+	/* the first hpp_list_node is for overhead columns */
+	fmt_node = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_node, list);
 
-		if (!first)
-			fprintf(fp, "%s", sep ?: "  ");
-		else
-			first = false;
+	first_col = true;
+	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+		if (!first_col)
+			fprintf(fp, "%s", sep ?: "..");
+		first_col = false;
 
 		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
 		fprintf(fp, "%.*s", width, dots);
 	}
 
 	depth = 0;
-	hists__for_each_format(hists, fmt) {
-		if (!perf_hpp__is_sort_entry(fmt) && !perf_hpp__is_dynamic_entry(fmt))
-			continue;
-		if (perf_hpp__should_skip(fmt, hists))
-			continue;
+	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
+		first_col = true;
+		width = depth * HIERARCHY_INDENT;
 
-		width = fmt->width(fmt, hpp, hists_to_evsel(hists));
-		width += depth * HIERARCHY_INDENT;
+		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+			if (perf_hpp__should_skip(fmt, hists))
+				continue;
+
+			if (!first_col)
+				width++;  /* for '+' sign between column header */
+			first_col = false;
+
+			width += fmt->width(fmt, hpp, hists_to_evsel(hists));
+		}
 
 		if (width > header_width)
 			header_width = width;
@@ -621,6 +627,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp)
 {
 	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *fmt_node;
 	struct rb_node *nd;
 	size_t ret = 0;
 	unsigned int width;
@@ -650,6 +657,10 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 	fprintf(fp, "# ");
 
 	if (symbol_conf.report_hierarchy) {
+		list_for_each_entry(fmt_node, &hists->hpp_formats, list) {
+			perf_hpp_list__for_each_format(&fmt_node->hpp, fmt)
+				perf_hpp__reset_width(fmt, hists);
+		}
 		nr_rows += print_hierarchy_header(hists, &dummy_hpp, sep, fp);
 		goto print_entries;
 	}
@@ -734,9 +745,9 @@ print_entries:
 		 * display "no entry >= x.xx%" message.
 		 */
 		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
-			int nr_sort = hists->nr_sort_keys;
+			int depth = hists->nr_hpp_node + h->depth + 1;
 
-			print_hierarchy_indent(sep, nr_sort + h->depth + 1, spaces, fp);
+			print_hierarchy_indent(sep, depth, spaces, fp);
 			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);
 
 			if (max_rows && ++nr_rows >= max_rows)
