@@ -55,8 +55,9 @@ static void nvme_free_ns(struct kref *kref)
 	ns->disk->private_data = NULL;
 	spin_unlock(&dev_list_lock);
 
-	nvme_put_ctrl(ns->ctrl);
 	put_disk(ns->disk);
+	ida_simple_remove(&ns->ctrl->ns_ida, ns->instance);
+	nvme_put_ctrl(ns->ctrl);
 	kfree(ns);
 }
 
@@ -183,7 +184,7 @@ int __nvme_submit_user_cmd(struct request_queue *q, struct nvme_command *cmd,
 			goto out_unmap;
 		}
 
-		if (meta_buffer) {
+		if (meta_buffer && meta_len) {
 			struct bio_integrity_payload *bip;
 
 			meta = kmalloc(meta_len, GFP_KERNEL);
@@ -373,6 +374,8 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 
 	if (copy_from_user(&io, uio, sizeof(io)))
 		return -EFAULT;
+	if (io.flags)
+		return -EINVAL;
 
 	switch (io.opcode) {
 	case nvme_cmd_write:
@@ -424,6 +427,8 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 		return -EACCES;
 	if (copy_from_user(&cmd, ucmd, sizeof(cmd)))
 		return -EFAULT;
+	if (cmd.flags)
+		return -EINVAL;
 
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = cmd.opcode;
@@ -556,6 +561,10 @@ static int nvme_revalidate_disk(struct gendisk *disk)
 	u16 old_ms;
 	unsigned short bs;
 
+	if (test_bit(NVME_NS_DEAD, &ns->flags)) {
+		set_capacity(disk, 0);
+		return -ENODEV;
+	}
 	if (nvme_identify_ns(ns->ctrl, ns->ns_id, &id)) {
 		dev_warn(ns->ctrl->dev, "%s: Identify failure nvme%dn%d\n",
 				__func__, ns->ctrl->instance, ns->ns_id);
@@ -831,6 +840,23 @@ int nvme_shutdown_ctrl(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
+		struct request_queue *q)
+{
+	if (ctrl->max_hw_sectors) {
+		u32 max_segments =
+			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1;
+
+		blk_queue_max_hw_sectors(q, ctrl->max_hw_sectors);
+		blk_queue_max_segments(q, min_t(u32, max_segments, USHRT_MAX));
+	}
+	if (ctrl->stripe_size)
+		blk_queue_chunk_sectors(q, ctrl->stripe_size >> 9);
+	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
+		blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
+	blk_queue_virt_boundary(q, ctrl->page_size - 1);
+}
+
 /*
  * Initialize the cached copies of the Identify data and various controller
  * register in our nvme_ctrl structure.  This should be called as soon as
@@ -887,6 +913,8 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 			ctrl->max_hw_sectors = max_hw_sectors;
 		}
 	}
+
+	nvme_set_queue_limits(ctrl, ctrl->admin_q);
 
 	kfree(id);
 	return 0;
@@ -1118,10 +1146,13 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	if (!ns)
 		return;
 
+	ns->instance = ida_simple_get(&ctrl->ns_ida, 1, 0, GFP_KERNEL);
+	if (ns->instance < 0)
+		goto out_free_ns;
+
 	ns->queue = blk_mq_init_queue(ctrl->tagset);
 	if (IS_ERR(ns->queue))
-		goto out_free_ns;
-	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
+		goto out_release_instance;
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
 	ns->queue->queuedata = ns;
 	ns->ctrl = ctrl;
@@ -1135,17 +1166,9 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	ns->disk = disk;
 	ns->lba_shift = 9; /* set to a default value for 512 until disk is validated */
 
+
 	blk_queue_logical_block_size(ns->queue, 1 << ns->lba_shift);
-	if (ctrl->max_hw_sectors) {
-		blk_queue_max_hw_sectors(ns->queue, ctrl->max_hw_sectors);
-		blk_queue_max_segments(ns->queue,
-			(ctrl->max_hw_sectors / (ctrl->page_size >> 9)) + 1);
-	}
-	if (ctrl->stripe_size)
-		blk_queue_chunk_sectors(ns->queue, ctrl->stripe_size >> 9);
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		blk_queue_flush(ns->queue, REQ_FLUSH | REQ_FUA);
-	blk_queue_virt_boundary(ns->queue, ctrl->page_size - 1);
+	nvme_set_queue_limits(ctrl, ns->queue);
 
 	disk->major = nvme_major;
 	disk->first_minor = 0;
@@ -1154,7 +1177,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	disk->queue = ns->queue;
 	disk->driverfs_dev = ctrl->device;
 	disk->flags = GENHD_FL_EXT_DEVT;
-	sprintf(disk->disk_name, "nvme%dn%d", ctrl->instance, nsid);
+	sprintf(disk->disk_name, "nvme%dn%d", ctrl->instance, ns->instance);
 
 	if (nvme_revalidate_disk(ns->disk))
 		goto out_free_disk;
@@ -1174,40 +1197,29 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	kfree(disk);
  out_free_queue:
 	blk_cleanup_queue(ns->queue);
+ out_release_instance:
+	ida_simple_remove(&ctrl->ns_ida, ns->instance);
  out_free_ns:
 	kfree(ns);
 }
 
 static void nvme_ns_remove(struct nvme_ns *ns)
 {
-	bool kill = nvme_io_incapable(ns->ctrl) &&
-			!blk_queue_dying(ns->queue);
+	if (test_and_set_bit(NVME_NS_REMOVING, &ns->flags))
+		return;
 
-	lockdep_assert_held(&ns->ctrl->namespaces_mutex);
-
-	if (kill) {
-		blk_set_queue_dying(ns->queue);
-
-		/*
-		 * The controller was shutdown first if we got here through
-		 * device removal. The shutdown may requeue outstanding
-		 * requests. These need to be aborted immediately so
-		 * del_gendisk doesn't block indefinitely for their completion.
-		 */
-		blk_mq_abort_requeue_list(ns->queue);
-	}
 	if (ns->disk->flags & GENHD_FL_UP) {
 		if (blk_get_integrity(ns->disk))
 			blk_integrity_unregister(ns->disk);
 		sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
 					&nvme_ns_attr_group);
 		del_gendisk(ns->disk);
-	}
-	if (kill || !blk_queue_dying(ns->queue)) {
 		blk_mq_abort_requeue_list(ns->queue);
 		blk_cleanup_queue(ns->queue);
 	}
+	mutex_lock(&ns->ctrl->namespaces_mutex);
 	list_del_init(&ns->list);
+	mutex_unlock(&ns->ctrl->namespaces_mutex);
 	nvme_put_ns(ns);
 }
 
@@ -1301,10 +1313,8 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 {
 	struct nvme_ns *ns, *next;
 
-	mutex_lock(&ctrl->namespaces_mutex);
 	list_for_each_entry_safe(ns, next, &ctrl->namespaces, list)
 		nvme_ns_remove(ns);
-	mutex_unlock(&ctrl->namespaces_mutex);
 }
 
 static DEFINE_IDA(nvme_instance_ida);
@@ -1351,6 +1361,7 @@ static void nvme_free_ctrl(struct kref *kref)
 
 	put_device(ctrl->device);
 	nvme_release_instance(ctrl);
+	ida_destroy(&ctrl->ns_ida);
 
 	ctrl->ops->free_ctrl(ctrl);
 }
@@ -1391,6 +1402,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	}
 	get_device(ctrl->device);
 	dev_set_drvdata(ctrl->device, ctrl);
+	ida_init(&ctrl->ns_ida);
 
 	spin_lock(&dev_list_lock);
 	list_add_tail(&ctrl->node, &nvme_ctrl_list);
@@ -1401,6 +1413,38 @@ out_release_instance:
 	nvme_release_instance(ctrl);
 out:
 	return ret;
+}
+
+/**
+ * nvme_kill_queues(): Ends all namespace queues
+ * @ctrl: the dead controller that needs to end
+ *
+ * Call this function when the driver determines it is unable to get the
+ * controller in a state capable of servicing IO.
+ */
+void nvme_kill_queues(struct nvme_ctrl *ctrl)
+{
+	struct nvme_ns *ns;
+
+	mutex_lock(&ctrl->namespaces_mutex);
+	list_for_each_entry(ns, &ctrl->namespaces, list) {
+		if (!kref_get_unless_zero(&ns->kref))
+			continue;
+
+		/*
+		 * Revalidating a dead namespace sets capacity to 0. This will
+		 * end buffered writers dirtying pages that can't be synced.
+		 */
+		if (!test_and_set_bit(NVME_NS_DEAD, &ns->flags))
+			revalidate_disk(ns->disk);
+
+		blk_set_queue_dying(ns->queue);
+		blk_mq_abort_requeue_list(ns->queue);
+		blk_mq_start_stopped_hw_queues(ns->queue, true);
+
+		nvme_put_ns(ns);
+	}
+	mutex_unlock(&ctrl->namespaces_mutex);
 }
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl)
