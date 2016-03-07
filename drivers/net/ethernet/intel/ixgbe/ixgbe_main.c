@@ -1111,6 +1111,7 @@ static int ixgbe_tx_maxrate(struct net_device *netdev,
  * ixgbe_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: structure containing interrupt and ring information
  * @tx_ring: tx ring to clean
+ * @napi_budget: Used to determine if we are in netpoll
  **/
 static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 			       struct ixgbe_ring *tx_ring, int napi_budget)
@@ -2807,8 +2808,10 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	ixgbe_for_each_ring(ring, q_vector->tx)
-		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring, budget);
+	ixgbe_for_each_ring(ring, q_vector->tx) {
+		if (!ixgbe_clean_tx_irq(q_vector, ring, budget))
+			clean_complete = false;
+	}
 
 	/* Exit if we are called by netpoll or busy polling is active */
 	if ((budget <= 0) || !ixgbe_qv_lock_napi(q_vector))
@@ -2826,7 +2829,8 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 						 per_ring_budget);
 
 		work_done += cleaned;
-		clean_complete &= (cleaned < per_ring_budget);
+		if (cleaned >= per_ring_budget)
+			clean_complete = false;
 	}
 
 	ixgbe_qv_unlock_napi(q_vector);
