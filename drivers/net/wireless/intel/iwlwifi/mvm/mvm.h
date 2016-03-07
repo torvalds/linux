@@ -1470,22 +1470,6 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
 
-bool iwl_mvm_bt_coex_is_shared_ant_avail_old(struct iwl_mvm *mvm);
-void iwl_mvm_bt_coex_vif_change_old(struct iwl_mvm *mvm);
-int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm);
-void iwl_mvm_rx_bt_coex_notif_old(struct iwl_mvm *mvm,
-				  struct iwl_rx_cmd_buffer *rxb);
-void iwl_mvm_bt_rssi_event_old(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       enum ieee80211_rssi_event_data);
-u16 iwl_mvm_coex_agg_time_limit_old(struct iwl_mvm *mvm,
-				    struct ieee80211_sta *sta);
-bool iwl_mvm_bt_coex_is_mimo_allowed_old(struct iwl_mvm *mvm,
-					 struct ieee80211_sta *sta);
-bool iwl_mvm_bt_coex_is_tpc_allowed_old(struct iwl_mvm *mvm,
-					enum ieee80211_band band);
-void iwl_mvm_rx_ant_coupling_notif_old(struct iwl_mvm *mvm,
-				       struct iwl_rx_cmd_buffer *rxb);
-
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void

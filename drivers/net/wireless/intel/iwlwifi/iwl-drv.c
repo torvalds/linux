@@ -1255,10 +1255,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto try_again;
 
-	if (fw_has_api(&drv->fw.ucode_capa, IWL_UCODE_TLV_API_NEW_VERSION))
-		api_ver = drv->fw.ucode_ver;
-	else
-		api_ver = IWL_UCODE_API(drv->fw.ucode_ver);
+	api_ver = drv->fw.ucode_ver;
 
 	/*
 	 * api_ver should match the api version forming part of the

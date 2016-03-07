@@ -58,10 +58,10 @@
 #define IWL9000_UCODE_API_MAX	21
 
 /* Oldest version we won't warn about */
-#define IWL9000_UCODE_API_OK	13
+#define IWL9000_UCODE_API_OK	16
 
 /* Lowest firmware API version supported */
-#define IWL9000_UCODE_API_MIN	13
+#define IWL9000_UCODE_API_MIN	16
 
 /* NVM versions */
 #define IWL9000_NVM_VERSION		0x0a1d
