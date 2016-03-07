@@ -55,8 +55,8 @@ struct netlbl_domhsh_tbl {
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 #define netlbl_domhsh_rcu_deref(p) \
 	rcu_dereference_check(p, lockdep_is_held(&netlbl_domhsh_lock))
-static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
-static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
+static struct netlbl_domhsh_tbl *netlbl_domhsh;
+static struct netlbl_dom_map *netlbl_domhsh_def;
 
 /*
  * Domain Hash Table Helper Functions
