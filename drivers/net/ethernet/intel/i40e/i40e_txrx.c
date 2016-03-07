@@ -1975,9 +1975,11 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		clean_complete = clean_complete &&
-				 i40e_clean_tx_irq(ring, vsi->work_limit);
-		arm_wb = arm_wb || ring->arm_wb;
+		if (!i40e_clean_tx_irq(ring, vsi->work_limit)) {
+			clean_complete = false;
+			continue;
+		}
+		arm_wb |= ring->arm_wb;
 		ring->arm_wb = false;
 	}
 
@@ -1999,8 +2001,9 @@ int i40e_napi_poll(struct napi_struct *napi, int budget)
 			cleaned = i40e_clean_rx_irq_1buf(ring, budget_per_ring);
 
 		work_done += cleaned;
-		/* if we didn't clean as many as budgeted, we must be done */
-		clean_complete = clean_complete && (budget_per_ring > cleaned);
+		/* if we clean as many as budgeted, we must not be done */
+		if (cleaned >= budget_per_ring)
+			clean_complete = false;
 	}
 
 	/* If work not completed, return budget and polling will return */
