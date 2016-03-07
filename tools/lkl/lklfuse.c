@@ -605,6 +605,8 @@ int main(int argc, char **argv)
 		goto out_fuse_unmount;
 	}
 
+	fuse_opt_free_args(&args);
+
 	if (fuse_daemonize(fg) ||
 	    fuse_set_signal_handlers(fuse_get_session(fuse))) {
 		ret = -1;
@@ -627,11 +629,13 @@ int main(int argc, char **argv)
 out_remove_signals:
 	fuse_remove_signal_handlers(fuse_get_session(fuse));
 
-out_fuse_destroy:
-	fuse_destroy(fuse);
-
 out_fuse_unmount:
-	fuse_unmount(mnt, ch);
+	if (ch)
+		fuse_unmount(mnt, ch);
+
+out_fuse_destroy:
+	if (fuse)
+		fuse_destroy(fuse);
 
 out_close_disk:
 	close(lklfuse.disk.fd);
