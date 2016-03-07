@@ -55,6 +55,8 @@ static void kcm_abort_rx_psock(struct kcm_psock *psock, int err,
 
 	/* Unrecoverable error in receive */
 
+	del_timer(&psock->rx_msg_timer);
+
 	if (psock->rx_stopped)
 		return;
 
@@ -351,6 +353,12 @@ static void unreserve_rx_kcm(struct kcm_psock *psock,
 	spin_unlock_bh(&mux->rx_lock);
 }
 
+static void kcm_start_rx_timer(struct kcm_psock *psock)
+{
+	if (psock->sk->sk_rcvtimeo)
+		mod_timer(&psock->rx_msg_timer, psock->sk->sk_rcvtimeo);
+}
+
 /* Macro to invoke filter function. */
 #define KCM_RUN_FILTER(prog, ctx) \
 	(*prog->bpf_func)(ctx, prog->insnsi)
@@ -500,6 +508,10 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 
 			if (!len) {
 				/* Need more header to determine length */
+				if (!rxm->accum_len) {
+					/* Start RX timer for new message */
+					kcm_start_rx_timer(psock);
+				}
 				rxm->accum_len += cand_len;
 				eaten += cand_len;
 				KCM_STATS_INCR(psock->stats.rx_need_more_hdr);
@@ -540,6 +552,11 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				 * but don't consume yet per tcp_read_sock.
 				 */
 
+				if (!rxm->accum_len) {
+					/* Start RX timer for new message */
+					kcm_start_rx_timer(psock);
+				}
+
 				psock->rx_need_bytes = rxm->full_len -
 						       rxm->accum_len;
 				rxm->accum_len += cand_len;
@@ -563,6 +580,7 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		eaten += (cand_len - extra);
 
 		/* Hurray, we have a new message! */
+		del_timer(&psock->rx_msg_timer);
 		psock->rx_skb_head = NULL;
 		KCM_STATS_INCR(psock->stats.rx_msgs);
 
@@ -1656,6 +1674,15 @@ static void init_kcm_sock(struct kcm_sock *kcm, struct kcm_mux *mux)
 	spin_unlock_bh(&mux->rx_lock);
 }
 
+static void kcm_rx_msg_timeout(unsigned long arg)
+{
+	struct kcm_psock *psock = (struct kcm_psock *)arg;
+
+	/* Message assembly timed out */
+	KCM_STATS_INCR(psock->stats.rx_msg_timeouts);
+	kcm_abort_rx_psock(psock, ETIMEDOUT, NULL);
+}
+
 static int kcm_attach(struct socket *sock, struct socket *csock,
 		      struct bpf_prog *prog)
 {
@@ -1685,6 +1712,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	psock->mux = mux;
 	psock->sk = csk;
 	psock->bpf_prog = prog;
+
+	setup_timer(&psock->rx_msg_timer, kcm_rx_msg_timeout,
+		    (unsigned long)psock);
+
 	INIT_WORK(&psock->rx_work, psock_rx_work);
 	INIT_DELAYED_WORK(&psock->rx_delayed_work, psock_rx_delayed_work);
 
@@ -1796,6 +1827,7 @@ static void kcm_unattach(struct kcm_psock *psock)
 
 	write_unlock_bh(&csk->sk_callback_lock);
 
+	del_timer_sync(&psock->rx_msg_timer);
 	cancel_work_sync(&psock->rx_work);
 	cancel_delayed_work_sync(&psock->rx_delayed_work);
 

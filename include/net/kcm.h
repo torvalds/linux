@@ -29,6 +29,7 @@ struct kcm_psock_stats {
 	unsigned int rx_mem_fail;
 	unsigned int rx_need_more_hdr;
 	unsigned int rx_msg_too_big;
+	unsigned int rx_msg_timeouts;
 	unsigned int rx_bad_hdr_len;
 	unsigned long long reserved;
 	unsigned long long unreserved;
@@ -130,6 +131,7 @@ struct kcm_psock {
 	struct kcm_sock *rx_kcm;
 	unsigned long long saved_rx_bytes;
 	unsigned long long saved_rx_msgs;
+	struct timer_list rx_msg_timer;
 	unsigned int rx_need_bytes;
 
 	/* Transmit */
@@ -194,6 +196,7 @@ static inline void aggregate_psock_stats(struct kcm_psock_stats *stats,
 	SAVE_PSOCK_STATS(rx_mem_fail);
 	SAVE_PSOCK_STATS(rx_need_more_hdr);
 	SAVE_PSOCK_STATS(rx_msg_too_big);
+	SAVE_PSOCK_STATS(rx_msg_timeouts);
 	SAVE_PSOCK_STATS(rx_bad_hdr_len);
 	SAVE_PSOCK_STATS(tx_msgs);
 	SAVE_PSOCK_STATS(tx_bytes);

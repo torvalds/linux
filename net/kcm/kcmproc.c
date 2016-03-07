@@ -331,7 +331,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   mux_stats.rx_ready_drops);
 
 	seq_printf(seq,
-		   "%-8s %-10s %-16s %-10s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
+		   "%-8s %-10s %-16s %-10s %-16s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
 		   "Psock",
 		   "RX-Msgs",
 		   "RX-Bytes",
@@ -344,10 +344,11 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   "RX-NeedMor",
 		   "RX-BadLen",
 		   "RX-TooBig",
+		   "RX-Timeout",
 		   "TX-Aborts");
 
 	seq_printf(seq,
-		   "%-8s %-10llu %-16llu %-10llu %-16llu %-10llu %-10llu %-10u %-10u %-10u %-10u %-10u %-10u\n",
+		   "%-8s %-10llu %-16llu %-10llu %-16llu %-10llu %-10llu %-10u %-10u %-10u %-10u %-10u %-10u %-10u\n",
 		   "",
 		   psock_stats.rx_msgs,
 		   psock_stats.rx_bytes,
@@ -360,6 +361,7 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 		   psock_stats.rx_need_more_hdr,
 		   psock_stats.rx_bad_hdr_len,
 		   psock_stats.rx_msg_too_big,
+		   psock_stats.rx_msg_timeouts,
 		   psock_stats.tx_aborts);
 
 	return 0;
