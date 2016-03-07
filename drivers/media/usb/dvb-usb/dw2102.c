@@ -1843,6 +1843,9 @@ static int dw2102_load_firmware(struct usb_device *dev,
 		msleep(100);
 		kfree(p);
 	}
+
+	if (le16_to_cpu(dev->descriptor.idProduct) == 0x2101)
+		release_firmware(fw);
 	return ret;
 }
 
