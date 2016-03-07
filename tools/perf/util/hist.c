@@ -1091,18 +1091,25 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he);
 static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 						 struct rb_root *root,
 						 struct hist_entry *he,
-						 struct perf_hpp_fmt *fmt)
+						 struct perf_hpp_list *hpp_list)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter, *new;
+	struct perf_hpp_fmt *fmt;
 	int64_t cmp;
 
 	while (*p != NULL) {
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node_in);
 
-		cmp = fmt->collapse(fmt, iter, he);
+		cmp = 0;
+		perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
+			cmp = fmt->collapse(fmt, iter, he);
+			if (cmp)
+				break;
+		}
+
 		if (!cmp) {
 			he_stat__add_stat(&iter->stat, &he->stat);
 			return iter;
@@ -1121,24 +1128,26 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 	hists__apply_filters(hists, new);
 	hists->nr_entries++;
 
-	/* save related format for output */
-	new->fmt = fmt;
+	/* save related format list for output */
+	new->hpp_list = hpp_list;
 
 	/* some fields are now passed to 'new' */
-	if (perf_hpp__is_trace_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
-		he->trace_output = NULL;
-	else
-		new->trace_output = NULL;
+	perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
+		if (perf_hpp__is_trace_entry(fmt) || perf_hpp__is_dynamic_entry(fmt))
+			he->trace_output = NULL;
+		else
+			new->trace_output = NULL;
 
-	if (perf_hpp__is_srcline_entry(fmt))
-		he->srcline = NULL;
-	else
-		new->srcline = NULL;
+		if (perf_hpp__is_srcline_entry(fmt))
+			he->srcline = NULL;
+		else
+			new->srcline = NULL;
 
-	if (perf_hpp__is_srcfile_entry(fmt))
-		he->srcfile = NULL;
-	else
-		new->srcfile = NULL;
+		if (perf_hpp__is_srcfile_entry(fmt))
+			he->srcfile = NULL;
+		else
+			new->srcfile = NULL;
+	}
 
 	rb_link_node(&new->rb_node_in, parent, p);
 	rb_insert_color(&new->rb_node_in, root);
@@ -1149,21 +1158,19 @@ static int hists__hierarchy_insert_entry(struct hists *hists,
 					 struct rb_root *root,
 					 struct hist_entry *he)
 {
-	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *node;
 	struct hist_entry *new_he = NULL;
 	struct hist_entry *parent = NULL;
 	int depth = 0;
 	int ret = 0;
 
-	hists__for_each_sort_list(hists, fmt) {
-		if (!perf_hpp__is_sort_entry(fmt) &&
-		    !perf_hpp__is_dynamic_entry(fmt))
-			continue;
-		if (perf_hpp__should_skip(fmt, hists))
+	list_for_each_entry(node, &hists->hpp_formats, list) {
+		/* skip period (overhead) and elided columns */
+		if (node->level == 0 || node->skip)
 			continue;
 
 		/* insert copy of 'he' for each fmt into the hierarchy */
-		new_he = hierarchy_insert_entry(hists, root, he, fmt);
+		new_he = hierarchy_insert_entry(hists, root, he, &node->hpp);
 		if (new_he == NULL) {
 			ret = -1;
 			break;
@@ -1358,6 +1365,7 @@ static void hierarchy_insert_output_entry(struct rb_root *root,
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct hist_entry *iter;
+	struct perf_hpp_fmt *fmt;
 
 	while (*p != NULL) {
 		parent = *p;
@@ -1373,8 +1381,10 @@ static void hierarchy_insert_output_entry(struct rb_root *root,
 	rb_insert_color(&he->rb_node, root);
 
 	/* update column width of dynamic entry */
-	if (perf_hpp__is_dynamic_entry(he->fmt))
-		he->fmt->sort(he->fmt, he, NULL);
+	perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
+		if (perf_hpp__is_dynamic_entry(fmt))
+			fmt->sort(fmt, he, NULL);
+	}
 }
 
 static void hists__hierarchy_output_resort(struct hists *hists,

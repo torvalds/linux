@@ -1388,25 +1388,26 @@ static int hist_browser__show_hierarchy_entry(struct hist_browser *browser,
 					      HE_COLORSET_NORMAL);
 		}
 
-		ui_browser__write_nstring(&browser->b, "", 2);
-		width -= 2;
+		perf_hpp_list__for_each_format(entry->hpp_list, fmt) {
+			ui_browser__write_nstring(&browser->b, "", 2);
+			width -= 2;
 
-		/*
-		 * No need to call hist_entry__snprintf_alignment()
-		 * since this fmt is always the last column in the
-		 * hierarchy mode.
-		 */
-		fmt = entry->fmt;
-		if (fmt->color) {
-			width -= fmt->color(fmt, &hpp, entry);
-		} else {
-			int i = 0;
+			/*
+			 * No need to call hist_entry__snprintf_alignment()
+			 * since this fmt is always the last column in the
+			 * hierarchy mode.
+			 */
+			if (fmt->color) {
+				width -= fmt->color(fmt, &hpp, entry);
+			} else {
+				int i = 0;
 
-			width -= fmt->entry(fmt, &hpp, entry);
-			ui_browser__printf(&browser->b, "%s", ltrim(s));
+				width -= fmt->entry(fmt, &hpp, entry);
+				ui_browser__printf(&browser->b, "%s", ltrim(s));
 
-			while (isspace(s[i++]))
-				width++;
+				while (isspace(s[i++]))
+					width++;
+			}
 		}
 	}
 
@@ -1934,7 +1935,7 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 	struct perf_hpp_fmt *fmt;
 	bool first = true;
 	int ret;
-	int hierarchy_indent = (nr_sort_keys + 1) * HIERARCHY_INDENT;
+	int hierarchy_indent = nr_sort_keys * HIERARCHY_INDENT;
 
 	printed = fprintf(fp, "%*s", level * HIERARCHY_INDENT, "");
 
@@ -1962,9 +1963,13 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 	ret = scnprintf(hpp.buf, hpp.size, "%*s", hierarchy_indent, "");
 	advance_hpp(&hpp, ret);
 
-	fmt = he->fmt;
-	ret = fmt->entry(fmt, &hpp, he);
-	advance_hpp(&hpp, ret);
+	perf_hpp_list__for_each_format(he->hpp_list, fmt) {
+		ret = scnprintf(hpp.buf, hpp.size, "  ");
+		advance_hpp(&hpp, ret);
+
+		ret = fmt->entry(fmt, &hpp, he);
+		advance_hpp(&hpp, ret);
+	}
 
 	printed += fprintf(fp, "%s\n", rtrim(s));
 

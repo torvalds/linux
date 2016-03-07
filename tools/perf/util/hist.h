@@ -249,6 +249,7 @@ struct perf_hpp_list_node {
 	struct list_head	list;
 	struct perf_hpp_list	hpp;
 	int			level;
+	bool			skip;
 };
 
 void perf_hpp_list__column_register(struct perf_hpp_list *list,

@@ -451,33 +451,33 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 		advance_hpp(hpp, ret);
 	}
 
-	if (sep)
-		ret = scnprintf(hpp->buf, hpp->size, "%s", sep);
-	else
+	if (!sep)
 		ret = scnprintf(hpp->buf, hpp->size, "%*s",
-				(nr_sort_key - 1) * HIERARCHY_INDENT + 2, "");
+				(nr_sort_key - 1) * HIERARCHY_INDENT, "");
 	advance_hpp(hpp, ret);
 
 	printed += fprintf(fp, "%s", buf);
 
-	hpp->buf  = buf;
-	hpp->size = size;
+	perf_hpp_list__for_each_format(he->hpp_list, fmt) {
+		hpp->buf  = buf;
+		hpp->size = size;
 
-	/*
-	 * No need to call hist_entry__snprintf_alignment() since this
-	 * fmt is always the last column in the hierarchy mode.
-	 */
-	fmt = he->fmt;
-	if (perf_hpp__use_color() && fmt->color)
-		fmt->color(fmt, hpp, he);
-	else
-		fmt->entry(fmt, hpp, he);
+		/*
+		 * No need to call hist_entry__snprintf_alignment() since this
+		 * fmt is always the last column in the hierarchy mode.
+		 */
+		if (perf_hpp__use_color() && fmt->color)
+			fmt->color(fmt, hpp, he);
+		else
+			fmt->entry(fmt, hpp, he);
 
-	/*
-	 * dynamic entries are right-aligned but we want left-aligned
-	 * in the hierarchy mode
-	 */
-	printed += fprintf(fp, "%s\n", ltrim(buf));
+		/*
+		 * dynamic entries are right-aligned but we want left-aligned
+		 * in the hierarchy mode
+		 */
+		printed += fprintf(fp, "%s%s", sep ?: "  ", ltrim(buf));
+	}
+	printed += putc('\n', fp);
 
 	if (symbol_conf.use_callchain && he->leaf) {
 		u64 total = hists__total_period(hists);

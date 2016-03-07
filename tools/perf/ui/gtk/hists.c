@@ -412,6 +412,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 	for (node = rb_first(root); node; node = rb_next(node)) {
 		GtkTreeIter iter;
 		float percent;
+		char *bf;
 
 		he = rb_entry(node, struct hist_entry, rb_node);
 		if (he->filtered)
@@ -437,13 +438,20 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 			gtk_tree_store_set(store, &iter, col_idx++, hpp->buf, -1);
 		}
 
-		fmt = he->fmt;
-		if (fmt->color)
-			fmt->color(fmt, hpp, he);
-		else
-			fmt->entry(fmt, hpp, he);
+		bf = hpp->buf;
+		perf_hpp_list__for_each_format(he->hpp_list, fmt) {
+			int ret;
 
-		gtk_tree_store_set(store, &iter, col_idx, rtrim(hpp->buf), -1);
+			if (fmt->color)
+				ret = fmt->color(fmt, hpp, he);
+			else
+				ret = fmt->entry(fmt, hpp, he);
+
+			snprintf(hpp->buf + ret, hpp->size - ret, "  ");
+			advance_hpp(hpp, ret + 2);
+		}
+
+		gtk_tree_store_set(store, &iter, col_idx, rtrim(bf), -1);
 
 		if (!he->leaf) {
 			perf_gtk__add_hierarchy_entries(hists, &he->hroot_out,
