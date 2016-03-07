@@ -729,23 +729,6 @@ static int __cmd_inject(struct perf_inject *inject)
 	return ret;
 }
 
-#ifdef HAVE_LIBELF_SUPPORT
-static int
-jit_validate_events(struct perf_session *session)
-{
-	struct perf_evsel *evsel;
-
-	/*
-	 * check that all events use CLOCK_MONOTONIC
-	 */
-	evlist__for_each(session->evlist, evsel) {
-		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
-			return -1;
-	}
-	return 0;
-}
-#endif
-
 int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_inject inject = {
@@ -852,13 +835,6 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 #ifdef HAVE_LIBELF_SUPPORT
 	if (inject.jit_mode) {
-		/*
-		 * validate event is using the correct clockid
-		 */
-		if (jit_validate_events(inject.session)) {
-			fprintf(stderr, "error, jitted code must be sampled with perf record -k 1\n");
-			return -1;
-		}
 		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
 		inject.tool.mmap	   = perf_event__jit_repipe_mmap;
 		inject.tool.ordered_events = true;
