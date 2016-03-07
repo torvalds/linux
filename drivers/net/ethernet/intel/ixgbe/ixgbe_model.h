@@ -64,28 +64,20 @@ static struct ixgbe_mat_field ixgbe_ipv4_fields[] = {
 	{ .val = NULL } /* terminal node */
 };
 
-static inline int ixgbe_mat_prgm_sport(struct ixgbe_fdir_filter *input,
+static inline int ixgbe_mat_prgm_ports(struct ixgbe_fdir_filter *input,
 				       union ixgbe_atr_input *mask,
 				       u32 val, u32 m)
 {
 	input->filter.formatted.src_port = val & 0xffff;
 	mask->formatted.src_port = m & 0xffff;
-	return 0;
-};
+	input->filter.formatted.dst_port = val >> 16;
+	mask->formatted.dst_port = m >> 16;
 
-static inline int ixgbe_mat_prgm_dport(struct ixgbe_fdir_filter *input,
-				       union ixgbe_atr_input *mask,
-				       u32 val, u32 m)
-{
-	input->filter.formatted.dst_port = val & 0xffff;
-	mask->formatted.dst_port = m & 0xffff;
 	return 0;
 };
 
 static struct ixgbe_mat_field ixgbe_tcp_fields[] = {
-	{.off = 0, .val = ixgbe_mat_prgm_sport,
-	 .type = IXGBE_ATR_FLOW_TYPE_TCPV4},
-	{.off = 2, .val = ixgbe_mat_prgm_dport,
+	{.off = 0, .val = ixgbe_mat_prgm_ports,
 	 .type = IXGBE_ATR_FLOW_TYPE_TCPV4},
 	{ .val = NULL } /* terminal node */
 };
