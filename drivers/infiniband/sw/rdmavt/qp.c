@@ -1364,6 +1364,8 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_rwq *wq = qp->r_rq.wq;
 	unsigned long flags;
+	int qp_err_flush = (ib_rvt_state_ops[qp->state] & RVT_FLUSH_RECV) &&
+				!qp->ibqp.srq;
 
 	/* Check that state is OK to post receive. */
 	if (!(ib_rvt_state_ops[qp->state] & RVT_POST_RECV_OK) || !wq) {
@@ -1390,15 +1392,28 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			*bad_wr = wr;
 			return -ENOMEM;
 		}
+		if (unlikely(qp_err_flush)) {
+			struct ib_wc wc;
 
-		wqe = rvt_get_rwqe_ptr(&qp->r_rq, wq->head);
-		wqe->wr_id = wr->wr_id;
-		wqe->num_sge = wr->num_sge;
-		for (i = 0; i < wr->num_sge; i++)
-			wqe->sg_list[i] = wr->sg_list[i];
-		/* Make sure queue entry is written before the head index. */
-		smp_wmb();
-		wq->head = next;
+			memset(&wc, 0, sizeof(wc));
+			wc.qp = &qp->ibqp;
+			wc.opcode = IB_WC_RECV;
+			wc.wr_id = wr->wr_id;
+			wc.status = IB_WC_WR_FLUSH_ERR;
+			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
+		} else {
+			wqe = rvt_get_rwqe_ptr(&qp->r_rq, wq->head);
+			wqe->wr_id = wr->wr_id;
+			wqe->num_sge = wr->num_sge;
+			for (i = 0; i < wr->num_sge; i++)
+				wqe->sg_list[i] = wr->sg_list[i];
+			/*
+			 * Make sure queue entry is written
+			 * before the head index.
+			 */
+			smp_wmb();
+			wq->head = next;
+		}
 		spin_unlock_irqrestore(&qp->r_rq.lock, flags);
 	}
 	return 0;
