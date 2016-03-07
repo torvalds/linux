@@ -217,10 +217,10 @@ struct cfs_psdev_ops libcfs_psdev_ops = {
 	libcfs_ioctl
 };
 
-static int lprocfs_call_handler(void *data, int write, loff_t *ppos,
-			     void __user *buffer, size_t *lenp,
-			     int (*handler)(void *data, int write, loff_t pos,
-					    void __user *buffer, int len))
+int lprocfs_call_handler(void *data, int write, loff_t *ppos,
+			 void __user *buffer, size_t *lenp,
+			 int (*handler)(void *data, int write, loff_t pos,
+					void __user *buffer, int len))
 {
 	int rc = handler(data, write, *ppos, buffer, *lenp);
 
@@ -235,6 +235,7 @@ static int lprocfs_call_handler(void *data, int write, loff_t *ppos,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(lprocfs_call_handler);
 
 static int __proc_dobitmasks(void *data, int write,
 			     loff_t pos, void __user *buffer, int nob)
