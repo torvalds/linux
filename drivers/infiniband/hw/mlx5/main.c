@@ -1369,11 +1369,20 @@ static int mlx5_ib_destroy_flow(struct ib_flow *flow_id)
 	return 0;
 }
 
+static int ib_prio_to_core_prio(unsigned int priority, bool dont_trap)
+{
+	priority *= 2;
+	if (!dont_trap)
+		priority++;
+	return priority;
+}
+
 #define MLX5_FS_MAX_TYPES	 10
 #define MLX5_FS_MAX_ENTRIES	 32000UL
 static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 						struct ib_flow_attr *flow_attr)
 {
+	bool dont_trap = flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP;
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio;
 	struct mlx5_flow_table *ft;
@@ -1383,10 +1392,12 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	int err = 0;
 
 	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		if (flow_is_multicast_only(flow_attr))
+		if (flow_is_multicast_only(flow_attr) &&
+		    !dont_trap)
 			priority = MLX5_IB_FLOW_MCAST_PRIO;
 		else
-			priority = flow_attr->priority;
+			priority = ib_prio_to_core_prio(flow_attr->priority,
+							dont_trap);
 		ns = mlx5_get_flow_namespace(dev->mdev,
 					     MLX5_FLOW_NAMESPACE_BYPASS);
 		num_entries = MLX5_FS_MAX_ENTRIES;
@@ -1434,6 +1445,7 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	unsigned int spec_index;
 	u32 *match_c;
 	u32 *match_v;
+	u32 action;
 	int err = 0;
 
 	if (!is_valid_attr(flow_attr))
@@ -1459,9 +1471,11 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 
 	/* Outer header support only */
 	match_criteria_enable = (!outer_header_zero(match_c)) << 0;
+	action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST :
+		MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO;
 	handler->rule = mlx5_add_flow_rule(ft, match_criteria_enable,
 					   match_c, match_v,
-					   MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
+					   action,
 					   MLX5_FS_DEFAULT_FLOW_TAG,
 					   dst);
 
@@ -1481,6 +1495,29 @@ free:
 	return err ? ERR_PTR(err) : handler;
 }
 
+static struct mlx5_ib_flow_handler *create_dont_trap_rule(struct mlx5_ib_dev *dev,
+							  struct mlx5_ib_flow_prio *ft_prio,
+							  struct ib_flow_attr *flow_attr,
+							  struct mlx5_flow_destination *dst)
+{
+	struct mlx5_ib_flow_handler *handler_dst = NULL;
+	struct mlx5_ib_flow_handler *handler = NULL;
+
+	handler = create_flow_rule(dev, ft_prio, flow_attr, NULL);
+	if (!IS_ERR(handler)) {
+		handler_dst = create_flow_rule(dev, ft_prio,
+					       flow_attr, dst);
+		if (IS_ERR(handler_dst)) {
+			mlx5_del_flow_rule(handler->rule);
+			kfree(handler);
+			handler = handler_dst;
+		} else {
+			list_add(&handler_dst->list, &handler->list);
+		}
+	}
+
+	return handler;
+}
 enum {
 	LEFTOVERS_MC,
 	LEFTOVERS_UC,
@@ -1558,7 +1595,7 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 
 	if (domain != IB_FLOW_DOMAIN_USER ||
 	    flow_attr->port > MLX5_CAP_GEN(dev->mdev, num_ports) ||
-	    flow_attr->flags)
+	    (flow_attr->flags & ~IB_FLOW_ATTR_FLAGS_DONT_TRAP))
 		return ERR_PTR(-EINVAL);
 
 	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
@@ -1577,8 +1614,13 @@ static struct ib_flow *mlx5_ib_create_flow(struct ib_qp *qp,
 	dst->tir_num = to_mqp(qp)->raw_packet_qp.rq.tirn;
 
 	if (flow_attr->type == IB_FLOW_ATTR_NORMAL) {
-		handler = create_flow_rule(dev, ft_prio, flow_attr,
-					   dst);
+		if (flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)  {
+			handler = create_dont_trap_rule(dev, ft_prio,
+							flow_attr, dst);
+		} else {
+			handler = create_flow_rule(dev, ft_prio, flow_attr,
+						   dst);
+		}
 	} else if (flow_attr->type == IB_FLOW_ATTR_ALL_DEFAULT ||
 		   flow_attr->type == IB_FLOW_ATTR_MC_DEFAULT) {
 		handler = create_leftovers_rule(dev, ft_prio, flow_attr,
