@@ -891,11 +891,14 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		if (unlikely(ret))
 			goto bail_build;
 	}
+	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq);
+	if (unlikely(ret < 0)) {
+		if (ret == -ECOMM)
+			goto bail_ecomm;
+		return ret;
+	}
 	trace_sdma_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
 				&ps->s_txreq->phdr.hdr);
-	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq);
-	if (unlikely(ret == -ECOMM))
-		goto bail_ecomm;
 	return ret;
 
 bail_ecomm:
