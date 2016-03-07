@@ -1170,18 +1170,20 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 	struct hfi1_devdata *dd = ppd->dd;
 
 	/*
-	 * This pairs with the memory barrier implied by the atomic_dec in
-	 * hfi1_set_led_override to ensure that we read the correct state of
-	 * LED beaconing represented by led_override_timer_active
+	 * This pairs with the memory barrier in hfi1_start_led_override to
+	 * ensure that we read the correct state of LED beaconing represented
+	 * by led_override_timer_active
 	 */
-	smp_mb();
+	smp_rmb();
 	if (atomic_read(&ppd->led_override_timer_active)) {
 		del_timer_sync(&ppd->led_override_timer);
 		atomic_set(&ppd->led_override_timer_active, 0);
+		/* Ensure the atomic_set is visible to all CPUs */
+		smp_wmb();
 	}
 
-	/* Shut off LEDs after we are sure timer is not running */
-	setextled(dd, 0);
+	/* Hand control of the LED to the DC for normal operation */
+	write_csr(dd, DCC_CFG_LED_CNTRL, 0);
 }
 
 static void run_led_override(unsigned long opaque)
@@ -1195,59 +1197,48 @@ static void run_led_override(unsigned long opaque)
 		return;
 
 	phase_idx = ppd->led_override_phase & 1;
+
 	setextled(dd, phase_idx);
 
 	timeout = ppd->led_override_vals[phase_idx];
+
 	/* Set up for next phase */
 	ppd->led_override_phase = !ppd->led_override_phase;
 
-	/*
-	 * don't re-fire the timer if user asked for it to be off; we let
-	 * it fire one more time after they turn it off to simplify
-	 */
-	if (ppd->led_override_vals[0] || ppd->led_override_vals[1]) {
-		mod_timer(&ppd->led_override_timer, jiffies + timeout);
-	} else {
-		/* Hand control of the LED to the DC for normal operation */
-		write_csr(dd, DCC_CFG_LED_CNTRL, 0);
-		/* Record that we did not re-fire the timer */
-		atomic_dec(&ppd->led_override_timer_active);
-	}
+	mod_timer(&ppd->led_override_timer, jiffies + timeout);
 }
 
 /*
  * To have the LED blink in a particular pattern, provide timeon and timeoff
- * in milliseconds. To turn off custom blinking and return to normal operation,
- * provide timeon = timeoff = 0.
+ * in milliseconds.
+ * To turn off custom blinking and return to normal operation, use
+ * shutdown_led_override()
  */
-void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
-			   unsigned int timeoff)
+void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
+			     unsigned int timeoff)
 {
-	struct hfi1_devdata *dd = ppd->dd;
-
-	if (!(dd->flags & HFI1_INITTED))
+	if (!(ppd->dd->flags & HFI1_INITTED))
 		return;
 
 	/* Convert to jiffies for direct use in timer */
 	ppd->led_override_vals[0] = msecs_to_jiffies(timeoff);
 	ppd->led_override_vals[1] = msecs_to_jiffies(timeon);
-	ppd->led_override_phase = 1; /* Arbitrarily start from LED on phase */
+
+	/* Arbitrarily start from LED on phase */
+	ppd->led_override_phase = 1;
 
 	/*
 	 * If the timer has not already been started, do so. Use a "quick"
-	 * timeout so the function will be called soon, to look at our request.
+	 * timeout so the handler will be called soon to look at our request.
 	 */
-	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
-		/* Need to start timer */
+	if (!timer_pending(&ppd->led_override_timer)) {
 		setup_timer(&ppd->led_override_timer, run_led_override,
 			    (unsigned long)ppd);
-
 		ppd->led_override_timer.expires = jiffies + 1;
 		add_timer(&ppd->led_override_timer);
-	} else {
-		if (ppd->led_override_vals[0] || ppd->led_override_vals[1])
-			mod_timer(&ppd->led_override_timer, jiffies + 1);
-		atomic_dec(&ppd->led_override_timer_active);
+		atomic_set(&ppd->led_override_timer_active, 1);
+		/* Ensure the atomic_set is visible to all CPUs */
+		smp_wmb();
 	}
 }
 

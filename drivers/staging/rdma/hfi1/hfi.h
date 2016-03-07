@@ -1623,13 +1623,9 @@ void hfi1_free_devdata(struct hfi1_devdata *);
 void cc_state_reclaim(struct rcu_head *rcu);
 struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
-void hfi1_set_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
-			   unsigned int timeoff);
-/*
- * Only to be used for driver unload or device reset where we cannot allow
- * the timer to fire even the one extra time, else use hfi1_set_led_override
- * with timeon = timeoff = 0
- */
+/* LED beaconing functions */
+void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
+			     unsigned int timeoff);
 void shutdown_led_override(struct hfi1_pportdata *ppd);
 
 #define HFI1_CREDIT_RETURN_RATE (100)

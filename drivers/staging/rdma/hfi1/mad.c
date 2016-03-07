@@ -583,11 +583,11 @@ static int __subn_get_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	pi->port_states.ledenable_offlinereason |=
 		ppd->is_sm_config_started << 5;
 	/*
-	 * This pairs with the memory barrier implied by the atomic_dec in
-	 * hfi1_set_led_override to ensure that we read the correct state of
-	 * LED beaconing represented by led_override_timer_active
+	 * This pairs with the memory barrier in hfi1_start_led_override to
+	 * ensure that we read the correct state of LED beaconing represented
+	 * by led_override_timer_active
 	 */
-	smp_mb();
+	smp_rmb();
 	is_beaconing_active = !!atomic_read(&ppd->led_override_timer_active);
 	pi->port_states.ledenable_offlinereason |= is_beaconing_active << 6;
 	pi->port_states.ledenable_offlinereason |=
@@ -3598,11 +3598,11 @@ static int __subn_get_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 	}
 
 	/*
-	 * This pairs with the memory barrier implied by the atomic_dec in
-	 * hfi1_set_led_override to ensure that we read the correct state of
-	 * LED beaconing represented by led_override_timer_active
+	 * This pairs with the memory barrier in hfi1_start_led_override to
+	 * ensure that we read the correct state of LED beaconing represented
+	 * by led_override_timer_active
 	 */
-	smp_mb();
+	smp_rmb();
 	is_beaconing_active = !!atomic_read(&ppd->led_override_timer_active);
 	p->rsvd_led_mask = cpu_to_be32(is_beaconing_active << OPA_LED_SHIFT);
 
@@ -3627,9 +3627,9 @@ static int __subn_set_opa_led_info(struct opa_smp *smp, u32 am, u8 *data,
 	}
 
 	if (on)
-		hfi1_set_led_override(dd->pport, 2000, 1500);
+		hfi1_start_led_override(dd->pport, 2000, 1500);
 	else
-		hfi1_set_led_override(dd->pport, 0, 0);
+		shutdown_led_override(dd->pport);
 
 	return __subn_get_opa_led_info(smp, am, data, ibdev, port, resp_len);
 }
