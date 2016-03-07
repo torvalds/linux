@@ -1124,11 +1124,7 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
 			(int)len);
 
-	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = mtd->oobavail;
-	else
-		oobsize = mtd->oobsize;
-
+	oobsize = mtd_oobavail(mtd, ops);
 	oobcolumn = from & (mtd->oobsize - 1);
 
 	/* Do not allow reads past end of device */
@@ -1229,11 +1225,7 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
 			(int)len);
 
-	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = mtd->oobavail;
-	else
-		oobsize = mtd->oobsize;
-
+	oobsize = mtd_oobavail(mtd, ops);
 	oobcolumn = from & (mtd->oobsize - 1);
 
 	/* Do not allow reads past end of device */
@@ -1885,12 +1877,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	/* Check zero length */
 	if (!len)
 		return 0;
-
-	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = mtd->oobavail;
-	else
-		oobsize = mtd->oobsize;
-
+	oobsize = mtd_oobavail(mtd, ops);
 	oobcolumn = to & (mtd->oobsize - 1);
 
 	column = to & (mtd->writesize - 1);
