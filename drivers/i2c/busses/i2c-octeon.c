@@ -73,10 +73,10 @@ struct octeon_i2c {
 };
 
 /**
- * octeon_i2c_write_sw - write an I2C core register.
- * @i2c: The struct octeon_i2c.
- * @eop_reg: Register selector.
- * @data: Value to be written.
+ * octeon_i2c_write_sw - write an I2C core register
+ * @i2c: The struct octeon_i2c
+ * @eop_reg: Register selector
+ * @data: Value to be written
  *
  * The I2C core registers are accessed indirectly via the SW_TWSI CSR.
  */
@@ -93,9 +93,9 @@ static void octeon_i2c_write_sw(struct octeon_i2c *i2c,
 }
 
 /**
- * octeon_i2c_read_sw - write an I2C core register.
- * @i2c: The struct octeon_i2c.
- * @eop_reg: Register selector.
+ * octeon_i2c_read_sw - write an I2C core register
+ * @i2c: The struct octeon_i2c
+ * @eop_reg: Register selector
  *
  * Returns the data.
  *
@@ -115,8 +115,8 @@ static u8 octeon_i2c_read_sw(struct octeon_i2c *i2c, u64 eop_reg)
 
 /**
  * octeon_i2c_write_int - write the TWSI_INT register
- * @i2c: The struct octeon_i2c.
- * @data: Value to be written.
+ * @i2c: The struct octeon_i2c
+ * @data: Value to be written
  */
 static void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 {
@@ -125,8 +125,8 @@ static void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 }
 
 /**
- * octeon_i2c_int_enable - enable the TS interrupt.
- * @i2c: The struct octeon_i2c.
+ * octeon_i2c_int_enable - enable the CORE interrupt
+ * @i2c: The struct octeon_i2c
  *
  * The interrupt will be asserted when there is non-STAT_IDLE state in
  * the SW_TWSI_EOP_TWSI_STAT register.
@@ -136,22 +136,18 @@ static void octeon_i2c_int_enable(struct octeon_i2c *i2c)
 	octeon_i2c_write_int(i2c, 0x40);
 }
 
-/**
- * octeon_i2c_int_disable - disable the TS interrupt.
- * @i2c: The struct octeon_i2c.
- */
+/* disable the CORE interrupt */
 static void octeon_i2c_int_disable(struct octeon_i2c *i2c)
 {
 	octeon_i2c_write_int(i2c, 0);
 }
 
 /**
- * octeon_i2c_unblock - unblock the bus.
- * @i2c: The struct octeon_i2c.
+ * octeon_i2c_unblock - unblock the bus
+ * @i2c: The struct octeon_i2c
  *
- * If there was a reset while a device was driving 0 to bus,
- * bus is blocked. We toggle it free manually by some clock
- * cycles and send a stop.
+ * If there was a reset while a device was driving 0 to bus, bus is blocked.
+ * We toggle it free manually by some clock cycles and send a stop.
  */
 static void octeon_i2c_unblock(struct octeon_i2c *i2c)
 {
@@ -171,11 +167,7 @@ static void octeon_i2c_unblock(struct octeon_i2c *i2c)
 	octeon_i2c_write_int(i2c, 0x0);
 }
 
-/**
- * octeon_i2c_isr - the interrupt service routine.
- * @int: The irq, unused.
- * @dev_id: Our struct octeon_i2c.
- */
+/* interrupt service routine */
 static irqreturn_t octeon_i2c_isr(int irq, void *dev_id)
 {
 	struct octeon_i2c *i2c = dev_id;
@@ -193,8 +185,8 @@ static int octeon_i2c_test_iflg(struct octeon_i2c *i2c)
 }
 
 /**
- * octeon_i2c_wait - wait for the IFLG to be set.
- * @i2c: The struct octeon_i2c.
+ * octeon_i2c_wait - wait for the IFLG to be set
+ * @i2c: The struct octeon_i2c
  *
  * Returns 0 on success, otherwise a negative errno.
  */
@@ -219,8 +211,8 @@ static int octeon_i2c_wait(struct octeon_i2c *i2c)
 }
 
 /**
- * octeon_i2c_start - send START to the bus.
- * @i2c: The struct octeon_i2c.
+ * octeon_i2c_start - send START to the bus
+ * @i2c: The struct octeon_i2c
  *
  * Returns 0 on success, otherwise a negative errno.
  */
@@ -260,8 +252,8 @@ static int octeon_i2c_start(struct octeon_i2c *i2c)
 }
 
 /**
- * octeon_i2c_stop - send STOP to the bus.
- * @i2c: The struct octeon_i2c.
+ * octeon_i2c_stop - send STOP to the bus
+ * @i2c: The struct octeon_i2c
  *
  * Returns 0 on success, otherwise a negative errno.
  */
@@ -282,11 +274,11 @@ static int octeon_i2c_stop(struct octeon_i2c *i2c)
 }
 
 /**
- * octeon_i2c_write - send data to the bus.
- * @i2c: The struct octeon_i2c.
- * @target: Target address.
- * @data: Pointer to the data to be sent.
- * @length: Length of the data.
+ * octeon_i2c_write - send data to the bus via low-level controller
+ * @i2c: The struct octeon_i2c
+ * @target: Target address
+ * @data: Pointer to the data to be sent
+ * @length: Length of the data
  *
  * The address is sent over the bus, then the data.
  *
@@ -330,11 +322,11 @@ static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 }
 
 /**
- * octeon_i2c_read - receive data from the bus.
- * @i2c: The struct octeon_i2c.
- * @target: Target address.
- * @data: Pointer to the location to store the datae .
- * @length: Length of the data.
+ * octeon_i2c_read - receive data from the bus via low-level controller
+ * @i2c: The struct octeon_i2c
+ * @target: Target address
+ * @data: Pointer to the location to store the data
+ * @length: Length of the data
  *
  * The address is sent over the bus, then the data is read.
  *
@@ -386,13 +378,12 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 }
 
 /**
- * octeon_i2c_xfer - The driver's master_xfer function.
- * @adap: Pointer to the i2c_adapter structure.
- * @msgs: Pointer to the messages to be processed.
- * @num: Length of the MSGS array.
+ * octeon_i2c_xfer - The driver's master_xfer function
+ * @adap: Pointer to the i2c_adapter structure
+ * @msgs: Pointer to the messages to be processed
+ * @num: Length of the MSGS array
  *
- * Returns the number of messages processed, or a negative errno on
- * failure.
+ * Returns the number of messages processed, or a negative errno on failure.
  */
 static int octeon_i2c_xfer(struct i2c_adapter *adap,
 			   struct i2c_msg *msgs,
@@ -438,9 +429,7 @@ static struct i2c_adapter octeon_i2c_ops = {
 	.timeout = HZ / 50,
 };
 
-/**
- * octeon_i2c_setclock - Calculate and set clock divisors.
- */
+/* calculate and set clock divisors */
 static int octeon_i2c_setclock(struct octeon_i2c *i2c)
 {
 	int tclk, thp_base, inc, thp_idx, mdiv_idx, ndiv_idx, foscl, diff;
