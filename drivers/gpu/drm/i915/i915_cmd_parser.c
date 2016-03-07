@@ -501,6 +501,32 @@ static const struct drm_i915_reg_descriptor hsw_master_regs[] = {
 #undef REG64
 #undef REG32
 
+struct drm_i915_reg_table {
+	const struct drm_i915_reg_descriptor *regs;
+	int num_regs;
+	bool master;
+};
+
+static const struct drm_i915_reg_table ivb_render_reg_tables[] = {
+	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs), false },
+	{ ivb_master_regs, ARRAY_SIZE(ivb_master_regs), true },
+};
+
+static const struct drm_i915_reg_table ivb_blt_reg_tables[] = {
+	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs), false },
+	{ ivb_master_regs, ARRAY_SIZE(ivb_master_regs), true },
+};
+
+static const struct drm_i915_reg_table hsw_render_reg_tables[] = {
+	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs), false },
+	{ hsw_master_regs, ARRAY_SIZE(hsw_master_regs), true },
+};
+
+static const struct drm_i915_reg_table hsw_blt_reg_tables[] = {
+	{ gen7_blt_regs, ARRAY_SIZE(gen7_blt_regs), false },
+	{ hsw_master_regs, ARRAY_SIZE(hsw_master_regs), true },
+};
+
 static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 {
 	u32 client = (cmd_header & INSTR_CLIENT_MASK) >> INSTR_CLIENT_SHIFT;
@@ -614,9 +640,16 @@ static bool check_sorted(int ring_id,
 
 static bool validate_regs_sorted(struct intel_engine_cs *engine)
 {
-	return check_sorted(engine->id, engine->reg_table, engine->reg_count) &&
-		check_sorted(engine->id, engine->master_reg_table,
-			     engine->master_reg_count);
+	int i;
+	const struct drm_i915_reg_table *table;
+
+	for (i = 0; i < engine->reg_table_count; i++) {
+		table = &engine->reg_tables[i];
+		if (!check_sorted(engine->id, table->regs, table->num_regs))
+			return false;
+	}
+
+	return true;
 }
 
 struct cmd_node {
@@ -711,15 +744,12 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 			cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
 		}
 
-		engine->reg_table = gen7_render_regs;
-		engine->reg_count = ARRAY_SIZE(gen7_render_regs);
-
 		if (IS_HASWELL(engine->dev)) {
-			engine->master_reg_table = hsw_master_regs;
-			engine->master_reg_count = ARRAY_SIZE(hsw_master_regs);
+			engine->reg_tables = hsw_render_reg_tables;
+			engine->reg_table_count = ARRAY_SIZE(hsw_render_reg_tables);
 		} else {
-			engine->master_reg_table = ivb_master_regs;
-			engine->master_reg_count = ARRAY_SIZE(ivb_master_regs);
+			engine->reg_tables = ivb_render_reg_tables;
+			engine->reg_table_count = ARRAY_SIZE(ivb_render_reg_tables);
 		}
 
 		engine->get_cmd_length_mask = gen7_render_get_cmd_length_mask;
@@ -738,15 +768,12 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *engine)
 			cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
 		}
 
-		engine->reg_table = gen7_blt_regs;
-		engine->reg_count = ARRAY_SIZE(gen7_blt_regs);
-
 		if (IS_HASWELL(engine->dev)) {
-			engine->master_reg_table = hsw_master_regs;
-			engine->master_reg_count = ARRAY_SIZE(hsw_master_regs);
+			engine->reg_tables = hsw_blt_reg_tables;
+			engine->reg_table_count = ARRAY_SIZE(hsw_blt_reg_tables);
 		} else {
-			engine->master_reg_table = ivb_master_regs;
-			engine->master_reg_count = ARRAY_SIZE(ivb_master_regs);
+			engine->reg_tables = ivb_blt_reg_tables;
+			engine->reg_table_count = ARRAY_SIZE(ivb_blt_reg_tables);
 		}
 
 		engine->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
@@ -849,12 +876,31 @@ static const struct drm_i915_reg_descriptor *
 find_reg(const struct drm_i915_reg_descriptor *table,
 	 int count, u32 addr)
 {
-	if (table) {
-		int i;
+	int i;
 
-		for (i = 0; i < count; i++) {
-			if (i915_mmio_reg_offset(table[i].addr) == addr)
-				return &table[i];
+	for (i = 0; i < count; i++) {
+		if (i915_mmio_reg_offset(table[i].addr) == addr)
+			return &table[i];
+	}
+
+	return NULL;
+}
+
+static const struct drm_i915_reg_descriptor *
+find_reg_in_tables(const struct drm_i915_reg_table *tables,
+		   int count, bool is_master, u32 addr)
+{
+	int i;
+	const struct drm_i915_reg_table *table;
+	const struct drm_i915_reg_descriptor *reg;
+
+	for (i = 0; i < count; i++) {
+		table = &tables[i];
+		if (!table->master || is_master) {
+			reg = find_reg(table->regs, table->num_regs,
+				       addr);
+			if (reg != NULL)
+				return reg;
 		}
 	}
 
@@ -1005,13 +1051,10 @@ static bool check_cmd(const struct intel_engine_cs *engine,
 		     offset += step) {
 			const u32 reg_addr = cmd[offset] & desc->reg.mask;
 			const struct drm_i915_reg_descriptor *reg =
-				find_reg(engine->reg_table, engine->reg_count,
-					 reg_addr);
-
-			if (!reg && is_master)
-				reg = find_reg(engine->master_reg_table,
-					       engine->master_reg_count,
-					       reg_addr);
+				find_reg_in_tables(engine->reg_tables,
+						   engine->reg_table_count,
+						   is_master,
+						   reg_addr);
 
 			if (!reg) {
 				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
