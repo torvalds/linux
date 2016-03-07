@@ -8,9 +8,6 @@ obj-$(CONFIG_ADIS16201) += adis16201.o
 adis16203-y             := adis16203_core.o
 obj-$(CONFIG_ADIS16203) += adis16203.o
 
-adis16204-y             := adis16204_core.o
-obj-$(CONFIG_ADIS16204) += adis16204.o
-
 adis16209-y             := adis16209_core.o
 obj-$(CONFIG_ADIS16209) += adis16209.o
 
