@@ -530,7 +530,15 @@ DEFINE_EVENT(hfi1_ibhdr_template, input_ibhdr,
 	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 
-DEFINE_EVENT(hfi1_ibhdr_template, output_ibhdr,
+DEFINE_EVENT(hfi1_ibhdr_template, pio_output_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_ARGS(dd, hdr));
+
+DEFINE_EVENT(hfi1_ibhdr_template, ack_output_ibhdr,
+	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_ARGS(dd, hdr));
+
+DEFINE_EVENT(hfi1_ibhdr_template, sdma_output_ibhdr,
 	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 

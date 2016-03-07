@@ -881,7 +881,7 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 		goto queue_ack;
 	}
 
-	trace_output_ibhdr(dd_from_ibdev(qp->ibqp.device), &hdr);
+	trace_ack_output_ibhdr(dd_from_ibdev(qp->ibqp.device), &hdr);
 
 	/* write the pbc and data */
 	ppd->dd->pio_inline_send(ppd->dd, pbuf, pbc, &hdr, hwords);
