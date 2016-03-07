@@ -474,19 +474,12 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 			    struct rsnd_dai_stream *io,
 			    struct snd_soc_pcm_runtime *rtd)
 {
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	int ret;
 
 	/*
 	 * enable SRC sync convert if possible
 	 */
-
-	/*
-	 * SRC sync convert needs clock master
-	 */
-	if (!rsnd_rdai_is_clk_master(rdai))
-		return 0;
 
 	/*
 	 * It can't use SRC Synchronous convert
