@@ -534,9 +534,7 @@ __sync_single_inode) to check if ->writepages has been successful in
 writing out the whole address_space.
 
 The Writeback tag is used by filemap*wait* and sync_page* functions,
-via filemap_fdatawait_range, to wait for all writeback to
-complete.  While waiting ->sync_page (if defined) will be called on
-each page that is found to require writeback.
+via filemap_fdatawait_range, to wait for all writeback to complete.
 
 An address_space handler may attach extra information to a page,
 typically using the 'private' field in the 'struct page'.  If such
@@ -554,8 +552,8 @@ address_space has finer control of write sizes.
 
 The read process essentially only requires 'readpage'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage,
-sync_page, and writepages to writeback data to storage.
+set_page_dirty to write data into the address_space, and writepage
+and writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
 inode's i_mutex.

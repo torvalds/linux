@@ -1024,8 +1024,7 @@ could be on demand. For example wait_on_buffer sets the unplugging going
 through sync_buffer() running blk_run_address_space(mapping). Or the caller
 can do it explicity through blk_unplug(bdev). So in the read case,
 the queue gets explicitly unplugged as part of waiting for completion on that
-buffer. For page driven IO, the address space ->sync_page() takes care of
-doing the blk_run_address_space().
+buffer.
 
 Aside:
   This is kind of controversial territory, as it's not clear if plugging is

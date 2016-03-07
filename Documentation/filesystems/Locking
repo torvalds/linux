@@ -179,7 +179,6 @@ unlocks and drops the reference.
 prototypes:
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
-	int (*sync_page)(struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
@@ -208,7 +207,6 @@ locking rules:
 			PageLocked(page)	i_mutex
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks
-sync_page:		maybe
 writepages:
 set_page_dirty		no
 readpages:
@@ -226,8 +224,8 @@ error_remove_page:	yes
 swap_activate:		no
 swap_deactivate:	no
 
-	->write_begin(), ->write_end(), ->sync_page() and ->readpage()
-may be called from the request handler (/dev/loop).
+	->write_begin(), ->write_end() and ->readpage() may be called from
+the request handler (/dev/loop).
 
 	->readpage() unlocks the page, either synchronously or via I/O
 completion.
@@ -282,11 +280,6 @@ set_page_writeback()/end_page_writeback() on a page submitted to writepage
 will leave the page itself marked clean but it will be tagged as dirty in the
 radix tree.  This incoherency can lead to all sorts of hard-to-debug problems
 in the filesystem like having dirty inodes at umount and losing written data.
-
-	->sync_page() locking rules are not well-defined - usually it is called
-with lock on page, but that is not guaranteed. Considering the currently
-existing instances of this method ->sync_page() itself doesn't look
-well-defined...
 
 	->writepages() is used for periodic writeback and for syscall-initiated
 sync operations.  The address_space should start I/O against at least
