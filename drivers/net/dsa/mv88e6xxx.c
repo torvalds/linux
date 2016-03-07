@@ -1166,23 +1166,45 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 	return 0;
 }
 
-static int _mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
+static int _mv88e6xxx_port_pvid(struct dsa_switch *ds, int port, u16 *new,
+				u16 *old)
 {
+	u16 pvid;
 	int ret;
 
 	ret = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_DEFAULT_VLAN);
 	if (ret < 0)
 		return ret;
 
-	*pvid = ret & PORT_DEFAULT_VLAN_MASK;
+	pvid = ret & PORT_DEFAULT_VLAN_MASK;
+
+	if (new) {
+		ret &= ~PORT_DEFAULT_VLAN_MASK;
+		ret |= *new & PORT_DEFAULT_VLAN_MASK;
+
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_DEFAULT_VLAN, ret);
+		if (ret < 0)
+			return ret;
+
+		netdev_dbg(ds->ports[port], "DefaultVID %d (was %d)\n", *new,
+			   pvid);
+	}
+
+	if (old)
+		*old = pvid;
 
 	return 0;
 }
 
+static int _mv88e6xxx_port_pvid_get(struct dsa_switch *ds, int port, u16 *pvid)
+{
+	return _mv88e6xxx_port_pvid(ds, port, NULL, pvid);
+}
+
 static int _mv88e6xxx_port_pvid_set(struct dsa_switch *ds, int port, u16 pvid)
 {
-	return _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
-				   pvid & PORT_DEFAULT_VLAN_MASK);
+	return _mv88e6xxx_port_pvid(ds, port, &pvid, NULL);
 }
 
 static int _mv88e6xxx_vtu_wait(struct dsa_switch *ds)
