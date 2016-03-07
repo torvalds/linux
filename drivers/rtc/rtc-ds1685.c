@@ -2161,6 +2161,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 	/* Check for valid RTC data, else, spin forever. */
 	if (unlikely(!pdev)) {
 		pr_emerg("platform device data not available, spinning forever ...\n");
+		while(1);
 		unreachable();
 	} else {
 		/* Get the rtc data. */
