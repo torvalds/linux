@@ -638,6 +638,142 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 	return rc;
 }
 
+void au0828_usb_v4l2_media_release(struct au0828_dev *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	int i;
+
+	for (i = 0; i < AU0828_MAX_INPUT; i++) {
+		if (AUVI_INPUT(i).type == AU0828_VMUX_UNDEFINED)
+			return;
+		media_device_unregister_entity(&dev->input_ent[i]);
+	}
+#endif
+}
+
+static int au0828_create_media_graph(struct au0828_dev *dev)
+{
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device *mdev = dev->media_dev;
+	struct media_entity *entity;
+	struct media_entity *tuner = NULL, *decoder = NULL;
+	int i, ret;
+
+	if (!mdev)
+		return 0;
+
+	media_device_for_each_entity(entity, mdev) {
+		switch (entity->function) {
+		case MEDIA_ENT_F_TUNER:
+			tuner = entity;
+			break;
+		case MEDIA_ENT_F_ATV_DECODER:
+			decoder = entity;
+			break;
+		}
+	}
+
+	/* Analog setup, using tuner as a link */
+
+	/* Something bad happened! */
+	if (!decoder)
+		return -EINVAL;
+
+	if (tuner) {
+		ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
+					    decoder, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret)
+			return ret;
+	}
+	ret = media_create_pad_link(decoder, 1, &dev->vdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret)
+		return ret;
+	ret = media_create_pad_link(decoder, 2, &dev->vbi_dev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < AU0828_MAX_INPUT; i++) {
+		struct media_entity *ent = &dev->input_ent[i];
+
+		switch (AUVI_INPUT(i).type) {
+		case AU0828_VMUX_UNDEFINED:
+			break;
+		case AU0828_VMUX_CABLE:
+		case AU0828_VMUX_TELEVISION:
+		case AU0828_VMUX_DVB:
+			if (!tuner)
+				break;
+
+			ret = media_create_pad_link(ent, 0, tuner,
+						    TUNER_PAD_RF_INPUT,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret)
+				return ret;
+			break;
+		case AU0828_VMUX_COMPOSITE:
+		case AU0828_VMUX_SVIDEO:
+			/* FIXME: fix the decoder PAD */
+			ret = media_create_pad_link(ent, 0, decoder, 0, 0);
+			if (ret)
+				return ret;
+			break;
+		}
+	}
+#endif
+	return 0;
+}
+
+static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
+{
+	struct au0828_dev *dev =
+		container_of(v4l2_dev, struct au0828_dev, v4l2_dev);
+
+	v4l2_ctrl_handler_free(&dev->v4l2_ctrl_hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	au0828_usb_v4l2_media_release(dev);
+	au0828_usb_release(dev);
+}
+
+int au0828_v4l2_device_register(struct usb_interface *interface,
+				struct au0828_dev *dev)
+{
+	int retval;
+
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
+
+	/* Create the v4l2_device */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->v4l2_dev.mdev = dev->media_dev;
+#endif
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
+	if (retval) {
+		pr_err("%s() v4l2_device_register failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+
+	dev->v4l2_dev.release = au0828_usb_v4l2_release;
+
+	/* This control handler will inherit the controls from au8522 */
+	retval = v4l2_ctrl_handler_init(&dev->v4l2_ctrl_hdl, 4);
+	if (retval) {
+		pr_err("%s() v4l2_ctrl_handler_init failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;
+
+	return 0;
+}
+
 static int au0828_enable_analog_tuner(struct au0828_dev *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -949,13 +1085,23 @@ static struct vb2_ops au0828_video_qops = {
  * au0828_analog_unregister
  * unregister v4l2 devices
  */
-void au0828_analog_unregister(struct au0828_dev *dev)
+int au0828_analog_unregister(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_unregister called\n");
+
+	/* No analog TV */
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
+
 	mutex_lock(&au0828_sysfs_lock);
 	video_unregister_device(&dev->vdev);
 	video_unregister_device(&dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
+
+	v4l2_device_disconnect(&dev->v4l2_dev);
+	v4l2_device_put(&dev->v4l2_dev);
+
+	return 1;
 }
 
 /* This function ensures that video frames continue to be delivered even if
@@ -1312,7 +1458,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 
 	dprintk(1, "%s called std_set %d dev_state %d\n", __func__,
@@ -1804,7 +1949,6 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 	int ret, i;
 
@@ -1840,10 +1984,9 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		case AU0828_VMUX_CABLE:
 		case AU0828_VMUX_TELEVISION:
 		case AU0828_VMUX_DVB:
+		default: /* Just to shut up a warning */
 			ent->function = MEDIA_ENT_F_CONN_RF;
 			break;
-		default: /* AU0828_VMUX_DEBUG */
-			continue;
 		}
 
 		ret = media_entity_pads_init(ent, 1, &dev->input_pad[i]);
@@ -1869,6 +2012,10 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 	dprintk(1, "au0828_analog_register called for intf#%d!\n",
 		interface->cur_altsetting->desc.bInterfaceNumber);
+
+	/* No analog TV */
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
 
 	/* set au0828 usb interface0 to as5 */
 	retval = usb_set_interface(dev->usbdev,
@@ -1975,6 +2122,14 @@ int au0828_analog_register(struct au0828_dev *dev,
 		ret = -ENODEV;
 		goto err_reg_vbi_dev;
 	}
+	retval = au0828_create_media_graph(dev);
+	if (retval) {
+		pr_err("%s() au0282_dev_register failed to create graph\n",
+			__func__);
+		ret = -ENODEV;
+		goto err_reg_vbi_dev;
+	}
+
 
 	dprintk(1, "%s completed!\n", __func__);
 

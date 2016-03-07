@@ -1382,6 +1382,8 @@ static int cx231xx_bulk_copy(struct cx231xx *dev, struct urb *urb)
 	buffer_size = urb->actual_length;
 
 	buffer = kmalloc(buffer_size, GFP_ATOMIC);
+	if (!buffer)
+		return -ENOMEM;
 
 	memcpy(buffer, dma_q->ps_head, 3);
 	memcpy(buffer+3, p_buffer, buffer_size-3);

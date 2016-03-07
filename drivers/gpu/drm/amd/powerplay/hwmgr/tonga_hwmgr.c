@@ -6033,6 +6033,125 @@ static int tonga_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 				CG_FDO_CTRL2, FDO_PWM_MODE);
 }
 
+static int tonga_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	*table = (char *)&data->smc_state_table;
+
+	return sizeof(struct SMU72_Discrete_DpmTable);
+}
+
+static int tonga_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	void *table = (void *)&data->smc_state_table;
+
+	memcpy(table, buf, size);
+
+	return 0;
+}
+
+static int tonga_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, int level)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_MCLK:
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_PCIE:
+		if (!data->pcie_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					(1 << level));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int tonga_print_clock_levels(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, char *buf)
+{
+	struct tonga_hwmgr *data = (struct tonga_hwmgr *)(hwmgr->backend);
+	struct tonga_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct tonga_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct tonga_single_dpm_table *pcie_table = &(data->dpm_table.pcie_speed_table);
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = tonga_get_current_pcie_speed(hwmgr);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x8" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
 static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.backend_init = &tonga_hwmgr_backend_init,
 	.backend_fini = &tonga_hwmgr_backend_fini,
@@ -6070,6 +6189,10 @@ static const struct pp_hwmgr_func tonga_hwmgr_funcs = {
 	.check_states_equal = tonga_check_states_equal,
 	.set_fan_control_mode = tonga_set_fan_control_mode,
 	.get_fan_control_mode = tonga_get_fan_control_mode,
+	.get_pp_table = tonga_get_pp_table,
+	.set_pp_table = tonga_set_pp_table,
+	.force_clock_level = tonga_force_clock_level,
+	.print_clock_levels = tonga_print_clock_levels,
 };
 
 int tonga_hwmgr_init(struct pp_hwmgr *hwmgr)

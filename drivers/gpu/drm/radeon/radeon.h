@@ -120,6 +120,7 @@ extern int radeon_mst;
  */
 #define RADEON_MAX_USEC_TIMEOUT			100000	/* 100 ms */
 #define RADEON_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
+#define RADEON_USEC_IB_TEST_TIMEOUT		1000000 /* 1s */
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE			16
 #define RADEON_DEBUGFS_MAX_COMPONENTS		32
@@ -382,6 +383,7 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring);
 int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
+long radeon_fence_wait_timeout(struct radeon_fence *fence, bool interruptible, long timeout);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
 int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_empty(struct radeon_device *rdev, int ring);

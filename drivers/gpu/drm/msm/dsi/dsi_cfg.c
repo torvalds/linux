@@ -57,10 +57,9 @@ static const char * const dsi_8916_bus_clk_names[] = {
 static const struct msm_dsi_config msm8916_dsi_cfg = {
 	.io_offset = DSI_6G_REG_SHIFT,
 	.reg_cfg = {
-		.num = 4,
+		.num = 3,
 		.regs = {
 			{"gdsc", -1, -1, -1, -1},
-			{"vdd", 2850000, 2850000, 100000, 100},
 			{"vdda", 1200000, 1200000, 100000, 100},
 			{"vddio", 1800000, 1800000, 100000, 100},
 		},

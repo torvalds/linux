@@ -1127,40 +1127,6 @@ static struct omap_dss_driver dsicm_ops = {
 	.memory_read	= dsicm_memory_read,
 };
 
-static int dsicm_probe_pdata(struct platform_device *pdev)
-{
-	const struct panel_dsicm_platform_data *pdata;
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct omap_dss_device *dssdev, *in;
-
-	pdata = dev_get_platdata(&pdev->dev);
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return -EPROBE_DEFER;
-	}
-	ddata->in = in;
-
-	ddata->reset_gpio = pdata->reset_gpio;
-
-	if (pdata->use_ext_te)
-		ddata->ext_te_gpio = pdata->ext_te_gpio;
-	else
-		ddata->ext_te_gpio = -1;
-
-	ddata->ulps_timeout = pdata->ulps_timeout;
-
-	ddata->use_dsi_backlight = pdata->use_dsi_backlight;
-
-	ddata->pin_config = pdata->pin_config;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	return 0;
-}
-
 static int dsicm_probe_of(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1214,17 +1180,12 @@ static int dsicm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ddata);
 	ddata->pdev = pdev;
 
-	if (dev_get_platdata(dev)) {
-		r = dsicm_probe_pdata(pdev);
-		if (r)
-			return r;
-	} else if (pdev->dev.of_node) {
-		r = dsicm_probe_of(pdev);
-		if (r)
-			return r;
-	} else {
+	if (pdev->dev.of_node)
 		return -ENODEV;
-	}
+
+	r = dsicm_probe_of(pdev);
+	if (r)
+		return r;
 
 	ddata->timings.x_res = 864;
 	ddata->timings.y_res = 480;

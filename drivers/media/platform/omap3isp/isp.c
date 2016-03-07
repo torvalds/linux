@@ -449,7 +449,7 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
 		ispctrl_val |= parcfg->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
-		shift += parcfg->data_lane_shift * 2;
+		shift += parcfg->data_lane_shift;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -2235,8 +2235,11 @@ static int isp_of_parse_node(struct device *dev, struct device_node *node,
 	struct isp_bus_cfg *buscfg = &isd->bus;
 	struct v4l2_of_endpoint vep;
 	unsigned int i;
+	int ret;
 
-	v4l2_of_parse_endpoint(node, &vep);
+	ret = v4l2_of_parse_endpoint(node, &vep);
+	if (ret)
+		return ret;
 
 	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
 		vep.base.port);
@@ -2528,12 +2531,13 @@ static int isp_probe(struct platform_device *pdev)
 	}
 
 	/* Interrupt */
-	isp->irq_num = platform_get_irq(pdev, 0);
-	if (isp->irq_num <= 0) {
+	ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(isp->dev, "No IRQ resource\n");
 		ret = -ENODEV;
 		goto error_iommu;
 	}
+	isp->irq_num = ret;
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
 			     "OMAP3 ISP", isp)) {
@@ -2599,6 +2603,7 @@ static const struct of_device_id omap3isp_of_table[] = {
 	{ .compatible = "ti,omap3-isp" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, omap3isp_of_table);
 
 static struct platform_driver omap3isp_driver = {
 	.probe = isp_probe,

@@ -46,14 +46,6 @@ struct amdgpu_sync_entry {
  */
 void amdgpu_sync_create(struct amdgpu_sync *sync)
 {
-	unsigned i;
-
-	for (i = 0; i < AMDGPU_NUM_SYNCS; ++i)
-		sync->semaphores[i] = NULL;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		sync->sync_to[i] = NULL;
-
 	hash_init(sync->fences);
 	sync->last_vm_update = NULL;
 }
@@ -107,7 +99,6 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 		      struct fence *f)
 {
 	struct amdgpu_sync_entry *e;
-	struct amdgpu_fence *fence;
 
 	if (!f)
 		return 0;
@@ -116,27 +107,20 @@ int amdgpu_sync_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 	    amdgpu_sync_test_owner(f, AMDGPU_FENCE_OWNER_VM))
 		amdgpu_sync_keep_later(&sync->last_vm_update, f);
 
-	fence = to_amdgpu_fence(f);
-	if (!fence || fence->ring->adev != adev) {
-		hash_for_each_possible(sync->fences, e, node, f->context) {
-			if (unlikely(e->fence->context != f->context))
-				continue;
+	hash_for_each_possible(sync->fences, e, node, f->context) {
+		if (unlikely(e->fence->context != f->context))
+			continue;
 
-			amdgpu_sync_keep_later(&e->fence, f);
-			return 0;
-		}
-
-		e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
-		if (!e)
-			return -ENOMEM;
-
-		hash_add(sync->fences, &e->node, f->context);
-		e->fence = fence_get(f);
+		amdgpu_sync_keep_later(&e->fence, f);
 		return 0;
 	}
 
-	amdgpu_sync_keep_later(&sync->sync_to[fence->ring->idx], f);
+	e = kmalloc(sizeof(struct amdgpu_sync_entry), GFP_KERNEL);
+	if (!e)
+		return -ENOMEM;
 
+	hash_add(sync->fences, &e->node, f->context);
+	e->fence = fence_get(f);
 	return 0;
 }
 
@@ -153,13 +137,13 @@ static void *amdgpu_sync_get_owner(struct fence *f)
 }
 
 /**
- * amdgpu_sync_resv - use the semaphores to sync to a reservation object
+ * amdgpu_sync_resv - sync to a reservation object
  *
  * @sync: sync object to add fences from reservation object to
  * @resv: reservation object with embedded fence
  * @shared: true if we should only sync to the exclusive fence
  *
- * Sync to the fence using the semaphore objects
+ * Sync to the fence
  */
 int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
@@ -250,123 +234,17 @@ int amdgpu_sync_wait(struct amdgpu_sync *sync)
 		kfree(e);
 	}
 
-	if (amdgpu_enable_semaphores)
-		return 0;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct fence *fence = sync->sync_to[i];
-		if (!fence)
-			continue;
-
-		r = fence_wait(fence, false);
-		if (r)
-			return r;
-	}
-
-	return 0;
-}
-
-/**
- * amdgpu_sync_rings - sync ring to all registered fences
- *
- * @sync: sync object to use
- * @ring: ring that needs sync
- *
- * Ensure that all registered fences are signaled before letting
- * the ring continue. The caller must hold the ring lock.
- */
-int amdgpu_sync_rings(struct amdgpu_sync *sync,
-		      struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	unsigned count = 0;
-	int i, r;
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *other = adev->rings[i];
-		struct amdgpu_semaphore *semaphore;
-		struct amdgpu_fence *fence;
-
-		if (!sync->sync_to[i])
-			continue;
-
-		fence = to_amdgpu_fence(sync->sync_to[i]);
-
-		/* check if we really need to sync */
-		if (!amdgpu_enable_scheduler &&
-		    !amdgpu_fence_need_sync(fence, ring))
-			continue;
-
-		/* prevent GPU deadlocks */
-		if (!other->ready) {
-			dev_err(adev->dev, "Syncing to a disabled ring!");
-			return -EINVAL;
-		}
-
-		if (amdgpu_enable_scheduler || !amdgpu_enable_semaphores) {
-			r = fence_wait(sync->sync_to[i], true);
-			if (r)
-				return r;
-			continue;
-		}
-
-		if (count >= AMDGPU_NUM_SYNCS) {
-			/* not enough room, wait manually */
-			r = fence_wait(&fence->base, false);
-			if (r)
-				return r;
-			continue;
-		}
-		r = amdgpu_semaphore_create(adev, &semaphore);
-		if (r)
-			return r;
-
-		sync->semaphores[count++] = semaphore;
-
-		/* allocate enough space for sync command */
-		r = amdgpu_ring_alloc(other, 16);
-		if (r)
-			return r;
-
-		/* emit the signal semaphore */
-		if (!amdgpu_semaphore_emit_signal(other, semaphore)) {
-			/* signaling wasn't successful wait manually */
-			amdgpu_ring_undo(other);
-			r = fence_wait(&fence->base, false);
-			if (r)
-				return r;
-			continue;
-		}
-
-		/* we assume caller has already allocated space on waiters ring */
-		if (!amdgpu_semaphore_emit_wait(ring, semaphore)) {
-			/* waiting wasn't successful wait manually */
-			amdgpu_ring_undo(other);
-			r = fence_wait(&fence->base, false);
-			if (r)
-				return r;
-			continue;
-		}
-
-		amdgpu_ring_commit(other);
-		amdgpu_fence_note_sync(fence, ring);
-	}
-
 	return 0;
 }
 
 /**
  * amdgpu_sync_free - free the sync object
  *
- * @adev: amdgpu_device pointer
  * @sync: sync object to use
- * @fence: fence to use for the free
  *
- * Free the sync object by freeing all semaphores in it.
+ * Free the sync object.
  */
-void amdgpu_sync_free(struct amdgpu_device *adev,
-		      struct amdgpu_sync *sync,
-		      struct fence *fence)
+void amdgpu_sync_free(struct amdgpu_sync *sync)
 {
 	struct amdgpu_sync_entry *e;
 	struct hlist_node *tmp;
@@ -377,12 +255,6 @@ void amdgpu_sync_free(struct amdgpu_device *adev,
 		fence_put(e->fence);
 		kfree(e);
 	}
-
-	for (i = 0; i < AMDGPU_NUM_SYNCS; ++i)
-		amdgpu_semaphore_free(adev, &sync->semaphores[i], fence);
-
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		fence_put(sync->sync_to[i]);
 
 	fence_put(sync->last_vm_update);
 }

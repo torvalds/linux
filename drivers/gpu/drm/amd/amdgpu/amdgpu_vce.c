@@ -74,6 +74,8 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work);
  */
 int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
+	struct amdgpu_ring *ring;
+	struct amd_sched_rq *rq;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned ucode_version, version_major, version_minor, binary_id;
@@ -170,6 +172,16 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		return r;
 	}
 
+
+	ring = &adev->vce.ring[0];
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+	r = amd_sched_entity_init(&ring->sched, &adev->vce.entity,
+				  rq, amdgpu_sched_jobs);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up VCE run queue.\n");
+		return r;
+	}
+
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
 		atomic_set(&adev->vce.handles[i], 0);
 		adev->vce.filp[i] = NULL;
@@ -189,6 +201,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 {
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
+
+	amd_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
 
 	amdgpu_bo_unref(&adev->vce.vcpu_bo);
 
@@ -337,21 +351,13 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 
 		amdgpu_vce_note_usage(adev);
 
-		r = amdgpu_vce_get_destroy_msg(ring, handle, NULL);
+		r = amdgpu_vce_get_destroy_msg(ring, handle, false, NULL);
 		if (r)
 			DRM_ERROR("Error destroying VCE handle (%d)!\n", r);
 
 		adev->vce.filp[i] = NULL;
 		atomic_set(&adev->vce.handles[i], 0);
 	}
-}
-
-static int amdgpu_vce_free_job(
-	struct amdgpu_job *job)
-{
-	amdgpu_ib_free(job->adev, job->ibs);
-	kfree(job->ibs);
-	return 0;
 }
 
 /**
@@ -368,21 +374,17 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 			      struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
 		return r;
-	}
+
+	ib = &job->ibs[0];
 
 	dummy = ib->gpu_addr + 1024;
 
@@ -423,20 +425,19 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 &f);
+	r = amdgpu_ib_schedule(ring, 1, ib, AMDGPU_FENCE_OWNER_UNDEFINED,
+			       NULL, &f);
 	if (r)
 		goto err;
+
+	amdgpu_job_free(job);
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
-	if (amdgpu_enable_scheduler)
-		return 0;
+	return 0;
+
 err:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 
@@ -451,26 +452,20 @@ err:
  * Close up a stream for HW test or if userspace failed to do so
  */
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct fence **fence)
+			       bool direct, struct fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
-	struct amdgpu_ib *ib = NULL;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
 	struct fence *f = NULL;
-	struct amdgpu_device *adev = ring->adev;
 	uint64_t dummy;
 	int i, r;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(ring, NULL, ib_size_dw * 4, ib);
-	if (r) {
-		kfree(ib);
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
 		return r;
-	}
 
+	ib = &job->ibs[0];
 	dummy = ib->gpu_addr + 1024;
 
 	/* stitch together an VCE destroy msg */
@@ -490,20 +485,29 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vce_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 &f);
-	if (r)
-		goto err;
+
+	if (direct) {
+		r = amdgpu_ib_schedule(ring, 1, ib,
+				       AMDGPU_FENCE_OWNER_UNDEFINED,
+				       NULL, &f);
+		if (r)
+			goto err;
+
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err;
+	}
+
 	if (fence)
 		*fence = fence_get(f);
 	fence_put(f);
-	if (amdgpu_enable_scheduler)
-		return 0;
+	return 0;
+
 err:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 
@@ -521,7 +525,6 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 			       int lo, int hi, unsigned size, uint32_t index)
 {
 	struct amdgpu_bo_va_mapping *mapping;
-	struct amdgpu_ib *ib = &p->ibs[ib_idx];
 	struct amdgpu_bo *bo;
 	uint64_t addr;
 
@@ -550,8 +553,8 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 	addr += amdgpu_bo_gpu_offset(bo);
 	addr -= ((uint64_t)size) * ((uint64_t)index);
 
-	ib->ptr[lo] = addr & 0xFFFFFFFF;
-	ib->ptr[hi] = addr >> 32;
+	amdgpu_set_ib_value(p, ib_idx, lo, lower_32_bits(addr));
+	amdgpu_set_ib_value(p, ib_idx, hi, upper_32_bits(addr));
 
 	return 0;
 }
@@ -606,7 +609,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
  */
 int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 {
-	struct amdgpu_ib *ib = &p->ibs[ib_idx];
+	struct amdgpu_ib *ib = &p->job->ibs[ib_idx];
 	unsigned fb_idx = 0, bs_idx = 0;
 	int session_idx = -1;
 	bool destroyed = false;
@@ -743,30 +746,6 @@ out:
 }
 
 /**
- * amdgpu_vce_ring_emit_semaphore - emit a semaphore command
- *
- * @ring: engine to use
- * @semaphore: address of semaphore
- * @emit_wait: true=emit wait, false=emit signal
- *
- */
-bool amdgpu_vce_ring_emit_semaphore(struct amdgpu_ring *ring,
-				    struct amdgpu_semaphore *semaphore,
-				    bool emit_wait)
-{
-	uint64_t addr = semaphore->gpu_addr;
-
-	amdgpu_ring_write(ring, VCE_CMD_SEMAPHORE);
-	amdgpu_ring_write(ring, (addr >> 3) & 0x000FFFFF);
-	amdgpu_ring_write(ring, (addr >> 23) & 0x000FFFFF);
-	amdgpu_ring_write(ring, 0x01003000 | (emit_wait ? 1 : 0));
-	if (!emit_wait)
-		amdgpu_ring_write(ring, VCE_CMD_END);
-
-	return true;
-}
-
-/**
  * amdgpu_vce_ring_emit_ib - execute indirect buffer
  *
  * @ring: engine to use
@@ -814,14 +793,14 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	r = amdgpu_ring_lock(ring, 16);
+	r = amdgpu_ring_alloc(ring, 16);
 	if (r) {
 		DRM_ERROR("amdgpu: vce failed to lock ring %d (%d).\n",
 			  ring->idx, r);
 		return r;
 	}
 	amdgpu_ring_write(ring, VCE_CMD_END);
-	amdgpu_ring_unlock_commit(ring);
+	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
@@ -862,7 +841,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring)
 		goto error;
 	}
 
-	r = amdgpu_vce_get_destroy_msg(ring, 1, &fence);
+	r = amdgpu_vce_get_destroy_msg(ring, 1, true, &fence);
 	if (r) {
 		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
 		goto error;

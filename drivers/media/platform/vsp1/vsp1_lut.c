@@ -27,11 +27,6 @@
  * Device Access
  */
 
-static inline u32 vsp1_lut_read(struct vsp1_lut *lut, u32 reg)
-{
-	return vsp1_read(lut->entity.vsp1, reg);
-}
-
 static inline void vsp1_lut_write(struct vsp1_lut *lut, u32 reg, u32 data)
 {
 	vsp1_write(lut->entity.vsp1, reg, data);
@@ -242,7 +237,7 @@ struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1)
 	subdev = &lut->entity.subdev;
 	v4l2_subdev_init(subdev, &lut_ops);
 
-	subdev->entity.ops = &vsp1_media_ops;
+	subdev->entity.ops = &vsp1->media_ops;
 	subdev->internal_ops = &vsp1_subdev_internal_ops;
 	snprintf(subdev->name, sizeof(subdev->name), "%s lut",
 		 dev_name(vsp1->dev));

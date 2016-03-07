@@ -325,8 +325,18 @@ struct pp_hwmgr_func {
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
 	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-				   struct amd_pp_dal_clock_info *info);
+			struct amd_pp_simple_clock_info *info);
+	int (*get_performance_level)(struct pp_hwmgr *, const struct pp_hw_power_state *,
+			PHM_PerformanceLevelDesignation, uint32_t, PHM_PerformanceLevel *);
+	int (*get_current_shallow_sleep_clocks)(struct pp_hwmgr *hwmgr,
+				const struct pp_hw_power_state *state, struct pp_clock_info *clock_info);
+	int (*get_clock_by_type)(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, struct amd_pp_clocks *clocks);
+	int (*get_max_high_clocks)(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 	int (*power_off_asic)(struct pp_hwmgr *hwmgr);
+	int (*get_pp_table)(struct pp_hwmgr *hwmgr, char **table);
+	int (*set_pp_table)(struct pp_hwmgr *hwmgr, const char *buf, size_t size);
+	int (*force_clock_level)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, int level);
+	int (*print_clock_levels)(struct pp_hwmgr *hwmgr, enum pp_clock_type type, char *buf);
 };
 
 struct pp_table_func {

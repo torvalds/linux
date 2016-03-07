@@ -77,6 +77,8 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
+	struct amdgpu_ring *ring;
+	struct amd_sched_rq *rq;
 	int r;
 
 	adev->mman.mem_global_referenced = false;
@@ -106,13 +108,27 @@ static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	ring = adev->mman.buffer_funcs_ring;
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_KERNEL];
+	r = amd_sched_entity_init(&ring->sched, &adev->mman.entity,
+				  rq, amdgpu_sched_jobs);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up TTM BO move run queue.\n");
+		drm_global_item_unref(&adev->mman.mem_global_ref);
+		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
+		return r;
+	}
+
 	adev->mman.mem_global_referenced = true;
+
 	return 0;
 }
 
 static void amdgpu_ttm_global_fini(struct amdgpu_device *adev)
 {
 	if (adev->mman.mem_global_referenced) {
+		amd_sched_entity_fini(adev->mman.entity.sched,
+				      &adev->mman.entity);
 		drm_global_item_unref(&adev->mman.bo_global_ref.ref);
 		drm_global_item_unref(&adev->mman.mem_global_ref);
 		adev->mman.mem_global_referenced = false;
@@ -499,9 +515,6 @@ static int amdgpu_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 	enum dma_data_direction direction = write ?
 		DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 
-	if (current->mm != gtt->usermm)
-		return -EPERM;
-
 	if (gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) {
 		/* check that we only pin down anonymous memory
 		   to prevent problems with writeback */
@@ -773,14 +786,14 @@ int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 	return 0;
 }
 
-bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm)
+struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 
 	if (gtt == NULL)
-		return false;
+		return NULL;
 
-	return !!gtt->userptr;
+	return gtt->usermm;
 }
 
 bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
@@ -1015,9 +1028,10 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 		       struct fence **fence)
 {
 	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_job *job;
+
 	uint32_t max_bytes;
 	unsigned num_loops, num_dw;
-	struct amdgpu_ib *ib;
 	unsigned i;
 	int r;
 
@@ -1029,20 +1043,12 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	while (num_dw & 0x7)
 		num_dw++;
 
-	ib = kzalloc(sizeof(struct amdgpu_ib), GFP_KERNEL);
-	if (!ib)
-		return -ENOMEM;
-
-	r = amdgpu_ib_get(ring, NULL, num_dw * 4, ib);
-	if (r) {
-		kfree(ib);
+	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
+	if (r)
 		return r;
-	}
-
-	ib->length_dw = 0;
 
 	if (resv) {
-		r = amdgpu_sync_resv(adev, &ib->sync, resv,
+		r = amdgpu_sync_resv(adev, &job->sync, resv,
 				     AMDGPU_FENCE_OWNER_UNDEFINED);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);
@@ -1053,31 +1059,25 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring,
 	for (i = 0; i < num_loops; i++) {
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
-		amdgpu_emit_copy_buffer(adev, ib, src_offset, dst_offset,
-					cur_size_in_bytes);
+		amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_offset,
+					dst_offset, cur_size_in_bytes);
 
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
 		byte_count -= cur_size_in_bytes;
 	}
 
-	amdgpu_vm_pad_ib(adev, ib);
-	WARN_ON(ib->length_dw > num_dw);
-	r = amdgpu_sched_ib_submit_kernel_helper(adev, ring, ib, 1,
-						 &amdgpu_vm_free_job,
-						 AMDGPU_FENCE_OWNER_UNDEFINED,
-						 fence);
+	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
+	WARN_ON(job->ibs[0].length_dw > num_dw);
+	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
+			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
 	if (r)
 		goto error_free;
 
-	if (!amdgpu_enable_scheduler) {
-		amdgpu_ib_free(adev, ib);
-		kfree(ib);
-	}
 	return 0;
+
 error_free:
-	amdgpu_ib_free(adev, ib);
-	kfree(ib);
+	amdgpu_job_free(job);
 	return r;
 }
 

@@ -70,14 +70,6 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 					 mode == DRM_MODE_DPMS_ON ? 1 : 0);
 }
 
-static bool panel_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	/* nothing needed */
-	return true;
-}
-
 static void panel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct panel_encoder *panel_encoder = to_panel_encoder(encoder);
@@ -103,7 +95,6 @@ static const struct drm_encoder_funcs panel_encoder_funcs = {
 
 static const struct drm_encoder_helper_funcs panel_encoder_helper_funcs = {
 		.dpms           = panel_encoder_dpms,
-		.mode_fixup     = panel_encoder_mode_fixup,
 		.prepare        = panel_encoder_prepare,
 		.commit         = panel_encoder_commit,
 		.mode_set       = panel_encoder_mode_set,

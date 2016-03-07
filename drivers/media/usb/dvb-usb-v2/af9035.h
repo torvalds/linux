@@ -112,9 +112,10 @@ static const u32 clock_lut_it9135[] = {
  * 0  TS
  * 1  DCA + PIP
  * 3  PIP
+ * 5  DCA + PIP
  * n  DCA
  *
- * Values 0 and 3 are seen to this day. 0 for single TS and 3 for dual TS.
+ * Values 0, 3 and 5 are seen to this day. 0 for single TS and 3/5 for dual TS.
  */
 
 #define EEPROM_BASE_AF9035        0x42fd

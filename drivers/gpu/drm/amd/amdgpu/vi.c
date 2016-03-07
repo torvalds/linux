@@ -74,6 +74,9 @@
 #include "uvd_v6_0.h"
 #include "vce_v3_0.h"
 #include "amdgpu_powerplay.h"
+#if defined(CONFIG_DRM_AMD_ACP)
+#include "amdgpu_acp.h"
+#endif
 
 /*
  * Indirect registers accessor
@@ -571,373 +574,11 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-static void vi_print_gpu_status_regs(struct amdgpu_device *adev)
-{
-	dev_info(adev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(mmGRBM_STATUS));
-	dev_info(adev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(mmGRBM_STATUS2));
-	dev_info(adev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE0));
-	dev_info(adev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE1));
-	dev_info(adev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE2));
-	dev_info(adev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(mmGRBM_STATUS_SE3));
-	dev_info(adev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(mmSRBM_STATUS));
-	dev_info(adev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(mmSRBM_STATUS2));
-	dev_info(adev->dev, "  SDMA0_STATUS_REG   = 0x%08X\n",
-		RREG32(mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET));
-	if (adev->sdma.num_instances > 1) {
-		dev_info(adev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
-			RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
-	}
-	dev_info(adev->dev, "  CP_STAT = 0x%08x\n", RREG32(mmCP_STAT));
-	dev_info(adev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT2));
-	dev_info(adev->dev, "  CP_STALLED_STAT3 = 0x%08x\n",
-		 RREG32(mmCP_STALLED_STAT3));
-	dev_info(adev->dev, "  CP_CPF_BUSY_STAT = 0x%08x\n",
-		 RREG32(mmCP_CPF_BUSY_STAT));
-	dev_info(adev->dev, "  CP_CPF_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_CPF_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_CPF_STATUS = 0x%08x\n", RREG32(mmCP_CPF_STATUS));
-	dev_info(adev->dev, "  CP_CPC_BUSY_STAT = 0x%08x\n", RREG32(mmCP_CPC_BUSY_STAT));
-	dev_info(adev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
-		 RREG32(mmCP_CPC_STALLED_STAT1));
-	dev_info(adev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(mmCP_CPC_STATUS));
-}
-
-/**
- * vi_gpu_check_soft_reset - check which blocks are busy
- *
- * @adev: amdgpu_device pointer
- *
- * Check which blocks are busy and return the relevant reset
- * mask to be used by vi_gpu_soft_reset().
- * Returns a mask of the blocks to be reset.
- */
-u32 vi_gpu_check_soft_reset(struct amdgpu_device *adev)
-{
-	u32 reset_mask = 0;
-	u32 tmp;
-
-	/* GRBM_STATUS */
-	tmp = RREG32(mmGRBM_STATUS);
-	if (tmp & (GRBM_STATUS__PA_BUSY_MASK | GRBM_STATUS__SC_BUSY_MASK |
-		   GRBM_STATUS__BCI_BUSY_MASK | GRBM_STATUS__SX_BUSY_MASK |
-		   GRBM_STATUS__TA_BUSY_MASK | GRBM_STATUS__VGT_BUSY_MASK |
-		   GRBM_STATUS__DB_BUSY_MASK | GRBM_STATUS__CB_BUSY_MASK |
-		   GRBM_STATUS__GDS_BUSY_MASK | GRBM_STATUS__SPI_BUSY_MASK |
-		   GRBM_STATUS__IA_BUSY_MASK | GRBM_STATUS__IA_BUSY_NO_DMA_MASK))
-		reset_mask |= AMDGPU_RESET_GFX;
-
-	if (tmp & (GRBM_STATUS__CP_BUSY_MASK | GRBM_STATUS__CP_COHERENCY_BUSY_MASK))
-		reset_mask |= AMDGPU_RESET_CP;
-
-	/* GRBM_STATUS2 */
-	tmp = RREG32(mmGRBM_STATUS2);
-	if (tmp & GRBM_STATUS2__RLC_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_RLC;
-
-	if (tmp & (GRBM_STATUS2__CPF_BUSY_MASK |
-		   GRBM_STATUS2__CPC_BUSY_MASK |
-		   GRBM_STATUS2__CPG_BUSY_MASK))
-		reset_mask |= AMDGPU_RESET_CP;
-
-	/* SRBM_STATUS2 */
-	tmp = RREG32(mmSRBM_STATUS2);
-	if (tmp & SRBM_STATUS2__SDMA_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_DMA;
-
-	if (tmp & SRBM_STATUS2__SDMA1_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_DMA1;
-
-	/* SRBM_STATUS */
-	tmp = RREG32(mmSRBM_STATUS);
-
-	if (tmp & SRBM_STATUS__IH_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_IH;
-
-	if (tmp & SRBM_STATUS__SEM_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_SEM;
-
-	if (tmp & SRBM_STATUS__GRBM_RQ_PENDING_MASK)
-		reset_mask |= AMDGPU_RESET_GRBM;
-
-	if (adev->asic_type != CHIP_TOPAZ) {
-		if (tmp & (SRBM_STATUS__UVD_RQ_PENDING_MASK |
-			   SRBM_STATUS__UVD_BUSY_MASK))
-			reset_mask |= AMDGPU_RESET_UVD;
-	}
-
-	if (tmp & SRBM_STATUS__VMC_BUSY_MASK)
-		reset_mask |= AMDGPU_RESET_VMC;
-
-	if (tmp & (SRBM_STATUS__MCB_BUSY_MASK | SRBM_STATUS__MCB_NON_DISPLAY_BUSY_MASK |
-		   SRBM_STATUS__MCC_BUSY_MASK | SRBM_STATUS__MCD_BUSY_MASK))
-		reset_mask |= AMDGPU_RESET_MC;
-
-	/* SDMA0_STATUS_REG */
-	tmp = RREG32(mmSDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET);
-	if (!(tmp & SDMA0_STATUS_REG__IDLE_MASK))
-		reset_mask |= AMDGPU_RESET_DMA;
-
-	/* SDMA1_STATUS_REG */
-	if (adev->sdma.num_instances > 1) {
-		tmp = RREG32(mmSDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET);
-		if (!(tmp & SDMA0_STATUS_REG__IDLE_MASK))
-			reset_mask |= AMDGPU_RESET_DMA1;
-	}
-#if 0
-	/* VCE_STATUS */
-	if (adev->asic_type != CHIP_TOPAZ) {
-		tmp = RREG32(mmVCE_STATUS);
-		if (tmp & VCE_STATUS__VCPU_REPORT_RB0_BUSY_MASK)
-			reset_mask |= AMDGPU_RESET_VCE;
-		if (tmp & VCE_STATUS__VCPU_REPORT_RB1_BUSY_MASK)
-			reset_mask |= AMDGPU_RESET_VCE1;
-
-	}
-
-	if (adev->asic_type != CHIP_TOPAZ) {
-		if (amdgpu_display_is_display_hung(adev))
-			reset_mask |= AMDGPU_RESET_DISPLAY;
-	}
-#endif
-
-	/* Skip MC reset as it's mostly likely not hung, just busy */
-	if (reset_mask & AMDGPU_RESET_MC) {
-		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
-		reset_mask &= ~AMDGPU_RESET_MC;
-	}
-
-	return reset_mask;
-}
-
-/**
- * vi_gpu_soft_reset - soft reset GPU
- *
- * @adev: amdgpu_device pointer
- * @reset_mask: mask of which blocks to reset
- *
- * Soft reset the blocks specified in @reset_mask.
- */
-static void vi_gpu_soft_reset(struct amdgpu_device *adev, u32 reset_mask)
-{
-	struct amdgpu_mode_mc_save save;
-	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
-	u32 tmp;
-
-	if (reset_mask == 0)
-		return;
-
-	dev_info(adev->dev, "GPU softreset: 0x%08X\n", reset_mask);
-
-	vi_print_gpu_status_regs(adev);
-	dev_info(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-		 RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR));
-	dev_info(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
-		 RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS));
-
-	/* disable CG/PG */
-
-	/* stop the rlc */
-	//XXX
-	//gfx_v8_0_rlc_stop(adev);
-
-	/* Disable GFX parsing/prefetching */
-	tmp = RREG32(mmCP_ME_CNTL);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 1);
-	WREG32(mmCP_ME_CNTL, tmp);
-
-	/* Disable MEC parsing/prefetching */
-	tmp = RREG32(mmCP_MEC_CNTL);
-	tmp = REG_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
-	WREG32(mmCP_MEC_CNTL, tmp);
-
-	if (reset_mask & AMDGPU_RESET_DMA) {
-		/* sdma0 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 1);
-		WREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET, tmp);
-	}
-	if (reset_mask & AMDGPU_RESET_DMA1) {
-		/* sdma1 */
-		tmp = RREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET);
-		tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 1);
-		WREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET, tmp);
-	}
-
-	gmc_v8_0_mc_stop(adev, &save);
-	if (amdgpu_asic_wait_for_mc_idle(adev)) {
-		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
-	}
-
-	if (reset_mask & (AMDGPU_RESET_GFX | AMDGPU_RESET_COMPUTE | AMDGPU_RESET_CP)) {
-		grbm_soft_reset =
-			REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP, 1);
-		grbm_soft_reset =
-			REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_GFX, 1);
-	}
-
-	if (reset_mask & AMDGPU_RESET_CP) {
-		grbm_soft_reset =
-			REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP, 1);
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_GRBM, 1);
-	}
-
-	if (reset_mask & AMDGPU_RESET_DMA)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA, 1);
-
-	if (reset_mask & AMDGPU_RESET_DMA1)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SDMA1, 1);
-
-	if (reset_mask & AMDGPU_RESET_DISPLAY)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_DC, 1);
-
-	if (reset_mask & AMDGPU_RESET_RLC)
-		grbm_soft_reset =
-			REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
-
-	if (reset_mask & AMDGPU_RESET_SEM)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_SEM, 1);
-
-	if (reset_mask & AMDGPU_RESET_IH)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_IH, 1);
-
-	if (reset_mask & AMDGPU_RESET_GRBM)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_GRBM, 1);
-
-	if (reset_mask & AMDGPU_RESET_VMC)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VMC, 1);
-
-	if (reset_mask & AMDGPU_RESET_UVD)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_UVD, 1);
-
-	if (reset_mask & AMDGPU_RESET_VCE)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
-
-	if (reset_mask & AMDGPU_RESET_VCE)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
-
-	if (!(adev->flags & AMD_IS_APU)) {
-		if (reset_mask & AMDGPU_RESET_MC)
-		srbm_soft_reset =
-			REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
-	}
-
-	if (grbm_soft_reset) {
-		tmp = RREG32(mmGRBM_SOFT_RESET);
-		tmp |= grbm_soft_reset;
-		dev_info(adev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32(mmGRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmGRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~grbm_soft_reset;
-		WREG32(mmGRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmGRBM_SOFT_RESET);
-	}
-
-	if (srbm_soft_reset) {
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-		tmp |= srbm_soft_reset;
-		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~srbm_soft_reset;
-		WREG32(mmSRBM_SOFT_RESET, tmp);
-		tmp = RREG32(mmSRBM_SOFT_RESET);
-	}
-
-	/* Wait a little for things to settle down */
-	udelay(50);
-
-	gmc_v8_0_mc_resume(adev, &save);
-	udelay(50);
-
-	vi_print_gpu_status_regs(adev);
-}
-
 static void vi_gpu_pci_config_reset(struct amdgpu_device *adev)
 {
-	struct amdgpu_mode_mc_save save;
-	u32 tmp, i;
+	u32 i;
 
 	dev_info(adev->dev, "GPU pci config reset\n");
-
-	/* disable dpm? */
-
-	/* disable cg/pg */
-
-	/* Disable GFX parsing/prefetching */
-	tmp = RREG32(mmCP_ME_CNTL);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, ME_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, PFP_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_ME_CNTL, CE_HALT, 1);
-	WREG32(mmCP_ME_CNTL, tmp);
-
-	/* Disable MEC parsing/prefetching */
-	tmp = RREG32(mmCP_MEC_CNTL);
-	tmp = REG_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME1_HALT, 1);
-	tmp = REG_SET_FIELD(tmp, CP_MEC_CNTL, MEC_ME2_HALT, 1);
-	WREG32(mmCP_MEC_CNTL, tmp);
-
-	/* Disable GFX parsing/prefetching */
-	WREG32(mmCP_ME_CNTL, CP_ME_CNTL__ME_HALT_MASK |
-		CP_ME_CNTL__PFP_HALT_MASK | CP_ME_CNTL__CE_HALT_MASK);
-
-	/* Disable MEC parsing/prefetching */
-	WREG32(mmCP_MEC_CNTL,
-			CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK);
-
-	/* sdma0 */
-	tmp = RREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET);
-	tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 1);
-	WREG32(mmSDMA0_F32_CNTL + SDMA0_REGISTER_OFFSET, tmp);
-
-	/* sdma1 */
-	tmp = RREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET);
-	tmp = REG_SET_FIELD(tmp, SDMA0_F32_CNTL, HALT, 1);
-	WREG32(mmSDMA0_F32_CNTL + SDMA1_REGISTER_OFFSET, tmp);
-
-	/* XXX other engines? */
-
-	/* halt the rlc, disable cp internal ints */
-	//XXX
-	//gfx_v8_0_rlc_stop(adev);
-
-	udelay(50);
-
-	/* disable mem access */
-	gmc_v8_0_mc_stop(adev, &save);
-	if (amdgpu_asic_wait_for_mc_idle(adev)) {
-		dev_warn(adev->dev, "Wait for MC idle timed out !\n");
-	}
 
 	/* disable BM */
 	pci_clear_master(adev->pdev);
@@ -978,26 +619,11 @@ static void vi_set_bios_scratch_engine_hung(struct amdgpu_device *adev, bool hun
  */
 static int vi_asic_reset(struct amdgpu_device *adev)
 {
-	u32 reset_mask;
+	vi_set_bios_scratch_engine_hung(adev, true);
 
-	reset_mask = vi_gpu_check_soft_reset(adev);
+	vi_gpu_pci_config_reset(adev);
 
-	if (reset_mask)
-		vi_set_bios_scratch_engine_hung(adev, true);
-
-	/* try soft reset */
-	vi_gpu_soft_reset(adev, reset_mask);
-
-	reset_mask = vi_gpu_check_soft_reset(adev);
-
-	/* try pci config reset */
-	if (reset_mask && amdgpu_hard_reset)
-		vi_gpu_pci_config_reset(adev);
-
-	reset_mask = vi_gpu_check_soft_reset(adev);
-
-	if (!reset_mask)
-		vi_set_bios_scratch_engine_hung(adev, false);
+	vi_set_bios_scratch_engine_hung(adev, false);
 
 	return 0;
 }
@@ -1347,6 +973,15 @@ static const struct amdgpu_ip_block_version cz_ip_blocks[] =
 		.rev = 0,
 		.funcs = &vce_v3_0_ip_funcs,
 	},
+#if defined(CONFIG_DRM_AMD_ACP)
+	{
+		.type = AMD_IP_BLOCK_TYPE_ACP,
+		.major = 2,
+		.minor = 2,
+		.rev = 0,
+		.funcs = &acp_ip_funcs,
+	},
+#endif
 };
 
 int vi_set_ip_blocks(struct amdgpu_device *adev)

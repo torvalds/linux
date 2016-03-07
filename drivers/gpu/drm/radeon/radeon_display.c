@@ -1699,6 +1699,9 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 	radeon_fbdev_fini(rdev);
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
+	/* free i2c buses */
+	radeon_i2c_fini(rdev);
+
 	if (rdev->mode_info.mode_config_initialized) {
 		radeon_afmt_fini(rdev);
 		drm_kms_helper_poll_fini(rdev->ddev);
@@ -1706,8 +1709,6 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}
-	/* free i2c buses */
-	radeon_i2c_fini(rdev);
 }
 
 static bool is_hdtv_mode(const struct drm_display_mode *mode)

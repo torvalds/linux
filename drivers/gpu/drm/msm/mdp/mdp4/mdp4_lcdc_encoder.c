@@ -260,13 +260,6 @@ static void setup_phy(struct drm_encoder *encoder)
 	mdp4_write(mdp4_kms, REG_MDP4_LVDS_PHY_CFG0, lvds_phy_cfg0);
 }
 
-static bool mdp4_lcdc_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void mdp4_lcdc_encoder_mode_set(struct drm_encoder *encoder,
 		struct drm_display_mode *mode,
 		struct drm_display_mode *adjusted_mode)
@@ -430,7 +423,6 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 }
 
 static const struct drm_encoder_helper_funcs mdp4_lcdc_encoder_helper_funcs = {
-	.mode_fixup = mdp4_lcdc_encoder_mode_fixup,
 	.mode_set = mdp4_lcdc_encoder_mode_set,
 	.disable = mdp4_lcdc_encoder_disable,
 	.enable = mdp4_lcdc_encoder_enable,

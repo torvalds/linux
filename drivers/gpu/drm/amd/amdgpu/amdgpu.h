@@ -53,6 +53,7 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_gds.h"
 #include "amd_powerplay.h"
+#include "amdgpu_acp.h"
 
 #include "gpu_scheduler.h"
 
@@ -74,7 +75,6 @@ extern int amdgpu_dpm;
 extern int amdgpu_smc_load_fw;
 extern int amdgpu_aspm;
 extern int amdgpu_runtime_pm;
-extern int amdgpu_hard_reset;
 extern unsigned amdgpu_ip_block_mask;
 extern int amdgpu_bapm;
 extern int amdgpu_deep_color;
@@ -82,10 +82,8 @@ extern int amdgpu_vm_size;
 extern int amdgpu_vm_block_size;
 extern int amdgpu_vm_fault_stop;
 extern int amdgpu_vm_debug;
-extern int amdgpu_enable_scheduler;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
-extern int amdgpu_enable_semaphores;
 extern int amdgpu_powerplay;
 extern unsigned amdgpu_pcie_gen_cap;
 extern unsigned amdgpu_pcie_lane_cap;
@@ -107,9 +105,6 @@ extern unsigned amdgpu_pcie_lane_cap;
 
 /* max number of IP instances */
 #define AMDGPU_MAX_SDMA_INSTANCES		2
-
-/* number of hw syncs before falling back on blocking */
-#define AMDGPU_NUM_SYNCS			4
 
 /* hardcode that limit for now */
 #define AMDGPU_VA_RESERVED_SIZE			(8 << 20)
@@ -150,7 +145,6 @@ struct amdgpu_fence;
 struct amdgpu_ib;
 struct amdgpu_vm;
 struct amdgpu_ring;
-struct amdgpu_semaphore;
 struct amdgpu_cs_parser;
 struct amdgpu_job;
 struct amdgpu_irq_src;
@@ -248,7 +242,7 @@ struct amdgpu_vm_pte_funcs {
 			 unsigned count);
 	/* write pte one entry at a time with addr mapping */
 	void (*write_pte)(struct amdgpu_ib *ib,
-			  uint64_t pe,
+			  const dma_addr_t *pages_addr, uint64_t pe,
 			  uint64_t addr, unsigned count,
 			  uint32_t incr, uint32_t flags);
 	/* for linear pte/pde updates without addr mapping */
@@ -256,8 +250,6 @@ struct amdgpu_vm_pte_funcs {
 			    uint64_t pe,
 			    uint64_t addr, unsigned count,
 			    uint32_t incr, uint32_t flags);
-	/* pad the indirect buffer to the necessary number of dw */
-	void (*pad_ib)(struct amdgpu_ib *ib);
 };
 
 /* provided by the gmc block */
@@ -295,9 +287,6 @@ struct amdgpu_ring_funcs {
 			struct amdgpu_ib *ib);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
-	bool (*emit_semaphore)(struct amdgpu_ring *ring,
-			       struct amdgpu_semaphore *semaphore,
-			       bool emit_wait);
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
@@ -310,6 +299,8 @@ struct amdgpu_ring_funcs {
 	int (*test_ib)(struct amdgpu_ring *ring);
 	/* insert NOP packets */
 	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	/* pad the indirect buffer to the necessary number of dw */
+	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 };
 
 /*
@@ -355,7 +346,7 @@ struct amdgpu_fence_driver {
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
-	uint64_t			sync_seq[AMDGPU_MAX_RINGS];
+	uint64_t			sync_seq;
 	atomic64_t			last_seq;
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
@@ -408,11 +399,6 @@ int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
-bool amdgpu_fence_need_sync(struct amdgpu_fence *fence,
-			    struct amdgpu_ring *ring);
-void amdgpu_fence_note_sync(struct amdgpu_fence *fence,
-			    struct amdgpu_ring *ring);
-
 /*
  * TTM.
  */
@@ -431,6 +417,8 @@ struct amdgpu_mman {
 	/* buffer handling */
 	const struct amdgpu_buffer_funcs	*buffer_funcs;
 	struct amdgpu_ring			*buffer_funcs_ring;
+	/* Scheduler entity for buffer moves */
+	struct amd_sched_entity			entity;
 };
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring,
@@ -445,8 +433,6 @@ struct amdgpu_bo_list_entry {
 	struct amdgpu_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	struct amdgpu_bo_va		*bo_va;
-	unsigned			prefered_domains;
-	unsigned			allowed_domains;
 	uint32_t			priority;
 };
 
@@ -483,7 +469,8 @@ struct amdgpu_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
-	u32				initial_domain;
+	u32				prefered_domains;
+	u32				allowed_domains;
 	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
@@ -505,7 +492,6 @@ struct amdgpu_bo {
 	struct amdgpu_bo		*parent;
 
 	struct ttm_bo_kmap_obj		dma_buf_vmap;
-	pid_t				pid;
 	struct amdgpu_mn		*mn;
 	struct list_head		mn_list;
 };
@@ -580,13 +566,7 @@ struct amdgpu_sa_bo {
 /*
  * GEM objects.
  */
-struct amdgpu_gem {
-	struct mutex		mutex;
-	struct list_head	objects;
-};
-
-int amdgpu_gem_init(struct amdgpu_device *adev);
-void amdgpu_gem_fini(struct amdgpu_device *adev);
+void amdgpu_gem_force_release(struct amdgpu_device *adev);
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 				int alignment, u32 initial_domain,
 				u64 flags, bool kernel,
@@ -598,32 +578,10 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 			  struct drm_device *dev,
 			  uint32_t handle, uint64_t *offset_p);
-
-/*
- * Semaphores.
- */
-struct amdgpu_semaphore {
-	struct amdgpu_sa_bo	*sa_bo;
-	signed			waiters;
-	uint64_t		gpu_addr;
-};
-
-int amdgpu_semaphore_create(struct amdgpu_device *adev,
-			    struct amdgpu_semaphore **semaphore);
-bool amdgpu_semaphore_emit_signal(struct amdgpu_ring *ring,
-				  struct amdgpu_semaphore *semaphore);
-bool amdgpu_semaphore_emit_wait(struct amdgpu_ring *ring,
-				struct amdgpu_semaphore *semaphore);
-void amdgpu_semaphore_free(struct amdgpu_device *adev,
-			   struct amdgpu_semaphore **semaphore,
-			   struct fence *fence);
-
 /*
  * Synchronization
  */
 struct amdgpu_sync {
-	struct amdgpu_semaphore *semaphores[AMDGPU_NUM_SYNCS];
-	struct fence		*sync_to[AMDGPU_MAX_RINGS];
 	DECLARE_HASHTABLE(fences, 4);
 	struct fence	        *last_vm_update;
 };
@@ -635,12 +593,9 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 		     struct amdgpu_sync *sync,
 		     struct reservation_object *resv,
 		     void *owner);
-int amdgpu_sync_rings(struct amdgpu_sync *sync,
-		      struct amdgpu_ring *ring);
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 int amdgpu_sync_wait(struct amdgpu_sync *sync);
-void amdgpu_sync_free(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-		      struct fence *fence);
+void amdgpu_sync_free(struct amdgpu_sync *sync);
 
 /*
  * GART structures, functions & helpers
@@ -758,6 +713,7 @@ struct amdgpu_flip_work {
 	struct fence			*excl;
 	unsigned			shared_count;
 	struct fence			**shared;
+	struct fence_cb			cb;
 };
 
 
@@ -770,12 +726,11 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct amdgpu_ring		*ring;
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
+	bool				grabbed_vmid;
 	struct amdgpu_vm		*vm;
 	struct amdgpu_ctx		*ctx;
-	struct amdgpu_sync		sync;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
@@ -794,13 +749,14 @@ enum amdgpu_ring_type {
 
 extern struct amd_sched_backend_ops amdgpu_sched_ops;
 
-int amdgpu_sched_ib_submit_kernel_helper(struct amdgpu_device *adev,
-					 struct amdgpu_ring *ring,
-					 struct amdgpu_ib *ibs,
-					 unsigned num_ibs,
-					 int (*free_job)(struct amdgpu_job *),
-					 void *owner,
-					 struct fence **fence);
+int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
+		     struct amdgpu_job **job);
+int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
+			     struct amdgpu_job **job);
+void amdgpu_job_free(struct amdgpu_job *job);
+int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
+		      struct amd_sched_entity *entity, void *owner,
+		      struct fence **f);
 
 struct amdgpu_ring {
 	struct amdgpu_device		*adev;
@@ -809,7 +765,6 @@ struct amdgpu_ring {
 	struct amd_gpu_scheduler 	sched;
 
 	spinlock_t              fence_lock;
-	struct mutex		*ring_lock;
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
@@ -818,7 +773,7 @@ struct amdgpu_ring {
 	unsigned		wptr;
 	unsigned		wptr_old;
 	unsigned		ring_size;
-	unsigned		ring_free_dw;
+	unsigned		max_dw;
 	int			count_dw;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
@@ -826,8 +781,6 @@ struct amdgpu_ring {
 	bool			ready;
 	u32			nop;
 	u32			idx;
-	u64			last_semaphore_signal_addr;
-	u64			last_semaphore_wait_addr;
 	u32			me;
 	u32			pipe;
 	u32			queue;
@@ -840,7 +793,6 @@ struct amdgpu_ring {
 	struct amdgpu_ctx	*current_ctx;
 	enum amdgpu_ring_type	type;
 	char			name[16];
-	bool                    is_pte_ring;
 };
 
 /*
@@ -891,6 +843,8 @@ struct amdgpu_vm_id {
 };
 
 struct amdgpu_vm {
+	/* tree of virtual addresses mapped */
+	spinlock_t		it_lock;
 	struct rb_root		va;
 
 	/* protecting invalidated */
@@ -915,30 +869,40 @@ struct amdgpu_vm {
 
 	/* for id and flush management per ring */
 	struct amdgpu_vm_id	ids[AMDGPU_MAX_RINGS];
-	/* for interval tree */
-	spinlock_t		it_lock;
+
 	/* protecting freed */
 	spinlock_t		freed_lock;
+
+	/* Scheduler entity for page table updates */
+	struct amd_sched_entity	entity;
+};
+
+struct amdgpu_vm_manager_id {
+	struct list_head	list;
+	struct fence		*active;
+	atomic_long_t		owner;
 };
 
 struct amdgpu_vm_manager {
-	struct {
-		struct fence	*active;
-		atomic_long_t	owner;
-	} ids[AMDGPU_NUM_VM];
+	/* Handling of VMIDs */
+	struct mutex				lock;
+	unsigned				num_ids;
+	struct list_head			ids_lru;
+	struct amdgpu_vm_manager_id		ids[AMDGPU_NUM_VM];
 
 	uint32_t				max_pfn;
-	/* number of VMIDs */
-	unsigned				nvm;
 	/* vram base address for page table entry  */
 	u64					vram_base_offset;
 	/* is vm enabled? */
 	bool					enabled;
 	/* vm pte handling */
 	const struct amdgpu_vm_pte_funcs        *vm_pte_funcs;
-	struct amdgpu_ring                      *vm_pte_funcs_ring;
+	struct amdgpu_ring                      *vm_pte_rings[AMDGPU_MAX_RINGS];
+	unsigned				vm_pte_num_rings;
+	atomic_t				vm_pte_next_ring;
 };
 
+void amdgpu_vm_manager_init(struct amdgpu_device *adev);
 void amdgpu_vm_manager_fini(struct amdgpu_device *adev);
 int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
@@ -949,14 +913,11 @@ void amdgpu_vm_get_pt_bos(struct amdgpu_vm *vm, struct list_head *duplicates);
 void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm);
 int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
-		      struct amdgpu_sync *sync);
+		      struct amdgpu_sync *sync, struct fence *fence);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
 		     struct amdgpu_vm *vm,
 		     struct fence *updates);
-void amdgpu_vm_fence(struct amdgpu_device *adev,
-		     struct amdgpu_vm *vm,
-		     struct fence *fence);
-uint64_t amdgpu_vm_map_gart(struct amdgpu_device *adev, uint64_t addr);
+uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
@@ -982,7 +943,6 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 		       uint64_t addr);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
-int amdgpu_vm_free_job(struct amdgpu_job *job);
 
 /*
  * context related structures
@@ -1009,10 +969,6 @@ struct amdgpu_ctx_mgr {
 	/* protected by lock */
 	struct idr		ctx_handles;
 };
-
-int amdgpu_ctx_init(struct amdgpu_device *adev, enum amd_sched_priority pri,
-		    struct amdgpu_ctx *ctx);
-void amdgpu_ctx_fini(struct amdgpu_ctx *ctx);
 
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
 int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
@@ -1055,6 +1011,8 @@ struct amdgpu_bo_list {
 
 struct amdgpu_bo_list *
 amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id);
+void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
+			     struct list_head *validated);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
 void amdgpu_bo_list_free(struct amdgpu_bo_list *list);
 
@@ -1128,6 +1086,7 @@ struct amdgpu_gca_config {
 	unsigned multi_gpu_tile_size;
 	unsigned mc_arb_ramcfg;
 	unsigned gb_addr_config;
+	unsigned num_rbs;
 
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
@@ -1170,23 +1129,21 @@ struct amdgpu_gfx {
 	unsigned ce_ram_size;
 };
 
-int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
+int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
-int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
-		       struct amdgpu_ib *ib, void *owner);
+int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
+		       struct amdgpu_ib *ib, void *owner,
+		       struct fence *last_vm_update,
+		       struct fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
-/* Ring access between begin & end cannot sleep */
-void amdgpu_ring_free_size(struct amdgpu_ring *ring);
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
-int amdgpu_ring_lock(struct amdgpu_ring *ring, unsigned ndw);
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
+void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
-void amdgpu_ring_unlock_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
-void amdgpu_ring_unlock_undo(struct amdgpu_ring *ring);
 unsigned amdgpu_ring_backup(struct amdgpu_ring *ring,
 			    uint32_t **data);
 int amdgpu_ring_restore(struct amdgpu_ring *ring,
@@ -1205,47 +1162,57 @@ struct amdgpu_cs_chunk {
 	uint32_t		chunk_id;
 	uint32_t		length_dw;
 	uint32_t		*kdata;
-	void __user		*user_ptr;
 };
 
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
 	struct amdgpu_ctx	*ctx;
-	struct amdgpu_bo_list *bo_list;
+
 	/* chunks */
 	unsigned		nchunks;
 	struct amdgpu_cs_chunk	*chunks;
-	/* relocations */
+
+	/* scheduler job object */
+	struct amdgpu_job	*job;
+
+	/* buffer objects */
+	struct ww_acquire_ctx		ticket;
+	struct amdgpu_bo_list		*bo_list;
 	struct amdgpu_bo_list_entry	vm_pd;
-	struct list_head	validated;
-	struct fence		*fence;
-
-	struct amdgpu_ib	*ibs;
-	uint32_t		num_ibs;
-
-	struct ww_acquire_ctx	ticket;
+	struct list_head		validated;
+	struct fence			*fence;
+	uint64_t			bytes_moved_threshold;
+	uint64_t			bytes_moved;
 
 	/* user fence */
-	struct amdgpu_user_fence	uf;
 	struct amdgpu_bo_list_entry	uf_entry;
 };
 
 struct amdgpu_job {
 	struct amd_sched_job    base;
 	struct amdgpu_device	*adev;
+	struct amdgpu_ring	*ring;
+	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
 	uint32_t		num_ibs;
 	void			*owner;
 	struct amdgpu_user_fence uf;
-	int (*free_job)(struct amdgpu_job *job);
 };
 #define to_amdgpu_job(sched_job)		\
 		container_of((sched_job), struct amdgpu_job, base)
 
-static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p, uint32_t ib_idx, int idx)
+static inline u32 amdgpu_get_ib_value(struct amdgpu_cs_parser *p,
+				      uint32_t ib_idx, int idx)
 {
-	return p->ibs[ib_idx].ptr[idx];
+	return p->job->ibs[ib_idx].ptr[idx];
+}
+
+static inline void amdgpu_set_ib_value(struct amdgpu_cs_parser *p,
+				       uint32_t ib_idx, int idx,
+				       uint32_t value)
+{
+	p->job->ibs[ib_idx].ptr[idx] = value;
 }
 
 /*
@@ -1497,6 +1464,7 @@ enum amdgpu_dpm_forced_level {
 	AMDGPU_DPM_FORCED_LEVEL_AUTO = 0,
 	AMDGPU_DPM_FORCED_LEVEL_LOW = 1,
 	AMDGPU_DPM_FORCED_LEVEL_HIGH = 2,
+	AMDGPU_DPM_FORCED_LEVEL_MANUAL = 3,
 };
 
 struct amdgpu_vce_state {
@@ -1626,6 +1594,7 @@ struct amdgpu_uvd {
 	struct amdgpu_ring	ring;
 	struct amdgpu_irq_src	irq;
 	bool			address_64_bit;
+	struct amd_sched_entity entity;
 };
 
 /*
@@ -1650,6 +1619,7 @@ struct amdgpu_vce {
 	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
 	struct amdgpu_irq_src	irq;
 	unsigned		harvest_config;
+	struct amd_sched_entity	entity;
 };
 
 /*
@@ -1884,6 +1854,18 @@ void amdgpu_cgs_destroy_device(void *cgs_device);
 
 
 /*
+ * CGS
+ */
+void *amdgpu_cgs_create_device(struct amdgpu_device *adev);
+void amdgpu_cgs_destroy_device(void *cgs_device);
+
+
+/* GPU virtualization */
+struct amdgpu_virtualization {
+	bool supports_sr_iov;
+};
+
+/*
  * Core structure, functions and helpers.
  */
 typedef uint32_t (*amdgpu_rreg_t)(struct amdgpu_device*, uint32_t);
@@ -1902,6 +1884,10 @@ struct amdgpu_device {
 	struct device			*dev;
 	struct drm_device		*ddev;
 	struct pci_dev			*pdev;
+
+#ifdef CONFIG_DRM_AMD_ACP
+	struct amdgpu_acp		acp;
+#endif
 
 	/* ASIC */
 	enum amd_asic_type		asic_type;
@@ -1979,7 +1965,6 @@ struct amdgpu_device {
 
 	/* memory management */
 	struct amdgpu_mman		mman;
-	struct amdgpu_gem		gem;
 	struct amdgpu_vram_scratch	vram_scratch;
 	struct amdgpu_wb		wb;
 	atomic64_t			vram_usage;
@@ -1997,7 +1982,6 @@ struct amdgpu_device {
 
 	/* rings */
 	unsigned			fence_context;
-	struct mutex			ring_lock;
 	unsigned			num_rings;
 	struct amdgpu_ring		*rings[AMDGPU_MAX_RINGS];
 	bool				ib_pool_ready;
@@ -2009,6 +1993,7 @@ struct amdgpu_device {
 	/* powerplay */
 	struct amd_powerplay		powerplay;
 	bool				pp_enabled;
+	bool				pp_force_state_enabled;
 
 	/* dpm */
 	struct amdgpu_pm		pm;
@@ -2050,8 +2035,7 @@ struct amdgpu_device {
 	/* amdkfd interface */
 	struct kfd_dev          *kfd;
 
-	/* kernel conext for IB submission */
-	struct amdgpu_ctx	kernel_ctx;
+	struct amdgpu_virtualization virtualization;
 };
 
 bool amdgpu_device_is_px(struct drm_device *dev);
@@ -2156,7 +2140,6 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 	ring->ring[ring->wptr++] = v;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw--;
-	ring->ring_free_dw--;
 }
 
 static inline struct amdgpu_sdma_instance *
@@ -2192,9 +2175,8 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_gart_flush_gpu_tlb(adev, vmid) (adev)->gart.gart_funcs->flush_gpu_tlb((adev), (vmid))
 #define amdgpu_gart_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gart.gart_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
 #define amdgpu_vm_copy_pte(adev, ib, pe, src, count) ((adev)->vm_manager.vm_pte_funcs->copy_pte((ib), (pe), (src), (count)))
-#define amdgpu_vm_write_pte(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pe), (addr), (count), (incr), (flags)))
+#define amdgpu_vm_write_pte(adev, ib, pa, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->write_pte((ib), (pa), (pe), (addr), (count), (incr), (flags)))
 #define amdgpu_vm_set_pte_pde(adev, ib, pe, addr, count, incr, flags) ((adev)->vm_manager.vm_pte_funcs->set_pte_pde((ib), (pe), (addr), (count), (incr), (flags)))
-#define amdgpu_vm_pad_ib(adev, ib) ((adev)->vm_manager.vm_pte_funcs->pad_ib((ib)))
 #define amdgpu_ring_parse_cs(r, p, ib) ((r)->funcs->parse_cs((p), (ib)))
 #define amdgpu_ring_test_ring(r) (r)->funcs->test_ring((r))
 #define amdgpu_ring_test_ib(r) (r)->funcs->test_ib((r))
@@ -2204,9 +2186,9 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_emit_ib(r, ib) (r)->funcs->emit_ib((r), (ib))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
-#define amdgpu_ring_emit_semaphore(r, semaphore, emit_wait) (r)->funcs->emit_semaphore((r), (semaphore), (emit_wait))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
+#define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))
@@ -2298,6 +2280,21 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_dpm_get_performance_level(adev) \
 	(adev)->powerplay.pp_funcs->get_performance_level((adev)->powerplay.pp_handle)
 
+#define amdgpu_dpm_get_pp_num_states(adev, data) \
+	(adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data)
+
+#define amdgpu_dpm_get_pp_table(adev, table) \
+	(adev)->powerplay.pp_funcs->get_pp_table((adev)->powerplay.pp_handle, table)
+
+#define amdgpu_dpm_set_pp_table(adev, buf, size) \
+	(adev)->powerplay.pp_funcs->set_pp_table((adev)->powerplay.pp_handle, buf, size)
+
+#define amdgpu_dpm_print_clock_levels(adev, type, buf) \
+	(adev)->powerplay.pp_funcs->print_clock_levels((adev)->powerplay.pp_handle, type, buf)
+
+#define amdgpu_dpm_force_clock_level(adev, type, level) \
+		(adev)->powerplay.pp_funcs->force_clock_level((adev)->powerplay.pp_handle, type, level)
+
 #define amdgpu_dpm_dispatch_task(adev, event_id, input, output)		\
 	(adev)->powerplay.pp_funcs->dispatch_tasks((adev)->powerplay.pp_handle, (event_id), (input), (output))
 
@@ -2308,7 +2305,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev);
 void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_card_posted(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
-bool amdgpu_boot_test_post_card(struct amdgpu_device *adev);
 
 int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
@@ -2318,7 +2314,7 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
-bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
+struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
 bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 				  unsigned long end);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);

@@ -90,9 +90,6 @@ extern void gma_crtc_restore(struct drm_crtc *crtc);
 extern void gma_encoder_prepare(struct drm_encoder *encoder);
 extern void gma_encoder_commit(struct drm_encoder *encoder);
 extern void gma_encoder_destroy(struct drm_encoder *encoder);
-extern bool gma_encoder_mode_fixup(struct drm_encoder *encoder,
-				   const struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode);
 
 /* Common clock related functions */
 extern const struct gma_limit_t *gma_limit(struct drm_crtc *crtc, int refclk);

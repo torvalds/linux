@@ -1,6 +1,7 @@
 config DRM_RCAR_DU
 	tristate "DRM Support for R-Car Display Unit"
-	depends on DRM && ARM && OF
+	depends on DRM && OF
+	depends on ARM || ARM64
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
@@ -14,14 +15,18 @@ config DRM_RCAR_DU
 config DRM_RCAR_HDMI
 	bool "R-Car DU HDMI Encoder Support"
 	depends on DRM_RCAR_DU
-	depends on OF
 	help
 	  Enable support for external HDMI encoders.
 
 config DRM_RCAR_LVDS
 	bool "R-Car DU LVDS Encoder Support"
 	depends on DRM_RCAR_DU
-	depends on ARCH_R8A7790 || ARCH_R8A7791 || COMPILE_TEST
 	help
-	  Enable support for the R-Car Display Unit embedded LVDS encoders
-	  (currently only on R8A7790 and R8A7791).
+	  Enable support for the R-Car Display Unit embedded LVDS encoders.
+
+config DRM_RCAR_VSP
+	bool "R-Car DU VSP Compositor Support"
+	depends on DRM_RCAR_DU
+	depends on VIDEO_RENESAS_VSP1
+	help
+	  Enable support to expose the R-Car VSP Compositor as KMS planes.

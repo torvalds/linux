@@ -371,9 +371,9 @@ static int zl10353_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int zl10353_get_parameters(struct dvb_frontend *fe)
+static int zl10353_get_parameters(struct dvb_frontend *fe,
+				  struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct zl10353_state *state = fe->demodulator_priv;
 	int s6, s9;
 	u16 tps;

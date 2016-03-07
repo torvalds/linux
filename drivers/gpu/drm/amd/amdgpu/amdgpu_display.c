@@ -35,32 +35,30 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
-				   struct fence **f)
+static void amdgpu_flip_callback(struct fence *f, struct fence_cb *cb)
 {
-	struct amdgpu_fence *fence;
-	long r;
+	struct amdgpu_flip_work *work =
+		container_of(cb, struct amdgpu_flip_work, cb);
 
-	if (*f == NULL)
-		return;
+	fence_put(f);
+	schedule_work(&work->flip_work);
+}
 
-	fence = to_amdgpu_fence(*f);
-	if (fence) {
-		r = fence_wait(&fence->base, false);
-		if (r == -EDEADLK)
-			r = amdgpu_gpu_reset(adev);
-	} else
-		r = fence_wait(*f, false);
+static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
+				     struct fence **f)
+{
+	struct fence *fence= *f;
 
-	if (r)
-		DRM_ERROR("failed to wait on page flip fence (%ld)!\n", r);
+	if (fence == NULL)
+		return false;
 
-	/* We continue with the page flip even if we failed to wait on
-	 * the fence, otherwise the DRM core and userspace will be
-	 * confused about which BO the CRTC is scanning out
-	 */
-	fence_put(*f);
 	*f = NULL;
+
+	if (!fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
+		return true;
+
+	fence_put(*f);
+	return false;
 }
 
 static void amdgpu_flip_work_func(struct work_struct *__work)
@@ -76,9 +74,12 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	int vpos, hpos, stat, min_udelay = 0;
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
 
-	amdgpu_flip_wait_fence(adev, &work->excl);
+	if (amdgpu_flip_handle_fence(work, &work->excl))
+		return;
+
 	for (i = 0; i < work->shared_count; ++i)
-		amdgpu_flip_wait_fence(adev, &work->shared[i]);
+		if (amdgpu_flip_handle_fence(work, &work->shared[i]))
+			return;
 
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -130,12 +131,12 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 				 vblank->framedur_ns / 1000,
 				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
-	/* do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
 	/* set the flip status */
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
-
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	/* Do the flip (mmio) */
+	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
 }
 
 /*
@@ -254,7 +255,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	queue_work(amdgpu_crtc->pflip_queue, &work->flip_work);
+	amdgpu_flip_work_func(&work->flip_work);
 	return 0;
 
 vblank_cleanup:

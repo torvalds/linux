@@ -389,13 +389,19 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
 	struct v4l2_of_endpoint endpoint;
+	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */
 	ep = of_get_next_child(port, NULL);
 	if (!ep)
 		return 0;
 
-	v4l2_of_parse_endpoint(ep, &endpoint);
+	ret = v4l2_of_parse_endpoint(ep, &endpoint);
+	if (ret) {
+		of_node_put(ep);
+		return ret;
+	}
+
 	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS)
 		return -EINVAL;
 
@@ -486,8 +492,10 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 			continue;
 
 		ret = fimc_md_parse_port_node(fmd, port, index);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(node);
 			goto rpm_put;
+		}
 		index++;
 	}
 
@@ -498,8 +506,10 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 
 	for_each_child_of_node(ports, node) {
 		ret = fimc_md_parse_port_node(fmd, node, index);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(node);
 			break;
+		}
 		index++;
 	}
 rpm_put:
@@ -707,8 +717,10 @@ static int fimc_md_register_platform_entities(struct fimc_md *fmd,
 			ret = fimc_md_register_platform_entity(fmd, pdev,
 							plat_entity);
 		put_device(&pdev->dev);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(node);
 			break;
+		}
 	}
 
 	return ret;

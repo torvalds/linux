@@ -18,6 +18,7 @@
 #define SI2157_H
 
 #include <linux/kconfig.h>
+#include <media/media-device.h>
 #include "dvb_frontend.h"
 
 /*
@@ -29,6 +30,10 @@ struct si2157_config {
 	 * frontend
 	 */
 	struct dvb_frontend *fe;
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_device *mdev;
+#endif
 
 	/*
 	 * Spectral Inversion

@@ -11,4 +11,6 @@ rcar-du-drm-$(CONFIG_DRM_RCAR_HDMI)	+= rcar_du_hdmicon.o \
 					   rcar_du_hdmienc.o
 rcar-du-drm-$(CONFIG_DRM_RCAR_LVDS)	+= rcar_du_lvdsenc.o
 
+rcar-du-drm-$(CONFIG_DRM_RCAR_VSP)	+= rcar_du_vsp.o
+
 obj-$(CONFIG_DRM_RCAR_DU)		+= rcar-du-drm.o

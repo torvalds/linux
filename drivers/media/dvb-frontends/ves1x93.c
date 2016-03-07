@@ -406,9 +406,9 @@ static int ves1x93_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int ves1x93_get_frontend(struct dvb_frontend *fe)
+static int ves1x93_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ves1x93_state* state = fe->demodulator_priv;
 	int afc;
 

@@ -80,7 +80,34 @@
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_F_TUNER</constant></entry>
-	    <entry>Digital TV, analog TV, radio and/or software radio tuner.</entry>
+	    <entry>Digital TV, analog TV, radio and/or software radio tuner,
+		   with consists on a PLL tuning stage that converts radio
+		   frequency (RF) signal into an Intermediate Frequency (IF).
+		   Modern tuners have internally IF-PLL decoders for audio
+		   and video, but older models have those stages implemented
+		   on separate entities.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_IF_VID_DECODER</constant></entry>
+	    <entry>IF-PLL video decoder. It receives the IF from a PLL
+		   and decodes the analog TV video signal. This is commonly
+		   found on some very old analog tuners, like Philips MK3
+		   designs. They all contain a tda9887 (or some software
+		   compatible similar chip, like tda9885). Those devices
+		   use a different I2C address than the tuner PLL.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>MEDIA_ENT_F_IF_AUD_DECODER</constant></entry>
+	    <entry>IF-PLL sound decoder. It receives the IF from a PLL
+		   and decodes the analog TV audio signal. This is commonly
+		   found on some very old analog hardware, like Micronas
+		   msp3400, Philips tda9840, tda985x, etc. Those devices
+		   use a different I2C address than the tuner PLL and
+		   should be controlled together with the IF-PLL video
+		   decoder.
+	    </entry>
 	  </row>
 	</tbody>
       </tgroup>

@@ -73,9 +73,6 @@
  * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
  * &drm_connector_helper_funcs.
  */
-MODULE_AUTHOR("David Airlie, Jesse Barnes");
-MODULE_DESCRIPTION("DRM KMS helper");
-MODULE_LICENSE("GPL and additional rights");
 
 /**
  * drm_helper_move_panel_connectors_to_head() - move panels to the front in the
@@ -346,9 +343,12 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!(ret = crtc_funcs->mode_fixup(crtc, mode, adjusted_mode))) {
-		DRM_DEBUG_KMS("CRTC fixup failed\n");
-		goto done;
+	if (crtc_funcs->mode_fixup) {
+		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
+						adjusted_mode))) {
+			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			goto done;
+		}
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
