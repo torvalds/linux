@@ -786,6 +786,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 				goto bail_ip;
 			}
 		}
+		qp->pid = current->pid;
 	}
 
 	spin_lock(&rdi->n_qps_lock);
