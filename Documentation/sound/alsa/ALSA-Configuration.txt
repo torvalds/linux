@@ -1910,6 +1910,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                     - Default: 0x0000 
     ignore_ctl_error - Ignore any USB-controller regarding mixer
     		       interface (default: no)
+    autoclock	    - Enable auto-clock selection for UAC2 devices
+		      (default: yes)
+    quirk_alias	    - Quirk alias list, pass strings like
+		      "0123abcd:5678beef", which applies the existing
+		      quirk for the device 5678:beef to a new device
+		      0123:abcd.
 
     This module supports multiple devices, autoprobe and hotplugging.
 
@@ -1919,6 +1925,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     NB: ignore_ctl_error=1 may help when you get an error at accessing
         the mixer element such as URB error -22.  This happens on some
         buggy USB device or the controller.
+    NB: quirk_alias option is provided only for testing / development.
+        If you want to have a proper support, contact to upstream for
+	adding the matching quirk in the driver code statically.
 
   Module snd-usb-caiaq
   --------------------

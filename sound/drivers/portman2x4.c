@@ -83,8 +83,6 @@ struct portman {
 	struct snd_card *card;
 	struct snd_rawmidi *rmidi;
 	struct pardevice *pardev;
-	int pardev_claimed;
-
 	int open_count;
 	int mode[PORTMAN_NUM_INPUT_PORTS];
 	struct snd_rawmidi_substream *midi_input[PORTMAN_NUM_INPUT_PORTS];
@@ -648,30 +646,6 @@ static void snd_portman_interrupt(void *userdata)
 	spin_unlock(&pm->reg_lock);
 }
 
-static int snd_portman_probe_port(struct parport *p)
-{
-	struct pardevice *pardev;
-	int res;
-
-	pardev = parport_register_device(p, DRIVER_NAME,
-					 NULL, NULL, NULL,
-					 0, NULL);
-	if (!pardev)
-		return -EIO;
-	
-	if (parport_claim(pardev)) {
-		parport_unregister_device(pardev);
-		return -EIO;
-	}
-
-	res = portman_probe(p);
-
-	parport_release(pardev);
-	parport_unregister_device(pardev);
-
-	return res ? -EIO : 0;
-}
-
 static void snd_portman_attach(struct parport *p)
 {
 	struct platform_device *device;
@@ -705,10 +679,20 @@ static void snd_portman_detach(struct parport *p)
 	/* nothing to do here */
 }
 
+static int snd_portman_dev_probe(struct pardevice *pardev)
+{
+	if (strcmp(pardev->name, DRIVER_NAME))
+		return -ENODEV;
+
+	return 0;
+}
+
 static struct parport_driver portman_parport_driver = {
-	.name   = "portman2x4",
-	.attach = snd_portman_attach,
-	.detach = snd_portman_detach
+	.name		= "portman2x4",
+	.probe		= snd_portman_dev_probe,
+	.match_port	= snd_portman_attach,
+	.detach		= snd_portman_detach,
+	.devmodel	= true,
 };
 
 /*********************************************************************
@@ -720,8 +704,7 @@ static void snd_portman_card_private_free(struct snd_card *card)
 	struct pardevice *pardev = pm->pardev;
 
 	if (pardev) {
-		if (pm->pardev_claimed)
-			parport_release(pardev);
+		parport_release(pardev);
 		parport_unregister_device(pardev);
 	}
 
@@ -736,6 +719,12 @@ static int snd_portman_probe(struct platform_device *pdev)
 	struct snd_card *card = NULL;
 	struct portman *pm = NULL;
 	int err;
+	struct pardev_cb portman_cb = {
+		.preempt = NULL,
+		.wakeup = NULL,
+		.irq_func = snd_portman_interrupt,	/* ISR */
+		.flags = PARPORT_DEV_EXCL,		/* flags */
+	};
 
 	p = platform_get_drvdata(pdev);
 	platform_set_drvdata(pdev, NULL);
@@ -744,9 +733,6 @@ static int snd_portman_probe(struct platform_device *pdev)
 		return -ENODEV;
 	if (!enable[dev]) 
 		return -ENOENT;
-
-	if ((err = snd_portman_probe_port(p)) < 0)
-		return err;
 
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
@@ -759,29 +745,14 @@ static int snd_portman_probe(struct platform_device *pdev)
 	sprintf(card->longname,  "%s at 0x%lx, irq %i", 
 		card->shortname, p->base, p->irq);
 
-	pardev = parport_register_device(p,                     /* port */
-					 DRIVER_NAME,           /* name */
-					 NULL,                  /* preempt */
-					 NULL,                  /* wakeup */
-					 snd_portman_interrupt, /* ISR */
-					 PARPORT_DEV_EXCL,      /* flags */
-					 (void *)card);         /* private */
+	portman_cb.private = card;			   /* private */
+	pardev = parport_register_dev_model(p,		   /* port */
+					    DRIVER_NAME,   /* name */
+					    &portman_cb,   /* callbacks */
+					    pdev->id);	   /* device number */
 	if (pardev == NULL) {
 		snd_printd("Cannot register pardevice\n");
 		err = -EIO;
-		goto __err;
-	}
-
-	if ((err = portman_create(card, pardev, &pm)) < 0) {
-		snd_printd("Cannot create main component\n");
-		parport_unregister_device(pardev);
-		goto __err;
-	}
-	card->private_data = pm;
-	card->private_free = snd_portman_card_private_free;
-	
-	if ((err = snd_portman_rawmidi_create(card)) < 0) {
-		snd_printd("Creating Rawmidi component failed\n");
 		goto __err;
 	}
 
@@ -789,9 +760,26 @@ static int snd_portman_probe(struct platform_device *pdev)
 	if (parport_claim(pardev)) {
 		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
+		goto free_pardev;
+	}
+
+	if ((err = portman_create(card, pardev, &pm)) < 0) {
+		snd_printd("Cannot create main component\n");
+		goto release_pardev;
+	}
+	card->private_data = pm;
+	card->private_free = snd_portman_card_private_free;
+
+	err = portman_probe(p);
+	if (err) {
+		err = -EIO;
 		goto __err;
 	}
-	pm->pardev_claimed = 1;
+	
+	if ((err = snd_portman_rawmidi_create(card)) < 0) {
+		snd_printd("Creating Rawmidi component failed\n");
+		goto __err;
+	}
 
 	/* init device */
 	if ((err = portman_device_init(pm)) < 0)
@@ -808,6 +796,10 @@ static int snd_portman_probe(struct platform_device *pdev)
 	snd_printk(KERN_INFO "Portman 2x4 on 0x%lx\n", p->base);
 	return 0;
 
+release_pardev:
+	parport_release(pardev);
+free_pardev:
+	parport_unregister_device(pardev);
 __err:
 	snd_card_free(card);
 	return err;

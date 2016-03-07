@@ -57,65 +57,10 @@ static int check_dice_category(struct fw_unit *unit)
 	return 0;
 }
 
-static int highest_supported_mode_rate(struct snd_dice *dice,
-				       unsigned int mode, unsigned int *rate)
-{
-	unsigned int i, m;
-
-	for (i = ARRAY_SIZE(snd_dice_rates); i > 0; i--) {
-		*rate = snd_dice_rates[i - 1];
-		if (snd_dice_stream_get_rate_mode(dice, *rate, &m) < 0)
-			continue;
-		if (mode == m)
-			break;
-	}
-	if (i == 0)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int dice_read_mode_params(struct snd_dice *dice, unsigned int mode)
-{
-	__be32 values[2];
-	unsigned int rate;
-	int err;
-
-	if (highest_supported_mode_rate(dice, mode, &rate) < 0) {
-		dice->tx_channels[mode] = 0;
-		dice->tx_midi_ports[mode] = 0;
-		dice->rx_channels[mode] = 0;
-		dice->rx_midi_ports[mode] = 0;
-		return 0;
-	}
-
-	err = snd_dice_transaction_set_rate(dice, rate);
-	if (err < 0)
-		return err;
-
-	err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->tx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->tx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
-					   values, sizeof(values));
-	if (err < 0)
-		return err;
-
-	dice->rx_channels[mode]   = be32_to_cpu(values[0]);
-	dice->rx_midi_ports[mode] = be32_to_cpu(values[1]);
-
-	return 0;
-}
-
-static int dice_read_params(struct snd_dice *dice)
+static int check_clock_caps(struct snd_dice *dice)
 {
 	__be32 value;
-	int mode, err;
+	int err;
 
 	/* some very old firmwares don't tell about their clock support */
 	if (dice->clock_caps > 0) {
@@ -131,12 +76,6 @@ static int dice_read_params(struct snd_dice *dice)
 				   CLOCK_CAP_RATE_48000 |
 				   CLOCK_CAP_SOURCE_ARX1 |
 				   CLOCK_CAP_SOURCE_INTERNAL;
-	}
-
-	for (mode = 2; mode >= 0; --mode) {
-		err = dice_read_mode_params(dice, mode);
-		if (err < 0)
-			return err;
 	}
 
 	return 0;
@@ -215,7 +154,7 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = dice_read_params(dice);
+	err = check_clock_caps(dice);
 	if (err < 0)
 		goto error;
 

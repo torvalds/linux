@@ -2145,7 +2145,7 @@ static int azx_probe_continue(struct azx *chip)
 	azx_add_card_list(chip);
 	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
-		pm_runtime_put_noidle(&pci->dev);
+		pm_runtime_put_autosuspend(&pci->dev);
 
 out_free:
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL

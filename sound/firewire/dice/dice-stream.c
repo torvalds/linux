@@ -10,6 +10,7 @@
 #include "dice.h"
 
 #define	CALLBACK_TIMEOUT	200
+#define NOTIFICATION_TIMEOUT_MS	(2 * MSEC_PER_SEC)
 
 const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	/* mode 0 */
@@ -24,21 +25,44 @@ const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT] = {
 	[6] = 192000,
 };
 
-int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
-				  unsigned int *mode)
+/*
+ * This operation has an effect to synchronize GLOBAL_STATUS/GLOBAL_SAMPLE_RATE
+ * to GLOBAL_STATUS. Especially, just after powering on, these are different.
+ */
+static int ensure_phase_lock(struct snd_dice *dice)
 {
-	int i;
+	__be32 reg, nominal;
+	int err;
 
-	for (i = 0; i < ARRAY_SIZE(snd_dice_rates); i++) {
-		if (!(dice->clock_caps & BIT(i)))
-			continue;
-		if (snd_dice_rates[i] != rate)
-			continue;
+	err = snd_dice_transaction_read_global(dice, GLOBAL_CLOCK_SELECT,
+					       &reg, sizeof(reg));
+	if (err < 0)
+		return err;
 
-		*mode = (i - 1) / 2;
-		return 0;
+	if (completion_done(&dice->clock_accepted))
+		reinit_completion(&dice->clock_accepted);
+
+	err = snd_dice_transaction_write_global(dice, GLOBAL_CLOCK_SELECT,
+						&reg, sizeof(reg));
+	if (err < 0)
+		return err;
+
+	if (wait_for_completion_timeout(&dice->clock_accepted,
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
+		/*
+		 * Old versions of Dice firmware transfer no notification when
+		 * the same clock status as current one is set. In this case,
+		 * just check current clock status.
+		 */
+		err = snd_dice_transaction_read_global(dice, GLOBAL_STATUS,
+						&nominal, sizeof(nominal));
+		if (err < 0)
+			return err;
+		if (!(be32_to_cpu(nominal) & STATUS_SOURCE_LOCKED))
+			return -ETIMEDOUT;
 	}
-	return -EINVAL;
+
+	return 0;
 }
 
 static void release_resources(struct snd_dice *dice,
@@ -99,22 +123,26 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 			unsigned int rate)
 {
 	struct fw_iso_resources *resources;
-	unsigned int i, mode, pcm_chs, midi_ports;
+	__be32 reg[2];
+	unsigned int i, pcm_chs, midi_ports;
 	bool double_pcm_frames;
 	int err;
 
-	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
-	if (err < 0)
-		goto end;
 	if (stream == &dice->tx_stream) {
 		resources = &dice->tx_resources;
-		pcm_chs = dice->tx_channels[mode];
-		midi_ports = dice->tx_midi_ports[mode];
+		err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
+						   reg, sizeof(reg));
 	} else {
 		resources = &dice->rx_resources;
-		pcm_chs = dice->rx_channels[mode];
-		midi_ports = dice->rx_midi_ports[mode];
+		err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
+						   reg, sizeof(reg));
 	}
+
+	if (err < 0)
+		goto end;
+
+	pcm_chs = be32_to_cpu(reg[0]);
+	midi_ports = be32_to_cpu(reg[1]);
 
 	/*
 	 * At 176.4/192.0 kHz, Dice has a quirk to transfer two PCM frames in
@@ -126,7 +154,7 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 	 * For this quirk, blocking mode is required and PCM buffer size should
 	 * be aligned to SYT_INTERVAL.
 	 */
-	double_pcm_frames = mode > 1;
+	double_pcm_frames = rate > 96000;
 	if (double_pcm_frames) {
 		rate /= 2;
 		pcm_chs *= 2;
@@ -163,53 +191,17 @@ end:
 	return err;
 }
 
-static int get_sync_mode(struct snd_dice *dice, enum cip_flags *sync_mode)
-{
-	u32 source;
-	int err;
-
-	err = snd_dice_transaction_get_clock_source(dice, &source);
-	if (err < 0)
-		goto end;
-
-	switch (source) {
-	/* So-called 'SYT Match' modes, sync_to_syt value of packets received */
-	case CLOCK_SOURCE_ARX4:	/* in 4th stream */
-	case CLOCK_SOURCE_ARX3:	/* in 3rd stream */
-	case CLOCK_SOURCE_ARX2:	/* in 2nd stream */
-		err = -ENOSYS;
-		break;
-	case CLOCK_SOURCE_ARX1:	/* in 1st stream, which this driver uses */
-		*sync_mode = 0;
-		break;
-	default:
-		*sync_mode = CIP_SYNC_TO_DEVICE;
-		break;
-	}
-end:
-	return err;
-}
-
 int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 {
 	struct amdtp_stream *master, *slave;
 	unsigned int curr_rate;
-	enum cip_flags sync_mode;
 	int err = 0;
 
 	if (dice->substreams_counter == 0)
 		goto end;
 
-	err = get_sync_mode(dice, &sync_mode);
-	if (err < 0)
-		goto end;
-	if (sync_mode == CIP_SYNC_TO_DEVICE) {
-		master = &dice->tx_stream;
-		slave  = &dice->rx_stream;
-	} else {
-		master = &dice->rx_stream;
-		slave  = &dice->tx_stream;
-	}
+	master = &dice->rx_stream;
+	slave  = &dice->tx_stream;
 
 	/* Some packet queueing errors. */
 	if (amdtp_streaming_error(master) || amdtp_streaming_error(slave))
@@ -224,19 +216,19 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 	}
 	if (rate == 0)
 		rate = curr_rate;
-	if (rate != curr_rate)
-		stop_stream(dice, master);
+	if (rate != curr_rate) {
+		err = -EINVAL;
+		goto end;
+	}
 
 	if (!amdtp_stream_running(master)) {
 		stop_stream(dice, slave);
 		snd_dice_transaction_clear_enable(dice);
 
-		amdtp_stream_set_sync(sync_mode, master, slave);
-
-		err = snd_dice_transaction_set_rate(dice, rate);
+		err = ensure_phase_lock(dice);
 		if (err < 0) {
 			dev_err(&dice->unit->device,
-				"fail to set sampling rate\n");
+				"fail to ensure phase lock\n");
 			goto end;
 		}
 
