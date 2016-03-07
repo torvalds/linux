@@ -332,16 +332,22 @@ int snd_dice_create_pcm(struct snd_dice *dice)
 	int err;
 
 	/* Check whether PCM substreams are required. */
-	max_capture = max_playback = 0;
-	err = snd_dice_transaction_read_tx(dice, TX_NUMBER, &reg, sizeof(reg));
-	if (err < 0)
-		return err;
-	max_capture = min_t(unsigned int, be32_to_cpu(reg), MAX_STREAMS);
+	if (dice->force_two_pcms) {
+		max_capture = max_playback = 2;
+	} else {
+		max_capture = max_playback = 0;
+		err = snd_dice_transaction_read_tx(dice, TX_NUMBER, &reg,
+						   sizeof(reg));
+		if (err < 0)
+			return err;
+		max_capture = min_t(unsigned int, be32_to_cpu(reg), MAX_STREAMS);
 
-	err = snd_dice_transaction_read_rx(dice, RX_NUMBER, &reg, sizeof(reg));
-	if (err < 0)
-		return err;
-	max_playback = min_t(unsigned int, be32_to_cpu(reg), MAX_STREAMS);
+		err = snd_dice_transaction_read_rx(dice, RX_NUMBER, &reg,
+						   sizeof(reg));
+		if (err < 0)
+			return err;
+		max_playback = min_t(unsigned int, be32_to_cpu(reg), MAX_STREAMS);
+	}
 
 	for (i = 0; i < MAX_STREAMS; i++) {
 		capture = playback = 0;

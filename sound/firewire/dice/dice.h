@@ -97,6 +97,8 @@ struct snd_dice {
 	bool global_enabled;
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
+
+	bool force_two_pcms;
 };
 
 enum snd_dice_addr_type {
