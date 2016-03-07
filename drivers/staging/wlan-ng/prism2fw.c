@@ -333,6 +333,10 @@ static int prism2_fwapply(const struct ihex_binrec *rfptr,
 
 	/* Make the image chunks */
 	result = mkimage(fchunk, &nfchunks);
+	if (result) {
+		netdev_err(wlandev->netdev, "Failed to make image chunk.\n");
+		return 1;
+	}
 
 	/* Do any plugging */
 	result = plugimage(fchunk, nfchunks, s3plug, ns3plug, &pda);
