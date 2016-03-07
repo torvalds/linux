@@ -309,6 +309,8 @@ static const struct snd_kcontrol_new rt5616_snd_controls[] = {
 	/* Headphone Output Volume */
 	SOC_DOUBLE("HP Playback Switch", RT5616_HP_VOL,
 		   RT5616_L_MUTE_SFT, RT5616_R_MUTE_SFT, 1, 1),
+	SOC_DOUBLE("HPVOL Playback Switch", RT5616_HP_VOL,
+		   RT5616_VOL_L_SFT, RT5616_VOL_R_SFT, 1, 1),
 	SOC_DOUBLE_TLV("HP Playback Volume", RT5616_HP_VOL,
 		       RT5616_L_VOL_SFT, RT5616_R_VOL_SFT, 39, 1, out_vol_tlv),
 	/* OUTPUT Control */
