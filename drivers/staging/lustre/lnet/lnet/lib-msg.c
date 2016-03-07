@@ -535,6 +535,12 @@ lnet_finalize(lnet_ni_t *ni, lnet_msg_t *msg, int status)
 			break;
 	}
 
+	if (unlikely(!list_empty(&the_lnet.ln_delay_rules))) {
+		lnet_net_unlock(cpt);
+		lnet_delay_rule_check();
+		lnet_net_lock(cpt);
+	}
+
 	container->msc_finalizers[my_slot] = NULL;
 	lnet_net_unlock(cpt);
 

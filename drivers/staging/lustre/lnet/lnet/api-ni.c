@@ -551,6 +551,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 	INIT_LIST_HEAD(&the_lnet.ln_nis_zombie);
 	INIT_LIST_HEAD(&the_lnet.ln_routers);
 	INIT_LIST_HEAD(&the_lnet.ln_drop_rules);
+	INIT_LIST_HEAD(&the_lnet.ln_delay_rules);
 
 	rc = lnet_create_remote_nets_table();
 	if (rc)

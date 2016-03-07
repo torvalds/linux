@@ -88,6 +88,7 @@ typedef struct lnet_msg {
 	unsigned int	msg_rtrcredit:1;	/* taken a global router credit */
 	unsigned int	msg_peerrtrcredit:1;	/* taken a peer router credit */
 	unsigned int	msg_onactivelist:1;	/* on the activelist */
+	unsigned int	msg_rdma_get:1;
 
 	struct lnet_peer	*msg_txpeer;	 /* peer I'm sending to */
 	struct lnet_peer	*msg_rxpeer;	 /* peer I received from */
@@ -574,6 +575,7 @@ typedef struct {
 	/* failure simulation */
 	struct list_head		  ln_test_peers;
 	struct list_head		  ln_drop_rules;
+	struct list_head		  ln_delay_rules;
 
 	struct list_head		  ln_nis;	/* LND instances */
 	/* NIs bond on specific CPT(s) */
@@ -610,6 +612,7 @@ typedef struct {
 
 	struct mutex			  ln_api_mutex;
 	struct mutex			  ln_lnd_mutex;
+	struct mutex			  ln_delay_mutex;
 	/* Have I called LNetNIInit myself? */
 	int				  ln_niinit_self;
 	/* LNetNIInit/LNetNIFini counter */

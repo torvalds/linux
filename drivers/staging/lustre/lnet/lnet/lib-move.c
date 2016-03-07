@@ -42,11 +42,6 @@
 
 #include "../../include/linux/lnet/lib-lnet.h"
 
-/** lnet message has credit and can be submitted to lnd for send/receive */
-#define LNET_CREDIT_OK		0
-/** lnet message is waiting for credit */
-#define LNET_CREDIT_WAIT	1
-
 static int local_nid_dist_zero = 1;
 module_param(local_nid_dist_zero, int, 0444);
 MODULE_PARM_DESC(local_nid_dist_zero, "Reserved");
@@ -570,7 +565,7 @@ lnet_extract_kiov(int dst_niov, lnet_kiov_t *dst,
 }
 EXPORT_SYMBOL(lnet_extract_kiov);
 
-static void
+void
 lnet_ni_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	     unsigned int offset, unsigned int mlen, unsigned int rlen)
 {
@@ -1431,7 +1426,7 @@ lnet_send(lnet_nid_t src_nid, lnet_msg_t *msg, lnet_nid_t rtr_nid)
 	return 0; /* rc == LNET_CREDIT_OK or LNET_CREDIT_WAIT */
 }
 
-static void
+void
 lnet_drop_message(lnet_ni_t *ni, int cpt, void *private, unsigned int nob)
 {
 	lnet_net_lock(cpt);
@@ -1705,7 +1700,7 @@ lnet_parse_ack(lnet_ni_t *ni, lnet_msg_t *msg)
  * \retval LNET_CREDIT_WAIT	If \a msg is blocked because w/o buffer
  * \retval -ve			error code
  */
-static int
+int
 lnet_parse_forward_locked(lnet_ni_t *ni, lnet_msg_t *msg)
 {
 	int rc = 0;
@@ -1726,6 +1721,33 @@ lnet_parse_forward_locked(lnet_ni_t *ni, lnet_msg_t *msg)
 
 	if (!rc)
 		rc = lnet_post_routed_recv_locked(msg, 0);
+	return rc;
+}
+
+int
+lnet_parse_local(lnet_ni_t *ni, lnet_msg_t *msg)
+{
+	int rc;
+
+	switch (msg->msg_type) {
+	case LNET_MSG_ACK:
+		rc = lnet_parse_ack(ni, msg);
+		break;
+	case LNET_MSG_PUT:
+		rc = lnet_parse_put(ni, msg);
+		break;
+	case LNET_MSG_GET:
+		rc = lnet_parse_get(ni, msg, msg->msg_rdma_get);
+		break;
+	case LNET_MSG_REPLY:
+		rc = lnet_parse_reply(ni, msg);
+		break;
+	default: /* prevent an unused label if !kernel */
+		LASSERT(0);
+		return -EPROTO;
+	}
+
+	LASSERT(!rc || rc == -ENOENT);
 	return rc;
 }
 
@@ -1953,6 +1975,7 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 	msg->msg_type = type;
 	msg->msg_private = private;
 	msg->msg_receiving = 1;
+	msg->msg_rdma_get = rdma_req;
 	msg->msg_wanted = payload_length;
 	msg->msg_len = payload_length;
 	msg->msg_offset = 0;
@@ -2000,6 +2023,13 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 
 	lnet_msg_commit(msg, cpt);
 
+	/* message delay simulation */
+	if (unlikely(!list_empty(&the_lnet.ln_delay_rules) &&
+		     lnet_delay_rule_match_locked(hdr, msg))) {
+		lnet_net_unlock(cpt);
+		return 0;
+	}
+
 	if (!for_me) {
 		rc = lnet_parse_forward_locked(ni, msg);
 		lnet_net_unlock(cpt);
@@ -2016,29 +2046,10 @@ lnet_parse(lnet_ni_t *ni, lnet_hdr_t *hdr, lnet_nid_t from_nid,
 
 	lnet_net_unlock(cpt);
 
-	switch (type) {
-	case LNET_MSG_ACK:
-		rc = lnet_parse_ack(ni, msg);
-		break;
-	case LNET_MSG_PUT:
-		rc = lnet_parse_put(ni, msg);
-		break;
-	case LNET_MSG_GET:
-		rc = lnet_parse_get(ni, msg, rdma_req);
-		break;
-	case LNET_MSG_REPLY:
-		rc = lnet_parse_reply(ni, msg);
-		break;
-	default:
-		LASSERT(0);
-		rc = -EPROTO;
-		goto free_drop;  /* prevent an unused label if !kernel */
-	}
-
-	if (!rc)
-		return 0;
-
-	LASSERT(rc == -ENOENT);
+	rc = lnet_parse_local(ni, msg);
+	if (rc)
+		goto free_drop;
+	return 0;
 
  free_drop:
 	LASSERT(!msg->msg_md);
