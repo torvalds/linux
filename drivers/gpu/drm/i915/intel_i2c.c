@@ -579,7 +579,6 @@ timeout:
 	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
 	 * instead. Use EAGAIN to have i2c core retry.
 	 */
-	bus->force_bit = 1;
 	ret = -EAGAIN;
 
 out:
@@ -597,10 +596,15 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
-	if (bus->force_bit)
+	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
-	else
+		if (ret < 0)
+			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
+	} else {
 		ret = do_gmbus_xfer(adapter, msgs, num);
+		if (ret == -EAGAIN)
+			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
+	}
 
 	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
