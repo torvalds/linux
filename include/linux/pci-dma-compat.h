@@ -6,6 +6,12 @@
 
 #include <linux/dma-mapping.h>
 
+/* This defines the direction arg to the DMA mapping routines. */
+#define PCI_DMA_BIDIRECTIONAL	0
+#define PCI_DMA_TODEVICE	1
+#define PCI_DMA_FROMDEVICE	2
+#define PCI_DMA_NONE		3
+
 static inline void *
 pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 		     dma_addr_t *dma_handle)
@@ -113,6 +119,29 @@ static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
 	return dma_set_coherent_mask(&dev->dev, mask);
 }
+
+static inline int pci_set_dma_max_seg_size(struct pci_dev *dev,
+					   unsigned int size)
+{
+	return dma_set_max_seg_size(&dev->dev, size);
+}
+
+static inline int pci_set_dma_seg_boundary(struct pci_dev *dev,
+					   unsigned long mask)
+{
+	return dma_set_seg_boundary(&dev->dev, mask);
+}
+#else
+static inline int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
+{ return -EIO; }
+static inline int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
+{ return -EIO; }
+static inline int pci_set_dma_max_seg_size(struct pci_dev *dev,
+					   unsigned int size)
+{ return -EIO; }
+static inline int pci_set_dma_seg_boundary(struct pci_dev *dev,
+					   unsigned long mask)
+{ return -EIO; }
 #endif
 
 #endif

@@ -3385,18 +3385,6 @@ bool pci_check_and_unmask_intx(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_check_and_unmask_intx);
 
-int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
-{
-	return dma_set_max_seg_size(&dev->dev, size);
-}
-EXPORT_SYMBOL(pci_set_dma_max_seg_size);
-
-int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
-{
-	return dma_set_seg_boundary(&dev->dev, mask);
-}
-EXPORT_SYMBOL(pci_set_dma_seg_boundary);
-
 /**
  * pci_wait_for_pending_transaction - waits for pending transaction
  * @dev: the PCI device to operate on
