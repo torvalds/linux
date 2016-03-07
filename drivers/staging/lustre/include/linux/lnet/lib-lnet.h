@@ -578,6 +578,16 @@ char *lnet_msgtyp2str(int type);
 void lnet_print_hdr(lnet_hdr_t *hdr);
 int lnet_fail_nid(lnet_nid_t nid, unsigned int threshold);
 
+/** \addtogroup lnet_fault_simulation @{ */
+
+int lnet_fault_ctl(int cmd, struct libcfs_ioctl_data *data);
+int lnet_fault_init(void);
+void lnet_fault_fini(void);
+
+bool lnet_drop_rule_match(lnet_hdr_t *hdr);
+
+/** @} lnet_fault_simulation */
+
 void lnet_counters_get(lnet_counters_t *counters);
 void lnet_counters_reset(void);
 

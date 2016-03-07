@@ -550,6 +550,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 	INIT_LIST_HEAD(&the_lnet.ln_nis_cpt);
 	INIT_LIST_HEAD(&the_lnet.ln_nis_zombie);
 	INIT_LIST_HEAD(&the_lnet.ln_routers);
+	INIT_LIST_HEAD(&the_lnet.ln_drop_rules);
 
 	rc = lnet_create_remote_nets_table();
 	if (rc)
@@ -1564,6 +1565,7 @@ LNetNIInit(lnet_pid_t requested_pid)
 	if (rc)
 		goto err_stop_ping;
 
+	lnet_fault_init();
 	lnet_router_debugfs_init();
 
 	mutex_unlock(&the_lnet.ln_api_mutex);
@@ -1616,6 +1618,7 @@ LNetNIFini(void)
 	} else {
 		LASSERT(!the_lnet.ln_niinit_self);
 
+		lnet_fault_fini();
 		lnet_router_debugfs_fini();
 		lnet_router_checker_stop();
 		lnet_ping_target_fini();
@@ -2029,6 +2032,9 @@ LNetCtl(unsigned int cmd, void *arg)
 		the_lnet.ln_testprotocompat = data->ioc_flags;
 		lnet_net_unlock(LNET_LOCK_EX);
 		return 0;
+
+	case IOC_LIBCFS_LNET_FAULT:
+		return lnet_fault_ctl(data->ioc_flags, data);
 
 	case IOC_LIBCFS_PING:
 		id.nid = data->ioc_nid;

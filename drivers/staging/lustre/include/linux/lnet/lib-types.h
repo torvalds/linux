@@ -40,6 +40,7 @@
 #include <linux/types.h>
 
 #include "types.h"
+#include "lnetctl.h"
 
 /* Max payload size */
 #define LNET_MAX_PAYLOAD      CONFIG_LNET_MAX_PAYLOAD
@@ -572,6 +573,7 @@ typedef struct {
 	struct lnet_peer_table		**ln_peer_tables;
 	/* failure simulation */
 	struct list_head		  ln_test_peers;
+	struct list_head		  ln_drop_rules;
 
 	struct list_head		  ln_nis;	/* LND instances */
 	/* NIs bond on specific CPT(s) */
