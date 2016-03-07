@@ -27,8 +27,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/of_device.h>
 
-#include "pwm-tipwmss.h"
-
 /* EHRPWM registers and bits definitions */
 
 /* Time base module registers */
@@ -439,7 +437,6 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct clk *clk;
 	struct ehrpwm_pwm_chip *pc;
-	u16 status;
 
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
@@ -496,27 +493,9 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
-
-	status = pwmss_submodule_state_change(pdev->dev.parent,
-			PWMSS_EPWMCLK_EN);
-	if (!(status & PWMSS_EPWMCLK_EN_ACK)) {
-		dev_err(&pdev->dev, "PWMSS config space clock enable failed\n");
-		ret = -EINVAL;
-		goto pwmss_clk_failure;
-	}
-
-	pm_runtime_put_sync(&pdev->dev);
 
 	platform_set_drvdata(pdev, pc);
 	return 0;
-
-pwmss_clk_failure:
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-	pwmchip_remove(&pc->chip);
-	clk_unprepare(pc->tbclk);
-	return ret;
 }
 
 static int ehrpwm_pwm_remove(struct platform_device *pdev)
@@ -524,14 +503,6 @@ static int ehrpwm_pwm_remove(struct platform_device *pdev)
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
 
 	clk_unprepare(pc->tbclk);
-
-	pm_runtime_get_sync(&pdev->dev);
-	/*
-	 * Due to hardware misbehaviour, acknowledge of the stop_req
-	 * is missing. Hence checking of the status bit skipped.
-	 */
-	pwmss_submodule_state_change(pdev->dev.parent, PWMSS_EPWMCLK_STOP_REQ);
-	pm_runtime_put_sync(&pdev->dev);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
