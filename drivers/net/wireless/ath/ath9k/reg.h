@@ -985,6 +985,10 @@
 #define AR_SREV_9561(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9561))
 
+#define AR_SREV_SOC(_ah) \
+	(AR_SREV_9340(_ah) || AR_SREV_9531(_ah) || AR_SREV_9550(ah) || \
+	 AR_SREV_9561(ah))
+
 /* NOTE: When adding chips newer than Peacock, add chip check here */
 #define AR_SREV_9580_10_OR_LATER(_ah) \
 	(AR_SREV_9580(_ah))
@@ -1104,13 +1108,45 @@ enum {
 
 #define AR_PCIE_PHY_REG3			 0x18c08
 
+/* Define correct GPIO numbers and MASK bits to indicate the WMAC
+ * GPIO resource.
+ * Allow SOC chips(AR9340, AR9531, AR9550, AR9561) to access all GPIOs
+ * which rely on gpiolib framework. But restrict SOC AR9330 only to
+ * access WMAC GPIO which has the same design with the old chips.
+ */
 #define AR_NUM_GPIO                              14
-#define AR928X_NUM_GPIO                          10
+#define AR9280_NUM_GPIO                          10
 #define AR9285_NUM_GPIO                          12
-#define AR9287_NUM_GPIO                          11
+#define AR9287_NUM_GPIO                          10
 #define AR9271_NUM_GPIO                          16
-#define AR9300_NUM_GPIO                          17
+#define AR9300_NUM_GPIO                          16
+#define AR9330_NUM_GPIO				 16
+#define AR9340_NUM_GPIO				 23
+#define AR9462_NUM_GPIO				 10
+#define AR9485_NUM_GPIO				 12
+#define AR9531_NUM_GPIO				 18
+#define AR9550_NUM_GPIO				 24
+#define AR9561_NUM_GPIO				 23
+#define AR9565_NUM_GPIO				 12
+#define AR9580_NUM_GPIO				 16
 #define AR7010_NUM_GPIO                          16
+
+#define AR_GPIO_MASK				 0x00003FFF
+#define AR9271_GPIO_MASK			 0x0000FFFF
+#define AR9280_GPIO_MASK			 0x000003FF
+#define AR9285_GPIO_MASK			 0x00000FFF
+#define AR9287_GPIO_MASK			 0x000003FF
+#define AR9300_GPIO_MASK			 0x0000F4FF
+#define AR9330_GPIO_MASK			 0x0000F4FF
+#define AR9340_GPIO_MASK			 0x0000000F
+#define AR9462_GPIO_MASK			 0x000003FF
+#define AR9485_GPIO_MASK			 0x00000FFF
+#define AR9531_GPIO_MASK			 0x0000000F
+#define AR9550_GPIO_MASK			 0x0000000F
+#define AR9561_GPIO_MASK			 0x0000000F
+#define AR9565_GPIO_MASK			 0x00000FFF
+#define AR9580_GPIO_MASK			 0x0000F4FF
+#define AR7010_GPIO_MASK			 0x0000FFFF
 
 #define AR_GPIO_IN_OUT                           (AR_SREV_9340(ah) ? 0x4028 : 0x4048)
 #define AR_GPIO_IN_VAL                           0x0FFFC000

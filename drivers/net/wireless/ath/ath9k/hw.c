@@ -2385,6 +2385,61 @@ static bool ath9k_hw_dfs_tested(struct ath_hw *ah)
 	}
 }
 
+static void ath9k_gpio_cap_init(struct ath_hw *ah)
+{
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+
+	if (AR_SREV_9271(ah)) {
+		pCap->num_gpio_pins = AR9271_NUM_GPIO;
+		pCap->gpio_mask = AR9271_GPIO_MASK;
+	} else if (AR_DEVID_7010(ah)) {
+		pCap->num_gpio_pins = AR7010_NUM_GPIO;
+		pCap->gpio_mask = AR7010_GPIO_MASK;
+	} else if (AR_SREV_9287(ah)) {
+		pCap->num_gpio_pins = AR9287_NUM_GPIO;
+		pCap->gpio_mask = AR9287_GPIO_MASK;
+	} else if (AR_SREV_9285(ah)) {
+		pCap->num_gpio_pins = AR9285_NUM_GPIO;
+		pCap->gpio_mask = AR9285_GPIO_MASK;
+	} else if (AR_SREV_9280(ah)) {
+		pCap->num_gpio_pins = AR9280_NUM_GPIO;
+		pCap->gpio_mask = AR9280_GPIO_MASK;
+	} else if (AR_SREV_9300(ah)) {
+		pCap->num_gpio_pins = AR9300_NUM_GPIO;
+		pCap->gpio_mask = AR9300_GPIO_MASK;
+	} else if (AR_SREV_9330(ah)) {
+		pCap->num_gpio_pins = AR9330_NUM_GPIO;
+		pCap->gpio_mask = AR9330_GPIO_MASK;
+	} else if (AR_SREV_9340(ah)) {
+		pCap->num_gpio_pins = AR9340_NUM_GPIO;
+		pCap->gpio_mask = AR9340_GPIO_MASK;
+	} else if (AR_SREV_9462(ah)) {
+		pCap->num_gpio_pins = AR9462_NUM_GPIO;
+		pCap->gpio_mask = AR9462_GPIO_MASK;
+	} else if (AR_SREV_9485(ah)) {
+		pCap->num_gpio_pins = AR9485_NUM_GPIO;
+		pCap->gpio_mask = AR9485_GPIO_MASK;
+	} else if (AR_SREV_9531(ah)) {
+		pCap->num_gpio_pins = AR9531_NUM_GPIO;
+		pCap->gpio_mask = AR9531_GPIO_MASK;
+	} else if (AR_SREV_9550(ah)) {
+		pCap->num_gpio_pins = AR9550_NUM_GPIO;
+		pCap->gpio_mask = AR9550_GPIO_MASK;
+	} else if (AR_SREV_9561(ah)) {
+		pCap->num_gpio_pins = AR9561_NUM_GPIO;
+		pCap->gpio_mask = AR9561_GPIO_MASK;
+	} else if (AR_SREV_9565(ah)) {
+		pCap->num_gpio_pins = AR9565_NUM_GPIO;
+		pCap->gpio_mask = AR9565_GPIO_MASK;
+	} else if (AR_SREV_9580(ah)) {
+		pCap->num_gpio_pins = AR9580_NUM_GPIO;
+		pCap->gpio_mask = AR9580_GPIO_MASK;
+	} else {
+		pCap->num_gpio_pins = AR_NUM_GPIO;
+		pCap->gpio_mask = AR_GPIO_MASK;
+	}
+}
+
 int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
@@ -2478,20 +2533,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
 
-	if (AR_SREV_9271(ah))
-		pCap->num_gpio_pins = AR9271_NUM_GPIO;
-	else if (AR_DEVID_7010(ah))
-		pCap->num_gpio_pins = AR7010_NUM_GPIO;
-	else if (AR_SREV_9300_20_OR_LATER(ah))
-		pCap->num_gpio_pins = AR9300_NUM_GPIO;
-	else if (AR_SREV_9287_11_OR_LATER(ah))
-		pCap->num_gpio_pins = AR9287_NUM_GPIO;
-	else if (AR_SREV_9285_12_OR_LATER(ah))
-		pCap->num_gpio_pins = AR9285_NUM_GPIO;
-	else if (AR_SREV_9280_20_OR_LATER(ah))
-		pCap->num_gpio_pins = AR928X_NUM_GPIO;
-	else
-		pCap->num_gpio_pins = AR_NUM_GPIO;
+	ath9k_gpio_cap_init(ah);
 
 	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah))
 		pCap->rts_aggr_limit = ATH_AMPDU_LIMIT_MAX;
