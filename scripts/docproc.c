@@ -73,11 +73,14 @@ FILELINE * docsection;
 #define NOFUNCTION    "-nofunction"
 #define NODOCSECTIONS "-no-doc-sections"
 #define SHOWNOTFOUND  "-show-not-found"
+#define USEMARKDOWN   "-use-markdown"
 
 static char *srctree, *kernsrctree;
 
 static char **all_list = NULL;
 static int all_list_len = 0;
+
+static int use_markdown = 0;
 
 static void consume_symbol(const char *sym)
 {
@@ -95,10 +98,11 @@ static void consume_symbol(const char *sym)
 
 static void usage (void)
 {
-	fprintf(stderr, "Usage: docproc {doc|depend} file\n");
+	fprintf(stderr, "Usage: docproc {doc|depend} [-use-markdown] file\n");
 	fprintf(stderr, "Input is read from file.tmpl. Output is sent to stdout\n");
 	fprintf(stderr, "doc: frontend when generating kernel documentation\n");
 	fprintf(stderr, "depend: generate list of files referenced within file\n");
+	fprintf(stderr, "-use-markdown: pass -use-markdown to kernel-doc\n");
 	fprintf(stderr, "Environment variable SRCTREE: absolute path to sources.\n");
 	fprintf(stderr, "                     KBUILD_SRC: absolute path to kernel source tree.\n");
 }
@@ -257,12 +261,15 @@ static void docfunctions(char * filename, char * type)
 
 	for (i=0; i <= symfilecnt; i++)
 		symcnt += symfilelist[i].symbolcnt;
-	vec = malloc((2 + 2 * symcnt + 3) * sizeof(char *));
+	vec = malloc((2 + 2 * symcnt + 4) * sizeof(char *));
 	if (vec == NULL) {
 		perror("docproc: ");
 		exit(1);
 	}
 	vec[idx++] = KERNELDOC;
+	if (use_markdown)
+		vec[idx++] = USEMARKDOWN;
+
 	vec[idx++] = DOCBOOK;
 	vec[idx++] = NODOCSECTIONS;
 	for (i=0; i < symfilecnt; i++) {
@@ -294,6 +301,9 @@ static void singfunc(char * filename, char * line)
 	int i, idx = 0;
 	int startofsym = 1;
 	vec[idx++] = KERNELDOC;
+	if (use_markdown)
+		vec[idx++] = USEMARKDOWN;
+
 	vec[idx++] = DOCBOOK;
 	vec[idx++] = SHOWNOTFOUND;
 
@@ -328,8 +338,9 @@ static void singfunc(char * filename, char * line)
 static void docsect(char *filename, char *line)
 {
 	/* kerneldoc -docbook -show-not-found -function "section" file NULL */
-	char *vec[7];
+	char *vec[8];
 	char *s;
+	int idx = 0;
 
 	for (s = line; *s; s++)
 		if (*s == '\n')
@@ -342,30 +353,37 @@ static void docsect(char *filename, char *line)
 	consume_symbol(s);
 	free(s);
 
-	vec[0] = KERNELDOC;
-	vec[1] = DOCBOOK;
-	vec[2] = SHOWNOTFOUND;
-	vec[3] = FUNCTION;
-	vec[4] = line;
-	vec[5] = filename;
-	vec[6] = NULL;
+	vec[idx++] = KERNELDOC;
+	if (use_markdown)
+		vec[idx++] = USEMARKDOWN;
+
+	vec[idx++] = DOCBOOK;
+	vec[idx++] = SHOWNOTFOUND;
+	vec[idx++] = FUNCTION;
+	vec[idx++] = line;
+	vec[idx++] = filename;
+	vec[idx] = NULL;
 	exec_kernel_doc(vec);
 }
 
 static void find_all_symbols(char *filename)
 {
-	char *vec[4]; /* kerneldoc -list file NULL */
+	char *vec[5]; /* kerneldoc -list file NULL */
 	pid_t pid;
 	int ret, i, count, start;
 	char real_filename[PATH_MAX + 1];
 	int pipefd[2];
 	char *data, *str;
 	size_t data_len = 0;
+	int idx = 0;
 
-	vec[0] = KERNELDOC;
-	vec[1] = LIST;
-	vec[2] = filename;
-	vec[3] = NULL;
+	vec[idx++] = KERNELDOC;
+	if (use_markdown)
+		vec[idx++] = USEMARKDOWN;
+
+	vec[idx++] = LIST;
+	vec[idx++] = filename;
+	vec[idx] = NULL;
 
 	if (pipe(pipefd)) {
 		perror("pipe");
@@ -509,7 +527,7 @@ int main(int argc, char *argv[])
 	kernsrctree = getenv("KBUILD_SRC");
 	if (!kernsrctree || !*kernsrctree)
 		kernsrctree = srctree;
-	if (argc != 3) {
+	if (argc < 3 || argc > 4) {
 		usage();
 		exit(1);
 	}
@@ -519,6 +537,10 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "docproc: ");
 		perror(argv[2]);
 		exit(2);
+	}
+
+	if (argc == 4 && strcmp("-use-markdown", argv[3]) == 0) {
+		use_markdown = 1;
 	}
 
 	if (strcmp("doc", argv[1]) == 0) {

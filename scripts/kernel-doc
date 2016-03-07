@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
+use IPC::Open3;
 
 ## Copyright (c) 1998 Michael Zucchi, All Rights Reserved        ##
 ## Copyright (C) 2000, 1  Tim Waugh <twaugh@redhat.com>          ##
@@ -282,10 +283,12 @@ if ($#ARGV == -1) {
 
 my $kernelversion;
 my $dohighlight = "";
+my $use_markdown = 0;
 
 my $verbose = 0;
 my $output_mode = "man";
 my $output_preformatted = 0;
+my $output_markdown_nopara = 0;
 my $no_doc_sections = 0;
 my @highlights = @highlights_man;
 my $blankline = $blankline_man;
@@ -424,6 +427,8 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$function_only = 2;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
+    } elsif ($cmd eq "-use-markdown") {
+	$use_markdown = 1;
     } elsif ($cmd eq "-v") {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
@@ -442,6 +447,7 @@ sub usage {
     print "         [ -no-doc-sections ]\n";
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
+    print "         [ -use-markdown ]\n";
     print "         [ -v ]\n";
     print "         c source file(s) > outputfile\n";
     print "         -v : verbose output, more warnings & other info listed\n";
@@ -515,6 +521,55 @@ sub dump_doc_section {
     }
 }
 
+sub markdown_to_docbook {
+	my $orig_content = $_[0];
+
+	my $pid = open3( \*CHLD_IN, \*CHLD_OUT, \*CHLD_ERR, "asciidoc  -a 'newline=\\n' --no-header-footer --backend=docbook45 -" );
+
+	print CHLD_IN "$orig_content";
+	close(CHLD_IN);
+
+	waitpid($pid, 0);
+
+	my $content = "";
+	chomp(my @lines = <CHLD_OUT>);
+	foreach my $line (@lines) {
+		$content .= $line . "\n";
+	}
+	close(CHLD_OUT);
+	close(CHLD_ERR);
+
+	if ($output_markdown_nopara) {
+		# asciidoc insists in adding Main <simpara></simpara>, sometimes
+		# we want to remove them.
+		$content =~ s:\A\s*<simpara>(.*)</simpara>\Z:$1:egsm;
+	}
+
+	return $content;
+}
+
+# Markdown->Docbook conversion by pandoc requires unescaped text
+# Kernel-doc converts every & to "&amp;", we need to convert it back.
+# This essentially does the inverse of xml_escape()
+sub markdown_unescape
+{
+	my $text = shift;
+	my @lines = split /\n/, $text;
+
+	my @result;
+	foreach my $line (@lines) {
+		if ( $line =~ m /^    /s ) {
+			$line =~ s:\&amp;:\&:gs;
+			$line =~ s:\&lt;:\<:gs;
+			$line =~ s:\&gt;:\>:gs;
+		}
+		push @result, $line;
+	}
+
+	return join "\n",@result;
+
+}
+
 ##
 # output function
 #
@@ -541,11 +596,29 @@ sub output_highlight {
 	$contents = local_unescape($contents);
 	# convert data read & converted thru xml_escape() into &xyz; format:
 	$contents =~ s/\\\\\\/\&/g;
+
+	if ($use_markdown) {
+		$contents = markdown_unescape($contents);
+	}
     }
+
 #   print STDERR "contents b4:$contents\n";
     eval $dohighlight;
     die $@ if $@;
 #   print STDERR "contents af:$contents\n";
+    if ($use_markdown) {
+        $contents = markdown_to_docbook($contents);
+
+	# Compared to markdown asciidoc doesn't let through arbitrary xml
+	# markup. We need to un-escape the kerneldoc markup for functions,
+	# structures, ...
+	$contents =~ s/&lt;quote&gt;(\S*)&lt;\/quote&gt;/<quote>$1<\/quote>/g;
+	$contents =~ s/&lt;constant&gt;(\S*)&lt;\/constant&gt;/<constant>$1<\/constant>/g;
+	$contents =~ s/&lt;structname&gt;(\S*)&lt;\/structname&gt;/<structname>$1<\/structname>/g;
+	$contents =~ s/&lt;parameter&gt;(\S*)&lt;\/parameter&gt;/<parameter>$1<\/parameter>/g;
+	$contents =~ s/&lt;function&gt;(\S*)&lt;\/function&gt;/<function>$1<\/function>/g;
+	$contents =~ s/&lt;envar&gt;(\S*)&lt;\/envar&gt;/<envar>$1<\/envar>/g;
+    }
 
 #   strip whitespaces when generating html5
     if ($output_mode eq "html5") {
@@ -553,11 +626,12 @@ sub output_highlight {
 	$contents =~ s/\s+$//;
     }
     foreach $line (split "\n", $contents) {
-	if (! $output_preformatted) {
+	if (! $output_preformatted &&
+	    !($use_markdown && $line =~ m /^    /s)) {
 	    $line =~ s/^\s*//;
 	}
 	if ($line eq ""){
-	    if (! $output_preformatted) {
+	    if (! $output_preformatted && ! $use_markdown) {
 		print $lineprefix, local_unescape($blankline);
 	    }
 	} else {
@@ -974,16 +1048,19 @@ sub output_section_xml(%) {
 	print "<refsect1>\n";
 	print "<title>$section</title>\n";
 	if ($section =~ m/EXAMPLE/i) {
-	    print "<informalexample><programlisting>\n";
+	    print "<informalexample>\n";
+	    # programlisting is already included by pandoc
+	    print "<programlisting>\n" unless $use_markdown;
 	    $output_preformatted = 1;
-	} else {
+	} elsif (! $use_markdown) {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
-	    print "</programlisting></informalexample>\n";
-	} else {
+	    print "</programlisting>\n" unless $use_markdown;
+	    print "</informalexample>\n";
+	} elsif (! $use_markdown) {
 	    print "</para>\n";
 	}
 	print "</refsect1>\n";
@@ -1015,7 +1092,9 @@ sub output_function_xml(%) {
     print " <refname>" . $args{'function'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1053,10 +1132,12 @@ sub output_function_xml(%) {
 	    $parameter_name =~ s/\[.*//;
 
 	    print "  <varlistentry>\n   <term><parameter>$parameter</parameter></term>\n";
-	    print "   <listitem>\n    <para>\n";
+	    print "   <listitem>\n";
+	    print "    <para>\n" unless $use_markdown;
 	    $lineprefix="     ";
 	    output_highlight($args{'parameterdescs'}{$parameter_name});
-	    print "    </para>\n   </listitem>\n  </varlistentry>\n";
+	    print "    </para>\n" unless $use_markdown;
+	    print "   </listitem>\n  </varlistentry>\n";
 	}
 	print " </variablelist>\n";
     } else {
@@ -1092,7 +1173,9 @@ sub output_struct_xml(%) {
     print " <refname>" . $args{'type'} . " " . $args{'struct'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1145,9 +1228,11 @@ sub output_struct_xml(%) {
       ($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
       print "    <varlistentry>";
       print "      <term>$parameter</term>\n";
-      print "      <listitem><para>\n";
+      print "      <listitem>\n";
+      print "         <para>\n" unless $use_markdown;
       output_highlight($args{'parameterdescs'}{$parameter_name});
-      print "      </para></listitem>\n";
+      print "         </para>\n" unless $use_markdown;
+      print "      </listitem>\n";
       print "    </varlistentry>\n";
     }
     print "  </variablelist>\n";
@@ -1186,7 +1271,9 @@ sub output_enum_xml(%) {
     print " <refname>enum " . $args{'enum'} . "</refname>\n";
     print " <refpurpose>\n";
     print "  ";
+    $output_markdown_nopara = 1;
     output_highlight ($args{'purpose'});
+    $output_markdown_nopara = 0;
     print " </refpurpose>\n";
     print "</refnamediv>\n";
 
@@ -1216,9 +1303,11 @@ sub output_enum_xml(%) {
 
       print "    <varlistentry>";
       print "      <term>$parameter</term>\n";
-      print "      <listitem><para>\n";
+      print "      <listitem>\n";
+      print "         <para>\n" unless $use_markdown;
       output_highlight($args{'parameterdescs'}{$parameter_name});
-      print "      </para></listitem>\n";
+      print "         </para>\n" unless $use_markdown;
+      print "      </listitem>\n";
       print "    </varlistentry>\n";
     }
     print "  </variablelist>\n";
@@ -1284,14 +1373,14 @@ sub output_blockhead_xml(%) {
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><para>\n";
 	    $output_preformatted = 1;
-	} else {
+	} elsif (! $use_markdown) {
 	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	$output_preformatted = 0;
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</para></example>\n";
-	} else {
+	} elsif (! $use_markdown) {
 	    print "</para>";
 	}
 	if (!$args{'content-only'}) {
@@ -2664,7 +2753,11 @@ sub process_file($) {
 		{
 			if ( $1 eq "" )
 			{
-				$contents .= $blankline;
+				if ($use_markdown) {
+					$contents .= "\n";
+				} else {
+					$contents .= $blankline;
+				}
 			}
 			else
 			{
