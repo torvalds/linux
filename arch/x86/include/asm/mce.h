@@ -91,6 +91,10 @@
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
 
+/* AMD Scalable MCA */
+#define MSR_AMD64_SMCA_MC0_CONFIG	0xc0002004
+#define MSR_AMD64_SMCA_MCx_CONFIG(x)	(MSR_AMD64_SMCA_MC0_CONFIG + 0x10*(x))
+
 /*
  * This structure contains all data related to the MCE log.  Also
  * carries a signature to make it easier to find from external
