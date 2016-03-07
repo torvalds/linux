@@ -78,6 +78,7 @@ struct hists {
 	u16			col_len[HISTC_NR_COLS];
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
+	struct list_head	hpp_formats;
 	int			nr_sort_keys;
 };
 
@@ -244,6 +245,12 @@ struct perf_hpp_list {
 
 extern struct perf_hpp_list perf_hpp_list;
 
+struct perf_hpp_list_node {
+	struct list_head	list;
+	struct perf_hpp_list	hpp;
+	int			level;
+};
+
 void perf_hpp_list__column_register(struct perf_hpp_list *list,
 				    struct perf_hpp_fmt *format);
 void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
@@ -299,6 +306,8 @@ void perf_hpp__cancel_cumulate(void);
 void perf_hpp__setup_output_field(struct perf_hpp_list *list);
 void perf_hpp__reset_output_field(struct perf_hpp_list *list);
 void perf_hpp__append_sort_keys(struct perf_hpp_list *list);
+int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
+				  struct perf_evlist *evlist);
 
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
@@ -307,6 +316,8 @@ bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *his
 bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
+
+struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt);
 
 int hist_entry__filter(struct hist_entry *he, int type, const void *arg);
 

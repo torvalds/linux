@@ -1908,6 +1908,34 @@ __alloc_dynamic_entry(struct perf_evsel *evsel, struct format_field *field,
 	return hde;
 }
 
+struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
+{
+	struct perf_hpp_fmt *new_fmt = NULL;
+
+	if (perf_hpp__is_sort_entry(fmt)) {
+		struct hpp_sort_entry *hse, *new_hse;
+
+		hse = container_of(fmt, struct hpp_sort_entry, hpp);
+		new_hse = memdup(hse, sizeof(*hse));
+		if (new_hse)
+			new_fmt = &new_hse->hpp;
+	} else if (perf_hpp__is_dynamic_entry(fmt)) {
+		struct hpp_dynamic_entry *hde, *new_hde;
+
+		hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+		new_hde = memdup(hde, sizeof(*hde));
+		if (new_hde)
+			new_fmt = &new_hde->hpp;
+	} else {
+		new_fmt = memdup(fmt, sizeof(*fmt));
+	}
+
+	INIT_LIST_HEAD(&new_fmt->list);
+	INIT_LIST_HEAD(&new_fmt->sort_list);
+
+	return new_fmt;
+}
+
 static int parse_field_name(char *str, char **event, char **field, char **opt)
 {
 	char *event_name, *field_name, *opt_name;
@@ -2699,6 +2727,10 @@ int setup_sorting(struct perf_evlist *evlist)
 	perf_hpp__setup_output_field(&perf_hpp_list);
 	/* and then copy output fields to sort keys */
 	perf_hpp__append_sort_keys(&perf_hpp_list);
+
+	/* setup hists-specific output fields */
+	if (perf_hpp__setup_hists_formats(&perf_hpp_list, evlist) < 0)
+		return -1;
 
 	return 0;
 }

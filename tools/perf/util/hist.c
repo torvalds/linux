@@ -2105,6 +2105,7 @@ int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list)
 	pthread_mutex_init(&hists->lock, NULL);
 	hists->socket_filter = -1;
 	hists->hpp_list = hpp_list;
+	INIT_LIST_HEAD(&hists->hpp_formats);
 	return 0;
 }
 
@@ -2133,8 +2134,19 @@ static void hists__delete_all_entries(struct hists *hists)
 static void hists_evsel__exit(struct perf_evsel *evsel)
 {
 	struct hists *hists = evsel__hists(evsel);
+	struct perf_hpp_fmt *fmt, *pos;
+	struct perf_hpp_list_node *node, *tmp;
 
 	hists__delete_all_entries(hists);
+
+	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
+		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {
+			list_del(&fmt->list);
+			free(fmt);
+		}
+		list_del(&node->list);
+		free(node);
+	}
 }
 
 static int hists_evsel__init(struct perf_evsel *evsel)

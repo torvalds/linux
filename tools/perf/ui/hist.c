@@ -5,6 +5,7 @@
 #include "../util/util.h"
 #include "../util/sort.h"
 #include "../util/evsel.h"
+#include "../util/evlist.h"
 
 /* hist period print (hpp) functions */
 
@@ -714,4 +715,66 @@ void perf_hpp__set_user_width(const char *width_list_str)
 		else
 			break;
 	}
+}
+
+static int add_hierarchy_fmt(struct hists *hists, struct perf_hpp_fmt *fmt)
+{
+	struct perf_hpp_list_node *node = NULL;
+	struct perf_hpp_fmt *fmt_copy;
+	bool found = false;
+
+	list_for_each_entry(node, &hists->hpp_formats, list) {
+		if (node->level == fmt->level) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		node = malloc(sizeof(*node));
+		if (node == NULL)
+			return -1;
+
+		node->level = fmt->level;
+		perf_hpp_list__init(&node->hpp);
+
+		list_add_tail(&node->list, &hists->hpp_formats);
+	}
+
+	fmt_copy = perf_hpp_fmt__dup(fmt);
+	if (fmt_copy == NULL)
+		return -1;
+
+	list_add_tail(&fmt_copy->list, &node->hpp.fields);
+	list_add_tail(&fmt_copy->sort_list, &node->hpp.sorts);
+
+	return 0;
+}
+
+int perf_hpp__setup_hists_formats(struct perf_hpp_list *list,
+				  struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel;
+	struct perf_hpp_fmt *fmt;
+	struct hists *hists;
+	int ret;
+
+	if (!symbol_conf.report_hierarchy)
+		return 0;
+
+	evlist__for_each(evlist, evsel) {
+		hists = evsel__hists(evsel);
+
+		perf_hpp_list__for_each_sort_list(list, fmt) {
+			if (perf_hpp__is_dynamic_entry(fmt) &&
+			    !perf_hpp__defined_dynamic_entry(fmt, hists))
+				continue;
+
+			ret = add_hierarchy_fmt(hists, fmt);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
 }
