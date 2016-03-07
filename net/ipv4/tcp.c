@@ -556,20 +556,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 			return -EINVAL;
 
 		slow = lock_sock_fast(sk);
-		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
-			answ = 0;
-		else if (sock_flag(sk, SOCK_URGINLINE) ||
-			 !tp->urg_data ||
-			 before(tp->urg_seq, tp->copied_seq) ||
-			 !before(tp->urg_seq, tp->rcv_nxt)) {
-
-			answ = tp->rcv_nxt - tp->copied_seq;
-
-			/* Subtract 1, if FIN was received */
-			if (answ && sock_flag(sk, SOCK_DONE))
-				answ--;
-		} else
-			answ = tp->urg_seq - tp->copied_seq;
+		answ = tcp_inq(sk);
 		unlock_sock_fast(sk, slow);
 		break;
 	case SIOCATMARK:
