@@ -1765,16 +1765,21 @@ int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 
 	old = ret & PORT_CONTROL_2_8021Q_MASK;
 
-	ret &= ~PORT_CONTROL_2_8021Q_MASK;
-	ret |= new & PORT_CONTROL_2_8021Q_MASK;
+	if (new != old) {
+		ret &= ~PORT_CONTROL_2_8021Q_MASK;
+		ret |= new & PORT_CONTROL_2_8021Q_MASK;
 
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_2, ret);
-	if (ret < 0)
-		goto unlock;
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_2,
+					   ret);
+		if (ret < 0)
+			goto unlock;
 
-	netdev_dbg(ds->ports[port], "802.1Q Mode: %s (was %s)\n",
-		   mv88e6xxx_port_8021q_mode_names[new],
-		   mv88e6xxx_port_8021q_mode_names[old]);
+		netdev_dbg(ds->ports[port], "802.1Q Mode %s (was %s)\n",
+			   mv88e6xxx_port_8021q_mode_names[new],
+			   mv88e6xxx_port_8021q_mode_names[old]);
+	}
+
+	ret = 0;
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 
