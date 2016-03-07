@@ -73,7 +73,7 @@ static int perf_event__repipe_oe_synth(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
-#ifdef HAVE_LIBELF_SUPPORT
+#if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_DWARF_SUPPORT)
 static int perf_event__drop_oe(struct perf_tool *tool __maybe_unused,
 			       union perf_event *event __maybe_unused,
 			       struct ordered_events *oe __maybe_unused)
@@ -245,7 +245,7 @@ static int perf_event__repipe_mmap(struct perf_tool *tool,
 	return err;
 }
 
-#ifdef HAVE_LIBELF_SUPPORT
+#if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_DWARF_SUPPORT)
 static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
 				       union perf_event *event,
 				       struct perf_sample *sample,
@@ -283,7 +283,7 @@ static int perf_event__repipe_mmap2(struct perf_tool *tool,
 	return err;
 }
 
-#ifdef HAVE_LIBELF_SUPPORT
+#if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_DWARF_SUPPORT)
 static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 					union perf_event *event,
 					struct perf_sample *sample,
@@ -795,7 +795,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf inject [<options>]",
 		NULL
 	};
-#ifndef HAVE_LIBELF_SUPPORT
+#if !defined(HAVE_LIBELF_SUPPORT) || !defined(HAVE_DWARF_SUPPORT)
 	set_option_nobuild(options, 'j', "jit", "NO_LIBELF=1", true);
 #endif
 	argc = parse_options(argc, argv, options, inject_usage, 0);
@@ -833,7 +833,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
 	}
-#ifdef HAVE_LIBELF_SUPPORT
+#if defined(HAVE_LIBELF_SUPPORT) && defined(HAVE_DWARF_SUPPORT)
 	if (inject.jit_mode) {
 		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
 		inject.tool.mmap	   = perf_event__jit_repipe_mmap;
