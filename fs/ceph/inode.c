@@ -1236,10 +1236,8 @@ retry_lookup:
 				dout("d_delete %p\n", dn);
 				d_delete(dn);
 			} else {
-				dout("d_instantiate %p NULL\n", dn);
-				d_instantiate(dn, NULL);
 				if (have_lease && d_unhashed(dn))
-					d_rehash(dn);
+					d_add(dn, NULL);
 				update_dentry_lease(dn, rinfo->dlease,
 						    session,
 						    req->r_request_started);
