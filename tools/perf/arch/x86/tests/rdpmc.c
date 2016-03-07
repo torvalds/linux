@@ -59,7 +59,7 @@ static u64 mmap_read_self(void *addr)
 		u64 quot, rem;
 
 		quot = (cyc >> time_shift);
-		rem = cyc & ((1 << time_shift) - 1);
+		rem = cyc & (((u64)1 << time_shift) - 1);
 		delta = time_offset + quot * time_mult +
 			((rem * time_mult) >> time_shift);
 
