@@ -17,7 +17,7 @@ EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strncmp);
 
 #ifndef CONFIG_GENERIC_CSUM
-EXPORT_SYMBOL(csum_partial);
+EXPORT_SYMBOL(__csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
 #endif
 

@@ -21,9 +21,9 @@
  * Computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit).
  *
- * csum_partial(r3=buff, r4=len, r5=sum)
+ * __csum_partial(r3=buff, r4=len, r5=sum)
  */
-_GLOBAL(csum_partial)
+_GLOBAL(__csum_partial)
 	addic	r0,r5,0			/* clear carry */
 
 	srdi.	r6,r4,3			/* less than 8 bytes? */
