@@ -2310,18 +2310,40 @@ static int setup_sort_list(char *str, struct perf_evlist *evlist)
 	char *tmp, *tok;
 	int ret = 0;
 	int level = 0;
+	int next_level = 1;
+	bool in_group = false;
 
-	for (tok = strtok_r(str, ", ", &tmp);
-			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		ret = sort_dimension__add(tok, evlist, level++);
-		if (ret == -EINVAL) {
-			error("Invalid --sort key: `%s'", tok);
-			break;
-		} else if (ret == -ESRCH) {
-			error("Unknown --sort key: `%s'", tok);
-			break;
+	do {
+		tok = str;
+		tmp = strpbrk(str, "{}, ");
+		if (tmp) {
+			if (in_group)
+				next_level = level;
+			else
+				next_level = level + 1;
+
+			if (*tmp == '{')
+				in_group = true;
+			else if (*tmp == '}')
+				in_group = false;
+
+			*tmp = '\0';
+			str = tmp + 1;
 		}
-	}
+
+		if (*tok) {
+			ret = sort_dimension__add(tok, evlist, level);
+			if (ret == -EINVAL) {
+				error("Invalid --sort key: `%s'", tok);
+				break;
+			} else if (ret == -ESRCH) {
+				error("Unknown --sort key: `%s'", tok);
+				break;
+			}
+		}
+
+		level = next_level;
+	} while (tmp);
 
 	return ret;
 }
