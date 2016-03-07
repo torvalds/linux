@@ -567,7 +567,7 @@
 			blocks = <0x5>;
 			irq-trigger = <0x1>;
 
-			stmpe_touchscreen {
+			stmpe_touchscreen@0 {
 				compatible = "st,stmpe-ts";
 				reg = <0>;
 				/* 3.25 MHz ADC clock speed */

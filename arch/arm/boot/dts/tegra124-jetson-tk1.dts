@@ -2049,7 +2049,7 @@
 	thermal-zones {
 		cpu {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";
@@ -2063,7 +2063,7 @@
 
 		mem {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";
@@ -2077,7 +2077,7 @@
 
 		gpu {
 			trips {
-				trip@0 {
+				trip {
 					temperature = <101000>;
 					hysteresis = <0>;
 					type = "critical";
