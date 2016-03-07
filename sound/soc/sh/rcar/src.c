@@ -93,9 +93,10 @@ static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 }
 
 static u32 rsnd_src_convert_rate(struct rsnd_dai_stream *io,
-				 struct rsnd_src *src)
+				 struct rsnd_mod *mod)
 {
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate;
 
 	if (!runtime)
@@ -120,18 +121,14 @@ unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct snd_pcm_runtime *runtime)
 {
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
-	struct rsnd_src *src;
 	unsigned int rate = 0;
 
-	if (src_mod) {
-		src = rsnd_mod_to_src(src_mod);
-
-		/*
-		 * return convert rate if SRC is used,
-		 * otherwise, return runtime->rate as usual
-		 */
-		rate = rsnd_src_convert_rate(io, src);
-	}
+	/*
+	 * return convert rate if SRC is used,
+	 * otherwise, return runtime->rate as usual
+	 */
+	if (src_mod)
+		rate = rsnd_src_convert_rate(io, src_mod);
 
 	if (!rate)
 		rate = runtime->rate;
@@ -179,7 +176,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
-	u32 convert_rate = rsnd_src_convert_rate(io, src);
+	u32 convert_rate = rsnd_src_convert_rate(io, mod);
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
 	u32 bsdsr, bsisr;
