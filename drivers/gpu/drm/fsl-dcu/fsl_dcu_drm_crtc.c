@@ -62,13 +62,6 @@ static void fsl_dcu_drm_crtc_enable(struct drm_crtc *crtc)
 		     DCU_UPDATE_MODE_READREG);
 }
 
-static bool fsl_dcu_drm_crtc_mode_fixup(struct drm_crtc *crtc,
-					const struct drm_display_mode *mode,
-					struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -127,7 +120,6 @@ static const struct drm_crtc_helper_funcs fsl_dcu_drm_crtc_helper_funcs = {
 	.atomic_flush = fsl_dcu_drm_crtc_atomic_flush,
 	.disable = fsl_dcu_drm_disable_crtc,
 	.enable = fsl_dcu_drm_crtc_enable,
-	.mode_fixup = fsl_dcu_drm_crtc_mode_fixup,
 	.mode_set_nofb = fsl_dcu_drm_crtc_mode_set_nofb,
 };
 
