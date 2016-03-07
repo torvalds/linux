@@ -990,6 +990,149 @@ static void kcm_push(struct kcm_sock *kcm)
 		kcm_write_msgs(kcm);
 }
 
+static ssize_t kcm_sendpage(struct socket *sock, struct page *page,
+			    int offset, size_t size, int flags)
+
+{
+	struct sock *sk = sock->sk;
+	struct kcm_sock *kcm = kcm_sk(sk);
+	struct sk_buff *skb = NULL, *head = NULL;
+	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
+	bool eor;
+	int err = 0;
+	int i;
+
+	if (flags & MSG_SENDPAGE_NOTLAST)
+		flags |= MSG_MORE;
+
+	/* No MSG_EOR from splice, only look at MSG_MORE */
+	eor = !(flags & MSG_MORE);
+
+	lock_sock(sk);
+
+	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
+
+	err = -EPIPE;
+	if (sk->sk_err)
+		goto out_error;
+
+	if (kcm->seq_skb) {
+		/* Previously opened message */
+		head = kcm->seq_skb;
+		skb = kcm_tx_msg(head)->last_skb;
+		i = skb_shinfo(skb)->nr_frags;
+
+		if (skb_can_coalesce(skb, i, page, offset)) {
+			skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], size);
+			skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+			goto coalesced;
+		}
+
+		if (i >= MAX_SKB_FRAGS) {
+			struct sk_buff *tskb;
+
+			tskb = alloc_skb(0, sk->sk_allocation);
+			while (!tskb) {
+				kcm_push(kcm);
+				err = sk_stream_wait_memory(sk, &timeo);
+				if (err)
+					goto out_error;
+			}
+
+			if (head == skb)
+				skb_shinfo(head)->frag_list = tskb;
+			else
+				skb->next = tskb;
+
+			skb = tskb;
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			i = 0;
+		}
+	} else {
+		/* Call the sk_stream functions to manage the sndbuf mem. */
+		if (!sk_stream_memory_free(sk)) {
+			kcm_push(kcm);
+			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			err = sk_stream_wait_memory(sk, &timeo);
+			if (err)
+				goto out_error;
+		}
+
+		head = alloc_skb(0, sk->sk_allocation);
+		while (!head) {
+			kcm_push(kcm);
+			err = sk_stream_wait_memory(sk, &timeo);
+			if (err)
+				goto out_error;
+		}
+
+		skb = head;
+		i = 0;
+	}
+
+	get_page(page);
+	skb_fill_page_desc(skb, i, page, offset, size);
+	skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+
+coalesced:
+	skb->len += size;
+	skb->data_len += size;
+	skb->truesize += size;
+	sk->sk_wmem_queued += size;
+	sk_mem_charge(sk, size);
+
+	if (head != skb) {
+		head->len += size;
+		head->data_len += size;
+		head->truesize += size;
+	}
+
+	if (eor) {
+		bool not_busy = skb_queue_empty(&sk->sk_write_queue);
+
+		/* Message complete, queue it on send buffer */
+		__skb_queue_tail(&sk->sk_write_queue, head);
+		kcm->seq_skb = NULL;
+		KCM_STATS_INCR(kcm->stats.tx_msgs);
+
+		if (flags & MSG_BATCH) {
+			kcm->tx_wait_more = true;
+		} else if (kcm->tx_wait_more || not_busy) {
+			err = kcm_write_msgs(kcm);
+			if (err < 0) {
+				/* We got a hard error in write_msgs but have
+				 * already queued this message. Report an error
+				 * in the socket, but don't affect return value
+				 * from sendmsg
+				 */
+				pr_warn("KCM: Hard failure on kcm_write_msgs\n");
+				report_csk_error(&kcm->sk, -err);
+			}
+		}
+	} else {
+		/* Message not complete, save state */
+		kcm->seq_skb = head;
+		kcm_tx_msg(head)->last_skb = skb;
+	}
+
+	KCM_STATS_ADD(kcm->stats.tx_bytes, size);
+
+	release_sock(sk);
+	return size;
+
+out_error:
+	kcm_push(kcm);
+
+	err = sk_stream_error(sk, flags, err);
+
+	/* make sure we wake any epoll edge trigger waiter */
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+		sk->sk_write_space(sk);
+
+	release_sock(sk);
+	return err;
+}
+
 static int kcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
@@ -1995,7 +2138,7 @@ static const struct proto_ops kcm_dgram_ops = {
 	.sendmsg =	kcm_sendmsg,
 	.recvmsg =	kcm_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.sendpage =	kcm_sendpage,
 };
 
 static const struct proto_ops kcm_seqpacket_ops = {
@@ -2016,7 +2159,7 @@ static const struct proto_ops kcm_seqpacket_ops = {
 	.sendmsg =	kcm_sendmsg,
 	.recvmsg =	kcm_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.sendpage =	kcm_sendpage,
 	.splice_read =	kcm_splice_read,
 };
 
