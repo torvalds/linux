@@ -130,9 +130,9 @@ int microcode_sanity_check(void *mc, int print_err)
 	for (i = 0; i < ext_sigcount; i++) {
 		ext_sig = (void *)ext_header + EXT_HEADER_SIZE +
 			  EXT_SIGNATURE_SIZE * i;
-		sum = orig_sum
-			- (mc_header->sig + mc_header->pf + mc_header->cksum)
-			+ (ext_sig->sig + ext_sig->pf + ext_sig->cksum);
+
+		sum = (mc_header->sig + mc_header->pf + mc_header->cksum) -
+		      (ext_sig->sig + ext_sig->pf + ext_sig->cksum);
 		if (sum) {
 			if (print_err)
 				pr_err("Bad extended signature checksum, aborting.\n");
