@@ -2786,6 +2786,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 	loff_t i_size;
 	size_t count = iov_iter_count(iter);
 	struct fuse_io_priv *io;
+	bool is_sync = is_sync_kiocb(iocb);
 
 	pos = offset;
 	inode = file->f_mapping->host;
@@ -2825,11 +2826,11 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 	 * to wait on real async I/O requests, so we must submit this request
 	 * synchronously.
 	 */
-	if (!is_sync_kiocb(iocb) && (offset + count > i_size) &&
+	if (!is_sync && (offset + count > i_size) &&
 	    iov_iter_rw(iter) == WRITE)
 		io->async = false;
 
-	if (io->async && is_sync_kiocb(iocb))
+	if (io->async && is_sync)
 		io->done = &wait;
 
 	if (iov_iter_rw(iter) == WRITE) {
@@ -2843,7 +2844,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 		fuse_aio_complete(io, ret < 0 ? ret : 0, -1);
 
 		/* we have a non-extending, async request, so return */
-		if (!is_sync_kiocb(iocb))
+		if (!is_sync)
 			return -EIOCBQUEUED;
 
 		wait_for_completion(&wait);
