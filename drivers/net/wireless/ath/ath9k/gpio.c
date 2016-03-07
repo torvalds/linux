@@ -40,6 +40,8 @@ void ath_deinit_leds(struct ath_softc *sc)
 
 	ath_led_brightness(&sc->led_cdev, LED_OFF);
 	led_classdev_unregister(&sc->led_cdev);
+
+	ath9k_hw_gpio_free(sc->sc_ah, sc->sc_ah->led_pin);
 }
 
 void ath_init_leds(struct ath_softc *sc)
@@ -404,6 +406,13 @@ void ath9k_deinit_btcoex(struct ath_softc *sc)
 
 	if (ath9k_hw_mci_is_enabled(ah))
 		ath_mci_cleanup(sc);
+	else {
+		enum ath_btcoex_scheme scheme = ath9k_hw_get_btcoex_scheme(ah);
+
+		if (scheme == ATH_BTCOEX_CFG_2WIRE ||
+		    scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath9k_hw_btcoex_deinit(sc->sc_ah);
+	}
 }
 
 int ath9k_init_btcoex(struct ath_softc *sc)

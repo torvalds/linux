@@ -174,6 +174,16 @@ void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_init_3wire);
 
+void ath9k_hw_btcoex_deinit(struct ath_hw *ah)
+{
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+
+	ath9k_hw_gpio_free(ah, btcoex_hw->btactive_gpio);
+	ath9k_hw_gpio_free(ah, btcoex_hw->btpriority_gpio);
+	ath9k_hw_gpio_free(ah, btcoex_hw->wlanactive_gpio);
+}
+EXPORT_SYMBOL(ath9k_hw_btcoex_deinit);
+
 void ath9k_hw_btcoex_init_mci(struct ath_hw *ah)
 {
 	ah->btcoex_hw.mci.ready = false;

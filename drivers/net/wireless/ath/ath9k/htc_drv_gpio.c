@@ -253,6 +253,8 @@ void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
 	ath9k_led_brightness(&priv->led_cdev, LED_OFF);
 	led_classdev_unregister(&priv->led_cdev);
 	cancel_work_sync(&priv->led_work);
+
+	ath9k_hw_gpio_free(priv->ah, priv->ah->led_pin);
 }
 
 
