@@ -49,7 +49,7 @@ int microcode_sanity_check(void *mc, int print_err)
 	unsigned long total_size, data_size, ext_table_size;
 	struct microcode_header_intel *mc_header = mc;
 	struct extended_sigtable *ext_header = NULL;
-	int sum, orig_sum, ext_sigcount = 0, i;
+	u32 sum, orig_sum, ext_sigcount = 0, i;
 	struct extended_signature *ext_sig;
 
 	total_size = get_totalsize(mc_header);
@@ -85,8 +85,8 @@ int microcode_sanity_check(void *mc, int print_err)
 
 	/* check extended table checksum */
 	if (ext_table_size) {
-		int ext_table_sum = 0;
-		int *ext_tablep = (int *)ext_header;
+		u32 ext_table_sum = 0;
+		u32 *ext_tablep = (u32 *)ext_header;
 
 		i = ext_table_size / DWSIZE;
 		while (i--)
@@ -102,7 +102,7 @@ int microcode_sanity_check(void *mc, int print_err)
 	orig_sum = 0;
 	i = (MC_HEADER_SIZE + data_size) / DWSIZE;
 	while (i--)
-		orig_sum += ((int *)mc)[i];
+		orig_sum += ((u32 *)mc)[i];
 	if (orig_sum) {
 		if (print_err)
 			pr_err("aborting, bad checksum\n");
