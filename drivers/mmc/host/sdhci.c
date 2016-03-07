@@ -2804,6 +2804,36 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 
 EXPORT_SYMBOL_GPL(sdhci_alloc_host);
 
+static int sdhci_set_dma_mask(struct sdhci_host *host)
+{
+	struct mmc_host *mmc = host->mmc;
+	struct device *dev = mmc_dev(mmc);
+	int ret = -EINVAL;
+
+	if (host->quirks2 & SDHCI_QUIRK2_BROKEN_64_BIT_DMA)
+		host->flags &= ~SDHCI_USE_64_BIT_DMA;
+
+	/* Try 64-bit mask if hardware is capable  of it */
+	if (host->flags & SDHCI_USE_64_BIT_DMA) {
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+		if (ret) {
+			pr_warn("%s: Failed to set 64-bit DMA mask.\n",
+				mmc_hostname(mmc));
+			host->flags &= ~SDHCI_USE_64_BIT_DMA;
+		}
+	}
+
+	/* 32-bit mask as default & fallback */
+	if (ret) {
+		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+		if (ret)
+			pr_warn("%s: Failed to set 32-bit DMA mask.\n",
+				mmc_hostname(mmc));
+	}
+
+	return ret;
+}
+
 int sdhci_add_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc;
@@ -2879,13 +2909,17 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->flags |= SDHCI_USE_64_BIT_DMA;
 
 	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
-		if (host->ops->enable_dma) {
-			if (host->ops->enable_dma(host)) {
-				pr_warn("%s: No suitable DMA available - falling back to PIO\n",
-					mmc_hostname(mmc));
-				host->flags &=
-					~(SDHCI_USE_SDMA | SDHCI_USE_ADMA);
-			}
+		ret = sdhci_set_dma_mask(host);
+
+		if (!ret && host->ops->enable_dma)
+			ret = host->ops->enable_dma(host);
+
+		if (ret) {
+			pr_warn("%s: No suitable DMA available - falling back to PIO\n",
+				mmc_hostname(mmc));
+			host->flags &= ~(SDHCI_USE_SDMA | SDHCI_USE_ADMA);
+
+			ret = 0;
 		}
 	}
 
