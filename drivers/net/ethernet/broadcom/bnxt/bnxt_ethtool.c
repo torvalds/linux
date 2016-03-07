@@ -496,25 +496,6 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	kfree(pkglog);
 }
 
-static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
-{
-	u16 fw_speeds = link_info->support_speeds;
-	u32 speed_mask = 0;
-
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_100MB)
-		speed_mask |= SUPPORTED_100baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_1GB)
-		speed_mask |= SUPPORTED_1000baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_2_5GB)
-		speed_mask |= SUPPORTED_2500baseX_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
-		speed_mask |= SUPPORTED_10000baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= SUPPORTED_40000baseCR4_Full;
-
-	return speed_mask;
-}
-
 static u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
 	u32 speed_mask = 0;
@@ -564,6 +545,15 @@ static u32 bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info)
 	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
 }
 
+static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->support_speeds;
+	u32 supported;
+
+	supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+	return supported | SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+}
+
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 {
 	switch (fw_link_speed) {
@@ -595,7 +585,6 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	u16 ethtool_speed;
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
-	cmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (link_info->auto_link_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
