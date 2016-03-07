@@ -1154,7 +1154,8 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	mdp->dirty_rx = (u32) (i - mdp->num_rx_ring);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_le32(RD_RDLE);
+	if (rxdesc)
+		rxdesc->status |= cpu_to_le32(RD_RDLE);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 
