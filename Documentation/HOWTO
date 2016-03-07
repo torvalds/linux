@@ -68,7 +68,7 @@ For common questions and answers about the GPL, please see:
 
 
 Documentation
-------------
+-------------
 
 The Linux kernel source tree has a large range of documents that are
 invaluable for learning how to interact with the kernel community.  When
@@ -258,7 +258,7 @@ mailing list about kernel releases:
 	preconceived timeline."
 
 4.x.y -stable kernel tree
----------------------------
+-------------------------
 Kernels with 3-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
 regressions discovered in a given 4.x kernel.
@@ -281,7 +281,7 @@ documents what kinds of changes are acceptable for the -stable tree, and
 how the release process works.
 
 4.x -git patches
-------------------
+----------------
 These are daily snapshots of Linus' kernel tree which are managed in a
 git repository (hence the name.) These patches are usually released
 daily and represent the current state of Linus' tree.  They are more
@@ -313,7 +313,7 @@ accepted, or rejected.  Most of these patchwork sites are listed at
 http://patchwork.kernel.org/.
 
 4.x -next kernel tree for integration tests
----------------------------------------------
+-------------------------------------------
 Before updates from subsystem trees are merged into the mainline 4.x
 tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
