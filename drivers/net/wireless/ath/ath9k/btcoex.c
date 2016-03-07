@@ -15,6 +15,8 @@
  */
 
 #include <linux/export.h>
+#include <linux/types.h>
+#include <linux/ath9k_platform.h>
 #include "hw.h"
 
 enum ath_bt_mode {
@@ -90,6 +92,29 @@ void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 }
 EXPORT_SYMBOL(ath9k_hw_init_btcoex_hw);
 
+static void ath9k_hw_btcoex_pin_init(struct ath_hw *ah, u8 wlanactive_gpio,
+				     u8 btactive_gpio, u8 btpriority_gpio)
+{
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	struct ath9k_platform_data *pdata = ah->dev->platform_data;
+
+	if (btcoex_hw->scheme != ATH_BTCOEX_CFG_2WIRE &&
+	    btcoex_hw->scheme != ATH_BTCOEX_CFG_3WIRE)
+		return;
+
+	/* bt priority GPIO will be ignored by 2 wire scheme */
+	if (pdata && (pdata->bt_active_pin || pdata->bt_priority_pin ||
+		      pdata->wlan_active_pin)) {
+		btcoex_hw->btactive_gpio = pdata->bt_active_pin;
+		btcoex_hw->wlanactive_gpio = pdata->wlan_active_pin;
+		btcoex_hw->btpriority_gpio = pdata->bt_priority_pin;
+	} else {
+		btcoex_hw->btactive_gpio = btactive_gpio;
+		btcoex_hw->wlanactive_gpio = wlanactive_gpio;
+		btcoex_hw->btpriority_gpio = btpriority_gpio;
+	}
+}
+
 void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -107,19 +132,19 @@ void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
 	} else if (AR_SREV_9300_20_OR_LATER(ah)) {
 		btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
-		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
-		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;
-		btcoex_hw->btpriority_gpio = ATH_BTPRIORITY_GPIO_9300;
-	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
-		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9280;
-		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9280;
 
-		if (AR_SREV_9285(ah)) {
+		ath9k_hw_btcoex_pin_init(ah, ATH_WLANACTIVE_GPIO_9300,
+					 ATH_BTACTIVE_GPIO_9300,
+					 ATH_BTPRIORITY_GPIO_9300);
+	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
+		if (AR_SREV_9285(ah))
 			btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
-			btcoex_hw->btpriority_gpio = ATH_BTPRIORITY_GPIO_9285;
-		} else {
+		else
 			btcoex_hw->scheme = ATH_BTCOEX_CFG_2WIRE;
-		}
+
+		ath9k_hw_btcoex_pin_init(ah, ATH_WLANACTIVE_GPIO_9280,
+					 ATH_BTACTIVE_GPIO_9280,
+					 ATH_BTPRIORITY_GPIO_9285);
 	}
 }
 EXPORT_SYMBOL(ath9k_hw_btcoex_init_scheme);
