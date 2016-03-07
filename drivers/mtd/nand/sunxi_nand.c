@@ -301,23 +301,40 @@ static irqreturn_t sunxi_nfc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int sunxi_nfc_wait_int(struct sunxi_nfc *nfc, u32 flags,
-			      unsigned int timeout_ms)
+static int sunxi_nfc_wait_events(struct sunxi_nfc *nfc, u32 events,
+				 bool use_polling, unsigned int timeout_ms)
 {
-	init_completion(&nfc->complete);
+	int ret;
 
-	writel(flags, nfc->regs + NFC_REG_INT);
+	if (events & ~NFC_INT_MASK)
+		return -EINVAL;
 
 	if (!timeout_ms)
 		timeout_ms = NFC_DEFAULT_TIMEOUT_MS;
 
-	if (!wait_for_completion_timeout(&nfc->complete,
-					 msecs_to_jiffies(timeout_ms))) {
-		dev_err(nfc->dev, "wait interrupt timedout\n");
-		return -ETIMEDOUT;
+	if (!use_polling) {
+		init_completion(&nfc->complete);
+
+		writel(events, nfc->regs + NFC_REG_INT);
+
+		ret = wait_for_completion_timeout(&nfc->complete,
+						msecs_to_jiffies(timeout_ms));
+
+		writel(0, nfc->regs + NFC_REG_INT);
+	} else {
+		u32 status;
+
+		ret = readl_poll_timeout(nfc->regs + NFC_REG_ST, status,
+					 (status & events) == events, 1,
+					 timeout_ms * 1000);
 	}
 
-	return 0;
+	writel(events & NFC_INT_MASK, nfc->regs + NFC_REG_ST);
+
+	if (ret)
+		dev_err(nfc->dev, "wait interrupt timedout\n");
+
+	return ret;
 }
 
 static int sunxi_nfc_wait_cmd_fifo_empty(struct sunxi_nfc *nfc)
@@ -448,7 +465,7 @@ static void sunxi_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		tmp = NFC_DATA_TRANS | NFC_DATA_SWAP_METHOD;
 		writel(tmp, nfc->regs + NFC_REG_CMD);
 
-		ret = sunxi_nfc_wait_int(nfc, NFC_CMD_INT_FLAG, 0);
+		ret = sunxi_nfc_wait_events(nfc, NFC_CMD_INT_FLAG, true, 0);
 		if (ret)
 			break;
 
@@ -483,7 +500,7 @@ static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 		      NFC_ACCESS_DIR;
 		writel(tmp, nfc->regs + NFC_REG_CMD);
 
-		ret = sunxi_nfc_wait_int(nfc, NFC_CMD_INT_FLAG, 0);
+		ret = sunxi_nfc_wait_events(nfc, NFC_CMD_INT_FLAG, true, 0);
 		if (ret)
 			break;
 
@@ -545,7 +562,7 @@ static void sunxi_nfc_cmd_ctrl(struct mtd_info *mtd, int dat,
 		sunxi_nand->addr[0] = 0;
 		sunxi_nand->addr[1] = 0;
 		sunxi_nand->addr_cycles = 0;
-		sunxi_nfc_wait_int(nfc, NFC_CMD_INT_FLAG, 0);
+		sunxi_nfc_wait_events(nfc, NFC_CMD_INT_FLAG, true, 0);
 	}
 
 	if (ctrl & NAND_CLE) {
@@ -788,7 +805,7 @@ static int sunxi_nfc_hw_ecc_read_chunk(struct mtd_info *mtd,
 	writel(NFC_DATA_TRANS | NFC_DATA_SWAP_METHOD | NFC_ECC_OP,
 	       nfc->regs + NFC_REG_CMD);
 
-	ret = sunxi_nfc_wait_int(nfc, NFC_CMD_INT_FLAG, 0);
+	ret = sunxi_nfc_wait_events(nfc, NFC_CMD_INT_FLAG, true, 0);
 	sunxi_nfc_randomizer_disable(mtd);
 	if (ret)
 		return ret;
@@ -926,7 +943,7 @@ static int sunxi_nfc_hw_ecc_write_chunk(struct mtd_info *mtd,
 	       NFC_ACCESS_DIR | NFC_ECC_OP,
 	       nfc->regs + NFC_REG_CMD);
 
-	ret = sunxi_nfc_wait_int(nfc, NFC_CMD_INT_FLAG, 0);
+	ret = sunxi_nfc_wait_events(nfc, NFC_CMD_INT_FLAG, true, 0);
 	sunxi_nfc_randomizer_disable(mtd);
 	if (ret)
 		return ret;
