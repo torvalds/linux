@@ -189,7 +189,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	u32 convert_rate = rsnd_src_convert_rate(io, mod);
+	u32 fin, fout;
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
 	u32 bsdsr, bsisr;
@@ -198,13 +198,16 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	if (!runtime)
 		return;
 
+	fin  = rsnd_src_get_in_rate(priv, io);
+	fout = rsnd_src_get_out_rate(priv, io);
+
 	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
-	if (!convert_rate)
+	if (fin == fout)
 		ratio = 0;
-	else if (convert_rate > runtime->rate)
-		ratio = 100 * convert_rate / runtime->rate;
+	else if (fin > fout)
+		ratio = 100 * fin / fout;
 	else
-		ratio = 100 * runtime->rate / convert_rate;
+		ratio = 100 * fout / fin;
 
 	if (ratio > 600) {
 		dev_err(dev, "FSO/FSI ratio error\n");
@@ -222,9 +225,9 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	 */
 	ifscr = 0;
 	fsrate = 0;
-	if (convert_rate) {
+	if (fin != fout) {
 		ifscr = 1;
-		fsrate = 0x0400000 / convert_rate * runtime->rate;
+		fsrate = 0x0400000 / fout * fin;
 	}
 
 	/*
@@ -232,7 +235,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	 */
 	cr	= 0x00011110;
 	route	= 0x0;
-	if (convert_rate) {
+	if (fin != fout) {
 		route	= 0x1;
 
 		if (rsnd_src_sync_is_enabled(mod)) {
@@ -274,12 +277,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, SRC_O_BUSIF_MODE, 1);
 	rsnd_mod_write(mod, SRC_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
-	if (convert_rate)
-		rsnd_adg_set_convert_clk_gen2(mod, io,
-					      runtime->rate,
-					      convert_rate);
-	else
-		rsnd_adg_set_convert_timing_gen2(mod, io);
+	rsnd_adg_set_src_timesel_gen2(mod, io, fin, fout);
 }
 
 static int rsnd_src_irq(struct rsnd_mod *mod,
