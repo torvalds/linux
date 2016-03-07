@@ -1256,6 +1256,76 @@ out:
 	return copied ? : err;
 }
 
+static ssize_t kcm_sock_splice(struct sock *sk,
+			       struct pipe_inode_info *pipe,
+			       struct splice_pipe_desc *spd)
+{
+	int ret;
+
+	release_sock(sk);
+	ret = splice_to_pipe(pipe, spd);
+	lock_sock(sk);
+
+	return ret;
+}
+
+static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
+			       struct pipe_inode_info *pipe, size_t len,
+			       unsigned int flags)
+{
+	struct sock *sk = sock->sk;
+	struct kcm_sock *kcm = kcm_sk(sk);
+	long timeo;
+	struct kcm_rx_msg *rxm;
+	int err = 0;
+	size_t copied;
+	struct sk_buff *skb;
+
+	/* Only support splice for SOCKSEQPACKET */
+
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
+
+	lock_sock(sk);
+
+	skb = kcm_wait_data(sk, flags, timeo, &err);
+	if (!skb)
+		goto err_out;
+
+	/* Okay, have a message on the receive queue */
+
+	rxm = kcm_rx_msg(skb);
+
+	if (len > rxm->full_len)
+		len = rxm->full_len;
+
+	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, len, flags,
+				 kcm_sock_splice);
+	if (copied < 0) {
+		err = copied;
+		goto err_out;
+	}
+
+	KCM_STATS_ADD(kcm->stats.rx_bytes, copied);
+
+	rxm->offset += copied;
+	rxm->full_len -= copied;
+
+	/* We have no way to return MSG_EOR. If all the bytes have been
+	 * read we still leave the message in the receive socket buffer.
+	 * A subsequent recvmsg needs to be done to return MSG_EOR and
+	 * finish reading the message.
+	 */
+
+	release_sock(sk);
+
+	return copied;
+
+err_out:
+	release_sock(sk);
+
+	return err;
+}
+
 /* kcm sock lock held */
 static void kcm_recv_disable(struct kcm_sock *kcm)
 {
@@ -1907,7 +1977,7 @@ static int kcm_release(struct socket *sock)
 	return 0;
 }
 
-static const struct proto_ops kcm_ops = {
+static const struct proto_ops kcm_dgram_ops = {
 	.family =	PF_KCM,
 	.owner =	THIS_MODULE,
 	.release =	kcm_release,
@@ -1928,6 +1998,28 @@ static const struct proto_ops kcm_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
+static const struct proto_ops kcm_seqpacket_ops = {
+	.family =	PF_KCM,
+	.owner =	THIS_MODULE,
+	.release =	kcm_release,
+	.bind =		sock_no_bind,
+	.connect =	sock_no_connect,
+	.socketpair =	sock_no_socketpair,
+	.accept =	sock_no_accept,
+	.getname =	sock_no_getname,
+	.poll =		datagram_poll,
+	.ioctl =	kcm_ioctl,
+	.listen =	sock_no_listen,
+	.shutdown =	sock_no_shutdown,
+	.setsockopt =	kcm_setsockopt,
+	.getsockopt =	kcm_getsockopt,
+	.sendmsg =	kcm_sendmsg,
+	.recvmsg =	kcm_recvmsg,
+	.mmap =		sock_no_mmap,
+	.sendpage =	sock_no_sendpage,
+	.splice_read =	kcm_splice_read,
+};
+
 /* Create proto operation for kcm sockets */
 static int kcm_create(struct net *net, struct socket *sock,
 		      int protocol, int kern)
@@ -1938,8 +2030,10 @@ static int kcm_create(struct net *net, struct socket *sock,
 
 	switch (sock->type) {
 	case SOCK_DGRAM:
+		sock->ops = &kcm_dgram_ops;
+		break;
 	case SOCK_SEQPACKET:
-		sock->ops = &kcm_ops;
+		sock->ops = &kcm_seqpacket_ops;
 		break;
 	default:
 		return -ESOCKTNOSUPPORT;
