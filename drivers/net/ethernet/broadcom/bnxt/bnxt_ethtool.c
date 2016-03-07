@@ -553,6 +553,17 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
 }
 
+static u32 bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->lp_auto_link_speeds;
+	u8 fw_pause = 0;
+
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		fw_pause = link_info->lp_pause;
+
+	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
+}
+
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 {
 	switch (fw_link_speed) {
@@ -594,6 +605,9 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			bnxt_fw_to_ethtool_advertised_spds(link_info);
 		cmd->advertising |= ADVERTISED_Autoneg;
 		cmd->autoneg = AUTONEG_ENABLE;
+		if (link_info->phy_link_status == BNXT_LINK_LINK)
+			cmd->lp_advertising =
+				bnxt_fw_to_ethtool_lp_adv(link_info);
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
@@ -757,8 +771,10 @@ static void bnxt_get_pauseparam(struct net_device *dev,
 	if (BNXT_VF(bp))
 		return;
 	epause->autoneg = !!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL);
-	epause->rx_pause = ((link_info->pause & BNXT_LINK_PAUSE_RX) != 0);
-	epause->tx_pause = ((link_info->pause & BNXT_LINK_PAUSE_TX) != 0);
+	epause->rx_pause =
+		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_RX) != 0);
+	epause->tx_pause =
+		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_TX) != 0);
 }
 
 static int bnxt_set_pauseparam(struct net_device *dev,
