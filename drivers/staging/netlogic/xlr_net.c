@@ -99,7 +99,7 @@ static int send_to_rfr_fifo(struct xlr_net_priv *priv, void *addr)
 			return 0;
 	} while (++num_try < 10000);
 
-	pr_err("Send to RFR failed in RX path\n");
+	netdev_err(priv->ndev, "Send to RFR failed in RX path\n");
 	return ret;
 }
 
@@ -209,12 +209,12 @@ static int xlr_net_fill_rx_ring(struct net_device *ndev)
 	for (i = 0; i < MAX_FRIN_SPILL / 4; i++) {
 		skb_data = xlr_alloc_skb();
 		if (!skb_data) {
-			pr_err("SKB allocation failed\n");
+			netdev_err(ndev, "SKB allocation failed\n");
 			return -ENOMEM;
 		}
 		send_to_rfr_fifo(priv, skb_data);
 	}
-	pr_info("Rx ring setup done\n");
+	netdev_info(ndev, "Rx ring setup done\n");
 	return 0;
 }
 
