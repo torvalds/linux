@@ -475,6 +475,22 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 };
 
 static const struct drm_i915_reg_descriptor hsw_render_regs[] = {
+	REG64_IDX(HSW_CS_GPR, 0),
+	REG64_IDX(HSW_CS_GPR, 1),
+	REG64_IDX(HSW_CS_GPR, 2),
+	REG64_IDX(HSW_CS_GPR, 3),
+	REG64_IDX(HSW_CS_GPR, 4),
+	REG64_IDX(HSW_CS_GPR, 5),
+	REG64_IDX(HSW_CS_GPR, 6),
+	REG64_IDX(HSW_CS_GPR, 7),
+	REG64_IDX(HSW_CS_GPR, 8),
+	REG64_IDX(HSW_CS_GPR, 9),
+	REG64_IDX(HSW_CS_GPR, 10),
+	REG64_IDX(HSW_CS_GPR, 11),
+	REG64_IDX(HSW_CS_GPR, 12),
+	REG64_IDX(HSW_CS_GPR, 13),
+	REG64_IDX(HSW_CS_GPR, 14),
+	REG64_IDX(HSW_CS_GPR, 15),
 	REG32(HSW_SCRATCH1,
 	      .mask = ~HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE,
 	      .value = 0),
