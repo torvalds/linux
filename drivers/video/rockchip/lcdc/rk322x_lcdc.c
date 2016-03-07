@@ -1548,26 +1548,26 @@ static int vop_hwc_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 	unsigned int hwc_size = 0;
 	u64 val;
 
+	if ((win->area[0].xsize == 32) && (win->area[0].ysize == 32)) {
+		hwc_size = 0;
+	} else if ((win->area[0].xsize == 64) && (win->area[0].ysize == 64)) {
+		hwc_size = 1;
+	} else if ((win->area[0].xsize == 96) && (win->area[0].ysize == 96)) {
+		hwc_size = 2;
+	} else if ((win->area[0].xsize == 128) &&
+		   (win->area[0].ysize == 128)) {
+		hwc_size = 3;
+	} else {
+		dev_err(vop_dev->dev, "un supported hwc size[%dx%d]!\n",
+				win->area[0].xsize, win->area[0].ysize);
+		return -EINVAL;
+	}
+
 	if (win->state == 1) {
 		vop_axi_gather_cfg(vop_dev, win);
 		val = V_HWC_EN(1) | V_HWC_DATA_FMT(win->area[0].fmt_cfg) |
 		    V_HWC_RB_SWAP(win->area[0].swap_rb);
 		vop_msk_reg(vop_dev, HWC_CTRL0, val);
-
-		if ((win->area[0].xsize == 32) && (win->area[0].ysize == 32))
-			hwc_size = 0;
-		else if ((win->area[0].xsize == 64) &&
-			 (win->area[0].ysize == 64))
-			hwc_size = 1;
-		else if ((win->area[0].xsize == 96) &&
-			 (win->area[0].ysize == 96))
-			hwc_size = 2;
-		else if ((win->area[0].xsize == 128) &&
-			 (win->area[0].ysize == 128))
-			hwc_size = 3;
-		else
-			dev_err(vop_dev->dev, "un supported hwc size[%dx%d]!\n",
-				win->area[0].xsize, win->area[0].ysize);
 
 		val = V_HWC_SIZE(hwc_size);
 		vop_msk_reg(vop_dev, HWC_CTRL0, val);
