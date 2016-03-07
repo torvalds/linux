@@ -202,7 +202,10 @@ int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *cmd_mod,
 	int shift = (id % 2) ? 16 : 0;
 	u32 mask, val;
 
-	val = rsnd_adg_ssi_ws_timing_gen2(io);
+	rsnd_adg_get_timesel_ratio(priv, io,
+				   rsnd_src_get_in_rate(priv, io),
+				   rsnd_src_get_out_rate(priv, io),
+				   NULL, &val, NULL);
 
 	val  = val	<< shift;
 	mask = 0xffff	<< shift;
