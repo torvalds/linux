@@ -260,6 +260,42 @@
 			rk_usb,dcpattach  = <0x498 29 1>;
 		};
 	};
+
+	i2c@2 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>, /* sda */
+			<&gpio5 16 GPIO_ACTIVE_HIGH>; /* scl */
+		i2c-gpio,delay-us = <2>;        /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_gpio>;
+		status = "disabled";
+	};
+
+	i2c@4 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>, /* sda */
+			<&gpio5 8 GPIO_ACTIVE_HIGH>; /* scl */
+		i2c-gpio,delay-us = <2>;        /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_gpio>;
+		status = "okay";
+
+		gt9xx: gt9xx@14 {
+			compatible = "goodix,gt9xx";
+			reg = <0x14>;
+			touch-gpio = <&gpio5 11 IRQ_TYPE_LEVEL_LOW>;
+			reset-gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;
+			max-x = <1200>;
+			max-y = <1900>;
+			tp-size = <911>;
+			tp-supply = <&vcc_tp>;
+			status = "okay";
+		};
+	};
 };
 
 &emmc {
@@ -529,22 +565,6 @@
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
 		realtek,in1-differential;
-	};
-};
-
-&i2c4 {
-	status = "okay";
-
-	gt9xx: gt9xx@14 {
-		compatible = "goodix,gt9xx";
-		reg = <0x14>;
-		touch-gpio = <&gpio5 11 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpio = <&gpio5 10 GPIO_ACTIVE_HIGH>;
-		max-x = <1200>;
-		max-y = <1900>;
-		tp-size = <911>;
-		tp-supply = <&vcc_tp>;
-		status = "okay";
 	};
 };
 

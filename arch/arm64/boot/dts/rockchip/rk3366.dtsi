@@ -1025,6 +1025,12 @@
 					<5 15 RK_FUNC_2 &pcfg_pull_none>,
 					<5 16 RK_FUNC_2 &pcfg_pull_none>;
 			};
+
+			i2c2_gpio: i2c2-gpio {
+				rockchip,pins =
+					<5 15 RK_FUNC_GPIO &pcfg_pull_none>,
+					<5 16 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
 		};
 
 		i2c3 {
@@ -1040,6 +1046,12 @@
 				rockchip,pins =
 					<5 8 RK_FUNC_1 &pcfg_pull_none>,
 					<5 9 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2c4_gpio: i2c4-gpio {
+				rockchip,pins =
+					<5 8 RK_FUNC_GPIO &pcfg_pull_none>,
+					<5 9 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
 		};
 
