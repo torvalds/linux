@@ -472,6 +472,9 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG32(GEN7_L3SQCREG1),
 	REG32(GEN7_L3CNTLREG2),
 	REG32(GEN7_L3CNTLREG3),
+};
+
+static const struct drm_i915_reg_descriptor hsw_render_regs[] = {
 	REG32(HSW_SCRATCH1,
 	      .mask = ~HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE,
 	      .value = 0),
@@ -519,6 +522,7 @@ static const struct drm_i915_reg_table ivb_blt_reg_tables[] = {
 
 static const struct drm_i915_reg_table hsw_render_reg_tables[] = {
 	{ gen7_render_regs, ARRAY_SIZE(gen7_render_regs), false },
+	{ hsw_render_regs, ARRAY_SIZE(hsw_render_regs), false },
 	{ hsw_master_regs, ARRAY_SIZE(hsw_master_regs), true },
 };
 
