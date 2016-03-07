@@ -647,7 +647,7 @@ jit_process(struct perf_session *session,
 	 * first, detect marker mmap (i.e., the jitdump mmap)
 	 */
 	if (jit_detect(filename, pid))
-		return -1;
+		return 0;
 
 	memset(&jd, 0, sizeof(jd));
 
@@ -665,8 +665,10 @@ jit_process(struct perf_session *session,
 	*nbytes = 0;
 
 	ret = jit_inject(&jd, filename);
-	if (!ret)
+	if (!ret) {
 		*nbytes = jd.bytes_written;
+		ret = 1;
+	}
 
 	return ret;
 }

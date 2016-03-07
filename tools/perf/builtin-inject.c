@@ -253,12 +253,16 @@ static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u64 n = 0;
+	int ret;
 
 	/*
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
-	if (!jit_process(inject->session, &inject->output, machine,
-			 event->mmap.filename, sample->pid, &n)) {
+	ret = jit_process(inject->session, &inject->output, machine,
+			  event->mmap.filename, sample->pid, &n);
+	if (ret < 0)
+		return ret;
+	if (ret) {
 		inject->bytes_written += n;
 		return 0;
 	}
@@ -287,12 +291,16 @@ static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u64 n = 0;
+	int ret;
 
 	/*
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
-	if (!jit_process(inject->session, &inject->output, machine,
-			  event->mmap2.filename, sample->pid, &n)) {
+	ret = jit_process(inject->session, &inject->output, machine,
+			  event->mmap2.filename, sample->pid, &n);
+	if (ret < 0)
+		return ret;
+	if (ret) {
 		inject->bytes_written += n;
 		return 0;
 	}
