@@ -2076,7 +2076,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	stats = mtd->ecc_stats;
 
 	if (ops->mode == MTD_OPS_AUTO_OOB)
-		len = chip->ecc.layout->oobavail;
+		len = mtd->oobavail;
 	else
 		len = mtd->oobsize;
 
@@ -2767,7 +2767,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
 	if (ops->mode == MTD_OPS_AUTO_OOB)
-		len = chip->ecc.layout->oobavail;
+		len = mtd->oobavail;
 	else
 		len = mtd->oobsize;
 
@@ -4325,11 +4325,11 @@ int nand_scan_tail(struct mtd_info *mtd)
 	 * The number of bytes available for a client to place data into
 	 * the out of band area.
 	 */
-	ecc->layout->oobavail = 0;
-	for (i = 0; ecc->layout->oobfree[i].length
-			&& i < ARRAY_SIZE(ecc->layout->oobfree); i++)
-		ecc->layout->oobavail += ecc->layout->oobfree[i].length;
-	mtd->oobavail = ecc->layout->oobavail;
+	mtd->oobavail = 0;
+	if (ecc->layout) {
+		for (i = 0; ecc->layout->oobfree[i].length; i++)
+			mtd->oobavail += ecc->layout->oobfree[i].length;
+	}
 
 	/* ECC sanity check: warn if it's too weak */
 	if (!nand_ecc_strength_good(mtd))

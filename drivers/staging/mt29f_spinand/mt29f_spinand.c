@@ -49,7 +49,6 @@ static struct nand_ecclayout spinand_oob_64 = {
 		17, 18, 19, 20, 21, 22,
 		33, 34, 35, 36, 37, 38,
 		49, 50, 51, 52, 53, 54, },
-	.oobavail = 32,
 	.oobfree = {
 		{.offset = 8,
 			.length = 8},

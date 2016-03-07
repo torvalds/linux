@@ -1125,7 +1125,7 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 			(int)len);
 
 	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = this->ecclayout->oobavail;
+		oobsize = mtd->oobavail;
 	else
 		oobsize = mtd->oobsize;
 
@@ -1230,7 +1230,7 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 			(int)len);
 
 	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = this->ecclayout->oobavail;
+		oobsize = mtd->oobavail;
 	else
 		oobsize = mtd->oobsize;
 
@@ -1365,7 +1365,7 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 	ops->oobretlen = 0;
 
 	if (mode == MTD_OPS_AUTO_OOB)
-		oobsize = this->ecclayout->oobavail;
+		oobsize = mtd->oobavail;
 	else
 		oobsize = mtd->oobsize;
 
@@ -1887,7 +1887,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 		return 0;
 
 	if (ops->mode == MTD_OPS_AUTO_OOB)
-		oobsize = this->ecclayout->oobavail;
+		oobsize = mtd->oobavail;
 	else
 		oobsize = mtd->oobsize;
 
@@ -2063,7 +2063,7 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 	ops->oobretlen = 0;
 
 	if (mode == MTD_OPS_AUTO_OOB)
-		oobsize = this->ecclayout->oobavail;
+		oobsize = mtd->oobavail;
 	else
 		oobsize = mtd->oobsize;
 
@@ -4050,12 +4050,10 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	 * The number of bytes available for a client to place data into
 	 * the out of band area
 	 */
-	this->ecclayout->oobavail = 0;
+	mtd->oobavail = 0;
 	for (i = 0; i < MTD_MAX_OOBFREE_ENTRIES &&
 	    this->ecclayout->oobfree[i].length; i++)
-		this->ecclayout->oobavail +=
-			this->ecclayout->oobfree[i].length;
-	mtd->oobavail = this->ecclayout->oobavail;
+		mtd->oobavail += this->ecclayout->oobfree[i].length;
 
 	mtd->ecclayout = this->ecclayout;
 	mtd->ecc_strength = 1;

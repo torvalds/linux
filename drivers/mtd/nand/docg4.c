@@ -225,7 +225,6 @@ struct docg4_priv {
 static struct nand_ecclayout docg4_oobinfo = {
 	.eccbytes = 9,
 	.eccpos = {7, 8, 9, 10, 11, 12, 13, 14, 15},
-	.oobavail = 5,
 	.oobfree = { {.offset = 2, .length = 5} }
 };
 
