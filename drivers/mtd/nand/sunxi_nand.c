@@ -38,7 +38,7 @@
 #include <linux/dmaengine.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 
 #define NFC_REG_CTL		0x0000
 #define NFC_REG_ST		0x0004
@@ -322,33 +322,33 @@ static int sunxi_nfc_wait_int(struct sunxi_nfc *nfc, u32 flags,
 
 static int sunxi_nfc_wait_cmd_fifo_empty(struct sunxi_nfc *nfc)
 {
-	unsigned long timeout = jiffies +
-				msecs_to_jiffies(NFC_DEFAULT_TIMEOUT_MS);
+	u32 status;
+	int ret;
 
-	do {
-		if (!(readl(nfc->regs + NFC_REG_ST) & NFC_CMD_FIFO_STATUS))
-			return 0;
-	} while (time_before(jiffies, timeout));
+	ret = readl_poll_timeout(nfc->regs + NFC_REG_ST, status,
+				 !(status & NFC_CMD_FIFO_STATUS), 1,
+				 NFC_DEFAULT_TIMEOUT_MS * 1000);
+	if (ret)
+		dev_err(nfc->dev, "wait for empty cmd FIFO timedout\n");
 
-	dev_err(nfc->dev, "wait for empty cmd FIFO timedout\n");
-	return -ETIMEDOUT;
+	return ret;
 }
 
 static int sunxi_nfc_rst(struct sunxi_nfc *nfc)
 {
-	unsigned long timeout = jiffies +
-				msecs_to_jiffies(NFC_DEFAULT_TIMEOUT_MS);
+	u32 ctl;
+	int ret;
 
 	writel(0, nfc->regs + NFC_REG_ECC_CTL);
 	writel(NFC_RESET, nfc->regs + NFC_REG_CTL);
 
-	do {
-		if (!(readl(nfc->regs + NFC_REG_CTL) & NFC_RESET))
-			return 0;
-	} while (time_before(jiffies, timeout));
+	ret = readl_poll_timeout(nfc->regs + NFC_REG_CTL, ctl,
+				 !(ctl & NFC_RESET), 1,
+				 NFC_DEFAULT_TIMEOUT_MS * 1000);
+	if (ret)
+		dev_err(nfc->dev, "wait for NAND controller reset timedout\n");
 
-	dev_err(nfc->dev, "wait for NAND controller reset timedout\n");
-	return -ETIMEDOUT;
+	return ret;
 }
 
 static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
