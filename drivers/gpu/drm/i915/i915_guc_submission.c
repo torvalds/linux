@@ -158,10 +158,8 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
-	if (!intel_enable_rc6(dev_priv->dev) ||
-	    IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
-	    (IS_SKL_GT3(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)) ||
-	    (IS_SKL_GT4(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
+	if (!intel_enable_rc6(dev) ||
+	    NEEDS_WaRsDisableCoarsePowerGating(dev))
 		data[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */
@@ -245,6 +243,9 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		if (db_exc.cookie == 0)
 			db_exc.cookie = 1;
 	}
+
+	/* Finally, update the cached copy of the GuC's WQ head */
+	gc->wq_head = desc->head;
 
 	kunmap_atomic(base);
 	return ret;
@@ -375,6 +376,8 @@ static void guc_init_proc_desc(struct intel_guc *guc,
 static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_engine_cs *ring;
 	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
@@ -387,10 +390,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct guc_execlist_context *lrc = &desc.lrc[i];
-		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
-		struct intel_engine_cs *ring;
+	for_each_ring(ring, dev_priv, i) {
+		struct guc_execlist_context *lrc = &desc.lrc[ring->guc_id];
 		struct drm_i915_gem_object *obj;
 		uint64_t ctx_desc;
 
@@ -405,7 +406,6 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		if (!obj)
 			break;	/* XXX: continue? */
 
-		ring = ringbuf->ring;
 		ctx_desc = intel_lr_context_descriptor(ctx, ring);
 		lrc->context_desc = (u32)ctx_desc;
 
@@ -413,16 +413,16 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->ring_lcra = i915_gem_obj_ggtt_offset(obj) +
 				LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
-				(ring->id << GUC_ELC_ENGINE_OFFSET);
+				(ring->guc_id << GUC_ELC_ENGINE_OFFSET);
 
-		obj = ringbuf->obj;
+		obj = ctx->engine[i].ringbuf->obj;
 
 		lrc->ring_begin = i915_gem_obj_ggtt_offset(obj);
 		lrc->ring_end = lrc->ring_begin + obj->base.size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
 
-		desc.engines_used |= (1 << ring->id);
+		desc.engines_used |= (1 << ring->guc_id);
 	}
 
 	WARN_ON(desc.engines_used == 0);
@@ -471,28 +471,30 @@ static void guc_fini_ctx_desc(struct intel_guc *guc,
 			     sizeof(desc) * client->ctx_index);
 }
 
-/* Get valid workqueue item and return it back to offset */
-static int guc_get_workqueue_space(struct i915_guc_client *gc, u32 *offset)
+int i915_guc_wq_check_space(struct i915_guc_client *gc)
 {
 	struct guc_process_desc *desc;
 	void *base;
 	u32 size = sizeof(struct guc_wq_item);
 	int ret = -ETIMEDOUT, timeout_counter = 200;
 
+	if (!gc)
+		return 0;
+
+	/* Quickly return if wq space is available since last time we cache the
+	 * head position. */
+	if (CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size) >= size)
+		return 0;
+
 	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, 0));
 	desc = base + gc->proc_desc_offset;
 
 	while (timeout_counter-- > 0) {
-		if (CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size) >= size) {
-			*offset = gc->wq_tail;
+		gc->wq_head = desc->head;
 
-			/* advance the tail for next workqueue item */
-			gc->wq_tail += size;
-			gc->wq_tail &= gc->wq_size - 1;
-
-			/* this will break the loop */
-			timeout_counter = 0;
+		if (CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size) >= size) {
 			ret = 0;
+			break;
 		}
 
 		if (timeout_counter)
@@ -507,15 +509,18 @@ static int guc_get_workqueue_space(struct i915_guc_client *gc, u32 *offset)
 static int guc_add_workqueue_item(struct i915_guc_client *gc,
 				  struct drm_i915_gem_request *rq)
 {
-	enum intel_ring_id ring_id = rq->ring->id;
 	struct guc_wq_item *wqi;
 	void *base;
-	u32 tail, wq_len, wq_off = 0;
-	int ret;
+	u32 tail, wq_len, wq_off, space;
 
-	ret = guc_get_workqueue_space(gc, &wq_off);
-	if (ret)
-		return ret;
+	space = CIRC_SPACE(gc->wq_tail, gc->wq_head, gc->wq_size);
+	if (WARN_ON(space < sizeof(struct guc_wq_item)))
+		return -ENOSPC; /* shouldn't happen */
+
+	/* postincrement WQ tail for next time */
+	wq_off = gc->wq_tail;
+	gc->wq_tail += sizeof(struct guc_wq_item);
+	gc->wq_tail &= gc->wq_size - 1;
 
 	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
 	 * should not have the case where structure wqi is across page, neither
@@ -537,7 +542,7 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	wq_len = sizeof(struct guc_wq_item) / sizeof(u32) - 1;
 	wqi->header = WQ_TYPE_INORDER |
 			(wq_len << WQ_LEN_SHIFT) |
-			(ring_id << WQ_TARGET_SHIFT) |
+			(rq->ring->guc_id << WQ_TARGET_SHIFT) |
 			WQ_NO_WCFLUSH_WAIT;
 
 	/* The GuC wants only the low-order word of the context descriptor */
@@ -553,29 +558,6 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	return 0;
 }
 
-#define CTX_RING_BUFFER_START		0x08
-
-/* Update the ringbuffer pointer in a saved context image */
-static void lr_context_update(struct drm_i915_gem_request *rq)
-{
-	enum intel_ring_id ring_id = rq->ring->id;
-	struct drm_i915_gem_object *ctx_obj = rq->ctx->engine[ring_id].state;
-	struct drm_i915_gem_object *rb_obj = rq->ringbuf->obj;
-	struct page *page;
-	uint32_t *reg_state;
-
-	BUG_ON(!ctx_obj);
-	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
-	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
-
-	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-	reg_state = kmap_atomic(page);
-
-	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
-
-	kunmap_atomic(reg_state);
-}
-
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
@@ -587,18 +569,14 @@ int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq)
 {
 	struct intel_guc *guc = client->guc;
-	enum intel_ring_id ring_id = rq->ring->id;
+	unsigned int engine_id = rq->ring->guc_id;
 	int q_ret, b_ret;
-
-	/* Need this because of the deferred pin ctx and ring */
-	/* Shall we move this right after ring is pinned? */
-	lr_context_update(rq);
 
 	q_ret = guc_add_workqueue_item(client, rq);
 	if (q_ret == 0)
 		b_ret = guc_ring_doorbell(client);
 
-	client->submissions[ring_id] += 1;
+	client->submissions[engine_id] += 1;
 	if (q_ret) {
 		client->q_fail += 1;
 		client->retcode = q_ret;
@@ -608,8 +586,8 @@ int i915_guc_submit(struct i915_guc_client *client,
 	} else {
 		client->retcode = 0;
 	}
-	guc->submissions[ring_id] += 1;
-	guc->last_seqno[ring_id] = rq->seqno;
+	guc->submissions[engine_id] += 1;
+	guc->last_seqno[engine_id] = rq->seqno;
 
 	return q_ret;
 }
@@ -832,6 +810,96 @@ static void guc_create_log(struct intel_guc *guc)
 	guc->log_flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 }
 
+static void init_guc_policies(struct guc_policies *policies)
+{
+	struct guc_policy *policy;
+	u32 p, i;
+
+	policies->dpc_promote_time = 500000;
+	policies->max_num_work_items = POLICY_MAX_NUM_WI;
+
+	for (p = 0; p < GUC_CTX_PRIORITY_NUM; p++) {
+		for (i = GUC_RENDER_ENGINE; i < GUC_MAX_ENGINES_NUM; i++) {
+			policy = &policies->policy[p][i];
+
+			policy->execution_quantum = 1000000;
+			policy->preemption_time = 500000;
+			policy->fault_time = 250000;
+			policy->policy_flags = 0;
+		}
+	}
+
+	policies->is_valid = 1;
+}
+
+static void guc_create_ads(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct drm_i915_gem_object *obj;
+	struct guc_ads *ads;
+	struct guc_policies *policies;
+	struct guc_mmio_reg_state *reg_state;
+	struct intel_engine_cs *ring;
+	struct page *page;
+	u32 size, i;
+
+	/* The ads obj includes the struct itself and buffers passed to GuC */
+	size = sizeof(struct guc_ads) + sizeof(struct guc_policies) +
+			sizeof(struct guc_mmio_reg_state) +
+			GUC_S3_SAVE_SPACE_PAGES * PAGE_SIZE;
+
+	obj = guc->ads_obj;
+	if (!obj) {
+		obj = gem_allocate_guc_obj(dev_priv->dev, PAGE_ALIGN(size));
+		if (!obj)
+			return;
+
+		guc->ads_obj = obj;
+	}
+
+	page = i915_gem_object_get_page(obj, 0);
+	ads = kmap(page);
+
+	/*
+	 * The GuC requires a "Golden Context" when it reinitialises
+	 * engines after a reset. Here we use the Render ring default
+	 * context, which must already exist and be pinned in the GGTT,
+	 * so its address won't change after we've told the GuC where
+	 * to find it.
+	 */
+	ring = &dev_priv->ring[RCS];
+	ads->golden_context_lrca = ring->status_page.gfx_addr;
+
+	for_each_ring(ring, dev_priv, i)
+		ads->eng_state_size[ring->guc_id] = intel_lr_context_size(ring);
+
+	/* GuC scheduling policies */
+	policies = (void *)ads + sizeof(struct guc_ads);
+	init_guc_policies(policies);
+
+	ads->scheduler_policies = i915_gem_obj_ggtt_offset(obj) +
+			sizeof(struct guc_ads);
+
+	/* MMIO reg state */
+	reg_state = (void *)policies + sizeof(struct guc_policies);
+
+	for_each_ring(ring, dev_priv, i) {
+		reg_state->mmio_white_list[ring->guc_id].mmio_start =
+			ring->mmio_base + GUC_MMIO_WHITE_LIST_START;
+
+		/* Nothing to be saved or restored for now. */
+		reg_state->mmio_white_list[ring->guc_id].count = 0;
+	}
+
+	ads->reg_state_addr = ads->scheduler_policies +
+			sizeof(struct guc_policies);
+
+	ads->reg_state_buffer = ads->reg_state_addr +
+			sizeof(struct guc_mmio_reg_state);
+
+	kunmap(page);
+}
+
 /*
  * Set up the memory resources to be shared with the GuC.  At this point,
  * we require just one object that can be mapped through the GGTT.
@@ -858,6 +926,8 @@ int i915_guc_submission_init(struct drm_device *dev)
 
 	guc_create_log(guc);
 
+	guc_create_ads(guc);
+
 	return 0;
 }
 
@@ -865,7 +935,7 @@ int i915_guc_submission_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	struct intel_context *ctx = dev_priv->ring[RCS].default_context;
+	struct intel_context *ctx = dev_priv->kernel_context;
 	struct i915_guc_client *client;
 
 	/* client for execbuf submission */
@@ -896,6 +966,9 @@ void i915_guc_submission_fini(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
 
+	gem_release_guc_obj(dev_priv->guc.ads_obj);
+	guc->ads_obj = NULL;
+
 	gem_release_guc_obj(dev_priv->guc.log_obj);
 	guc->log_obj = NULL;
 
@@ -919,7 +992,7 @@ int intel_guc_suspend(struct drm_device *dev)
 	if (!i915.enable_guc_submission)
 		return 0;
 
-	ctx = dev_priv->ring[RCS].default_context;
+	ctx = dev_priv->kernel_context;
 
 	data[0] = HOST2GUC_ACTION_ENTER_S_STATE;
 	/* any value greater than GUC_POWER_D0 */
@@ -945,7 +1018,7 @@ int intel_guc_resume(struct drm_device *dev)
 	if (!i915.enable_guc_submission)
 		return 0;
 
-	ctx = dev_priv->ring[RCS].default_context;
+	ctx = dev_priv->kernel_context;
 
 	data[0] = HOST2GUC_ACTION_EXIT_S_STATE;
 	data[1] = GUC_POWER_D0;

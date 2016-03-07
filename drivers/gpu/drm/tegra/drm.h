@@ -195,7 +195,6 @@ struct tegra_dc_window {
 u32 tegra_dc_get_vblank_counter(struct tegra_dc *dc);
 void tegra_dc_enable_vblank(struct tegra_dc *dc);
 void tegra_dc_disable_vblank(struct tegra_dc *dc);
-void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
 void tegra_dc_commit(struct tegra_dc *dc);
 int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 			       struct drm_crtc_state *crtc_state,

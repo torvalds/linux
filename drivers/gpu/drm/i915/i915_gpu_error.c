@@ -230,8 +230,6 @@ static const char *hangcheck_action_to_str(enum intel_ring_hangcheck_action a)
 		return "wait";
 	case HANGCHECK_ACTIVE:
 		return "active";
-	case HANGCHECK_ACTIVE_LOOP:
-		return "active (loop)";
 	case HANGCHECK_KICK:
 		return "kick";
 	case HANGCHECK_HUNG:
@@ -365,6 +363,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	err_printf(m, "Reset count: %u\n", error->reset_count);
 	err_printf(m, "Suspend count: %u\n", error->suspend_count);
 	err_printf(m, "PCI ID: 0x%04x\n", dev->pdev->device);
+	err_printf(m, "PCI Revision: 0x%02x\n", dev->pdev->revision);
+	err_printf(m, "PCI Subsystem: %04x:%04x\n",
+		   dev->pdev->subsystem_vendor,
+		   dev->pdev->subsystem_device);
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
 	if (HAS_CSR(dev)) {
@@ -489,6 +491,28 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
+		obj = error->ring[i].wa_ctx;
+		if (obj) {
+			u64 wa_ctx_offset = obj->gtt_offset;
+			u32 *wa_ctx_page = &obj->pages[0][0];
+			struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+			u32 wa_ctx_size = (ring->wa_ctx.indirect_ctx.size +
+					   ring->wa_ctx.per_ctx.size);
+
+			err_printf(m, "%s --- WA ctx batch buffer = 0x%08llx\n",
+				   dev_priv->ring[i].name, wa_ctx_offset);
+			offset = 0;
+			for (elt = 0; elt < wa_ctx_size; elt += 4) {
+				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
+					   offset,
+					   wa_ctx_page[elt + 0],
+					   wa_ctx_page[elt + 1],
+					   wa_ctx_page[elt + 2],
+					   wa_ctx_page[elt + 3]);
+				offset += 16;
+			}
+		}
+
 		if ((obj = error->ring[i].ctx)) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
 				   dev_priv->ring[i].name,
@@ -581,6 +605,7 @@ static void i915_error_state_free(struct kref *error_ref)
 		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
+		i915_error_object_free(error->ring[i].wa_ctx);
 	}
 
 	i915_error_object_free(error->semaphore_obj);
@@ -732,7 +757,7 @@ static u32 capture_active_bo(struct drm_i915_error_buffer *err,
 	struct i915_vma *vma;
 	int i = 0;
 
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		capture_bo(err++, vma);
 		if (++i == count)
 			break;
@@ -755,7 +780,7 @@ static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
 		if (err == last)
 			break;
 
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				capture_bo(err++, vma);
 	}
@@ -1050,7 +1075,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			if (request)
 				rbuf = request->ctx->engine[ring->id].ringbuf;
 			else
-				rbuf = ring->default_context->engine[ring->id].ringbuf;
+				rbuf = dev_priv->kernel_context->engine[ring->id].ringbuf;
 		} else
 			rbuf = ring->buffer;
 
@@ -1062,6 +1087,12 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].hws_page =
 			i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
+
+		if (ring->wa_ctx.obj) {
+			error->ring[i].wa_ctx =
+				i915_error_ggtt_object_create(dev_priv,
+							      ring->wa_ctx.obj);
+		}
 
 		i915_gem_record_active_context(ring, error, &error->ring[i]);
 
@@ -1123,12 +1154,12 @@ static void i915_gem_capture_vm(struct drm_i915_private *dev_priv,
 	int i;
 
 	i = 0;
-	list_for_each_entry(vma, &vm->active_list, mm_list)
+	list_for_each_entry(vma, &vm->active_list, vm_link)
 		i++;
 	error->active_bo_count[ndx] = i;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link)
+		list_for_each_entry(vma, &obj->vma_list, obj_link)
 			if (vma->vm == vm && vma->pin_count > 0)
 				i++;
 	}

@@ -44,6 +44,8 @@
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
 #define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 
+#define FIRMWARE_URL  "https://01.org/linuxgraphics/intel-linux-graphics-firmwares"
+
 MODULE_FIRMWARE(I915_CSR_SKL);
 MODULE_FIRMWARE(I915_CSR_BXT);
 
@@ -177,7 +179,8 @@ static const struct stepping_info kbl_stepping_info[] = {
 static const struct stepping_info skl_stepping_info[] = {
 	{'A', '0'}, {'B', '0'}, {'C', '0'},
 	{'D', '0'}, {'E', '0'}, {'F', '0'},
-	{'G', '0'}, {'H', '0'}, {'I', '0'}
+	{'G', '0'}, {'H', '0'}, {'I', '0'},
+	{'J', '0'}, {'K', '0'}
 };
 
 static const struct stepping_info bxt_stepping_info[] = {
@@ -207,6 +210,24 @@ static const struct stepping_info *intel_get_stepping_info(struct drm_device *de
 		return si + INTEL_REVID(dev);
 
 	return NULL;
+}
+
+static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
+{
+	uint32_t val, mask;
+
+	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
+
+	if (IS_BROXTON(dev_priv))
+		mask |= DC_STATE_DEBUG_MASK_CORES;
+
+	/* The below bit doesn't need to be cleared ever afterwards */
+	val = I915_READ(DC_STATE_DEBUG);
+	if ((val & mask) != mask) {
+		val |= mask;
+		I915_WRITE(DC_STATE_DEBUG, val);
+		POSTING_READ(DC_STATE_DEBUG);
+	}
 }
 
 /**
@@ -242,6 +263,8 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	}
 
 	dev_priv->csr.dc_state = 0;
+
+	gen9_set_dc_state_debugmask(dev_priv);
 }
 
 static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
@@ -280,10 +303,11 @@ static uint32_t *parse_csr_fw(struct drm_i915_private *dev_priv,
 
 	csr->version = css_header->version;
 
-	if (IS_SKYLAKE(dev) && csr->version < SKL_CSR_VERSION_REQUIRED) {
+	if ((IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) &&
+	    csr->version < SKL_CSR_VERSION_REQUIRED) {
 		DRM_INFO("Refusing to load old Skylake DMC firmware v%u.%u,"
 			 " please upgrade to v%u.%u or later"
-			 " [https://01.org/linuxgraphics/intel-linux-graphics-firmwares].\n",
+			   " [" FIRMWARE_URL "].\n",
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version),
 			 CSR_VERSION_MAJOR(SKL_CSR_VERSION_REQUIRED),
@@ -382,18 +406,12 @@ static void csr_load_work_fn(struct work_struct *work)
 
 	ret = request_firmware(&fw, dev_priv->csr.fw_path,
 			       &dev_priv->dev->pdev->dev);
-	if (!fw)
-		goto out;
+	if (fw)
+		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
 
-	dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
-	if (!dev_priv->csr.dmc_payload)
-		goto out;
-
-	/* load csr program during system boot, as needed for DC states */
-	intel_csr_load_program(dev_priv);
-
-out:
 	if (dev_priv->csr.dmc_payload) {
+		intel_csr_load_program(dev_priv);
+
 		intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
 		DRM_INFO("Finished loading %s (v%u.%u)\n",
@@ -401,7 +419,10 @@ out:
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		DRM_ERROR("Failed to load DMC firmware, disabling rpm\n");
+		dev_notice(dev_priv->dev->dev,
+			   "Failed to load DMC firmware"
+			   " [" FIRMWARE_URL "],"
+			   " disabling runtime power management.\n");
 	}
 
 	release_firmware(fw);
@@ -423,7 +444,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (!HAS_CSR(dev_priv))
 		return;
 
-	if (IS_SKYLAKE(dev_priv))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		csr->fw_path = I915_CSR_SKL;
 	else if (IS_BROXTON(dev_priv))
 		csr->fw_path = I915_CSR_BXT;

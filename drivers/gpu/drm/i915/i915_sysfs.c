@@ -164,7 +164,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     struct bin_attribute *attr, char *buf,
 	     loff_t offset, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
@@ -200,7 +200,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      struct bin_attribute *attr, char *buf,
 	      loff_t offset, size_t count)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct drm_minor *dminor = dev_to_drm_minor(dev);
 	struct drm_device *drm_dev = dminor->dev;
 	struct drm_i915_private *dev_priv = drm_dev->dev_private;
@@ -370,6 +370,8 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -378,6 +380,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	    val > dev_priv->rps.max_freq ||
 	    val < dev_priv->rps.min_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
+		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
@@ -397,6 +400,8 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return count;
 }
@@ -433,6 +438,8 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
+	intel_runtime_pm_get(dev_priv);
+
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	val = intel_freq_opcode(dev_priv, val);
@@ -441,6 +448,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	    val > dev_priv->rps.max_freq ||
 	    val > dev_priv->rps.max_freq_softlimit) {
 		mutex_unlock(&dev_priv->rps.hw_lock);
+		intel_runtime_pm_put(dev_priv);
 		return -EINVAL;
 	}
 
@@ -456,6 +464,8 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	intel_runtime_pm_put(dev_priv);
 
 	return count;
 
@@ -521,7 +531,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 				loff_t off, size_t count)
 {
 
-	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct i915_error_state_file_priv error_priv;
@@ -556,7 +566,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
 				 loff_t off, size_t count)
 {
-	struct device *kdev = container_of(kobj, struct device, kobj);
+	struct device *kdev = kobj_to_dev(kobj);
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	int ret;

@@ -284,6 +284,13 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 						1 << PIPE_C | 1 << PIPE_B);
 }
 
+static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
+{
+	if (IS_BROADWELL(dev_priv))
+		gen8_irq_power_well_pre_disable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
+}
+
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
@@ -307,6 +314,14 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 	}
+}
+
+static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	if (power_well->data == SKL_DISP_PW_2)
+		gen8_irq_power_well_pre_disable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
 }
 
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
@@ -334,6 +349,7 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 
 	} else {
 		if (enable_requested) {
+			hsw_power_well_pre_disable(dev_priv);
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
@@ -442,8 +458,6 @@ static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
 static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 {
 	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
-	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
-		"DC9 already programmed to be disabled.\n");
 	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
 		"DC5 still not disabled.\n");
 
@@ -454,20 +468,6 @@ static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 	  *  set disable sequence was followed.
 	  * 2] Check if display uninitialize sequence is initialized.
 	  */
-}
-
-static void gen9_set_dc_state_debugmask_memory_up(
-			struct drm_i915_private *dev_priv)
-{
-	uint32_t val;
-
-	/* The below bit doesn't need to be cleared ever afterwards */
-	val = I915_READ(DC_STATE_DEBUG);
-	if (!(val & DC_STATE_DEBUG_MASK_MEMORY_UP)) {
-		val |= DC_STATE_DEBUG_MASK_MEMORY_UP;
-		I915_WRITE(DC_STATE_DEBUG, val);
-		POSTING_READ(DC_STATE_DEBUG);
-	}
 }
 
 static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
@@ -518,15 +518,8 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 	else
 		mask |= DC_STATE_EN_UPTO_DC6;
 
-	WARN_ON_ONCE(state & ~mask);
-
-	if (i915.enable_dc == 0)
-		state = DC_STATE_DISABLE;
-	else if (i915.enable_dc == 1 && state > DC_STATE_EN_UPTO_DC5)
-		state = DC_STATE_EN_UPTO_DC5;
-
-	if (state & DC_STATE_EN_UPTO_DC5_DC6_MASK)
-		gen9_set_dc_state_debugmask_memory_up(dev_priv);
+	if (WARN_ON_ONCE(state & ~dev_priv->csr.allowed_dc_mask))
+		state &= dev_priv->csr.allowed_dc_mask;
 
 	val = I915_READ(DC_STATE_EN);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
@@ -577,7 +570,8 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	bool pg2_enabled = intel_display_power_well_is_enabled(dev_priv,
 					SKL_DISP_PW_2);
 
-	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC5.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev) && !IS_KABYLAKE(dev),
+		  "Platform doesn't support DC5.\n");
 	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
 	WARN_ONCE(pg2_enabled, "PG2 not disabled to enable DC5.\n");
 
@@ -586,18 +580,6 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 	assert_rpm_wakelock_held(dev_priv);
 
 	assert_csr_loaded(dev_priv);
-}
-
-static void assert_can_disable_dc5(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * During initialization, the firmware may not be loaded yet.
-	 * We still want to make sure that the DC enabling flag is cleared.
-	 */
-	if (dev_priv->power_domains.initializing)
-		return;
-
-	assert_rpm_wakelock_held(dev_priv);
 }
 
 static void gen9_enable_dc5(struct drm_i915_private *dev_priv)
@@ -613,7 +595,8 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
-	WARN_ONCE(!IS_SKYLAKE(dev), "Platform doesn't support DC6.\n");
+	WARN_ONCE(!IS_SKYLAKE(dev) && !IS_KABYLAKE(dev),
+		  "Platform doesn't support DC6.\n");
 	WARN_ONCE(!HAS_RUNTIME_PM(dev), "Runtime PM not enabled.\n");
 	WARN_ONCE(I915_READ(UTIL_PIN_CTL) & UTIL_PIN_ENABLE,
 		  "Backlight is not disabled.\n");
@@ -621,29 +604,6 @@ static void assert_can_enable_dc6(struct drm_i915_private *dev_priv)
 		  "DC6 already programmed to be enabled.\n");
 
 	assert_csr_loaded(dev_priv);
-}
-
-static void assert_can_disable_dc6(struct drm_i915_private *dev_priv)
-{
-	/*
-	 * During initialization, the firmware may not be loaded yet.
-	 * We still want to make sure that the DC enabling flag is cleared.
-	 */
-	if (dev_priv->power_domains.initializing)
-		return;
-
-	WARN_ONCE(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC6),
-		  "DC6 already programmed to be disabled.\n");
-}
-
-static void gen9_disable_dc5_dc6(struct drm_i915_private *dev_priv)
-{
-	assert_can_disable_dc5(dev_priv);
-
-	if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 && i915.enable_dc != 1)
-		assert_can_disable_dc6(dev_priv);
-
-	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
 void skl_enable_dc6(struct drm_i915_private *dev_priv)
@@ -658,8 +618,6 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 
 void skl_disable_dc6(struct drm_i915_private *dev_priv)
 {
-	assert_can_disable_dc6(dev_priv);
-
 	DRM_DEBUG_KMS("Disabling DC6\n");
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
@@ -668,7 +626,6 @@ void skl_disable_dc6(struct drm_i915_private *dev_priv)
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {
-	struct drm_device *dev = dev_priv->dev;
 	uint32_t tmp, fuse_status;
 	uint32_t req_mask, state_mask;
 	bool is_enabled, enable_requested, check_fuse_status = false;
@@ -706,23 +663,15 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	state_mask = SKL_POWER_WELL_STATE(power_well->data);
 	is_enabled = tmp & state_mask;
 
+	if (!enable && enable_requested)
+		skl_power_well_pre_disable(dev_priv, power_well);
+
 	if (enable) {
 		if (!enable_requested) {
 			WARN((tmp & state_mask) &&
 				!I915_READ(HSW_PWR_WELL_BIOS),
 				"Invalid for power well status to be enabled, unless done by the BIOS, \
 				when request is to disable!\n");
-			if (power_well->data == SKL_DISP_PW_2) {
-				/*
-				 * DDI buffer programming unnecessary during
-				 * driver-load/resume as it's already done
-				 * during modeset initialization then. It's
-				 * also invalid here as encoder list is still
-				 * uninitialized.
-				 */
-				if (!dev_priv->power_domains.initializing)
-					intel_prepare_ddi(dev);
-			}
 			I915_WRITE(HSW_PWR_WELL_DRIVER, tmp | req_mask);
 		}
 
@@ -822,30 +771,25 @@ static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 					  struct i915_power_well *power_well)
 {
-	gen9_disable_dc5_dc6(dev_priv);
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
 
 static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 && i915.enable_dc != 1)
+	if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
 		skl_enable_dc6(dev_priv);
-	else
+	else if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
 		gen9_enable_dc5(dev_priv);
 }
 
 static void gen9_dc_off_power_well_sync_hw(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	if (power_well->count > 0) {
-		gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
-	} else {
-		if (IS_SKYLAKE(dev_priv) && i915.enable_dc != 0 &&
-		    i915.enable_dc != 1)
-			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
-		else
-			gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
-	}
+	if (power_well->count > 0)
+		gen9_dc_off_power_well_enable(dev_priv, power_well);
+	else
+		gen9_dc_off_power_well_disable(dev_priv, power_well);
 }
 
 static void i9xx_always_on_power_well_noop(struct drm_i915_private *dev_priv,
@@ -992,6 +936,9 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/* make sure we're done processing display irqs */
+	synchronize_irq(dev_priv->dev->irq);
 
 	vlv_power_sequencer_reset(dev_priv);
 }
@@ -1941,7 +1888,7 @@ void skl_pw1_misc_io_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *well;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
@@ -1955,7 +1902,7 @@ void skl_pw1_misc_io_fini(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *well;
 
-	if (!IS_SKYLAKE(dev_priv))
+	if (!(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)))
 		return;
 
 	well = lookup_power_well(dev_priv, SKL_DISP_PW_1);
@@ -2007,6 +1954,55 @@ sanitize_disable_power_well_option(const struct drm_i915_private *dev_priv,
 	return 1;
 }
 
+static uint32_t get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
+				    int enable_dc)
+{
+	uint32_t mask;
+	int requested_dc;
+	int max_dc;
+
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+		max_dc = 2;
+		mask = 0;
+	} else if (IS_BROXTON(dev_priv)) {
+		max_dc = 1;
+		/*
+		 * DC9 has a separate HW flow from the rest of the DC states,
+		 * not depending on the DMC firmware. It's needed by system
+		 * suspend/resume, so allow it unconditionally.
+		 */
+		mask = DC_STATE_EN_DC9;
+	} else {
+		max_dc = 0;
+		mask = 0;
+	}
+
+	if (!i915.disable_power_well)
+		max_dc = 0;
+
+	if (enable_dc >= 0 && enable_dc <= max_dc) {
+		requested_dc = enable_dc;
+	} else if (enable_dc == -1) {
+		requested_dc = max_dc;
+	} else if (enable_dc > max_dc && enable_dc <= 2) {
+		DRM_DEBUG_KMS("Adjusting requested max DC state (%d->%d)\n",
+			      enable_dc, max_dc);
+		requested_dc = max_dc;
+	} else {
+		DRM_ERROR("Unexpected value for enable_dc (%d)\n", enable_dc);
+		requested_dc = max_dc;
+	}
+
+	if (requested_dc > 1)
+		mask |= DC_STATE_EN_UPTO_DC6;
+	if (requested_dc > 0)
+		mask |= DC_STATE_EN_UPTO_DC5;
+
+	DRM_DEBUG_KMS("Allowed DC state mask %02x\n", mask);
+
+	return mask;
+}
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -2025,6 +2021,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 
 	i915.disable_power_well = sanitize_disable_power_well_option(dev_priv,
 						     i915.disable_power_well);
+	dev_priv->csr.allowed_dc_mask = get_allowed_dc_mask(dev_priv,
+							    i915.enable_dc);
 
 	BUILD_BUG_ON(POWER_DOMAIN_NUM > 31);
 

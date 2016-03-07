@@ -285,10 +285,6 @@ static int ipu_enable_vblank(struct drm_crtc *crtc)
 
 static void ipu_disable_vblank(struct drm_crtc *crtc)
 {
-	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
-
-	ipu_crtc->page_flip_event = NULL;
-	ipu_crtc->newfb = NULL;
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc,

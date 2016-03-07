@@ -39,9 +39,17 @@
 #define GUC_CTX_PRIORITY_HIGH		1
 #define GUC_CTX_PRIORITY_KMD_NORMAL	2
 #define GUC_CTX_PRIORITY_NORMAL		3
+#define GUC_CTX_PRIORITY_NUM		4
 
 #define GUC_MAX_GPU_CONTEXTS		1024
 #define	GUC_INVALID_CTX_ID		GUC_MAX_GPU_CONTEXTS
+
+#define GUC_RENDER_ENGINE		0
+#define GUC_VIDEO_ENGINE		1
+#define GUC_BLITTER_ENGINE		2
+#define GUC_VIDEOENHANCE_ENGINE		3
+#define GUC_VIDEO_ENGINE2		4
+#define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
@@ -81,11 +89,14 @@
 #define GUC_CTL_CTXINFO			0
 #define   GUC_CTL_CTXNUM_IN16_SHIFT	0
 #define   GUC_CTL_BASE_ADDR_SHIFT	12
+
 #define GUC_CTL_ARAT_HIGH		1
 #define GUC_CTL_ARAT_LOW		2
+
 #define GUC_CTL_DEVICE_INFO		3
 #define   GUC_CTL_GTTYPE_SHIFT		0
 #define   GUC_CTL_COREFAMILY_SHIFT	7
+
 #define GUC_CTL_LOG_PARAMS		4
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
@@ -97,9 +108,12 @@
 #define   GUC_LOG_ISR_PAGES		3
 #define   GUC_LOG_ISR_SHIFT		9
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
+
 #define GUC_CTL_PAGE_FAULT_CONTROL	5
+
 #define GUC_CTL_WA			6
 #define   GUC_CTL_WA_UK_BY_DRIVER	(1 << 3)
+
 #define GUC_CTL_FEATURE			7
 #define   GUC_CTL_VCS2_ENABLED		(1 << 0)
 #define   GUC_CTL_KERNEL_SUBMISSIONS	(1 << 1)
@@ -109,6 +123,7 @@
 #define   GUC_CTL_PREEMPTION_LOG	(1 << 5)
 #define   GUC_CTL_ENABLE_SLPC		(1 << 7)
 #define   GUC_CTL_RESET_ON_PREMPT_FAILURE	(1 << 8)
+
 #define GUC_CTL_DEBUG			8
 #define   GUC_LOG_VERBOSITY_SHIFT	0
 #define   GUC_LOG_VERBOSITY_LOW		(0 << GUC_LOG_VERBOSITY_SHIFT)
@@ -118,9 +133,19 @@
 /* Verbosity range-check limits, without the shift */
 #define	  GUC_LOG_VERBOSITY_MIN		0
 #define	  GUC_LOG_VERBOSITY_MAX		3
+#define	  GUC_LOG_VERBOSITY_MASK	0x0000000f
+#define	  GUC_LOG_DESTINATION_MASK	(3 << 4)
+#define   GUC_LOG_DISABLED		(1 << 6)
+#define   GUC_PROFILE_ENABLED		(1 << 7)
+#define   GUC_WQ_TRACK_ENABLED		(1 << 8)
+#define   GUC_ADS_ENABLED		(1 << 9)
+#define   GUC_DEBUG_RESERVED		(1 << 10)
+#define   GUC_ADS_ADDR_SHIFT		11
+#define   GUC_ADS_ADDR_MASK		0xfffff800
+
 #define GUC_CTL_RSRVD			9
 
-#define GUC_CTL_MAX_DWORDS		(GUC_CTL_RSRVD + 1)
+#define GUC_CTL_MAX_DWORDS		(SOFT_SCRATCH_COUNT - 2) /* [1..14] */
 
 /**
  * DOC: GuC Firmware Layout
@@ -267,7 +292,7 @@ struct guc_context_desc {
 	u64 db_trigger_phy;
 	u16 db_id;
 
-	struct guc_execlist_context lrc[I915_NUM_RINGS];
+	struct guc_execlist_context lrc[GUC_MAX_ENGINES_NUM];
 
 	u8 attribute;
 
@@ -298,6 +323,99 @@ struct guc_context_desc {
 #define GUC_POWER_D1		2
 #define GUC_POWER_D2		3
 #define GUC_POWER_D3		4
+
+/* Scheduling policy settings */
+
+/* Reset engine upon preempt failure */
+#define POLICY_RESET_ENGINE		(1<<0)
+/* Preempt to idle on quantum expiry */
+#define POLICY_PREEMPT_TO_IDLE		(1<<1)
+
+#define POLICY_MAX_NUM_WI		15
+
+struct guc_policy {
+	/* Time for one workload to execute. (in micro seconds) */
+	u32 execution_quantum;
+	u32 reserved1;
+
+	/* Time to wait for a preemption request to completed before issuing a
+	 * reset. (in micro seconds). */
+	u32 preemption_time;
+
+	/* How much time to allow to run after the first fault is observed.
+	 * Then preempt afterwards. (in micro seconds) */
+	u32 fault_time;
+
+	u32 policy_flags;
+	u32 reserved[2];
+} __packed;
+
+struct guc_policies {
+	struct guc_policy policy[GUC_CTX_PRIORITY_NUM][GUC_MAX_ENGINES_NUM];
+
+	/* In micro seconds. How much time to allow before DPC processing is
+	 * called back via interrupt (to prevent DPC queue drain starving).
+	 * Typically 1000s of micro seconds (example only, not granularity). */
+	u32 dpc_promote_time;
+
+	/* Must be set to take these new values. */
+	u32 is_valid;
+
+	/* Max number of WIs to process per call. A large value may keep CS
+	 * idle. */
+	u32 max_num_work_items;
+
+	u32 reserved[19];
+} __packed;
+
+/* GuC MMIO reg state struct */
+
+#define GUC_REGSET_FLAGS_NONE		0x0
+#define GUC_REGSET_POWERCYCLE		0x1
+#define GUC_REGSET_MASKED		0x2
+#define GUC_REGSET_ENGINERESET		0x4
+#define GUC_REGSET_SAVE_DEFAULT_VALUE	0x8
+#define GUC_REGSET_SAVE_CURRENT_VALUE	0x10
+
+#define GUC_REGSET_MAX_REGISTERS	25
+#define GUC_MMIO_WHITE_LIST_START	0x24d0
+#define GUC_MMIO_WHITE_LIST_MAX		12
+#define GUC_S3_SAVE_SPACE_PAGES		10
+
+struct guc_mmio_regset {
+	struct __packed {
+		u32 offset;
+		u32 value;
+		u32 flags;
+	} registers[GUC_REGSET_MAX_REGISTERS];
+
+	u32 values_valid;
+	u32 number_of_registers;
+} __packed;
+
+struct guc_mmio_reg_state {
+	struct guc_mmio_regset global_reg;
+	struct guc_mmio_regset engine_reg[GUC_MAX_ENGINES_NUM];
+
+	/* MMIO registers that are set as non privileged */
+	struct __packed {
+		u32 mmio_start;
+		u32 offsets[GUC_MMIO_WHITE_LIST_MAX];
+		u32 count;
+	} mmio_white_list[GUC_MAX_ENGINES_NUM];
+} __packed;
+
+/* GuC Additional Data Struct */
+
+struct guc_ads {
+	u32 reg_state_addr;
+	u32 reg_state_buffer;
+	u32 golden_context_lrca;
+	u32 scheduler_policies;
+	u32 reserved0[3];
+	u32 eng_state_size[GUC_MAX_ENGINES_NUM];
+	u32 reserved2[4];
+} __packed;
 
 /* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
 enum host2guc_action {
