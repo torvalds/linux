@@ -183,7 +183,11 @@ static DEVICE_ATTR_RO(port);
 
 static int intel_th_output_activate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+
+	if (!thdrv)
+		return -ENODEV;
 
 	if (thdrv->activate)
 		return thdrv->activate(thdev);
@@ -195,7 +199,11 @@ static int intel_th_output_activate(struct intel_th_device *thdev)
 
 static void intel_th_output_deactivate(struct intel_th_device *thdev)
 {
-	struct intel_th_driver *thdrv = to_intel_th_driver(thdev->dev.driver);
+	struct intel_th_driver *thdrv =
+		to_intel_th_driver_or_null(thdev->dev.driver);
+
+	if (!thdrv)
+		return;
 
 	if (thdrv->deactivate)
 		thdrv->deactivate(thdev);

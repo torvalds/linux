@@ -151,6 +151,9 @@ struct intel_th_driver {
 #define to_intel_th_driver(_d)					\
 	container_of((_d), struct intel_th_driver, driver)
 
+#define to_intel_th_driver_or_null(_d)		\
+	((_d) ? to_intel_th_driver(_d) : NULL)
+
 static inline struct intel_th_device *
 to_intel_th_hub(struct intel_th_device *thdev)
 {
