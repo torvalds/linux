@@ -444,6 +444,7 @@ static const struct drm_i915_reg_descriptor gen7_render_regs[] = {
 	REG64(CL_PRIMITIVES_COUNT),
 	REG64(PS_INVOCATION_COUNT),
 	REG64(PS_DEPTH_COUNT),
+	REG64_IDX(RING_TIMESTAMP, RENDER_RING_BASE),
 	REG32(OACONTROL), /* Only allowed for LRI and SRM. See below. */
 	REG64(MI_PREDICATE_SRC0),
 	REG64(MI_PREDICATE_SRC1),
