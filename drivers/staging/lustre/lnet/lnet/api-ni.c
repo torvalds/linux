@@ -2090,9 +2090,7 @@ LNetGetId(unsigned int index, lnet_process_id_t *id)
 	int cpt;
 	int rc = -ENOENT;
 
-	/* LNetNI initilization failed? */
-	if (!the_lnet.ln_refcount)
-		return rc;
+	LASSERT(the_lnet.ln_refcount > 0);
 
 	cpt = lnet_net_lock_current();
 
