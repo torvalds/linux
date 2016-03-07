@@ -22,7 +22,7 @@ static int limit_channels_and_rates(struct snd_dice *dice,
 	 * Retrieve current Multi Bit Linear Audio data channel and limit to
 	 * it.
 	 */
-	if (stream == &dice->tx_stream) {
+	if (stream == &dice->tx_stream[0]) {
 		err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
 						   reg, sizeof(reg));
 	} else {
@@ -74,10 +74,10 @@ static int init_hw_info(struct snd_dice *dice,
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		hw->formats = AM824_IN_PCM_FORMAT_BITS;
-		stream = &dice->tx_stream;
+		stream = &dice->tx_stream[0];
 	} else {
 		hw->formats = AM824_OUT_PCM_FORMAT_BITS;
-		stream = &dice->rx_stream;
+		stream = &dice->rx_stream[0];
 	}
 
 	err = limit_channels_and_rates(dice, runtime, stream);
@@ -122,6 +122,7 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->tx_stream[0];
 	int err;
 
 	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
@@ -135,7 +136,7 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_am824_set_pcm_format(&dice->tx_stream, params_format(hw_params));
+	amdtp_am824_set_pcm_format(stream, params_format(hw_params));
 
 	return 0;
 }
@@ -143,6 +144,7 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->rx_stream[0];
 	int err;
 
 	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
@@ -156,7 +158,7 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 		mutex_unlock(&dice->mutex);
 	}
 
-	amdtp_am824_set_pcm_format(&dice->rx_stream, params_format(hw_params));
+	amdtp_am824_set_pcm_format(stream, params_format(hw_params));
 
 	return 0;
 }
@@ -196,26 +198,28 @@ static int playback_hw_free(struct snd_pcm_substream *substream)
 static int capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->tx_stream[0];
 	int err;
 
 	mutex_lock(&dice->mutex);
 	err = snd_dice_stream_start_duplex(dice, substream->runtime->rate);
 	mutex_unlock(&dice->mutex);
 	if (err >= 0)
-		amdtp_stream_pcm_prepare(&dice->tx_stream);
+		amdtp_stream_pcm_prepare(stream);
 
 	return 0;
 }
 static int playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->rx_stream[0];
 	int err;
 
 	mutex_lock(&dice->mutex);
 	err = snd_dice_stream_start_duplex(dice, substream->runtime->rate);
 	mutex_unlock(&dice->mutex);
 	if (err >= 0)
-		amdtp_stream_pcm_prepare(&dice->rx_stream);
+		amdtp_stream_pcm_prepare(stream);
 
 	return err;
 }
@@ -223,13 +227,14 @@ static int playback_prepare(struct snd_pcm_substream *substream)
 static int capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->tx_stream[0];
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		amdtp_stream_pcm_trigger(&dice->tx_stream, substream);
+		amdtp_stream_pcm_trigger(stream, substream);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		amdtp_stream_pcm_trigger(&dice->tx_stream, NULL);
+		amdtp_stream_pcm_trigger(stream, NULL);
 		break;
 	default:
 		return -EINVAL;
@@ -240,13 +245,14 @@ static int capture_trigger(struct snd_pcm_substream *substream, int cmd)
 static int playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->rx_stream[0];
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		amdtp_stream_pcm_trigger(&dice->rx_stream, substream);
+		amdtp_stream_pcm_trigger(stream, substream);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		amdtp_stream_pcm_trigger(&dice->rx_stream, NULL);
+		amdtp_stream_pcm_trigger(stream, NULL);
 		break;
 	default:
 		return -EINVAL;
@@ -258,14 +264,16 @@ static int playback_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t capture_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->tx_stream[0];
 
-	return amdtp_stream_pcm_pointer(&dice->tx_stream);
+	return amdtp_stream_pcm_pointer(stream);
 }
 static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
+	struct amdtp_stream *stream = &dice->rx_stream[0];
 
-	return amdtp_stream_pcm_pointer(&dice->rx_stream);
+	return amdtp_stream_pcm_pointer(stream);
 }
 
 int snd_dice_create_pcm(struct snd_dice *dice)

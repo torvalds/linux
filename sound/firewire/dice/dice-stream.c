@@ -72,7 +72,7 @@ static void release_resources(struct snd_dice *dice,
 
 	/* Reset channel number */
 	channel = cpu_to_be32((u32)-1);
-	if (resources == &dice->tx_resources)
+	if (resources == &dice->tx_resources[0])
 		snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
 					      &channel, sizeof(channel));
 	else
@@ -96,7 +96,7 @@ static int keep_resources(struct snd_dice *dice,
 
 	/* Set channel number */
 	channel = cpu_to_be32(resources->channel);
-	if (resources == &dice->tx_resources)
+	if (resources == &dice->tx_resources[0])
 		err = snd_dice_transaction_write_tx(dice, TX_ISOCHRONOUS,
 						    &channel, sizeof(channel));
 	else
@@ -113,10 +113,10 @@ static void stop_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 	amdtp_stream_pcm_abort(stream);
 	amdtp_stream_stop(stream);
 
-	if (stream == &dice->tx_stream)
-		release_resources(dice, &dice->tx_resources);
+	if (stream == &dice->tx_stream[0])
+		release_resources(dice, &dice->tx_resources[0]);
 	else
-		release_resources(dice, &dice->rx_resources);
+		release_resources(dice, &dice->rx_resources[0]);
 }
 
 static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
@@ -128,12 +128,12 @@ static int start_stream(struct snd_dice *dice, struct amdtp_stream *stream,
 	bool double_pcm_frames;
 	int err;
 
-	if (stream == &dice->tx_stream) {
-		resources = &dice->tx_resources;
+	if (stream == &dice->tx_stream[0]) {
+		resources = &dice->tx_resources[0];
 		err = snd_dice_transaction_read_tx(dice, TX_NUMBER_AUDIO,
 						   reg, sizeof(reg));
 	} else {
-		resources = &dice->rx_resources;
+		resources = &dice->rx_resources[0];
 		err = snd_dice_transaction_read_rx(dice, RX_NUMBER_AUDIO,
 						   reg, sizeof(reg));
 	}
@@ -200,8 +200,8 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 	if (dice->substreams_counter == 0)
 		goto end;
 
-	master = &dice->rx_stream;
-	slave  = &dice->tx_stream;
+	master = &dice->rx_stream[0];
+	slave  = &dice->tx_stream[0];
 
 	/* Some packet queueing errors. */
 	if (amdtp_streaming_error(master) || amdtp_streaming_error(slave))
@@ -275,8 +275,8 @@ void snd_dice_stream_stop_duplex(struct snd_dice *dice)
 
 	snd_dice_transaction_clear_enable(dice);
 
-	stop_stream(dice, &dice->tx_stream);
-	stop_stream(dice, &dice->rx_stream);
+	stop_stream(dice, &dice->tx_stream[0]);
+	stop_stream(dice, &dice->rx_stream[0]);
 }
 
 static int init_stream(struct snd_dice *dice, struct amdtp_stream *stream)
@@ -285,11 +285,11 @@ static int init_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 	struct fw_iso_resources *resources;
 	enum amdtp_stream_direction dir;
 
-	if (stream == &dice->tx_stream) {
-		resources = &dice->tx_resources;
+	if (stream == &dice->tx_stream[0]) {
+		resources = &dice->tx_resources[0];
 		dir = AMDTP_IN_STREAM;
 	} else {
-		resources = &dice->rx_resources;
+		resources = &dice->rx_resources[0];
 		dir = AMDTP_OUT_STREAM;
 	}
 
@@ -315,10 +315,10 @@ static void destroy_stream(struct snd_dice *dice, struct amdtp_stream *stream)
 {
 	struct fw_iso_resources *resources;
 
-	if (stream == &dice->tx_stream)
-		resources = &dice->tx_resources;
+	if (stream == &dice->tx_stream[0])
+		resources = &dice->tx_resources[0];
 	else
-		resources = &dice->rx_resources;
+		resources = &dice->rx_resources[0];
 
 	amdtp_stream_destroy(stream);
 	fw_iso_resources_destroy(resources);
@@ -330,13 +330,13 @@ int snd_dice_stream_init_duplex(struct snd_dice *dice)
 
 	dice->substreams_counter = 0;
 
-	err = init_stream(dice, &dice->tx_stream);
+	err = init_stream(dice, &dice->tx_stream[0]);
 	if (err < 0)
 		goto end;
 
-	err = init_stream(dice, &dice->rx_stream);
+	err = init_stream(dice, &dice->rx_stream[0]);
 	if (err < 0)
-		destroy_stream(dice, &dice->tx_stream);
+		destroy_stream(dice, &dice->tx_stream[0]);
 end:
 	return err;
 }
@@ -345,8 +345,8 @@ void snd_dice_stream_destroy_duplex(struct snd_dice *dice)
 {
 	snd_dice_transaction_clear_enable(dice);
 
-	destroy_stream(dice, &dice->tx_stream);
-	destroy_stream(dice, &dice->rx_stream);
+	destroy_stream(dice, &dice->tx_stream[0]);
+	destroy_stream(dice, &dice->rx_stream[0]);
 
 	dice->substreams_counter = 0;
 }
@@ -363,11 +363,11 @@ void snd_dice_stream_update_duplex(struct snd_dice *dice)
 	 */
 	dice->global_enabled = false;
 
-	stop_stream(dice, &dice->rx_stream);
-	stop_stream(dice, &dice->tx_stream);
+	stop_stream(dice, &dice->rx_stream[0]);
+	stop_stream(dice, &dice->tx_stream[0]);
 
-	fw_iso_resources_update(&dice->rx_resources);
-	fw_iso_resources_update(&dice->tx_resources);
+	fw_iso_resources_update(&dice->rx_resources[0]);
+	fw_iso_resources_update(&dice->tx_resources[0]);
 }
 
 static void dice_lock_changed(struct snd_dice *dice)

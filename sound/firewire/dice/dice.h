@@ -39,6 +39,29 @@
 #include "../lib.h"
 #include "dice-interface.h"
 
+/*
+ * This module support maximum 2 pairs of tx/rx isochronous streams for
+ * our convinience.
+ *
+ * In documents for ASICs called with a name of 'DICE':
+ *  - ASIC for DICE II:
+ *   - Maximum 2 tx and 4 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD2210/2210-E (so-called 'Dice Mini'):
+ *   - Maximum 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD2220/2220-E (so-called 'Dice Jr.')
+ *   - 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 16 data channels.
+ *  - TCD3070-CH (so-called 'Dice III')
+ *   - Maximum 2 tx and 2 rx are supported.
+ *   - A packet supports maximum 32 data channels.
+ *
+ * For the above, MIDI conformant data channel is just on the first isochronous
+ * stream.
+ */
+#define MAX_STREAMS	2
+
 struct snd_dice {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -67,10 +90,10 @@ struct snd_dice {
 	wait_queue_head_t hwdep_wait;
 
 	/* For streaming */
-	struct fw_iso_resources tx_resources;
-	struct fw_iso_resources rx_resources;
-	struct amdtp_stream tx_stream;
-	struct amdtp_stream rx_stream;
+	struct fw_iso_resources tx_resources[MAX_STREAMS];
+	struct fw_iso_resources rx_resources[MAX_STREAMS];
+	struct amdtp_stream tx_stream[MAX_STREAMS];
+	struct amdtp_stream rx_stream[MAX_STREAMS];
 	bool global_enabled;
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
