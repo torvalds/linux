@@ -225,8 +225,6 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	if (!iores)
 		return -ENXIO;
 
-	platform_set_drvdata(pdev, hdmi);
-
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
