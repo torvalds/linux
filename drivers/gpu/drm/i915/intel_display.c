@@ -3241,6 +3241,11 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	I915_WRITE(PLANE_SIZE(pipe, 0), plane_size);
 	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
 
+	I915_WRITE(PLANE_KEYMAX(pipe, 0),
+		   (DRM_MODE_COLOR_ALPHA(8, plane_state->base.blend_mode.color)
+		    << 24));
+	I915_WRITE(PLANE_KEYMSK(pipe, 0), plane_state->use_plane_alpha << 31);
+
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
 
