@@ -375,6 +375,19 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 	if (head) {
 		/* Message already in progress */
 
+		rxm = kcm_rx_msg(head);
+		if (unlikely(rxm->early_eaten)) {
+			/* Already some number of bytes on the receive sock
+			 * data saved in rx_skb_head, just indicate they
+			 * are consumed.
+			 */
+			eaten = orig_len <= rxm->early_eaten ?
+				orig_len : rxm->early_eaten;
+			rxm->early_eaten -= eaten;
+
+			return eaten;
+		}
+
 		if (unlikely(orig_offset)) {
 			/* Getting data with a non-zero offset when a message is
 			 * in progress is not expected. If it does happen, we
@@ -492,6 +505,13 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 				KCM_STATS_INCR(psock->stats.rx_need_more_hdr);
 				WARN_ON(eaten != orig_len);
 				break;
+			} else if (len > psock->sk->sk_rcvbuf) {
+				/* Message length exceeds maximum allowed */
+				KCM_STATS_INCR(psock->stats.rx_msg_too_big);
+				desc->error = -EMSGSIZE;
+				psock->rx_skb_head = NULL;
+				kcm_abort_rx_psock(psock, EMSGSIZE, head);
+				break;
 			} else if (len <= (ssize_t)head->len -
 					  skb->len - rxm->offset) {
 				/* Length must be into new skb (and also
@@ -511,6 +531,23 @@ static int kcm_tcp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 
 		if (extra < 0) {
 			/* Message not complete yet. */
+			if (rxm->full_len - rxm->accum_len >
+			    tcp_inq(psock->sk)) {
+				/* Don't have the whole messages in the socket
+				 * buffer. Set psock->rx_need_bytes to wait for
+				 * the rest of the message. Also, set "early
+				 * eaten" since we've already buffered the skb
+				 * but don't consume yet per tcp_read_sock.
+				 */
+
+				psock->rx_need_bytes = rxm->full_len -
+						       rxm->accum_len;
+				rxm->accum_len += cand_len;
+				rxm->early_eaten = cand_len;
+				KCM_STATS_ADD(psock->stats.rx_bytes, cand_len);
+				desc->count = 0; /* Stop reading socket */
+				break;
+			}
 			rxm->accum_len += cand_len;
 			eaten += cand_len;
 			WARN_ON(eaten != orig_len);
@@ -581,6 +618,13 @@ static void psock_tcp_data_ready(struct sock *sk)
 
 	if (psock->ready_rx_msg)
 		goto out;
+
+	if (psock->rx_need_bytes) {
+		if (tcp_inq(sk) >= psock->rx_need_bytes)
+			psock->rx_need_bytes = 0;
+		else
+			goto out;
+	}
 
 	if (psock_tcp_read_sock(psock) == -ENOMEM)
 		queue_delayed_work(kcm_wq, &psock->rx_delayed_work, 0);

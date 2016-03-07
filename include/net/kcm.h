@@ -28,6 +28,7 @@ struct kcm_psock_stats {
 	unsigned int rx_aborts;
 	unsigned int rx_mem_fail;
 	unsigned int rx_need_more_hdr;
+	unsigned int rx_msg_too_big;
 	unsigned int rx_bad_hdr_len;
 	unsigned long long reserved;
 	unsigned long long unreserved;
@@ -66,6 +67,7 @@ struct kcm_rx_msg {
 	int full_len;
 	int accum_len;
 	int offset;
+	int early_eaten;
 };
 
 /* Socket structure for KCM client sockets */
@@ -128,6 +130,7 @@ struct kcm_psock {
 	struct kcm_sock *rx_kcm;
 	unsigned long long saved_rx_bytes;
 	unsigned long long saved_rx_msgs;
+	unsigned int rx_need_bytes;
 
 	/* Transmit */
 	struct kcm_sock *tx_kcm;
@@ -190,6 +193,7 @@ static inline void aggregate_psock_stats(struct kcm_psock_stats *stats,
 	SAVE_PSOCK_STATS(rx_aborts);
 	SAVE_PSOCK_STATS(rx_mem_fail);
 	SAVE_PSOCK_STATS(rx_need_more_hdr);
+	SAVE_PSOCK_STATS(rx_msg_too_big);
 	SAVE_PSOCK_STATS(rx_bad_hdr_len);
 	SAVE_PSOCK_STATS(tx_msgs);
 	SAVE_PSOCK_STATS(tx_bytes);
