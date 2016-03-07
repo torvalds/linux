@@ -914,8 +914,9 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 		do_work = true;
 		process_err_fn = storvsc_remove_lun;
 		break;
-	case (SRB_STATUS_ABORTED | SRB_STATUS_AUTOSENSE_VALID):
-		if ((asc == 0x2a) && (ascq == 0x9)) {
+	case SRB_STATUS_ABORTED:
+		if (vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID &&
+		    (asc == 0x2a) && (ascq == 0x9)) {
 			do_work = true;
 			process_err_fn = storvsc_device_scan;
 			/*
