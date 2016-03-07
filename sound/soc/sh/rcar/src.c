@@ -116,12 +116,26 @@ static u32 rsnd_src_convert_rate(struct rsnd_dai_stream *io,
 	return convert_rate;
 }
 
-unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
-				   struct rsnd_dai_stream *io,
-				   struct snd_pcm_runtime *runtime)
+unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
+			       struct rsnd_dai_stream *io,
+			       int is_in)
 {
 	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
+	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	unsigned int rate = 0;
+	int is_play = rsnd_io_is_play(io);
+
+	/*
+	 *
+	 * Playback
+	 * runtime_rate -> [SRC] -> convert_rate
+	 *
+	 * Capture
+	 * convert_rate -> [SRC] -> runtime_rate
+	 */
+
+	if (is_play == is_in)
+		return runtime->rate;
 
 	/*
 	 * return convert rate if SRC is used,

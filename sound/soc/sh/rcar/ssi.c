@@ -190,7 +190,6 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 				     struct rsnd_dai_stream *io)
 {
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
@@ -201,7 +200,9 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
-	unsigned int rate = rsnd_src_get_ssi_rate(priv, io, runtime);
+	unsigned int rate = rsnd_io_is_play(io) ?
+		rsnd_src_get_out_rate(priv, io) :
+		rsnd_src_get_in_rate(priv, io);
 
 	if (!rsnd_rdai_is_clk_master(rdai))
 		return 0;

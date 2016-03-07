@@ -627,9 +627,13 @@ void rsnd_ssiu_remove(struct rsnd_priv *priv);
 int rsnd_src_probe(struct rsnd_priv *priv);
 void rsnd_src_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
-unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
-				   struct rsnd_dai_stream *io,
-				   struct snd_pcm_runtime *runtime);
+
+#define rsnd_src_get_in_rate(priv, io) rsnd_src_get_rate(priv, io, 1)
+#define rsnd_src_get_out_rate(priv, io) rsnd_src_get_rate(priv, io, 0)
+unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
+			       struct rsnd_dai_stream *io,
+			       int is_in);
+
 #define rsnd_src_of_node(priv)						\
 	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,src")
 #define rsnd_parse_connect_src(rdai, playback, capture)			\
