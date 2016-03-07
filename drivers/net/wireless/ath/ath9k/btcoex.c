@@ -36,6 +36,8 @@ struct ath_btcoex_config {
 	u8 bt_priority_time;
 	u8 bt_first_slot_time;
 	bool bt_hold_rx_clear;
+	u8 wl_active_time;
+	u8 wl_qc_time;
 };
 
 static const u32 ar9003_wlan_weights[ATH_BTCOEX_STOMP_MAX]
@@ -67,25 +69,42 @@ void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 		.bt_priority_time = 2,
 		.bt_first_slot_time = 5,
 		.bt_hold_rx_clear = true,
+		.wl_active_time = 0x20,
+		.wl_qc_time = 0x20,
 	};
 	bool rxclear_polarity = ath_bt_config.bt_rxclear_polarity;
+	u8 time_extend = ath_bt_config.bt_time_extend;
+	u8 first_slot_time = ath_bt_config.bt_first_slot_time;
 
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		rxclear_polarity = !ath_bt_config.bt_rxclear_polarity;
 
+	if (AR_SREV_SOC(ah)) {
+		first_slot_time = 0x1d;
+		time_extend = 0xa;
+
+		btcoex_hw->bt_coex_mode3 =
+			SM(ath_bt_config.wl_active_time, AR_BT_WL_ACTIVE_TIME) |
+			SM(ath_bt_config.wl_qc_time, AR_BT_WL_QC_TIME);
+
+		btcoex_hw->bt_coex_mode2 =
+			AR_BT_PROTECT_BT_AFTER_WAKEUP |
+			AR_BT_PHY_ERR_BT_COLL_ENABLE;
+	}
+
 	btcoex_hw->bt_coex_mode =
 		(btcoex_hw->bt_coex_mode & AR_BT_QCU_THRESH) |
-		SM(ath_bt_config.bt_time_extend, AR_BT_TIME_EXTEND) |
+		SM(time_extend, AR_BT_TIME_EXTEND) |
 		SM(ath_bt_config.bt_txstate_extend, AR_BT_TXSTATE_EXTEND) |
 		SM(ath_bt_config.bt_txframe_extend, AR_BT_TX_FRAME_EXTEND) |
 		SM(ath_bt_config.bt_mode, AR_BT_MODE) |
 		SM(ath_bt_config.bt_quiet_collision, AR_BT_QUIET) |
 		SM(rxclear_polarity, AR_BT_RX_CLEAR_POLARITY) |
 		SM(ath_bt_config.bt_priority_time, AR_BT_PRIORITY_TIME) |
-		SM(ath_bt_config.bt_first_slot_time, AR_BT_FIRST_SLOT_TIME) |
+		SM(first_slot_time, AR_BT_FIRST_SLOT_TIME) |
 		SM(qnum, AR_BT_QCU_THRESH);
 
-	btcoex_hw->bt_coex_mode2 =
+	btcoex_hw->bt_coex_mode2 |=
 		SM(ath_bt_config.bt_hold_rx_clear, AR_BT_HOLD_RX_CLEAR) |
 		SM(ATH_BTCOEX_BMISS_THRESH, AR_BT_BCN_MISS_THRESH) |
 		AR_BT_DISABLE_BT_ANT;
@@ -308,8 +327,14 @@ static void ath9k_hw_btcoex_enable_3wire(struct ath_hw *ah)
 	 * Program coex mode and weight registers to
 	 * enable coex 3-wire
 	 */
+	if (AR_SREV_SOC(ah))
+		REG_CLR_BIT(ah, AR_BT_COEX_MODE2, AR_BT_PHY_ERR_BT_COLL_ENABLE);
+
 	REG_WRITE(ah, AR_BT_COEX_MODE, btcoex->bt_coex_mode);
 	REG_WRITE(ah, AR_BT_COEX_MODE2, btcoex->bt_coex_mode2);
+
+	if (AR_SREV_SOC(ah))
+		REG_WRITE(ah, AR_BT_COEX_MODE3, btcoex->bt_coex_mode3);
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_BT_COEX_WL_WEIGHTS0, btcoex->wlan_weight[0]);
