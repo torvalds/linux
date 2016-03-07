@@ -1142,7 +1142,7 @@ static int vop_create_crtc(struct vop *vop)
 	const struct vop_data *vop_data = vop->data;
 	struct device *dev = vop->dev;
 	struct drm_device *drm_dev = vop->drm_dev;
-	struct drm_plane *primary = NULL, *cursor = NULL, *plane;
+	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
 	struct device_node *port;
 	int ret;
@@ -1182,7 +1182,7 @@ static int vop_create_crtc(struct vop *vop)
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
 					&vop_crtc_funcs, NULL);
 	if (ret)
-		return ret;
+		goto err_cleanup_planes;
 
 	drm_crtc_helper_add(crtc, &vop_crtc_helper_funcs);
 
@@ -1215,6 +1215,7 @@ static int vop_create_crtc(struct vop *vop)
 	if (!port) {
 		DRM_ERROR("no port node found in %s\n",
 			  dev->of_node->full_name);
+		ret = -ENOENT;
 		goto err_cleanup_crtc;
 	}
 
@@ -1228,7 +1229,8 @@ static int vop_create_crtc(struct vop *vop)
 err_cleanup_crtc:
 	drm_crtc_cleanup(crtc);
 err_cleanup_planes:
-	list_for_each_entry(plane, &drm_dev->mode_config.plane_list, head)
+	list_for_each_entry_safe(plane, tmp, &drm_dev->mode_config.plane_list,
+				 head)
 		drm_plane_cleanup(plane);
 	return ret;
 }
@@ -1236,9 +1238,28 @@ err_cleanup_planes:
 static void vop_destroy_crtc(struct vop *vop)
 {
 	struct drm_crtc *crtc = &vop->crtc;
+	struct drm_device *drm_dev = vop->drm_dev;
+	struct drm_plane *plane, *tmp;
 
 	rockchip_unregister_crtc_funcs(crtc);
 	of_node_put(crtc->port);
+
+	/*
+	 * We need to cleanup the planes now.  Why?
+	 *
+	 * The planes are "&vop->win[i].base".  That means the memory is
+	 * all part of the big "struct vop" chunk of memory.  That memory
+	 * was devm allocated and associated with this component.  We need to
+	 * free it ourselves before vop_unbind() finishes.
+	 */
+	list_for_each_entry_safe(plane, tmp, &drm_dev->mode_config.plane_list,
+				 head)
+		vop_plane_destroy(plane);
+
+	/*
+	 * Destroy CRTC after vop_plane_destroy() since vop_disable_plane()
+	 * references the CRTC.
+	 */
 	drm_crtc_cleanup(crtc);
 }
 
