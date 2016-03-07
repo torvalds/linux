@@ -8,6 +8,7 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/stringify.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -83,13 +84,99 @@ static int bnxt_set_coalesce(struct net_device *dev,
 
 #define BNXT_NUM_STATS	21
 
+#define BNXT_RX_STATS_OFFSET(counter)	\
+	(offsetof(struct rx_port_stats, counter) / 8)
+
+#define BNXT_RX_STATS_ENTRY(counter)	\
+	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
+
+#define BNXT_TX_STATS_OFFSET(counter)			\
+	((offsetof(struct tx_port_stats, counter) +	\
+	  sizeof(struct rx_port_stats) + 512) / 8)
+
+#define BNXT_TX_STATS_ENTRY(counter)	\
+	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
+
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_port_stats_arr[] = {
+	BNXT_RX_STATS_ENTRY(rx_64b_frames),
+	BNXT_RX_STATS_ENTRY(rx_65b_127b_frames),
+	BNXT_RX_STATS_ENTRY(rx_128b_255b_frames),
+	BNXT_RX_STATS_ENTRY(rx_256b_511b_frames),
+	BNXT_RX_STATS_ENTRY(rx_512b_1023b_frames),
+	BNXT_RX_STATS_ENTRY(rx_1024b_1518_frames),
+	BNXT_RX_STATS_ENTRY(rx_good_vlan_frames),
+	BNXT_RX_STATS_ENTRY(rx_1519b_2047b_frames),
+	BNXT_RX_STATS_ENTRY(rx_2048b_4095b_frames),
+	BNXT_RX_STATS_ENTRY(rx_4096b_9216b_frames),
+	BNXT_RX_STATS_ENTRY(rx_9217b_16383b_frames),
+	BNXT_RX_STATS_ENTRY(rx_total_frames),
+	BNXT_RX_STATS_ENTRY(rx_ucast_frames),
+	BNXT_RX_STATS_ENTRY(rx_mcast_frames),
+	BNXT_RX_STATS_ENTRY(rx_bcast_frames),
+	BNXT_RX_STATS_ENTRY(rx_fcs_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_ctrl_frames),
+	BNXT_RX_STATS_ENTRY(rx_pause_frames),
+	BNXT_RX_STATS_ENTRY(rx_pfc_frames),
+	BNXT_RX_STATS_ENTRY(rx_align_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_ovrsz_frames),
+	BNXT_RX_STATS_ENTRY(rx_jbr_frames),
+	BNXT_RX_STATS_ENTRY(rx_mtu_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_tagged_frames),
+	BNXT_RX_STATS_ENTRY(rx_double_tagged_frames),
+	BNXT_RX_STATS_ENTRY(rx_good_frames),
+	BNXT_RX_STATS_ENTRY(rx_undrsz_frames),
+	BNXT_RX_STATS_ENTRY(rx_eee_lpi_events),
+	BNXT_RX_STATS_ENTRY(rx_eee_lpi_duration),
+	BNXT_RX_STATS_ENTRY(rx_bytes),
+	BNXT_RX_STATS_ENTRY(rx_runt_bytes),
+	BNXT_RX_STATS_ENTRY(rx_runt_frames),
+
+	BNXT_TX_STATS_ENTRY(tx_64b_frames),
+	BNXT_TX_STATS_ENTRY(tx_65b_127b_frames),
+	BNXT_TX_STATS_ENTRY(tx_128b_255b_frames),
+	BNXT_TX_STATS_ENTRY(tx_256b_511b_frames),
+	BNXT_TX_STATS_ENTRY(tx_512b_1023b_frames),
+	BNXT_TX_STATS_ENTRY(tx_1024b_1518_frames),
+	BNXT_TX_STATS_ENTRY(tx_good_vlan_frames),
+	BNXT_TX_STATS_ENTRY(tx_1519b_2047_frames),
+	BNXT_TX_STATS_ENTRY(tx_2048b_4095b_frames),
+	BNXT_TX_STATS_ENTRY(tx_4096b_9216b_frames),
+	BNXT_TX_STATS_ENTRY(tx_9217b_16383b_frames),
+	BNXT_TX_STATS_ENTRY(tx_good_frames),
+	BNXT_TX_STATS_ENTRY(tx_total_frames),
+	BNXT_TX_STATS_ENTRY(tx_ucast_frames),
+	BNXT_TX_STATS_ENTRY(tx_mcast_frames),
+	BNXT_TX_STATS_ENTRY(tx_bcast_frames),
+	BNXT_TX_STATS_ENTRY(tx_pause_frames),
+	BNXT_TX_STATS_ENTRY(tx_pfc_frames),
+	BNXT_TX_STATS_ENTRY(tx_jabber_frames),
+	BNXT_TX_STATS_ENTRY(tx_fcs_err_frames),
+	BNXT_TX_STATS_ENTRY(tx_err),
+	BNXT_TX_STATS_ENTRY(tx_fifo_underruns),
+	BNXT_TX_STATS_ENTRY(tx_eee_lpi_events),
+	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
+	BNXT_TX_STATS_ENTRY(tx_total_collisions),
+	BNXT_TX_STATS_ENTRY(tx_bytes),
+};
+
+#define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+
 static int bnxt_get_sset_count(struct net_device *dev, int sset)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
 	switch (sset) {
-	case ETH_SS_STATS:
-		return BNXT_NUM_STATS * bp->cp_nr_rings;
+	case ETH_SS_STATS: {
+		int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+
+		if (bp->flags & BNXT_FLAG_PORT_STATS)
+			num_stats += BNXT_NUM_PORT_STATS;
+
+		return num_stats;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -117,6 +204,14 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		__le64 *port_stats = (__le64 *)bp->hw_rx_port_stats;
+
+		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++) {
+			buf[j] = le64_to_cpu(*(port_stats +
+					       bnxt_port_stats_arr[i].offset));
+		}
 	}
 }
 
@@ -171,6 +266,12 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			buf += ETH_GSTRING_LEN;
 			sprintf(buf, "[%d]: rx_l4_csum_errors", i);
 			buf += ETH_GSTRING_LEN;
+		}
+		if (bp->flags & BNXT_FLAG_PORT_STATS) {
+			for (i = 0; i < BNXT_NUM_PORT_STATS; i++) {
+				strcpy(buf, bnxt_port_stats_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
 		}
 		break;
 	default:
