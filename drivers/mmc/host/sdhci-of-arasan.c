@@ -147,19 +147,21 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	sdhci_arasan->clk_ahb = devm_clk_get(&pdev->dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
 		dev_err(&pdev->dev, "clk_ahb clock not found.\n");
-		return PTR_ERR(sdhci_arasan->clk_ahb);
+		ret = PTR_ERR(sdhci_arasan->clk_ahb);
+		goto err_pltfm_free;
 	}
 
 	clk_xin = devm_clk_get(&pdev->dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
 		dev_err(&pdev->dev, "clk_xin clock not found.\n");
-		return PTR_ERR(clk_xin);
+		ret = PTR_ERR(clk_xin);
+		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(sdhci_arasan->clk_ahb);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable AHB clock.\n");
-		return ret;
+		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(clk_xin);
@@ -179,17 +181,16 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		goto err_pltfm_free;
+		goto clk_disable_all;
 
 	return 0;
 
-err_pltfm_free:
-	sdhci_pltfm_free(pdev);
 clk_disable_all:
 	clk_disable_unprepare(clk_xin);
 clk_dis_ahb:
 	clk_disable_unprepare(sdhci_arasan->clk_ahb);
-
+err_pltfm_free:
+	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
