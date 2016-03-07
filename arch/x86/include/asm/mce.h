@@ -40,7 +40,7 @@
 #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
 
 /* AMD-specific bits */
-#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* declare an uncorrected error */
+#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
 #define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
 #define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
 
