@@ -1902,21 +1902,12 @@ static int rt5640_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			RT5640_PLL1_SRC_MASK, RT5640_PLL1_SRC_MCLK);
 		break;
 	case RT5640_PLL1_S_BCLK1:
+		snd_soc_update_bits(codec, RT5640_GLB_CLK,
+			RT5640_PLL1_SRC_MASK, RT5640_PLL1_SRC_BCLK1);
+		break;
 	case RT5640_PLL1_S_BCLK2:
-		dai_sel = get_sdp_info(codec, dai->id);
-		if (dai_sel < 0) {
-			dev_err(codec->dev,
-				"Failed to get sdp info: %d\n", dai_sel);
-			return -EINVAL;
-		}
-		if (dai_sel & RT5640_U_IF1) {
-			snd_soc_update_bits(codec, RT5640_GLB_CLK,
-				RT5640_PLL1_SRC_MASK, RT5640_PLL1_SRC_BCLK1);
-		}
-		if (dai_sel & RT5640_U_IF2) {
-			snd_soc_update_bits(codec, RT5640_GLB_CLK,
-				RT5640_PLL1_SRC_MASK, RT5640_PLL1_SRC_BCLK2);
-		}
+		snd_soc_update_bits(codec, RT5640_GLB_CLK,
+			RT5640_PLL1_SRC_MASK, RT5640_PLL1_SRC_BCLK2);
 		break;
 	default:
 		dev_err(codec->dev, "Unknown PLL source %d\n", source);
