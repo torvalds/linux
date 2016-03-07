@@ -546,7 +546,9 @@ static int sh_pfc_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	pinctrl_provide_dummies();
+	/* Enable dummy states for those platforms without pinctrl support */
+	if (!of_have_populated_dt())
+		pinctrl_provide_dummies();
 
 	ret = sh_pfc_init_ranges(pfc);
 	if (ret < 0)
