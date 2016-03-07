@@ -88,7 +88,7 @@ int microcode_sanity_check(void *mc, int print_err)
 		u32 ext_table_sum = 0;
 		u32 *ext_tablep = (u32 *)ext_header;
 
-		i = ext_table_size / DWSIZE;
+		i = ext_table_size / sizeof(u32);
 		while (i--)
 			ext_table_sum += ext_tablep[i];
 		if (ext_table_sum) {
@@ -100,7 +100,7 @@ int microcode_sanity_check(void *mc, int print_err)
 
 	/* calculate the checksum */
 	orig_sum = 0;
-	i = (MC_HEADER_SIZE + data_size) / DWSIZE;
+	i = (MC_HEADER_SIZE + data_size) / sizeof(u32);
 	while (i--)
 		orig_sum += ((u32 *)mc)[i];
 	if (orig_sum) {
