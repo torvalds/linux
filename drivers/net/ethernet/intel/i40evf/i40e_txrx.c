@@ -155,19 +155,21 @@ u32 i40evf_get_tx_pending(struct i40e_ring *ring, bool in_sw)
 
 /**
  * i40e_clean_tx_irq - Reclaim resources after transmit completes
- * @tx_ring:  tx ring to clean
- * @budget:   how many cleans we're allowed
+ * @vsi: the VSI we care about
+ * @tx_ring: Tx ring to clean
+ * @napi_budget: Used to determine if we are in netpoll
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  **/
-static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
+static bool i40e_clean_tx_irq(struct i40e_vsi *vsi,
+			      struct i40e_ring *tx_ring, int napi_budget)
 {
 	u16 i = tx_ring->next_to_clean;
 	struct i40e_tx_buffer *tx_buf;
 	struct i40e_tx_desc *tx_head;
 	struct i40e_tx_desc *tx_desc;
-	unsigned int total_packets = 0;
-	unsigned int total_bytes = 0;
+	unsigned int total_bytes = 0, total_packets = 0;
+	unsigned int budget = vsi->work_limit;
 
 	tx_buf = &tx_ring->tx_bi[i];
 	tx_desc = I40E_TX_DESC(tx_ring, i);
@@ -197,7 +199,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		total_packets += tx_buf->gso_segs;
 
 		/* free the skb */
-		dev_kfree_skb_any(tx_buf->skb);
+		napi_consume_skb(tx_buf->skb, napi_budget);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -267,7 +269,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 
 		if (budget &&
 		    ((j / (WB_STRIDE + 1)) == 0) && (j > 0) &&
-		    !test_bit(__I40E_DOWN, &tx_ring->vsi->state) &&
+		    !test_bit(__I40E_DOWN, &vsi->state) &&
 		    (I40E_DESC_UNUSED(tx_ring) != tx_ring->count))
 			tx_ring->arm_wb = true;
 	}
@@ -285,7 +287,7 @@ static bool i40e_clean_tx_irq(struct i40e_ring *tx_ring, int budget)
 		smp_mb();
 		if (__netif_subqueue_stopped(tx_ring->netdev,
 					     tx_ring->queue_index) &&
-		   !test_bit(__I40E_DOWN, &tx_ring->vsi->state)) {
+		   !test_bit(__I40E_DOWN, &vsi->state)) {
 			netif_wake_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 			++tx_ring->tx_stats.restart_queue;
@@ -1411,7 +1413,7 @@ int i40evf_napi_poll(struct napi_struct *napi, int budget)
 	 * budget and be more aggressive about cleaning up the Tx descriptors.
 	 */
 	i40e_for_each_ring(ring, q_vector->tx) {
-		if (!i40e_clean_tx_irq(ring, vsi->work_limit)) {
+		if (!i40e_clean_tx_irq(vsi, ring, budget)) {
 			clean_complete = false;
 			continue;
 		}
