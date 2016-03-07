@@ -121,7 +121,7 @@ unsigned int hfi1_max_srq_wrs = 0x1FFFF;
 module_param_named(max_srq_wrs, hfi1_max_srq_wrs, uint, S_IRUGO);
 MODULE_PARM_DESC(max_srq_wrs, "Maximum number of SRQ WRs support");
 
-unsigned short piothreshold;
+unsigned short piothreshold = 256;
 module_param(piothreshold, ushort, S_IRUGO);
 MODULE_PARM_DESC(piothreshold, "size used to determine sdma vs. pio");
 
