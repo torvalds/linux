@@ -280,6 +280,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_rxq_dup_data *dup_data;
 	int i, ret, sta_id;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -326,6 +327,16 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		mvm_sta->tid_data[i].seq_number = seq;
 	}
 	mvm_sta->agg_tids = 0;
+
+	if (iwl_mvm_has_new_rx_api(mvm) &&
+	    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		dup_data = kcalloc(mvm->trans->num_rx_queues,
+				   sizeof(*dup_data),
+				   GFP_KERNEL);
+		if (!dup_data)
+			return -ENOMEM;
+		mvm_sta->dup_data = dup_data;
+	}
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
@@ -507,6 +518,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (iwl_mvm_has_new_rx_api(mvm))
+		kfree(mvm_sta->dup_data);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == mvm_sta->sta_id) {
@@ -1031,14 +1045,22 @@ release_locks:
 }
 
 int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, u16 tid, u8 buf_size)
+			    struct ieee80211_sta *sta, u16 tid, u8 buf_size,
+			    bool amsdu)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif, sta->tdls, false);
-	int queue, fifo, ret;
+	int queue, ret;
 	u16 ssn;
+
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.sta_id = mvmsta->sta_id,
+		.tid = tid,
+		.frame_limit = buf_size,
+		.aggregate = true,
+	};
 
 	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
 		     != IWL_MAX_TID_COUNT);
@@ -1051,13 +1073,13 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	tid_data->state = IWL_AGG_ON;
 	mvmsta->agg_tids |= BIT(tid);
 	tid_data->ssn = 0xffff;
+	tid_data->amsdu_in_ampdu_allowed = amsdu;
 	spin_unlock_bh(&mvmsta->lock);
 
-	fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
+	cfg.fifo = iwl_mvm_ac_to_tx_fifo[tid_to_mac80211_ac[tid]];
 
-	iwl_mvm_enable_agg_txq(mvm, queue,
-			       vif->hw_queue[tid_to_mac80211_ac[tid]], fifo,
-			       mvmsta->sta_id, tid, buf_size, ssn, wdg_timeout);
+	iwl_mvm_enable_txq(mvm, queue, vif->hw_queue[tid_to_mac80211_ac[tid]],
+			   ssn, &cfg, wdg_timeout);
 
 	ret = iwl_mvm_sta_tx_agg(mvm, sta, tid, queue, true);
 	if (ret)

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,6 +72,10 @@
 #include <linux/spinlock.h>
 #include <linux/leds.h>
 #include <linux/in6.h>
+
+#ifdef CONFIG_THERMAL
+#include <linux/thermal.h>
+#endif
 
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
@@ -487,6 +493,12 @@ enum iwl_mvm_scan_type {
 	IWL_SCAN_TYPE_FRAGMENTED,
 };
 
+enum iwl_mvm_sched_scan_pass_all_states {
+	SCHED_SCAN_PASS_ALL_DISABLED,
+	SCHED_SCAN_PASS_ALL_ENABLED,
+	SCHED_SCAN_PASS_ALL_FOUND,
+};
+
 /**
  * struct iwl_nvm_section - describes an NVM section in memory.
  *
@@ -516,6 +528,30 @@ struct iwl_mvm_tt_mgmt {
 	struct iwl_tt_params params;
 	bool throttle;
 };
+
+#ifdef CONFIG_THERMAL
+/**
+ *struct iwl_mvm_thermal_device - thermal zone related data
+ * @temp_trips: temperature thresholds for report
+ * @fw_trips_index: keep indexes to original array - temp_trips
+ * @tzone: thermal zone device data
+*/
+struct iwl_mvm_thermal_device {
+	s16 temp_trips[IWL_MAX_DTS_TRIPS];
+	u8 fw_trips_index[IWL_MAX_DTS_TRIPS];
+	struct thermal_zone_device *tzone;
+};
+
+/*
+ * iwl_mvm_cooling_device
+ * @cur_state: current state in milliwatts
+ * @cdev: struct thermal cooling device
+ */
+struct iwl_mvm_cooling_device {
+	u32 cur_state;
+	struct thermal_cooling_device *cdev;
+};
+#endif
 
 #define IWL_MVM_NUM_LAST_FRAMES_UCODE_RATES 8
 
@@ -657,6 +693,7 @@ struct iwl_mvm {
 	void *scan_cmd;
 	struct iwl_mcast_filter_cmd *mcast_filter_cmd;
 	enum iwl_mvm_scan_type scan_type;
+	enum iwl_mvm_sched_scan_pass_all_states sched_scan_pass_all;
 
 	/* max number of simultaneous scans the FW supports */
 	unsigned int max_scans;
@@ -797,6 +834,11 @@ struct iwl_mvm {
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
+#ifdef CONFIG_THERMAL
+	struct iwl_mvm_thermal_device tz_device;
+	struct iwl_mvm_cooling_device cooling_dev;
+#endif
+
 	s32 temperature;	/* Celsius */
 	/*
 	 * Debug option to set the NIC temperature. This option makes the
@@ -819,6 +861,7 @@ struct iwl_mvm {
 
 	/* Indicate if device power save is allowed */
 	u8 ps_disabled; /* u8 instead of bool to ease debugfs_create_* usage */
+	unsigned int max_amsdu_len; /* used for debugfs only */
 
 	struct ieee80211_vif __rcu *csa_vif;
 	struct ieee80211_vif __rcu *csa_tx_blocked_vif;
@@ -943,8 +986,9 @@ static inline bool iwl_mvm_is_d0i3_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_dqa_supported(struct iwl_mvm *mvm)
 {
-	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
+	/* Make sure DQA isn't allowed in driver until feature is complete */
+	return false && fw_has_capa(&mvm->fw->ucode_capa,
+				    IWL_UCODE_TLV_CAPA_DQA_SUPPORT);
 }
 
 static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
@@ -1026,6 +1070,28 @@ static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_MULTI_QUEUE_RX_SUPPORT);
+}
+
+static inline bool iwl_mvm_is_tt_in_fw(struct iwl_mvm *mvm)
+{
+#ifdef CONFIG_THERMAL
+	/* these two TLV are redundant since the responsibility to CT-kill by
+	 * FW happens only after we send at least one command of
+	 * temperature THs report.
+	 */
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CT_KILL_BY_FW) &&
+	       fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT);
+#else /* CONFIG_THERMAL */
+	return false;
+#endif /* CONFIG_THERMAL */
+}
+
+static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_CTDP_SUPPORT);
 }
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
@@ -1160,6 +1226,10 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue);
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb, int queue);
+int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
+			    const u8 *data, u32 count);
+void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
+			    int queue);
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
@@ -1203,6 +1273,10 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_mu_mimo_grp_notif(struct iwl_mvm *mvm,
+			       struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_window_status_notif(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_mac_ctxt_recalc_tsf_id(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
@@ -1243,6 +1317,9 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb);
+
+/* Paging */
+void iwl_free_fw_paging(struct iwl_mvm *mvm);
 
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1476,21 +1553,15 @@ void iwl_mvm_enable_ac_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
 }
 
-static inline void iwl_mvm_enable_agg_txq(struct iwl_mvm *mvm, int queue,
-					  int mac80211_queue, int fifo,
-					  int sta_id, int tid, int frame_limit,
-					  u16 ssn, unsigned int wdg_timeout)
+static inline void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 {
-	struct iwl_trans_txq_scd_cfg cfg = {
-		.fifo = fifo,
-		.sta_id = sta_id,
-		.tid = tid,
-		.frame_limit = frame_limit,
-		.aggregate = true,
-	};
-
-	iwl_mvm_enable_txq(mvm, queue, mac80211_queue, ssn, &cfg, wdg_timeout);
+	mvm->ucode_loaded = false;
+	iwl_trans_stop_device(mvm->trans);
 }
+
+/* Stop/start all mac queues in a given bitmap */
+void iwl_mvm_start_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
+void iwl_mvm_stop_mac_queues(struct iwl_mvm *mvm, unsigned long mq);
 
 /* Thermal management and CT-kill */
 void iwl_mvm_tt_tx_backoff(struct iwl_mvm *mvm, u32 backoff);
@@ -1498,10 +1569,14 @@ void iwl_mvm_tt_temp_changed(struct iwl_mvm *mvm, u32 temp);
 void iwl_mvm_temp_notif(struct iwl_mvm *mvm,
 			struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
-void iwl_mvm_tt_initialize(struct iwl_mvm *mvm, u32 min_backoff);
-void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
+void iwl_mvm_thermal_initialize(struct iwl_mvm *mvm, u32 min_backoff);
+void iwl_mvm_thermal_exit(struct iwl_mvm *mvm);
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 int iwl_mvm_get_temp(struct iwl_mvm *mvm, s32 *temp);
+void iwl_mvm_ct_kill_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb);
+int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm);
+int iwl_mvm_cooling_device_register(struct iwl_mvm *mvm);
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget);
 
 /* Location Aware Regulatory */
 struct iwl_mcc_update_resp *

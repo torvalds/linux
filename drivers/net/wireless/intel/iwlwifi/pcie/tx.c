@@ -1062,10 +1062,10 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
 	    test_bit(txq_id, trans_pcie->queue_stopped)) {
-		struct sk_buff_head skbs;
+		struct sk_buff_head overflow_skbs;
 
-		__skb_queue_head_init(&skbs);
-		skb_queue_splice_init(&txq->overflow_q, &skbs);
+		__skb_queue_head_init(&overflow_skbs);
+		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
 
 		/*
 		 * This is tricky: we are in reclaim path which is non
@@ -1076,8 +1076,8 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		 */
 		spin_unlock_bh(&txq->lock);
 
-		while (!skb_queue_empty(&skbs)) {
-			struct sk_buff *skb = __skb_dequeue(&skbs);
+		while (!skb_queue_empty(&overflow_skbs)) {
+			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			u8 dev_cmd_idx = IWL_TRANS_FIRST_DRIVER_DATA + 1;
 			struct iwl_device_cmd *dev_cmd =
