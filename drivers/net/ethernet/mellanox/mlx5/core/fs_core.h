@@ -142,6 +142,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 #define fs_list_for_each_entry(pos, root)		\
 	list_for_each_entry(pos, root, node.list)
 
+#define fs_list_for_each_entry_safe(pos, tmp, root)		\
+	list_for_each_entry_safe(pos, tmp, root, node.list)
+
 #define fs_for_each_ns_or_ft_reverse(pos, prio)				\
 	list_for_each_entry_reverse(pos, &(prio)->node.children, list)
 
@@ -156,6 +159,9 @@ void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
 #define fs_for_each_ft(pos, prio)			\
 	fs_list_for_each_entry(pos, &(prio)->node.children)
+
+#define fs_for_each_ft_safe(pos, tmp, prio)			\
+	fs_list_for_each_entry_safe(pos, tmp, &(prio)->node.children)
 
 #define fs_for_each_fg(pos, ft)			\
 	fs_list_for_each_entry(pos, &(ft)->node.children)

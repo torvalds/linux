@@ -77,6 +77,9 @@
 #define KERNEL_NUM_PRIOS 1
 #define KENREL_MIN_LEVEL 2
 
+#define ANCHOR_MAX_FT 1
+#define ANCHOR_NUM_PRIOS 1
+#define ANCHOR_MIN_LEVEL (BY_PASS_MIN_LEVEL + 1)
 struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
@@ -92,7 +95,7 @@ static struct init_tree_node {
 	int max_ft;
 } root_fs = {
 	.type = FS_TYPE_NAMESPACE,
-	.ar_size = 3,
+	.ar_size = 4,
 	.children = (struct init_tree_node[]) {
 		ADD_PRIO(0, BY_PASS_MIN_LEVEL, 0,
 			 FS_REQUIRED_CAPS(FS_CAP(flow_table_properties_nic_receive.flow_modify_en),
@@ -108,6 +111,8 @@ static struct init_tree_node {
 					  FS_CAP(flow_table_properties_nic_receive.identified_miss_table_mode),
 					  FS_CAP(flow_table_properties_nic_receive.flow_table_modify)),
 			 ADD_NS(ADD_MULTIPLE_PRIO(LEFTOVERS_NUM_PRIOS, LEFTOVERS_MAX_FT))),
+		ADD_PRIO(0, ANCHOR_MIN_LEVEL, 0, {},
+			 ADD_NS(ADD_MULTIPLE_PRIO(ANCHOR_NUM_PRIOS, ANCHOR_MAX_FT))),
 	}
 };
 
@@ -1126,6 +1131,7 @@ struct mlx5_flow_namespace *mlx5_get_flow_namespace(struct mlx5_core_dev *dev,
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 	case MLX5_FLOW_NAMESPACE_KERNEL:
 	case MLX5_FLOW_NAMESPACE_LEFTOVERS:
+	case MLX5_FLOW_NAMESPACE_ANCHOR:
 		prio = type;
 		break;
 	case MLX5_FLOW_NAMESPACE_FDB:
@@ -1351,6 +1357,25 @@ static void set_prio_attrs(struct mlx5_flow_root_namespace *root_ns)
 	}
 }
 
+#define ANCHOR_PRIO 0
+#define ANCHOR_SIZE 1
+static int create_anchor_flow_table(struct mlx5_core_dev
+							*dev)
+{
+	struct mlx5_flow_namespace *ns = NULL;
+	struct mlx5_flow_table *ft;
+
+	ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ANCHOR);
+	if (!ns)
+		return -EINVAL;
+	ft = mlx5_create_flow_table(ns, ANCHOR_PRIO, ANCHOR_SIZE);
+	if (IS_ERR(ft)) {
+		mlx5_core_err(dev, "Failed to create last anchor flow table");
+		return PTR_ERR(ft);
+	}
+	return 0;
+}
+
 static int init_root_ns(struct mlx5_core_dev *dev)
 {
 
@@ -1362,6 +1387,9 @@ static int init_root_ns(struct mlx5_core_dev *dev)
 		goto cleanup;
 
 	set_prio_attrs(dev->priv.root_ns);
+
+	if (create_anchor_flow_table(dev))
+		goto cleanup;
 
 	return 0;
 
@@ -1392,6 +1420,15 @@ static void cleanup_single_prio_root_ns(struct mlx5_core_dev *dev,
 	root_ns = NULL;
 }
 
+static void destroy_flow_tables(struct fs_prio *prio)
+{
+	struct mlx5_flow_table *iter;
+	struct mlx5_flow_table *tmp;
+
+	fs_for_each_ft_safe(iter, tmp, prio)
+		mlx5_destroy_flow_table(iter);
+}
+
 static void cleanup_root_ns(struct mlx5_core_dev *dev)
 {
 	struct mlx5_flow_root_namespace *root_ns = dev->priv.root_ns;
@@ -1420,6 +1457,7 @@ static void cleanup_root_ns(struct mlx5_core_dev *dev)
 							 list);
 
 				fs_get_obj(obj_iter_prio2, iter_prio2);
+				destroy_flow_tables(obj_iter_prio2);
 				if (tree_remove_node(iter_prio2)) {
 					mlx5_core_warn(dev,
 						       "Priority %d wasn't destroyed, refcount > 1\n",
