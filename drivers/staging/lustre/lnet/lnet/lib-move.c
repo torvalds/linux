@@ -162,6 +162,7 @@ lnet_iov_nob(unsigned int niov, struct kvec *iov)
 {
 	unsigned int nob = 0;
 
+	LASSERT(!niov || iov);
 	while (niov-- > 0)
 		nob += (iov++)->iov_len;
 
@@ -282,6 +283,7 @@ lnet_kiov_nob(unsigned int niov, lnet_kiov_t *kiov)
 {
 	unsigned int nob = 0;
 
+	LASSERT(!niov || kiov);
 	while (niov-- > 0)
 		nob += (kiov++)->kiov_len;
 

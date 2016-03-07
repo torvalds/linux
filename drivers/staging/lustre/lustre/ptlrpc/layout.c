@@ -1798,7 +1798,7 @@ swabber_dumper_helper(struct req_capsule *pill,
 			return;
 		swabber(value);
 		ptlrpc_buf_set_swabbed(pill->rc_req, inout, offset);
-		if (dump) {
+		if (dump && field->rmf_dumper) {
 			CDEBUG(D_RPCTRACE, "Dump of swabbed field %s follows\n",
 			       field->rmf_name);
 			field->rmf_dumper(value);

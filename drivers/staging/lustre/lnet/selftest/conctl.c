@@ -670,44 +670,45 @@ static int
 lst_stat_query_ioctl(lstio_stat_args_t *args)
 {
 	int rc;
-	char *name;
+	char *name = NULL;
 
 	/* TODO: not finished */
 	if (args->lstio_sta_key != console_session.ses_key)
 		return -EACCES;
 
-	if (!args->lstio_sta_resultp ||
-	    (!args->lstio_sta_namep && !args->lstio_sta_idsp) ||
-	    args->lstio_sta_nmlen <= 0 ||
-	    args->lstio_sta_nmlen > LST_NAME_SIZE)
+	if (!args->lstio_sta_resultp)
 		return -EINVAL;
 
-	if (args->lstio_sta_idsp &&
-	    args->lstio_sta_count <= 0)
-		return -EINVAL;
+	if (args->lstio_sta_idsp) {
+		if (args->lstio_sta_count <= 0)
+			return -EINVAL;
 
-	LIBCFS_ALLOC(name, args->lstio_sta_nmlen + 1);
-	if (!name)
-		return -ENOMEM;
-
-	if (copy_from_user(name, args->lstio_sta_namep,
-			   args->lstio_sta_nmlen)) {
-		LIBCFS_FREE(name, args->lstio_sta_nmlen + 1);
-		return -EFAULT;
-	}
-
-	if (!args->lstio_sta_idsp) {
-		rc = lstcon_group_stat(name, args->lstio_sta_timeout,
-				       args->lstio_sta_resultp);
-	} else {
 		rc = lstcon_nodes_stat(args->lstio_sta_count,
 				       args->lstio_sta_idsp,
 				       args->lstio_sta_timeout,
 				       args->lstio_sta_resultp);
+	} else if (args->lstio_sta_namep) {
+		if (args->lstio_sta_nmlen <= 0 ||
+		    args->lstio_sta_nmlen > LST_NAME_SIZE)
+			return -EINVAL;
+
+		LIBCFS_ALLOC(name, args->lstio_sta_nmlen + 1);
+		if (!name)
+			return -ENOMEM;
+
+		rc = copy_from_user(name, args->lstio_sta_namep,
+				    args->lstio_sta_nmlen);
+		if (!rc)
+			rc = lstcon_group_stat(name, args->lstio_sta_timeout,
+					       args->lstio_sta_resultp);
+		else
+			rc = -EFAULT;
+	} else {
+		rc = -EINVAL;
 	}
 
-	LIBCFS_FREE(name, args->lstio_sta_nmlen + 1);
-
+	if (name)
+		LIBCFS_FREE(name, args->lstio_sta_nmlen + 1);
 	return rc;
 }
 

@@ -1359,17 +1359,19 @@ int lprocfs_write_frac_u64_helper(const char __user *buffer,
 	}
 
 	units = 1;
-	switch (tolower(*end)) {
-	case 'p':
-		units <<= 10;
-	case 't':
-		units <<= 10;
-	case 'g':
-		units <<= 10;
-	case 'm':
-		units <<= 10;
-	case 'k':
-		units <<= 10;
+	if (end) {
+		switch (tolower(*end)) {
+		case 'p':
+			units <<= 10;
+		case 't':
+			units <<= 10;
+		case 'g':
+			units <<= 10;
+		case 'm':
+			units <<= 10;
+		case 'k':
+			units <<= 10;
+		}
 	}
 	/* Specified units override the multiplier */
 	if (units > 1)

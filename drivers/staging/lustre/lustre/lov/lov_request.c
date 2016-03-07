@@ -178,7 +178,7 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 				   cfs_time_seconds(1), NULL, NULL);
 
 	rc = l_wait_event(waitq, lov_check_set(lov, ost_idx), &lwi);
-	if (tgt && tgt->ltd_active)
+	if (tgt->ltd_active)
 		return 1;
 
 	return 0;

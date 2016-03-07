@@ -344,7 +344,15 @@ static int config_log_add(struct obd_device *obd, char *logname,
 	LASSERT(lsi->lsi_lmd);
 	if (!(lsi->lsi_lmd->lmd_flags & LMD_FLG_NOIR)) {
 		struct config_llog_data *recover_cld;
-		*strrchr(seclogname, '-') = 0;
+
+		ptr = strrchr(seclogname, '-');
+		if (ptr) {
+			*ptr = 0;
+		} else {
+			CERROR("sptlrpc log name not correct: %s", seclogname);
+			config_log_put(cld);
+			return -EINVAL;
+		}
 		recover_cld = config_recover_log_add(obd, seclogname, cfg, sb);
 		if (IS_ERR(recover_cld)) {
 			rc = PTR_ERR(recover_cld);
