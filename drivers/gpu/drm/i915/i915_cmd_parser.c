@@ -1287,6 +1287,7 @@ int i915_cmd_parser_get_version(void)
 	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.
 	 * 4. L3 atomic chicken bits of HSW_SCRATCH1 and HSW_ROW_CHICKEN3.
 	 * 5. GPGPU dispatch compute indirect registers.
+	 * 6. TIMESTAMP register and Haswell CS GPR registers
 	 */
-	return 5;
+	return 6;
 }
