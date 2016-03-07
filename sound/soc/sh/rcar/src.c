@@ -33,7 +33,7 @@ struct rsnd_src {
 #define rsnd_src_get(priv, id) ((struct rsnd_src *)(priv->src) + id)
 #define rsnd_src_to_dma(src) ((src)->dma)
 #define rsnd_src_nr(priv) ((priv)->src_nr)
-#define rsnd_enable_sync_convert(src) ((src)->sen.val)
+#define rsnd_src_sync_is_enabled(mod) (rsnd_mod_to_src(mod)->sen.val)
 
 #define rsnd_mod_to_src(_mod)				\
 	container_of((_mod), struct rsnd_src, mod)
@@ -102,7 +102,7 @@ static u32 rsnd_src_convert_rate(struct rsnd_dai_stream *io,
 	if (!runtime)
 		return 0;
 
-	if (!rsnd_enable_sync_convert(src))
+	if (!rsnd_src_sync_is_enabled(mod))
 		return src->convert_rate;
 
 	convert_rate = src->sync.val;
@@ -175,7 +175,6 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 convert_rate = rsnd_src_convert_rate(io, mod);
 	u32 ifscr, fsrate, adinr;
 	u32 cr, route;
@@ -222,7 +221,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	if (convert_rate) {
 		route	= 0x1;
 
-		if (rsnd_enable_sync_convert(src)) {
+		if (rsnd_src_sync_is_enabled(mod)) {
 			cr |= 0x1;
 			route |= rsnd_io_is_play(io) ?
 				(0x1 << 24) : (0x1 << 25);
@@ -296,9 +295,9 @@ static int rsnd_src_irq(struct rsnd_mod *mod,
 	/*
 	 * WORKAROUND
 	 *
-	 * ignore over flow error when rsnd_enable_sync_convert()
+	 * ignore over flow error when rsnd_src_sync_is_enabled()
 	 */
-	if (rsnd_enable_sync_convert(src))
+	if (rsnd_src_sync_is_enabled(mod))
 		sys_int_val = sys_int_val & 0xffff;
 
 	rsnd_mod_write(mod, SRC_INT_ENABLE0, int_val);
@@ -318,7 +317,6 @@ static void rsnd_src_status_clear(struct rsnd_mod *mod)
 
 static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val0, val1;
 	bool ret = false;
 
@@ -327,9 +325,9 @@ static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 	/*
 	 * WORKAROUND
 	 *
-	 * ignore over flow error when rsnd_enable_sync_convert()
+	 * ignore over flow error when rsnd_src_sync_is_enabled()
 	 */
-	if (rsnd_enable_sync_convert(src))
+	if (rsnd_src_sync_is_enabled(mod))
 		val0 = val0 & 0xffff;
 
 	if ((rsnd_mod_read(mod, SCU_SYS_STATUS0) & val0) ||
@@ -343,7 +341,6 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
-	struct rsnd_src *src = rsnd_mod_to_src(mod);
 	u32 val;
 
 	/*
@@ -351,7 +348,7 @@ static int rsnd_src_start(struct rsnd_mod *mod,
 	 *
 	 * Enable SRC output if you want to use sync convert together with DVC
 	 */
-	val = (rsnd_io_to_mod_dvc(io) && !rsnd_enable_sync_convert(src)) ?
+	val = (rsnd_io_to_mod_dvc(io) && !rsnd_src_sync_is_enabled(mod)) ?
 		0x01 : 0x11;
 
 	rsnd_mod_write(mod, SRC_CTRL, val);
