@@ -304,6 +304,51 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
+static u32 get_block_address(u32 current_addr, u32 low, u32 high,
+			     unsigned int bank, unsigned int block)
+{
+	u32 addr = 0, offset = 0;
+
+	if (mce_flags.smca) {
+		if (!block) {
+			addr = MSR_AMD64_SMCA_MCx_MISC(bank);
+		} else {
+			/*
+			 * For SMCA enabled processors, BLKPTR field of the
+			 * first MISC register (MCx_MISC0) indicates presence of
+			 * additional MISC register set (MISC1-4).
+			 */
+			u32 low, high;
+
+			if (rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
+				return addr;
+
+			if (!(low & MCI_CONFIG_MCAX))
+				return addr;
+
+			if (!rdmsr_safe(MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
+			    (low & MASK_BLKPTR_LO))
+				addr = MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
+		}
+		return addr;
+	}
+
+	/* Fall back to method we used for older processors: */
+	switch (block) {
+	case 0:
+		addr = MSR_IA32_MCx_MISC(bank);
+		break;
+	case 1:
+		offset = ((low & MASK_BLKPTR_LO) >> 21);
+		if (offset)
+			addr = MCG_XBLK_ADDR + offset;
+		break;
+	default:
+		addr = ++current_addr;
+	}
+	return addr;
+}
+
 static int
 prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 			int offset, u32 misc_high)
@@ -366,16 +411,9 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
-			if (block == 0)
-				address = MSR_IA32_MCx_MISC(bank);
-			else if (block == 1) {
-				address = (low & MASK_BLKPTR_LO) >> 21;
-				if (!address)
-					break;
-
-				address += MCG_XBLK_ADDR;
-			} else
-				++address;
+			address = get_block_address(address, low, high, bank, block);
+			if (!address)
+				break;
 
 			if (rdmsr_safe(address, &low, &high))
 				break;
@@ -480,16 +518,9 @@ static void amd_threshold_interrupt(void)
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		for (block = 0; block < NR_BLOCKS; ++block) {
-			if (block == 0) {
-				address = MSR_IA32_MCx_MISC(bank);
-			} else if (block == 1) {
-				address = (low & MASK_BLKPTR_LO) >> 21;
-				if (!address)
-					break;
-				address += MCG_XBLK_ADDR;
-			} else {
-				++address;
-			}
+			address = get_block_address(address, low, high, bank, block);
+			if (!address)
+				break;
 
 			if (rdmsr_safe(address, &low, &high))
 				break;
@@ -709,16 +740,11 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 	if (err)
 		goto out_free;
 recurse:
-	if (!block) {
-		address = (low & MASK_BLKPTR_LO) >> 21;
-		if (!address)
-			return 0;
-		address += MCG_XBLK_ADDR;
-	} else {
-		++address;
-	}
+	address = get_block_address(address, low, high, bank, ++block);
+	if (!address)
+		return 0;
 
-	err = allocate_threshold_blocks(cpu, bank, ++block, address);
+	err = allocate_threshold_blocks(cpu, bank, block, address);
 	if (err)
 		goto out_free;
 
