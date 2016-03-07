@@ -426,7 +426,7 @@ struct mv88e6xxx_priv_state {
 
 	struct mv88e6xxx_priv_port	ports[DSA_MAX_PORTS];
 
-	unsigned long port_state_update_mask;
+	DECLARE_BITMAP(port_state_update_mask, DSA_MAX_PORTS);
 
 	struct work_struct bridge_work;
 };

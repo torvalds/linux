@@ -1051,39 +1051,49 @@ static int _mv88e6xxx_atu_remove(struct dsa_switch *ds, u16 fid, int port,
 	return _mv88e6xxx_atu_move(ds, fid, port, 0x0f, static_too);
 }
 
-static int mv88e6xxx_set_port_state(struct dsa_switch *ds, int port, u8 state)
+static const char * const mv88e6xxx_port_state_names[] = {
+	[PORT_CONTROL_STATE_DISABLED] = "Disabled",
+	[PORT_CONTROL_STATE_BLOCKING] = "Blocking/Listening",
+	[PORT_CONTROL_STATE_LEARNING] = "Learning",
+	[PORT_CONTROL_STATE_FORWARDING] = "Forwarding",
+};
+
+static int _mv88e6xxx_port_state(struct dsa_switch *ds, int port, u8 state)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int reg, ret = 0;
 	u8 oldstate;
 
-	mutex_lock(&ps->smi_mutex);
-
 	reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_CONTROL);
-	if (reg < 0) {
-		ret = reg;
-		goto abort;
-	}
+	if (reg < 0)
+		return reg;
 
 	oldstate = reg & PORT_CONTROL_STATE_MASK;
+
 	if (oldstate != state) {
 		/* Flush forwarding database if we're moving a port
 		 * from Learning or Forwarding state to Disabled or
 		 * Blocking or Listening state.
 		 */
-		if (oldstate >= PORT_CONTROL_STATE_LEARNING &&
-		    state <= PORT_CONTROL_STATE_BLOCKING) {
+		if ((oldstate == PORT_CONTROL_STATE_LEARNING ||
+		     oldstate == PORT_CONTROL_STATE_FORWARDING)
+		    && (state == PORT_CONTROL_STATE_DISABLED ||
+			state == PORT_CONTROL_STATE_BLOCKING)) {
 			ret = _mv88e6xxx_atu_remove(ds, 0, port, false);
 			if (ret)
-				goto abort;
+				return ret;
 		}
+
 		reg = (reg & ~PORT_CONTROL_STATE_MASK) | state;
 		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL,
 					   reg);
+		if (ret)
+			return ret;
+
+		netdev_dbg(ds->ports[port], "PortState %s (was %s)\n",
+			   mv88e6xxx_port_state_names[state],
+			   mv88e6xxx_port_state_names[oldstate]);
 	}
 
-abort:
-	mutex_unlock(&ps->smi_mutex);
 	return ret;
 }
 
@@ -1146,13 +1156,11 @@ int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state)
 		break;
 	}
 
-	netdev_dbg(ds->ports[port], "port state %d [%d]\n", state, stp_state);
-
 	/* mv88e6xxx_port_stp_update may be called with softirqs disabled,
 	 * so we can not update the port state directly but need to schedule it.
 	 */
 	ps->ports[port].state = stp_state;
-	set_bit(port, &ps->port_state_update_mask);
+	set_bit(port, ps->port_state_update_mask);
 	schedule_work(&ps->bridge_work);
 
 	return 0;
@@ -2228,11 +2236,15 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	ps = container_of(work, struct mv88e6xxx_priv_state, bridge_work);
 	ds = ((struct dsa_switch *)ps) - 1;
 
-	while (ps->port_state_update_mask) {
-		port = __ffs(ps->port_state_update_mask);
-		clear_bit(port, &ps->port_state_update_mask);
-		mv88e6xxx_set_port_state(ds, port, ps->ports[port].state);
-	}
+	mutex_lock(&ps->smi_mutex);
+
+	for (port = 0; port < ps->num_ports; ++port)
+		if (test_and_clear_bit(port, ps->port_state_update_mask) &&
+		    _mv88e6xxx_port_state(ds, port, ps->ports[port].state))
+			netdev_warn(ds->ports[port], "failed to update state to %s\n",
+				    mv88e6xxx_port_state_names[ps->ports[port].state]);
+
+	mutex_unlock(&ps->smi_mutex);
 }
 
 static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
