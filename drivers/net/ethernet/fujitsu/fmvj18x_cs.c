@@ -469,8 +469,8 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		    goto failed;
 	    }
 	    /* Read MACID from CIS */
-	    for (i = 5; i < 11; i++)
-		    dev->dev_addr[i] = buf[i];
+	    for (i = 0; i < 6; i++)
+		    dev->dev_addr[i] = buf[i + 5];
 	    kfree(buf);
 	} else {
 	    if (pcmcia_get_mac_from_cis(link, dev))

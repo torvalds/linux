@@ -139,9 +139,9 @@ static inline bool nvme_io_incapable(struct nvme_ctrl *ctrl)
 	u32 val = 0;
 
 	if (ctrl->ops->io_incapable(ctrl))
-		return false;
+		return true;
 	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
-		return false;
+		return true;
 	return val & NVME_CSTS_CFS;
 }
 

@@ -1520,7 +1520,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 				    DMA_BIDIRECTIONAL);
 
 		if (dma_mapping_error(pdev, addr)) {
-			while (--i) {
+			while (i--) {
 				dma_unmap_page(pdev, ttm_dma->dma_address[i],
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				ttm_dma->dma_address[i] = 0;
