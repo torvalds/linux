@@ -788,7 +788,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct in6_addr *ipaddr,
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
-	/* check for SAM/DAM = 01 */
+	/* check for SAM/DAM = 10 */
 	tmp.s6_addr[11] = 0xFF;
 	tmp.s6_addr[12] = 0xFE;
 	memcpy(&tmp.s6_addr[14], &ipaddr->s6_addr[14], 2);
@@ -801,7 +801,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct in6_addr *ipaddr,
 	}
 
 	memset(&tmp, 0, sizeof(tmp));
-	/* check for SAM/DAM = 10, should always match */
+	/* check for SAM/DAM = 01, should always match */
 	memcpy(&tmp.s6_addr[8], &ipaddr->s6_addr[8], 8);
 	/* context information are always used */
 	ipv6_addr_prefix_copy(&tmp, &ctx->pfx, ctx->plen);
