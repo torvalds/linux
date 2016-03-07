@@ -68,6 +68,9 @@ int microcode_sanity_check(void *mc, int print_err)
 	}
 	ext_table_size = total_size - (MC_HEADER_SIZE + data_size);
 	if (ext_table_size) {
+		u32 ext_table_sum = 0;
+		u32 *ext_tablep;
+
 		if ((ext_table_size < EXT_HEADER_SIZE)
 		 || ((ext_table_size - EXT_HEADER_SIZE) % EXT_SIGNATURE_SIZE)) {
 			if (print_err)
@@ -81,12 +84,9 @@ int microcode_sanity_check(void *mc, int print_err)
 			return -EFAULT;
 		}
 		ext_sigcount = ext_header->count;
-	}
 
-	/* check extended table checksum */
-	if (ext_table_size) {
-		u32 ext_table_sum = 0;
-		u32 *ext_tablep = (u32 *)ext_header;
+		/* check extended table checksum */
+		ext_tablep = (u32 *)ext_header;
 
 		i = ext_table_size / sizeof(u32);
 		while (i--)
