@@ -1995,7 +1995,7 @@ int sptlrpc_svc_alloc_rs(struct ptlrpc_request *req, int msglen)
 		if (svcpt->scp_service->srv_max_reply_size <
 		   msglen + sizeof(struct ptlrpc_reply_state)) {
 			/* Just return failure if the size is too big */
-			CERROR("size of message is too big (%zd), %d allowed",
+			CERROR("size of message is too big (%zd), %d allowed\n",
 			       msglen + sizeof(struct ptlrpc_reply_state),
 			       svcpt->scp_service->srv_max_reply_size);
 			return -ENOMEM;
@@ -2165,7 +2165,7 @@ int sptlrpc_cli_unwrap_bulk_write(struct ptlrpc_request *req,
 	 * in case of privacy mode, nob_transferred needs to be adjusted.
 	 */
 	if (desc->bd_nob != desc->bd_nob_transferred) {
-		CERROR("nob %d doesn't match transferred nob %d",
+		CERROR("nob %d doesn't match transferred nob %d\n",
 		       desc->bd_nob, desc->bd_nob_transferred);
 		return -EPROTO;
 	}

@@ -464,7 +464,7 @@ static void osc_extent_insert(struct osc_object *obj, struct osc_extent *ext)
 		else if (ext->oe_start > tmp->oe_end)
 			n = &(*n)->rb_right;
 		else
-			EASSERTF(0, tmp, EXTSTR, EXTPARA(ext));
+			EASSERTF(0, tmp, EXTSTR"\n", EXTPARA(ext));
 	}
 	rb_link_node(&ext->oe_node, parent, n);
 	rb_insert_color(&ext->oe_node, &obj->oo_root);
@@ -674,7 +674,8 @@ static struct osc_extent *osc_extent_find(const struct lu_env *env,
 	/* grants has been allocated by caller */
 	LASSERTF(*grants >= chunksize + cli->cl_extent_tax,
 		 "%u/%u/%u.\n", *grants, chunksize, cli->cl_extent_tax);
-	LASSERTF((max_end - cur->oe_start) < max_pages, EXTSTR, EXTPARA(cur));
+	LASSERTF((max_end - cur->oe_start) < max_pages, EXTSTR"\n",
+		 EXTPARA(cur));
 
 restart:
 	osc_object_lock(obj);
@@ -692,7 +693,7 @@ restart:
 		/* if covering by different locks, no chance to match */
 		if (lock != ext->oe_osclock) {
 			EASSERTF(!overlapped(ext, cur), ext,
-				 EXTSTR, EXTPARA(cur));
+				 EXTSTR"\n", EXTPARA(cur));
 
 			ext = next_extent(ext);
 			continue;
@@ -715,7 +716,7 @@ restart:
 			 */
 			EASSERTF((ext->oe_start <= cur->oe_start &&
 				  ext->oe_end >= cur->oe_end),
-				 ext, EXTSTR, EXTPARA(cur));
+				 ext, EXTSTR"\n", EXTPARA(cur));
 
 			if (ext->oe_state > OES_CACHE || ext->oe_fsync_wait) {
 				/* for simplicity, we wait for this extent to

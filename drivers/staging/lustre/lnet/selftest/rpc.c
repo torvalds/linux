@@ -667,7 +667,7 @@ srpc_finish_service(struct srpc_service *sv)
 		}
 
 		if (scd->scd_buf_nposted > 0) {
-			CDEBUG(D_NET, "waiting for %d posted buffers to unlink",
+			CDEBUG(D_NET, "waiting for %d posted buffers to unlink\n",
 			       scd->scd_buf_nposted);
 			spin_unlock(&scd->scd_lock);
 			return 0;

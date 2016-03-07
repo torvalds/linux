@@ -256,7 +256,7 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 		mode |= 0200;
 	entry = debugfs_create_file(name, mode, root, data, fops);
 	if (IS_ERR_OR_NULL(entry)) {
-		CERROR("LprocFS: No memory to create <debugfs> entry %s", name);
+		CERROR("LprocFS: No memory to create <debugfs> entry %s\n", name);
 		return entry ?: ERR_PTR(-ENOMEM);
 	}
 	return entry;

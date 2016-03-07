@@ -1293,8 +1293,12 @@ static int echo_get_object(struct echo_object **ecop, struct echo_device *ed,
 
 static void echo_put_object(struct echo_object *eco)
 {
-	if (cl_echo_object_put(eco))
-		CERROR("echo client: drop an object failed");
+	int rc;
+
+	rc = cl_echo_object_put(eco);
+	if (rc)
+		CERROR("%s: echo client drop an object failed: rc = %d\n",
+		       eco->eo_dev->ed_ec->ec_exp->exp_obd->obd_name, rc);
 }
 
 static void

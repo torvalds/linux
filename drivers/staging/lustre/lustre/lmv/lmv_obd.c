@@ -311,7 +311,7 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 		rc = md_init_ea_size(lmv->tgts[i]->ltd_exp, easize, def_easize,
 				     cookiesize, def_cookiesize);
 		if (rc) {
-			CERROR("%s: obd_init_ea_size() failed on MDT target %d: rc = %d.\n",
+			CERROR("%s: obd_init_ea_size() failed on MDT target %d: rc = %d\n",
 			       obd->obd_name, i, rc);
 			break;
 		}

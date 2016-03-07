@@ -722,9 +722,9 @@ struct ptlrpc_request *__ptlrpc_request_alloc(struct obd_import *imp,
 		request = ptlrpc_prep_req_from_pool(pool);
 
 	if (request) {
-		LASSERTF((unsigned long)imp > 0x1000, "%p", imp);
+		LASSERTF((unsigned long)imp > 0x1000, "%p\n", imp);
 		LASSERT(imp != LP_POISON);
-		LASSERTF((unsigned long)imp->imp_client > 0x1000, "%p",
+		LASSERTF((unsigned long)imp->imp_client > 0x1000, "%p\n",
 			 imp->imp_client);
 		LASSERT(imp->imp_client != LP_POISON);
 
@@ -2602,7 +2602,7 @@ int ptlrpc_queue_wait(struct ptlrpc_request *req)
 
 	set = ptlrpc_prep_set();
 	if (!set) {
-		CERROR("Unable to allocate ptlrpc set.");
+		CERROR("cannot allocate ptlrpc set: rc = %d\n", -ENOMEM);
 		return -ENOMEM;
 	}
 

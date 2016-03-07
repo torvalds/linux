@@ -952,7 +952,7 @@ static int ll_lsm_getattr(struct lov_stripe_md *lsm, struct obd_export *exp,
 
 	set = ptlrpc_prep_set();
 	if (!set) {
-		CERROR("can't allocate ptlrpc set\n");
+		CERROR("cannot allocate ptlrpc set: rc = %d\n", -ENOMEM);
 		rc = -ENOMEM;
 	} else {
 		rc = obd_getattr_async(exp, &oinfo, set);
@@ -1180,7 +1180,7 @@ out:
 		CDEBUG(D_VFSTRACE, "Restart %s on %pD from %lld, count:%zd\n",
 		       iot == CIT_READ ? "read" : "write",
 		       file, *ppos, count);
-		LASSERTF(io->ci_nob == 0, "%zd", io->ci_nob);
+		LASSERTF(io->ci_nob == 0, "%zd\n", io->ci_nob);
 		goto restart;
 	}
 
@@ -3415,7 +3415,7 @@ static int ll_layout_lock_set(struct lustre_handle *lockh, enum ldlm_mode mode,
 	LASSERT(lock);
 	LASSERT(ldlm_has_layout(lock));
 
-	LDLM_DEBUG(lock, "File %p/"DFID" being reconfigured: %d.\n",
+	LDLM_DEBUG(lock, "File %p/"DFID" being reconfigured: %d",
 		   inode, PFID(&lli->lli_fid), reconf);
 
 	/* in case this is a caching lock and reinstate with new inode */
@@ -3571,7 +3571,7 @@ again:
 	it.it_op = IT_LAYOUT;
 	lockh.cookie = 0ULL;
 
-	LDLM_DEBUG_NOLOCK("%s: requeue layout lock for file %p/" DFID ".\n",
+	LDLM_DEBUG_NOLOCK("%s: requeue layout lock for file %p/" DFID "",
 			  ll_get_fsname(inode->i_sb, NULL, 0), inode,
 			PFID(&lli->lli_fid));
 

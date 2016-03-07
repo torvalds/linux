@@ -97,7 +97,7 @@ static int cl_lock_invariant(const struct lu_env *env,
 	result = atomic_read(&lock->cll_ref) > 0 &&
 		cl_lock_invariant_trusted(env, lock);
 	if (!result && env)
-		CL_LOCK_DEBUG(D_ERROR, env, lock, "invariant broken");
+		CL_LOCK_DEBUG(D_ERROR, env, lock, "invariant broken\n");
 	return result;
 }
 

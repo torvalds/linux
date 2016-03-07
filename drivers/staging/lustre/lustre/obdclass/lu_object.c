@@ -459,7 +459,7 @@ int lu_cdebug_printer(const struct lu_env *env,
 		  ARRAY_SIZE(key->lck_area) - used, format, args);
 	if (complete) {
 		if (cfs_cdebug_show(msgdata->msg_mask, msgdata->msg_subsys))
-			libcfs_debug_msg(msgdata, "%s", key->lck_area);
+			libcfs_debug_msg(msgdata, "%s\n", key->lck_area);
 		key->lck_area[0] = 0;
 	}
 	va_end(args);
