@@ -945,8 +945,12 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 		return status;
 
 	if (!trans->tas_feats_updated) {
-		trans->tas_feats_updated = 1;
-		trans->tas_features = reply->msg_ses_feats;
+		spin_lock(&console_session.ses_rpc_lock);
+		if (!trans->tas_feats_updated) { /* recheck with lock */
+			trans->tas_feats_updated = 1;
+			trans->tas_features = reply->msg_ses_feats;
+		}
+		spin_unlock(&console_session.ses_rpc_lock);
 	}
 
 	if (reply->msg_ses_feats != trans->tas_features) {
