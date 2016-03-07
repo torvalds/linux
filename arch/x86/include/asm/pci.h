@@ -105,9 +105,6 @@ void native_restore_msi_irqs(struct pci_dev *dev);
 #include <asm/pci_64.h>
 #endif
 
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
 /* generic pci stuff */
 #include <asm-generic/pci.h>
 

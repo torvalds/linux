@@ -2011,4 +2011,8 @@ static inline bool pci_ari_enabled(struct pci_bus *bus)
 {
 	return bus->self && bus->self->ari_enabled;
 }
+
+/* provide the legacy pci_dma_* API */
+#include <linux/pci-dma-compat.h>
+
 #endif /* LINUX_PCI_H */

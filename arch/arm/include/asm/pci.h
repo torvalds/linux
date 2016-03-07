@@ -2,7 +2,6 @@
 #define ASMARM_PCI_H
 
 #ifdef __KERNEL__
-#include <asm-generic/pci-dma-compat.h>
 #include <asm/mach/pci.h> /* for pci_sys_data */
 
 extern unsigned long pcibios_min_io;

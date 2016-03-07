@@ -65,13 +65,6 @@ extern void pcibios_set_master(struct pci_dev *dev);
    decisions.  */
 #define PCI_DMA_BUS_IS_PHYS  0
 
-#ifdef CONFIG_PCI
-
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
-#endif
-
 /* TODO: integrate with include/asm-generic/pci.h ? */
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
