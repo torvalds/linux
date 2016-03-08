@@ -402,7 +402,8 @@ pinctrl_bind_failed:
 	devres_release_all(dev);
 	driver_sysfs_remove(dev);
 	dev->driver = NULL;
-	dev_set_drvdata(dev, NULL);
+	if (ret != -EPROBE_DEFER)
+		dev_set_drvdata(dev, NULL);
 	if (dev->pm_domain && dev->pm_domain->dismiss)
 		dev->pm_domain->dismiss(dev);
 	pm_runtime_reinit(dev);
