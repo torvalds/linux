@@ -409,4 +409,18 @@ static inline bool tc_should_offload(struct net_device *dev, u32 flags)
 	return true;
 }
 
+enum tc_fl_command {
+	TC_CLSFLOWER_REPLACE,
+	TC_CLSFLOWER_DESTROY,
+};
+
+struct tc_cls_flower_offload {
+	enum tc_fl_command command;
+	u64 cookie;
+	struct flow_dissector *dissector;
+	struct fl_flow_key *mask;
+	struct fl_flow_key *key;
+	struct tcf_exts *exts;
+};
+
 #endif

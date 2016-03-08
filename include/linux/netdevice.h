@@ -786,6 +786,7 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 enum {
 	TC_SETUP_MQPRIO,
 	TC_SETUP_CLSU32,
+	TC_SETUP_CLSFLOWER,
 };
 
 struct tc_cls_u32_offload;
@@ -795,6 +796,7 @@ struct tc_to_netdev {
 	union {
 		u8 tc;
 		struct tc_cls_u32_offload *cls_u32;
+		struct tc_cls_flower_offload *cls_flower;
 	};
 };
 
