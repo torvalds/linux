@@ -145,8 +145,52 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 }
 
-struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
-						struct intel_crtc_state *crtc_state)
+static enum intel_dpll_id
+ibx_get_fixed_dpll(struct intel_crtc *crtc,
+		   struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id i;
+
+	/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
+	i = (enum intel_dpll_id) crtc->pipe;
+	pll = &dev_priv->shared_dplls[i];
+
+	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
+		      crtc->base.base.id, pll->name);
+
+	return i;
+}
+
+static enum intel_dpll_id
+bxt_get_fixed_dpll(struct intel_crtc *crtc,
+		   struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_encoder *encoder;
+	struct intel_digital_port *intel_dig_port;
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id i;
+
+	/* PLL is attached to port in bxt */
+	encoder = intel_ddi_get_crtc_new_encoder(crtc_state);
+	if (WARN_ON(!encoder))
+		return DPLL_ID_PRIVATE;
+
+	intel_dig_port = enc_to_dig_port(&encoder->base);
+	/* 1:1 mapping between ports and PLLs */
+	i = (enum intel_dpll_id)intel_dig_port->port;
+	pll = &dev_priv->shared_dplls[i];
+	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
+		crtc->base.base.id, pll->name);
+
+	return i;
+}
+
+static enum intel_dpll_id
+intel_find_shared_dpll(struct intel_crtc *crtc,
+		       struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_shared_dpll *pll;
@@ -154,42 +198,11 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 	enum intel_dpll_id i;
 	int max = dev_priv->num_shared_dpll;
 
-	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
-
-	if (HAS_PCH_IBX(dev_priv->dev)) {
-		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
-		i = (enum intel_dpll_id) crtc->pipe;
-		pll = &dev_priv->shared_dplls[i];
-
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-			      crtc->base.base.id, pll->name);
-
-		WARN_ON(shared_dpll[i].crtc_mask);
-
-		goto found;
-	}
-
-	if (IS_BROXTON(dev_priv->dev)) {
-		/* PLL is attached to port in bxt */
-		struct intel_encoder *encoder;
-		struct intel_digital_port *intel_dig_port;
-
-		encoder = intel_ddi_get_crtc_new_encoder(crtc_state);
-		if (WARN_ON(!encoder))
-			return NULL;
-
-		intel_dig_port = enc_to_dig_port(&encoder->base);
-		/* 1:1 mapping between ports and PLLs */
-		i = (enum intel_dpll_id)intel_dig_port->port;
-		pll = &dev_priv->shared_dplls[i];
-		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
-			crtc->base.base.id, pll->name);
-		WARN_ON(shared_dpll[i].crtc_mask);
-
-		goto found;
-	} else if (INTEL_INFO(dev_priv)->gen < 9 && HAS_DDI(dev_priv))
+	if (INTEL_INFO(dev_priv)->gen < 9 && HAS_DDI(dev_priv))
 		/* Do not consider SPLL */
 		max = 2;
+
+	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
 
 	for (i = 0; i < max; i++) {
 		pll = &dev_priv->shared_dplls[i];
@@ -205,7 +218,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 				      crtc->base.base.id, pll->name,
 				      shared_dpll[i].crtc_mask,
 				      pll->active);
-			goto found;
+			return i;
 		}
 	}
 
@@ -215,13 +228,39 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 		if (shared_dpll[i].crtc_mask == 0) {
 			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
 				      crtc->base.base.id, pll->name);
-			goto found;
+			return i;
 		}
 	}
 
-	return NULL;
+	return DPLL_ID_PRIVATE;
+}
 
-found:
+struct intel_shared_dpll *
+intel_get_shared_dpll(struct intel_crtc *crtc,
+		      struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	struct intel_shared_dpll *pll;
+	struct intel_shared_dpll_config *shared_dpll;
+	enum intel_dpll_id i;
+
+	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
+
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		i = ibx_get_fixed_dpll(crtc, crtc_state);
+		WARN_ON(shared_dpll[i].crtc_mask);
+	} else if (IS_BROXTON(dev_priv->dev)) {
+		i = bxt_get_fixed_dpll(crtc, crtc_state);
+		WARN_ON(shared_dpll[i].crtc_mask);
+	} else {
+		i = intel_find_shared_dpll(crtc, crtc_state);
+	}
+
+	if (i < 0)
+		return NULL;
+
+	pll = &dev_priv->shared_dplls[i];
+
 	if (shared_dpll[i].crtc_mask == 0)
 		shared_dpll[i].hw_state =
 			crtc_state->dpll_hw_state;
