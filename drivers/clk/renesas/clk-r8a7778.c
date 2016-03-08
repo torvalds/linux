@@ -9,7 +9,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
 

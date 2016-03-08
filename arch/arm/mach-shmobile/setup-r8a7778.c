@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/io.h>
 #include <linux/irqchip.h>
 

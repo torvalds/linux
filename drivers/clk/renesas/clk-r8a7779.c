@@ -11,7 +11,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
