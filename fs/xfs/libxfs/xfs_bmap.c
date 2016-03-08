@@ -477,10 +477,7 @@ xfs_bmap_check_leaf_extents(
 		}
 		block = XFS_BUF_TO_BLOCK(bp);
 	}
-	if (bp_release) {
-		bp_release = 0;
-		xfs_trans_brelse(NULL, bp);
-	}
+
 	return;
 
 error0:
