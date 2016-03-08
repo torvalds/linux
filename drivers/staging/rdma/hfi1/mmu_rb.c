@@ -81,6 +81,7 @@ static struct mmu_notifier_ops mn_opts = {
 int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 {
 	struct mmu_rb_handler *handlr;
+	unsigned long flags;
 
 	if (!ops->compare || !ops->invalidate)
 		return -EINVAL;
@@ -94,9 +95,9 @@ int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 	INIT_HLIST_NODE(&handlr->mn.hlist);
 	spin_lock_init(&handlr->lock);
 	handlr->mn.ops = &mn_opts;
-	spin_lock(&mmu_rb_lock);
+	spin_lock_irqsave(&mmu_rb_lock, flags);
 	list_add_tail(&handlr->list, &mmu_rb_handlers);
-	spin_unlock(&mmu_rb_lock);
+	spin_unlock_irqrestore(&mmu_rb_lock, flags);
 
 	return mmu_notifier_register(&handlr->mn, current->mm);
 }
@@ -104,10 +105,11 @@ int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 void hfi1_mmu_rb_unregister(struct rb_root *root)
 {
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
+	unsigned long flags;
 
-	spin_lock(&mmu_rb_lock);
+	spin_lock_irqsave(&mmu_rb_lock, flags);
 	list_del(&handler->list);
-	spin_unlock(&mmu_rb_lock);
+	spin_unlock_irqrestore(&mmu_rb_lock, flags);
 
 	if (!RB_EMPTY_ROOT(root)) {
 		struct rb_node *node;
@@ -132,13 +134,14 @@ int hfi1_mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 	struct rb_node **new, *parent = NULL;
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
 	struct mmu_rb_node *this;
+	unsigned long flags;
 	int res, ret = 0;
 
 	if (!handler)
 		return -EINVAL;
 
 	new = &handler->root->rb_node;
-	spin_lock(&handler->lock);
+	spin_lock_irqsave(&handler->lock, flags);
 	while (*new) {
 		this = container_of(*new, struct mmu_rb_node, node);
 		res = handler->ops->compare(this, mnode->addr, mnode->len);
@@ -163,7 +166,7 @@ int hfi1_mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 	rb_link_node(&mnode->node, parent, new);
 	rb_insert_color(&mnode->node, root);
 unlock:
-	spin_unlock(&handler->lock);
+	spin_unlock_irqrestore(&handler->lock, flags);
 	return ret;
 }
 
@@ -204,13 +207,14 @@ struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *root, unsigned long addr,
 {
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
 	struct mmu_rb_node *node;
+	unsigned long flags;
 
 	if (!handler)
 		return ERR_PTR(-EINVAL);
 
-	spin_lock(&handler->lock);
+	spin_lock_irqsave(&handler->lock, flags);
 	node = __mmu_rb_search(handler, addr, len);
-	spin_unlock(&handler->lock);
+	spin_unlock_irqrestore(&handler->lock, flags);
 
 	return node;
 }
@@ -218,27 +222,29 @@ struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *root, unsigned long addr,
 void hfi1_mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node)
 {
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
+	unsigned long flags;
 
 	if (!handler || !node)
 		return;
 
-	spin_lock(&handler->lock);
+	spin_lock_irqsave(&handler->lock, flags);
 	__mmu_rb_remove(handler, node);
-	spin_unlock(&handler->lock);
+	spin_unlock_irqrestore(&handler->lock, flags);
 }
 
 static struct mmu_rb_handler *find_mmu_handler(struct rb_root *root)
 {
 	struct mmu_rb_handler *handler;
+	unsigned long flags;
 
-	spin_lock(&mmu_rb_lock);
+	spin_lock_irqsave(&mmu_rb_lock, flags);
 	list_for_each_entry(handler, &mmu_rb_handlers, list) {
 		if (handler->root == root)
 			goto unlock;
 	}
 	handler = NULL;
 unlock:
-	spin_unlock(&mmu_rb_lock);
+	spin_unlock_irqrestore(&mmu_rb_lock, flags);
 	return handler;
 }
 
@@ -263,9 +269,9 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		container_of(mn, struct mmu_rb_handler, mn);
 	struct rb_root *root = handler->root;
 	struct mmu_rb_node *node;
-	unsigned long addr = start;
+	unsigned long addr = start, flags;
 
-	spin_lock(&handler->lock);
+	spin_lock_irqsave(&handler->lock, flags);
 	while (addr < end) {
 		/*
 		 * There is no good way to provide a reasonable length to the
@@ -300,5 +306,5 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		 */
 		addr = node->addr + node->len;
 	}
-	spin_unlock(&handler->lock);
+	spin_unlock_irqrestore(&handler->lock, flags);
 }
