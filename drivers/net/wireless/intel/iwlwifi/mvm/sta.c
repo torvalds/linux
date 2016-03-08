@@ -536,7 +536,7 @@ int iwl_mvm_scd_queue_redirect(struct iwl_mvm *mvm, int queue, int tid,
 {
 	struct iwl_scd_txq_cfg_cmd cmd = {
 		.scd_queue = queue,
-		.enable = 0,
+		.action = SCD_CFG_DISABLE_QUEUE,
 	};
 	bool shared_queue;
 	unsigned long mq;
@@ -745,7 +745,7 @@ static int iwl_mvm_sta_alloc_queue(struct iwl_mvm *mvm,
 	if (using_inactive_queue) {
 		struct iwl_scd_txq_cfg_cmd cmd = {
 			.scd_queue = queue,
-			.enable = 0,
+			.action = SCD_CFG_DISABLE_QUEUE,
 		};
 		u8 ac;
 
