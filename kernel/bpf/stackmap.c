@@ -35,6 +35,9 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
+	if (attr->map_flags)
+		return ERR_PTR(-EINVAL);
+
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    value_size < 8 || value_size % 8 ||
