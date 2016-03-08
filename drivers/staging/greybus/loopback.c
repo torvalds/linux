@@ -107,6 +107,8 @@ struct gb_loopback {
 	u64 elapsed_nsecs;
 	u32 apbridge_latency_ts;
 	u32 gpbridge_latency_ts;
+
+	u32 send_count;
 };
 
 static struct class loopback_class = {
@@ -247,6 +249,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 	gb->requests_timedout = 0;
 	gb->requests_completed = 0;
 	gb->iteration_count = 0;
+	gb->send_count = 0;
 	gb->error = 0;
 
 	if (kfifo_depth < gb->iteration_max) {
@@ -971,7 +974,7 @@ static int gb_loopback_fn(void *data)
 	int us_wait = 0;
 	int type;
 	u32 size;
-	u32 send_count = 0;
+
 	struct gb_loopback *gb = data;
 
 	while (1) {
@@ -989,10 +992,10 @@ static int gb_loopback_fn(void *data)
 		mutex_lock(&gb->mutex);
 
 		/* Optionally terminate */
-		if (send_count == gb->iteration_max) {
+		if (gb->send_count == gb->iteration_max) {
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
-				send_count = 0;
+				gb->send_count = 0;
 				sysfs_notify(&gb->dev->kobj,  NULL,
 						"iteration_count");
 			}
@@ -1032,7 +1035,7 @@ static int gb_loopback_fn(void *data)
 			gb->iteration_count++;
 			gb_loopback_calculate_stats(gb, !!error);
 		}
-		send_count++;
+		gb->send_count++;
 		if (us_wait)
 			udelay(us_wait);
 	}
