@@ -345,6 +345,7 @@ struct tracer_opt {
 struct tracer_flags {
 	u32			val;
 	struct tracer_opt	*opts;
+	struct tracer		*trace;
 };
 
 /* Makes more easy to define a tracer opt */
