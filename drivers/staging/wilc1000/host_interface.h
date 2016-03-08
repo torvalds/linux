@@ -274,7 +274,7 @@ struct host_if_drv {
 	u8 assoc_bssid[ETH_ALEN];
 	struct cfg_param_attr cfg_values;
 
-	struct semaphore sem_cfg_values;
+	struct mutex cfg_values_lock;
 	struct semaphore sem_test_key_block;
 	struct semaphore sem_test_disconn_block;
 	struct semaphore sem_get_rssi;

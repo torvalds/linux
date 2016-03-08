@@ -443,7 +443,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	int i = 0;
 
-	down(&hif_drv->sem_cfg_values);
+	mutex_lock(&hif_drv->cfg_values_lock);
 
 	if (cfg_param_attr->flag & BSS_TYPE) {
 		if (cfg_param_attr->bss_type < 6) {
@@ -725,7 +725,7 @@ static s32 handle_cfg_param(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Error in setting CFG params\n");
 
 ERRORHANDLER:
-	up(&hif_drv->sem_cfg_values);
+	mutex_unlock(&hif_drv->cfg_values_lock);
 	return result;
 }
 
@@ -3434,8 +3434,8 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	setup_timer(&hif_drv->connect_timer, TimerCB_Connect, 0);
 	setup_timer(&hif_drv->remain_on_ch_timer, ListenTimerCB, 0);
 
-	sema_init(&hif_drv->sem_cfg_values, 1);
-	down(&hif_drv->sem_cfg_values);
+	mutex_init(&hif_drv->cfg_values_lock);
+	mutex_lock(&hif_drv->cfg_values_lock);
 
 	hif_drv->hif_state = HOST_IF_IDLE;
 	hif_drv->cfg_values.site_survey_enabled = SITE_SURVEY_OFF;
@@ -3446,7 +3446,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	hif_drv->p2p_timeout = 0;
 
-	up(&hif_drv->sem_cfg_values);
+	mutex_unlock(&hif_drv->cfg_values_lock);
 
 	clients_count++;
 
