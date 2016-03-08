@@ -592,18 +592,7 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static __init void rapl_hsw_server_quirk(void)
-{
-	/*
-	 * DRAM domain on HSW server has fixed energy unit which can be
-	 * different than the unit from power unit MSR.
-	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
-	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
-	 */
-	rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
-}
-
-static int rapl_check_hw_unit(void (*quirk)(void))
+static int rapl_check_hw_unit(bool apply_quirk)
 {
 	u64 msr_rapl_power_unit_bits;
 	int i;
@@ -614,9 +603,14 @@ static int rapl_check_hw_unit(void (*quirk)(void))
 	for (i = 0; i < NR_RAPL_DOMAINS; i++)
 		rapl_hw_unit[i] = (msr_rapl_power_unit_bits >> 8) & 0x1FULL;
 
-	/* Apply cpu model quirk */
-	if (quirk)
-		quirk();
+	/*
+	 * DRAM domain on HSW server and KNL has fixed energy unit which can be
+	 * different than the unit from power unit MSR. See
+	 * "Intel Xeon Processor E5-1600 and E5-2600 v3 Product Families, V2
+	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
+	 */
+	if (apply_quirk)
+		rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
 
 	/*
 	 * Calculate the timer rate:
@@ -704,7 +698,7 @@ static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
 
 static int __init rapl_pmu_init(void)
 {
-	void (*quirk)(void) = NULL;
+	bool apply_quirk = false;
 	int ret;
 
 	if (!x86_match_cpu(rapl_cpu_match))
@@ -717,7 +711,7 @@ static int __init rapl_pmu_init(void)
 		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
 		break;
 	case 63: /* Haswell-Server */
-		quirk = rapl_hsw_server_quirk;
+		apply_quirk = true;
 		rapl_cntr_mask = RAPL_IDX_SRV;
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
@@ -733,7 +727,7 @@ static int __init rapl_pmu_init(void)
 		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
 		break;
 	case 87: /* Knights Landing */
-		quirk = rapl_hsw_server_quirk;
+		apply_quirk = true;
 		rapl_cntr_mask = RAPL_IDX_KNL;
 		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
 		break;
@@ -741,7 +735,7 @@ static int __init rapl_pmu_init(void)
 		return -ENODEV;
 	}
 
-	ret = rapl_check_hw_unit(quirk);
+	ret = rapl_check_hw_unit(apply_quirk);
 	if (ret)
 		return ret;
 
