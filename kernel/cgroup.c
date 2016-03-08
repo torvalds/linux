@@ -2444,6 +2444,20 @@ out_release_tset:
 }
 
 /**
+ * cgroup_may_migrate_to - verify whether a cgroup can be migration destination
+ * @dst_cgrp: destination cgroup to test
+ *
+ * On the default hierarchy, except for the root, subtree_control must be
+ * zero for migration destination cgroups with tasks so that child cgroups
+ * don't compete against tasks.
+ */
+static bool cgroup_may_migrate_to(struct cgroup *dst_cgrp)
+{
+	return !cgroup_on_dfl(dst_cgrp) || !cgroup_parent(dst_cgrp) ||
+		!dst_cgrp->subtree_control;
+}
+
+/**
  * cgroup_migrate_finish - cleanup after attach
  * @preloaded_csets: list of preloaded css_sets
  *
@@ -2528,14 +2542,6 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 	struct css_set *src_cset, *tmp_cset;
 
 	lockdep_assert_held(&cgroup_mutex);
-
-	/*
-	 * Except for the root, subtree_control must be zero for a cgroup
-	 * with tasks so that child cgroups don't compete against tasks.
-	 */
-	if (dst_cgrp && cgroup_on_dfl(dst_cgrp) && cgroup_parent(dst_cgrp) &&
-	    dst_cgrp->subtree_control)
-		return -EBUSY;
 
 	/* look up the dst cset for each src cset and link it to src */
 	list_for_each_entry_safe(src_cset, tmp_cset, preloaded_csets, mg_preload_node) {
@@ -2633,6 +2639,9 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	LIST_HEAD(preloaded_csets);
 	struct task_struct *task;
 	int ret;
+
+	if (!cgroup_may_migrate_to(dst_cgrp))
+		return -EBUSY;
 
 	/* look up all src csets */
 	spin_lock_bh(&css_set_lock);
@@ -4135,6 +4144,9 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 	struct css_task_iter it;
 	struct task_struct *task;
 	int ret;
+
+	if (!cgroup_may_migrate_to(to))
+		return -EBUSY;
 
 	mutex_lock(&cgroup_mutex);
 
