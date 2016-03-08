@@ -6,7 +6,7 @@ Required properties:
  - rockchip,grf : phandle to the syscon managing the "general
    register files"
  - #phy-cells: must be 0
- - reg: PHY configure reg address offset in "general
+ - reg-offset: PHY configure reg address offset in "general
    register files"
 
 Example:
@@ -14,6 +14,6 @@ Example:
 emmcphy: phy {
 	compatible = "rockchip,rk3399-emmc-phy";
 	rockchip,grf = <&grf>;
-	reg = <0xf780>;
+	reg-offset = <0xf780>;
 	#phy-cells = <0>;
 };
