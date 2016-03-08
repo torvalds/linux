@@ -1201,6 +1201,9 @@ intel_rotation_90_or_270(unsigned int rotation)
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
 
+void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
+				    enum pipe pipe);
+
 /* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
@@ -1210,6 +1213,11 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
 						struct intel_crtc_state *state);
+void intel_prepare_shared_dpll(struct intel_crtc *crtc);
+void intel_enable_shared_dpll(struct intel_crtc *crtc);
+void intel_disable_shared_dpll(struct intel_crtc *crtc);
+void intel_shared_dpll_commit(struct drm_atomic_state *state);
+void intel_shared_dpll_init(struct drm_device *dev);
 
 int vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
 		     const struct dpll *dpll);
