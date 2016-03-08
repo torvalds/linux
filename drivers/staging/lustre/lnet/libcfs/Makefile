@@ -1,4 +1,4 @@
-obj-$(CONFIG_LUSTRE_FS) += libcfs.o
+obj-$(CONFIG_LNET) += libcfs.o
 
 libcfs-linux-objs := linux-tracefile.o linux-debug.o
 libcfs-linux-objs += linux-prim.o linux-cpu.o
