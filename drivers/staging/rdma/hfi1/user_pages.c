@@ -48,22 +48,62 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include "hfi.h"
 
-int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
-			    struct page **pages)
+static unsigned long cache_size = 256;
+module_param(cache_size, ulong, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(cache_size, "Send and receive side cache size limit (in MB)");
+
+/*
+ * Determine whether the caller can pin pages.
+ *
+ * This function should be used in the implementation of buffer caches.
+ * The cache implementation should call this function prior to attempting
+ * to pin buffer pages in order to determine whether they should do so.
+ * The function computes cache limits based on the configured ulimit and
+ * cache size. Use of this function is especially important for caches
+ * which are not limited in any other way (e.g. by HW resources) and, thus,
+ * could keeping caching buffers.
+ *
+ */
+bool hfi1_can_pin_pages(struct hfi1_devdata *dd, u32 nlocked, u32 npages)
 {
-	unsigned long pinned, lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	unsigned long ulimit = rlimit(RLIMIT_MEMLOCK), pinned, cache_limit,
+		size = (cache_size * (1UL << 20)); /* convert to bytes */
+	unsigned usr_ctxts = dd->num_rcv_contexts - dd->first_user_ctxt;
 	bool can_lock = capable(CAP_IPC_LOCK);
-	int ret;
+
+	/*
+	 * Calculate per-cache size. The calculation below uses only a quarter
+	 * of the available per-context limit. This leaves space for other
+	 * pinning. Should we worry about shared ctxts?
+	 */
+	cache_limit = (ulimit / usr_ctxts) / 4;
+
+	/* If ulimit isn't set to "unlimited" and is smaller than cache_size. */
+	if (ulimit != (-1UL) && size > cache_limit)
+		size = cache_limit;
+
+	/* Convert to number of pages */
+	size = DIV_ROUND_UP(size, PAGE_SIZE);
 
 	down_read(&current->mm->mmap_sem);
 	pinned = current->mm->pinned_vm;
 	up_read(&current->mm->mmap_sem);
 
-	if (pinned + npages > lock_limit && !can_lock)
-		return -ENOMEM;
+	/* First, check the absolute limit against all pinned pages. */
+	if (pinned + npages >= ulimit && !can_lock)
+		return false;
+
+	return ((nlocked + npages) <= size) || can_lock;
+}
+
+int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
+			    struct page **pages)
+{
+	int ret;
 
 	ret = get_user_pages_fast(vaddr, npages, writable, pages);
 	if (ret < 0)
