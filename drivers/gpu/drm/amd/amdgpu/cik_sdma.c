@@ -822,19 +822,14 @@ static void cik_sdma_ring_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 }
 
 /**
- * cik_sdma_ring_emit_vm_flush - cik vm flush using sDMA
+ * cik_sdma_ring_emit_pipeline_sync - sync the pipeline
  *
  * @ring: amdgpu_ring pointer
- * @vm: amdgpu_vm pointer
  *
- * Update the page table base and flush the VM TLB
- * using sDMA (CIK).
+ * Make sure all previous operations are completed (CIK).
  */
-static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					unsigned vm_id, uint64_t pd_addr)
+static void cik_sdma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
-	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
-			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
 	uint32_t seq = ring->fence_drv.sync_seq;
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
@@ -848,7 +843,22 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, seq); /* reference */
 	amdgpu_ring_write(ring, 0xfffffff); /* mask */
 	amdgpu_ring_write(ring, (0xfff << 16) | 4); /* retry count, poll interval */
+}
 
+/**
+ * cik_sdma_ring_emit_vm_flush - cik vm flush using sDMA
+ *
+ * @ring: amdgpu_ring pointer
+ * @vm: amdgpu_vm pointer
+ *
+ * Update the page table base and flush the VM TLB
+ * using sDMA (CIK).
+ */
+static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
+					unsigned vm_id, uint64_t pd_addr)
+{
+	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
+			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm_id < 8) {
@@ -1290,6 +1300,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.parse_cs = NULL,
 	.emit_ib = cik_sdma_ring_emit_ib,
 	.emit_fence = cik_sdma_ring_emit_fence,
+	.emit_pipeline_sync = cik_sdma_ring_emit_pipeline_sync,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
 	.emit_hdp_invalidate = cik_sdma_ring_emit_hdp_invalidate,
