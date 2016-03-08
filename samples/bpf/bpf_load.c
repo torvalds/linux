@@ -158,8 +158,11 @@ static int load_maps(struct bpf_map_def *maps, int len)
 					   maps[i].key_size,
 					   maps[i].value_size,
 					   maps[i].max_entries);
-		if (map_fd[i] < 0)
+		if (map_fd[i] < 0) {
+			printf("failed to create a map: %d %s\n",
+			       errno, strerror(errno));
 			return 1;
+		}
 
 		if (maps[i].type == BPF_MAP_TYPE_PROG_ARRAY)
 			prog_array_fd = map_fd[i];
