@@ -1,0 +1,53 @@
+* Analog Devices AD7879(-1)/AD7889(-1) touchscreen interface (SPI/I2C)
+
+Required properties:
+- compatible			: for SPI slave, use "adi,ad7879"
+				  for I2C slave, use "adi,ad7879-1"
+- reg				: SPI chipselect/I2C slave address
+				  See spi-bus.txt for more SPI slave properties
+- interrupt-parent		: the phandle for the interrupt controller
+- interrupts			: touch controller interrupt
+- touchscreen-max-pressure	: maximum reported pressure
+- adi,resistance-plate-x	: total resistance of X-plate (for pressure
+				  calculation)
+Optional properties:
+- touchscreen-swapped-x-y	: X and Y axis are swapped (boolean)
+- adi,first-conversion-delay	: 0-12: In 128us steps (starting with 128us)
+				  13  : 2.560ms
+				  14  : 3.584ms
+				  15  : 4.096ms
+				  This property has to be a '/bits/ 8' value
+- adi,acquisition-time		: 0: 2us
+				  1: 4us
+				  2: 8us
+				  3: 16us
+				  This property has to be a '/bits/ 8' value
+- adi,median-filter-size	: 0: disabled
+				  1: 4 measurements
+				  2: 8 measurements
+				  3: 16 measurements
+				  This property has to be a '/bits/ 8' value
+- adi,averaging			: 0: 2 middle values (1 if median disabled)
+				  1: 4 middle values
+				  2: 8 middle values
+				  3: 16 values
+				  This property has to be a '/bits/ 8' value
+- adi,conversion-interval:	: 0    : convert one time only
+				  1-255: 515us + val * 35us (up to 9.440ms)
+				  This property has to be a '/bits/ 8' value
+
+Example:
+
+	ad7879@2c {
+		compatible = "adi,ad7879-1";
+		reg = <0x2c>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+		touchscreen-max-pressure = <4096>;
+		adi,resistance-plate-x = <120>;
+		adi,first-conversion-delay = /bits/ 8 <3>;
+		adi,acquisition-time = /bits/ 8 <1>;
+		adi,median-filter-size = /bits/ 8 <2>;
+		adi,averaging = /bits/ 8 <1>;
+		adi,conversion-interval = /bits/ 8 <255>;
+	};
