@@ -94,8 +94,8 @@
 #define AD7879_TEMP_BIT			(1<<1)
 
 enum {
-	AD7879_SEQ_XPOS  = 0,
-	AD7879_SEQ_YPOS  = 1,
+	AD7879_SEQ_YPOS  = 0,
+	AD7879_SEQ_XPOS  = 1,
 	AD7879_SEQ_Z1    = 2,
 	AD7879_SEQ_Z2    = 3,
 	AD7879_NR_SENSE  = 4,
@@ -517,7 +517,9 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->irq = irq;
-	ts->swap_xy = pdata->swap_xy;
+
+	/* Use swapped axis by default (backward compatibility) */
+	ts->swap_xy = !pdata->swap_xy;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
 
