@@ -181,13 +181,22 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 					   unsigned long addr,
 					   unsigned long len)
 {
-	struct mmu_rb_node *node;
+	struct mmu_rb_node *node = NULL;
 
 	hfi1_cdbg(MMU, "Searching for addr 0x%llx, len %u", addr, len);
-	node = __mmu_int_rb_iter_first(handler->root, addr, len);
-	if (node)
-		hfi1_cdbg(MMU, "Found node addr 0x%llx, len %u", node->addr,
-			  node->len);
+	if (!handler->ops->filter) {
+		node = __mmu_int_rb_iter_first(handler->root, addr,
+					       (addr + len) - 1);
+	} else {
+		for (node = __mmu_int_rb_iter_first(handler->root, addr,
+						    (addr + len) - 1);
+		     node;
+		     node = __mmu_int_rb_iter_next(node, addr,
+						   (addr + len) - 1)) {
+			if (handler->ops->filter(node, addr, len))
+				return node;
+		}
+	}
 	return node;
 }
 
