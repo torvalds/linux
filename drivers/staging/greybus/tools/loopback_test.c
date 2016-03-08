@@ -714,7 +714,7 @@ static int wait_for_complete(struct loopback_test *t)
 	int i;
 
 	while (1) {
-		ret = poll(t->fds, t->poll_count, DEFAULT_POLL_TIMEOUT_SEC * 1000);
+		ret = poll(t->fds, t->poll_count, t->poll_timeout * 1000);
 		if (ret == 0) {
 			fprintf(stderr, "Poll timmed out!\n");
 			return -1;
