@@ -138,10 +138,18 @@ static bool have_full_constraints(void)
  */
 static void regulator_lock_supply(struct regulator_dev *rdev)
 {
-	int i;
+	struct regulator *supply;
+	int i = 0;
 
-	for (i = 0; rdev->supply; rdev = rdev->supply->rdev, i++)
-		mutex_lock_nested(&rdev->mutex, i);
+	while (1) {
+		mutex_lock_nested(&rdev->mutex, i++);
+		supply = rdev->supply;
+
+		if (!rdev->supply)
+			return;
+
+		rdev = supply->rdev;
+	}
 }
 
 /**
