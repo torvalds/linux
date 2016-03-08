@@ -141,11 +141,15 @@ static inline bool is_write_protection(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Will a fault with a given page-fault error code (pfec) cause a permission
- * fault with the given access (in ACC_* format)?
+ * Check if a given access (described through the I/D, W/R and U/S bits of a
+ * page fault error code pfec) causes a permission fault with the given PTE
+ * access rights (in ACC_* format).
+ *
+ * Return zero if the access does not fault; return the page fault error code
+ * if the access faults.
  */
-static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-				    unsigned pte_access, unsigned pfec)
+static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				  unsigned pte_access, unsigned pfec)
 {
 	int cpl = kvm_x86_ops->get_cpl(vcpu);
 	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
@@ -169,7 +173,8 @@ static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 
 	WARN_ON(pfec & PFERR_RSVD_MASK);
 
-	return (mmu->permissions[index] >> pte_access) & 1;
+	pfec |= PFERR_PRESENT_MASK;
+	return -((mmu->permissions[index] >> pte_access) & 1) & pfec;
 }
 
 void kvm_mmu_invalidate_zap_all_pages(struct kvm *kvm);
