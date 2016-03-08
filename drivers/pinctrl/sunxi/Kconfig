@@ -68,4 +68,8 @@ config PINCTRL_SUN9I_A80_R
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
+config PINCTRL_SUN50I_A64
+	bool
+	select PINCTRL_SUNXI
+
 endif
