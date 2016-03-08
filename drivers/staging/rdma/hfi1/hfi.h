@@ -1199,8 +1199,6 @@ struct hfi1_filedata {
 	u32 invalid_tid_idx;
 	/* protect invalid_tids array and invalid_tid_idx */
 	spinlock_t invalid_lock;
-	int (*mmu_rb_insert)(struct rb_root *, struct mmu_rb_node *);
-	void (*mmu_rb_remove)(struct rb_root *, struct mmu_rb_node *);
 };
 
 extern struct list_head hfi1_dev_list;
