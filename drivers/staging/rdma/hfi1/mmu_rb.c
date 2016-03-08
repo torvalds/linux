@@ -90,7 +90,7 @@ static unsigned long mmu_node_start(struct mmu_rb_node *node)
 
 static unsigned long mmu_node_last(struct mmu_rb_node *node)
 {
-	return ((node->addr & PAGE_MASK) + node->len);
+	return PAGE_ALIGN((node->addr & PAGE_MASK) + node->len) - 1;
 }
 
 int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
@@ -281,8 +281,8 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 	unsigned long flags;
 
 	spin_lock_irqsave(&handler->lock, flags);
-	for (node = __mmu_int_rb_iter_first(root, start, end); node;
-	     node = __mmu_int_rb_iter_next(node, start, end)) {
+	for (node = __mmu_int_rb_iter_first(root, start, end - 1); node;
+	     node = __mmu_int_rb_iter_next(node, start, end - 1)) {
 		hfi1_cdbg(MMU, "Invalidating node addr 0x%llx, len %u",
 			  node->addr, node->len);
 		if (handler->ops->invalidate(root, node))
