@@ -747,6 +747,25 @@
 		status = "disabled";
 	};
 
+	vpu_mmu: vpu_mmu {
+		dbgname = "vpu";
+		compatible = "rockchip,vpu_mmu";
+		reg = <0x0 0xff9a0800 0x0 0x100>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		status = "disabled";
+	};
+
+	vdec_mmu: vdec_mmu {
+		dbgname = "vdec";
+		compatible = "rockchip,vdec_mmu";
+		reg = <0x0 0xff9b0480 0x0 0x40>,
+		      <0x0 0xff9b04c0 0x0 0x40>;
+		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdec_mmu";
+		status = "disabled";
+	};
+
 	dsihost0: mipi@ff960000 {
 		compatible = "rockchip,rk3368-dsi";
 		rockchip,prop = <0>;
