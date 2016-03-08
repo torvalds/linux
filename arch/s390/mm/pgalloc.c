@@ -149,7 +149,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	/* Try to get a fragment of a 4K page as a 2K page table */
 	if (!mm_alloc_pgste(mm)) {
 		table = NULL;
-		spin_lock_bh(&mm->context.list_lock);
+		spin_lock_bh(&mm->context.pgtable_lock);
 		if (!list_empty(&mm->context.pgtable_list)) {
 			page = list_first_entry(&mm->context.pgtable_list,
 						struct page, lru);
@@ -164,7 +164,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 				list_del(&page->lru);
 			}
 		}
-		spin_unlock_bh(&mm->context.list_lock);
+		spin_unlock_bh(&mm->context.pgtable_lock);
 		if (table)
 			return table;
 	}
@@ -187,9 +187,9 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		/* Return the first 2K fragment of the page */
 		atomic_set(&page->_mapcount, 1);
 		clear_table(table, _PAGE_INVALID, PAGE_SIZE);
-		spin_lock_bh(&mm->context.list_lock);
+		spin_lock_bh(&mm->context.pgtable_lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
-		spin_unlock_bh(&mm->context.list_lock);
+		spin_unlock_bh(&mm->context.pgtable_lock);
 	}
 	return table;
 }
@@ -203,13 +203,13 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 	if (!mm_alloc_pgste(mm)) {
 		/* Free 2K page table fragment of a 4K page */
 		bit = (__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
-		spin_lock_bh(&mm->context.list_lock);
+		spin_lock_bh(&mm->context.pgtable_lock);
 		mask = atomic_xor_bits(&page->_mapcount, 1U << bit);
 		if (mask & 3)
 			list_add(&page->lru, &mm->context.pgtable_list);
 		else
 			list_del(&page->lru);
-		spin_unlock_bh(&mm->context.list_lock);
+		spin_unlock_bh(&mm->context.pgtable_lock);
 		if (mask != 0)
 			return;
 	}
@@ -235,13 +235,13 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 		return;
 	}
 	bit = (__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
-	spin_lock_bh(&mm->context.list_lock);
+	spin_lock_bh(&mm->context.pgtable_lock);
 	mask = atomic_xor_bits(&page->_mapcount, 0x11U << bit);
 	if (mask & 3)
 		list_add_tail(&page->lru, &mm->context.pgtable_list);
 	else
 		list_del(&page->lru);
-	spin_unlock_bh(&mm->context.list_lock);
+	spin_unlock_bh(&mm->context.pgtable_lock);
 	table = (unsigned long *) (__pa(table) | (1U << bit));
 	tlb_remove_table(tlb, table);
 }

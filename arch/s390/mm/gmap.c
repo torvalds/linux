@@ -70,9 +70,9 @@ struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit)
 	gmap->asce = atype | _ASCE_TABLE_LENGTH |
 		_ASCE_USER_BITS | __pa(table);
 	gmap->asce_end = limit;
-	down_write(&mm->mmap_sem);
-	list_add(&gmap->list, &mm->context.gmap_list);
-	up_write(&mm->mmap_sem);
+	spin_lock(&mm->context.gmap_lock);
+	list_add_rcu(&gmap->list, &mm->context.gmap_list);
+	spin_unlock(&mm->context.gmap_lock);
 	return gmap;
 
 out_free:
@@ -128,14 +128,16 @@ void gmap_free(struct gmap *gmap)
 	else
 		__tlb_flush_global();
 
+	spin_lock(&gmap->mm->context.gmap_lock);
+	list_del_rcu(&gmap->list);
+	spin_unlock(&gmap->mm->context.gmap_lock);
+	synchronize_rcu();
+
 	/* Free all segment & region tables. */
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru)
 		__free_pages(page, 2);
 	gmap_radix_tree_free(&gmap->guest_to_host);
 	gmap_radix_tree_free(&gmap->host_to_guest);
-	down_write(&gmap->mm->mmap_sem);
-	list_del(&gmap->list);
-	up_write(&gmap->mm->mmap_sem);
 	kfree(gmap);
 }
 EXPORT_SYMBOL_GPL(gmap_free);
@@ -369,11 +371,13 @@ void gmap_unlink(struct mm_struct *mm, unsigned long *table,
 	struct gmap *gmap;
 	int flush;
 
-	list_for_each_entry(gmap, &mm->context.gmap_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
 		flush = __gmap_unlink_by_vmaddr(gmap, vmaddr);
 		if (flush)
 			gmap_flush_tlb(gmap);
 	}
+	rcu_read_unlock();
 }
 
 /**
@@ -555,7 +559,7 @@ static DEFINE_SPINLOCK(gmap_notifier_lock);
 void gmap_register_ipte_notifier(struct gmap_notifier *nb)
 {
 	spin_lock(&gmap_notifier_lock);
-	list_add(&nb->list, &gmap_notifier_list);
+	list_add_rcu(&nb->list, &gmap_notifier_list);
 	spin_unlock(&gmap_notifier_lock);
 }
 EXPORT_SYMBOL_GPL(gmap_register_ipte_notifier);
@@ -567,8 +571,9 @@ EXPORT_SYMBOL_GPL(gmap_register_ipte_notifier);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *nb)
 {
 	spin_lock(&gmap_notifier_lock);
-	list_del_init(&nb->list);
+	list_del_rcu(&nb->list);
 	spin_unlock(&gmap_notifier_lock);
+	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(gmap_unregister_ipte_notifier);
 
@@ -662,16 +667,18 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr, pte_t *pte)
 
 	offset = ((unsigned long) pte) & (255 * sizeof(pte_t));
 	offset = offset * (4096 / sizeof(pte_t));
-	spin_lock(&gmap_notifier_lock);
-	list_for_each_entry(gmap, &mm->context.gmap_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(gmap, &mm->context.gmap_list, list) {
+		spin_lock(&gmap->guest_table_lock);
 		table = radix_tree_lookup(&gmap->host_to_guest,
 					  vmaddr >> PMD_SHIFT);
-		if (!table)
-			continue;
-		gaddr = __gmap_segment_gaddr(table) + offset;
-		gmap_call_notifier(gmap, gaddr, gaddr + PAGE_SIZE - 1);
+		if (table)
+			gaddr = __gmap_segment_gaddr(table) + offset;
+		spin_unlock(&gmap->guest_table_lock);
+		if (table)
+			gmap_call_notifier(gmap, gaddr, gaddr + PAGE_SIZE - 1);
 	}
-	spin_unlock(&gmap_notifier_lock);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ptep_notify);
 
