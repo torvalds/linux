@@ -680,69 +680,8 @@ static inline void pgste_set(pte_t *ptep, pgste_t pgste)
 #endif
 }
 
-static inline pgste_t pgste_update_all(pte_t pte, pgste_t pgste,
-				       struct mm_struct *mm)
-{
-#ifdef CONFIG_PGSTE
-	unsigned long address, bits, skey;
-
-	if (!mm_use_skey(mm) || pte_val(pte) & _PAGE_INVALID)
-		return pgste;
-	address = pte_val(pte) & PAGE_MASK;
-	skey = (unsigned long) page_get_storage_key(address);
-	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
-	/* Transfer page changed & referenced bit to guest bits in pgste */
-	pgste_val(pgste) |= bits << 48;		/* GR bit & GC bit */
-	/* Copy page access key and fetch protection bit to pgste */
-	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT);
-	pgste_val(pgste) |= (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
-#endif
-	return pgste;
-
-}
-
-static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry,
-				 struct mm_struct *mm)
-{
-#ifdef CONFIG_PGSTE
-	unsigned long address;
-	unsigned long nkey;
-
-	if (!mm_use_skey(mm) || pte_val(entry) & _PAGE_INVALID)
-		return;
-	VM_BUG_ON(!(pte_val(*ptep) & _PAGE_INVALID));
-	address = pte_val(entry) & PAGE_MASK;
-	/*
-	 * Set page access key and fetch protection bit from pgste.
-	 * The guest C/R information is still in the PGSTE, set real
-	 * key C/R to 0.
-	 */
-	nkey = (pgste_val(pgste) & (PGSTE_ACC_BITS | PGSTE_FP_BIT)) >> 56;
-	nkey |= (pgste_val(pgste) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 48;
-	page_set_storage_key(address, nkey, 0);
-#endif
-}
-
-static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
-{
-	if ((pte_val(entry) & _PAGE_PRESENT) &&
-	    (pte_val(entry) & _PAGE_WRITE) &&
-	    !(pte_val(entry) & _PAGE_INVALID)) {
-		if (!MACHINE_HAS_ESOP) {
-			/*
-			 * Without enhanced suppression-on-protection force
-			 * the dirty bit on for all writable ptes.
-			 */
-			pte_val(entry) |= _PAGE_DIRTY;
-			pte_val(entry) &= ~_PAGE_PROTECT;
-		}
-		if (!(pte_val(entry) & _PAGE_PROTECT))
-			/* This pte allows write access, set user-dirty */
-			pgste_val(pgste) |= PGSTE_UC_BIT;
-	}
-	*ptep = entry;
-	return pgste;
-}
+bool pgste_test_and_clear_dirty(struct mm_struct *, unsigned long address);
+void ptep_ipte_notify(struct mm_struct *, unsigned long addr, pte_t *);
 
 /**
  * struct gmap_struct - guest address space
@@ -791,47 +730,11 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr);
 int gmap_fault(struct gmap *, unsigned long gaddr, unsigned int fault_flags);
 void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
 void __gmap_zap(struct gmap *, unsigned long gaddr);
-bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *);
 
 
 void gmap_register_ipte_notifier(struct gmap_notifier *);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *);
 int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
-void gmap_do_ipte_notify(struct mm_struct *, unsigned long addr, pte_t *);
-
-static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
-					unsigned long addr,
-					pte_t *ptep, pgste_t pgste)
-{
-#ifdef CONFIG_PGSTE
-	if (pgste_val(pgste) & PGSTE_IN_BIT) {
-		pgste_val(pgste) &= ~PGSTE_IN_BIT;
-		gmap_do_ipte_notify(mm, addr, ptep);
-	}
-#endif
-	return pgste;
-}
-
-/*
- * Certain architectures need to do special things when PTEs
- * within a page table are directly modified.  Thus, the following
- * hook is made available.
- */
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t entry)
-{
-	pgste_t pgste;
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste_val(pgste) &= ~_PGSTE_GPS_ZERO;
-		pgste_set_key(ptep, pgste, entry, mm);
-		pgste = pgste_set_pte(ptep, pgste, entry);
-		pgste_set_unlock(ptep, pgste);
-	} else {
-		*ptep = entry;
-	}
-}
 
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
@@ -998,104 +901,6 @@ static inline void __ptep_ipte_range(unsigned long address, int nr, pte_t *ptep)
 	} while (nr != 255);
 }
 
-static inline void ptep_flush_direct(struct mm_struct *mm,
-				     unsigned long address, pte_t *ptep)
-{
-	int active, count;
-
-	if (pte_val(*ptep) & _PAGE_INVALID)
-		return;
-	active = (mm == current->active_mm) ? 1 : 0;
-	count = atomic_add_return(0x10000, &mm->context.attach_count);
-	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte_local(address, ptep);
-	else
-		__ptep_ipte(address, ptep);
-	atomic_sub(0x10000, &mm->context.attach_count);
-}
-
-static inline void ptep_flush_lazy(struct mm_struct *mm,
-				   unsigned long address, pte_t *ptep)
-{
-	int active, count;
-
-	if (pte_val(*ptep) & _PAGE_INVALID)
-		return;
-	active = (mm == current->active_mm) ? 1 : 0;
-	count = atomic_add_return(0x10000, &mm->context.attach_count);
-	if ((count & 0xffff) <= active) {
-		pte_val(*ptep) |= _PAGE_INVALID;
-		mm->context.flush_mm = 1;
-	} else
-		__ptep_ipte(address, ptep);
-	atomic_sub(0x10000, &mm->context.attach_count);
-}
-
-/*
- * Get (and clear) the user dirty bit for a pte.
- */
-static inline int ptep_test_and_clear_user_dirty(struct mm_struct *mm,
-						 unsigned long addr,
-						 pte_t *ptep)
-{
-	pgste_t pgste;
-	pte_t pte;
-	int dirty;
-
-	if (!mm_has_pgste(mm))
-		return 0;
-	pgste = pgste_get_lock(ptep);
-	dirty = !!(pgste_val(pgste) & PGSTE_UC_BIT);
-	pgste_val(pgste) &= ~PGSTE_UC_BIT;
-	pte = *ptep;
-	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
-		pgste = pgste_ipte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep);
-		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
-			pte_val(pte) |= _PAGE_PROTECT;
-		else
-			pte_val(pte) |= _PAGE_INVALID;
-		*ptep = pte;
-	}
-	pgste_set_unlock(ptep, pgste);
-	return dirty;
-}
-
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
-					    unsigned long addr, pte_t *ptep)
-{
-	pgste_t pgste;
-	pte_t pte;
-	int young;
-
-	if (mm_has_pgste(vma->vm_mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, addr, ptep, pgste);
-	}
-
-	pte = *ptep;
-	ptep_flush_direct(vma->vm_mm, addr, ptep);
-	young = pte_young(pte);
-
-	if (mm_has_pgste(vma->vm_mm)) {
-		pgste = pgste_update_all(pte, pgste, vma->vm_mm);
-		pgste = pgste_set_pte(ptep, pgste, pte_mkold(pte));
-		pgste_set_unlock(ptep, pgste);
-	} else
-		*ptep = pte_mkold(pte);
-
-	return young;
-}
-
-#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
-static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
-					 unsigned long address, pte_t *ptep)
-{
-	return ptep_test_and_clear_young(vma, address, ptep);
-}
-
 /*
  * This is hard to understand. ptep_get_and_clear and ptep_clear_flush
  * both clear the TLB for the unmapped pte. The reason is that
@@ -1109,91 +914,42 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
  * have ptep_get_and_clear do the tlb flush. In exchange flush_tlb_range
  * is a nop.
  */
+pte_t ptep_xchg_direct(struct mm_struct *, unsigned long, pte_t *, pte_t);
+pte_t ptep_xchg_lazy(struct mm_struct *, unsigned long, pte_t *, pte_t);
+
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = *ptep;
+
+	pte = ptep_xchg_direct(vma->vm_mm, addr, ptep, pte_mkold(pte));
+	return pte_young(pte);
+}
+
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
+					 unsigned long address, pte_t *ptep)
+{
+	return ptep_test_and_clear_young(vma, address, ptep);
+}
+
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
-				       unsigned long address, pte_t *ptep)
+				       unsigned long addr, pte_t *ptep)
 {
-	pgste_t pgste;
-	pte_t pte;
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
-	}
-
-	pte = *ptep;
-	ptep_flush_lazy(mm, address, ptep);
-	pte_val(*ptep) = _PAGE_INVALID;
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_update_all(pte, pgste, mm);
-		pgste_set_unlock(ptep, pgste);
-	}
-	return pte;
+	return ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 }
 
 #define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
-static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
-					   unsigned long address,
-					   pte_t *ptep)
-{
-	pgste_t pgste;
-	pte_t pte;
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste_ipte_notify(mm, address, ptep, pgste);
-	}
-
-	pte = *ptep;
-	ptep_flush_lazy(mm, address, ptep);
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_update_all(pte, pgste, mm);
-		pgste_set(ptep, pgste);
-	}
-	return pte;
-}
-
-static inline void ptep_modify_prot_commit(struct mm_struct *mm,
-					   unsigned long address,
-					   pte_t *ptep, pte_t pte)
-{
-	pgste_t pgste;
-
-	if (mm_has_pgste(mm)) {
-		pgste = pgste_get(ptep);
-		pgste_set_key(ptep, pgste, pte, mm);
-		pgste = pgste_set_pte(ptep, pgste, pte);
-		pgste_set_unlock(ptep, pgste);
-	} else
-		*ptep = pte;
-}
+pte_t ptep_modify_prot_start(struct mm_struct *, unsigned long, pte_t *);
+void ptep_modify_prot_commit(struct mm_struct *, unsigned long, pte_t *, pte_t);
 
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
-				     unsigned long address, pte_t *ptep)
+				     unsigned long addr, pte_t *ptep)
 {
-	pgste_t pgste;
-	pte_t pte;
-
-	if (mm_has_pgste(vma->vm_mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
-	}
-
-	pte = *ptep;
-	ptep_flush_direct(vma->vm_mm, address, ptep);
-	pte_val(*ptep) = _PAGE_INVALID;
-
-	if (mm_has_pgste(vma->vm_mm)) {
-		if ((pgste_val(pgste) & _PGSTE_GPS_USAGE_MASK) ==
-		    _PGSTE_GPS_USAGE_UNUSED)
-			pte_val(pte) |= _PAGE_UNUSED;
-		pgste = pgste_update_all(pte, pgste, vma->vm_mm);
-		pgste_set_unlock(ptep, pgste);
-	}
-	return pte;
+	return ptep_xchg_direct(vma->vm_mm, addr, ptep, __pte(_PAGE_INVALID));
 }
 
 /*
@@ -1205,80 +961,52 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
  */
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
-					    unsigned long address,
+					    unsigned long addr,
 					    pte_t *ptep, int full)
 {
-	pgste_t pgste;
-	pte_t pte;
-
-	if (!full && mm_has_pgste(mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, address, ptep, pgste);
+	if (full) {
+		pte_t pte = *ptep;
+		*ptep = __pte(_PAGE_INVALID);
+		return pte;
 	}
-
-	pte = *ptep;
-	if (!full)
-		ptep_flush_lazy(mm, address, ptep);
-	pte_val(*ptep) = _PAGE_INVALID;
-
-	if (!full && mm_has_pgste(mm)) {
-		pgste = pgste_update_all(pte, pgste, mm);
-		pgste_set_unlock(ptep, pgste);
-	}
-	return pte;
+	return ptep_xchg_lazy(mm, addr, ptep, __pte(_PAGE_INVALID));
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-static inline pte_t ptep_set_wrprotect(struct mm_struct *mm,
-				       unsigned long address, pte_t *ptep)
+static inline void ptep_set_wrprotect(struct mm_struct *mm,
+				      unsigned long addr, pte_t *ptep)
 {
-	pgste_t pgste;
 	pte_t pte = *ptep;
 
-	if (pte_write(pte)) {
-		if (mm_has_pgste(mm)) {
-			pgste = pgste_get_lock(ptep);
-			pgste = pgste_ipte_notify(mm, address, ptep, pgste);
-		}
-
-		ptep_flush_lazy(mm, address, ptep);
-		pte = pte_wrprotect(pte);
-
-		if (mm_has_pgste(mm)) {
-			pgste = pgste_set_pte(ptep, pgste, pte);
-			pgste_set_unlock(ptep, pgste);
-		} else
-			*ptep = pte;
-	}
-	return pte;
+	if (pte_write(pte))
+		ptep_xchg_lazy(mm, addr, ptep, pte_wrprotect(pte));
 }
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 static inline int ptep_set_access_flags(struct vm_area_struct *vma,
-					unsigned long address, pte_t *ptep,
+					unsigned long addr, pte_t *ptep,
 					pte_t entry, int dirty)
 {
-	pgste_t pgste;
-	pte_t oldpte;
-
-	oldpte = *ptep;
-	if (pte_same(oldpte, entry))
+	if (pte_same(*ptep, entry))
 		return 0;
-	if (mm_has_pgste(vma->vm_mm)) {
-		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(vma->vm_mm, address, ptep, pgste);
-	}
-
-	ptep_flush_direct(vma->vm_mm, address, ptep);
-
-	if (mm_has_pgste(vma->vm_mm)) {
-		if (pte_val(oldpte) & _PAGE_INVALID)
-			pgste_set_key(ptep, pgste, entry, vma->vm_mm);
-		pgste = pgste_set_pte(ptep, pgste, entry);
-		pgste_set_unlock(ptep, pgste);
-	} else
-		*ptep = entry;
+	ptep_xchg_direct(vma->vm_mm, addr, ptep, entry);
 	return 1;
+}
+
+void set_pte_pgste_at(struct mm_struct *, unsigned long, pte_t *, pte_t);
+
+/*
+ * Certain architectures need to do special things when PTEs
+ * within a page table are directly modified.  Thus, the following
+ * hook is made available.
+ */
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t entry)
+{
+	if (mm_has_pgste(mm))
+		set_pte_pgste_at(mm, addr, ptep, entry);
+	else
+		*ptep = entry;
 }
 
 /*
