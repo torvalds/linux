@@ -2,6 +2,7 @@
  * Testsuite for eBPF maps
  *
  * Copyright (c) 2014 PLUMgrid, http://plumgrid.com
+ * Copyright (c) 2016 Facebook
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -17,13 +18,16 @@
 #include <stdlib.h>
 #include "libbpf.h"
 
+static int map_flags;
+
 /* sanity tests for map API */
 static void test_hashmap_sanity(int i, void *data)
 {
 	long long key, next_key, value;
 	int map_fd;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value), 2);
+	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
+				2, map_flags);
 	if (map_fd < 0) {
 		printf("failed to create hashmap '%s'\n", strerror(errno));
 		exit(1);
@@ -99,7 +103,7 @@ static void test_percpu_hashmap_sanity(int task, void *data)
 	int map_fd, i;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_HASH, sizeof(key),
-				sizeof(value[0]), 2);
+				sizeof(value[0]), 2, map_flags);
 	if (map_fd < 0) {
 		printf("failed to create hashmap '%s'\n", strerror(errno));
 		exit(1);
@@ -188,7 +192,8 @@ static void test_arraymap_sanity(int i, void *data)
 	int key, next_key, map_fd;
 	long long value;
 
-	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value), 2);
+	map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(key), sizeof(value),
+				2, 0);
 	if (map_fd < 0) {
 		printf("failed to create arraymap '%s'\n", strerror(errno));
 		exit(1);
@@ -244,7 +249,7 @@ static void test_percpu_arraymap_many_keys(void)
 	int key, map_fd, i;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-				sizeof(values[0]), nr_keys);
+				sizeof(values[0]), nr_keys, 0);
 	if (map_fd < 0) {
 		printf("failed to create per-cpu arraymap '%s'\n",
 		       strerror(errno));
@@ -275,7 +280,7 @@ static void test_percpu_arraymap_sanity(int i, void *data)
 	int key, next_key, map_fd;
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_PERCPU_ARRAY, sizeof(key),
-				sizeof(values[0]), 2);
+				sizeof(values[0]), 2, 0);
 	if (map_fd < 0) {
 		printf("failed to create arraymap '%s'\n", strerror(errno));
 		exit(1);
@@ -336,7 +341,7 @@ static void test_map_large(void)
 
 	/* allocate 4Mbyte of memory */
 	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-				MAP_SIZE);
+				MAP_SIZE, map_flags);
 	if (map_fd < 0) {
 		printf("failed to create large map '%s'\n", strerror(errno));
 		exit(1);
@@ -421,7 +426,7 @@ static void test_map_parallel(void)
 	int data[2];
 
 	map_fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
-				MAP_SIZE);
+				MAP_SIZE, map_flags);
 	if (map_fd < 0) {
 		printf("failed to create map for parallel test '%s'\n",
 		       strerror(errno));

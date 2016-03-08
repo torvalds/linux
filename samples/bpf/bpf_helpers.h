@@ -61,6 +61,7 @@ struct bpf_map_def {
 	unsigned int key_size;
 	unsigned int value_size;
 	unsigned int max_entries;
+	unsigned int map_flags;
 };
 
 static int (*bpf_skb_store_bytes)(void *ctx, int off, void *from, int len, int flags) =

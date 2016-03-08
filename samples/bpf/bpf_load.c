@@ -157,7 +157,8 @@ static int load_maps(struct bpf_map_def *maps, int len)
 		map_fd[i] = bpf_create_map(maps[i].type,
 					   maps[i].key_size,
 					   maps[i].value_size,
-					   maps[i].max_entries);
+					   maps[i].max_entries,
+					   maps[i].map_flags);
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
 			       errno, strerror(errno));
