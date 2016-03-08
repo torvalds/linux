@@ -622,111 +622,6 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 	return pmd;
 }
 
-static inline pgste_t pgste_get_lock(pte_t *ptep)
-{
-	unsigned long new = 0;
-#ifdef CONFIG_PGSTE
-	unsigned long old;
-
-	preempt_disable();
-	asm(
-		"	lg	%0,%2\n"
-		"0:	lgr	%1,%0\n"
-		"	nihh	%0,0xff7f\n"	/* clear PCL bit in old */
-		"	oihh	%1,0x0080\n"	/* set PCL bit in new */
-		"	csg	%0,%1,%2\n"
-		"	jl	0b\n"
-		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
-		: "Q" (ptep[PTRS_PER_PTE]) : "cc", "memory");
-#endif
-	return __pgste(new);
-}
-
-static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
-{
-#ifdef CONFIG_PGSTE
-	asm(
-		"	nihh	%1,0xff7f\n"	/* clear PCL bit */
-		"	stg	%1,%0\n"
-		: "=Q" (ptep[PTRS_PER_PTE])
-		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
-		: "cc", "memory");
-	preempt_enable();
-#endif
-}
-
-static inline pgste_t pgste_get(pte_t *ptep)
-{
-	unsigned long pgste = 0;
-#ifdef CONFIG_PGSTE
-	pgste = *(unsigned long *)(ptep + PTRS_PER_PTE);
-#endif
-	return __pgste(pgste);
-}
-
-static inline void pgste_set(pte_t *ptep, pgste_t pgste)
-{
-#ifdef CONFIG_PGSTE
-	*(pgste_t *)(ptep + PTRS_PER_PTE) = pgste;
-#endif
-}
-
-bool pgste_test_and_clear_dirty(struct mm_struct *, unsigned long address);
-void ptep_ipte_notify(struct mm_struct *, unsigned long addr, pte_t *);
-
-/**
- * struct gmap_struct - guest address space
- * @crst_list: list of all crst tables used in the guest address space
- * @mm: pointer to the parent mm_struct
- * @guest_to_host: radix tree with guest to host address translation
- * @host_to_guest: radix tree with pointer to segment table entries
- * @guest_table_lock: spinlock to protect all entries in the guest page table
- * @table: pointer to the page directory
- * @asce: address space control element for gmap page table
- * @pfault_enabled: defines if pfaults are applicable for the guest
- */
-struct gmap {
-	struct list_head list;
-	struct list_head crst_list;
-	struct mm_struct *mm;
-	struct radix_tree_root guest_to_host;
-	struct radix_tree_root host_to_guest;
-	spinlock_t guest_table_lock;
-	unsigned long *table;
-	unsigned long asce;
-	unsigned long asce_end;
-	void *private;
-	bool pfault_enabled;
-};
-
-/**
- * struct gmap_notifier - notify function block for page invalidation
- * @notifier_call: address of callback function
- */
-struct gmap_notifier {
-	struct list_head list;
-	void (*notifier_call)(struct gmap *gmap, unsigned long gaddr);
-};
-
-struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit);
-void gmap_free(struct gmap *gmap);
-void gmap_enable(struct gmap *gmap);
-void gmap_disable(struct gmap *gmap);
-int gmap_map_segment(struct gmap *gmap, unsigned long from,
-		     unsigned long to, unsigned long len);
-int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
-unsigned long __gmap_translate(struct gmap *, unsigned long gaddr);
-unsigned long gmap_translate(struct gmap *, unsigned long gaddr);
-int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr);
-int gmap_fault(struct gmap *, unsigned long gaddr, unsigned int fault_flags);
-void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
-void __gmap_zap(struct gmap *, unsigned long gaddr);
-
-
-void gmap_register_ipte_notifier(struct gmap_notifier *);
-void gmap_unregister_ipte_notifier(struct gmap_notifier *);
-int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
-
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
  * pte_present() is true. Undefined behaviour if not..
@@ -984,7 +879,21 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 	return 1;
 }
 
-void set_pte_pgste_at(struct mm_struct *, unsigned long, pte_t *, pte_t);
+/*
+ * Additional functions to handle KVM guest page tables
+ */
+void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t entry);
+void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep , int reset);
+void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+
+bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
+int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+			  unsigned char key, bool nq);
+unsigned char get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
 
 /*
  * Certain architectures need to do special things when PTEs
@@ -995,7 +904,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t entry)
 {
 	if (mm_has_pgste(mm))
-		set_pte_pgste_at(mm, addr, ptep, entry);
+		ptep_set_pte_at(mm, addr, ptep, entry);
 	else
 		*ptep = entry;
 }

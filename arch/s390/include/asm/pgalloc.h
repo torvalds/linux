@@ -23,10 +23,6 @@ void page_table_free(struct mm_struct *, unsigned long *);
 void page_table_free_rcu(struct mmu_gather *, unsigned long *, unsigned long);
 extern int page_table_allocate_pgste;
 
-int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
-			  unsigned long key, bool nq);
-unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr);
-
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
 	typedef struct { char _[n]; } addrtype;
