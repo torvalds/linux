@@ -2355,38 +2355,38 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
 }
 
 /**
- * cgroup_taskset_migrate - migrate a taskset to a cgroup
+ * cgroup_taskset_migrate - migrate a taskset
  * @tset: taget taskset
- * @dst_cgrp: destination cgroup
+ * @root: cgroup root the migration is taking place on
  *
- * Migrate tasks in @tset to @dst_cgrp.  This function fails iff one of the
- * ->can_attach callbacks fails and guarantees that either all or none of
- * the tasks in @tset are migrated.  @tset is consumed regardless of
- * success.
+ * Migrate tasks in @tset as setup by migration preparation functions.
+ * This function fails iff one of the ->can_attach callbacks fails and
+ * guarantees that either all or none of the tasks in @tset are migrated.
+ * @tset is consumed regardless of success.
  */
 static int cgroup_taskset_migrate(struct cgroup_taskset *tset,
-				  struct cgroup *dst_cgrp)
+				  struct cgroup_root *root)
 {
-	struct cgroup_subsys_state *css, *failed_css = NULL;
+	struct cgroup_subsys *ss;
 	struct task_struct *task, *tmp_task;
 	struct css_set *cset, *tmp_cset;
-	int i, ret;
+	int ssid, failed_ssid, ret;
 
 	/* methods shouldn't be called if no task is actually migrating */
 	if (list_empty(&tset->src_csets))
 		return 0;
 
 	/* check that we can legitimately attach to the cgroup */
-	for_each_e_css(css, i, dst_cgrp) {
-		if (css->ss->can_attach) {
-			tset->ssid = i;
-			ret = css->ss->can_attach(tset);
+	do_each_subsys_mask(ss, ssid, root->subsys_mask) {
+		if (ss->can_attach) {
+			tset->ssid = ssid;
+			ret = ss->can_attach(tset);
 			if (ret) {
-				failed_css = css;
+				failed_ssid = ssid;
 				goto out_cancel_attach;
 			}
 		}
-	}
+	} while_each_subsys_mask();
 
 	/*
 	 * Now that we're guaranteed success, proceed to move all tasks to
@@ -2413,25 +2413,25 @@ static int cgroup_taskset_migrate(struct cgroup_taskset *tset,
 	 */
 	tset->csets = &tset->dst_csets;
 
-	for_each_e_css(css, i, dst_cgrp) {
-		if (css->ss->attach) {
-			tset->ssid = i;
-			css->ss->attach(tset);
+	do_each_subsys_mask(ss, ssid, root->subsys_mask) {
+		if (ss->attach) {
+			tset->ssid = ssid;
+			ss->attach(tset);
 		}
-	}
+	} while_each_subsys_mask();
 
 	ret = 0;
 	goto out_release_tset;
 
 out_cancel_attach:
-	for_each_e_css(css, i, dst_cgrp) {
-		if (css == failed_css)
+	do_each_subsys_mask(ss, ssid, root->subsys_mask) {
+		if (ssid == failed_ssid)
 			break;
-		if (css->ss->cancel_attach) {
-			tset->ssid = i;
-			css->ss->cancel_attach(tset);
+		if (ss->cancel_attach) {
+			tset->ssid = ssid;
+			ss->cancel_attach(tset);
 		}
-	}
+	} while_each_subsys_mask();
 out_release_tset:
 	spin_lock_bh(&css_set_lock);
 	list_splice_init(&tset->dst_csets, &tset->src_csets);
@@ -2586,11 +2586,11 @@ err:
  * cgroup_migrate - migrate a process or task to a cgroup
  * @leader: the leader of the process or the task to migrate
  * @threadgroup: whether @leader points to the whole process or a single task
- * @cgrp: the destination cgroup
+ * @root: cgroup root migration is taking place on
  *
- * Migrate a process or task denoted by @leader to @cgrp.  If migrating a
- * process, the caller must be holding cgroup_threadgroup_rwsem.  The
- * caller is also responsible for invoking cgroup_migrate_add_src() and
+ * Migrate a process or task denoted by @leader.  If migrating a process,
+ * the caller must be holding cgroup_threadgroup_rwsem.  The caller is also
+ * responsible for invoking cgroup_migrate_add_src() and
  * cgroup_migrate_prepare_dst() on the targets before invoking this
  * function and following up with cgroup_migrate_finish().
  *
@@ -2601,7 +2601,7 @@ err:
  * actually starting migrating.
  */
 static int cgroup_migrate(struct task_struct *leader, bool threadgroup,
-			  struct cgroup *cgrp)
+			  struct cgroup_root *root)
 {
 	struct cgroup_taskset tset = CGROUP_TASKSET_INIT(tset);
 	struct task_struct *task;
@@ -2622,7 +2622,7 @@ static int cgroup_migrate(struct task_struct *leader, bool threadgroup,
 	rcu_read_unlock();
 	spin_unlock_bh(&css_set_lock);
 
-	return cgroup_taskset_migrate(&tset, cgrp);
+	return cgroup_taskset_migrate(&tset, root);
 }
 
 /**
@@ -2659,7 +2659,7 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	/* prepare dst csets and commit */
 	ret = cgroup_migrate_prepare_dst(dst_cgrp, &preloaded_csets);
 	if (!ret)
-		ret = cgroup_migrate(leader, threadgroup, dst_cgrp);
+		ret = cgroup_migrate(leader, threadgroup, dst_cgrp->root);
 
 	cgroup_migrate_finish(&preloaded_csets);
 	return ret;
@@ -2934,7 +2934,7 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 	}
 	spin_unlock_bh(&css_set_lock);
 
-	ret = cgroup_taskset_migrate(&tset, cgrp);
+	ret = cgroup_taskset_migrate(&tset, cgrp->root);
 out_finish:
 	cgroup_migrate_finish(&preloaded_csets);
 	percpu_up_write(&cgroup_threadgroup_rwsem);
@@ -4172,7 +4172,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		css_task_iter_end(&it);
 
 		if (task) {
-			ret = cgroup_migrate(task, false, to);
+			ret = cgroup_migrate(task, false, to->root);
 			put_task_struct(task);
 		}
 	} while (task && !ret);
