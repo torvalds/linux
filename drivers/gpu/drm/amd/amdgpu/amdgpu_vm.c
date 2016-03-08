@@ -971,22 +971,18 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 	struct amdgpu_bo_va_mapping *mapping;
 	int r;
 
-	spin_lock(&vm->freed_lock);
 	while (!list_empty(&vm->freed)) {
 		mapping = list_first_entry(&vm->freed,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
-		spin_unlock(&vm->freed_lock);
+
 		r = amdgpu_vm_bo_split_mapping(adev, NULL, 0, vm, mapping,
 					       0, NULL);
 		kfree(mapping);
 		if (r)
 			return r;
 
-		spin_lock(&vm->freed_lock);
 	}
-	spin_unlock(&vm->freed_lock);
-
 	return 0;
 
 }
@@ -1252,13 +1248,10 @@ int amdgpu_vm_bo_unmap(struct amdgpu_device *adev,
 	spin_unlock(&vm->it_lock);
 	trace_amdgpu_vm_bo_unmap(bo_va, mapping);
 
-	if (valid) {
-		spin_lock(&vm->freed_lock);
+	if (valid)
 		list_add(&mapping->list, &vm->freed);
-		spin_unlock(&vm->freed_lock);
-	} else {
+	else
 		kfree(mapping);
-	}
 
 	return 0;
 }
@@ -1291,9 +1284,7 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		interval_tree_remove(&mapping->it, &vm->va);
 		spin_unlock(&vm->it_lock);
 		trace_amdgpu_vm_bo_unmap(bo_va, mapping);
-		spin_lock(&vm->freed_lock);
 		list_add(&mapping->list, &vm->freed);
-		spin_unlock(&vm->freed_lock);
 	}
 	list_for_each_entry_safe(mapping, next, &bo_va->invalids, list) {
 		list_del(&mapping->list);
@@ -1357,7 +1348,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
 	spin_lock_init(&vm->it_lock);
-	spin_lock_init(&vm->freed_lock);
 	pd_size = amdgpu_vm_directory_size(adev);
 	pd_entries = amdgpu_vm_num_pdes(adev);
 
