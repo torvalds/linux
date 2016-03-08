@@ -33,6 +33,19 @@ struct drm_exynos_gem_create {
 };
 
 /**
+ * A structure for getting a fake-offset that can be used with mmap.
+ *
+ * @handle: handle of gem object.
+ * @reserved: just padding to be 64-bit aligned.
+ * @offset: a fake-offset of gem object.
+ */
+struct drm_exynos_gem_map {
+	__u32 handle;
+	__u32 reserved;
+	__u64 offset;
+};
+
+/**
  * A structure to gem information.
  *
  * @handle: a handle to gem object created.
@@ -284,6 +297,7 @@ struct drm_exynos_ipp_cmd_ctrl {
 };
 
 #define DRM_EXYNOS_GEM_CREATE		0x00
+#define DRM_EXYNOS_GEM_MAP		0x01
 /* Reserved 0x03 ~ 0x05 for exynos specific gem ioctl */
 #define DRM_EXYNOS_GEM_GET		0x04
 #define DRM_EXYNOS_VIDI_CONNECTION	0x07
@@ -301,7 +315,8 @@ struct drm_exynos_ipp_cmd_ctrl {
 
 #define DRM_IOCTL_EXYNOS_GEM_CREATE		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_CREATE, struct drm_exynos_gem_create)
-
+#define DRM_IOCTL_EXYNOS_GEM_MAP		DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_GEM_MAP, struct drm_exynos_gem_map)
 #define DRM_IOCTL_EXYNOS_GEM_GET	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_GET,	struct drm_exynos_gem_info)
 

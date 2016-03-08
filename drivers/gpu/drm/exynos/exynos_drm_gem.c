@@ -280,6 +280,15 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv)
+{
+	struct drm_exynos_gem_map *args = data;
+
+	return exynos_drm_gem_dumb_map_offset(file_priv, dev, args->handle,
+					      &args->offset);
+}
+
 dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
 					struct drm_file *filp)
