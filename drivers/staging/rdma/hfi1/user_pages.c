@@ -116,7 +116,8 @@ int hfi1_acquire_user_pages(unsigned long vaddr, size_t npages, bool writable,
 	return ret;
 }
 
-void hfi1_release_user_pages(struct page **p, size_t npages, bool dirty)
+void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+			     size_t npages, bool dirty)
 {
 	size_t i;
 
@@ -126,9 +127,9 @@ void hfi1_release_user_pages(struct page **p, size_t npages, bool dirty)
 		put_page(p[i]);
 	}
 
-	if (current->mm) { /* during close after signal, mm can be NULL */
-		down_write(&current->mm->mmap_sem);
-		current->mm->pinned_vm -= npages;
-		up_write(&current->mm->mmap_sem);
+	if (mm) { /* during close after signal, mm can be NULL */
+		down_write(&mm->mmap_sem);
+		mm->pinned_vm -= npages;
+		up_write(&mm->mmap_sem);
 	}
 }

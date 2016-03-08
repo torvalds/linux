@@ -1666,7 +1666,7 @@ void shutdown_led_override(struct hfi1_pportdata *ppd);
 
 bool hfi1_can_pin_pages(struct hfi1_devdata *, u32, u32);
 int hfi1_acquire_user_pages(unsigned long, size_t, bool, struct page **);
-void hfi1_release_user_pages(struct page **, size_t, bool);
+void hfi1_release_user_pages(struct mm_struct *, struct page **, size_t, bool);
 
 static inline void clear_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
 {

@@ -277,7 +277,7 @@ static inline void pq_update(struct hfi1_user_sdma_pkt_q *);
 static void user_sdma_free_request(struct user_sdma_request *, bool);
 static int pin_vector_pages(struct user_sdma_request *,
 			    struct user_sdma_iovec *);
-static void unpin_vector_pages(struct page **, unsigned);
+static void unpin_vector_pages(struct mm_struct *, struct page **, unsigned);
 static int check_header_template(struct user_sdma_request *,
 				 struct hfi1_pkt_header *, u32, u32);
 static int set_txreq_header(struct user_sdma_request *,
@@ -1072,7 +1072,7 @@ static int pin_vector_pages(struct user_sdma_request *req,
 			goto bail;
 		}
 		if (pinned != npages) {
-			unpin_vector_pages(pages, pinned);
+			unpin_vector_pages(current->mm, pages, pinned);
 			ret = -EFAULT;
 			goto bail;
 		}
@@ -1097,9 +1097,10 @@ bail:
 	return ret;
 }
 
-static void unpin_vector_pages(struct page **pages, unsigned npages)
+static void unpin_vector_pages(struct mm_struct *mm, struct page **pages,
+			       unsigned npages)
 {
-	hfi1_release_user_pages(pages, npages, 0);
+	hfi1_release_user_pages(mm, pages, npages, 0);
 	kfree(pages);
 }
 
@@ -1502,8 +1503,14 @@ static void sdma_rb_remove(struct rb_root *root, struct mmu_rb_node *mnode,
 	struct sdma_mmu_node *node =
 		container_of(mnode, struct sdma_mmu_node, rb);
 
-	if (!notifier)
-		unpin_vector_pages(node->pages, node->npages);
+	unpin_vector_pages(notifier ? NULL : current->mm, node->pages,
+			   node->npages);
+	/*
+	 * If called by the MMU notifier, we have to adjust the pinned
+	 * page count ourselves.
+	 */
+	if (notifier)
+		current->mm->pinned_vm -= node->npages;
 	kfree(node);
 }
 

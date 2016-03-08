@@ -550,7 +550,7 @@ nomem:
 	 * for example), unpin all unmapped pages so we can pin them nex time.
 	 */
 	if (mapped_pages != pinned)
-		hfi1_release_user_pages(&pages[mapped_pages],
+		hfi1_release_user_pages(current->mm, &pages[mapped_pages],
 					pinned - mapped_pages,
 					false);
 bail:
@@ -923,7 +923,7 @@ static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
 
 	pci_unmap_single(dd->pcidev, node->dma_addr, node->mmu.len,
 			 PCI_DMA_FROMDEVICE);
-	hfi1_release_user_pages(node->pages, node->npages, true);
+	hfi1_release_user_pages(current->mm, node->pages, node->npages, true);
 
 	node->grp->used--;
 	node->grp->map &= ~(1 << (node->rcventry - node->grp->base));
