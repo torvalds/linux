@@ -8,7 +8,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Datasheets: http://www.issi.com/US/product-analog-fxled-driver.shtml
+ * Datasheets:
+ *   http://www.issi.com/US/product-analog-fxled-driver.shtml
+ *   http://www.si-en.com/product.asp?parentid=890
  */
 
 #include <linux/device.h>
@@ -424,7 +426,9 @@ static const struct of_device_id of_is31fl31xx_match[] = {
 	{ .compatible = "issi,is31fl3236", .data = &is31fl3236_cdef, },
 	{ .compatible = "issi,is31fl3235", .data = &is31fl3235_cdef, },
 	{ .compatible = "issi,is31fl3218", .data = &is31fl3218_cdef, },
+	{ .compatible = "si-en,sn3218",    .data = &is31fl3218_cdef, },
 	{ .compatible = "issi,is31fl3216", .data = &is31fl3216_cdef, },
+	{ .compatible = "si-en,sn3216",    .data = &is31fl3216_cdef, },
 	{},
 };
 

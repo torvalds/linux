@@ -1,6 +1,6 @@
-Binding for ISSI IS31FL32xx LED Drivers
+Binding for ISSI IS31FL32xx and Si-En SN32xx LED Drivers
 
-The IS31FL32xx family of LED drivers are I2C devices with multiple
+The IS31FL32xx/SN32xx family of LED drivers are I2C devices with multiple
 constant-current channels, each with independent 256-level PWM control.
 Each LED is represented as a sub-node of the device.
 
@@ -10,6 +10,8 @@ Required properties:
 	issi,is31fl3235
 	issi,is31fl3218
 	issi,is31fl3216
+	si-en,sn3218
+	si-en,sn3216
 - reg: I2C slave address
 - address-cells : must be 1
 - size-cells : must be 0
@@ -45,5 +47,6 @@ is31fl3236: led-controller@3c {
 	};
 };
 
-For more product information please see the link below:
+For more product information please see the links below:
 http://www.issi.com/US/product-analog-fxled-driver.shtml
+http://www.si-en.com/product.asp?parentid=890
