@@ -164,7 +164,8 @@ static ssize_t name##_avg_show(struct device *dev,		\
 	count = stats->count ? stats->count : 1;			\
 	avg = stats->sum;						\
 	rem = do_div(avg, count);					\
-	rem = 1000000 * rem / count;					\
+	rem *= 1000000;							\
+	do_div(rem, count);						\
 	return sprintf(buf, "%llu.%06u\n", avg, (u32)rem);		\
 }									\
 static DEVICE_ATTR_RO(name##_avg)
