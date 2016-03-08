@@ -39,7 +39,8 @@ struct gmap {
  */
 struct gmap_notifier {
 	struct list_head list;
-	void (*notifier_call)(struct gmap *gmap, unsigned long gaddr);
+	void (*notifier_call)(struct gmap *gmap, unsigned long start,
+			      unsigned long end);
 };
 
 struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit);

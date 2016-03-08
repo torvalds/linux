@@ -573,6 +573,21 @@ void gmap_unregister_ipte_notifier(struct gmap_notifier *nb)
 EXPORT_SYMBOL_GPL(gmap_unregister_ipte_notifier);
 
 /**
+ * gmap_call_notifier - call all registered invalidation callbacks
+ * @gmap: pointer to guest mapping meta data structure
+ * @start: start virtual address in the guest address space
+ * @end: end virtual address in the guest address space
+ */
+static void gmap_call_notifier(struct gmap *gmap, unsigned long start,
+			       unsigned long end)
+{
+	struct gmap_notifier *nb;
+
+	list_for_each_entry(nb, &gmap_notifier_list, list)
+		nb->notifier_call(gmap, start, end);
+}
+
+/**
  * gmap_ipte_notify - mark a range of ptes for invalidation notification
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: virtual address in the guest address space
@@ -643,7 +658,6 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr, pte_t *pte)
 {
 	unsigned long offset, gaddr;
 	unsigned long *table;
-	struct gmap_notifier *nb;
 	struct gmap *gmap;
 
 	offset = ((unsigned long) pte) & (255 * sizeof(pte_t));
@@ -655,8 +669,7 @@ void ptep_notify(struct mm_struct *mm, unsigned long vmaddr, pte_t *pte)
 		if (!table)
 			continue;
 		gaddr = __gmap_segment_gaddr(table) + offset;
-		list_for_each_entry(nb, &gmap_notifier_list, list)
-			nb->notifier_call(gmap, gaddr);
+		gmap_call_notifier(gmap, gaddr, gaddr + PAGE_SIZE - 1);
 	}
 	spin_unlock(&gmap_notifier_lock);
 }

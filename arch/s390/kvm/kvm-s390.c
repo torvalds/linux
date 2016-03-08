@@ -150,7 +150,8 @@ int kvm_arch_hardware_enable(void)
 	return 0;
 }
 
-static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address);
+static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
+			      unsigned long end);
 
 /*
  * This callback is executed during stop_machine(). All CPUs are therefore
@@ -1976,16 +1977,23 @@ void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu)
 	kvm_s390_vcpu_request(vcpu);
 }
 
-static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address)
+static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
+			      unsigned long end)
 {
-	int i;
 	struct kvm *kvm = gmap->private;
 	struct kvm_vcpu *vcpu;
+	unsigned long prefix;
+	int i;
 
+	if (start >= 1UL << 31)
+		/* We are only interested in prefix pages */
+		return;
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		/* match against both prefix pages */
-		if (kvm_s390_get_prefix(vcpu) == (address & ~0x1000UL)) {
-			VCPU_EVENT(vcpu, 2, "gmap notifier for %lx", address);
+		prefix = kvm_s390_get_prefix(vcpu);
+		if (prefix <= end && start <= prefix + 2*PAGE_SIZE - 1) {
+			VCPU_EVENT(vcpu, 2, "gmap notifier for %lx-%lx",
+				   start, end);
 			kvm_s390_sync_request(KVM_REQ_MMU_RELOAD, vcpu);
 		}
 	}
