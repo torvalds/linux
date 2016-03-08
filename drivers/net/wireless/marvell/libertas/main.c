@@ -1118,7 +1118,8 @@ int lbs_start_card(struct lbs_private *priv)
 	else
 		pr_info("%s: mesh disabled\n", dev->name);
 
-	if (lbs_cfg_register(priv)) {
+	ret = lbs_cfg_register(priv);
+	if (ret) {
 		pr_err("cannot register device\n");
 		goto done;
 	}
