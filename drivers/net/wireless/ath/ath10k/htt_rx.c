@@ -862,6 +862,8 @@ static bool ath10k_htt_rx_h_channel(struct ath10k *ar,
 		ch = ath10k_htt_rx_h_vdev_channel(ar, vdev_id);
 	if (!ch)
 		ch = ath10k_htt_rx_h_any_channel(ar);
+	if (!ch)
+		ch = ar->tgt_oper_chan;
 	spin_unlock_bh(&ar->data_lock);
 
 	if (!ch)
@@ -2257,6 +2259,34 @@ static void ath10k_htt_rx_tx_mode_switch_ind(struct ath10k *ar,
 	ath10k_mac_tx_push_pending(ar);
 }
 
+static inline enum ieee80211_band phy_mode_to_band(u32 phy_mode)
+{
+	enum ieee80211_band band;
+
+	switch (phy_mode) {
+	case MODE_11A:
+	case MODE_11NA_HT20:
+	case MODE_11NA_HT40:
+	case MODE_11AC_VHT20:
+	case MODE_11AC_VHT40:
+	case MODE_11AC_VHT80:
+		band = IEEE80211_BAND_5GHZ;
+		break;
+	case MODE_11G:
+	case MODE_11B:
+	case MODE_11GONLY:
+	case MODE_11NG_HT20:
+	case MODE_11NG_HT40:
+	case MODE_11AC_VHT20_2G:
+	case MODE_11AC_VHT40_2G:
+	case MODE_11AC_VHT80_2G:
+	default:
+		band = IEEE80211_BAND_2GHZ;
+	}
+
+	return band;
+}
+
 void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 {
 	struct ath10k_htt *htt = &ar->htt;
@@ -2391,8 +2421,17 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	}
 	case HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND:
 		break;
-	case HTT_T2H_MSG_TYPE_CHAN_CHANGE:
+	case HTT_T2H_MSG_TYPE_CHAN_CHANGE: {
+		u32 phymode = __le32_to_cpu(resp->chan_change.phymode);
+		u32 freq = __le32_to_cpu(resp->chan_change.freq);
+
+		ar->tgt_oper_chan =
+			__ieee80211_get_channel(ar->hw->wiphy, freq);
+		ath10k_dbg(ar, ATH10K_DBG_HTT,
+			   "htt chan change freq %u phymode %s\n",
+			   freq, ath10k_wmi_phymode_str(phymode));
 		break;
+	}
 	case HTT_T2H_MSG_TYPE_AGGR_CONF:
 		break;
 	case HTT_T2H_MSG_TYPE_TX_FETCH_IND:

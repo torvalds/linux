@@ -766,6 +766,9 @@ struct ath10k {
 	/* current operating channel definition */
 	struct cfg80211_chan_def chandef;
 
+	/* currently configured operating channel in firmware */
+	struct ieee80211_channel *tgt_oper_chan;
+
 	unsigned long long free_vdev_map;
 	struct ath10k_vif *monitor_arvif;
 	bool monitor;

@@ -2099,34 +2099,6 @@ int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb)
 	return 0;
 }
 
-static inline enum ieee80211_band phy_mode_to_band(u32 phy_mode)
-{
-	enum ieee80211_band band;
-
-	switch (phy_mode) {
-	case MODE_11A:
-	case MODE_11NA_HT20:
-	case MODE_11NA_HT40:
-	case MODE_11AC_VHT20:
-	case MODE_11AC_VHT40:
-	case MODE_11AC_VHT80:
-		band = IEEE80211_BAND_5GHZ;
-		break;
-	case MODE_11G:
-	case MODE_11B:
-	case MODE_11GONLY:
-	case MODE_11NG_HT20:
-	case MODE_11NG_HT40:
-	case MODE_11AC_VHT20_2G:
-	case MODE_11AC_VHT40_2G:
-	case MODE_11AC_VHT80_2G:
-	default:
-		band = IEEE80211_BAND_2GHZ;
-	}
-
-	return band;
-}
-
 /* If keys are configured, HW decrypts all frames
  * with protected bit set. Mark such frames as decrypted.
  */
