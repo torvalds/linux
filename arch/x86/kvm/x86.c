@@ -7329,7 +7329,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	 * Every 255 times fpu_counter rolls over to 0; a guest that uses
 	 * the FPU in bursts will revert to loading it on demand.
 	 */
-	if (!vcpu->arch.eager_fpu) {
+	if (!use_eager_fpu()) {
 		if (++vcpu->fpu_counter < 5)
 			kvm_make_request(KVM_REQ_DEACTIVATE_FPU, vcpu);
 	}
