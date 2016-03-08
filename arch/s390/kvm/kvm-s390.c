@@ -2249,7 +2249,7 @@ int kvm_s390_store_status_unloaded(struct kvm_vcpu *vcpu, unsigned long gpa)
 
 	/* manually convert vector registers if necessary */
 	if (MACHINE_HAS_VX) {
-		convert_vx_to_fp(fprs, current->thread.fpu.vxrs);
+		convert_vx_to_fp(fprs, (__vector128 *) vcpu->run->s.regs.vrs);
 		rc = write_guest_abs(vcpu, gpa + __LC_FPREGS_SAVE_AREA,
 				     fprs, 128);
 	} else {
