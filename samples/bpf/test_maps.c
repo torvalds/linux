@@ -468,7 +468,7 @@ static void test_map_parallel(void)
 	assert(bpf_get_next_key(map_fd, &key, &key) == -1 && errno == ENOENT);
 }
 
-int main(void)
+static void run_all_tests(void)
 {
 	test_hashmap_sanity(0, NULL);
 	test_percpu_hashmap_sanity(0, NULL);
@@ -479,6 +479,14 @@ int main(void)
 	test_map_large();
 	test_map_parallel();
 	test_map_stress();
+}
+
+int main(void)
+{
+	map_flags = 0;
+	run_all_tests();
+	map_flags = BPF_F_NO_PREALLOC;
+	run_all_tests();
 	printf("test_maps: OK\n");
 	return 0;
 }
