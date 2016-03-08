@@ -9309,8 +9309,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 			intel_get_shared_dpll_by_id(dev_priv, pll_id);
 		pll = pipe_config->shared_dpll;
 
-		WARN_ON(!pll->get_hw_state(dev_priv, pll,
-					   &pipe_config->dpll_hw_state));
+		WARN_ON(!pll->funcs.get_hw_state(dev_priv, pll,
+						 &pipe_config->dpll_hw_state));
 
 		tmp = pipe_config->dpll_hw_state.dpll;
 		pipe_config->pixel_multiplier =
@@ -9856,8 +9856,8 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	pll = pipe_config->shared_dpll;
 	if (pll) {
-		WARN_ON(!pll->get_hw_state(dev_priv, pll,
-					   &pipe_config->dpll_hw_state));
+		WARN_ON(!pll->funcs.get_hw_state(dev_priv, pll,
+						 &pipe_config->dpll_hw_state));
 	}
 
 	/*
@@ -12935,7 +12935,7 @@ check_shared_dpll_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("%s\n", pll->name);
 
-		active = pll->get_hw_state(dev_priv, pll, &dpll_hw_state);
+		active = pll->funcs.get_hw_state(dev_priv, pll, &dpll_hw_state);
 
 		I915_STATE_WARN(pll->active > hweight32(pll->config.crtc_mask),
 		     "more active pll users than references: %i vs %i\n",
@@ -15686,8 +15686,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
 
-		pll->on = pll->get_hw_state(dev_priv, pll,
-					    &pll->config.hw_state);
+		pll->on = pll->funcs.get_hw_state(dev_priv, pll,
+						  &pll->config.hw_state);
 		pll->active = 0;
 		pll->config.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
@@ -15824,7 +15824,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
 
-		pll->disable(dev_priv, pll);
+		pll->funcs.disable(dev_priv, pll);
 		pll->on = false;
 	}
 

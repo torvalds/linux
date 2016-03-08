@@ -28,6 +28,7 @@
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_shared_dpll;
 
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
@@ -78,14 +79,7 @@ struct intel_shared_dpll_config {
 	struct intel_dpll_hw_state hw_state;
 };
 
-struct intel_shared_dpll {
-	struct intel_shared_dpll_config config;
-
-	int active; /* count of number of active CRTCs (i.e. DPMS on) */
-	bool on; /* is the PLL actually active? Disabled during modeset */
-	const char *name;
-	/* should match the index in the dev_priv->shared_dplls array */
-	enum intel_dpll_id id;
+struct intel_shared_dpll_funcs {
 	/* The mode_set hook is optional and should be used together with the
 	 * intel_prepare_shared_dpll function. */
 	void (*mode_set)(struct drm_i915_private *dev_priv,
@@ -97,6 +91,18 @@ struct intel_shared_dpll {
 	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);
+};
+
+struct intel_shared_dpll {
+	struct intel_shared_dpll_config config;
+
+	int active; /* count of number of active CRTCs (i.e. DPMS on) */
+	bool on; /* is the PLL actually active? Disabled during modeset */
+	const char *name;
+	/* should match the index in the dev_priv->shared_dplls array */
+	enum intel_dpll_id id;
+
+	struct intel_shared_dpll_funcs funcs;
 };
 
 #define SKL_DPLL0 0

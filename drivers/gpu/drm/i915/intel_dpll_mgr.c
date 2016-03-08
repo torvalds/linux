@@ -74,7 +74,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	if (WARN(!pll, "asserting DPLL %s with no DPLL\n", onoff(state)))
 		return;
 
-	cur_state = pll->get_hw_state(dev_priv, pll, &hw_state);
+	cur_state = pll->funcs.get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
 			pll->name, onoff(state), onoff(cur_state));
@@ -95,7 +95,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
-		pll->mode_set(dev_priv, pll);
+		pll->funcs.mode_set(dev_priv, pll);
 	}
 }
 
@@ -133,7 +133,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
 
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
-	pll->enable(dev_priv, pll);
+	pll->funcs.enable(dev_priv, pll);
 	pll->on = true;
 }
 
@@ -168,7 +168,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 		return;
 
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
-	pll->disable(dev_priv, pll);
+	pll->funcs.disable(dev_priv, pll);
 	pll->on = false;
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
@@ -398,28 +398,12 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 	udelay(200);
 }
 
-static char *ibx_pch_dpll_names[] = {
-	"PCH DPLL A",
-	"PCH DPLL B",
+static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
+	.mode_set = ibx_pch_dpll_mode_set,
+	.enable = ibx_pch_dpll_enable,
+	.disable = ibx_pch_dpll_disable,
+	.get_hw_state = ibx_pch_dpll_get_hw_state,
 };
-
-static void ibx_pch_dpll_init(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
-
-	dev_priv->num_shared_dpll = 2;
-
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		dev_priv->shared_dplls[i].id = i;
-		dev_priv->shared_dplls[i].name = ibx_pch_dpll_names[i];
-		dev_priv->shared_dplls[i].mode_set = ibx_pch_dpll_mode_set;
-		dev_priv->shared_dplls[i].enable = ibx_pch_dpll_enable;
-		dev_priv->shared_dplls[i].disable = ibx_pch_dpll_disable;
-		dev_priv->shared_dplls[i].get_hw_state =
-			ibx_pch_dpll_get_hw_state;
-	}
-}
 
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
@@ -492,40 +476,16 @@ static bool hsw_ddi_spll_get_hw_state(struct drm_i915_private *dev_priv,
 }
 
 
-static const char * const hsw_ddi_pll_names[] = {
-	"WRPLL 1",
-	"WRPLL 2",
-	"SPLL"
+static const struct intel_shared_dpll_funcs hsw_ddi_wrpll_funcs = {
+	.enable = hsw_ddi_wrpll_enable,
+	.disable = hsw_ddi_wrpll_disable,
+	.get_hw_state = hsw_ddi_wrpll_get_hw_state,
 };
 
-static void hsw_shared_dplls_init(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	dev_priv->num_shared_dpll = 3;
-
-	for (i = 0; i < 2; i++) {
-		dev_priv->shared_dplls[i].id = i;
-		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
-		dev_priv->shared_dplls[i].disable = hsw_ddi_wrpll_disable;
-		dev_priv->shared_dplls[i].enable = hsw_ddi_wrpll_enable;
-		dev_priv->shared_dplls[i].get_hw_state =
-			hsw_ddi_wrpll_get_hw_state;
-	}
-
-	/* SPLL is special, but needs to be initialized anyway.. */
-	dev_priv->shared_dplls[i].id = i;
-	dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
-	dev_priv->shared_dplls[i].disable = hsw_ddi_spll_disable;
-	dev_priv->shared_dplls[i].enable = hsw_ddi_spll_enable;
-	dev_priv->shared_dplls[i].get_hw_state = hsw_ddi_spll_get_hw_state;
-
-}
-
-static const char * const skl_ddi_pll_names[] = {
-	"DPLL 1",
-	"DPLL 2",
-	"DPLL 3",
+static const struct intel_shared_dpll_funcs hsw_ddi_spll_funcs = {
+	.enable = hsw_ddi_spll_enable,
+	.disable = hsw_ddi_spll_disable,
+	.get_hw_state = hsw_ddi_spll_get_hw_state,
 };
 
 struct skl_dpll_regs {
@@ -634,26 +594,10 @@ out:
 	return ret;
 }
 
-static void skl_shared_dplls_init(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	dev_priv->num_shared_dpll = 3;
-
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		dev_priv->shared_dplls[i].id = i;
-		dev_priv->shared_dplls[i].name = skl_ddi_pll_names[i];
-		dev_priv->shared_dplls[i].disable = skl_ddi_pll_disable;
-		dev_priv->shared_dplls[i].enable = skl_ddi_pll_enable;
-		dev_priv->shared_dplls[i].get_hw_state =
-			skl_ddi_pll_get_hw_state;
-	}
-}
-
-static const char * const bxt_ddi_pll_names[] = {
-	"PORT PLL A",
-	"PORT PLL B",
-	"PORT PLL C",
+static const struct intel_shared_dpll_funcs skl_ddi_pll_funcs = {
+	.enable = skl_ddi_pll_enable,
+	.disable = skl_ddi_pll_disable,
+	.get_hw_state = skl_ddi_pll_get_hw_state,
 };
 
 static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
@@ -838,33 +782,16 @@ out:
 	return ret;
 }
 
-static void bxt_shared_dplls_init(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	dev_priv->num_shared_dpll = 3;
-
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		dev_priv->shared_dplls[i].id = i;
-		dev_priv->shared_dplls[i].name = bxt_ddi_pll_names[i];
-		dev_priv->shared_dplls[i].disable = bxt_ddi_pll_disable;
-		dev_priv->shared_dplls[i].enable = bxt_ddi_pll_enable;
-		dev_priv->shared_dplls[i].get_hw_state =
-			bxt_ddi_pll_get_hw_state;
-	}
-}
+static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
+	.enable = bxt_ddi_pll_enable,
+	.disable = bxt_ddi_pll_disable,
+	.get_hw_state = bxt_ddi_pll_get_hw_state,
+};
 
 static void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
-
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
-		skl_shared_dplls_init(dev_priv);
-	else if (IS_BROXTON(dev))
-		bxt_shared_dplls_init(dev_priv);
-	else
-		hsw_shared_dplls_init(dev_priv);
 
 	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
 		int cdclk_freq;
@@ -893,16 +820,72 @@ static void intel_ddi_pll_init(struct drm_device *dev)
 	}
 }
 
+struct dpll_info {
+	const char *name;
+	const int id;
+	const struct intel_shared_dpll_funcs *funcs;
+};
+
+static const struct dpll_info pch_plls[] = {
+	{ "PCH DPLL A", DPLL_ID_PCH_PLL_A, &ibx_pch_dpll_funcs },
+	{ "PCH DPLL B", DPLL_ID_PCH_PLL_B, &ibx_pch_dpll_funcs },
+	{ NULL, -1, NULL },
+};
+
+static const struct dpll_info hsw_plls[] = {
+	{ "WRPLL 1", DPLL_ID_WRPLL1, &hsw_ddi_wrpll_funcs },
+	{ "WRPLL 2", DPLL_ID_WRPLL2, &hsw_ddi_wrpll_funcs },
+	{ "SPLL",    DPLL_ID_SPLL,   &hsw_ddi_spll_funcs },
+	{ NULL, -1, NULL, },
+};
+
+static const struct dpll_info skl_plls[] = {
+	{ "DPPL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs },
+	{ "DPPL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs },
+	{ "DPPL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs },
+	{ NULL, -1, NULL, },
+};
+
+static const struct dpll_info bxt_plls[] = {
+	{ "PORT PLL A", 0, &bxt_ddi_pll_funcs },
+	{ "PORT PLL B", 1, &bxt_ddi_pll_funcs },
+	{ "PORT PLL C", 2, &bxt_ddi_pll_funcs },
+	{ NULL, -1, NULL, },
+};
+
 void intel_shared_dpll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct dpll_info *dpll_info = NULL;
+	int i;
 
-	if (HAS_DDI(dev))
-		intel_ddi_pll_init(dev);
+	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+		dpll_info = skl_plls;
+	else if IS_BROXTON(dev)
+		dpll_info = bxt_plls;
+	else if (HAS_DDI(dev))
+		dpll_info = hsw_plls;
 	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
-		ibx_pch_dpll_init(dev);
-	else
+		dpll_info = pch_plls;
+
+	if (!dpll_info) {
 		dev_priv->num_shared_dpll = 0;
+		return;
+	}
+
+	for (i = 0; dpll_info[i].id >= 0; i++) {
+		WARN_ON(i != dpll_info[i].id);
+
+		dev_priv->shared_dplls[i].id = dpll_info[i].id;
+		dev_priv->shared_dplls[i].name = dpll_info[i].name;
+		dev_priv->shared_dplls[i].funcs = *dpll_info[i].funcs;
+	}
+
+	dev_priv->num_shared_dpll = i;
 
 	BUG_ON(dev_priv->num_shared_dpll > I915_NUM_PLLS);
+
+	/* FIXME: Move this to a more suitable place */
+	if (HAS_DDI(dev))
+		intel_ddi_pll_init(dev);
 }
