@@ -1892,6 +1892,13 @@ static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 		goto mqprio;
 
 	switch (tc->type) {
+	case TC_SETUP_CLSFLOWER:
+		switch (tc->cls_flower->command) {
+		case TC_CLSFLOWER_REPLACE:
+			return mlx5e_configure_flower(priv, proto, tc->cls_flower);
+		case TC_CLSFLOWER_DESTROY:
+			return mlx5e_delete_flower(priv, tc->cls_flower);
+		}
 	default:
 		return -EOPNOTSUPP;
 	}
