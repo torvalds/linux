@@ -1099,7 +1099,7 @@ struct qlcnic_mailbox {
 	unsigned long		status;
 	spinlock_t		queue_lock;	/* Mailbox queue lock */
 	spinlock_t		aen_lock;	/* Mailbox response/AEN lock */
-	atomic_t		rsp_status;
+	u32			rsp_status;
 	u32			num_cmds;
 };
 
