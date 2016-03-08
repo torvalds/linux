@@ -415,6 +415,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sb->s_flags &= ~MS_ACTIVE;
 
 		fsnotify_unmount_inodes(sb);
+		cgroup_writeback_umount();
 
 		evict_inodes(sb);
 

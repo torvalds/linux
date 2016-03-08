@@ -426,7 +426,7 @@
 #define DWC_MMC_RXOCTETCOUNT_GB          0x0784
 #define DWC_MMC_RXPACKETCOUNT_GB         0x0780
 
-static int debug = 3;
+static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "DWC_eth_qos debug level (0=none,...,16=all)");
 
@@ -650,6 +650,11 @@ struct net_local {
 	u32 mmc_tx_counters_mask;
 
 	struct dwceqos_flowcontrol flowcontrol;
+
+	/* Tracks the intermediate state of phy started but hardware
+	 * init not finished yet.
+	 */
+	bool phy_defer;
 };
 
 static void dwceqos_read_mmc_counters(struct net_local *lp, u32 rx_mask,
@@ -901,6 +906,9 @@ static void dwceqos_adjust_link(struct net_device *ndev)
 	struct phy_device *phydev = lp->phy_dev;
 	int status_change = 0;
 
+	if (lp->phy_defer)
+		return;
+
 	if (phydev->link) {
 		if ((lp->speed != phydev->speed) ||
 		    (lp->duplex != phydev->duplex)) {
@@ -1113,7 +1121,7 @@ static int dwceqos_descriptor_init(struct net_local *lp)
 	/* Allocate DMA descriptors */
 	size = DWCEQOS_RX_DCNT * sizeof(struct dwceqos_dma_desc);
 	lp->rx_descs = dma_alloc_coherent(lp->ndev->dev.parent, size,
-			&lp->rx_descs_addr, 0);
+			&lp->rx_descs_addr, GFP_KERNEL);
 	if (!lp->rx_descs)
 		goto err_out;
 	lp->rx_descs_tail_addr = lp->rx_descs_addr +
@@ -1121,7 +1129,7 @@ static int dwceqos_descriptor_init(struct net_local *lp)
 
 	size = DWCEQOS_TX_DCNT * sizeof(struct dwceqos_dma_desc);
 	lp->tx_descs = dma_alloc_coherent(lp->ndev->dev.parent, size,
-			&lp->tx_descs_addr, 0);
+			&lp->tx_descs_addr, GFP_KERNEL);
 	if (!lp->tx_descs)
 		goto err_out;
 	lp->tx_descs_tail_addr = lp->tx_descs_addr +
@@ -1635,6 +1643,12 @@ static void dwceqos_init_hw(struct net_local *lp)
 	regval = dwceqos_read(lp, REG_DWCEQOS_MAC_CFG);
 	dwceqos_write(lp, REG_DWCEQOS_MAC_CFG,
 		      regval | DWCEQOS_MAC_CFG_TE | DWCEQOS_MAC_CFG_RE);
+
+	lp->phy_defer = false;
+	mutex_lock(&lp->phy_dev->lock);
+	phy_read_status(lp->phy_dev);
+	dwceqos_adjust_link(lp->ndev);
+	mutex_unlock(&lp->phy_dev->lock);
 }
 
 static void dwceqos_tx_reclaim(unsigned long data)
@@ -1880,9 +1894,13 @@ static int dwceqos_open(struct net_device *ndev)
 	}
 	netdev_reset_queue(ndev);
 
+	/* The dwceqos reset state machine requires all phy clocks to complete,
+	 * hence the unusual init order with phy_start first.
+	 */
+	lp->phy_defer = true;
+	phy_start(lp->phy_dev);
 	dwceqos_init_hw(lp);
 	napi_enable(&lp->napi);
-	phy_start(lp->phy_dev);
 
 	netif_start_queue(ndev);
 	tasklet_enable(&lp->tx_bdreclaim_tasklet);
@@ -1915,18 +1933,19 @@ static int dwceqos_stop(struct net_device *ndev)
 {
 	struct net_local *lp = netdev_priv(ndev);
 
-	phy_stop(lp->phy_dev);
-
 	tasklet_disable(&lp->tx_bdreclaim_tasklet);
-	netif_stop_queue(ndev);
 	napi_disable(&lp->napi);
 
-	dwceqos_drain_dma(lp);
+	/* Stop all tx before we drain the tx dma. */
+	netif_tx_lock_bh(lp->ndev);
+	netif_stop_queue(ndev);
+	netif_tx_unlock_bh(lp->ndev);
 
-	netif_tx_lock(lp->ndev);
+	dwceqos_drain_dma(lp);
 	dwceqos_reset_hw(lp);
+	phy_stop(lp->phy_dev);
+
 	dwceqos_descriptor_free(lp);
-	netif_tx_unlock(lp->ndev);
 
 	return 0;
 }
@@ -2178,12 +2197,10 @@ static int dwceqos_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		((trans.initial_descriptor + trans.nr_descriptors) %
 		 DWCEQOS_TX_DCNT));
 
-	dwceqos_tx_finalize(skb, lp, &trans);
-
-	netdev_sent_queue(ndev, skb->len);
-
 	spin_lock_bh(&lp->tx_lock);
 	lp->tx_free -= trans.nr_descriptors;
+	dwceqos_tx_finalize(skb, lp, &trans);
+	netdev_sent_queue(ndev, skb->len);
 	spin_unlock_bh(&lp->tx_lock);
 
 	ndev->trans_start = jiffies;

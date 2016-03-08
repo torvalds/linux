@@ -57,10 +57,6 @@
 	    <entry>Connector for a RGB composite signal.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_F_CONN_TEST</constant></entry>
-	    <entry>Connector for a test generator.</entry>
-	  </row>
-	  <row>
 	    <entry><constant>MEDIA_ENT_F_CAM_SENSOR</constant></entry>
 	    <entry>Camera video sensor entity.</entry>
 	  </row>

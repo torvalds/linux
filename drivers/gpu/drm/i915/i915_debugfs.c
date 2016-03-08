@@ -825,8 +825,11 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 
 		for_each_pipe(dev_priv, pipe) {
-			if (!intel_display_power_is_enabled(dev_priv,
-						POWER_DOMAIN_PIPE(pipe))) {
+			enum intel_display_power_domain power_domain;
+
+			power_domain = POWER_DOMAIN_PIPE(pipe);
+			if (!intel_display_power_get_if_enabled(dev_priv,
+								power_domain)) {
 				seq_printf(m, "Pipe %c power disabled\n",
 					   pipe_name(pipe));
 				continue;
@@ -840,6 +843,8 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			seq_printf(m, "Pipe %c IER:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(GEN8_DE_PIPE_IER(pipe)));
+
+			intel_display_power_put(dev_priv, power_domain);
 		}
 
 		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
@@ -3985,6 +3990,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_crtc *crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev,
 									pipe));
+	enum intel_display_power_domain power_domain;
 	u32 val = 0; /* shut up gcc */
 	int ret;
 
@@ -3995,7 +4001,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source && source)
 		return -EINVAL;
 
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PIPE(pipe))) {
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain)) {
 		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
 		return -EIO;
 	}
@@ -4012,7 +4019,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		ret = ivb_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 
 	if (ret != 0)
-		return ret;
+		goto out;
 
 	/* none -> real source transition */
 	if (source) {
@@ -4024,8 +4031,10 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		entries = kcalloc(INTEL_PIPE_CRC_ENTRIES_NR,
 				  sizeof(pipe_crc->entries[0]),
 				  GFP_KERNEL);
-		if (!entries)
-			return -ENOMEM;
+		if (!entries) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		/*
 		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
@@ -4081,7 +4090,12 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		hsw_enable_ips(crtc);
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 /*
