@@ -120,10 +120,9 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 
 		while ((node = rb_first(root))) {
 			rbnode = rb_entry(node, struct mmu_rb_node, node);
+			rb_erase(node, root);
 			if (handler->ops->remove)
 				handler->ops->remove(root, rbnode);
-			rb_erase(node, root);
-			kfree(rbnode);
 		}
 	}
 
@@ -200,9 +199,9 @@ static void __mmu_rb_remove(struct mmu_rb_handler *handler,
 			    struct mmu_rb_node *node)
 {
 	/* Validity of handler and node pointers has been checked by caller. */
+	rb_erase(&node->node, handler->root);
 	if (handler->ops->remove)
 		handler->ops->remove(handler->root, node);
-	rb_erase(&node->node, handler->root);
 }
 
 struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *root, unsigned long addr,
@@ -272,7 +271,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		container_of(mn, struct mmu_rb_handler, mn);
 	struct rb_root *root = handler->root;
 	struct mmu_rb_node *node;
-	unsigned long addr = start, flags;
+	unsigned long addr = start, naddr, nlen, flags;
 
 	spin_lock_irqsave(&handler->lock, flags);
 	while (addr < end) {
@@ -296,6 +295,9 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 			addr += PAGE_SIZE;
 			continue;
 		}
+
+		naddr = node->addr;
+		nlen = node->len;
 		if (handler->ops->invalidate(root, node))
 			__mmu_rb_remove(handler, node);
 
@@ -307,7 +309,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		 * the address by the node's size would result is a
 		 * bad address.
 		 */
-		addr = node->addr + node->len;
+		addr = naddr + nlen;
 	}
 	spin_unlock_irqrestore(&handler->lock, flags);
 }
