@@ -506,12 +506,9 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	pgste_t old, new;
 	pte_t *ptep;
 
-	down_read(&mm->mmap_sem);
 	ptep = get_locked_pte(mm, addr, &ptl);
-	if (unlikely(!ptep)) {
-		up_read(&mm->mmap_sem);
+	if (unlikely(!ptep))
 		return -EFAULT;
-	}
 
 	new = old = pgste_get_lock(ptep);
 	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
@@ -538,7 +535,6 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	up_read(&mm->mmap_sem);
 	return 0;
 }
 EXPORT_SYMBOL(set_guest_storage_key);
@@ -550,14 +546,11 @@ unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
 	pgste_t pgste;
 	pte_t *ptep;
 
-	down_read(&mm->mmap_sem);
 	ptep = get_locked_pte(mm, addr, &ptl);
-	if (unlikely(!ptep)) {
-		up_read(&mm->mmap_sem);
+	if (unlikely(!ptep))
 		return -EFAULT;
-	}
-	pgste = pgste_get_lock(ptep);
 
+	pgste = pgste_get_lock(ptep);
 	if (pte_val(*ptep) & _PAGE_INVALID) {
 		key  = (pgste_val(pgste) & PGSTE_ACC_BITS) >> 56;
 		key |= (pgste_val(pgste) & PGSTE_FP_BIT) >> 56;
@@ -572,10 +565,8 @@ unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
 		if (pgste_val(pgste) & PGSTE_GC_BIT)
 			key |= _PAGE_CHANGED;
 	}
-
 	pgste_set_unlock(ptep, pgste);
 	pte_unmap_unlock(ptep, ptl);
-	up_read(&mm->mmap_sem);
 	return key;
 }
 EXPORT_SYMBOL(get_guest_storage_key);

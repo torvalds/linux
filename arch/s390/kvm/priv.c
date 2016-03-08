@@ -728,9 +728,12 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 
 			if (rc)
 				return rc;
-			if (set_guest_storage_key(current->mm, useraddr,
+			down_read(&current->mm->mmap_sem);
+			rc = set_guest_storage_key(current->mm, useraddr,
 					vcpu->run->s.regs.gprs[reg1] & PFMF_KEY,
-					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ))
+					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ);
+			up_read(&current->mm->mmap_sem);
+			if (rc)
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 

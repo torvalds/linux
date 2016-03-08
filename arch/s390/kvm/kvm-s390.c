@@ -1050,26 +1050,30 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (!keys)
 		return -ENOMEM;
 
+	down_read(&current->mm->mmap_sem);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
 			r = -EFAULT;
-			goto out;
+			break;
 		}
 
 		curkey = get_guest_storage_key(current->mm, hva);
 		if (IS_ERR_VALUE(curkey)) {
 			r = curkey;
-			goto out;
+			break;
 		}
 		keys[i] = curkey;
 	}
+	up_read(&current->mm->mmap_sem);
 
-	r = copy_to_user((uint8_t __user *)args->skeydata_addr, keys,
-			 sizeof(uint8_t) * args->count);
-	if (r)
-		r = -EFAULT;
-out:
+	if (!r) {
+		r = copy_to_user((uint8_t __user *)args->skeydata_addr, keys,
+				 sizeof(uint8_t) * args->count);
+		if (r)
+			r = -EFAULT;
+	}
+
 	kvfree(keys);
 	return r;
 }
@@ -1106,24 +1110,26 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (r)
 		goto out;
 
+	down_read(&current->mm->mmap_sem);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
 			r = -EFAULT;
-			goto out;
+			break;
 		}
 
 		/* Lowest order bit is reserved */
 		if (keys[i] & 0x01) {
 			r = -EINVAL;
-			goto out;
+			break;
 		}
 
 		r = set_guest_storage_key(current->mm, hva,
 					  (unsigned long)keys[i], 0);
 		if (r)
-			goto out;
+			break;
 	}
+	up_read(&current->mm->mmap_sem);
 out:
 	kvfree(keys);
 	return r;
