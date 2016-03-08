@@ -797,7 +797,6 @@ config 4xx_SOC
 
 config FSL_LBC
 	bool "Freescale Local Bus support"
-	depends on FSL_SOC
 	help
 	  Enables reporting of errors from the Freescale local bus
 	  controller.  Also contains some common code used by
