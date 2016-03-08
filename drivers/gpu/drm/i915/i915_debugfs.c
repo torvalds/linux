@@ -117,9 +117,8 @@ static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
 	u64 size = 0;
 	struct i915_vma *vma;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    drm_mm_node_allocated(&vma->node))
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (vma->is_ggtt && drm_mm_node_allocated(&vma->node))
 			size += vma->node.size;
 	}
 
@@ -155,7 +154,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (vma->pin_count > 0)
 			pin_count++;
 	}
@@ -164,14 +163,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
-			   i915_is_ggtt(vma->vm) ? "g" : "pp",
+			   vma->is_ggtt ? "g" : "pp",
 			   vma->node.start, vma->node.size);
-		if (i915_is_ggtt(vma->vm))
-			seq_printf(m, ", type: %u)", vma->ggtt_view.type);
-		else
-			seq_puts(m, ")");
+		if (vma->is_ggtt)
+			seq_printf(m, ", type: %u", vma->ggtt_view.type);
+		seq_puts(m, ")");
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
@@ -230,7 +228,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	}
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(vma, head, mm_list) {
+	list_for_each_entry(vma, head, vm_link) {
 		seq_printf(m, "   ");
 		describe_obj(m, vma->obj);
 		seq_printf(m, "\n");
@@ -342,13 +340,13 @@ static int per_file_stats(int id, void *ptr, void *data)
 		stats->shared += obj->base.size;
 
 	if (USES_FULL_PPGTT(obj->base.dev)) {
-		list_for_each_entry(vma, &obj->vma_list, vma_link) {
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
 			struct i915_hw_ppgtt *ppgtt;
 
 			if (!drm_mm_node_allocated(&vma->node))
 				continue;
 
-			if (i915_is_ggtt(vma->vm)) {
+			if (vma->is_ggtt) {
 				stats->global += obj->base.size;
 				continue;
 			}
@@ -454,12 +452,12 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->active_list, mm_list);
+	count_vmas(&vm->active_list, vm_link);
 	seq_printf(m, "  %u [%u] active objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_vmas(&vm->inactive_list, mm_list);
+	count_vmas(&vm->inactive_list, vm_link);
 	seq_printf(m, "  %u [%u] inactive objects, %llu [%llu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -825,8 +823,11 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 
 		for_each_pipe(dev_priv, pipe) {
-			if (!intel_display_power_is_enabled(dev_priv,
-						POWER_DOMAIN_PIPE(pipe))) {
+			enum intel_display_power_domain power_domain;
+
+			power_domain = POWER_DOMAIN_PIPE(pipe);
+			if (!intel_display_power_get_if_enabled(dev_priv,
+								power_domain)) {
 				seq_printf(m, "Pipe %c power disabled\n",
 					   pipe_name(pipe));
 				continue;
@@ -840,6 +841,8 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			seq_printf(m, "Pipe %c IER:\t%08x\n",
 				   pipe_name(pipe),
 				   I915_READ(GEN8_DE_PIPE_IER(pipe)));
+
+			intel_display_power_put(dev_priv, power_domain);
 		}
 
 		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
@@ -4004,6 +4007,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
 	struct intel_crtc *crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev,
 									pipe));
+	enum intel_display_power_domain power_domain;
 	u32 val = 0; /* shut up gcc */
 	int ret;
 
@@ -4014,7 +4018,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 	if (pipe_crc->source && source)
 		return -EINVAL;
 
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PIPE(pipe))) {
+	power_domain = POWER_DOMAIN_PIPE(pipe);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain)) {
 		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
 		return -EIO;
 	}
@@ -4031,7 +4036,7 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		ret = ivb_pipe_crc_ctl_reg(dev, pipe, &source, &val);
 
 	if (ret != 0)
-		return ret;
+		goto out;
 
 	/* none -> real source transition */
 	if (source) {
@@ -4043,8 +4048,10 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		entries = kcalloc(INTEL_PIPE_CRC_ENTRIES_NR,
 				  sizeof(pipe_crc->entries[0]),
 				  GFP_KERNEL);
-		if (!entries)
-			return -ENOMEM;
+		if (!entries) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		/*
 		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
@@ -4100,7 +4107,12 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 		hsw_enable_ips(crtc);
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 /*

@@ -52,7 +52,7 @@ static int num_vma_bound(struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int count = 0;
 
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (drm_mm_node_allocated(&vma->node))
 			count++;
 		if (vma->pin_count)
@@ -176,7 +176,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			/* For the unbound phase, this should be a no-op! */
 			list_for_each_entry_safe(vma, v,
-						 &obj->vma_list, vma_link)
+						 &obj->vma_list, obj_link)
 				if (i915_vma_unbind(vma))
 					break;
 

@@ -2851,7 +2851,10 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 	memset(ddb, 0, sizeof(*ddb));
 
 	for_each_pipe(dev_priv, pipe) {
-		if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PIPE(pipe)))
+		enum intel_display_power_domain power_domain;
+
+		power_domain = POWER_DOMAIN_PIPE(pipe);
+		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 			continue;
 
 		for_each_plane(dev_priv, pipe, plane) {
@@ -2863,6 +2866,8 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 		val = I915_READ(CUR_BUF_CFG(pipe));
 		skl_ddb_entry_init_from_hw(&ddb->plane[pipe][PLANE_CURSOR],
 					   val);
+
+		intel_display_power_put(dev_priv, power_domain);
 	}
 }
 
@@ -4116,10 +4121,12 @@ bool ironlake_set_drps(struct drm_device *dev, u8 val)
 static void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u32 rgvmodectl;
 	u8 fmax, fmin, fstart, vstart;
 
 	spin_lock_irq(&mchdev_lock);
+
+	rgvmodectl = I915_READ(MEMMODECTL);
 
 	/* Enable temp reporting */
 	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
@@ -5229,8 +5236,6 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-
 	pcbr = I915_READ(VLV_PCBR);
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
@@ -5252,7 +5257,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	u32 pcbr;
 	int pctx_size = 24*1024;
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+	mutex_lock(&dev->struct_mutex);
 
 	pcbr = I915_READ(VLV_PCBR);
 	if (pcbr) {
@@ -5280,7 +5285,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	pctx = i915_gem_object_create_stolen(dev, pctx_size);
 	if (!pctx) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
-		return;
+		goto out;
 	}
 
 	pctx_paddr = dev_priv->mm.stolen_base + pctx->stolen->start;
@@ -5289,6 +5294,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 out:
 	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void valleyview_cleanup_pctx(struct drm_device *dev)
@@ -5298,7 +5304,7 @@ static void valleyview_cleanup_pctx(struct drm_device *dev)
 	if (WARN_ON(!dev_priv->vlv_pctx))
 		return;
 
-	drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
+	drm_gem_object_unreference_unlocked(&dev_priv->vlv_pctx->base);
 	dev_priv->vlv_pctx = NULL;
 }
 
@@ -6241,8 +6247,8 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 		return;
 
 	if (IS_IRONLAKE_M(dev)) {
-		mutex_lock(&dev->struct_mutex);
 		ironlake_enable_drps(dev);
+		mutex_lock(&dev->struct_mutex);
 		intel_init_emon(dev);
 		mutex_unlock(&dev->struct_mutex);
 	} else if (INTEL_INFO(dev)->gen >= 6) {

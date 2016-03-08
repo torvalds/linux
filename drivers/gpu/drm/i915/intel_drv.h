@@ -379,6 +379,7 @@ struct intel_crtc_state {
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
 	bool wm_changed; /* watermarks are updated */
+	bool fb_changed; /* fb on any of the planes is changed */
 
 	/* Pipe source size (ie. panel fitter input size)
 	 * All planes will be positioned inside this space,
@@ -547,9 +548,7 @@ struct intel_crtc_atomic_commit {
 
 	/* Sleepable operations to perform after commit */
 	unsigned fb_bits;
-	bool wait_vblank;
 	bool post_enable_primary;
-	unsigned update_sprite_watermarks;
 
 	/* Sleepable operations to perform before and after commit */
 	bool update_fbc;
@@ -910,9 +909,7 @@ struct intel_unpin_work {
 };
 
 struct intel_load_detect_pipe {
-	struct drm_framebuffer *release_fb;
-	bool load_detect_temp;
-	int dpms_mode;
+	struct drm_atomic_state *restore_state;
 };
 
 static inline struct intel_encoder *
@@ -994,6 +991,8 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
+				     unsigned int pipe_mask);
+void gen8_irq_power_well_pre_disable(struct drm_i915_private *dev_priv,
 				     unsigned int pipe_mask);
 
 /* intel_crt.c */
@@ -1227,7 +1226,7 @@ u32 skl_plane_ctl_rotation(unsigned int rotation);
 
 /* intel_csr.c */
 void intel_csr_ucode_init(struct drm_i915_private *);
-void intel_csr_load_program(struct drm_i915_private *);
+bool intel_csr_load_program(struct drm_i915_private *);
 void intel_csr_ucode_fini(struct drm_i915_private *);
 
 /* intel_dp.c */
@@ -1436,6 +1435,8 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
+bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+					enum intel_display_power_domain domain);
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain);
 
@@ -1522,6 +1523,7 @@ enable_rpm_wakeref_asserts(struct drm_i915_private *dev_priv)
 	enable_rpm_wakeref_asserts(dev_priv)
 
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
 

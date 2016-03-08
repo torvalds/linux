@@ -284,6 +284,13 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 						1 << PIPE_C | 1 << PIPE_B);
 }
 
+static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv)
+{
+	if (IS_BROADWELL(dev_priv))
+		gen8_irq_power_well_pre_disable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
+}
+
 static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 				       struct i915_power_well *power_well)
 {
@@ -307,6 +314,14 @@ static void skl_power_well_post_enable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_post_enable(dev_priv,
 						1 << PIPE_C | 1 << PIPE_B);
 	}
+}
+
+static void skl_power_well_pre_disable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	if (power_well->data == SKL_DISP_PW_2)
+		gen8_irq_power_well_pre_disable(dev_priv,
+						1 << PIPE_C | 1 << PIPE_B);
 }
 
 static void hsw_set_power_well(struct drm_i915_private *dev_priv,
@@ -334,6 +349,7 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 
 	} else {
 		if (enable_requested) {
+			hsw_power_well_pre_disable(dev_priv);
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
 			POSTING_READ(HSW_PWR_WELL_DRIVER);
 			DRM_DEBUG_KMS("Requesting to disable the power well\n");
@@ -456,18 +472,59 @@ static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
 	  */
 }
 
-static void gen9_set_dc_state_debugmask_memory_up(
-			struct drm_i915_private *dev_priv)
+static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
 {
-	uint32_t val;
+	uint32_t val, mask;
+
+	mask = DC_STATE_DEBUG_MASK_MEMORY_UP;
+
+	if (IS_BROXTON(dev_priv))
+		mask |= DC_STATE_DEBUG_MASK_CORES;
 
 	/* The below bit doesn't need to be cleared ever afterwards */
 	val = I915_READ(DC_STATE_DEBUG);
-	if (!(val & DC_STATE_DEBUG_MASK_MEMORY_UP)) {
-		val |= DC_STATE_DEBUG_MASK_MEMORY_UP;
+	if ((val & mask) != mask) {
+		val |= mask;
 		I915_WRITE(DC_STATE_DEBUG, val);
 		POSTING_READ(DC_STATE_DEBUG);
 	}
+}
+
+static void gen9_write_dc_state(struct drm_i915_private *dev_priv,
+				u32 state)
+{
+	int rewrites = 0;
+	int rereads = 0;
+	u32 v;
+
+	I915_WRITE(DC_STATE_EN, state);
+
+	/* It has been observed that disabling the dc6 state sometimes
+	 * doesn't stick and dmc keeps returning old value. Make sure
+	 * the write really sticks enough times and also force rewrite until
+	 * we are confident that state is exactly what we want.
+	 */
+	do  {
+		v = I915_READ(DC_STATE_EN);
+
+		if (v != state) {
+			I915_WRITE(DC_STATE_EN, state);
+			rewrites++;
+			rereads = 0;
+		} else if (rereads++ > 5) {
+			break;
+		}
+
+	} while (rewrites < 100);
+
+	if (v != state)
+		DRM_ERROR("Writing dc state to 0x%x failed, now 0x%x\n",
+			  state, v);
+
+	/* Most of the times we need one retry, avoid spam */
+	if (rewrites > 1)
+		DRM_DEBUG_KMS("Rewrote dc state to 0x%x %d times\n",
+			      state, rewrites);
 }
 
 static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
@@ -488,16 +545,21 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, uint32_t state)
 	else if (i915.enable_dc == 1 && state > DC_STATE_EN_UPTO_DC5)
 		state = DC_STATE_EN_UPTO_DC5;
 
-	if (state & DC_STATE_EN_UPTO_DC5_DC6_MASK)
-		gen9_set_dc_state_debugmask_memory_up(dev_priv);
-
 	val = I915_READ(DC_STATE_EN);
 	DRM_DEBUG_KMS("Setting DC state from %02x to %02x\n",
 		      val & mask, state);
+
+	/* Check if DMC is ignoring our DC state requests */
+	if ((val & mask) != dev_priv->csr.dc_state)
+		DRM_ERROR("DC state mismatch (0x%x -> 0x%x)\n",
+			  dev_priv->csr.dc_state, val & mask);
+
 	val &= ~mask;
 	val |= state;
-	I915_WRITE(DC_STATE_EN, val);
-	POSTING_READ(DC_STATE_EN);
+
+	gen9_write_dc_state(dev_priv, val);
+
+	dev_priv->csr.dc_state = val & mask;
 }
 
 void bxt_enable_dc9(struct drm_i915_private *dev_priv)
@@ -662,6 +724,9 @@ static void skl_set_power_well(struct drm_i915_private *dev_priv,
 	enable_requested = tmp & req_mask;
 	state_mask = SKL_POWER_WELL_STATE(power_well->data);
 	is_enabled = tmp & state_mask;
+
+	if (!enable && enable_requested)
+		skl_power_well_pre_disable(dev_priv, power_well);
 
 	if (enable) {
 		if (!enable_requested) {
@@ -940,6 +1005,9 @@ static void vlv_display_power_well_deinit(struct drm_i915_private *dev_priv)
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	/* make sure we're done processing display irqs */
+	synchronize_irq(dev_priv->dev->irq);
 
 	vlv_power_sequencer_reset(dev_priv);
 }
@@ -1435,6 +1503,22 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 	chv_set_pipe_power_well(dev_priv, power_well, false);
 }
 
+static void
+__intel_display_power_get_domain(struct drm_i915_private *dev_priv,
+				 enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	int i;
+
+	for_each_power_well(i, power_well, BIT(domain), power_domains) {
+		if (!power_well->count++)
+			intel_power_well_enable(dev_priv, power_well);
+	}
+
+	power_domains->domain_use_count[domain]++;
+}
+
 /**
  * intel_display_power_get - grab a power domain reference
  * @dev_priv: i915 device instance
@@ -1450,24 +1534,53 @@ static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
-	struct i915_power_domains *power_domains;
-	struct i915_power_well *power_well;
-	int i;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	intel_runtime_pm_get(dev_priv);
 
-	power_domains = &dev_priv->power_domains;
+	mutex_lock(&power_domains->lock);
+
+	__intel_display_power_get_domain(dev_priv, domain);
+
+	mutex_unlock(&power_domains->lock);
+}
+
+/**
+ * intel_display_power_get_if_enabled - grab a reference for an enabled display power domain
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function grabs a power domain reference for @domain and ensures that the
+ * power domain and all its parents are powered up. Therefore users should only
+ * grab a reference to the innermost power domain they need.
+ *
+ * Any power domain reference obtained by this function must have a symmetric
+ * call to intel_display_power_put() to release the reference again.
+ */
+bool intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
+					enum intel_display_power_domain domain)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	bool is_enabled;
+
+	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+		return false;
 
 	mutex_lock(&power_domains->lock);
 
-	for_each_power_well(i, power_well, BIT(domain), power_domains) {
-		if (!power_well->count++)
-			intel_power_well_enable(dev_priv, power_well);
+	if (__intel_display_power_is_enabled(dev_priv, domain)) {
+		__intel_display_power_get_domain(dev_priv, domain);
+		is_enabled = true;
+	} else {
+		is_enabled = false;
 	}
 
-	power_domains->domain_use_count[domain]++;
-
 	mutex_unlock(&power_domains->lock);
+
+	if (!is_enabled)
+		intel_runtime_pm_put(dev_priv);
+
+	return is_enabled;
 }
 
 /**
@@ -2028,8 +2141,8 @@ static void skl_display_core_init(struct drm_i915_private *dev_priv,
 
 	skl_init_cdclk(dev_priv);
 
-	if (dev_priv->csr.dmc_payload)
-		intel_csr_load_program(dev_priv);
+	if (dev_priv->csr.dmc_payload && intel_csr_load_program(dev_priv))
+		gen9_set_dc_state_debugmask(dev_priv);
 }
 
 static void skl_display_core_uninit(struct drm_i915_private *dev_priv)
@@ -2236,6 +2349,41 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 
 	atomic_inc(&dev_priv->pm.wakeref_count);
 	assert_rpm_wakelock_held(dev_priv);
+}
+
+/**
+ * intel_runtime_pm_get_if_in_use - grab a runtime pm reference if device in use
+ * @dev_priv: i915 device instance
+ *
+ * This function grabs a device-level runtime pm reference if the device is
+ * already in use and ensures that it is powered up.
+ *
+ * Any runtime pm reference obtained by this function must have a symmetric
+ * call to intel_runtime_pm_put() to release the reference again.
+ */
+bool intel_runtime_pm_get_if_in_use(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (IS_ENABLED(CONFIG_PM)) {
+		int ret = pm_runtime_get_if_in_use(device);
+
+		/*
+		 * In cases runtime PM is disabled by the RPM core and we get
+		 * an -EINVAL return value we are not supposed to call this
+		 * function, since the power state is undefined. This applies
+		 * atm to the late/early system suspend/resume handlers.
+		 */
+		WARN_ON_ONCE(ret < 0);
+		if (ret <= 0)
+			return false;
+	}
+
+	atomic_inc(&dev_priv->pm.wakeref_count);
+	assert_rpm_wakelock_held(dev_priv);
+
+	return true;
 }
 
 /**

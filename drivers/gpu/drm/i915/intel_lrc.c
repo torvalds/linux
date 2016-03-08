@@ -223,7 +223,8 @@ enum {
 	FAULT_AND_CONTINUE /* Unsupported */
 };
 #define GEN8_CTX_ID_SHIFT 32
-#define CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT  0x17
+#define GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x17
+#define GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT	0x26
 
 static int intel_lr_context_pin(struct intel_context *ctx,
 				struct intel_engine_cs *engine);
@@ -1144,10 +1145,6 @@ void intel_lr_context_unpin(struct intel_context *ctx,
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 
 	WARN_ON(!mutex_is_locked(&ctx->i915->dev->struct_mutex));
-
-	if (WARN_ON_ONCE(!ctx_obj))
-		return;
-
 	if (--ctx->engine[engine->id].pin_count == 0) {
 		kunmap(kmap_to_page(ctx->engine[engine->id].lrc_reg_state));
 		intel_unpin_ringbuffer_obj(ctx->engine[engine->id].ringbuf);
@@ -2317,6 +2314,27 @@ make_rpcs(struct drm_device *dev)
 	return rpcs;
 }
 
+static u32 intel_lr_indirect_ctx_offset(struct intel_engine_cs *ring)
+{
+	u32 indirect_ctx_offset;
+
+	switch (INTEL_INFO(ring->dev)->gen) {
+	default:
+		MISSING_CASE(INTEL_INFO(ring->dev)->gen);
+		/* fall through */
+	case 9:
+		indirect_ctx_offset =
+			GEN9_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+		break;
+	case 8:
+		indirect_ctx_offset =
+			GEN8_CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT;
+		break;
+	}
+
+	return indirect_ctx_offset;
+}
+
 static int
 populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_obj,
 		    struct intel_engine_cs *ring, struct intel_ringbuffer *ringbuf)
@@ -2360,7 +2378,8 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 	ASSIGN_CTX_REG(reg_state, CTX_CONTEXT_CONTROL, RING_CONTEXT_CONTROL(ring),
 		       _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
 					  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
-					  CTX_CTRL_RS_CTX_ENABLE));
+					  (HAS_RESOURCE_STREAMER(dev) ?
+					    CTX_CTRL_RS_CTX_ENABLE : 0)));
 	ASSIGN_CTX_REG(reg_state, CTX_RING_HEAD, RING_HEAD(ring->mmio_base), 0);
 	ASSIGN_CTX_REG(reg_state, CTX_RING_TAIL, RING_TAIL(ring->mmio_base), 0);
 	/* Ring buffer start address is not known until the buffer is pinned.
@@ -2389,7 +2408,7 @@ populate_lr_context(struct intel_context *ctx, struct drm_i915_gem_object *ctx_o
 				(wa_ctx->indirect_ctx.size / CACHELINE_DWORDS);
 
 			reg_state[CTX_RCS_INDIRECT_CTX_OFFSET+1] =
-				CTX_RCS_INDIRECT_CTX_OFFSET_DEFAULT << 6;
+				intel_lr_indirect_ctx_offset(ring) << 6;
 
 			reg_state[CTX_BB_PER_CTX_PTR+1] =
 				(ggtt_offset + wa_ctx->per_ctx.offset * sizeof(uint32_t)) |

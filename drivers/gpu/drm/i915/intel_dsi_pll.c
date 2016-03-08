@@ -30,7 +30,7 @@
 #include "i915_drv.h"
 #include "intel_dsi.h"
 
-static int dsi_pixel_format_bpp(int pixel_format)
+int dsi_pixel_format_bpp(int pixel_format)
 {
 	int bpp;
 

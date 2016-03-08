@@ -56,7 +56,6 @@ struct i915_params {
 	bool load_detect_test;
 	bool reset;
 	bool disable_display;
-	bool disable_vtd_wa;
 	bool enable_guc_submission;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;

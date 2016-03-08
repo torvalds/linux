@@ -59,7 +59,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160214"
+#define DRIVER_DATE		"20160229"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -261,6 +261,9 @@ struct i915_hotplug {
 
 #define for_each_pipe(__dev_priv, __p) \
 	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
+#define for_each_pipe_masked(__dev_priv, __p, __mask) \
+	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++) \
+		for_each_if ((__mask) & (1 << (__p)))
 #define for_each_plane(__dev_priv, __pipe, __p)				\
 	for ((__p) = 0;							\
 	     (__p) < INTEL_INFO(__dev_priv)->num_sprites[(__pipe)] + 1;	\
@@ -746,6 +749,7 @@ struct intel_csr {
 	uint32_t mmio_count;
 	i915_reg_t mmioaddr[8];
 	uint32_t mmiodata[8];
+	uint32_t dc_state;
 };
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
@@ -1848,6 +1852,7 @@ struct drm_i915_private {
 
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
+	struct drm_atomic_state *modeset_restore_state;
 
 	struct list_head vm_list; /* Global list of all address spaces */
 	struct i915_gtt gtt; /* VM representing the global address space */
@@ -3058,7 +3063,7 @@ int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
-void i915_gem_cleanup_engines(struct drm_device *dev);
+void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,
@@ -3151,18 +3156,11 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
 /* Some GGTT VM helpers */
 #define i915_obj_to_ggtt(obj) \
 	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
-static inline bool i915_is_ggtt(struct i915_address_space *vm)
-{
-	struct i915_address_space *ggtt =
-		&((struct drm_i915_private *)(vm)->dev->dev_private)->gtt.base;
-	return vm == ggtt;
-}
 
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)
 {
 	WARN_ON(i915_is_ggtt(vm));
-
 	return container_of(vm, struct i915_hw_ppgtt, base);
 }
 

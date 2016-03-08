@@ -2356,15 +2356,18 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
+	bool ret;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_is_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	ret = false;
 
 	tmp = I915_READ(intel_dp->output_reg);
 
 	if (!(tmp & DP_PORT_EN))
-		return false;
+		goto out;
 
 	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
@@ -2375,7 +2378,9 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 			u32 trans_dp = I915_READ(TRANS_DP_CTL(p));
 			if (TRANS_DP_PIPE_TO_PORT(trans_dp) == port) {
 				*pipe = p;
-				return true;
+				ret = true;
+
+				goto out;
 			}
 		}
 
@@ -2387,7 +2392,12 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 		*pipe = PORT_TO_PIPE(tmp);
 	}
 
-	return true;
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static void intel_dp_get_config(struct intel_encoder *encoder,
@@ -4487,20 +4497,20 @@ static bool g4x_digital_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(PORT_HOTPLUG_STAT) & bit;
 }
 
-static bool vlv_digital_port_connected(struct drm_i915_private *dev_priv,
-				       struct intel_digital_port *port)
+static bool gm45_digital_port_connected(struct drm_i915_private *dev_priv,
+					struct intel_digital_port *port)
 {
 	u32 bit;
 
 	switch (port->port) {
 	case PORT_B:
-		bit = PORTB_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTB_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	case PORT_C:
-		bit = PORTC_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTC_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	case PORT_D:
-		bit = PORTD_HOTPLUG_LIVE_STATUS_VLV;
+		bit = PORTD_HOTPLUG_LIVE_STATUS_GM45;
 		break;
 	default:
 		MISSING_CASE(port->port);
@@ -4548,12 +4558,12 @@ bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 {
 	if (HAS_PCH_IBX(dev_priv))
 		return ibx_digital_port_connected(dev_priv, port);
-	if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(dev_priv))
 		return cpt_digital_port_connected(dev_priv, port);
 	else if (IS_BROXTON(dev_priv))
 		return bxt_digital_port_connected(dev_priv, port);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_digital_port_connected(dev_priv, port);
+	else if (IS_GM45(dev_priv))
+		return gm45_digital_port_connected(dev_priv, port);
 	else
 		return g4x_digital_port_connected(dev_priv, port);
 }

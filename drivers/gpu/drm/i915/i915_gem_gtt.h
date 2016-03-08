@@ -183,6 +183,7 @@ struct i915_vma {
 #define GLOBAL_BIND	(1<<0)
 #define LOCAL_BIND	(1<<1)
 	unsigned int bound : 4;
+	bool is_ggtt : 1;
 
 	/**
 	 * Support different GGTT views into the same object.
@@ -194,9 +195,9 @@ struct i915_vma {
 	struct i915_ggtt_view ggtt_view;
 
 	/** This object's place on the active/inactive lists */
-	struct list_head mm_list;
+	struct list_head vm_link;
 
-	struct list_head vma_link; /* Link in the object's VMA list */
+	struct list_head obj_link; /* Link in the object's VMA list */
 
 	/** This vma's place in the batchbuffer or on the eviction list */
 	struct list_head exec_list;
@@ -275,6 +276,8 @@ struct i915_address_space {
 	u64 start;		/* Start offset always 0 for dri2 */
 	u64 total;		/* size addr space maps (ex. 2GB for ggtt) */
 
+	bool is_ggtt;
+
 	struct i915_page_scratch *scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
@@ -329,6 +332,8 @@ struct i915_address_space {
 			enum i915_cache_level cache_level,
 			u32 flags);
 };
+
+#define i915_is_ggtt(V) ((V)->is_ggtt)
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
  * Graphics Virtual Address into a Physical Address. In addition to the normal
@@ -418,7 +423,7 @@ static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
 static inline uint32_t i915_pte_count(uint64_t addr, size_t length,
 				      uint32_t pde_shift)
 {
-	const uint64_t mask = ~((1 << pde_shift) - 1);
+	const uint64_t mask = ~((1ULL << pde_shift) - 1);
 	uint64_t end;
 
 	WARN_ON(length == 0);

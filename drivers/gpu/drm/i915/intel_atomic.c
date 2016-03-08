@@ -97,6 +97,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
 	crtc_state->wm_changed = false;
+	crtc_state->fb_changed = false;
 
 	return &crtc_state->base;
 }

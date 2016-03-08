@@ -71,22 +71,29 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
+	bool ret;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_is_enabled(dev_priv, power_domain))
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
+
+	ret = false;
 
 	tmp = I915_READ(crt->adpa_reg);
 
 	if (!(tmp & ADPA_DAC_ENABLE))
-		return false;
+		goto out;
 
 	if (HAS_PCH_CPT(dev))
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	else
 		*pipe = PORT_TO_PIPE(tmp);
 
-	return true;
+	ret = true;
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
 
 static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
@@ -206,9 +213,7 @@ static void pch_post_disable_crt(struct intel_encoder *encoder)
 
 static void intel_enable_crt(struct intel_encoder *encoder)
 {
-	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-
-	intel_crt_set_dpms(encoder, crt->connector->base.dpms);
+	intel_crt_set_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static enum drm_mode_status
@@ -473,11 +478,10 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct intel_crt *crt)
+intel_crt_load_detect(struct intel_crt *crt, uint32_t pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t pipe = to_intel_crtc(crt->base.base.crtc)->pipe;
 	uint32_t save_bclrpat;
 	uint32_t save_vtotal;
 	uint32_t vtotal, vactive;
@@ -646,7 +650,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else if (INTEL_INFO(dev)->gen < 4)
-			status = intel_crt_load_detect(crt);
+			status = intel_crt_load_detect(crt,
+				to_intel_crtc(connector->state->crtc)->pipe);
 		else
 			status = connector_status_unknown;
 		intel_release_load_detect_pipe(connector, &tmp, &ctx);

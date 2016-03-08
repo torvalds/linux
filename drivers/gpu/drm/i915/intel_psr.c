@@ -778,6 +778,15 @@ void intel_psr_init(struct drm_device *dev)
 	dev_priv->psr_mmio_base = IS_HASWELL(dev_priv) ?
 		HSW_EDP_PSR_BASE : BDW_EDP_PSR_BASE;
 
+	/* Per platform default */
+	if (i915.enable_psr == -1) {
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+		    IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+			i915.enable_psr = 1;
+		else
+			i915.enable_psr = 0;
+	}
+
 	/* Set link_standby x link_off defaults */
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		/* HSW and BDW require workarounds that we don't implement. */

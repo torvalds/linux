@@ -142,7 +142,7 @@ static void i915_gem_context_clean(struct intel_context *ctx)
 		return;
 
 	list_for_each_entry_safe(vma, next, &ppgtt->base.inactive_list,
-				 mm_list) {
+				 vm_link) {
 		if (WARN_ON(__i915_vma_unbind_no_wait(vma)))
 			break;
 	}
@@ -855,6 +855,9 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (!contexts_enabled(dev))
 		return -ENODEV;
 
+	if (args->pad != 0)
+		return -EINVAL;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
@@ -877,6 +880,9 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct intel_context *ctx;
 	int ret;
+
+	if (args->pad != 0)
+		return -EINVAL;
 
 	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
