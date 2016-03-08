@@ -240,7 +240,7 @@
 		&gpio2 30 GPIO_ACTIVE_HIGH
 		&gpio3 19 GPIO_ACTIVE_HIGH
 	>;
-	status = "okay";
+	status = "disabled";
 
 	spidev0: spi@0 {
 		compatible = "spidev";
