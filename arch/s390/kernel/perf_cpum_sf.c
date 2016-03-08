@@ -15,6 +15,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/percpu.h>
+#include <linux/pid.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -615,6 +616,67 @@ static unsigned long hw_limit_rate(const struct hws_qsi_info_block *si,
 		       si->min_sampl_rate, si->max_sampl_rate);
 }
 
+static u32 cpumsf_pid_type(struct perf_event *event,
+			   u32 pid, enum pid_type type)
+{
+	struct task_struct *tsk;
+
+	/* Idle process */
+	if (!pid)
+		goto out;
+
+	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
+	pid = -1;
+	if (tsk) {
+		/*
+		 * Only top level events contain the pid namespace in which
+		 * they are created.
+		 */
+		if (event->parent)
+			event = event->parent;
+		pid = __task_pid_nr_ns(tsk, type, event->ns);
+		/*
+		 * See also 1d953111b648
+		 * "perf/core: Don't report zero PIDs for exiting tasks".
+		 */
+		if (!pid && !pid_alive(tsk))
+			pid = -1;
+	}
+out:
+	return pid;
+}
+
+static void cpumsf_output_event_pid(struct perf_event *event,
+				    struct perf_sample_data *data,
+				    struct pt_regs *regs)
+{
+	u32 pid;
+	struct perf_event_header header;
+	struct perf_output_handle handle;
+
+	/*
+	 * Obtain the PID from the basic-sampling data entry and
+	 * correct the data->tid_entry.pid value.
+	 */
+	pid = data->tid_entry.pid;
+
+	/* Protect callchain buffers, tasks */
+	rcu_read_lock();
+
+	perf_prepare_sample(&header, data, event, regs);
+	if (perf_output_begin(&handle, event, header.size))
+		goto out;
+
+	/* Update the process ID (see also kernel/events/core.c) */
+	data->tid_entry.pid = cpumsf_pid_type(event, pid, __PIDTYPE_TGID);
+	data->tid_entry.tid = cpumsf_pid_type(event, pid, PIDTYPE_PID);
+
+	perf_output_sample(&handle, &header, data, event);
+	perf_output_end(&handle);
+out:
+	rcu_read_unlock();
+}
+
 static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct cpu_hw_sf *cpuhw;
@@ -748,6 +810,14 @@ static int __hw_perf_event_init(struct perf_event *event)
 				break;
 		}
 	}
+
+	/* If PID/TID sampling is active, replace the default overflow
+	 * handler to extract and resolve the PIDs from the basic-sampling
+	 * data entries.
+	 */
+	if (event->attr.sample_type & PERF_SAMPLE_TID)
+		if (is_default_overflow_handler(event))
+			event->overflow_handler = cpumsf_output_event_pid;
 out:
 	return err;
 }
@@ -984,6 +1054,12 @@ static int perf_push_sample(struct perf_event *event,
 			sde_regs->in_guest = 1;
 		break;
 	}
+
+	/*
+	 * Store the PID value from the sample-data-entry to be
+	 * processed and resolved by cpumsf_output_event_pid().
+	 */
+	data.tid_entry.pid = basic->hpp & LPP_PID_MASK;
 
 	overflow = 0;
 	if (perf_exclude_event(event, &regs, sde_regs))

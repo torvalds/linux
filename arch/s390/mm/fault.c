@@ -728,7 +728,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 		return;
 	inc_irq_stat(IRQEXT_PFL);
 	/* Get the token (= pid of the affected task). */
-	pid = param64 & LPP_PFAULT_PID_MASK;
+	pid = param64 & LPP_PID_MASK;
 	rcu_read_lock();
 	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
 	if (tsk)
