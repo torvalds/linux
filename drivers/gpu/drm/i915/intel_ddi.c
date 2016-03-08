@@ -1008,9 +1008,6 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 {
 	struct intel_shared_dpll *pll;
 
-	if (intel_encoder->type == INTEL_OUTPUT_EDP)
-		return true;
-
 	pll = intel_get_shared_dpll(intel_crtc, crtc_state, intel_encoder);
 	if (pll == NULL) {
 		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
@@ -1569,24 +1566,6 @@ void intel_ddi_clk_select(struct intel_encoder *encoder,
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
 		uint32_t dpll = pipe_config->ddi_pll_sel;
 		uint32_t val;
-
-		/*
-		 * DPLL0 is used for eDP and is the only "private" DPLL (as
-		 * opposed to shared) on SKL
-		 */
-		if (encoder->type == INTEL_OUTPUT_EDP) {
-			WARN_ON(dpll != SKL_DPLL0);
-
-			val = I915_READ(DPLL_CTRL1);
-
-			val &= ~(DPLL_CTRL1_HDMI_MODE(dpll) |
-				 DPLL_CTRL1_SSC(dpll) |
-				 DPLL_CTRL1_LINK_RATE_MASK(dpll));
-			val |= pipe_config->dpll_hw_state.ctrl1 << (dpll * 6);
-
-			I915_WRITE(DPLL_CTRL1, val);
-			POSTING_READ(DPLL_CTRL1);
-		}
 
 		/* DDI -> PLL mapping  */
 		val = I915_READ(DPLL_CTRL2);

@@ -785,7 +785,12 @@ struct skl_dpll_regs {
 };
 
 /* this array is indexed by the *shared* pll id */
-static const struct skl_dpll_regs skl_dpll_regs[3] = {
+static const struct skl_dpll_regs skl_dpll_regs[4] = {
+	{
+		/* DPLL 0 */
+		.ctl = LCPLL1_CTL,
+		/* DPLL 0 doesn't support HDMI mode */
+	},
 	{
 		/* DPLL 1 */
 		.ctl = LCPLL2_CTL,
@@ -806,24 +811,27 @@ static const struct skl_dpll_regs skl_dpll_regs[3] = {
 	},
 };
 
-static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
-			       struct intel_shared_dpll *pll)
+static void skl_ddi_pll_write_ctrl1(struct drm_i915_private *dev_priv,
+				    struct intel_shared_dpll *pll)
 {
 	uint32_t val;
-	unsigned int dpll;
-	const struct skl_dpll_regs *regs = skl_dpll_regs;
-
-	/* DPLL0 is not part of the shared DPLLs, so pll->id is 0 for DPLL1 */
-	dpll = pll->id + 1;
 
 	val = I915_READ(DPLL_CTRL1);
 
-	val &= ~(DPLL_CTRL1_HDMI_MODE(dpll) | DPLL_CTRL1_SSC(dpll) |
-		 DPLL_CTRL1_LINK_RATE_MASK(dpll));
-	val |= pll->config.hw_state.ctrl1 << (dpll * 6);
+	val &= ~(DPLL_CTRL1_HDMI_MODE(pll->id) | DPLL_CTRL1_SSC(pll->id) |
+		 DPLL_CTRL1_LINK_RATE_MASK(pll->id));
+	val |= pll->config.hw_state.ctrl1 << (pll->id * 6);
 
 	I915_WRITE(DPLL_CTRL1, val);
 	POSTING_READ(DPLL_CTRL1);
+}
+
+static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
+			       struct intel_shared_dpll *pll)
+{
+	const struct skl_dpll_regs *regs = skl_dpll_regs;
+
+	skl_ddi_pll_write_ctrl1(dev_priv, pll);
 
 	I915_WRITE(regs[pll->id].cfgcr1, pll->config.hw_state.cfgcr1);
 	I915_WRITE(regs[pll->id].cfgcr2, pll->config.hw_state.cfgcr2);
@@ -834,8 +842,14 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	I915_WRITE(regs[pll->id].ctl,
 		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
 
-	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(dpll), 5))
-		DRM_ERROR("DPLL %d not locked\n", dpll);
+	if (wait_for(I915_READ(DPLL_STATUS) & DPLL_LOCK(pll->id), 5))
+		DRM_ERROR("DPLL %d not locked\n", pll->id);
+}
+
+static void skl_ddi_dpll0_enable(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll)
+{
+	skl_ddi_pll_write_ctrl1(dev_priv, pll);
 }
 
 static void skl_ddi_pll_disable(struct drm_i915_private *dev_priv,
@@ -849,12 +863,16 @@ static void skl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	POSTING_READ(regs[pll->id].ctl);
 }
 
+static void skl_ddi_dpll0_disable(struct drm_i915_private *dev_priv,
+				  struct intel_shared_dpll *pll)
+{
+}
+
 static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				     struct intel_shared_dpll *pll,
 				     struct intel_dpll_hw_state *hw_state)
 {
 	uint32_t val;
-	unsigned int dpll;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	bool ret;
 
@@ -863,21 +881,47 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 	ret = false;
 
-	/* DPLL0 is not part of the shared DPLLs, so pll->id is 0 for DPLL1 */
-	dpll = pll->id + 1;
-
 	val = I915_READ(regs[pll->id].ctl);
 	if (!(val & LCPLL_PLL_ENABLE))
 		goto out;
 
 	val = I915_READ(DPLL_CTRL1);
-	hw_state->ctrl1 = (val >> (dpll * 6)) & 0x3f;
+	hw_state->ctrl1 = (val >> (pll->id * 6)) & 0x3f;
 
 	/* avoid reading back stale values if HDMI mode is not enabled */
-	if (val & DPLL_CTRL1_HDMI_MODE(dpll)) {
+	if (val & DPLL_CTRL1_HDMI_MODE(pll->id)) {
 		hw_state->cfgcr1 = I915_READ(regs[pll->id].cfgcr1);
 		hw_state->cfgcr2 = I915_READ(regs[pll->id].cfgcr2);
 	}
+	ret = true;
+
+out:
+	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
+
+	return ret;
+}
+
+static bool skl_ddi_dpll0_get_hw_state(struct drm_i915_private *dev_priv,
+				       struct intel_shared_dpll *pll,
+				       struct intel_dpll_hw_state *hw_state)
+{
+	uint32_t val;
+	const struct skl_dpll_regs *regs = skl_dpll_regs;
+	bool ret;
+
+	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
+		return false;
+
+	ret = false;
+
+	/* DPLL0 is always enabled since it drives CDCLK */
+	val = I915_READ(regs[pll->id].ctl);
+	if (WARN_ON(!(val & LCPLL_PLL_ENABLE)))
+		goto out;
+
+	val = I915_READ(DPLL_CTRL1);
+	hw_state->ctrl1 = (val >> (pll->id * 6)) & 0x3f;
+
 	ret = true;
 
 out:
@@ -1165,7 +1209,8 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			 DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
 			 wrpll_params.central_freq;
 	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-		   encoder->type == INTEL_OUTPUT_DP_MST) {
+		   encoder->type == INTEL_OUTPUT_DP_MST ||
+		   encoder->type == INTEL_OUTPUT_EDP) {
 		switch (crtc_state->port_clock / 2) {
 		case 81000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810, 0);
@@ -1175,6 +1220,19 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 			break;
 		case 270000:
 			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700, 0);
+			break;
+		/* eDP 1.4 rates */
+		case 162000:
+			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620, 0);
+			break;
+		/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
+		results in CDCLK change. Need to handle the change of CDCLK by
+		disabling pipes and re-enabling them */
+		case 108000:
+			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080, 0);
+			break;
+		case 216000:
+			ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160, 0);
 			break;
 		}
 
@@ -1190,13 +1248,18 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
 	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
 
-	pll = intel_find_shared_dpll(crtc, crtc_state,
-				     DPLL_ID_SKL_DPLL1, DPLL_ID_SKL_DPLL3);
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		pll = intel_find_shared_dpll(crtc, crtc_state,
+					     DPLL_ID_SKL_DPLL0,
+					     DPLL_ID_SKL_DPLL0);
+	else
+		pll = intel_find_shared_dpll(crtc, crtc_state,
+					     DPLL_ID_SKL_DPLL1,
+					     DPLL_ID_SKL_DPLL3);
 	if (!pll)
 		return NULL;
 
-	/* shared DPLL id 0 is DPLL 1 */
-	crtc_state->ddi_pll_sel = pll->id + 1;
+	crtc_state->ddi_pll_sel = pll->id;
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
@@ -1207,6 +1270,12 @@ static const struct intel_shared_dpll_funcs skl_ddi_pll_funcs = {
 	.enable = skl_ddi_pll_enable,
 	.disable = skl_ddi_pll_disable,
 	.get_hw_state = skl_ddi_pll_get_hw_state,
+};
+
+static const struct intel_shared_dpll_funcs skl_ddi_dpll0_funcs = {
+	.enable = skl_ddi_dpll0_enable,
+	.disable = skl_ddi_dpll0_disable,
+	.get_hw_state = skl_ddi_dpll0_get_hw_state,
 };
 
 static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
@@ -1624,9 +1693,10 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 };
 
 static const struct dpll_info skl_plls[] = {
-	{ "DPPL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs, 0 },
-	{ "DPPL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs, 0 },
-	{ "DPPL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs, 0 },
+	{ "DPLL 0", DPLL_ID_SKL_DPLL0, &skl_ddi_dpll0_funcs, INTEL_DPLL_ALWAYS_ON },
+	{ "DPPL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs,   0 },
+	{ "DPPL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs,   0 },
+	{ "DPPL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs,   0 },
 	{ NULL, -1, NULL, },
 };
 

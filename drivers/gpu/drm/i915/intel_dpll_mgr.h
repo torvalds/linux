@@ -54,9 +54,10 @@ enum intel_dpll_id {
 	DPLL_ID_LCPLL_2700 = 5,
 
 	/* skl */
-	DPLL_ID_SKL_DPLL1 = 0,
-	DPLL_ID_SKL_DPLL2 = 1,
-	DPLL_ID_SKL_DPLL3 = 2,
+	DPLL_ID_SKL_DPLL0 = 0,
+	DPLL_ID_SKL_DPLL1 = 1,
+	DPLL_ID_SKL_DPLL2 = 2,
+	DPLL_ID_SKL_DPLL3 = 3,
 };
 #define I915_NUM_PLLS 6
 
