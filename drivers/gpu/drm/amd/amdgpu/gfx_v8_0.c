@@ -4809,7 +4809,8 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
 	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-		 WAIT_REG_MEM_FUNCTION(3))); /* equal */
+				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
+				 WAIT_REG_MEM_ENGINE(usepfp))); /* pfp or me */
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
 	amdgpu_ring_write(ring, seq);
@@ -4995,7 +4996,7 @@ static int gfx_v8_0_set_priv_reg_fault_state(struct amdgpu_device *adev,
 	case AMDGPU_IRQ_STATE_ENABLE:
 		cp_int_cntl = RREG32(mmCP_INT_CNTL_RING0);
 		cp_int_cntl = REG_SET_FIELD(cp_int_cntl, CP_INT_CNTL_RING0,
-					    PRIV_REG_INT_ENABLE, 0);
+					    PRIV_REG_INT_ENABLE, 1);
 		WREG32(mmCP_INT_CNTL_RING0, cp_int_cntl);
 		break;
 	default:

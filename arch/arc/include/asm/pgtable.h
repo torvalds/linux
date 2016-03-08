@@ -179,37 +179,44 @@
 #define __S111  PAGE_U_X_W_R
 
 /****************************************************************
- * Page Table Lookup split
+ * 2 tier (PGD:PTE) software page walker
  *
- * We implement 2 tier paging and since this is all software, we are free
- * to customize the span of a PGD / PTE entry to suit us
- *
- *			32 bit virtual address
+ * [31]		    32 bit virtual address              [0]
  * -------------------------------------------------------
- * | BITS_FOR_PGD    |  BITS_FOR_PTE    |  BITS_IN_PAGE  |
+ * |               | <------------ PGDIR_SHIFT ----------> |
+ * |		   |					 |
+ * | BITS_FOR_PGD  |  BITS_FOR_PTE  | <-- PAGE_SHIFT --> |
  * -------------------------------------------------------
  *       |                  |                |
  *       |                  |                --> off in page frame
- *       |		    |
  *       |                  ---> index into Page Table
- *       |
  *       ----> index into Page Directory
+ *
+ * In a single page size configuration, only PAGE_SHIFT is fixed
+ * So both PGD and PTE sizing can be tweaked
+ *  e.g. 8K page (PAGE_SHIFT 13) can have
+ *  - PGDIR_SHIFT 21  -> 11:8:13 address split
+ *  - PGDIR_SHIFT 24  -> 8:11:13 address split
+ *
+ * If Super Page is configured, PGDIR_SHIFT becomes fixed too,
+ * so the sizing flexibility is gone.
  */
 
-#define BITS_IN_PAGE	PAGE_SHIFT
-
-/* Optimal Sizing of Pg Tbl - based on MMU page size */
-#if defined(CONFIG_ARC_PAGE_SIZE_8K)
-#define BITS_FOR_PTE	8		/* 11:8:13 */
-#elif defined(CONFIG_ARC_PAGE_SIZE_16K)
-#define BITS_FOR_PTE	8		/* 10:8:14 */
-#elif defined(CONFIG_ARC_PAGE_SIZE_4K)
-#define BITS_FOR_PTE	9		/* 11:9:12 */
+#if defined(CONFIG_ARC_HUGEPAGE_16M)
+#define PGDIR_SHIFT	24
+#elif defined(CONFIG_ARC_HUGEPAGE_2M)
+#define PGDIR_SHIFT	21
+#else
+/*
+ * Only Normal page support so "hackable" (see comment above)
+ * Default value provides 11:8:13 (8K), 11:9:12 (4K)
+ */
+#define PGDIR_SHIFT	21
 #endif
 
-#define BITS_FOR_PGD	(32 - BITS_FOR_PTE - BITS_IN_PAGE)
+#define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
+#define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SHIFT	(32 - BITS_FOR_PGD)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 

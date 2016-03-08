@@ -373,7 +373,7 @@ static void vce_v2_0_enable_mgcg(struct amdgpu_device *adev, bool enable)
 {
 	bool sw_cg = false;
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_VCE_MGCG)) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)) {
 		if (sw_cg)
 			vce_v2_0_set_sw_cg(adev, true);
 		else
@@ -607,6 +607,9 @@ static int vce_v2_0_set_powergating_state(void *handle,
 	 * the smc and the hw blocks
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
+		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
 		/* XXX do we need a vce_v2_0_stop()? */
