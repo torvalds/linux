@@ -790,10 +790,6 @@ static int cxgb4vf_open(struct net_device *dev)
 	/*
 	 * Note that this interface is up and start everything up ...
 	 */
-	netif_set_real_num_tx_queues(dev, pi->nqsets);
-	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
-	if (err)
-		goto err_unwind;
 	err = link_start(dev);
 	if (err)
 		goto err_unwind;
@@ -2831,9 +2827,13 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * must register at least one net device.
 	 */
 	for_each_port(adapter, pidx) {
+		struct port_info *pi = netdev_priv(adapter->port[pidx]);
 		netdev = adapter->port[pidx];
 		if (netdev == NULL)
 			continue;
+
+		netif_set_real_num_tx_queues(netdev, pi->nqsets);
+		netif_set_real_num_rx_queues(netdev, pi->nqsets);
 
 		err = register_netdev(netdev);
 		if (err) {
