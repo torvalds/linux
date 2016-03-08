@@ -67,6 +67,7 @@ struct hfi1_user_sdma_pkt_q {
 	unsigned state;
 	wait_queue_head_t wait;
 	unsigned long unpinned;
+	struct rb_root sdma_rb_root;
 };
 
 struct hfi1_user_sdma_comp_q {
