@@ -413,9 +413,10 @@ int usb_add_gadget_udc_release(struct device *parent, struct usb_gadget *gadget,
 		if (!driver->udc_name || strcmp(driver->udc_name,
 						dev_name(&udc->dev)) == 0) {
 			ret = udc_bind_to_driver(udc, driver);
+			if (ret != -EPROBE_DEFER)
+				list_del(&driver->pending);
 			if (ret)
 				goto err4;
-			list_del(&driver->pending);
 			break;
 		}
 	}

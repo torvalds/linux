@@ -138,6 +138,11 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 		    ((wireless_mode == WIRELESS_MODE_N_5G) ||
 		     (wireless_mode == WIRELESS_MODE_N_24G)))
 			rate->flags |= IEEE80211_TX_RC_MCS;
+		if (sta && sta->vht_cap.vht_supported &&
+		    (wireless_mode == WIRELESS_MODE_AC_5G ||
+		     wireless_mode == WIRELESS_MODE_AC_24G ||
+		     wireless_mode == WIRELESS_MODE_AC_ONLY))
+			rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 	}
 }
 

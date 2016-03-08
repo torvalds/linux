@@ -426,18 +426,22 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * @bus: HD-audio core bus
  * @status: INTSTS register value
  * @ask: callback to be called for woken streams
+ *
+ * Returns the bits of handled streams, or zero if no stream is handled.
  */
-void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
+int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
 						struct hdac_stream *))
 {
 	struct hdac_stream *azx_dev;
 	u8 sd_status;
+	int handled = 0;
 
 	list_for_each_entry(azx_dev, &bus->stream_list, list) {
 		if (status & azx_dev->sd_int_sta_mask) {
 			sd_status = snd_hdac_stream_readb(azx_dev, SD_STS);
 			snd_hdac_stream_writeb(azx_dev, SD_STS, SD_INT_MASK);
+			handled |= 1 << azx_dev->index;
 			if (!azx_dev->substream || !azx_dev->running ||
 			    !(sd_status & SD_INT_COMPLETE))
 				continue;
@@ -445,6 +449,7 @@ void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				ack(bus, azx_dev);
 		}
 	}
+	return handled;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_handle_stream_irq);
 

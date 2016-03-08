@@ -66,7 +66,7 @@ struct lock_class {
 	/*
 	 * class-hash:
 	 */
-	struct list_head		hash_entry;
+	struct hlist_node		hash_entry;
 
 	/*
 	 * global list of all lock-classes:
@@ -199,7 +199,7 @@ struct lock_chain {
 	u8				irq_context;
 	u8				depth;
 	u16				base;
-	struct list_head		entry;
+	struct hlist_node		entry;
 	u64				chain_key;
 };
 

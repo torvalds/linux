@@ -202,6 +202,11 @@ static struct mount *last_dest, *last_source, *dest_master;
 static struct mountpoint *mp;
 static struct hlist_head *list;
 
+static inline bool peers(struct mount *m1, struct mount *m2)
+{
+	return m1->mnt_group_id == m2->mnt_group_id && m1->mnt_group_id;
+}
+
 static int propagate_one(struct mount *m)
 {
 	struct mount *child;
@@ -212,7 +217,7 @@ static int propagate_one(struct mount *m)
 	/* skip if mountpoint isn't covered by it */
 	if (!is_subdir(mp->m_dentry, m->mnt.mnt_root))
 		return 0;
-	if (m->mnt_group_id == last_dest->mnt_group_id) {
+	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
 	} else {
 		struct mount *n, *p;
@@ -223,7 +228,7 @@ static int propagate_one(struct mount *m)
 					last_source = last_source->mnt_master;
 					last_dest = last_source->mnt_parent;
 				}
-				if (n->mnt_group_id != last_dest->mnt_group_id) {
+				if (!peers(n, last_dest)) {
 					last_source = last_source->mnt_master;
 					last_dest = last_source->mnt_parent;
 				}
