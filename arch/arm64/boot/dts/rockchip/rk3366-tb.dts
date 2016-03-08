@@ -296,6 +296,22 @@
 			status = "okay";
 		};
 	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk818 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>; /* GPIO0_B6 */
+	};
 };
 
 &emmc {
@@ -328,16 +344,21 @@
 };
 
 &sdio {
-	clock-frequency = <50000000>;
-	clock-freq-min-max = <200000 50000000>;
+	clock-frequency = <37500000>;
+	clock-freq-min-max = <200000 37500000>;
 	supports-sdio;
 	bus-width = <4>;
 	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
 	num-slots = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_bus4 &sdio_cmd &sdio_clk>;
-	status = "disabled";
+	sd-uhs-sdr104;
+	status = "okay";
 };
 
 &saradc {
@@ -664,6 +685,12 @@
                         rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
                 };
         };
+
+	sdio-pwrseq {
+		wifi_enable_h: wifienable-h {
+			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &gmac {
