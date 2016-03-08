@@ -314,7 +314,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	if (max_width > NL80211_CHAN_WIDTH_80)
 		max_width = NL80211_CHAN_WIDTH_80;
 
-	if (uc.width == max_width)
+	if (uc.width >= max_width)
 		return;
 	/*
 	 * Channel usage constrains in the IEEE802.11ac-2013 specification only
@@ -325,6 +325,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < ARRAY_SIZE(centers_80mhz); i++)
 		if (abs(uc.chan->center_freq - centers_80mhz[i]) <= 30) {
 			uc.center_freq1 = centers_80mhz[i];
+			uc.center_freq2 = 0;
 			uc.width = NL80211_CHAN_WIDTH_80;
 			break;
 		}
