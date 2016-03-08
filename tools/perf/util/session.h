@@ -26,6 +26,7 @@ struct perf_session {
 	struct itrace_synth_opts *itrace_synth_opts;
 	struct list_head	auxtrace_index;
 	struct trace_event	tevent;
+	struct time_conv_event	time_conv;
 	bool			repipe;
 	bool			one_mmap;
 	void			*one_mmap_addr;

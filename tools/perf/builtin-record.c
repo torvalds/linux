@@ -29,6 +29,7 @@
 #include "util/data.h"
 #include "util/perf_regs.h"
 #include "util/auxtrace.h"
+#include "util/tsc.h"
 #include "util/parse-branch-options.h"
 #include "util/parse-regs-options.h"
 #include "util/llvm-utils.h"
@@ -512,6 +513,15 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 
 static void snapshot_sig_handler(int sig);
 
+int __weak
+perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
+			    struct perf_tool *tool __maybe_unused,
+			    perf_event__handler_t process __maybe_unused,
+			    struct machine *machine __maybe_unused)
+{
+	return 0;
+}
+
 static int record__synthesize(struct record *rec)
 {
 	struct perf_session *session = rec->session;
@@ -548,6 +558,11 @@ static int record__synthesize(struct record *rec)
 			rec->bytes_written += err;
 		}
 	}
+
+	err = perf_event__synth_time_conv(rec->evlist->mmap[0].base, tool,
+					  process_synthesized_event, machine);
+	if (err)
+		goto out;
 
 	if (rec->opts.full_auxtrace) {
 		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,

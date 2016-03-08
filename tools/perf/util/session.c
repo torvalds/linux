@@ -409,6 +409,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->stat = process_stat_stub;
 	if (tool->stat_round == NULL)
 		tool->stat_round = process_stat_round_stub;
+	if (tool->time_conv == NULL)
+		tool->time_conv = process_event_op2_stub;
 }
 
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -794,6 +796,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_STAT]		  = perf_event__stat_swap,
 	[PERF_RECORD_STAT_ROUND]	  = perf_event__stat_round_swap,
 	[PERF_RECORD_EVENT_UPDATE]	  = perf_event__event_update_swap,
+	[PERF_RECORD_TIME_CONV]		  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -1341,6 +1344,9 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->stat(tool, event, session);
 	case PERF_RECORD_STAT_ROUND:
 		return tool->stat_round(tool, event, session);
+	case PERF_RECORD_TIME_CONV:
+		session->time_conv = event->time_conv;
+		return tool->time_conv(tool, event, session);
 	default:
 		return -EINVAL;
 	}
