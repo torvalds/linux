@@ -198,8 +198,8 @@ static struct perf_limits *limits = &powersave_limits;
 
 static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
 			     int deadband, int integral) {
-	pid->setpoint = setpoint;
-	pid->deadband  = deadband;
+	pid->setpoint = int_tofp(setpoint);
+	pid->deadband  = int_tofp(deadband);
 	pid->integral  = int_tofp(integral);
 	pid->last_err  = int_tofp(setpoint) - int_tofp(busy);
 }
@@ -225,9 +225,9 @@ static signed int pid_calc(struct _pid *pid, int32_t busy)
 	int32_t pterm, dterm, fp_error;
 	int32_t integral_limit;
 
-	fp_error = int_tofp(pid->setpoint) - busy;
+	fp_error = pid->setpoint - busy;
 
-	if (abs(fp_error) <= int_tofp(pid->deadband))
+	if (abs(fp_error) <= pid->deadband)
 		return 0;
 
 	pterm = mul_fp(pid->p_gain, fp_error);
