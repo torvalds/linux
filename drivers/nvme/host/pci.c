@@ -134,7 +134,6 @@ struct nvme_queue {
 	u32 __iomem *q_db;
 	u16 q_depth;
 	s16 cq_vector;
-	u16 sq_head;
 	u16 sq_tail;
 	u16 cq_head;
 	u16 qid;
@@ -719,7 +718,6 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 
 		if ((status & 1) != phase)
 			break;
-		nvmeq->sq_head = le16_to_cpu(cqe.sq_head);
 		if (++head == nvmeq->q_depth) {
 			head = 0;
 			phase = !phase;
