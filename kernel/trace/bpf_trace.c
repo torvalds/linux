@@ -13,8 +13,6 @@
 #include <linux/ctype.h>
 #include "trace.h"
 
-static DEFINE_PER_CPU(int, bpf_prog_active);
-
 /**
  * trace_call_bpf - invoke BPF program
  * @prog: BPF program
