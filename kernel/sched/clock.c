@@ -61,6 +61,7 @@
 #include <linux/static_key.h>
 #include <linux/workqueue.h>
 #include <linux/compiler.h>
+#include <linux/tick.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -89,6 +90,8 @@ static void __set_sched_clock_stable(void)
 {
 	if (!sched_clock_stable())
 		static_key_slow_inc(&__sched_clock_stable);
+
+	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
 void set_sched_clock_stable(void)
@@ -108,6 +111,8 @@ static void __clear_sched_clock_stable(struct work_struct *work)
 	/* XXX worry about clock continuity */
 	if (sched_clock_stable())
 		static_key_slow_dec(&__sched_clock_stable);
+
+	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
 static DECLARE_WORK(sched_clock_work, __clear_sched_clock_stable);

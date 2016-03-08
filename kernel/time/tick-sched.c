@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/irq_work.h>
 #include <linux/posix-timers.h>
-#include <linux/perf_event.h>
 #include <linux/context_tracking.h>
 
 #include <asm/irq_regs.h>
@@ -158,54 +157,63 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 cpumask_var_t tick_nohz_full_mask;
 cpumask_var_t housekeeping_mask;
 bool tick_nohz_full_running;
+static unsigned long tick_dep_mask;
 
-static bool can_stop_full_tick(void)
+static void trace_tick_dependency(unsigned long dep)
+{
+	if (dep & TICK_DEP_MASK_POSIX_TIMER) {
+		trace_tick_stop(0, TICK_DEP_MASK_POSIX_TIMER);
+		return;
+	}
+
+	if (dep & TICK_DEP_MASK_PERF_EVENTS) {
+		trace_tick_stop(0, TICK_DEP_MASK_PERF_EVENTS);
+		return;
+	}
+
+	if (dep & TICK_DEP_MASK_SCHED) {
+		trace_tick_stop(0, TICK_DEP_MASK_SCHED);
+		return;
+	}
+
+	if (dep & TICK_DEP_MASK_CLOCK_UNSTABLE)
+		trace_tick_stop(0, TICK_DEP_MASK_CLOCK_UNSTABLE);
+}
+
+static bool can_stop_full_tick(struct tick_sched *ts)
 {
 	WARN_ON_ONCE(!irqs_disabled());
 
-	if (!sched_can_stop_tick()) {
-		trace_tick_stop(0, "more than 1 task in runqueue\n");
+	if (tick_dep_mask) {
+		trace_tick_dependency(tick_dep_mask);
 		return false;
 	}
 
-	if (!posix_cpu_timers_can_stop_tick(current)) {
-		trace_tick_stop(0, "posix timers running\n");
+	if (ts->tick_dep_mask) {
+		trace_tick_dependency(ts->tick_dep_mask);
 		return false;
 	}
 
-	if (!perf_event_can_stop_tick()) {
-		trace_tick_stop(0, "perf events running\n");
+	if (current->tick_dep_mask) {
+		trace_tick_dependency(current->tick_dep_mask);
 		return false;
 	}
 
-	/* sched_clock_tick() needs us? */
-#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-	/*
-	 * TODO: kick full dynticks CPUs when
-	 * sched_clock_stable is set.
-	 */
-	if (!sched_clock_stable()) {
-		trace_tick_stop(0, "unstable sched clock\n");
-		/*
-		 * Don't allow the user to think they can get
-		 * full NO_HZ with this machine.
-		 */
-		WARN_ONCE(tick_nohz_full_running,
-			  "NO_HZ FULL will not work with unstable sched clock");
+	if (current->signal->tick_dep_mask) {
+		trace_tick_dependency(current->signal->tick_dep_mask);
 		return false;
 	}
-#endif
 
 	return true;
 }
 
-static void nohz_full_kick_work_func(struct irq_work *work)
+static void nohz_full_kick_func(struct irq_work *work)
 {
 	/* Empty, the tick restart happens on tick_nohz_irq_exit() */
 }
 
 static DEFINE_PER_CPU(struct irq_work, nohz_full_kick_work) = {
-	.func = nohz_full_kick_work_func,
+	.func = nohz_full_kick_func,
 };
 
 /*
@@ -214,7 +222,7 @@ static DEFINE_PER_CPU(struct irq_work, nohz_full_kick_work) = {
  * This kick, unlike tick_nohz_full_kick_cpu() and tick_nohz_full_kick_all(),
  * is NMI safe.
  */
-void tick_nohz_full_kick(void)
+static void tick_nohz_full_kick(void)
 {
 	if (!tick_nohz_full_cpu(smp_processor_id()))
 		return;
@@ -234,25 +242,110 @@ void tick_nohz_full_kick_cpu(int cpu)
 	irq_work_queue_on(&per_cpu(nohz_full_kick_work, cpu), cpu);
 }
 
-static void nohz_full_kick_ipi(void *info)
-{
-	/* Empty, the tick restart happens on tick_nohz_irq_exit() */
-}
-
 /*
  * Kick all full dynticks CPUs in order to force these to re-evaluate
  * their dependency on the tick and restart it if necessary.
  */
-void tick_nohz_full_kick_all(void)
+static void tick_nohz_full_kick_all(void)
 {
+	int cpu;
+
 	if (!tick_nohz_full_running)
 		return;
 
 	preempt_disable();
-	smp_call_function_many(tick_nohz_full_mask,
-			       nohz_full_kick_ipi, NULL, false);
-	tick_nohz_full_kick();
+	for_each_cpu_and(cpu, tick_nohz_full_mask, cpu_online_mask)
+		tick_nohz_full_kick_cpu(cpu);
 	preempt_enable();
+}
+
+static void tick_nohz_dep_set_all(unsigned long *dep,
+				  enum tick_dep_bits bit)
+{
+	unsigned long prev;
+
+	prev = fetch_or(dep, BIT_MASK(bit));
+	if (!prev)
+		tick_nohz_full_kick_all();
+}
+
+/*
+ * Set a global tick dependency. Used by perf events that rely on freq and
+ * by unstable clock.
+ */
+void tick_nohz_dep_set(enum tick_dep_bits bit)
+{
+	tick_nohz_dep_set_all(&tick_dep_mask, bit);
+}
+
+void tick_nohz_dep_clear(enum tick_dep_bits bit)
+{
+	clear_bit(bit, &tick_dep_mask);
+}
+
+/*
+ * Set per-CPU tick dependency. Used by scheduler and perf events in order to
+ * manage events throttling.
+ */
+void tick_nohz_dep_set_cpu(int cpu, enum tick_dep_bits bit)
+{
+	unsigned long prev;
+	struct tick_sched *ts;
+
+	ts = per_cpu_ptr(&tick_cpu_sched, cpu);
+
+	prev = fetch_or(&ts->tick_dep_mask, BIT_MASK(bit));
+	if (!prev) {
+		preempt_disable();
+		/* Perf needs local kick that is NMI safe */
+		if (cpu == smp_processor_id()) {
+			tick_nohz_full_kick();
+		} else {
+			/* Remote irq work not NMI-safe */
+			if (!WARN_ON_ONCE(in_nmi()))
+				tick_nohz_full_kick_cpu(cpu);
+		}
+		preempt_enable();
+	}
+}
+
+void tick_nohz_dep_clear_cpu(int cpu, enum tick_dep_bits bit)
+{
+	struct tick_sched *ts = per_cpu_ptr(&tick_cpu_sched, cpu);
+
+	clear_bit(bit, &ts->tick_dep_mask);
+}
+
+/*
+ * Set a per-task tick dependency. Posix CPU timers need this in order to elapse
+ * per task timers.
+ */
+void tick_nohz_dep_set_task(struct task_struct *tsk, enum tick_dep_bits bit)
+{
+	/*
+	 * We could optimize this with just kicking the target running the task
+	 * if that noise matters for nohz full users.
+	 */
+	tick_nohz_dep_set_all(&tsk->tick_dep_mask, bit);
+}
+
+void tick_nohz_dep_clear_task(struct task_struct *tsk, enum tick_dep_bits bit)
+{
+	clear_bit(bit, &tsk->tick_dep_mask);
+}
+
+/*
+ * Set a per-taskgroup tick dependency. Posix CPU timers need this in order to elapse
+ * per process timers.
+ */
+void tick_nohz_dep_set_signal(struct signal_struct *sig, enum tick_dep_bits bit)
+{
+	tick_nohz_dep_set_all(&sig->tick_dep_mask, bit);
+}
+
+void tick_nohz_dep_clear_signal(struct signal_struct *sig, enum tick_dep_bits bit)
+{
+	clear_bit(bit, &sig->tick_dep_mask);
 }
 
 /*
@@ -263,15 +356,19 @@ void tick_nohz_full_kick_all(void)
 void __tick_nohz_task_switch(void)
 {
 	unsigned long flags;
+	struct tick_sched *ts;
 
 	local_irq_save(flags);
 
 	if (!tick_nohz_full_cpu(smp_processor_id()))
 		goto out;
 
-	if (tick_nohz_tick_stopped() && !can_stop_full_tick())
-		tick_nohz_full_kick();
+	ts = this_cpu_ptr(&tick_cpu_sched);
 
+	if (ts->tick_stopped) {
+		if (current->tick_dep_mask || current->signal->tick_dep_mask)
+			tick_nohz_full_kick();
+	}
 out:
 	local_irq_restore(flags);
 }
@@ -689,7 +786,7 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 
 		ts->last_tick = hrtimer_get_expires(&ts->sched_timer);
 		ts->tick_stopped = 1;
-		trace_tick_stop(1, " ");
+		trace_tick_stop(1, TICK_DEP_MASK_NONE);
 	}
 
 	/*
@@ -740,7 +837,7 @@ static void tick_nohz_full_update_tick(struct tick_sched *ts)
 	if (!ts->tick_stopped && ts->nohz_mode == NOHZ_MODE_INACTIVE)
 		return;
 
-	if (can_stop_full_tick())
+	if (can_stop_full_tick(ts))
 		tick_nohz_stop_sched_tick(ts, ktime_get(), cpu);
 	else if (ts->tick_stopped)
 		tick_nohz_restart_sched_tick(ts, ktime_get(), 1);
