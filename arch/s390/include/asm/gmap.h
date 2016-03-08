@@ -26,6 +26,7 @@
  * @shadow_lock: spinlock to protect the shadow gmap list
  * @parent: pointer to the parent gmap for shadow guest address spaces
  * @orig_asce: ASCE for which the shadow page table has been created
+ * @edat_level: edat level to be used for the shadow translation
  * @removed: flag to indicate if a shadow guest address space has been removed
  * @initialized: flag to indicate if a shadow guest address space can be used
  */
@@ -49,6 +50,7 @@ struct gmap {
 	spinlock_t shadow_lock;
 	struct gmap *parent;
 	unsigned long orig_asce;
+	int edat_level;
 	bool removed;
 	bool initialized;
 };
@@ -105,7 +107,8 @@ void gmap_unlink(struct mm_struct *, unsigned long *table, unsigned long vmaddr)
 
 int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val);
 
-struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce);
+struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce,
+			 int edat_level);
 int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t);
 int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t);
 int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt);
