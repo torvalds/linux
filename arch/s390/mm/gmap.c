@@ -21,13 +21,13 @@
 #include <asm/tlb.h>
 
 /**
- * gmap_alloc - allocate a guest address space
+ * gmap_alloc - allocate and initialize a guest address space
  * @mm: pointer to the parent mm_struct
  * @limit: maximum address of the gmap address space
  *
  * Returns a guest address space structure.
  */
-struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit)
+static struct gmap *gmap_alloc(unsigned long limit)
 {
 	struct gmap *gmap;
 	struct page *page;
@@ -58,7 +58,7 @@ struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit)
 	INIT_RADIX_TREE(&gmap->guest_to_host, GFP_KERNEL);
 	INIT_RADIX_TREE(&gmap->host_to_guest, GFP_ATOMIC);
 	spin_lock_init(&gmap->guest_table_lock);
-	gmap->mm = mm;
+	atomic_set(&gmap->ref_count, 1);
 	page = alloc_pages(GFP_KERNEL, 2);
 	if (!page)
 		goto out_free;
@@ -70,9 +70,6 @@ struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit)
 	gmap->asce = atype | _ASCE_TABLE_LENGTH |
 		_ASCE_USER_BITS | __pa(table);
 	gmap->asce_end = limit;
-	spin_lock(&mm->context.gmap_lock);
-	list_add_rcu(&gmap->list, &mm->context.gmap_list);
-	spin_unlock(&mm->context.gmap_lock);
 	return gmap;
 
 out_free:
@@ -80,7 +77,28 @@ out_free:
 out:
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(gmap_alloc);
+
+/**
+ * gmap_create - create a guest address space
+ * @mm: pointer to the parent mm_struct
+ * @limit: maximum size of the gmap address space
+ *
+ * Returns a guest address space structure.
+ */
+struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit)
+{
+	struct gmap *gmap;
+
+	gmap = gmap_alloc(limit);
+	if (!gmap)
+		return NULL;
+	gmap->mm = mm;
+	spin_lock(&mm->context.gmap_lock);
+	list_add_rcu(&gmap->list, &mm->context.gmap_list);
+	spin_unlock(&mm->context.gmap_lock);
+	return gmap;
+}
+EXPORT_SYMBOL_GPL(gmap_create);
 
 static void gmap_flush_tlb(struct gmap *gmap)
 {
@@ -118,20 +136,9 @@ static void gmap_radix_tree_free(struct radix_tree_root *root)
  * gmap_free - free a guest address space
  * @gmap: pointer to the guest address space structure
  */
-void gmap_free(struct gmap *gmap)
+static void gmap_free(struct gmap *gmap)
 {
 	struct page *page, *next;
-
-	/* Flush tlb. */
-	if (MACHINE_HAS_IDTE)
-		__tlb_flush_asce(gmap->mm, gmap->asce);
-	else
-		__tlb_flush_global();
-
-	spin_lock(&gmap->mm->context.gmap_lock);
-	list_del_rcu(&gmap->list);
-	spin_unlock(&gmap->mm->context.gmap_lock);
-	synchronize_rcu();
 
 	/* Free all segment & region tables. */
 	list_for_each_entry_safe(page, next, &gmap->crst_list, lru)
@@ -140,7 +147,50 @@ void gmap_free(struct gmap *gmap)
 	gmap_radix_tree_free(&gmap->host_to_guest);
 	kfree(gmap);
 }
-EXPORT_SYMBOL_GPL(gmap_free);
+
+/**
+ * gmap_get - increase reference counter for guest address space
+ * @gmap: pointer to the guest address space structure
+ *
+ * Returns the gmap pointer
+ */
+struct gmap *gmap_get(struct gmap *gmap)
+{
+	atomic_inc(&gmap->ref_count);
+	return gmap;
+}
+EXPORT_SYMBOL_GPL(gmap_get);
+
+/**
+ * gmap_put - decrease reference counter for guest address space
+ * @gmap: pointer to the guest address space structure
+ *
+ * If the reference counter reaches zero the guest address space is freed.
+ */
+void gmap_put(struct gmap *gmap)
+{
+	if (atomic_dec_return(&gmap->ref_count) == 0)
+		gmap_free(gmap);
+}
+EXPORT_SYMBOL_GPL(gmap_put);
+
+/**
+ * gmap_remove - remove a guest address space but do not free it yet
+ * @gmap: pointer to the guest address space structure
+ */
+void gmap_remove(struct gmap *gmap)
+{
+	/* Flush tlb. */
+	gmap_flush_tlb(gmap);
+	/* Remove gmap from the pre-mm list */
+	spin_lock(&gmap->mm->context.gmap_lock);
+	list_del_rcu(&gmap->list);
+	spin_unlock(&gmap->mm->context.gmap_lock);
+	synchronize_rcu();
+	/* Put reference */
+	gmap_put(gmap);
+}
+EXPORT_SYMBOL_GPL(gmap_remove);
 
 /**
  * gmap_enable - switch primary space to the guest address space

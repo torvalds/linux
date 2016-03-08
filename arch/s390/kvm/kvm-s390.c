@@ -532,20 +532,20 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 		if (!new_limit)
 			return -EINVAL;
 
-		/* gmap_alloc takes last usable address */
+		/* gmap_create takes last usable address */
 		if (new_limit != KVM_S390_NO_MEM_LIMIT)
 			new_limit -= 1;
 
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
 		if (!kvm->created_vcpus) {
-			/* gmap_alloc will round the limit up */
-			struct gmap *new = gmap_alloc(current->mm, new_limit);
+			/* gmap_create will round the limit up */
+			struct gmap *new = gmap_create(current->mm, new_limit);
 
 			if (!new) {
 				ret = -ENOMEM;
 			} else {
-				gmap_free(kvm->arch.gmap);
+				gmap_remove(kvm->arch.gmap);
 				new->private = kvm;
 				kvm->arch.gmap = new;
 				ret = 0;
@@ -1394,7 +1394,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		else
 			kvm->arch.mem_limit = min_t(unsigned long, TASK_MAX_SIZE,
 						    sclp.hamax + 1);
-		kvm->arch.gmap = gmap_alloc(current->mm, kvm->arch.mem_limit - 1);
+		kvm->arch.gmap = gmap_create(current->mm, kvm->arch.mem_limit - 1);
 		if (!kvm->arch.gmap)
 			goto out_err;
 		kvm->arch.gmap->private = kvm;
@@ -1427,7 +1427,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 		sca_del_vcpu(vcpu);
 
 	if (kvm_is_ucontrol(vcpu->kvm))
-		gmap_free(vcpu->arch.gmap);
+		gmap_remove(vcpu->arch.gmap);
 
 	if (vcpu->kvm->arch.use_cmma)
 		kvm_s390_vcpu_unsetup_cmma(vcpu);
@@ -1460,7 +1460,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	debug_unregister(kvm->arch.dbf);
 	free_page((unsigned long)kvm->arch.sie_page2);
 	if (!kvm_is_ucontrol(kvm))
-		gmap_free(kvm->arch.gmap);
+		gmap_remove(kvm->arch.gmap);
 	kvm_s390_destroy_adapters(kvm);
 	kvm_s390_clear_float_irqs(kvm);
 	KVM_EVENT(3, "vm 0x%pK destroyed", kvm);
@@ -1469,7 +1469,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 /* Section: vcpu related */
 static int __kvm_ucontrol_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
+	vcpu->arch.gmap = gmap_create(current->mm, -1UL);
 	if (!vcpu->arch.gmap)
 		return -ENOMEM;
 	vcpu->arch.gmap->private = vcpu->kvm;

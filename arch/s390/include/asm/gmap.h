@@ -15,6 +15,7 @@
  * @guest_to_host: radix tree with guest to host address translation
  * @host_to_guest: radix tree with pointer to segment table entries
  * @guest_table_lock: spinlock to protect all entries in the guest page table
+ * @ref_count: reference counter for the gmap structure
  * @table: pointer to the page directory
  * @asce: address space control element for gmap page table
  * @pfault_enabled: defines if pfaults are applicable for the guest
@@ -26,6 +27,7 @@ struct gmap {
 	struct radix_tree_root guest_to_host;
 	struct radix_tree_root host_to_guest;
 	spinlock_t guest_table_lock;
+	atomic_t ref_count;
 	unsigned long *table;
 	unsigned long asce;
 	unsigned long asce_end;
@@ -44,8 +46,11 @@ struct gmap_notifier {
 			      unsigned long end);
 };
 
-struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit);
-void gmap_free(struct gmap *gmap);
+struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit);
+void gmap_remove(struct gmap *gmap);
+struct gmap *gmap_get(struct gmap *gmap);
+void gmap_put(struct gmap *gmap);
+
 void gmap_enable(struct gmap *gmap);
 void gmap_disable(struct gmap *gmap);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
