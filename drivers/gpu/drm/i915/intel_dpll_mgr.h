@@ -49,13 +49,21 @@ enum intel_dpll_id {
 	DPLL_ID_WRPLL1 = 0,
 	DPLL_ID_WRPLL2 = 1,
 	DPLL_ID_SPLL = 2,
+	DPLL_ID_LCPLL_810 = 3,
+	DPLL_ID_LCPLL_1350 = 4,
+	DPLL_ID_LCPLL_2700 = 5,
 
 	/* skl */
 	DPLL_ID_SKL_DPLL1 = 0,
 	DPLL_ID_SKL_DPLL2 = 1,
 	DPLL_ID_SKL_DPLL3 = 2,
 };
-#define I915_NUM_PLLS 3
+#define I915_NUM_PLLS 6
+
+/** Inform the state checker that the DPLL is kept enabled even if not
+ * in use by any crtc.
+ */
+#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 
 struct intel_dpll_hw_state {
 	/* i9xx, pch plls */
@@ -113,6 +121,8 @@ struct intel_shared_dpll {
 	enum intel_dpll_id id;
 
 	struct intel_shared_dpll_funcs funcs;
+
+	uint32_t flags;
 };
 
 #define SKL_DPLL0 0

@@ -9821,13 +9821,19 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 	case PORT_CLK_SEL_SPLL:
 		id = DPLL_ID_SPLL;
 		break;
+	case PORT_CLK_SEL_LCPLL_810:
+		id = DPLL_ID_LCPLL_810;
+		break;
+	case PORT_CLK_SEL_LCPLL_1350:
+		id = DPLL_ID_LCPLL_1350;
+		break;
+	case PORT_CLK_SEL_LCPLL_2700:
+		id = DPLL_ID_LCPLL_2700;
+		break;
 	default:
 		MISSING_CASE(pipe_config->ddi_pll_sel);
 		/* fall through */
 	case PORT_CLK_SEL_NONE:
-	case PORT_CLK_SEL_LCPLL_810:
-	case PORT_CLK_SEL_LCPLL_1350:
-	case PORT_CLK_SEL_LCPLL_2700:
 		return;
 	}
 
@@ -12942,11 +12948,14 @@ check_shared_dpll_state(struct drm_device *dev)
 		     pll->active, hweight32(pll->config.crtc_mask));
 		I915_STATE_WARN(pll->active && !pll->on,
 		     "pll in active use but not on in sw tracking\n");
-		I915_STATE_WARN(pll->on && !pll->active,
-		     "pll in on but not on in use in sw tracking\n");
-		I915_STATE_WARN(pll->on != active,
-		     "pll on state mismatch (expected %i, found %i)\n",
-		     pll->on, active);
+
+		if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
+			I915_STATE_WARN(pll->on && !pll->active,
+			     "pll in on but not on in use in sw tracking\n");
+			I915_STATE_WARN(pll->on != active,
+			     "pll on state mismatch (expected %i, found %i)\n",
+			     pll->on, active);
+		}
 
 		for_each_intel_crtc(dev, crtc) {
 			if (crtc->base.state->enable && crtc->config->shared_dpll == pll)

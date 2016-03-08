@@ -992,17 +992,13 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 {
 	struct intel_shared_dpll *pll;
 
-	if (intel_encoder->type == INTEL_OUTPUT_HDMI ||
-	    intel_encoder->type == INTEL_OUTPUT_ANALOG) {
-		pll = intel_get_shared_dpll(intel_crtc, crtc_state,
-					    intel_encoder);
-		if (!pll)
-			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
-					 pipe_name(intel_crtc->pipe));
-		return pll;
-	} else {
-		return true;
-	}
+	pll = intel_get_shared_dpll(intel_crtc, crtc_state,
+				    intel_encoder);
+	if (!pll)
+		DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+				 pipe_name(intel_crtc->pipe));
+
+	return pll;
 }
 
 static bool

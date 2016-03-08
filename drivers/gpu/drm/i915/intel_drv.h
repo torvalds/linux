@@ -1312,7 +1312,6 @@ void intel_edp_drrs_invalidate(struct drm_device *dev,
 void intel_edp_drrs_flush(struct drm_device *dev, unsigned frontbuffer_bits);
 bool intel_digital_port_connected(struct drm_i915_private *dev_priv,
 					 struct intel_digital_port *port);
-void hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config);
 
 void
 intel_dp_program_link_training_pattern(struct intel_dp *intel_dp,

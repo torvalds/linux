@@ -1283,25 +1283,6 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config)
 	pipe_config->dpll_hw_state.ctrl1 = ctrl1;
 }
 
-void
-hsw_dp_set_ddi_pll_sel(struct intel_crtc_state *pipe_config)
-{
-	memset(&pipe_config->dpll_hw_state, 0,
-	       sizeof(pipe_config->dpll_hw_state));
-
-	switch (pipe_config->port_clock / 2) {
-	case 81000:
-		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
-		break;
-	case 135000:
-		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
-		break;
-	case 270000:
-		pipe_config->ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
-		break;
-	}
-}
-
 static int
 intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 {
@@ -1661,10 +1642,8 @@ found:
 
 	if ((IS_SKYLAKE(dev)  || IS_KABYLAKE(dev)) && is_edp(intel_dp))
 		skl_edp_set_pll_config(pipe_config);
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
 		/* handled in ddi */;
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
-		hsw_dp_set_ddi_pll_sel(pipe_config);
 	else
 		intel_dp_set_clock(encoder, pipe_config);
 
