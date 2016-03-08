@@ -863,7 +863,6 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
 static u64 construct_eptp(unsigned long root_hpa);
 static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
-static bool vmx_mpx_supported(void);
 static bool vmx_xsaves_supported(void);
 static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
@@ -2541,7 +2540,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		VM_EXIT_LOAD_IA32_EFER | VM_EXIT_SAVE_IA32_EFER |
 		VM_EXIT_SAVE_VMX_PREEMPTION_TIMER | VM_EXIT_ACK_INTR_ON_EXIT;
 
-	if (vmx_mpx_supported())
+	if (kvm_mpx_supported())
 		vmx->nested.nested_vmx_exit_ctls_high |= VM_EXIT_CLEAR_BNDCFGS;
 
 	/* We support free control of debug control saving. */
@@ -2562,7 +2561,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 		VM_ENTRY_LOAD_IA32_PAT;
 	vmx->nested.nested_vmx_entry_ctls_high |=
 		(VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR | VM_ENTRY_LOAD_IA32_EFER);
-	if (vmx_mpx_supported())
+	if (kvm_mpx_supported())
 		vmx->nested.nested_vmx_entry_ctls_high |= VM_ENTRY_LOAD_BNDCFGS;
 
 	/* We support free control of debug control loading. */
@@ -2813,7 +2812,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vmcs_readl(GUEST_SYSENTER_ESP);
 		break;
 	case MSR_IA32_BNDCFGS:
-		if (!vmx_mpx_supported())
+		if (!kvm_mpx_supported())
 			return 1;
 		msr_info->data = vmcs_read64(GUEST_BNDCFGS);
 		break;
@@ -2890,7 +2889,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
 	case MSR_IA32_BNDCFGS:
-		if (!vmx_mpx_supported())
+		if (!kvm_mpx_supported())
 			return 1;
 		vmcs_write64(GUEST_BNDCFGS, data);
 		break;
@@ -3363,7 +3362,7 @@ static void init_vmcs_shadow_fields(void)
 	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
 		switch (shadow_read_write_fields[i]) {
 		case GUEST_BNDCFGS:
-			if (!vmx_mpx_supported())
+			if (!kvm_mpx_supported())
 				continue;
 			break;
 		default:
@@ -10265,7 +10264,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	vmcs12->guest_sysenter_cs = vmcs_read32(GUEST_SYSENTER_CS);
 	vmcs12->guest_sysenter_esp = vmcs_readl(GUEST_SYSENTER_ESP);
 	vmcs12->guest_sysenter_eip = vmcs_readl(GUEST_SYSENTER_EIP);
-	if (vmx_mpx_supported())
+	if (kvm_mpx_supported())
 		vmcs12->guest_bndcfgs = vmcs_read64(GUEST_BNDCFGS);
 	if (nested_cpu_has_xsaves(vmcs12))
 		vmcs12->xss_exit_bitmap = vmcs_read64(XSS_EXIT_BITMAP);
