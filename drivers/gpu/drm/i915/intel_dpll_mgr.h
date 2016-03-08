@@ -26,6 +26,8 @@
 #define _INTEL_DPLL_MGR_H_
 
 struct drm_i915_private;
+struct intel_crtc;
+struct intel_crtc_state;
 
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
@@ -101,6 +103,34 @@ struct intel_shared_dpll {
 #define SKL_DPLL1 1
 #define SKL_DPLL2 2
 #define SKL_DPLL3 3
+
+/* shared dpll functions */
+struct intel_shared_dpll *
+intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
+			    enum intel_dpll_id id);
+enum intel_dpll_id
+intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
+			 struct intel_shared_dpll *pll);
+void
+intel_shared_dpll_config_get(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc);
+void
+intel_shared_dpll_config_put(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc);
+void assert_shared_dpll(struct drm_i915_private *dev_priv,
+			struct intel_shared_dpll *pll,
+			bool state);
+#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
+#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
+						struct intel_crtc_state *state);
+void intel_prepare_shared_dpll(struct intel_crtc *crtc);
+void intel_enable_shared_dpll(struct intel_crtc *crtc);
+void intel_disable_shared_dpll(struct intel_crtc *crtc);
+void intel_shared_dpll_commit(struct drm_atomic_state *state);
+void intel_shared_dpll_init(struct drm_device *dev);
 
 
 #endif /* _INTEL_DPLL_MGR_H_ */
