@@ -3200,14 +3200,10 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
-static noinline void update_nr_written(struct page *page,
-				      struct writeback_control *wbc,
-				      unsigned long nr_written)
+static void update_nr_written(struct page *page, struct writeback_control *wbc,
+			      unsigned long nr_written)
 {
 	wbc->nr_to_write -= nr_written;
-	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
-	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
-		page->mapping->writeback_index = page->index + nr_written;
 }
 
 /*
@@ -3926,6 +3922,8 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	int nr_pages;
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
+	pgoff_t done_index;
+	int range_whole = 0;
 	int scanned = 0;
 	int tag;
 
@@ -3948,6 +3946,8 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	} else {
 		index = wbc->range_start >> PAGE_SHIFT;
 		end = wbc->range_end >> PAGE_SHIFT;
+		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+			range_whole = 1;
 		scanned = 1;
 	}
 	if (wbc->sync_mode == WB_SYNC_ALL)
@@ -3957,6 +3957,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		tag_pages_for_writeback(mapping, index, end);
+	done_index = index;
 	while (!done && !nr_to_write_done && (index <= end) &&
 	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
 			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
@@ -3966,6 +3967,7 @@ retry:
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
+			done_index = page->index;
 			/*
 			 * At this point we hold neither mapping->tree_lock nor
 			 * lock on the page itself: the page may be truncated or
@@ -4009,6 +4011,20 @@ retry:
 			}
 			if (!err && ret < 0)
 				err = ret;
+			if (ret < 0) {
+				/*
+				 * done_index is set past this page,
+				 * so media errors will not choke
+				 * background writeout for the entire
+				 * file. This has consequences for
+				 * range_cyclic semantics (ie. it may
+				 * not be suitable for data integrity
+				 * writeout).
+				 */
+				done_index = page->index + 1;
+				done = 1;
+				break;
+			}
 
 			/*
 			 * the filesystem may choose to bump up nr_to_write.
@@ -4029,6 +4045,10 @@ retry:
 		index = 0;
 		goto retry;
 	}
+
+	if (wbc->range_cyclic || (wbc->nr_to_write > 0 && range_whole))
+		mapping->writeback_index = done_index;
+
 	btrfs_add_delayed_iput(inode);
 	return err;
 }
