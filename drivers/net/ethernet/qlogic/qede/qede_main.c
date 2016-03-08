@@ -1001,6 +1001,7 @@ static void qede_tpa_start(struct qede_dev *edev,
 	}
 }
 
+#ifdef CONFIG_INET
 static void qede_gro_ip_csum(struct sk_buff *skb)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -1029,12 +1030,14 @@ static void qede_gro_ipv6_csum(struct sk_buff *skb)
 				  &iph->saddr, &iph->daddr, 0);
 	tcp_gro_complete(skb);
 }
+#endif
 
 static void qede_gro_receive(struct qede_dev *edev,
 			     struct qede_fastpath *fp,
 			     struct sk_buff *skb,
 			     u16 vlan_tag)
 {
+#ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
@@ -1049,7 +1052,7 @@ static void qede_gro_receive(struct qede_dev *edev,
 			       ntohs(skb->protocol));
 		}
 	}
-
+#endif
 	skb_record_rx_queue(skb, fp->rss_id);
 	qede_skb_receive(edev, fp, skb, vlan_tag);
 }
