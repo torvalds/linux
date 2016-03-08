@@ -61,40 +61,6 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
        return sys_ftruncate64(fd, ((loff_t) offset_high << 32) | offset_low);
 }
 
-asmlinkage long sys32_stat64(const char __user *filename,
-			     struct stat64 __user *statbuf)
-{
-	struct kstat stat;
-	int ret = vfs_stat(filename, &stat);
-
-	return ret;
-}
-
-asmlinkage long sys32_lstat64(const char __user *filename,
-			      struct stat64 __user *statbuf)
-{
-	struct kstat stat;
-	int ret = vfs_lstat(filename, &stat);
-	return ret;
-}
-
-asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
-{
-	struct kstat stat;
-	int ret = vfs_fstat(fd, &stat);
-	return ret;
-}
-
-asmlinkage long sys32_fstatat64(unsigned int dfd, const char __user *filename,
-				struct stat64 __user *statbuf, int flag)
-{
-	struct kstat stat;
-	int error;
-
-	error = vfs_fstatat(dfd, filename, &stat, flag);
-	return error;
-}
-
 #ifdef CONFIG_MMU
 /*
  * Linux/i386 didn't use to be able to handle more than

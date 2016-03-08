@@ -12,11 +12,6 @@
 asmlinkage long sys32_truncate64(const char __user *, unsigned long, unsigned long);
 asmlinkage long sys32_ftruncate64(unsigned int, unsigned long, unsigned long);
 
-asmlinkage long sys32_stat64(const char __user *, struct stat64 __user *);
-asmlinkage long sys32_lstat64(const char __user *, struct stat64 __user *);
-asmlinkage long sys32_fstat64(unsigned int, struct stat64 __user *);
-asmlinkage long sys32_fstatat64(unsigned int, const char __user *,
-				struct stat64 __user *, int);
 #ifdef CONFIG_MMU
 struct mmap_arg_struct32;
 asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);

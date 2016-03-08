@@ -325,20 +325,6 @@ long lkl_syscall(long no, long *params)
 	return __lkl_syscall(data, no, params);
 }
 
-asmlinkage
-ssize_t sys_lkl_pwrite64(unsigned int fd, const char *buf, size_t count,
-			 off_t pos_hi, off_t pos_lo)
-{
-	return sys_pwrite64(fd, buf, count, ((loff_t)pos_hi << 32) + pos_lo);
-}
-
-asmlinkage
-ssize_t sys_lkl_pread64(unsigned int fd, char *buf, size_t count,
-			off_t pos_hi, off_t pos_lo)
-{
-	return sys_pread64(fd, buf, count, ((loff_t)pos_hi << 32) + pos_lo);
-}
-
 static asmlinkage long
 sys_create_syscall_thread(struct syscall_thread_data *data)
 {

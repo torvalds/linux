@@ -8,11 +8,6 @@
 __SYSCALL(__NR3264_truncate, sys32_truncate64)
 __SYSCALL(__NR3264_ftruncate, sys32_ftruncate64)
 
-__SYSCALL(__NR3264_stat, sys32_stat64)
-__SYSCALL(__NR3264_lstat, sys32_lstat64)
-__SYSCALL(__NR3264_fstat, sys32_fstat64)
-
-__SYSCALL(__NR3264_fstatat, sys32_fstatat64)
 #ifdef CONFIG_MMU
 __SYSCALL(__NR3264_mmap, sys32_mmap)
 #endif
