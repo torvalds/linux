@@ -122,7 +122,7 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 			rbnode = rb_entry(node, struct mmu_rb_node, node);
 			rb_erase(node, root);
 			if (handler->ops->remove)
-				handler->ops->remove(root, rbnode);
+				handler->ops->remove(root, rbnode, false);
 		}
 	}
 
@@ -196,12 +196,12 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 }
 
 static void __mmu_rb_remove(struct mmu_rb_handler *handler,
-			    struct mmu_rb_node *node)
+			    struct mmu_rb_node *node, bool arg)
 {
 	/* Validity of handler and node pointers has been checked by caller. */
 	rb_erase(&node->node, handler->root);
 	if (handler->ops->remove)
-		handler->ops->remove(handler->root, node);
+		handler->ops->remove(handler->root, node, arg);
 }
 
 struct mmu_rb_node *hfi1_mmu_rb_search(struct rb_root *root, unsigned long addr,
@@ -230,7 +230,7 @@ void hfi1_mmu_rb_remove(struct rb_root *root, struct mmu_rb_node *node)
 		return;
 
 	spin_lock_irqsave(&handler->lock, flags);
-	__mmu_rb_remove(handler, node);
+	__mmu_rb_remove(handler, node, false);
 	spin_unlock_irqrestore(&handler->lock, flags);
 }
 
@@ -299,7 +299,7 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 		naddr = node->addr;
 		nlen = node->len;
 		if (handler->ops->invalidate(root, node))
-			__mmu_rb_remove(handler, node);
+			__mmu_rb_remove(handler, node, true);
 
 		/*
 		 * The next address to be looked up is computed based
