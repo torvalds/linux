@@ -67,15 +67,7 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 	gc->owner = THIS_MODULE;
 	platform_set_drvdata(pdev, gc);
 
-	return gpiochip_add_data(gc, NULL);
-}
-
-static int clps711x_gpio_remove(struct platform_device *pdev)
-{
-	struct gpio_chip *gc = platform_get_drvdata(pdev);
-
-	gpiochip_remove(gc);
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }
 
 static const struct of_device_id __maybe_unused clps711x_gpio_ids[] = {
@@ -90,7 +82,6 @@ static struct platform_driver clps711x_gpio_driver = {
 		.of_match_table	= of_match_ptr(clps711x_gpio_ids),
 	},
 	.probe	= clps711x_gpio_probe,
-	.remove	= clps711x_gpio_remove,
 };
 module_platform_driver(clps711x_gpio_driver);
 

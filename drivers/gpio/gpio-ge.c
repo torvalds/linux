@@ -89,7 +89,7 @@ static int __init gef_gpio_probe(struct platform_device *pdev)
 	gc->of_node = pdev->dev.of_node;
 
 	/* This function adds a memory mapped GPIO chip */
-	ret = gpiochip_add_data(gc, NULL);
+	ret = devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 	if (ret)
 		goto err0;
 

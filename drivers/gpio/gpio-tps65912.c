@@ -106,7 +106,8 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 	if (pdata && pdata->gpio_base)
 		tps65912_gpio->gpio_chip.base = pdata->gpio_base;
 
-	ret = gpiochip_add_data(&tps65912_gpio->gpio_chip, tps65912_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tps65912_gpio->gpio_chip,
+				     tps65912_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register gpiochip, %d\n", ret);
 		return ret;
@@ -117,20 +118,11 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int tps65912_gpio_remove(struct platform_device *pdev)
-{
-	struct tps65912_gpio_data  *tps65912_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tps65912_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver tps65912_gpio_driver = {
 	.driver = {
 		.name = "tps65912-gpio",
 	},
 	.probe = tps65912_gpio_probe,
-	.remove = tps65912_gpio_remove,
 };
 
 static int __init tps65912_gpio_init(void)

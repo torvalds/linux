@@ -350,34 +350,13 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 		bank->chip.parent = &pdev->dev;
 		bank->data = data;
 
-		err = gpiochip_add_data(&bank->chip, bank);
+		err = devm_gpiochip_add_data(&pdev->dev, &bank->chip, bank);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Failed to register gpiochip %d: %d\n",
 				i, err);
-			goto err_gpiochip;
+			return err;
 		}
-	}
-
-	return 0;
-
-err_gpiochip:
-	for (i = i - 1; i >= 0; i--) {
-		struct f7188x_gpio_bank *bank = &data->bank[i];
-		gpiochip_remove(&bank->chip);
-	}
-
-	return err;
-}
-
-static int f7188x_gpio_remove(struct platform_device *pdev)
-{
-	int i;
-	struct f7188x_gpio_data *data = platform_get_drvdata(pdev);
-
-	for (i = 0; i < data->nr_bank; i++) {
-		struct f7188x_gpio_bank *bank = &data->bank[i];
-		gpiochip_remove(&bank->chip);
 	}
 
 	return 0;
@@ -476,7 +455,6 @@ static struct platform_driver f7188x_gpio_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f7188x_gpio_probe,
-	.remove		= f7188x_gpio_remove,
 };
 
 static int __init f7188x_gpio_init(void)

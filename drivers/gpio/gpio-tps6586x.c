@@ -117,7 +117,8 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	else
 		tps6586x_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add_data(&tps6586x_gpio->gpio_chip, tps6586x_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &tps6586x_gpio->gpio_chip,
+				     tps6586x_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -128,19 +129,10 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int tps6586x_gpio_remove(struct platform_device *pdev)
-{
-	struct tps6586x_gpio *tps6586x_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&tps6586x_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver tps6586x_gpio_driver = {
 	.driver.name	= "tps6586x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tps6586x_gpio_probe,
-	.remove		= tps6586x_gpio_remove,
 };
 
 static int __init tps6586x_gpio_init(void)

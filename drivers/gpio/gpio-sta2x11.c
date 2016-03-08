@@ -409,7 +409,7 @@ static int gsta_probe(struct platform_device *dev)
 		goto err_free_descs;
 	}
 
-	err = gpiochip_add_data(&chip->gpio, chip);
+	err = devm_gpiochip_add_data(&dev->dev, &chip->gpio, chip);
 	if (err < 0) {
 		dev_err(&dev->dev, "sta2x11 gpio: Can't register (%i)\n",
 			-err);

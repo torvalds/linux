@@ -279,7 +279,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->ngpio = pdata->nr_pins;
 	gc->can_sleep = false;
 
-	err = gpiochip_add_data(gc, tgpio);
+	err = devm_gpiochip_add_data(&pdev->dev, gc, tgpio);
 	if (err)
 		return err;
 
@@ -319,8 +319,6 @@ static int timbgpio_remove(struct platform_device *pdev)
 		irq_set_handler(irq, NULL);
 		irq_set_handler_data(irq, NULL);
 	}
-
-	gpiochip_remove(&tgpio->gpio);
 
 	return 0;
 }

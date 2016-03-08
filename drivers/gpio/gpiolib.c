@@ -708,6 +708,80 @@ void gpiochip_remove(struct gpio_chip *chip)
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
+static void devm_gpio_chip_release(struct device *dev, void *res)
+{
+	struct gpio_chip *chip = *(struct gpio_chip **)res;
+
+	gpiochip_remove(chip);
+}
+
+static int devm_gpio_chip_match(struct device *dev, void *res, void *data)
+
+{
+	struct gpio_chip **r = res;
+
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+
+	return *r == data;
+}
+
+/**
+ * devm_gpiochip_add_data() - Resource manager piochip_add_data()
+ * @dev: the device pointer on which irq_chip belongs to.
+ * @chip: the chip to register, with chip->base initialized
+ * Context: potentially before irqs will work
+ *
+ * Returns a negative errno if the chip can't be registered, such as
+ * because the chip->base is invalid or already associated with a
+ * different chip.  Otherwise it returns zero as a success code.
+ *
+ * The gpio chip automatically be released when the device is unbound.
+ */
+int devm_gpiochip_add_data(struct device *dev, struct gpio_chip *chip,
+			   void *data)
+{
+	struct gpio_chip **ptr;
+	int ret;
+
+	ptr = devres_alloc(devm_gpio_chip_release, sizeof(*ptr),
+			     GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	ret = gpiochip_add_data(chip, data);
+	if (ret < 0) {
+		devres_free(ptr);
+		return ret;
+	}
+
+	*ptr = chip;
+	devres_add(dev, ptr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_gpiochip_add_data);
+
+/**
+ * devm_gpiochip_remove() - Resource manager of gpiochip_remove()
+ * @dev: device for which which resource was allocated
+ * @chip: the chip to remove
+ *
+ * A gpio_chip with any GPIOs still requested may not be removed.
+ */
+void devm_gpiochip_remove(struct device *dev, struct gpio_chip *chip)
+{
+	int ret;
+
+	ret = devres_release(dev, devm_gpio_chip_release,
+			     devm_gpio_chip_match, chip);
+	if (!ret)
+		WARN_ON(ret);
+}
+EXPORT_SYMBOL_GPL(devm_gpiochip_remove);
+
 /**
  * gpiochip_find() - iterator for locating a specific gpio_chip
  * @data: data to pass to match function

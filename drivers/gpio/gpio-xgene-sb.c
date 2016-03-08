@@ -311,7 +311,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	priv->gc.irqdomain = priv->irq_domain;
 
-	ret = gpiochip_add_data(&priv->gc, priv);
+	ret = devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"failed to register X-Gene GPIO Standby driver\n");
@@ -339,7 +339,6 @@ static int xgene_gpio_sb_remove(struct platform_device *pdev)
 
 	irq_domain_remove(priv->irq_domain);
 
-	gpiochip_remove(&priv->gc);
 	return 0;
 }
 

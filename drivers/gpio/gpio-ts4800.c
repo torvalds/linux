@@ -58,16 +58,7 @@ static int ts4800_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	return gpiochip_add_data(chip, NULL);
-}
-
-static int ts4800_gpio_remove(struct platform_device *pdev)
-{
-	struct gpio_chip *chip = platform_get_drvdata(pdev);
-
-	gpiochip_remove(chip);
-
-	return 0;
+	return devm_gpiochip_add_data(&pdev->dev, chip, NULL);
 }
 
 static const struct of_device_id ts4800_gpio_of_match[] = {
@@ -81,7 +72,6 @@ static struct platform_driver ts4800_gpio_driver = {
 		   .of_match_table = ts4800_gpio_of_match,
 		   },
 	.probe = ts4800_gpio_probe,
-	.remove = ts4800_gpio_remove,
 };
 
 module_platform_driver_probe(ts4800_gpio_driver, ts4800_gpio_probe);
