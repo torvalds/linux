@@ -58,6 +58,7 @@
 #include "user_exp_rcv.h"
 #include "eprom.h"
 #include "aspm.h"
+#include "mmu_rb.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
