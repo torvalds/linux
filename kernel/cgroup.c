@@ -2901,7 +2901,7 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 		struct cgrp_cset_link *link;
 
 		list_for_each_entry(link, &dsct->cset_links, cset_link)
-			cgroup_migrate_add_src(link->cset, cgrp,
+			cgroup_migrate_add_src(link->cset, dsct,
 					       &preloaded_csets);
 	}
 	spin_unlock_bh(&css_set_lock);
