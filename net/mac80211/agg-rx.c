@@ -291,7 +291,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 
 	/* prepare A-MPDU MLME for Rx aggregation */
-	tid_agg_rx = kmalloc(sizeof(struct tid_ampdu_rx), GFP_KERNEL);
+	tid_agg_rx = kzalloc(sizeof(*tid_agg_rx), GFP_KERNEL);
 	if (!tid_agg_rx)
 		goto end;
 
