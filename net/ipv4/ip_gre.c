@@ -527,11 +527,12 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel_info *tun_info;
 	const struct ip_tunnel_key *key;
+	struct rtable *rt = NULL;
 	struct flowi4 fl;
-	struct rtable *rt;
 	int min_headroom;
 	int tunnel_hlen;
 	__be16 df, flags;
+	bool use_cache;
 	int err;
 
 	tun_info = skb_tunnel_info(skb);
@@ -540,13 +541,14 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_free_skb;
 
 	key = &tun_info->key;
-	rt = !skb->mark ? dst_cache_get_ip4(&tun_info->dst_cache, &fl.saddr) :
-			 NULL;
+	use_cache = ip_tunnel_dst_cache_usable(skb, tun_info);
+	if (use_cache)
+		rt = dst_cache_get_ip4(&tun_info->dst_cache, &fl.saddr);
 	if (!rt) {
 		rt = gre_get_rt(skb, dev, &fl, key);
 		if (IS_ERR(rt))
 				goto err_free_skb;
-		if (!skb->mark)
+		if (use_cache)
 			dst_cache_set_ip4(&tun_info->dst_cache, &rt->dst,
 					  fl.saddr);
 	}

@@ -1353,7 +1353,7 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 	unsigned int len = (unsigned int) r4;
 	void *ptr;
 
-	if (unlikely(flags & ~(BPF_F_RECOMPUTE_CSUM)))
+	if (unlikely(flags & ~(BPF_F_RECOMPUTE_CSUM | BPF_F_INVALIDATE_HASH)))
 		return -EINVAL;
 
 	/* bpf verifier guarantees that:
@@ -1384,11 +1384,13 @@ static u64 bpf_skb_store_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 flags)
 
 	if (flags & BPF_F_RECOMPUTE_CSUM)
 		skb_postpush_rcsum(skb, ptr, len);
+	if (flags & BPF_F_INVALIDATE_HASH)
+		skb_clear_hash(skb);
 
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_store_bytes_proto = {
+static const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 	.func		= bpf_skb_store_bytes,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1419,7 +1421,7 @@ static u64 bpf_skb_load_bytes(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_load_bytes_proto = {
+static const struct bpf_func_proto bpf_skb_load_bytes_proto = {
 	.func		= bpf_skb_load_bytes,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1447,6 +1449,12 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 		return -EFAULT;
 
 	switch (flags & BPF_F_HDR_FIELD_MASK) {
+	case 0:
+		if (unlikely(from != 0))
+			return -EINVAL;
+
+		csum_replace_by_diff(ptr, to);
+		break;
 	case 2:
 		csum_replace2(ptr, from, to);
 		break;
@@ -1464,7 +1472,7 @@ static u64 bpf_l3_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_l3_csum_replace_proto = {
+static const struct bpf_func_proto bpf_l3_csum_replace_proto = {
 	.func		= bpf_l3_csum_replace,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1523,7 +1531,7 @@ static u64 bpf_l4_csum_replace(u64 r1, u64 r2, u64 from, u64 to, u64 flags)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_l4_csum_replace_proto = {
+static const struct bpf_func_proto bpf_l4_csum_replace_proto = {
 	.func		= bpf_l4_csum_replace,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1562,7 +1570,7 @@ static u64 bpf_csum_diff(u64 r1, u64 from_size, u64 r3, u64 to_size, u64 seed)
 	return csum_partial(sp->diff, diff_size, seed);
 }
 
-const struct bpf_func_proto bpf_csum_diff_proto = {
+static const struct bpf_func_proto bpf_csum_diff_proto = {
 	.func		= bpf_csum_diff,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1600,7 +1608,7 @@ static u64 bpf_clone_redirect(u64 r1, u64 ifindex, u64 flags, u64 r4, u64 r5)
 	return dev_queue_xmit(skb2);
 }
 
-const struct bpf_func_proto bpf_clone_redirect_proto = {
+static const struct bpf_func_proto bpf_clone_redirect_proto = {
 	.func           = bpf_clone_redirect,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
@@ -1652,7 +1660,7 @@ int skb_do_redirect(struct sk_buff *skb)
 	return dev_queue_xmit(skb);
 }
 
-const struct bpf_func_proto bpf_redirect_proto = {
+static const struct bpf_func_proto bpf_redirect_proto = {
 	.func           = bpf_redirect,
 	.gpl_only       = false,
 	.ret_type       = RET_INTEGER,
@@ -1791,7 +1799,7 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
+static const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
 	.func		= bpf_skb_get_tunnel_key,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1799,6 +1807,32 @@ const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
 	.arg2_type	= ARG_PTR_TO_STACK,
 	.arg3_type	= ARG_CONST_STACK_SIZE,
 	.arg4_type	= ARG_ANYTHING,
+};
+
+static u64 bpf_skb_get_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	u8 *to = (u8 *) (long) r2;
+	const struct ip_tunnel_info *info = skb_tunnel_info(skb);
+
+	if (unlikely(!info ||
+		     !(info->key.tun_flags & TUNNEL_OPTIONS_PRESENT)))
+		return -ENOENT;
+	if (unlikely(size < info->options_len))
+		return -ENOMEM;
+
+	ip_tunnel_info_opts_get(to, info);
+
+	return info->options_len;
+}
+
+static const struct bpf_func_proto bpf_skb_get_tunnel_opt_proto = {
+	.func		= bpf_skb_get_tunnel_opt,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_STACK,
+	.arg3_type	= ARG_CONST_STACK_SIZE,
 };
 
 static struct metadata_dst __percpu *md_dst;
@@ -1811,7 +1845,8 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	u8 compat[sizeof(struct bpf_tunnel_key)];
 	struct ip_tunnel_info *info;
 
-	if (unlikely(flags & ~(BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX)))
+	if (unlikely(flags & ~(BPF_F_TUNINFO_IPV6 | BPF_F_ZERO_CSUM_TX |
+			       BPF_F_DONT_FRAGMENT)))
 		return -EINVAL;
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
@@ -1835,7 +1870,10 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	info = &md->u.tun_info;
 	info->mode = IP_TUNNEL_INFO_TX;
 
-	info->key.tun_flags = TUNNEL_KEY | TUNNEL_CSUM;
+	info->key.tun_flags = TUNNEL_KEY | TUNNEL_CSUM | TUNNEL_NOCACHE;
+	if (flags & BPF_F_DONT_FRAGMENT)
+		info->key.tun_flags |= TUNNEL_DONT_FRAGMENT;
+
 	info->key.tun_id = cpu_to_be64(from->tunnel_id);
 	info->key.tos = from->tunnel_tos;
 	info->key.ttl = from->tunnel_ttl;
@@ -1853,7 +1891,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	return 0;
 }
 
-const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
+static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.func		= bpf_skb_set_tunnel_key,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -1863,17 +1901,58 @@ const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-static const struct bpf_func_proto *bpf_get_skb_set_tunnel_key_proto(void)
+#define BPF_TUNLEN_MAX	255
+
+static u64 bpf_skb_set_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
+{
+	struct sk_buff *skb = (struct sk_buff *) (long) r1;
+	u8 *from = (u8 *) (long) r2;
+	struct ip_tunnel_info *info = skb_tunnel_info(skb);
+	const struct metadata_dst *md = this_cpu_ptr(md_dst);
+
+	if (unlikely(info != &md->u.tun_info || (size & (sizeof(u32) - 1))))
+		return -EINVAL;
+	if (unlikely(size > BPF_TUNLEN_MAX))
+		return -ENOMEM;
+
+	ip_tunnel_info_opts_set(info, from, size);
+
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_skb_set_tunnel_opt_proto = {
+	.func		= bpf_skb_set_tunnel_opt,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_PTR_TO_STACK,
+	.arg3_type	= ARG_CONST_STACK_SIZE,
+};
+
+static const struct bpf_func_proto *
+bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 {
 	if (!md_dst) {
-		/* race is not possible, since it's called from
-		 * verifier that is holding verifier mutex
+		BUILD_BUG_ON(FIELD_SIZEOF(struct ip_tunnel_info,
+					  options_len) != 1);
+
+		/* Race is not possible, since it's called from verifier
+		 * that is holding verifier mutex.
 		 */
-		md_dst = metadata_dst_alloc_percpu(0, GFP_KERNEL);
+		md_dst = metadata_dst_alloc_percpu(BPF_TUNLEN_MAX,
+						   GFP_KERNEL);
 		if (!md_dst)
 			return NULL;
 	}
-	return &bpf_skb_set_tunnel_key_proto;
+
+	switch (which) {
+	case BPF_FUNC_skb_set_tunnel_key:
+		return &bpf_skb_set_tunnel_key_proto;
+	case BPF_FUNC_skb_set_tunnel_opt:
+		return &bpf_skb_set_tunnel_opt_proto;
+	default:
+		return NULL;
+	}
 }
 
 static const struct bpf_func_proto *
@@ -1927,7 +2006,11 @@ tc_cls_act_func_proto(enum bpf_func_id func_id)
 	case BPF_FUNC_skb_get_tunnel_key:
 		return &bpf_skb_get_tunnel_key_proto;
 	case BPF_FUNC_skb_set_tunnel_key:
-		return bpf_get_skb_set_tunnel_key_proto();
+		return bpf_get_skb_set_tunnel_proto(func_id);
+	case BPF_FUNC_skb_get_tunnel_opt:
+		return &bpf_skb_get_tunnel_opt_proto;
+	case BPF_FUNC_skb_set_tunnel_opt:
+		return bpf_get_skb_set_tunnel_proto(func_id);
 	case BPF_FUNC_redirect:
 		return &bpf_redirect_proto;
 	case BPF_FUNC_get_route_realm:

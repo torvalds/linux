@@ -298,6 +298,17 @@ enum bpf_func_id {
 	 * Return: csum result
 	 */
 	BPF_FUNC_csum_diff,
+
+	/**
+	 * bpf_skb_[gs]et_tunnel_opt(skb, opt, size)
+	 * retrieve or populate tunnel options metadata
+	 * @skb: pointer to skb
+	 * @opt: pointer to raw tunnel option data
+	 * @size: size of @opt
+	 * Return: 0 on success for set, option size for get
+	 */
+	BPF_FUNC_skb_get_tunnel_opt,
+	BPF_FUNC_skb_set_tunnel_opt,
 	__BPF_FUNC_MAX_ID,
 };
 
@@ -305,6 +316,7 @@ enum bpf_func_id {
 
 /* BPF_FUNC_skb_store_bytes flags. */
 #define BPF_F_RECOMPUTE_CSUM		(1ULL << 0)
+#define BPF_F_INVALIDATE_HASH		(1ULL << 1)
 
 /* BPF_FUNC_l3_csum_replace and BPF_FUNC_l4_csum_replace flags.
  * First 4 bits are for passing the header field size.
@@ -329,6 +341,7 @@ enum bpf_func_id {
 
 /* BPF_FUNC_skb_set_tunnel_key flags. */
 #define BPF_F_ZERO_CSUM_TX		(1ULL << 1)
+#define BPF_F_DONT_FRAGMENT		(1ULL << 2)
 
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
