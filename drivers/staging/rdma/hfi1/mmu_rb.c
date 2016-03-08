@@ -107,6 +107,9 @@ void hfi1_mmu_rb_unregister(struct rb_root *root)
 	struct mmu_rb_handler *handler = find_mmu_handler(root);
 	unsigned long flags;
 
+	if (!handler)
+		return;
+
 	spin_lock_irqsave(&mmu_rb_lock, flags);
 	list_del(&handler->list);
 	spin_unlock_irqrestore(&mmu_rb_lock, flags);
