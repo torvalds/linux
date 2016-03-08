@@ -302,9 +302,10 @@ static void sg_complete(struct urb *urb)
 		 */
 		spin_unlock(&io->lock);
 		for (i = 0, found = 0; i < io->entries; i++) {
-			if (!io->urbs[i] || !io->urbs[i]->dev)
+			if (!io->urbs[i])
 				continue;
 			if (found) {
+				usb_block_urb(io->urbs[i]);
 				retval = usb_unlink_urb(io->urbs[i]);
 				if (retval != -EINPROGRESS &&
 				    retval != -ENODEV &&
@@ -515,12 +516,10 @@ void usb_sg_wait(struct usb_sg_request *io)
 		int retval;
 
 		io->urbs[i]->dev = io->dev;
-		retval = usb_submit_urb(io->urbs[i], GFP_ATOMIC);
-
-		/* after we submit, let completions or cancellations fire;
-		 * we handshake using io->status.
-		 */
 		spin_unlock_irq(&io->lock);
+
+		retval = usb_submit_urb(io->urbs[i], GFP_NOIO);
+
 		switch (retval) {
 			/* maybe we retrying will recover */
 		case -ENXIO:	/* hc didn't queue this one */
@@ -590,8 +589,8 @@ void usb_sg_cancel(struct usb_sg_request *io)
 		for (i = 0; i < io->entries; i++) {
 			int retval;
 
-			if (!io->urbs[i]->dev)
-				continue;
+			usb_block_urb(io->urbs[i]);
+
 			retval = usb_unlink_urb(io->urbs[i]);
 			if (retval != -EINPROGRESS
 					&& retval != -ENODEV
