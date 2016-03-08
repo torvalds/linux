@@ -34,6 +34,17 @@ config USBIP_HOST
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbip-host.
 
+config USBIP_VUDC
+	tristate "VUDC driver"
+	depends on USBIP_CORE
+	---help---
+	  This enables the USB/IP virtual USB device controller
+	  driver, which is run on the host machine, allowing the
+	  machine itself to act as a device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbip-vudc.
+
 config USBIP_DEBUG
 	bool "Debug messages for USB/IP"
 	depends on USBIP_CORE
