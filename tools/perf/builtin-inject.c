@@ -253,12 +253,16 @@ static int perf_event__jit_repipe_mmap(struct perf_tool *tool,
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u64 n = 0;
+	int ret;
 
 	/*
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
-	if (!jit_process(inject->session, &inject->output, machine,
-			 event->mmap.filename, sample->pid, &n)) {
+	ret = jit_process(inject->session, &inject->output, machine,
+			  event->mmap.filename, sample->pid, &n);
+	if (ret < 0)
+		return ret;
+	if (ret) {
 		inject->bytes_written += n;
 		return 0;
 	}
@@ -287,12 +291,16 @@ static int perf_event__jit_repipe_mmap2(struct perf_tool *tool,
 {
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u64 n = 0;
+	int ret;
 
 	/*
 	 * if jit marker, then inject jit mmaps and generate ELF images
 	 */
-	if (!jit_process(inject->session, &inject->output, machine,
-			  event->mmap2.filename, sample->pid, &n)) {
+	ret = jit_process(inject->session, &inject->output, machine,
+			  event->mmap2.filename, sample->pid, &n);
+	if (ret < 0)
+		return ret;
+	if (ret) {
 		inject->bytes_written += n;
 		return 0;
 	}
@@ -679,12 +687,16 @@ static int __cmd_inject(struct perf_inject *inject)
 	ret = perf_session__process_events(session);
 
 	if (!file_out->is_pipe) {
-		if (inject->build_ids) {
+		if (inject->build_ids)
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
-			if (inject->have_auxtrace)
-				dsos__hit_all(session);
-		}
+		/*
+		 * Keep all buildids when there is unprocessed AUX data because
+		 * it is not known which ones the AUX trace hits.
+		 */
+		if (perf_header__has_feat(&session->header, HEADER_BUILD_ID) &&
+		    inject->have_auxtrace && !inject->itrace_synth_opts.set)
+			dsos__hit_all(session);
 		/*
 		 * The AUX areas have been removed and replaced with
 		 * synthesized hardware events, so clear the feature flag and
@@ -716,23 +728,6 @@ static int __cmd_inject(struct perf_inject *inject)
 
 	return ret;
 }
-
-#ifdef HAVE_LIBELF_SUPPORT
-static int
-jit_validate_events(struct perf_session *session)
-{
-	struct perf_evsel *evsel;
-
-	/*
-	 * check that all events use CLOCK_MONOTONIC
-	 */
-	evlist__for_each(session->evlist, evsel) {
-		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
-			return -1;
-	}
-	return 0;
-}
-#endif
 
 int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 {
@@ -840,13 +835,6 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 #ifdef HAVE_LIBELF_SUPPORT
 	if (inject.jit_mode) {
-		/*
-		 * validate event is using the correct clockid
-		 */
-		if (jit_validate_events(inject.session)) {
-			fprintf(stderr, "error, jitted code must be sampled with perf record -k 1\n");
-			return -1;
-		}
 		inject.tool.mmap2	   = perf_event__jit_repipe_mmap2;
 		inject.tool.mmap	   = perf_event__jit_repipe_mmap;
 		inject.tool.ordered_events = true;

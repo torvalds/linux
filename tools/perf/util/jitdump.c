@@ -99,6 +99,21 @@ jit_close(struct jit_buf_desc *jd)
 }
 
 static int
+jit_validate_events(struct perf_session *session)
+{
+	struct perf_evsel *evsel;
+
+	/*
+	 * check that all events use CLOCK_MONOTONIC
+	 */
+	evlist__for_each(session->evlist, evsel) {
+		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
+			return -1;
+	}
+	return 0;
+}
+
+static int
 jit_open(struct jit_buf_desc *jd, const char *name)
 {
 	struct jitheader header;
@@ -154,6 +169,14 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	if (header.flags & JITDUMP_FLAGS_RESERVED) {
 		pr_err("jitdump file contains invalid or unsupported flags 0x%llx\n",
 		       (unsigned long long)header.flags & JITDUMP_FLAGS_RESERVED);
+		goto error;
+	}
+
+	/*
+	 * validate event is using the correct clockid
+	 */
+	if (jit_validate_events(jd->session)) {
+		pr_err("error, jitted code must be sampled with perf record -k 1\n");
 		goto error;
 	}
 
@@ -647,7 +670,7 @@ jit_process(struct perf_session *session,
 	 * first, detect marker mmap (i.e., the jitdump mmap)
 	 */
 	if (jit_detect(filename, pid))
-		return -1;
+		return 0;
 
 	memset(&jd, 0, sizeof(jd));
 
@@ -665,8 +688,10 @@ jit_process(struct perf_session *session,
 	*nbytes = 0;
 
 	ret = jit_inject(&jd, filename);
-	if (!ret)
+	if (!ret) {
 		*nbytes = jd.bytes_written;
+		ret = 1;
+	}
 
 	return ret;
 }
