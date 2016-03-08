@@ -162,7 +162,7 @@ static ssize_t name##_avg_show(struct device *dev,		\
 	gb = dev_get_drvdata(dev);			\
 	stats = &gb->name;					\
 	count = stats->count ? stats->count : 1;			\
-	avg = stats->sum;						\
+	avg = stats->sum + count / 2000000; /* round closest */		\
 	rem = do_div(avg, count);					\
 	rem *= 1000000;							\
 	do_div(rem, count);						\
