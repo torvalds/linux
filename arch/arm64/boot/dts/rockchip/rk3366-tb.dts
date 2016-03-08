@@ -312,6 +312,15 @@
 		 */
 		reset-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>; /* GPIO0_B6 */
 	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6335";
+		sdio_vref = <1800>;
+		WIFI,host_wake_irq = <&gpio3 20 GPIO_ACTIVE_HIGH>; /* GPIO3_c4 */
+		status = "okay";
+	};
 };
 
 &emmc {
