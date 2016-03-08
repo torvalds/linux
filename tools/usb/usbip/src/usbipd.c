@@ -45,6 +45,7 @@
 
 #include "usbip_host_driver.h"
 #include "usbip_host_common.h"
+#include "usbip_device_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
 #include "list.h"
@@ -67,6 +68,11 @@ static const char usbipd_help_string[] =
 	"\n"
 	"	-6, --ipv6\n"
 	"		Bind to IPv6. Default is both.\n"
+	"\n"
+	"	-e, --device\n"
+	"		Run in device mode.\n"
+	"		Rather than drive an attached device, create\n"
+	"		a virtual UDC to bind gadgets to.\n"
 	"\n"
 	"	-D, --daemon\n"
 	"		Run as a daemon process.\n"
@@ -590,6 +596,7 @@ int main(int argc, char *argv[])
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "daemon",   no_argument,       NULL, 'D' },
 		{ "debug",    no_argument,       NULL, 'd' },
+		{ "device",   no_argument,       NULL, 'e' },
 		{ "pid",      optional_argument, NULL, 'P' },
 		{ "tcp-port", required_argument, NULL, 't' },
 		{ "help",     no_argument,       NULL, 'h' },
@@ -618,7 +625,7 @@ int main(int argc, char *argv[])
 	cmd = cmd_standalone_mode;
 	driver = &host_driver;
 	for (;;) {
-		opt = getopt_long(argc, argv, "46DdP::t:hv", longopts, NULL);
+		opt = getopt_long(argc, argv, "46DdeP::t:hv", longopts, NULL);
 
 		if (opt == -1)
 			break;
@@ -647,6 +654,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			cmd = cmd_version;
+			break;
+		case 'e':
+			driver = &device_driver;
 			break;
 		case '?':
 			usbipd_help();
