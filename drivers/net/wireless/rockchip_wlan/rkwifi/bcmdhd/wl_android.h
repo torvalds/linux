@@ -1,9 +1,30 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.h 487838 2014-06-27 05:51:44Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: wl_android.h 608194 2015-12-24 04:34:35Z $
  */
 
 #ifndef _wl_android_
@@ -16,14 +37,11 @@
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
  */
-#if defined(WL_SDO) || defined(BT_WIFI_HANDOVER) || defined(WL_NAN)
+#if defined(BT_WIFI_HANDOVER) || defined(WL_NAN)
 #define WL_GENL
 #endif
 
 
-#ifdef WL_GENL
-#include <net/genetlink.h>
-#endif
 
 /**
  * Android platform dependent functions, feel free to add Android specific functions here
@@ -39,50 +57,9 @@ int wl_android_init(void);
 int wl_android_exit(void);
 void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
-int wl_android_wifi_off(struct net_device *dev);
+int wl_android_wifi_off(struct net_device *dev, bool on_failure);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
 
-#ifdef WL_GENL
-typedef struct bcm_event_hdr {
-	u16 event_type;
-	u16 len;
-} bcm_event_hdr_t;
-
-/* attributes (variables): the index in this enum is used as a reference for the type,
- *             userspace application has to indicate the corresponding type
- *             the policy is used for security considerations
- */
-enum {
-	BCM_GENL_ATTR_UNSPEC,
-	BCM_GENL_ATTR_STRING,
-	BCM_GENL_ATTR_MSG,
-	__BCM_GENL_ATTR_MAX
-};
-#define BCM_GENL_ATTR_MAX (__BCM_GENL_ATTR_MAX - 1)
-
-/* commands: enumeration of all commands (functions),
- * used by userspace application to identify command to be ececuted
- */
-enum {
-	BCM_GENL_CMD_UNSPEC,
-	BCM_GENL_CMD_MSG,
-	__BCM_GENL_CMD_MAX
-};
-#define BCM_GENL_CMD_MAX (__BCM_GENL_CMD_MAX - 1)
-
-/* Enum values used by the BCM supplicant to identify the events */
-enum {
-	BCM_E_UNSPEC,
-	BCM_E_SVC_FOUND,
-	BCM_E_DEV_FOUND,
-	BCM_E_DEV_LOST,
-	BCM_E_DEV_BT_WIFI_HO_REQ,
-	BCM_E_MAX
-};
-
-s32 wl_genl_send_msg(struct net_device *ndev, u32 event_type,
-	u8 *string, u16 len, u8 *hdr, u16 hdrlen);
-#endif /* WL_GENL */
 s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
 
 /* hostap mac mode */
@@ -93,22 +70,29 @@ s32 wl_netlink_send_msg(int pid, int type, int seq, void *data, size_t size);
 /* max number of assoc list */
 #define MAX_NUM_OF_ASSOCLIST    64
 
+/* Bandwidth */
+#define WL_CH_BANDWIDTH_20MHZ 20
+#define WL_CH_BANDWIDTH_40MHZ 40
+#define WL_CH_BANDWIDTH_80MHZ 80
 /* max number of mac filter list
  * restrict max number to 10 as maximum cmd string size is 255
  */
 #define MAX_NUM_MAC_FILT        10
 
 int wl_android_set_ap_mac_list(struct net_device *dev, int macmode, struct maclist *maclist);
+int wl_android_set_roam_offload_bssid_list(struct net_device *dev, const char *cmd);
 
 /* terence:
  * BSSCACHE: Cache bss list
  * RSSAVG: Average RSSI of BSS list
  * RSSIOFFSET: RSSI offset
+ * SORT_BSS_BY_RSSI: Sort BSS by RSSI
  */
 //#define BSSCACHE
 //#define RSSIAVG
 //#define RSSIOFFSET
 //#define RSSIOFFSET_NEW
+//#define SORT_BSS_BY_RSSI
 
 #define RSSI_MAXVAL -2
 #define RSSI_MINVAL -200
@@ -174,7 +158,11 @@ void wl_free_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_dirty_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 void wl_delete_disconnected_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl, u8 *bssid);
 void wl_reset_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl);
-void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl, wl_scan_results_t *ss_list);
+void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl,	
+#if defined(RSSIAVG)
+	wl_rssi_cache_ctrl_t *rssi_cache_ctrl,
+#endif
+	wl_scan_results_t *ss_list);
 void wl_release_bss_cache_ctrl(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 #endif
 #endif /* _wl_android_ */

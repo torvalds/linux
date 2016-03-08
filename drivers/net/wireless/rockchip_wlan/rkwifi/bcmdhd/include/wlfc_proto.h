@@ -1,8 +1,34 @@
 /*
-* $Copyright Open 2009 Broadcom Corporation$
-* $Id: wlfc_proto.h 499510 2014-08-28 23:40:47Z $
-*
-*/
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
+ *
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: wlfc_proto.h 542895 2015-03-22 14:13:12Z $
+ *
+ */
+
+/** WL flow control for PROP_TXSTATUS. Related to host AMPDU reordering. */
+
+
 #ifndef __wlfc_proto_definitions_h__
 #define __wlfc_proto_definitions_h__
 
@@ -17,7 +43,7 @@
 	|  3   |   2  | (count, handle, prec_bmp)| Set the credit depth for a MAC dstn
 	 ---------------------------------------------------------------------------
 	|  4   |   4+ | see pkttag comments      | TXSTATUS
-	|      |      | TX status & timestamps   | Present only when pkt timestamp is enabled
+	|      |   12 | TX status & timestamps   | Present only when pkt timestamp is enabled
 	 ---------------------------------------------------------------------------
 	|  5   |   4  | see pkttag comments      | PKKTTAG [host->firmware]
 	 ---------------------------------------------------------------------------
@@ -59,7 +85,7 @@
 #define WLFC_CTL_TYPE_MAC_CLOSE			2
 #define WLFC_CTL_TYPE_MAC_REQUEST_CREDIT	3
 #define WLFC_CTL_TYPE_TXSTATUS			4
-#define WLFC_CTL_TYPE_PKTTAG			5
+#define WLFC_CTL_TYPE_PKTTAG			5	/** host<->dongle */
 
 #define WLFC_CTL_TYPE_MACDESC_ADD		6
 #define WLFC_CTL_TYPE_MACDESC_DEL		7
@@ -70,13 +96,13 @@
 
 #define WLFC_CTL_TYPE_FIFO_CREDITBACK		11
 
-#define WLFC_CTL_TYPE_PENDING_TRAFFIC_BMP	12
+#define WLFC_CTL_TYPE_PENDING_TRAFFIC_BMP	12	/** host->dongle */
 #define WLFC_CTL_TYPE_MAC_REQUEST_PACKET	13
 #define WLFC_CTL_TYPE_HOST_REORDER_RXPKTS	14
 
-
 #define WLFC_CTL_TYPE_TX_ENTRY_STAMP		15
 #define WLFC_CTL_TYPE_RX_STAMP			16
+#define WLFC_CTL_TYPE_TX_STATUS_STAMP		17	/** obsolete */
 
 #define WLFC_CTL_TYPE_TRANS_ID			18
 #define WLFC_CTL_TYPE_COMP_TXSTATUS		19
@@ -87,9 +113,9 @@
 
 #define WLFC_CTL_TYPE_FILLER			255
 
-#define WLFC_CTL_VALUE_LEN_MACDESC		8	/* handle, interface, MAC */
+#define WLFC_CTL_VALUE_LEN_MACDESC		8	/** handle, interface, MAC */
 
-#define WLFC_CTL_VALUE_LEN_MAC			1	/* MAC-handle */
+#define WLFC_CTL_VALUE_LEN_MAC			1	/** MAC-handle */
 #define WLFC_CTL_VALUE_LEN_RSSI			1
 
 #define WLFC_CTL_VALUE_LEN_INTERFACE		1
@@ -97,8 +123,14 @@
 
 #define WLFC_CTL_VALUE_LEN_TXSTATUS		4
 #define WLFC_CTL_VALUE_LEN_PKTTAG		4
+#define WLFC_CTL_VALUE_LEN_TIMESTAMP		12	/** 4-byte rate info + 2 TSF */
 
 #define WLFC_CTL_VALUE_LEN_SEQ			2
+
+/* The high bits of ratespec report in timestamp are used for various status */
+#define WLFC_TSFLAGS_RX_RETRY		(1 << 31)
+#define WLFC_TSFLAGS_PM_ENABLED		(1 << 30)
+#define WLFC_TSFLAGS_MASK		(WLFC_TSFLAGS_RX_RETRY | WLFC_TSFLAGS_PM_ENABLED)
 
 /* enough space to host all 4 ACs, bc/mc and atim fifo credit */
 #define WLFC_CTL_VALUE_LEN_FIFO_CREDITBACK	6
@@ -107,9 +139,8 @@
 #define WLFC_CTL_VALUE_LEN_REQUEST_PACKET	3	/* credit, MAC-handle, prec_bitmap */
 
 
-#define WLFC_PKTFLAG_PKTFROMHOST	0x01 /* packet originated from hot side */
-#define WLFC_PKTFLAG_PKT_REQUESTED	0x02 /* packet requsted by firmware side */
-#define WLFC_PKTFLAG_PKT_FORCELOWRATE	0x04 /* force low rate for this packet */
+#define WLFC_PKTFLAG_PKTFROMHOST	0x01
+#define WLFC_PKTFLAG_PKT_REQUESTED	0x02
 
 #define WL_TXSTATUS_STATUS_MASK			0xff /* allow 8 bits */
 #define WL_TXSTATUS_STATUS_SHIFT		24
@@ -120,6 +151,12 @@
 #define WL_TXSTATUS_GET_STATUS(x)	(((x) >> WL_TXSTATUS_STATUS_SHIFT) & \
 	WL_TXSTATUS_STATUS_MASK)
 
+/**
+ * Bit 31 of the 32-bit packet tag is defined as 'generation ID'. It is set by the host to the
+ * "current" generation, and by the firmware to the "expected" generation, toggling on suppress. The
+ * firmware accepts a packet when the generation matches; on reset (startup) both "current" and
+ * "expected" are set to 0.
+ */
 #define WL_TXSTATUS_GENERATION_MASK		1 /* allow 1 bit */
 #define WL_TXSTATUS_GENERATION_SHIFT		31
 
@@ -168,6 +205,16 @@
 	((ctr) & WL_TXSTATUS_FREERUNCTR_MASK))
 #define WL_TXSTATUS_GET_FREERUNCTR(x)		((x)& WL_TXSTATUS_FREERUNCTR_MASK)
 
+/* Seq number part of AMSDU */
+#define WL_SEQ_AMSDU_MASK             0x1 /* allow 1 bit */
+#define WL_SEQ_AMSDU_SHIFT            14
+#define WL_SEQ_SET_AMSDU(x, val)      ((x) = \
+	((x) & ~(WL_SEQ_AMSDU_MASK << WL_SEQ_AMSDU_SHIFT)) | \
+	(((val) & WL_SEQ_AMSDU_MASK) << WL_SEQ_AMSDU_SHIFT))
+#define WL_SEQ_GET_AMSDU(x)   (((x) >> WL_SEQ_AMSDU_SHIFT) & \
+					WL_SEQ_AMSDU_MASK)
+
+/* Seq number is valid coming from FW */
 #define WL_SEQ_FROMFW_MASK		0x1 /* allow 1 bit */
 #define WL_SEQ_FROMFW_SHIFT		13
 #define WL_SEQ_SET_FROMFW(x, val)	((x) = \
@@ -176,6 +223,13 @@
 #define WL_SEQ_GET_FROMFW(x)	(((x) >> WL_SEQ_FROMFW_SHIFT) & \
 	WL_SEQ_FROMFW_MASK)
 
+/**
+ * Proptxstatus related.
+ *
+ * Pkt from bus layer (DHD for SDIO and pciedev for PCIE)
+ * is re-using seq number previously suppressed
+ * so FW should not assign new one
+ */
 #define WL_SEQ_FROMDRV_MASK		0x1 /* allow 1 bit */
 #define WL_SEQ_FROMDRV_SHIFT		12
 #define WL_SEQ_SET_FROMDRV(x, val)	((x) = \
@@ -192,6 +246,10 @@
 #define WL_SEQ_GET_NUM(x)	(((x) >> WL_SEQ_NUM_SHIFT) & \
 	WL_SEQ_NUM_MASK)
 
+#define WL_SEQ_AMSDU_SUPPR_MASK	((WL_SEQ_FROMDRV_MASK << WL_SEQ_FROMDRV_SHIFT) | \
+				(WL_SEQ_AMSDU_MASK << WL_SEQ_AMSDU_SHIFT) | \
+				(WL_SEQ_NUM_MASK << WL_SEQ_NUM_SHIFT))
+
 /* 32 STA should be enough??, 6 bits; Must be power of 2 */
 #define WLFC_MAC_DESC_TABLE_SIZE	32
 #define WLFC_MAX_IFNUM				16
@@ -199,6 +257,13 @@
 
 /* b[7:5] -reuse guard, b[4:0] -value */
 #define WLFC_MAC_DESC_GET_LOOKUP_INDEX(x) ((x) & 0x1f)
+
+#define WLFC_PKTFLAG_SET_PKTREQUESTED(x)	(x) |= \
+	(WLFC_PKTFLAG_PKT_REQUESTED << WL_TXSTATUS_FLAGS_SHIFT)
+
+#define WLFC_PKTFLAG_CLR_PKTREQUESTED(x)	(x) &= \
+	~(WLFC_PKTFLAG_PKT_REQUESTED << WL_TXSTATUS_FLAGS_SHIFT)
+
 
 #define WLFC_MAX_PENDING_DATALEN	120
 
@@ -214,12 +279,14 @@
 #define WLFC_CTL_PKTFLAG_TOSSED_BYWLC	3
 /* Firmware tossed after retries */
 #define WLFC_CTL_PKTFLAG_DISCARD_NOACK	4
+/* Firmware wrongly reported suppressed previously,now fixing to acked */
+#define WLFC_CTL_PKTFLAG_SUPPRESS_ACKED	5
 
 #define WLFC_D11_STATUS_INTERPRET(txs)	\
-	(((txs)->status.suppr_ind !=  TX_STATUS_SUPR_NONE) ? \
-	WLFC_CTL_PKTFLAG_D11SUPPRESS : \
-	((txs)->status.was_acked ? \
-		WLFC_CTL_PKTFLAG_DISCARD : WLFC_CTL_PKTFLAG_DISCARD_NOACK))
+	((txs)->status.was_acked ? WLFC_CTL_PKTFLAG_DISCARD : \
+	(TXS_SUPR_MAGG_DONE((txs)->status.suppr_ind) ? \
+	WLFC_CTL_PKTFLAG_DISCARD_NOACK : WLFC_CTL_PKTFLAG_D11SUPPRESS))
+
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define WLFC_DBGMESG(x) printf x
@@ -259,7 +326,7 @@
 #define WLFC_TYPE_TRANS_ID_LEN			6
 
 #define WLFC_MODE_HANGER	1 /* use hanger */
-#define WLFC_MODE_AFQ		2 /* use afq */
+#define WLFC_MODE_AFQ		2 /* use afq (At Firmware Queue) */
 #define WLFC_IS_OLD_DEF(x) ((x & 1) || (x & 2))
 
 #define WLFC_MODE_AFQ_SHIFT		2	/* afq bit */

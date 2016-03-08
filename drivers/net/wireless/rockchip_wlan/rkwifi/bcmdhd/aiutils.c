@@ -2,9 +2,30 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: aiutils.c 467150 2014-04-02 17:30:43Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: aiutils.c 607900 2015-12-22 13:38:53Z $
  */
 #include <bcm_cfg.h>
 #include <typedefs.h>
@@ -20,8 +41,10 @@
 
 #define BCM47162_DMP() (0)
 #define BCM5357_DMP() (0)
+#define BCM53573_DMP() (0)
 #define BCM4707_DMP() (0)
 #define PMU_DMP() (0)
+#define GCI_DMP() (0)
 #define remap_coreid(sih, coreid)	(coreid)
 #define remap_corerev(sih, corerev)	(corerev)
 
@@ -32,6 +55,7 @@ get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 {
 	uint32 ent;
 	uint inv = 0, nom = 0;
+	uint32 size = 0;
 
 	while (TRUE) {
 		ent = R_REG(si_osh(sih), *eromptr);
@@ -50,6 +74,13 @@ get_erom_ent(si_t *sih, uint32 **eromptr, uint32 mask, uint32 match)
 
 		if ((ent & mask) == match)
 			break;
+
+		/* escape condition related EROM size if it has invalid values */
+		size += sizeof(*eromptr);
+		if (size >= ER_SZ_MAX) {
+			SI_ERROR(("Failed to find end of EROM marker\n"));
+			break;
+		}
 
 		nom++;
 	}
@@ -288,6 +319,8 @@ ai_scan(si_t *sih, void *regs, uint devid)
 			}
 			if (i == 0)
 				cores_info->wrapba[idx] = addrl;
+			else if (i == 1)
+				cores_info->wrapba2[idx] = addrl;
 		}
 
 		/* And finally slave wrappers */
@@ -295,6 +328,12 @@ ai_scan(si_t *sih, void *regs, uint devid)
 			uint fwp = (nsp == 1) ? 0 : 1;
 			asd = get_asd(sih, &eromptr, fwp + i, 0, AD_ST_SWRAP, &addrl, &addrh,
 			              &sizel, &sizeh);
+
+			/* cache APB bridge wrapper address for set/clear timeout */
+			if ((mfg == MFGID_ARM) && (cid == APB_BRIDGE_ID)) {
+				ASSERT(sii->num_br < SI_MAXBR);
+				sii->br_wrapba[sii->num_br++] = addrl;
+			}
 			if (asd == 0) {
 				SI_ERROR(("Missing descriptor for SW %d\n", i));
 				goto error;
@@ -305,6 +344,8 @@ ai_scan(si_t *sih, void *regs, uint devid)
 			}
 			if ((nmw == 0) && (i == 0))
 				cores_info->wrapba[idx] = addrl;
+			else if ((nmw == 0) && (i == 1))
+				cores_info->wrapba2[idx] = addrl;
 		}
 
 
@@ -329,12 +370,12 @@ error:
 /* This function changes the logical "focus" to the indicated core.
  * Return the current core's virtual address.
  */
-void *
-ai_setcoreidx(si_t *sih, uint coreidx)
+static void *
+_ai_setcoreidx(si_t *sih, uint coreidx, uint use_wrap2)
 {
 	si_info_t *sii = SI_INFO(sih);
 	si_cores_info_t *cores_info = (si_cores_info_t *)sii->cores_info;
-	uint32 addr, wrap;
+	uint32 addr, wrap, wrap2;
 	void *regs;
 
 	if (coreidx >= MIN(sii->numcores, SI_MAXCORES))
@@ -342,6 +383,7 @@ ai_setcoreidx(si_t *sih, uint coreidx)
 
 	addr = cores_info->coresba[coreidx];
 	wrap = cores_info->wrapba[coreidx];
+	wrap2 = cores_info->wrapba2[coreidx];
 
 	/*
 	 * If the user has provided an interrupt mask enabled function,
@@ -362,7 +404,14 @@ ai_setcoreidx(si_t *sih, uint coreidx)
 			cores_info->wrappers[coreidx] = REG_MAP(wrap, SI_CORE_SIZE);
 			ASSERT(GOODREGS(cores_info->wrappers[coreidx]));
 		}
-		sii->curwrap = cores_info->wrappers[coreidx];
+		if (!cores_info->wrappers2[coreidx] && (wrap2 != 0)) {
+			cores_info->wrappers2[coreidx] = REG_MAP(wrap2, SI_CORE_SIZE);
+			ASSERT(GOODREGS(cores_info->wrappers2[coreidx]));
+		}
+		if (use_wrap2)
+			sii->curwrap = cores_info->wrappers2[coreidx];
+		else
+			sii->curwrap = cores_info->wrappers[coreidx];
 		break;
 
 	case PCI_BUS:
@@ -370,6 +419,8 @@ ai_setcoreidx(si_t *sih, uint coreidx)
 		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN, 4, addr);
 		regs = sii->curmap;
 		/* point bar0 2nd 4KB window to the primary wrapper */
+		if (use_wrap2)
+			wrap = wrap2;
 		if (PCIE_GEN2(sii))
 			OSL_PCI_WRITE_CONFIG(sii->osh, PCIE2_BAR0_WIN2, 4, wrap);
 		else
@@ -380,7 +431,10 @@ ai_setcoreidx(si_t *sih, uint coreidx)
 	case SPI_BUS:
 	case SDIO_BUS:
 		sii->curmap = regs = (void *)((uintptr)addr);
-		sii->curwrap = (void *)((uintptr)wrap);
+		if (use_wrap2)
+			sii->curwrap = (void *)((uintptr)wrap2);
+		else
+			sii->curwrap = (void *)((uintptr)wrap);
 		break;
 #endif	/* BCMSDIO */
 
@@ -397,6 +451,17 @@ ai_setcoreidx(si_t *sih, uint coreidx)
 	return regs;
 }
 
+void *
+ai_setcoreidx(si_t *sih, uint coreidx)
+{
+	return _ai_setcoreidx(sih, coreidx, 0);
+}
+
+void *
+ai_setcoreidx_2ndwrap(si_t *sih, uint coreidx)
+{
+	return _ai_setcoreidx(sih, coreidx, 1);
+}
 
 void
 ai_coreaddrspaceX(si_t *sih, uint asidx, uint32 *addr, uint32 *size)
@@ -552,12 +617,24 @@ ai_flag(si_t *sih)
 			__FUNCTION__));
 		return sii->curidx;
 	}
-
+	if (BCM53573_DMP()) {
+		SI_ERROR(("%s: Attempting to read DMP registers on 53573\n", __FUNCTION__));
+		return sii->curidx;
+	}
 #ifdef REROUTE_OOBINT
 	if (PMU_DMP()) {
 		SI_ERROR(("%s: Attempting to read PMU DMP registers\n",
 			__FUNCTION__));
 		return PMU_OOB_BIT;
+	}
+#else
+	if (PMU_DMP()) {
+		uint idx, flag;
+		idx = sii->curidx;
+		ai_setcoreidx(sih, SI_CC_IDX);
+		flag = ai_flag_alt(sih);
+		ai_setcoreidx(sih, idx);
+		return flag;
 	}
 #endif /* REROUTE_OOBINT */
 
@@ -806,8 +883,10 @@ ai_corereg_addr(si_t *sih, uint coreidx, uint regoff)
 		}
 	}
 
-	if (!fast)
-		return 0;
+	if (!fast) {
+		ASSERT(sii->curidx == coreidx);
+		r = (uint32*) ((uchar*)sii->curmap + regoff);
+	}
 
 	return (r);
 }
@@ -856,22 +935,31 @@ ai_core_disable(si_t *sih, uint32 bits)
  * bits - core specific bits that are set during and after reset sequence
  * resetbits - core specific bits that are set only during reset sequence
  */
-void
-ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
+static void
+_ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 {
 	si_info_t *sii = SI_INFO(sih);
 	aidmp_t *ai;
 	volatile uint32 dummy;
 	uint loop_counter = 10;
+#ifdef CUSTOMER_HW4_DEBUG
+	printf("%s: bits: 0x%x, resetbits: 0x%x\n", __FUNCTION__, bits, resetbits);
+#endif
 
 	ASSERT(GOODREGS(sii->curwrap));
 	ai = sii->curwrap;
 
 	/* ensure there are no pending backplane operations */
 	SPINWAIT(((dummy = R_REG(sii->osh, &ai->resetstatus)) != 0), 300);
+#ifdef CUSTOMER_HW4_DEBUG
+	printf("%s: resetstatus: %p dummy: %x\n", __FUNCTION__, &ai->resetstatus, dummy);
+#endif
 
 
 	/* put core into reset state */
+#ifdef CUSTOMER_HW4_DEBUG
+	printf("%s: resetctrl: %p\n", __FUNCTION__, &ai->resetctrl);
+#endif
 	W_REG(sii->osh, &ai->resetctrl, AIRC_RESET);
 	OSL_DELAY(10);
 
@@ -880,6 +968,9 @@ ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 
 	W_REG(sii->osh, &ai->ioctrl, (bits | resetbits | SICF_FGC | SICF_CLOCK_EN));
 	dummy = R_REG(sii->osh, &ai->ioctrl);
+#ifdef CUSTOMER_HW4_DEBUG
+	printf("%s: ioctrl: %p dummy: 0x%x\n", __FUNCTION__, &ai->ioctrl, dummy);
+#endif
 	BCM_REFERENCE(dummy);
 
 	/* ensure there are no pending backplane operations */
@@ -893,6 +984,10 @@ ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 
 		/* take core out of reset */
 		W_REG(sii->osh, &ai->resetctrl, 0);
+#ifdef CUSTOMER_HW4_DEBUG
+		printf("%s: loop_counter: %d resetstatus: %p resetctrl: %p\n",
+			__FUNCTION__, loop_counter, &ai->resetstatus, &ai->resetctrl);
+#endif
 
 		/* ensure there are no pending backplane operations */
 		SPINWAIT((R_REG(sii->osh, &ai->resetstatus) != 0), 300);
@@ -901,8 +996,27 @@ ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 
 	W_REG(sii->osh, &ai->ioctrl, (bits | SICF_CLOCK_EN));
 	dummy = R_REG(sii->osh, &ai->ioctrl);
+#ifdef CUSTOMER_HW4_DEBUG
+	printf("%s: ioctl: %p dummy: 0x%x\n", __FUNCTION__, &ai->ioctrl, dummy);
+#endif
 	BCM_REFERENCE(dummy);
 	OSL_DELAY(1);
+}
+
+void
+ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
+{
+	si_info_t *sii = SI_INFO(sih);
+	si_cores_info_t *cores_info = (si_cores_info_t *)sii->cores_info;
+	uint idx = sii->curidx;
+
+	if (cores_info->wrapba2[idx] != 0) {
+		ai_setcoreidx_2ndwrap(sih, idx);
+		_ai_core_reset(sih, bits, resetbits);
+		ai_setcoreidx(sih, idx);
+	}
+
+	_ai_core_reset(sih, bits, resetbits);
 }
 
 void
@@ -1095,3 +1209,76 @@ ai_dumpregs(si_t *sih, struct bcmstrbuf *b)
 	}
 }
 #endif	
+
+
+void
+ai_enable_backplane_timeouts(si_t *sih)
+{
+#ifdef AXI_TIMEOUTS
+	si_info_t *sii = SI_INFO(sih);
+	aidmp_t *ai;
+	int i;
+
+	for (i = 0; i < sii->num_br; ++i) {
+		ai = (aidmp_t *) sii->br_wrapba[i];
+		W_REG(sii->osh, &ai->errlogctrl, (1 << AIELC_TO_ENAB_SHIFT) |
+		      ((AXI_TO_VAL << AIELC_TO_EXP_SHIFT) & AIELC_TO_EXP_MASK));
+	}
+#endif /* AXI_TIMEOUTS */
+}
+
+void
+ai_clear_backplane_to(si_t *sih)
+{
+#ifdef AXI_TIMEOUTS
+	si_info_t *sii = SI_INFO(sih);
+	aidmp_t *ai;
+	int i;
+	uint32 errlogstatus;
+
+	for (i = 0; i < sii->num_br; ++i) {
+		ai = (aidmp_t *) sii->br_wrapba[i];
+		/* check for backplane timeout & clear backplane hang */
+		errlogstatus = R_REG(sii->osh, &ai->errlogstatus);
+
+		if ((errlogstatus & AIELS_TIMEOUT_MASK) != 0) {
+			/* set ErrDone to clear the condition */
+			W_REG(sii->osh, &ai->errlogdone, AIELD_ERRDONE_MASK);
+
+			/* SPINWAIT on errlogstatus timeout status bits */
+			while (R_REG(sii->osh, &ai->errlogstatus) & AIELS_TIMEOUT_MASK)
+				;
+
+			/* only reset APB Bridge on timeout (not slave error, or dec error) */
+			switch (errlogstatus & AIELS_TIMEOUT_MASK) {
+			case 0x1:
+				printf("AXI slave error");
+				break;
+			case 0x2:
+				/* reset APB Bridge */
+				OR_REG(sii->osh, &ai->resetctrl, AIRC_RESET);
+				/* sync write */
+				(void)R_REG(sii->osh, &ai->resetctrl);
+				/* clear Reset bit */
+				AND_REG(sii->osh, &ai->resetctrl, ~(AIRC_RESET));
+				/* sync write */
+				(void)R_REG(sii->osh, &ai->resetctrl);
+				printf("AXI timeout");
+				break;
+			case 0x3:
+				printf("AXI decode error");
+				break;
+			default:
+				;	/* should be impossible */
+			}
+			printf("; APB Bridge %d\n", i);
+			printf("\t errlog: lo 0x%08x, hi 0x%08x, id 0x%08x, flags 0x%08x",
+				R_REG(sii->osh, &ai->errlogaddrlo),
+				R_REG(sii->osh, &ai->errlogaddrhi),
+				R_REG(sii->osh, &ai->errlogid),
+				R_REG(sii->osh, &ai->errlogflags));
+			printf(", status 0x%08x\n", errlogstatus);
+		}
+	}
+#endif /* AXI_TIMEOUTS */
+}

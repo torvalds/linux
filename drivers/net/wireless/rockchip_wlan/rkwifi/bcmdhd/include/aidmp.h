@@ -1,9 +1,30 @@
 /*
  * Broadcom AMBA Interconnect definitions.
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: aidmp.h 456346 2014-02-18 16:48:52Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: aidmp.h 514727 2014-11-12 03:02:48Z $
  */
 
 #ifndef	_AIDMP_H
@@ -40,6 +61,7 @@
 #define	ER_ADD			4
 #define	ER_END			0xe
 #define	ER_BAD			0xffffffff
+#define	ER_SZ_MAX		4096 /* 4KB */
 
 /* EROM CompIdentA */
 #define	CIA_MFG_MASK		0xfff00000
@@ -298,14 +320,14 @@ typedef volatile struct _aidmp {
 
 #define	AI_RESETREADID		0x808
 #define	AI_RESETWRITEID		0x80c
-#define	AI_ERRLOGCTRL		0xa00
-#define	AI_ERRLOGDONE		0xa04
-#define	AI_ERRLOGSTATUS		0xa08
-#define	AI_ERRLOGADDRLO		0xa0c
-#define	AI_ERRLOGADDRHI		0xa10
-#define	AI_ERRLOGID		0xa14
-#define	AI_ERRLOGUSER		0xa18
-#define	AI_ERRLOGFLAGS		0xa1c
+#define	AI_ERRLOGCTRL		0x900
+#define	AI_ERRLOGDONE		0x904
+#define	AI_ERRLOGSTATUS		0x908
+#define	AI_ERRLOGADDRLO		0x90c
+#define	AI_ERRLOGADDRHI		0x910
+#define	AI_ERRLOGID		0x914
+#define	AI_ERRLOGUSER		0x918
+#define	AI_ERRLOGFLAGS		0x91c
 #define	AI_INTSTATUS		0xa00
 #define	AI_CONFIG		0xe00
 #define	AI_ITCR			0xf00
@@ -342,6 +364,17 @@ typedef volatile struct _aidmp {
 /* resetctrl */
 #define	AIRC_RESET		1
 
+/* errlogctrl */
+#define AIELC_TO_EXP_MASK	0x0000001f0		/* backplane timeout exponent */
+#define AIELC_TO_EXP_SHIFT	4
+#define AIELC_TO_ENAB_SHIFT	9			/* backplane timeout enable */
+
+/* errlogdone */
+#define AIELD_ERRDONE_MASK	0x3
+
+/* errlogstatus */
+#define AIELS_TIMEOUT_MASK	0x3
+
 /* config */
 #define	AICFG_OOB		0x00000020
 #define	AICFG_IOS		0x00000010
@@ -364,5 +397,6 @@ typedef volatile struct _aidmp {
 #define AI_OOBSEL_5_SHIFT	8
 #define AI_OOBSEL_6_SHIFT	16
 #define AI_OOBSEL_7_SHIFT	24
+#define AI_IOCTRL_ENABLE_D11_PME	(1 << 14)
 
 #endif	/* _AIDMP_H */

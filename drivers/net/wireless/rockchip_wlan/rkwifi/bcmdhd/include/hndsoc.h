@@ -1,9 +1,30 @@
 /*
  * Broadcom HND chip & on-chip-interconnect-related definitions.
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndsoc.h 473238 2014-04-28 19:14:56Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: hndsoc.h 517544 2014-11-26 00:40:42Z $
  */
 
 #ifndef	_HNDSOC_H
@@ -33,6 +54,11 @@
 #define	SI_MAXCORES		32		/* NorthStar has more cores */
 #endif /* SI_MAXCORES */
 
+#define	SI_MAXBR		4		/* Max bridges (this is arbitrary, for software
+					 * convenience and could be changed if we
+					 * make any larger chips
+					 */
+
 #define	SI_FASTRAM		0x19000000	/* On-chip RAM on chips that also have DDR */
 #define	SI_FASTRAM_SWAPPED	0x19800000
 
@@ -52,6 +78,8 @@
 #define	SI_ARMCR4_ROM		0x000f0000	/* ARM Cortex-R4 ROM */
 #define	SI_ARMCM3_SRAM2		0x60000000	/* ARM Cortex-M3 SRAM Region 2 */
 #define	SI_ARM7S_SRAM2		0x80000000	/* ARM7TDMI-S SRAM Region 2 */
+#define	SI_ARMCA7_ROM		0x00000000	/* ARM Cortex-A7 ROM */
+#define	SI_ARMCA7_RAM		0x00200000	/* ARM Cortex-A7 RAM */
 #define	SI_ARM_FLASH1		0xffff0000	/* ARM Flash Region 1 */
 #define	SI_ARM_FLASH1_SZ	0x00010000	/* ARM Size of Flash Region 1 */
 
@@ -65,6 +93,22 @@
 #define SI_PCIE_DMA_H32		0x80000000	/* PCIE Client Mode sb2pcitranslation2
 						 * (2 ZettaBytes), high 32 bits
 						 */
+
+#define SI_BCM53573_NANDFLASH	0x30000000	/* 53573 NAND flash base */
+#define SI_BCM53573_NORFLASH	0x1c000000	/* 53573 NOR flash base */
+
+#define	SI_BCM53573_NORFLASH_WINDOW	0x01000000	/* only support 16M direct access for
+							 * 3-byte address modes in spi flash
+							 */
+#define	SI_BCM53573_BOOTDEV_MASK	0x3
+#define	SI_BCM53573_BOOTDEV_NOR		0x0
+
+#define	SI_BCM53573_DDRTYPE_MASK	0x10
+#define	SI_BCM53573_DDRTYPE_DDR3	0x10
+
+/* APB bridge code */
+#define	APB_BRIDGE_ID		0x135		/* APB Bridge 0, 1, etc. */
+
 /* core codes */
 #define	NODEV_CORE_ID		0x700		/* Invalid coreid */
 #define	CC_CORE_ID		0x800		/* chipcommon core */
@@ -129,6 +173,9 @@
 #define ARMCR4_CORE_ID		0x83e		/* ARM CR4 CPU */
 #define GCI_CORE_ID		0x840		/* GCI Core */
 #define M2MDMA_CORE_ID          0x844           /* memory to memory dma */
+#define CMEM_CORE_ID		0x846		/* CNDS DDR2/3 memory controller */
+#define ARMCA7_CORE_ID		0x847		/* ARM CA7 CPU */
+#define SYSMEM_CORE_ID		0x849		/* System memory core */
 #define APB_BRIDGE_CORE_ID	0x135		/* APB bridge core ID */
 #define AXI_CORE_ID		0x301		/* AXI/GPV core ID */
 #define EROM_CORE_ID		0x366		/* EROM core ID */
@@ -217,7 +264,7 @@
 #define CCS_HQCLKREQ		0x00000040	/* HQ Clock Required */
 #define CCS_USBCLKREQ		0x00000100	/* USB Clock Req */
 #define CCS_SECICLKREQ		0x00000100	/* SECI Clock Req */
-#define CCS_ARMFASTCLOCKREQ	0x00000100	/* ARM CR4 fast clock request */
+#define CCS_ARMFASTCLOCKREQ	0x00000100	/* ARM CR4/CA7 fast clock request */
 #define CCS_AVBCLKREQ		0x00000400	/* AVB Clock enable request */
 #define CCS_ERSRC_REQ_MASK	0x00000700	/* external resource requests */
 #define CCS_ERSRC_REQ_SHIFT	8

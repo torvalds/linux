@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2014, Broadcom Corporation
+ * Fundamental constants relating to DHCP Protocol
+ *
+ * Copyright (C) 2016, Broadcom Corporation
  * All Rights Reserved.
  * 
  * This is UNPUBLISHED PROPRIETARY SOURCE CODE of Broadcom Corporation;
@@ -7,9 +9,10 @@
  * or duplicated in any form, in whole or in part, without the prior
  * written permission of Broadcom Corporation.
  *
- * Fundamental constants relating to DHCP Protocol
  *
- * $Id: bcmdhcp.h 382883 2013-02-04 23:26:09Z $
+ * <<Broadcom-WL-IPTag/Proprietary:>>
+ *
+ * $Id: bcmdhcp.h 518342 2014-12-01 23:21:41Z $
  */
 
 #ifndef _bcmdhcp_h_

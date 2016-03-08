@@ -2,9 +2,30 @@
  *  BCMSDH interface glue
  *  implement bcmsdh API for SDIOH driver
  *
- * $ Copyright Open Broadcom Corporation $
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c 450676 2014-01-22 22:45:13Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: bcmsdh.c 514727 2014-11-12 03:02:48Z $
  */
 
 /**
@@ -32,11 +53,8 @@ const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 /* local copy of bcm sd handler */
 bcmsdh_info_t * l_bcmsdh = NULL;
 
-#if 0 && (NDISVER < 0x0630)
-extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd);
-#endif
 
-#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
+#if defined(OOB_INTR_ONLY) && defined(HW_OOB) || defined(FORCE_WOWLAN)
 extern int
 sdioh_enable_hw_oob_intr(void *sdioh, bool enable);
 
@@ -86,10 +104,6 @@ bcmsdh_detach(osl_t *osh, void *sdh)
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
 
 	if (bcmsdh != NULL) {
-#if 0 && (NDISVER < 0x0630)
-		if (bcmsdh->sdioh)
-			sdioh_detach(osh, bcmsdh->sdioh);
-#endif
 		MFREE(osh, bcmsdh, sizeof(bcmsdh_info_t));
 	}
 
@@ -696,3 +710,64 @@ bcmsdh_gpioout(void *sdh, uint32 gpio, bool enab)
 
 	return sdioh_gpioout(sd, gpio, enab);
 }
+
+uint
+bcmsdh_set_mode(void *sdh, uint mode) 
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	return (sdioh_set_mode(bcmsdh->sdioh, mode));
+}
+
+#if defined(SWTXGLOM)
+int
+bcmsdh_send_swtxglom_buf(void *sdh, uint32 addr, uint fn, uint flags,
+                uint8 *buf, uint nbytes, void *pkt,
+                bcmsdh_cmplt_fn_t complete_fn, void *handle)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	SDIOH_API_RC status;
+	uint incr_fix;
+	uint width;
+	int err = 0;
+
+	ASSERT(bcmsdh);
+	ASSERT(bcmsdh->init_success);
+
+	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, size = %d\n",
+	            __FUNCTION__, fn, addr, nbytes));
+
+	/* Async not implemented yet */
+	ASSERT(!(flags & SDIO_REQ_ASYNC));
+	if (flags & SDIO_REQ_ASYNC)
+		return BCME_UNSUPPORTED;
+
+	if ((err = bcmsdhsdio_set_sbaddr_window(bcmsdh, addr, FALSE)))
+		return err;
+
+	addr &= SBSDIO_SB_OFT_ADDR_MASK;
+
+	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
+	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
+	if (width == 4)
+		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	status = sdioh_request_swtxglom_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, incr_fix,
+	                              SDIOH_WRITE, fn, addr, width, nbytes, buf, pkt);
+
+	return (SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR);
+}
+
+void
+bcmsdh_glom_post(void *sdh, uint8 *frame, void *pkt, uint len)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	sdioh_glom_post(bcmsdh->sdioh, frame, pkt, len);
+}
+
+void
+bcmsdh_glom_clear(void *sdh)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	sdioh_glom_clear(bcmsdh->sdioh);
+}
+#endif /* SWTXGLOM */

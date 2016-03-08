@@ -1,9 +1,30 @@
 /*
  * Include file private to the SOC Interconnect support files.
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils_priv.h 474902 2014-05-02 18:31:33Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: siutils_priv.h 520760 2014-12-15 00:54:16Z $
  */
 
 #ifndef	_siutils_priv_h_
@@ -24,14 +45,6 @@
 typedef uint32 (*si_intrsoff_t)(void *intr_arg);
 typedef void (*si_intrsrestore_t)(void *intr_arg, uint32 arg);
 typedef bool (*si_intrsenabled_t)(void *intr_arg);
-
-typedef struct gpioh_item {
-	void			*arg;
-	bool			level;
-	gpio_handler_t		handler;
-	uint32			event;
-	struct gpioh_item	*next;
-} gpioh_item_t;
 
 
 #define SI_GPIO_MAX		16
@@ -58,6 +71,9 @@ typedef struct si_cores_info {
 	void	*wrappers[SI_MAXCORES];	/* other cores wrapper va */
 	uint32	wrapba[SI_MAXCORES];	/* address of controlling wrapper */
 
+	void	*wrappers2[SI_MAXCORES];	/* other cores wrapper va */
+	uint32	wrapba2[SI_MAXCORES];	/* address of controlling wrapper */
+
 	uint32	cia[SI_MAXCORES];	/* erom cia entry for each core */
 	uint32	cib[SI_MAXCORES];	/* erom cia entry for each core */
 } si_cores_info_t;
@@ -77,8 +93,6 @@ typedef struct si_info {
 
 	void *pch;			/* PCI/E core handle */
 
-	gpioh_item_t *gpioh_head; 	/* GPIO event handlers list */
-
 	bool	memseg;			/* flag to toggle MEM_SEG register */
 
 	char *vars;
@@ -96,6 +110,10 @@ typedef struct si_info {
 	void *cores_info;
 	gci_gpio_item_t	*gci_gpio_head;	/* gci gpio interrupts head */
 	uint	chipnew;		/* new chip number */
+	uint second_bar0win;		/* Backplane region */
+	uint	num_br;		/* # discovered bridges */
+	uint32	br_wrapba[SI_MAXBR];	/* address of bridge controlling wrapper */
+	uint32	xtalfreq;
 } si_info_t;
 
 
@@ -153,10 +171,11 @@ typedef struct si_info {
 
 /* Force fast clock for 4360b0 */
 #define PCI_FORCEHT(si)	\
-	(((PCIE_GEN1(si)) && (si->pub.chip == BCM4311_CHIP_ID) && ((si->pub.chiprev <= 1))) || \
-	((PCI(si) || PCIE_GEN1(si)) && (si->pub.chip == BCM4321_CHIP_ID)) || \
-	(PCIE_GEN1(si) && (si->pub.chip == BCM4716_CHIP_ID)) || \
-	(PCIE_GEN1(si) && (si->pub.chip == BCM4748_CHIP_ID)))
+	(((PCIE_GEN1(si)) && (CHIPID(si->pub.chip) == BCM4311_CHIP_ID) && \
+	((CHIPREV(si->pub.chiprev) <= 1))) || \
+	((PCI(si) || PCIE_GEN1(si)) && (CHIPID(si->pub.chip) == BCM4321_CHIP_ID)) || \
+	(PCIE_GEN1(si) && (CHIPID(si->pub.chip) == BCM4716_CHIP_ID)) || \
+	(PCIE_GEN1(si) && (CHIPID(si->pub.chip) == BCM4748_CHIP_ID)))
 
 /* GPIO Based LED powersave defines */
 #define DEFAULT_GPIO_ONTIME	10		/* Default: 10% on */
@@ -221,6 +240,7 @@ extern uint ai_corerev(si_t *sih);
 extern uint32 *ai_corereg_addr(si_t *sih, uint coreidx, uint regoff);
 extern bool ai_iscoreup(si_t *sih);
 extern void *ai_setcoreidx(si_t *sih, uint coreidx);
+extern void *ai_setcoreidx_2ndwrap(si_t *sih, uint coreidx);
 extern uint32 ai_core_cflags(si_t *sih, uint32 mask, uint32 val);
 extern void ai_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 ai_core_sflags(si_t *sih, uint32 mask, uint32 val);
@@ -228,6 +248,9 @@ extern uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val
 extern void ai_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 extern void ai_d11rsdb_core_reset(si_t *sih, uint32 bits,
 	uint32 resetbits, void *p, void *s);
+extern void ai_d11rsdb_core1_alt_reg_clk_en(si_t *sih);
+extern void ai_d11rsdb_core1_alt_reg_clk_dis(si_t *sih);
+
 extern void ai_core_disable(si_t *sih, uint32 bits);
 extern void ai_d11rsdb_core_disable(const si_info_t *sii, uint32 bits,
 	aidmp_t *pmacai, aidmp_t *smacai);
@@ -236,6 +259,8 @@ extern uint32 ai_addrspace(si_t *sih, uint asidx);
 extern uint32 ai_addrspacesize(si_t *sih, uint asidx);
 extern void ai_coreaddrspaceX(si_t *sih, uint asidx, uint32 *addr, uint32 *size);
 extern uint ai_wrap_reg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
+extern void ai_enable_backplane_timeouts(si_t *sih);
+extern void ai_clear_backplane_to(si_t *sih);
 
 #if defined(BCMDBG_PHYDUMP)
 extern void ai_dumpregs(si_t *sih, struct bcmstrbuf *b);

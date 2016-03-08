@@ -1,16 +1,46 @@
 /*
  * HND generic pktq operation primitives
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: hnd_pktq.h 591283 2015-10-07 11:52:00Z $
  */
 
 #ifndef _hnd_pktq_h_
 #define _hnd_pktq_h_
 
+#include <osl_ext.h>
+
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+/* mutex macros for thread safe */
+#ifdef HND_PKTQ_THREAD_SAFE
+#define HND_PKTQ_MUTEX_DECL(mutex)		OSL_EXT_MUTEX_DECL(mutex)
+#else
+#define HND_PKTQ_MUTEX_DECL(mutex)
 #endif
 
 /* osl multi-precedence packet queue */
@@ -23,68 +53,69 @@ extern "C" {
 #endif
 
 typedef struct pktq_prec {
-	void *head;     /* first packet to dequeue */
-	void *tail;     /* last packet to dequeue */
-	uint16 len;     /* number of queued packets */
-	uint16 max;     /* maximum number of queued packets */
+	void *head;     /**< first packet to dequeue */
+	void *tail;     /**< last packet to dequeue */
+	uint16 len;     /**< number of queued packets */
+	uint16 max;     /**< maximum number of queued packets */
 } pktq_prec_t;
 
 #ifdef PKTQ_LOG
 typedef struct {
-	uint32 requested;    /* packets requested to be stored */
-	uint32 stored;	     /* packets stored */
-	uint32 saved;	     /* packets saved,
+	uint32 requested;    /**< packets requested to be stored */
+	uint32 stored;	     /**< packets stored */
+	uint32 saved;	     /**< packets saved,
 	                            because a lowest priority queue has given away one packet
 	                      */
-	uint32 selfsaved;    /* packets saved,
+	uint32 selfsaved;    /**< packets saved,
 	                            because an older packet from the same queue has been dropped
 	                      */
-	uint32 full_dropped; /* packets dropped,
+	uint32 full_dropped; /**< packets dropped,
 	                            because pktq is full with higher precedence packets
 	                      */
-	uint32 dropped;      /* packets dropped because pktq per that precedence is full */
-	uint32 sacrificed;   /* packets dropped,
+	uint32 dropped;      /**< packets dropped because pktq per that precedence is full */
+	uint32 sacrificed;   /**< packets dropped,
 	                            in order to save one from a queue of a highest priority
 	                      */
-	uint32 busy;         /* packets droped because of hardware/transmission error */
-	uint32 retry;        /* packets re-sent because they were not received */
-	uint32 ps_retry;     /* packets retried again prior to moving power save mode */
-	uint32 suppress;     /* packets which were suppressed and not transmitted */
-	uint32 retry_drop;   /* packets finally dropped after retry limit */
-	uint32 max_avail;    /* the high-water mark of the queue capacity for packets -
+	uint32 busy;         /**< packets droped because of hardware/transmission error */
+	uint32 retry;        /**< packets re-sent because they were not received */
+	uint32 ps_retry;     /**< packets retried again prior to moving power save mode */
+	uint32 suppress;     /**< packets which were suppressed and not transmitted */
+	uint32 retry_drop;   /**< packets finally dropped after retry limit */
+	uint32 max_avail;    /**< the high-water mark of the queue capacity for packets -
 	                            goes to zero as queue fills
 	                      */
-	uint32 max_used;     /* the high-water mark of the queue utilisation for packets -
+	uint32 max_used;     /**< the high-water mark of the queue utilisation for packets -
 						        increases with use ('inverse' of max_avail)
 				          */
-	uint32 queue_capacity; /* the maximum capacity of the queue */
-	uint32 rtsfail;        /* count of rts attempts that failed to receive cts */
-	uint32 acked;          /* count of packets sent (acked) successfully */
-	uint32 txrate_succ;    /* running total of phy rate of packets sent successfully */
-	uint32 txrate_main;    /* running totoal of primary phy rate of all packets */
-	uint32 throughput;     /* actual data transferred successfully */
-	uint32 airtime;        /* cumulative total medium access delay in useconds */
-	uint32  _logtime;      /* timestamp of last counter clear  */
+	uint32 queue_capacity; /**< the maximum capacity of the queue */
+	uint32 rtsfail;        /**< count of rts attempts that failed to receive cts */
+	uint32 acked;          /**< count of packets sent (acked) successfully */
+	uint32 txrate_succ;    /**< running total of phy rate of packets sent successfully */
+	uint32 txrate_main;    /**< running totoal of primary phy rate of all packets */
+	uint32 throughput;     /**< actual data transferred successfully */
+	uint32 airtime;        /**< cumulative total medium access delay in useconds */
+	uint32  _logtime;      /**< timestamp of last counter clear  */
 } pktq_counters_t;
 
 typedef struct {
 	uint32                  _prec_log;
-	pktq_counters_t*        _prec_cnt[PKTQ_MAX_PREC];     /* Counters per queue  */
+	pktq_counters_t*        _prec_cnt[PKTQ_MAX_PREC];     /**< Counters per queue  */
 } pktq_log_t;
 #endif /* PKTQ_LOG */
 
 
 #define PKTQ_COMMON	\
-	uint16 num_prec;        /* number of precedences in use */			\
-	uint16 hi_prec;         /* rapid dequeue hint (>= highest non-empty prec) */	\
-	uint16 max;             /* total max packets */					\
-	uint16 len;             /* total number of packets */
+	uint16 num_prec;        /**< number of precedences in use */			\
+	uint16 hi_prec;         /**< rapid dequeue hint (>= highest non-empty prec) */	\
+	uint16 max;             /**< total max packets */					\
+	uint16 len;             /**< total number of packets */
 
 /* multi-priority pkt queue */
 struct pktq {
 	PKTQ_COMMON
 	/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 	struct pktq_prec q[PKTQ_MAX_PREC];
+	HND_PKTQ_MUTEX_DECL(mutex)
 #ifdef PKTQ_LOG
 	pktq_log_t*      pktqlog;
 #endif
@@ -95,6 +126,7 @@ struct spktq {
 	PKTQ_COMMON
 	/* q array must be last since # of elements can be either PKTQ_MAX_PREC or 1 */
 	struct pktq_prec q[1];
+	HND_PKTQ_MUTEX_DECL(mutex)
 };
 
 #define PKTQ_PREC_ITER(pq, prec)        for (prec = (pq)->num_prec - 1; prec >= 0; prec--)
@@ -107,12 +139,16 @@ typedef bool (*ifpkt_cb_t)(void*, int);
 #define pktq_psetmax(pq, prec, _max)	((pq)->q[prec].max = (_max))
 #define pktq_pmax(pq, prec)		((pq)->q[prec].max)
 #define pktq_plen(pq, prec)		((pq)->q[prec].len)
-#define pktq_pavail(pq, prec)		((pq)->q[prec].max - (pq)->q[prec].len)
-#define pktq_pfull(pq, prec)		((pq)->q[prec].len >= (pq)->q[prec].max)
 #define pktq_pempty(pq, prec)		((pq)->q[prec].len == 0)
-
 #define pktq_ppeek(pq, prec)		((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)	((pq)->q[prec].tail)
+#ifdef HND_PKTQ_THREAD_SAFE
+extern int pktq_pavail(struct pktq *pq, int prec);
+extern bool pktq_pfull(struct pktq *pq, int prec);
+#else
+#define pktq_pavail(pq, prec)	((pq)->q[prec].max - (pq)->q[prec].len)
+#define pktq_pfull(pq, prec)	((pq)->q[prec].len >= (pq)->q[prec].max)
+#endif	/* HND_PKTQ_THREAD_SAFE */
 
 extern void  pktq_append(struct pktq *pq, int prec, struct spktq *list);
 extern void  pktq_prepend(struct pktq *pq, int prec, struct spktq *list);
@@ -139,9 +175,14 @@ extern void *pktq_mpeek(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 #define pktq_len(pq)		((int)(pq)->len)
 #define pktq_max(pq)		((int)(pq)->max)
+#define pktq_empty(pq)		((pq)->len == 0)
+#ifdef HND_PKTQ_THREAD_SAFE
+extern int pktq_avail(struct pktq *pq);
+extern bool pktq_full(struct pktq *pq);
+#else
 #define pktq_avail(pq)		((int)((pq)->max - (pq)->len))
 #define pktq_full(pq)		((pq)->len >= (pq)->max)
-#define pktq_empty(pq)		((pq)->len == 0)
+#endif	/* HND_PKTQ_THREAD_SAFE */
 
 /* operations for single precedence queues */
 #define pktenq(pq, p)		pktq_penq(((struct pktq *)(void *)pq), 0, (p))
@@ -150,8 +191,13 @@ extern void *pktq_mpeek(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define pktdeq_tail(pq)		pktq_pdeq_tail(((struct pktq *)(void *)pq), 0)
 #define pktqflush(osh, pq)	pktq_flush(osh, ((struct pktq *)(void *)pq), TRUE, NULL, 0)
 #define pktqinit(pq, len)	pktq_init(((struct pktq *)(void *)pq), 1, len)
+#define pktqdeinit(pq)		pktq_deinit((struct pktq *)(void *)pq)
+#define pktqavail(pq)		pktq_avail((struct pktq *)(void *)pq)
+#define pktqfull(pq)		pktq_full((struct pktq *)(void *)pq)
 
-extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
+extern bool pktq_init(struct pktq *pq, int num_prec, int max_len);
+extern bool pktq_deinit(struct pktq *pq);
+
 extern void pktq_set_max_plen(struct pktq *pq, int prec, int max_len);
 
 /* prec_out may be NULL if caller is not interested in return value */

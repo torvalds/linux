@@ -1,9 +1,30 @@
 /*
  * Linux cfgp2p driver
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 497431 2014-08-19 11:03:27Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: wl_cfgp2p.h 608203 2015-12-24 05:30:44Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -21,7 +42,8 @@ typedef struct wifi_p2p_ie wifi_wfd_ie_t;
 typedef enum {
 	P2PAPI_BSSCFG_PRIMARY, /* maps to driver's primary bsscfg */
 	P2PAPI_BSSCFG_DEVICE, /* maps to driver's P2P device discovery bsscfg */
-	P2PAPI_BSSCFG_CONNECTION, /* maps to driver's P2P connection bsscfg */
+	P2PAPI_BSSCFG_CONNECTION1, /* maps to driver's P2P connection bsscfg */
+	P2PAPI_BSSCFG_CONNECTION2,
 	P2PAPI_BSSCFG_MAX
 } p2p_bsscfg_type_t;
 
@@ -41,44 +63,28 @@ typedef enum {
 /* normal vendor ies buffer length */
 #define VNDR_IES_BUF_LEN 		512
 
-/* Structure to hold all saved P2P and WPS IEs for a BSSCFG */
-struct p2p_saved_ie {
-	u8  p2p_probe_req_ie[VNDR_IES_BUF_LEN];
-	u8  p2p_probe_res_ie[VNDR_IES_MAX_BUF_LEN];
-	u8  p2p_assoc_req_ie[VNDR_IES_BUF_LEN];
-	u8  p2p_assoc_res_ie[VNDR_IES_BUF_LEN];
-	u8  p2p_beacon_ie[VNDR_IES_MAX_BUF_LEN];
-	u32 p2p_probe_req_ie_len;
-	u32 p2p_probe_res_ie_len;
-	u32 p2p_assoc_req_ie_len;
-	u32 p2p_assoc_res_ie_len;
-	u32 p2p_beacon_ie_len;
-};
-
 struct p2p_bss {
 	s32 bssidx;
 	struct net_device *dev;
-	struct p2p_saved_ie saved_ie;
 	void *private_data;
+	struct ether_addr mac_addr;
 };
 
 struct p2p_info {
 	bool on;    /* p2p on/off switch */
 	bool scan;
 	int16 search_state;
-	bool vif_created;
 	s8 vir_ifname[IFNAMSIZ];
 	unsigned long status;
-	struct ether_addr dev_addr;
-	struct ether_addr int_addr;
 	struct p2p_bss bss[P2PAPI_BSSCFG_MAX];
 	struct timer_list listen_timer;
 	wl_p2p_sched_t noa;
 	wl_p2p_ops_t ops;
 	wlc_ssid_t ssid;
+	s8 p2p_go_count;
 };
 
-#define MAX_VNDR_IE_NUMBER	5
+#define MAX_VNDR_IE_NUMBER	10
 
 struct parsed_vndr_ie_info {
 	char *ie_ptr;
@@ -110,6 +116,7 @@ enum wl_cfgp2p_status {
 
 #define wl_to_p2p_bss_ndev(cfg, type)		((cfg)->p2p->bss[type].dev)
 #define wl_to_p2p_bss_bssidx(cfg, type)		((cfg)->p2p->bss[type].bssidx)
+#define wl_to_p2p_bss_macaddr(cfg, type)     &((cfg)->p2p->bss[type].mac_addr)
 #define wl_to_p2p_bss_saved_ie(cfg, type)	((cfg)->p2p->bss[type].saved_ie)
 #define wl_to_p2p_bss_private(cfg, type)		((cfg)->p2p->bss[type].private_data)
 #define wl_to_p2p_bss(cfg, type)			((cfg)->p2p->bss[type])
@@ -128,9 +135,24 @@ enum wl_cfgp2p_status {
 /* dword align allocation */
 #define WLC_IOCTL_MAXLEN 8192
 
+#ifdef CUSTOMER_HW4_DEBUG
+#define CFGP2P_ERROR_TEXT		"CFGP2P-INFO2) "
+#else
 #define CFGP2P_ERROR_TEXT		"CFGP2P-ERROR) "
+#endif /* CUSTOMER_HW4_DEBUG */
 
-
+#ifdef DHD_LOG_DUMP
+#define CFGP2P_ERR(args)									\
+	do {										\
+		if (wl_dbg_level & WL_DBG_ERR) {				\
+			printk(KERN_INFO CFGP2P_ERROR_TEXT "%s : ", __func__);	\
+			printk args;						\
+			dhd_log_dump_print("[%s] %s: ",	\
+			dhd_log_dump_get_timestamp(), __func__);	\
+			dhd_log_dump_print args;	\
+		}									\
+	} while (0)
+#else
 #define CFGP2P_ERR(args)									\
 	do {										\
 		if (wl_dbg_level & WL_DBG_ERR) {				\
@@ -138,6 +160,7 @@ enum wl_cfgp2p_status {
 			printk args;						\
 		}									\
 	} while (0)
+#endif /* DHD_LOG_DUMP */
 #define	CFGP2P_INFO(args)									\
 	do {										\
 		if (wl_dbg_level & WL_DBG_INFO) {				\
@@ -189,9 +212,6 @@ enum wl_cfgp2p_status {
 #endif /* (LINUX_VERSION >= VERSION(3, 8, 0)) */
 
 #ifndef WL_CFG80211_P2P_DEV_IF
-#ifdef WL_NEWCFG_PRIVCMD_SUPPORT
-#undef WL_NEWCFG_PRIVCMD_SUPPORT
-#endif
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
 #if defined(WL_ENABLE_P2P_IF) && (defined(WL_CFG80211_P2P_DEV_IF) || \
@@ -210,6 +230,8 @@ enum wl_cfgp2p_status {
 #define bcm_struct_cfgdev	struct net_device
 #endif /* WL_CFG80211_P2P_DEV_IF */
 
+#define P2P_ECSA_CNT 50
+
 extern void
 wl_cfgp2p_listen_expired(unsigned long data);
 extern bool
@@ -220,6 +242,8 @@ extern bool
 wl_cfgp2p_is_gas_action(void *frame, u32 frame_len);
 extern bool
 wl_cfgp2p_find_gas_subtype(u8 subtype, u8* data, u32 len);
+extern bool
+wl_cfgp2p_is_p2p_gas_action(void *frame, u32 frame_len);
 extern void
 wl_cfgp2p_print_actframe(bool tx, void *frame, u32 frame_len, u32 channel);
 extern s32
@@ -239,7 +263,8 @@ wl_cfgp2p_ifdisable(struct bcm_cfg80211 *cfg, struct ether_addr *mac);
 extern s32
 wl_cfgp2p_ifdel(struct bcm_cfg80211 *cfg, struct ether_addr *mac);
 extern s32
-wl_cfgp2p_ifchange(struct bcm_cfg80211 *cfg, struct ether_addr *mac, u8 if_type, chanspec_t chspec);
+wl_cfgp2p_ifchange(struct bcm_cfg80211 *cfg, struct ether_addr *mac, u8 if_type,
+	chanspec_t chspec, s32 conn_idx);
 
 extern s32
 wl_cfgp2p_ifidx(struct bcm_cfg80211 *cfg, struct ether_addr *mac, s32 *index);
@@ -278,8 +303,6 @@ wl_cfgp2p_set_management_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, s
 extern s32
 wl_cfgp2p_clear_management_ie(struct bcm_cfg80211 *cfg, s32 bssidx);
 
-extern s32
-wl_cfgp2p_find_idx(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 *index);
 extern struct net_device *
 wl_cfgp2p_find_ndev(struct bcm_cfg80211 *cfg, s32 bssidx);
 extern s32
@@ -304,8 +327,7 @@ wl_cfgp2p_tx_action_frame(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	wl_af_params_t *af_params, s32 bssidx);
 
 extern void
-wl_cfgp2p_generate_bss_mac(struct ether_addr *primary_addr, struct ether_addr *out_dev_addr,
-            struct ether_addr *out_int_addr);
+wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_addr);
 
 extern void
 wl_cfg80211_change_ifaddr(u8* buf, struct ether_addr *p2p_int_addr, u8 element_id);
@@ -331,6 +353,9 @@ wl_cfgp2p_get_p2p_noa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* b
 extern s32
 wl_cfgp2p_set_p2p_ps(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
 
+extern s32
+wl_cfgp2p_set_p2p_ecsa(struct bcm_cfg80211 *cfg, struct net_device *ndev, char* buf, int len);
+
 extern u8 *
 wl_cfgp2p_retreive_p2pattrib(void *buf, u8 element_id);
 
@@ -349,6 +374,18 @@ wl_cfgp2p_unregister_ndev(struct bcm_cfg80211 *cfg);
 extern bool
 wl_cfgp2p_is_ifops(const struct net_device_ops *if_ops);
 
+extern u32
+wl_cfgp2p_vndr_ie(struct bcm_cfg80211 *cfg, u8 *iebuf, s32 pktflag,
+	s8 *oui, s32 ie_id, s8 *data, s32 datalen, const s8* add_del_cmd);
+
+extern int wl_cfgp2p_get_conn_idx(struct bcm_cfg80211 *cfg);
+
+extern
+int wl_cfg_multip2p_operational(struct bcm_cfg80211 *cfg);
+
+extern
+int wl_cfgp2p_vif_created(struct bcm_cfg80211 *cfg);
+
 #if defined(WL_CFG80211_P2P_DEV_IF)
 extern struct wireless_dev *
 wl_cfgp2p_add_p2p_disc_if(struct bcm_cfg80211 *cfg);
@@ -361,7 +398,14 @@ wl_cfgp2p_stop_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev);
 
 extern int
 wl_cfgp2p_del_p2p_disc_if(struct wireless_dev *wdev, struct bcm_cfg80211 *cfg);
+
 #endif /* WL_CFG80211_P2P_DEV_IF */
+
+extern void
+wl_cfgp2p_need_wait_actfrmae(struct bcm_cfg80211 *cfg, void *frame, u32 frame_len, bool tx);
+
+extern int
+wl_cfgp2p_is_p2p_specific_scan(struct cfg80211_scan_request *request);
 
 /* WiFi Direct */
 #define SOCIAL_CHAN_1 1
@@ -376,6 +420,7 @@ wl_cfgp2p_del_p2p_disc_if(struct wireless_dev *wdev, struct bcm_cfg80211 *cfg);
 #define WL_P2P_WILDCARD_SSID_LEN 7
 #define WL_P2P_INTERFACE_PREFIX "p2p"
 #define WL_P2P_TEMP_CHAN 11
+#define WL_P2P_AF_STATUS_OFFSET 9
 
 /* If the provision discovery is for JOIN operations,
  * or the device discoverablity frame is destined to GO

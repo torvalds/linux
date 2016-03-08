@@ -2,9 +2,30 @@
  * Misc utility routines for accessing the SOC Interconnects
  * of Broadcom HNBU chips.
  *
- * $Copyright Open Broadcom Corporation$
+ * Copyright (C) 1999-2016, Broadcom Corporation
+ * 
+ *      Unless you and Broadcom execute a separate written software license
+ * agreement governing use of this software, this software is licensed to you
+ * under the terms of the GNU General Public License version 2 (the "GPL"),
+ * available at http://www.broadcom.com/licenses/GPLv2.php, with the
+ * following added to such license:
+ * 
+ *      As a special exception, the copyright holders of this software give you
+ * permission to link this software with independent modules, and to copy and
+ * distribute the resulting executable under terms of your choice, provided that
+ * you also meet, for each linked independent module, the terms and conditions of
+ * the license of that module.  An independent module is a module which is not
+ * derived from this software.  The special exception does not apply to any
+ * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 481602 2014-05-29 22:43:34Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: siutils.h 530150 2015-01-29 08:43:40Z $
  */
 
 #ifndef	_siutils_h_
@@ -15,33 +36,33 @@
 #endif /* SR_DEBUG */
 
 
-/*
+/**
  * Data structure to export all chip specific common variables
  *   public (read-only) portion of siutils handle returned by si_attach()/si_kattach()
  */
 struct si_pub {
-	uint	socitype;		/* SOCI_SB, SOCI_AI */
+	uint	socitype;		/**< SOCI_SB, SOCI_AI */
 
-	uint	bustype;		/* SI_BUS, PCI_BUS */
-	uint	buscoretype;		/* PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
-	uint	buscorerev;		/* buscore rev */
-	uint	buscoreidx;		/* buscore index */
-	int	ccrev;			/* chip common core rev */
-	uint32	cccaps;			/* chip common capabilities */
-	uint32  cccaps_ext;			/* chip common capabilities extension */
-	int	pmurev;			/* pmu core rev */
-	uint32	pmucaps;		/* pmu capabilities */
-	uint	boardtype;		/* board type */
+	uint	bustype;		/**< SI_BUS, PCI_BUS */
+	uint	buscoretype;		/**< PCI_CORE_ID, PCIE_CORE_ID, PCMCIA_CORE_ID */
+	uint	buscorerev;		/**< buscore rev */
+	uint	buscoreidx;		/**< buscore index */
+	int	ccrev;			/**< chip common core rev */
+	uint32	cccaps;			/**< chip common capabilities */
+	uint32  cccaps_ext;			/**< chip common capabilities extension */
+	int	pmurev;			/**< pmu core rev */
+	uint32	pmucaps;		/**< pmu capabilities */
+	uint	boardtype;		/**< board type */
 	uint    boardrev;               /* board rev */
-	uint	boardvendor;		/* board vendor */
-	uint	boardflags;		/* board flags */
-	uint	boardflags2;		/* board flags2 */
-	uint	chip;			/* chip number */
-	uint	chiprev;		/* chip revision */
-	uint	chippkg;		/* chip package option */
-	uint32	chipst;			/* chip status */
-	bool	issim;			/* chip is in simulation or emulation */
-	uint    socirev;		/* SOC interconnect rev */
+	uint	boardvendor;		/**< board vendor */
+	uint	boardflags;		/**< board flags */
+	uint	boardflags2;		/**< board flags2 */
+	uint	chip;			/**< chip number */
+	uint	chiprev;		/**< chip revision */
+	uint	chippkg;		/**< chip package option */
+	uint32	chipst;			/**< chip status */
+	bool	issim;			/**< chip is in simulation or emulation */
+	uint    socirev;		/**< SOC interconnect rev */
 	bool	pci_pr32414;
 
 };
@@ -58,39 +79,39 @@ typedef const struct si_pub si_t;
  * (the "current core").
  * Use si_setcore() or si_setcoreidx() to change the association to another core.
  */
-#define	SI_OSH		NULL	/* Use for si_kattach when no osh is available */
+#define	SI_OSH		NULL	/**< Use for si_kattach when no osh is available */
 
 #define	BADIDX		(SI_MAXCORES + 1)
 
 /* clkctl xtal what flags */
-#define	XTAL			0x1	/* primary crystal oscillator (2050) */
-#define	PLL			0x2	/* main chip pll */
+#define	XTAL			0x1	/**< primary crystal oscillator (2050) */
+#define	PLL			0x2	/**< main chip pll */
 
 /* clkctl clk mode */
-#define	CLK_FAST		0	/* force fast (pll) clock */
-#define	CLK_DYNAMIC		2	/* enable dynamic clock control */
+#define	CLK_FAST		0	/**< force fast (pll) clock */
+#define	CLK_DYNAMIC		2	/**< enable dynamic clock control */
 
 /* GPIO usage priorities */
-#define GPIO_DRV_PRIORITY	0	/* Driver */
-#define GPIO_APP_PRIORITY	1	/* Application */
-#define GPIO_HI_PRIORITY	2	/* Highest priority. Ignore GPIO reservation */
+#define GPIO_DRV_PRIORITY	0	/**< Driver */
+#define GPIO_APP_PRIORITY	1	/**< Application */
+#define GPIO_HI_PRIORITY	2	/**< Highest priority. Ignore GPIO reservation */
 
 /* GPIO pull up/down */
 #define GPIO_PULLUP		0
 #define GPIO_PULLDN		1
 
 /* GPIO event regtype */
-#define GPIO_REGEVT		0	/* GPIO register event */
-#define GPIO_REGEVT_INTMSK	1	/* GPIO register event int mask */
-#define GPIO_REGEVT_INTPOL	2	/* GPIO register event int polarity */
+#define GPIO_REGEVT		0	/**< GPIO register event */
+#define GPIO_REGEVT_INTMSK	1	/**< GPIO register event int mask */
+#define GPIO_REGEVT_INTPOL	2	/**< GPIO register event int polarity */
 
 /* device path */
-#define SI_DEVPATH_BUFSZ	16	/* min buffer size in bytes */
+#define SI_DEVPATH_BUFSZ	16	/**< min buffer size in bytes */
 
 /* SI routine enumeration: to be used by update function with multiple hooks */
 #define	SI_DOATTACH	1
-#define SI_PCIDOWN	2	/* wireless interface is down */
-#define SI_PCIUP	3	/* wireless interface is up */
+#define SI_PCIDOWN	2	/**< wireless interface is down */
+#define SI_PCIUP	3	/**< wireless interface is up */
 
 #ifdef SR_DEBUG
 #define PMU_RES		31
@@ -117,8 +138,8 @@ typedef const struct si_pub si_t;
 #define CCPLL_ENAB(sih)		((sih)->cccaps & CC_CAP_PLL_MASK)
 #endif
 
-typedef void (*gpio_handler_t)(uint32 stat, void *arg);
 typedef void (*gci_gpio_handler_t)(uint32 stat, void *arg);
+
 /* External BT Coex enable mask */
 #define CC_BTCOEX_EN_MASK  0x01
 /* External PA enable mask */
@@ -127,6 +148,7 @@ typedef void (*gci_gpio_handler_t)(uint32 stat, void *arg);
 #define GPIO_CTRL_5_6_EN_MASK 0x60
 #define GPIO_CTRL_7_6_EN_MASK 0xC0
 #define GPIO_OUT_7_EN_MASK 0x80
+
 
 
 /* CR4 specific defines used by the host driver */
@@ -143,7 +165,9 @@ typedef void (*gci_gpio_handler_t)(uint32 stat, void *arg);
 #define	SICF_CPUHALT		(0x0020)
 #define	ARMCR4_BSZ_MASK		0x3f
 #define	ARMCR4_BSZ_MULT		8192
-
+#define	SI_BPIND_1BYTE		0x1
+#define	SI_BPIND_2BYTE		0x3
+#define	SI_BPIND_4BYTE		0xF
 #include <osl_decl.h>
 /* === exported functions === */
 extern si_t *si_attach(uint pcidev, osl_t *osh, void *regs, uint bustype,
@@ -164,6 +188,8 @@ extern uint si_corevendor(si_t *sih);
 extern uint si_corerev(si_t *sih);
 extern void *si_osh(si_t *sih);
 extern void si_setosh(si_t *sih, osl_t *osh);
+extern uint si_backplane_access(si_t *sih, uint addr, uint size,
+	uint *val, bool read);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val);
 extern uint si_pmu_corereg(si_t *sih, uint32 idx, uint regoff, uint mask, uint val);
 extern uint32 *si_corereg_addr(si_t *sih, uint coreidx, uint regoff);
@@ -174,6 +200,8 @@ extern void *si_wrapperregs(si_t *sih);
 extern uint32 si_core_cflags(si_t *sih, uint32 mask, uint32 val);
 extern void si_core_cflags_wo(si_t *sih, uint32 mask, uint32 val);
 extern uint32 si_core_sflags(si_t *sih, uint32 mask, uint32 val);
+extern void si_d11rsdb_core1_alt_reg_clk_dis(si_t *sih);
+extern void si_d11rsdb_core1_alt_reg_clk_en(si_t *sih);
 extern bool si_iscoreup(si_t *sih);
 extern uint si_numcoreunits(si_t *sih, uint coreid);
 extern uint si_numd11coreunits(si_t *sih);
@@ -209,6 +237,7 @@ extern int si_clkctl_xtal(si_t *sih, uint what, bool on);
 extern uint32 si_gpiotimerval(si_t *sih, uint32 mask, uint32 val);
 extern void si_btcgpiowar(si_t *sih);
 extern bool si_deviceremoved(si_t *sih);
+extern uint32 si_sysmem_size(si_t *sih);
 extern uint32 si_socram_size(si_t *sih);
 extern uint32 si_socdevram_size(si_t *sih);
 extern uint32 si_socram_srmem_size(si_t *sih);
@@ -239,11 +268,6 @@ extern void si_gci_enable_gpio(si_t *sih, uint8 gpio, uint32 mask, uint32 value)
 extern uint8 si_gci_host_wake_gpio_init(si_t *sih);
 extern void si_gci_host_wake_gpio_enable(si_t *sih, uint8 gpio, bool state);
 
-/* GPIO event handlers */
-extern void *si_gpio_handler_register(si_t *sih, uint32 e, bool lev, gpio_handler_t cb, void *arg);
-extern void si_gpio_handler_unregister(si_t *sih, void* gpioh);
-extern void si_gpio_handler_process(si_t *sih);
-
 /* GCI interrupt handlers */
 extern void si_gci_handler_process(si_t *sih);
 
@@ -262,6 +286,7 @@ extern void si_pci_pmeen(si_t *sih);
 extern void si_pci_pmestatclr(si_t *sih);
 extern uint si_pcie_readreg(void *sih, uint addrtype, uint offset);
 extern uint si_pcie_writereg(void *sih, uint addrtype, uint offset, uint val);
+extern void si_deepsleep_count(si_t *sih, bool arm_wakeup);
 
 
 #ifdef BCMSDIO
@@ -299,10 +324,10 @@ extern int si_cis_source(si_t *sih);
 #define CIS_OTP		2
 
 /* Fab-id information */
-#define	DEFAULT_FAB	0x0	/* Original/first fab used for this chip */
-#define	CSM_FAB7	0x1	/* CSM Fab7 chip */
-#define	TSMC_FAB12	0x2	/* TSMC Fab12/Fab14 chip */
-#define	SMIC_FAB4	0x3	/* SMIC Fab4 chip */
+#define	DEFAULT_FAB	0x0	/**< Original/first fab used for this chip */
+#define	CSM_FAB7	0x1	/**< CSM Fab7 chip */
+#define	TSMC_FAB12	0x2	/**< TSMC Fab12/Fab14 chip */
+#define	SMIC_FAB4	0x3	/**< SMIC Fab4 chip */
 
 extern int si_otp_fabid(si_t *sih, uint16 *fabid, bool rw);
 extern uint16 si_fabid(si_t *sih);
@@ -347,6 +372,7 @@ extern uint32 si_chipcontrl_read(si_t *sih);
 extern void si_chipcontrl_epa4331(si_t *sih, bool on);
 extern void si_chipcontrl_epa4331_wowl(si_t *sih, bool enter_wowl);
 extern void si_chipcontrl_srom4360(si_t *sih, bool on);
+extern void si_clk_srom4365(si_t *sih);
 /* Enable BT-COEX & Ex-PA for 4313 */
 extern void si_epa_4313war(si_t *sih);
 extern void si_btc_enable_chipcontrol(si_t *sih);
@@ -354,12 +380,17 @@ extern void si_btc_enable_chipcontrol(si_t *sih);
 extern void si_btcombo_p250_4313_war(si_t *sih);
 extern void si_btcombo_43228_war(si_t *sih);
 extern void si_clk_pmu_htavail_set(si_t *sih, bool set_clear);
+extern void si_pmu_avb_clk_set(si_t *sih, osl_t *osh, bool set_flag);
 extern void si_pmu_synth_pwrsw_4313_war(si_t *sih);
 extern uint si_pll_reset(si_t *sih);
 /* === debug routines === */
 
 extern bool si_taclear(si_t *sih, bool details);
 
+#if defined(BCMDBG_PHYDUMP)
+struct bcmstrbuf;
+extern int si_dump_pcieinfo(si_t *sih, struct bcmstrbuf *b);
+#endif 
 
 #if defined(BCMDBG_PHYDUMP)
 extern void si_dumpregs(si_t *sih, struct bcmstrbuf *b);
@@ -367,6 +398,8 @@ extern void si_dumpregs(si_t *sih, struct bcmstrbuf *b);
 
 extern uint32 si_ccreg(si_t *sih, uint32 offset, uint32 mask, uint32 val);
 extern uint32 si_pciereg(si_t *sih, uint32 offset, uint32 mask, uint32 val, uint type);
+extern int si_bpind_access(si_t *sih, uint32 addr_high, uint32 addr_low,
+	int32* data, bool read);
 #ifdef SR_DEBUG
 extern void si_dump_pmu(si_t *sih, void *pmu_var);
 extern void si_pmu_keep_on(si_t *sih, int32 int_val);
@@ -466,37 +499,31 @@ extern void si_d11rsdb_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 #define PLL_DIV2_MASK		(0x37 << PLL_DIV2_BIT_START)
 #define PLL_DIV2_DIS_OP		(0x37 << PLL_DIV2_BIT_START)
 
-#define PMUREG(si, member) \
-	(AOB_ENAB(si) ? \
-		si_corereg_addr(si, si_findcoreidx(si, PMU_CORE_ID, 0), \
-			OFFSETOF(pmuregs_t, member)): \
-		si_corereg_addr(si, SI_CC_IDX, OFFSETOF(chipcregs_t, member)))
-
 #define pmu_corereg(si, cc_idx, member, mask, val) \
 	(AOB_ENAB(si) ? \
-		si_pmu_corereg(si, si_findcoreidx(sih, PMU_CORE_ID, 0), \
+		si_pmu_corereg(si, si_findcoreidx(si, PMU_CORE_ID, 0), \
 			       OFFSETOF(pmuregs_t, member), mask, val): \
 		si_pmu_corereg(si, cc_idx, OFFSETOF(chipcregs_t, member), mask, val))
 
 /* GCI Macros */
 #define ALLONES_32				0xFFFFFFFF
-#define GCI_CCTL_SECIRST_OFFSET			0 /* SeciReset */
-#define GCI_CCTL_RSTSL_OFFSET			1 /* ResetSeciLogic */
-#define GCI_CCTL_SECIEN_OFFSET			2 /* EnableSeci  */
-#define GCI_CCTL_FSL_OFFSET			3 /* ForceSeciOutLow */
-#define GCI_CCTL_SMODE_OFFSET			4 /* SeciOpMode, 6:4 */
-#define GCI_CCTL_US_OFFSET			7 /* UpdateSeci */
-#define GCI_CCTL_BRKONSLP_OFFSET		8 /* BreakOnSleep */
-#define GCI_CCTL_SILOWTOUT_OFFSET		9 /* SeciInLowTimeout, 10:9 */
-#define GCI_CCTL_RSTOCC_OFFSET			11 /* ResetOffChipCoex */
-#define GCI_CCTL_ARESEND_OFFSET			12 /* AutoBTSigResend */
-#define GCI_CCTL_FGCR_OFFSET			16 /* ForceGciClkReq */
-#define GCI_CCTL_FHCRO_OFFSET			17 /* ForceHWClockReqOff */
-#define GCI_CCTL_FREGCLK_OFFSET			18 /* ForceRegClk */
-#define GCI_CCTL_FSECICLK_OFFSET		19 /* ForceSeciClk */
-#define GCI_CCTL_FGCA_OFFSET			20 /* ForceGciClkAvail */
-#define GCI_CCTL_FGCAV_OFFSET			21 /* ForceGciClkAvailValue */
-#define GCI_CCTL_SCS_OFFSET			24 /* SeciClkStretch, 31:24 */
+#define GCI_CCTL_SECIRST_OFFSET			0 /**< SeciReset */
+#define GCI_CCTL_RSTSL_OFFSET			1 /**< ResetSeciLogic */
+#define GCI_CCTL_SECIEN_OFFSET			2 /**< EnableSeci  */
+#define GCI_CCTL_FSL_OFFSET			3 /**< ForceSeciOutLow */
+#define GCI_CCTL_SMODE_OFFSET			4 /**< SeciOpMode, 6:4 */
+#define GCI_CCTL_US_OFFSET			7 /**< UpdateSeci */
+#define GCI_CCTL_BRKONSLP_OFFSET		8 /**< BreakOnSleep */
+#define GCI_CCTL_SILOWTOUT_OFFSET		9 /**< SeciInLowTimeout, 10:9 */
+#define GCI_CCTL_RSTOCC_OFFSET			11 /**< ResetOffChipCoex */
+#define GCI_CCTL_ARESEND_OFFSET			12 /**< AutoBTSigResend */
+#define GCI_CCTL_FGCR_OFFSET			16 /**< ForceGciClkReq */
+#define GCI_CCTL_FHCRO_OFFSET			17 /**< ForceHWClockReqOff */
+#define GCI_CCTL_FREGCLK_OFFSET			18 /**< ForceRegClk */
+#define GCI_CCTL_FSECICLK_OFFSET		19 /**< ForceSeciClk */
+#define GCI_CCTL_FGCA_OFFSET			20 /**< ForceGciClkAvail */
+#define GCI_CCTL_FGCAV_OFFSET			21 /**< ForceGciClkAvailValue */
+#define GCI_CCTL_SCS_OFFSET			24 /**< SeciClkStretch, 31:24 */
 
 #define GCI_MODE_UART				0x0
 #define GCI_MODE_SECI				0x1
@@ -532,7 +559,7 @@ extern void si_d11rsdb_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 
 #define GCI_GPIOIDX_OFFSET			16
 
-#define GCI_LTECX_SECI_ID			0 /* SECI port for LTECX */
+#define GCI_LTECX_SECI_ID			0 /**< SECI port for LTECX */
 
 /* To access per GCI bit registers */
 #define GCI_REG_WIDTH				32
@@ -564,8 +591,11 @@ extern void si_d11rsdb_core_reset(si_t *sih, uint32 bits, uint32 resetbits);
 #define PMU_OOB         0x2
 #define D11_OOB         0x3
 #define SDIOD_OOB       0x4
-#define PMU_OOB_BIT     (0x10 | PMU_OOB)
+#define WLAN_OOB	0x5
+#define PMU_OOB_BIT     0x12
 #endif /* REROUTE_OOBINT */
 
+extern void si_pll_sr_reinit(si_t *sih);
+extern void si_pll_closeloop(si_t *sih);
 
 #endif	/* _siutils_h_ */

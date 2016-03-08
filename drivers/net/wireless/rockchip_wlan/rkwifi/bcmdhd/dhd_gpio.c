@@ -1,7 +1,6 @@
 
 #include <osl.h>
-#include <dngl_stats.h>
-#include <dhd.h>
+#include <dhd_linux.h>
 #include <linux/rfkill-wlan.h>
 
 #ifdef CONFIG_MACH_ODROID_4210
@@ -22,7 +21,7 @@ uint bcm_wlan_get_oob_irq(void)
 
 	host_oob_irq = rockchip_wifi_get_oob_irq();
 
-	printf("host_oob_irq: %d \r\n", host_oob_irq);
+	printk("host_oob_irq: %d\n", host_oob_irq);
 
 	return host_oob_irq;
 }
@@ -32,7 +31,7 @@ uint bcm_wlan_get_oob_irq_flags(void)
 	uint host_oob_irq_flags = 0;
 
 	host_oob_irq_flags = (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE) & IRQF_TRIGGER_MASK;
-	printf("host_oob_irq_flags=%d\n", host_oob_irq_flags);
+	printk("host_oob_irq_flags=0x%X\n", host_oob_irq_flags);
 
 	return host_oob_irq_flags;
 }
@@ -43,10 +42,10 @@ int bcm_wlan_set_power(bool on)
 	int err = 0;
 
 	if (on) {
-		printf("======== PULL WL_REG_ON HIGH! ========\n");
+		printk("======== PULL WL_REG_ON HIGH! ========\n");
 		rockchip_wifi_power(1);
 	} else {
-		printf("======== PULL WL_REG_ON LOW! ========\n");
+		printk("======== PULL WL_REG_ON LOW! ========\n");
 		rockchip_wifi_power(0);
 	}
 
@@ -58,10 +57,10 @@ int bcm_wlan_set_carddetect(bool present)
 	int err = 0;
 
 	if (present) {
-		printf("======== Card detection to detect SDIO card! ========\n");
+		printk("======== Card detection to detect SDIO card! ========\n");
 	        rockchip_wifi_set_carddetect(1);
 	} else {
-		printf("======== Card detection to remove SDIO card! ========\n");
+		printk("======== Card detection to remove SDIO card! ========\n");
 	        rockchip_wifi_set_carddetect(0);
 	}
 
@@ -72,7 +71,7 @@ int bcm_wlan_get_mac_address(unsigned char *buf)
 {
 	int err = 0;
 
-	printf("======== %s ========\n", __FUNCTION__);
+	printk("======== %s ========\n", __FUNCTION__);
 #ifdef EXAMPLE_GET_MAC
 	/* EXAMPLE code */
 	{
@@ -102,6 +101,58 @@ void* bcm_wlan_prealloc(int section, unsigned long size)
 }
 #endif
 
+#if !defined(WL_WIRELESS_EXT)
+struct cntry_locales_custom {
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
+	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
+	int32 custom_locale_rev;		/* Custom local revisin default -1 */
+};
+#endif
+
+static struct cntry_locales_custom brcm_wlan_translate_custom_table[] = {
+	/* Table should be filled out based on custom platform regulatory requirement */
+	{"",   "XT", 49},  /* Universal if Country code is unknown or empty */
+	{"US", "US", 0},
+};
+
+#ifdef CUSTOM_FORCE_NODFS_FLAG
+struct cntry_locales_custom brcm_wlan_translate_nodfs_table[] = {
+	{"",   "XT", 50},  /* Universal if Country code is unknown or empty */
+	{"US", "US", 0},
+};
+#endif
+
+static void *bcm_wlan_get_country_code(char *ccode
+#ifdef CUSTOM_FORCE_NODFS_FLAG
+	, u32 flags
+#endif
+)
+{
+	struct cntry_locales_custom *locales;
+	int size;
+	int i;
+
+	if (!ccode)
+		return NULL;
+
+#ifdef CUSTOM_FORCE_NODFS_FLAG
+	if (flags & WLAN_PLAT_NODFS_FLAG) {
+		locales = brcm_wlan_translate_nodfs_table;
+		size = ARRAY_SIZE(brcm_wlan_translate_nodfs_table);
+	} else {
+#endif
+		locales = brcm_wlan_translate_custom_table;
+		size = ARRAY_SIZE(brcm_wlan_translate_custom_table);
+#ifdef CUSTOM_FORCE_NODFS_FLAG
+	}
+#endif
+
+	for (i = 0; i < size; i++)
+		if (strcmp(ccode, locales[i].iso_abbrev) == 0)
+			return &locales[i];
+	return NULL;
+}
+
 int bcm_wlan_set_plat_data(void) {
 	printf("======== %s ========\n", __FUNCTION__);
 	dhd_wlan_control.set_power = bcm_wlan_set_power;
@@ -110,6 +161,7 @@ int bcm_wlan_set_plat_data(void) {
 #ifdef CONFIG_DHD_USE_STATIC_BUF
 	dhd_wlan_control.mem_prealloc = bcm_wlan_prealloc;
 #endif
+	dhd_wlan_control.get_country_code = bcm_wlan_get_country_code;
 	return 0;
 }
 
