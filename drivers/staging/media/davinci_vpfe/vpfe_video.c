@@ -198,7 +198,7 @@ static int vpfe_update_pipe_state(struct vpfe_video_device *video)
 	return 0;
 }
 
-/* checks wether pipeline is ready for enabling */
+/* checks whether pipeline is ready for enabling */
 int vpfe_video_is_pipe_ready(struct vpfe_pipeline *pipe)
 {
 	int i;
