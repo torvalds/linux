@@ -8943,7 +8943,7 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 		else
 			crtc_state->dpll_hw_state.fp1 = fp;
 
-		pll = intel_get_shared_dpll(crtc, crtc_state);
+		pll = intel_get_shared_dpll(crtc, crtc_state, NULL);
 		if (pll == NULL) {
 			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
 					 pipe_name(crtc->pipe));

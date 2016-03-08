@@ -25,11 +25,19 @@
 #ifndef _INTEL_DPLL_MGR_H_
 #define _INTEL_DPLL_MGR_H_
 
+/*FIXME: Move this to a more appropriate place. */
+#define abs_diff(a, b) ({			\
+	typeof(a) __a = (a);			\
+	typeof(b) __b = (b);			\
+	(void) (&__a == &__b);			\
+	__a > __b ? (__a - __b) : (__b - __a); })
+
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_crtc_state;
-struct intel_shared_dpll;
+struct intel_encoder;
 
+struct intel_shared_dpll;
 struct intel_dpll_mgr;
 
 enum intel_dpll_id {
@@ -133,7 +141,8 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc,
-						struct intel_crtc_state *state);
+						struct intel_crtc_state *state,
+						struct intel_encoder *encoder);
 void intel_prepare_shared_dpll(struct intel_crtc *crtc);
 void intel_enable_shared_dpll(struct intel_crtc *crtc);
 void intel_disable_shared_dpll(struct intel_crtc *crtc);

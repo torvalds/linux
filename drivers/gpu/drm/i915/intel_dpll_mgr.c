@@ -335,7 +335,8 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 }
 
 static struct intel_shared_dpll *
-ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state)
+ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
+	     struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
@@ -437,15 +438,282 @@ static bool hsw_ddi_spll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & SPLL_PLL_ENABLE;
 }
 
+static uint32_t hsw_pll_to_ddi_pll_sel(struct intel_shared_dpll *pll)
+{
+	switch (pll->id) {
+	case DPLL_ID_WRPLL1:
+		return PORT_CLK_SEL_WRPLL1;
+	case DPLL_ID_WRPLL2:
+		return PORT_CLK_SEL_WRPLL2;
+	case DPLL_ID_SPLL:
+		return PORT_CLK_SEL_SPLL;
+	default:
+		return PORT_CLK_SEL_NONE;
+	}
+}
+
+#define LC_FREQ 2700
+#define LC_FREQ_2K U64_C(LC_FREQ * 2000)
+
+#define P_MIN 2
+#define P_MAX 64
+#define P_INC 2
+
+/* Constraints for PLL good behavior */
+#define REF_MIN 48
+#define REF_MAX 400
+#define VCO_MIN 2400
+#define VCO_MAX 4800
+
+struct hsw_wrpll_rnp {
+	unsigned p, n2, r2;
+};
+
+static unsigned hsw_wrpll_get_budget_for_freq(int clock)
+{
+	unsigned budget;
+
+	switch (clock) {
+	case 25175000:
+	case 25200000:
+	case 27000000:
+	case 27027000:
+	case 37762500:
+	case 37800000:
+	case 40500000:
+	case 40541000:
+	case 54000000:
+	case 54054000:
+	case 59341000:
+	case 59400000:
+	case 72000000:
+	case 74176000:
+	case 74250000:
+	case 81000000:
+	case 81081000:
+	case 89012000:
+	case 89100000:
+	case 108000000:
+	case 108108000:
+	case 111264000:
+	case 111375000:
+	case 148352000:
+	case 148500000:
+	case 162000000:
+	case 162162000:
+	case 222525000:
+	case 222750000:
+	case 296703000:
+	case 297000000:
+		budget = 0;
+		break;
+	case 233500000:
+	case 245250000:
+	case 247750000:
+	case 253250000:
+	case 298000000:
+		budget = 1500;
+		break;
+	case 169128000:
+	case 169500000:
+	case 179500000:
+	case 202000000:
+		budget = 2000;
+		break;
+	case 256250000:
+	case 262500000:
+	case 270000000:
+	case 272500000:
+	case 273750000:
+	case 280750000:
+	case 281250000:
+	case 286000000:
+	case 291750000:
+		budget = 4000;
+		break;
+	case 267250000:
+	case 268500000:
+		budget = 5000;
+		break;
+	default:
+		budget = 1000;
+		break;
+	}
+
+	return budget;
+}
+
+static void hsw_wrpll_update_rnp(uint64_t freq2k, unsigned budget,
+				 unsigned r2, unsigned n2, unsigned p,
+				 struct hsw_wrpll_rnp *best)
+{
+	uint64_t a, b, c, d, diff, diff_best;
+
+	/* No best (r,n,p) yet */
+	if (best->p == 0) {
+		best->p = p;
+		best->n2 = n2;
+		best->r2 = r2;
+		return;
+	}
+
+	/*
+	 * Output clock is (LC_FREQ_2K / 2000) * N / (P * R), which compares to
+	 * freq2k.
+	 *
+	 * delta = 1e6 *
+	 *	   abs(freq2k - (LC_FREQ_2K * n2/(p * r2))) /
+	 *	   freq2k;
+	 *
+	 * and we would like delta <= budget.
+	 *
+	 * If the discrepancy is above the PPM-based budget, always prefer to
+	 * improve upon the previous solution.  However, if you're within the
+	 * budget, try to maximize Ref * VCO, that is N / (P * R^2).
+	 */
+	a = freq2k * budget * p * r2;
+	b = freq2k * budget * best->p * best->r2;
+	diff = abs_diff(freq2k * p * r2, LC_FREQ_2K * n2);
+	diff_best = abs_diff(freq2k * best->p * best->r2,
+			     LC_FREQ_2K * best->n2);
+	c = 1000000 * diff;
+	d = 1000000 * diff_best;
+
+	if (a < c && b < d) {
+		/* If both are above the budget, pick the closer */
+		if (best->p * best->r2 * diff < p * r2 * diff_best) {
+			best->p = p;
+			best->n2 = n2;
+			best->r2 = r2;
+		}
+	} else if (a >= c && b < d) {
+		/* If A is below the threshold but B is above it?  Update. */
+		best->p = p;
+		best->n2 = n2;
+		best->r2 = r2;
+	} else if (a >= c && b >= d) {
+		/* Both are below the limit, so pick the higher n2/(r2*r2) */
+		if (n2 * best->r2 * best->r2 > best->n2 * r2 * r2) {
+			best->p = p;
+			best->n2 = n2;
+			best->r2 = r2;
+		}
+	}
+	/* Otherwise a < c && b >= d, do nothing */
+}
+
+static void
+hsw_ddi_calculate_wrpll(int clock /* in Hz */,
+			unsigned *r2_out, unsigned *n2_out, unsigned *p_out)
+{
+	uint64_t freq2k;
+	unsigned p, n2, r2;
+	struct hsw_wrpll_rnp best = { 0, 0, 0 };
+	unsigned budget;
+
+	freq2k = clock / 100;
+
+	budget = hsw_wrpll_get_budget_for_freq(clock);
+
+	/* Special case handling for 540 pixel clock: bypass WR PLL entirely
+	 * and directly pass the LC PLL to it. */
+	if (freq2k == 5400000) {
+		*n2_out = 2;
+		*p_out = 1;
+		*r2_out = 2;
+		return;
+	}
+
+	/*
+	 * Ref = LC_FREQ / R, where Ref is the actual reference input seen by
+	 * the WR PLL.
+	 *
+	 * We want R so that REF_MIN <= Ref <= REF_MAX.
+	 * Injecting R2 = 2 * R gives:
+	 *   REF_MAX * r2 > LC_FREQ * 2 and
+	 *   REF_MIN * r2 < LC_FREQ * 2
+	 *
+	 * Which means the desired boundaries for r2 are:
+	 *  LC_FREQ * 2 / REF_MAX < r2 < LC_FREQ * 2 / REF_MIN
+	 *
+	 */
+	for (r2 = LC_FREQ * 2 / REF_MAX + 1;
+	     r2 <= LC_FREQ * 2 / REF_MIN;
+	     r2++) {
+
+		/*
+		 * VCO = N * Ref, that is: VCO = N * LC_FREQ / R
+		 *
+		 * Once again we want VCO_MIN <= VCO <= VCO_MAX.
+		 * Injecting R2 = 2 * R and N2 = 2 * N, we get:
+		 *   VCO_MAX * r2 > n2 * LC_FREQ and
+		 *   VCO_MIN * r2 < n2 * LC_FREQ)
+		 *
+		 * Which means the desired boundaries for n2 are:
+		 * VCO_MIN * r2 / LC_FREQ < n2 < VCO_MAX * r2 / LC_FREQ
+		 */
+		for (n2 = VCO_MIN * r2 / LC_FREQ + 1;
+		     n2 <= VCO_MAX * r2 / LC_FREQ;
+		     n2++) {
+
+			for (p = P_MIN; p <= P_MAX; p += P_INC)
+				hsw_wrpll_update_rnp(freq2k, budget,
+						     r2, n2, p, &best);
+		}
+	}
+
+	*n2_out = best.n2;
+	*p_out = best.p;
+	*r2_out = best.r2;
+}
+
 static struct intel_shared_dpll *
-hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state)
+hsw_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
+	     struct intel_encoder *encoder)
 {
 	struct intel_shared_dpll *pll;
+	int clock = crtc_state->port_clock;
 
-	pll = intel_find_shared_dpll(crtc, crtc_state,
-				     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
-	if (pll)
-		intel_reference_shared_dpll(pll, crtc_state);
+	if (encoder->type == INTEL_OUTPUT_HDMI) {
+		uint32_t val;
+		unsigned p, n2, r2;
+
+		hsw_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
+
+		val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
+		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
+		      WRPLL_DIVIDER_POST(p);
+
+		memset(&crtc_state->dpll_hw_state, 0,
+		       sizeof(crtc_state->dpll_hw_state));
+
+		crtc_state->dpll_hw_state.wrpll = val;
+
+		pll = intel_find_shared_dpll(crtc, crtc_state,
+					     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
+
+	} else if (encoder->type == INTEL_OUTPUT_ANALOG) {
+		if (WARN_ON(crtc_state->port_clock / 2 != 135000))
+			return NULL;
+
+		memset(&crtc_state->dpll_hw_state, 0,
+		       sizeof(crtc_state->dpll_hw_state));
+
+		crtc_state->dpll_hw_state.spll =
+			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
+
+		pll = intel_find_shared_dpll(crtc, crtc_state,
+					     DPLL_ID_SPLL, DPLL_ID_SPLL);
+	} else {
+		return NULL;
+	}
+
+	if (!pll)
+		return NULL;
+
+	crtc_state->ddi_pll_sel = hsw_pll_to_ddi_pll_sel(pll);
+
+	intel_reference_shared_dpll(pll, crtc_state);
 
 	return pll;
 }
@@ -570,7 +838,8 @@ out:
 }
 
 static struct intel_shared_dpll *
-skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state)
+skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
+	     struct intel_encoder *encoder)
 {
 	struct intel_shared_dpll *pll;
 
@@ -771,10 +1040,10 @@ out:
 }
 
 static struct intel_shared_dpll *
-bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state)
+bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
+	     struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_encoder *encoder;
 	struct intel_digital_port *intel_dig_port;
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id i;
@@ -844,7 +1113,8 @@ struct intel_dpll_mgr {
 	const struct dpll_info *dpll_info;
 
 	struct intel_shared_dpll *(*get_dpll)(struct intel_crtc *crtc,
-					      struct intel_crtc_state *crtc_state);
+					      struct intel_crtc_state *crtc_state,
+					      struct intel_encoder *encoder);
 };
 
 static const struct dpll_info pch_plls[] = {
@@ -937,7 +1207,8 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 struct intel_shared_dpll *
 intel_get_shared_dpll(struct intel_crtc *crtc,
-		      struct intel_crtc_state *crtc_state)
+		      struct intel_crtc_state *crtc_state,
+		      struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_dpll_mgr *dpll_mgr = dev_priv->dpll_mgr;
@@ -945,5 +1216,5 @@ intel_get_shared_dpll(struct intel_crtc *crtc,
 	if (WARN_ON(!dpll_mgr))
 		return NULL;
 
-	return dpll_mgr->get_dpll(crtc, crtc_state);
+	return dpll_mgr->get_dpll(crtc, crtc_state, encoder);
 }
