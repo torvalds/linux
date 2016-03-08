@@ -2771,6 +2771,24 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
+	/* See what interrupts we'll be using.  If we've been configured to
+	 * use MSI-X interrupts, try to enable them but fall back to using
+	 * MSI interrupts if we can't enable MSI-X interrupts.  If we can't
+	 * get MSI interrupts we bail with the error.
+	 */
+	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
+		adapter->flags |= USING_MSIX;
+	else {
+		err = pci_enable_msi(pdev);
+		if (err) {
+			dev_err(&pdev->dev, "Unable to allocate %s interrupts;"
+				" err=%d\n",
+				msi == MSI_MSIX ? "MSI-X or MSI" : "MSI", err);
+			goto err_free_dev;
+		}
+		adapter->flags |= USING_MSI;
+	}
+
 	/*
 	 * The "card" is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole "card" but rather proceed
@@ -2793,7 +2811,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	}
 	if (adapter->registered_device_map == 0) {
 		dev_err(&pdev->dev, "could not register any net devices\n");
-		goto err_free_dev;
+		goto err_disable_interrupts;
 	}
 
 	/*
@@ -2808,25 +2826,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 				 " directory");
 		else
 			setup_debugfs(adapter);
-	}
-
-	/*
-	 * See what interrupts we'll be using.  If we've been configured to
-	 * use MSI-X interrupts, try to enable them but fall back to using
-	 * MSI interrupts if we can't enable MSI-X interrupts.  If we can't
-	 * get MSI interrupts we bail with the error.
-	 */
-	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
-	else {
-		err = pci_enable_msi(pdev);
-		if (err) {
-			dev_err(&pdev->dev, "Unable to allocate %s interrupts;"
-				" err=%d\n",
-				msi == MSI_MSIX ? "MSI-X or MSI" : "MSI", err);
-			goto err_free_debugfs;
-		}
-		adapter->flags |= USING_MSI;
 	}
 
 	/*
@@ -2856,11 +2855,13 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Error recovery and exit code.  Unwind state that's been created
 	 * so far and return the error.
 	 */
-
-err_free_debugfs:
-	if (!IS_ERR_OR_NULL(adapter->debugfs_root)) {
-		cleanup_debugfs(adapter);
-		debugfs_remove_recursive(adapter->debugfs_root);
+err_disable_interrupts:
+	if (adapter->flags & USING_MSIX) {
+		pci_disable_msix(adapter->pdev);
+		adapter->flags &= ~USING_MSIX;
+	} else if (adapter->flags & USING_MSI) {
+		pci_disable_msi(adapter->pdev);
+		adapter->flags &= ~USING_MSI;
 	}
 
 err_free_dev:
