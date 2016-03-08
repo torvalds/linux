@@ -27,6 +27,7 @@
  * @parent: pointer to the parent gmap for shadow guest address spaces
  * @orig_asce: ASCE for which the shadow page table has been created
  * @removed: flag to indicate if a shadow guest address space has been removed
+ * @initialized: flag to indicate if a shadow guest address space can be used
  */
 struct gmap {
 	struct list_head list;
@@ -49,6 +50,7 @@ struct gmap {
 	struct gmap *parent;
 	unsigned long orig_asce;
 	bool removed;
+	bool initialized;
 };
 
 /**

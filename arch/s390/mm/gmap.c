@@ -1384,7 +1384,8 @@ static void gmap_unshadow(struct gmap *sg)
  * @asce: ASCE for which the shadow table is created
  *
  * Returns the pointer to a gmap if a shadow table with the given asce is
- * already available, otherwise NULL
+ * already available, ERR_PTR(-EAGAIN) if another one is just being created,
+ * otherwise NULL
  */
 static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce)
 {
@@ -1393,6 +1394,8 @@ static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce)
 	list_for_each_entry(sg, &parent->children, list) {
 		if (sg->orig_asce != asce || sg->removed)
 			continue;
+		if (!sg->initialized)
+			return ERR_PTR(-EAGAIN);
 		atomic_inc(&sg->ref_count);
 		return sg;
 	}
@@ -1409,8 +1412,9 @@ static struct gmap *gmap_find_shadow(struct gmap *parent, unsigned long asce)
  * The shadow table will be removed automatically on any change to the
  * PTE mapping for the source table.
  *
- * Returns a guest address space structure, NULL if out of memory or if
- * anything goes wrong while protecting the top level pages.
+ * Returns a guest address space structure, ERR_PTR(-ENOMEM) if out of memory,
+ * ERR_PTR(-EAGAIN) if the caller has to retry and ERR_PTR(-EFAULT) if the
+ * parent gmap table could not be protected.
  */
 struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce)
 {
@@ -1428,30 +1432,37 @@ struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce)
 	limit = -1UL >> (33 - (((asce & _ASCE_TYPE_MASK) >> 2) * 11));
 	new = gmap_alloc(limit);
 	if (!new)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	new->mm = parent->mm;
 	new->parent = gmap_get(parent);
 	new->orig_asce = asce;
+	new->initialized = false;
+	spin_lock(&parent->shadow_lock);
+	/* Recheck if another CPU created the same shadow */
+	sg = gmap_find_shadow(parent, asce);
+	if (sg) {
+		spin_unlock(&parent->shadow_lock);
+		gmap_free(new);
+		return sg;
+	}
+	atomic_set(&new->ref_count, 2);
+	list_add(&new->list, &parent->children);
+	spin_unlock(&parent->shadow_lock);
+	/* protect after insertion, so it will get properly invalidated */
 	down_read(&parent->mm->mmap_sem);
 	rc = gmap_protect_range(parent, asce & _ASCE_ORIGIN,
 				((asce & _ASCE_TABLE_LENGTH) + 1) * 4096,
 				PROT_READ, PGSTE_VSIE_BIT);
 	up_read(&parent->mm->mmap_sem);
+	spin_lock(&parent->shadow_lock);
+	new->initialized = true;
 	if (rc) {
-		atomic_set(&new->ref_count, 2);
-		spin_lock(&parent->shadow_lock);
-		/* Recheck if another CPU created the same shadow */
-		sg = gmap_find_shadow(parent, asce);
-		if (!sg) {
-			list_add(&new->list, &parent->children);
-			sg = new;
-			new = NULL;
-		}
-		spin_unlock(&parent->shadow_lock);
-	}
-	if (new)
+		list_del(&new->list);
 		gmap_free(new);
-	return sg;
+		new = ERR_PTR(rc);
+	}
+	spin_unlock(&parent->shadow_lock);
+	return new;
 }
 EXPORT_SYMBOL_GPL(gmap_shadow);
 
