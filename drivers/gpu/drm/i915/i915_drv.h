@@ -1810,6 +1810,7 @@ struct drm_i915_private {
 	/* dpll and cdclk state is protected by connection_mutex */
 	int num_shared_dpll;
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+	const struct intel_dpll_mgr *dpll_mgr;
 
 	unsigned int active_crtcs;
 	unsigned int min_pixclk[I915_MAX_PIPES];

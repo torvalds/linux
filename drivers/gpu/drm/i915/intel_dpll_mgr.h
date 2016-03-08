@@ -30,6 +30,8 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_shared_dpll;
 
+struct intel_dpll_mgr;
+
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
