@@ -123,6 +123,8 @@ struct mlxsw_sp {
 #define MLXSW_SP_DEFAULT_LEARNING_INTERVAL 100
 		unsigned int interval; /* ms */
 	} fdb_notify;
+#define MLXSW_SP_MIN_AGEING_TIME 10
+#define MLXSW_SP_MAX_AGEING_TIME 1000000
 #define MLXSW_SP_DEFAULT_AGEING_TIME 300
 	u32 ageing_time;
 	struct mlxsw_sp_upper master_bridge;
