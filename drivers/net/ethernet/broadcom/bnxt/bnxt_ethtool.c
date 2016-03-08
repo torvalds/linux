@@ -8,6 +8,7 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/stringify.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -83,13 +84,99 @@ static int bnxt_set_coalesce(struct net_device *dev,
 
 #define BNXT_NUM_STATS	21
 
+#define BNXT_RX_STATS_OFFSET(counter)	\
+	(offsetof(struct rx_port_stats, counter) / 8)
+
+#define BNXT_RX_STATS_ENTRY(counter)	\
+	{ BNXT_RX_STATS_OFFSET(counter), __stringify(counter) }
+
+#define BNXT_TX_STATS_OFFSET(counter)			\
+	((offsetof(struct tx_port_stats, counter) +	\
+	  sizeof(struct rx_port_stats) + 512) / 8)
+
+#define BNXT_TX_STATS_ENTRY(counter)	\
+	{ BNXT_TX_STATS_OFFSET(counter), __stringify(counter) }
+
+static const struct {
+	long offset;
+	char string[ETH_GSTRING_LEN];
+} bnxt_port_stats_arr[] = {
+	BNXT_RX_STATS_ENTRY(rx_64b_frames),
+	BNXT_RX_STATS_ENTRY(rx_65b_127b_frames),
+	BNXT_RX_STATS_ENTRY(rx_128b_255b_frames),
+	BNXT_RX_STATS_ENTRY(rx_256b_511b_frames),
+	BNXT_RX_STATS_ENTRY(rx_512b_1023b_frames),
+	BNXT_RX_STATS_ENTRY(rx_1024b_1518_frames),
+	BNXT_RX_STATS_ENTRY(rx_good_vlan_frames),
+	BNXT_RX_STATS_ENTRY(rx_1519b_2047b_frames),
+	BNXT_RX_STATS_ENTRY(rx_2048b_4095b_frames),
+	BNXT_RX_STATS_ENTRY(rx_4096b_9216b_frames),
+	BNXT_RX_STATS_ENTRY(rx_9217b_16383b_frames),
+	BNXT_RX_STATS_ENTRY(rx_total_frames),
+	BNXT_RX_STATS_ENTRY(rx_ucast_frames),
+	BNXT_RX_STATS_ENTRY(rx_mcast_frames),
+	BNXT_RX_STATS_ENTRY(rx_bcast_frames),
+	BNXT_RX_STATS_ENTRY(rx_fcs_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_ctrl_frames),
+	BNXT_RX_STATS_ENTRY(rx_pause_frames),
+	BNXT_RX_STATS_ENTRY(rx_pfc_frames),
+	BNXT_RX_STATS_ENTRY(rx_align_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_ovrsz_frames),
+	BNXT_RX_STATS_ENTRY(rx_jbr_frames),
+	BNXT_RX_STATS_ENTRY(rx_mtu_err_frames),
+	BNXT_RX_STATS_ENTRY(rx_tagged_frames),
+	BNXT_RX_STATS_ENTRY(rx_double_tagged_frames),
+	BNXT_RX_STATS_ENTRY(rx_good_frames),
+	BNXT_RX_STATS_ENTRY(rx_undrsz_frames),
+	BNXT_RX_STATS_ENTRY(rx_eee_lpi_events),
+	BNXT_RX_STATS_ENTRY(rx_eee_lpi_duration),
+	BNXT_RX_STATS_ENTRY(rx_bytes),
+	BNXT_RX_STATS_ENTRY(rx_runt_bytes),
+	BNXT_RX_STATS_ENTRY(rx_runt_frames),
+
+	BNXT_TX_STATS_ENTRY(tx_64b_frames),
+	BNXT_TX_STATS_ENTRY(tx_65b_127b_frames),
+	BNXT_TX_STATS_ENTRY(tx_128b_255b_frames),
+	BNXT_TX_STATS_ENTRY(tx_256b_511b_frames),
+	BNXT_TX_STATS_ENTRY(tx_512b_1023b_frames),
+	BNXT_TX_STATS_ENTRY(tx_1024b_1518_frames),
+	BNXT_TX_STATS_ENTRY(tx_good_vlan_frames),
+	BNXT_TX_STATS_ENTRY(tx_1519b_2047_frames),
+	BNXT_TX_STATS_ENTRY(tx_2048b_4095b_frames),
+	BNXT_TX_STATS_ENTRY(tx_4096b_9216b_frames),
+	BNXT_TX_STATS_ENTRY(tx_9217b_16383b_frames),
+	BNXT_TX_STATS_ENTRY(tx_good_frames),
+	BNXT_TX_STATS_ENTRY(tx_total_frames),
+	BNXT_TX_STATS_ENTRY(tx_ucast_frames),
+	BNXT_TX_STATS_ENTRY(tx_mcast_frames),
+	BNXT_TX_STATS_ENTRY(tx_bcast_frames),
+	BNXT_TX_STATS_ENTRY(tx_pause_frames),
+	BNXT_TX_STATS_ENTRY(tx_pfc_frames),
+	BNXT_TX_STATS_ENTRY(tx_jabber_frames),
+	BNXT_TX_STATS_ENTRY(tx_fcs_err_frames),
+	BNXT_TX_STATS_ENTRY(tx_err),
+	BNXT_TX_STATS_ENTRY(tx_fifo_underruns),
+	BNXT_TX_STATS_ENTRY(tx_eee_lpi_events),
+	BNXT_TX_STATS_ENTRY(tx_eee_lpi_duration),
+	BNXT_TX_STATS_ENTRY(tx_total_collisions),
+	BNXT_TX_STATS_ENTRY(tx_bytes),
+};
+
+#define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+
 static int bnxt_get_sset_count(struct net_device *dev, int sset)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
 	switch (sset) {
-	case ETH_SS_STATS:
-		return BNXT_NUM_STATS * bp->cp_nr_rings;
+	case ETH_SS_STATS: {
+		int num_stats = BNXT_NUM_STATS * bp->cp_nr_rings;
+
+		if (bp->flags & BNXT_FLAG_PORT_STATS)
+			num_stats += BNXT_NUM_PORT_STATS;
+
+		return num_stats;
+	}
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -117,6 +204,14 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (k = 0; k < stat_fields; j++, k++)
 			buf[j] = le64_to_cpu(hw_stats[k]);
 		buf[j++] = cpr->rx_l4_csum_errors;
+	}
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		__le64 *port_stats = (__le64 *)bp->hw_rx_port_stats;
+
+		for (i = 0; i < BNXT_NUM_PORT_STATS; i++, j++) {
+			buf[j] = le64_to_cpu(*(port_stats +
+					       bnxt_port_stats_arr[i].offset));
+		}
 	}
 }
 
@@ -171,6 +266,12 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			buf += ETH_GSTRING_LEN;
 			sprintf(buf, "[%d]: rx_l4_csum_errors", i);
 			buf += ETH_GSTRING_LEN;
+		}
+		if (bp->flags & BNXT_FLAG_PORT_STATS) {
+			for (i = 0; i < BNXT_NUM_PORT_STATS; i++) {
+				strcpy(buf, bnxt_port_stats_arr[i].string);
+				buf += ETH_GSTRING_LEN;
+			}
 		}
 		break;
 	default:
@@ -496,28 +597,8 @@ static void bnxt_get_drvinfo(struct net_device *dev,
 	kfree(pkglog);
 }
 
-static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
+static u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 {
-	u16 fw_speeds = link_info->support_speeds;
-	u32 speed_mask = 0;
-
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_100MB)
-		speed_mask |= SUPPORTED_100baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_1GB)
-		speed_mask |= SUPPORTED_1000baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_2_5GB)
-		speed_mask |= SUPPORTED_2500baseX_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
-		speed_mask |= SUPPORTED_10000baseT_Full;
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= SUPPORTED_40000baseCR4_Full;
-
-	return speed_mask;
-}
-
-static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
-{
-	u16 fw_speeds = link_info->auto_link_speeds;
 	u32 speed_mask = 0;
 
 	/* TODO: support 25GB, 40GB, 50GB with different cable type */
@@ -532,7 +613,46 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 		speed_mask |= ADVERTISED_10000baseT_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
 		speed_mask |= ADVERTISED_40000baseCR4_Full;
+
+	if ((fw_pause & BNXT_LINK_PAUSE_BOTH) == BNXT_LINK_PAUSE_BOTH)
+		speed_mask |= ADVERTISED_Pause;
+	else if (fw_pause & BNXT_LINK_PAUSE_TX)
+		speed_mask |= ADVERTISED_Asym_Pause;
+	else if (fw_pause & BNXT_LINK_PAUSE_RX)
+		speed_mask |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+
 	return speed_mask;
+}
+
+static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->auto_link_speeds;
+	u8 fw_pause = 0;
+
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		fw_pause = link_info->auto_pause_setting;
+
+	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
+}
+
+static u32 bnxt_fw_to_ethtool_lp_adv(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->lp_auto_link_speeds;
+	u8 fw_pause = 0;
+
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
+		fw_pause = link_info->lp_pause;
+
+	return _bnxt_fw_to_ethtool_adv_spds(fw_speeds, fw_pause);
+}
+
+static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
+{
+	u16 fw_speeds = link_info->support_speeds;
+	u32 supported;
+
+	supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+	return supported | SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 }
 
 u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
@@ -566,7 +686,6 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	u16 ethtool_speed;
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
-	cmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (link_info->auto_link_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
@@ -576,20 +695,12 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			bnxt_fw_to_ethtool_advertised_spds(link_info);
 		cmd->advertising |= ADVERTISED_Autoneg;
 		cmd->autoneg = AUTONEG_ENABLE;
+		if (link_info->phy_link_status == BNXT_LINK_LINK)
+			cmd->lp_advertising =
+				bnxt_fw_to_ethtool_lp_adv(link_info);
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
-	}
-	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) {
-		if ((link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
-		    BNXT_LINK_PAUSE_BOTH) {
-			cmd->advertising |= ADVERTISED_Pause;
-		} else {
-			cmd->advertising |= ADVERTISED_Asym_Pause;
-			if (link_info->auto_pause_setting &
-			    BNXT_LINK_PAUSE_RX)
-				cmd->advertising |= ADVERTISED_Pause;
-		}
 	}
 
 	cmd->port = PORT_NONE;
@@ -686,16 +797,10 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return rc;
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		if (link_info->media_type != PORT_PHY_QCFG_RESP_MEDIA_TYPE_TP) {
-			netdev_err(dev, "Media type doesn't support autoneg\n");
-			rc = -EINVAL;
-			goto set_setting_exit;
-		}
-		if (cmd->advertising & ~(BNXT_ALL_COPPER_ETHTOOL_SPEED |
-					 ADVERTISED_Autoneg |
-					 ADVERTISED_TP |
-					 ADVERTISED_Pause |
-					 ADVERTISED_Asym_Pause)) {
+		u32 supported_spds = bnxt_fw_to_ethtool_support_spds(link_info);
+
+		if (cmd->advertising & ~(supported_spds | ADVERTISED_Autoneg |
+					 ADVERTISED_TP | ADVERTISED_FIBRE)) {
 			netdev_err(dev, "Unsupported advertising mask (adv: 0x%x)\n",
 				   cmd->advertising);
 			rc = -EINVAL;
@@ -750,8 +855,10 @@ static void bnxt_get_pauseparam(struct net_device *dev,
 	if (BNXT_VF(bp))
 		return;
 	epause->autoneg = !!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL);
-	epause->rx_pause = ((link_info->pause & BNXT_LINK_PAUSE_RX) != 0);
-	epause->tx_pause = ((link_info->pause & BNXT_LINK_PAUSE_TX) != 0);
+	epause->rx_pause =
+		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_RX) != 0);
+	epause->tx_pause =
+		((link_info->auto_pause_setting & BNXT_LINK_PAUSE_TX) != 0);
 }
 
 static int bnxt_set_pauseparam(struct net_device *dev,

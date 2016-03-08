@@ -2362,6 +2362,14 @@ static void bnxt_free_stats(struct bnxt *bp)
 	u32 size, i;
 	struct pci_dev *pdev = bp->pdev;
 
+	if (bp->hw_rx_port_stats) {
+		dma_free_coherent(&pdev->dev, bp->hw_port_stats_size,
+				  bp->hw_rx_port_stats,
+				  bp->hw_rx_port_stats_map);
+		bp->hw_rx_port_stats = NULL;
+		bp->flags &= ~BNXT_FLAG_PORT_STATS;
+	}
+
 	if (!bp->bnapi)
 		return;
 
@@ -2397,6 +2405,24 @@ static int bnxt_alloc_stats(struct bnxt *bp)
 			return -ENOMEM;
 
 		cpr->hw_stats_ctx_id = INVALID_STATS_CTX_ID;
+	}
+
+	if (BNXT_PF(bp)) {
+		bp->hw_port_stats_size = sizeof(struct rx_port_stats) +
+					 sizeof(struct tx_port_stats) + 1024;
+
+		bp->hw_rx_port_stats =
+			dma_alloc_coherent(&pdev->dev, bp->hw_port_stats_size,
+					   &bp->hw_rx_port_stats_map,
+					   GFP_KERNEL);
+		if (!bp->hw_rx_port_stats)
+			return -ENOMEM;
+
+		bp->hw_tx_port_stats = (void *)(bp->hw_rx_port_stats + 1) +
+				       512;
+		bp->hw_tx_port_stats_map = bp->hw_rx_port_stats_map +
+					   sizeof(struct rx_port_stats) + 512;
+		bp->flags |= BNXT_FLAG_PORT_STATS;
 	}
 	return 0;
 }
@@ -3834,6 +3860,23 @@ hwrm_ver_get_exit:
 	return rc;
 }
 
+static int bnxt_hwrm_port_qstats(struct bnxt *bp)
+{
+	int rc;
+	struct bnxt_pf_info *pf = &bp->pf;
+	struct hwrm_port_qstats_input req = {0};
+
+	if (!(bp->flags & BNXT_FLAG_PORT_STATS))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_PORT_QSTATS, -1, -1);
+	req.port_id = cpu_to_le16(pf->port_id);
+	req.tx_stat_host_addr = cpu_to_le64(bp->hw_tx_port_stats_map);
+	req.rx_stat_host_addr = cpu_to_le64(bp->hw_rx_port_stats_map);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	return rc;
+}
+
 static void bnxt_hwrm_free_tunnel_ports(struct bnxt *bp)
 {
 	if (bp->vxlan_port_cnt) {
@@ -4468,6 +4511,7 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->pause = resp->pause;
 	link_info->auto_mode = resp->auto_mode;
 	link_info->auto_pause_setting = resp->auto_pause;
+	link_info->lp_pause = resp->link_partner_adv_pause;
 	link_info->force_pause_setting = resp->force_pause;
 	link_info->duplex_setting = resp->duplex;
 	if (link_info->phy_link_status == BNXT_LINK_LINK)
@@ -4478,6 +4522,8 @@ static int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->auto_link_speed = le16_to_cpu(resp->auto_link_speed);
 	link_info->support_speeds = le16_to_cpu(resp->support_speeds);
 	link_info->auto_link_speeds = le16_to_cpu(resp->auto_link_speed_mask);
+	link_info->lp_auto_link_speeds =
+		le16_to_cpu(resp->link_partner_adv_speeds);
 	link_info->preemphasis = le32_to_cpu(resp->preemphasis);
 	link_info->phy_ver[0] = resp->phy_maj;
 	link_info->phy_ver[1] = resp->phy_min;
@@ -4889,6 +4935,22 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_dropped += le64_to_cpu(hw_stats->tx_drop_pkts);
 	}
 
+	if (bp->flags & BNXT_FLAG_PORT_STATS) {
+		struct rx_port_stats *rx = bp->hw_rx_port_stats;
+		struct tx_port_stats *tx = bp->hw_tx_port_stats;
+
+		stats->rx_crc_errors = le64_to_cpu(rx->rx_fcs_err_frames);
+		stats->rx_frame_errors = le64_to_cpu(rx->rx_align_err_frames);
+		stats->rx_length_errors = le64_to_cpu(rx->rx_undrsz_frames) +
+					  le64_to_cpu(rx->rx_ovrsz_frames) +
+					  le64_to_cpu(rx->rx_runt_frames);
+		stats->rx_errors = le64_to_cpu(rx->rx_false_carrier_frames) +
+				   le64_to_cpu(rx->rx_jbr_frames);
+		stats->collisions = le64_to_cpu(tx->tx_total_collisions);
+		stats->tx_fifo_errors = le64_to_cpu(tx->tx_fifo_underruns);
+		stats->tx_errors = le64_to_cpu(tx->tx_err);
+	}
+
 	return stats;
 }
 
@@ -5229,6 +5291,10 @@ static void bnxt_timer(unsigned long data)
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnxt_restart_timer;
 
+	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS)) {
+		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
+		schedule_work(&bp->sp_task);
+	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -5279,6 +5345,9 @@ static void bnxt_sp_task(struct work_struct *work)
 		set_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 		rtnl_unlock();
 	}
+
+	if (test_and_clear_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event))
+		bnxt_hwrm_port_qstats(bp);
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
@@ -5342,6 +5411,8 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 		rc = -ENOMEM;
 		goto init_err_release;
 	}
+
+	pci_enable_pcie_error_reporting(pdev);
 
 	INIT_WORK(&bp->sp_task, bnxt_sp_task);
 
@@ -5722,6 +5793,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	if (BNXT_PF(bp))
 		bnxt_sriov_disable(bp);
 
+	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
 	cancel_work_sync(&bp->sp_task);
 	bp->sp_event = 0;
@@ -5961,11 +6033,117 @@ init_err_free:
 	return rc;
 }
 
+/**
+ * bnxt_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
+					       pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	netdev_info(netdev, "PCI I/O error detected\n");
+
+	rtnl_lock();
+	netif_device_detach(netdev);
+
+	if (state == pci_channel_io_perm_failure) {
+		rtnl_unlock();
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (netif_running(netdev))
+		bnxt_close(netdev);
+
+	pci_disable_device(pdev);
+	rtnl_unlock();
+
+	/* Request a slot slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * bnxt_io_slot_reset - called after the pci bus has been reset.
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot.
+ * At this point, the card has exprienced a hard reset,
+ * followed by fixups by BIOS, and has its config space
+ * set up identically to what it was at cold boot.
+ */
+static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
+	int err = 0;
+	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
+
+	netdev_info(bp->dev, "PCI Slot Reset\n");
+
+	rtnl_lock();
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
+	} else {
+		pci_set_master(pdev);
+
+		if (netif_running(netdev))
+			err = bnxt_open(netdev);
+
+		if (!err)
+			result = PCI_ERS_RESULT_RECOVERED;
+	}
+
+	if (result != PCI_ERS_RESULT_RECOVERED && netif_running(netdev))
+		dev_close(netdev);
+
+	rtnl_unlock();
+
+	err = pci_cleanup_aer_uncorrect_error_status(pdev);
+	if (err) {
+		dev_err(&pdev->dev,
+			"pci_cleanup_aer_uncorrect_error_status failed 0x%0x\n",
+			 err); /* non-fatal, continue */
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * bnxt_io_resume - called when traffic can start flowing again.
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells
+ * us that its OK to resume normal operation.
+ */
+static void bnxt_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	rtnl_lock();
+
+	netif_device_attach(netdev);
+
+	rtnl_unlock();
+}
+
+static const struct pci_error_handlers bnxt_err_handler = {
+	.error_detected	= bnxt_io_error_detected,
+	.slot_reset	= bnxt_io_slot_reset,
+	.resume		= bnxt_io_resume
+};
+
 static struct pci_driver bnxt_pci_driver = {
 	.name		= DRV_MODULE_NAME,
 	.id_table	= bnxt_pci_tbl,
 	.probe		= bnxt_init_one,
 	.remove		= bnxt_remove_one,
+	.err_handler	= &bnxt_err_handler,
 #if defined(CONFIG_BNXT_SRIOV)
 	.sriov_configure = bnxt_sriov_configure,
 #endif
