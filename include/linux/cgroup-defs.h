@@ -191,12 +191,13 @@ struct css_set {
 
 	/*
 	 * If this cset is acting as the source of migration the following
-	 * two fields are set.  mg_src_cgrp is the source cgroup of the
-	 * on-going migration and mg_dst_cset is the destination cset the
-	 * target tasks on this cset should be migrated to.  Protected by
-	 * cgroup_mutex.
+	 * two fields are set.  mg_src_cgrp and mg_dst_cgrp are
+	 * respectively the source and destination cgroups of the on-going
+	 * migration.  mg_dst_cset is the destination cset the target tasks
+	 * on this cset should be migrated to.  Protected by cgroup_mutex.
 	 */
 	struct cgroup *mg_src_cgrp;
+	struct cgroup *mg_dst_cgrp;
 	struct css_set *mg_dst_cset;
 
 	/*

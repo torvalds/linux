@@ -2473,6 +2473,7 @@ static void cgroup_migrate_finish(struct list_head *preloaded_csets)
 	spin_lock_bh(&css_set_lock);
 	list_for_each_entry_safe(cset, tmp_cset, preloaded_csets, mg_preload_node) {
 		cset->mg_src_cgrp = NULL;
+		cset->mg_dst_cgrp = NULL;
 		cset->mg_dst_cset = NULL;
 		list_del_init(&cset->mg_preload_node);
 		put_css_set_locked(cset);
@@ -2511,32 +2512,31 @@ static void cgroup_migrate_add_src(struct css_set *src_cset,
 		return;
 
 	WARN_ON(src_cset->mg_src_cgrp);
+	WARN_ON(src_cset->mg_dst_cgrp);
 	WARN_ON(!list_empty(&src_cset->mg_tasks));
 	WARN_ON(!list_empty(&src_cset->mg_node));
 
 	src_cset->mg_src_cgrp = src_cgrp;
+	src_cset->mg_dst_cgrp = dst_cgrp;
 	get_css_set(src_cset);
 	list_add(&src_cset->mg_preload_node, preloaded_csets);
 }
 
 /**
  * cgroup_migrate_prepare_dst - prepare destination css_sets for migration
- * @dst_cgrp: the destination cgroup (may be %NULL)
  * @preloaded_csets: list of preloaded source css_sets
  *
- * Tasks are about to be moved to @dst_cgrp and all the source css_sets
- * have been preloaded to @preloaded_csets.  This function looks up and
- * pins all destination css_sets, links each to its source, and append them
- * to @preloaded_csets.  If @dst_cgrp is %NULL, the destination of each
- * source css_set is assumed to be its cgroup on the default hierarchy.
+ * Tasks are about to be moved and all the source css_sets have been
+ * preloaded to @preloaded_csets.  This function looks up and pins all
+ * destination css_sets, links each to its source, and append them to
+ * @preloaded_csets.
  *
  * This function must be called after cgroup_migrate_add_src() has been
  * called on each migration source css_set.  After migration is performed
  * using cgroup_migrate(), cgroup_migrate_finish() must be called on
  * @preloaded_csets.
  */
-static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
-				      struct list_head *preloaded_csets)
+static int cgroup_migrate_prepare_dst(struct list_head *preloaded_csets)
 {
 	LIST_HEAD(csets);
 	struct css_set *src_cset, *tmp_cset;
@@ -2547,8 +2547,7 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 	list_for_each_entry_safe(src_cset, tmp_cset, preloaded_csets, mg_preload_node) {
 		struct css_set *dst_cset;
 
-		dst_cset = find_css_set(src_cset,
-					dst_cgrp ?: src_cset->dfl_cgrp);
+		dst_cset = find_css_set(src_cset, src_cset->mg_dst_cgrp);
 		if (!dst_cset)
 			goto err;
 
@@ -2561,6 +2560,7 @@ static int cgroup_migrate_prepare_dst(struct cgroup *dst_cgrp,
 		 */
 		if (src_cset == dst_cset) {
 			src_cset->mg_src_cgrp = NULL;
+			src_cset->mg_dst_cgrp = NULL;
 			list_del_init(&src_cset->mg_preload_node);
 			put_css_set(src_cset);
 			put_css_set(dst_cset);
@@ -2657,7 +2657,7 @@ static int cgroup_attach_task(struct cgroup *dst_cgrp,
 	spin_unlock_bh(&css_set_lock);
 
 	/* prepare dst csets and commit */
-	ret = cgroup_migrate_prepare_dst(dst_cgrp, &preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
 	if (!ret)
 		ret = cgroup_migrate(leader, threadgroup, dst_cgrp->root);
 
@@ -2916,7 +2916,7 @@ static int cgroup_update_dfl_csses(struct cgroup *cgrp)
 	spin_unlock_bh(&css_set_lock);
 
 	/* NULL dst indicates self on default hierarchy */
-	ret = cgroup_migrate_prepare_dst(NULL, &preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
 	if (ret)
 		goto out_finish;
 
@@ -4156,7 +4156,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 		cgroup_migrate_add_src(link->cset, to, &preloaded_csets);
 	spin_unlock_bh(&css_set_lock);
 
-	ret = cgroup_migrate_prepare_dst(to, &preloaded_csets);
+	ret = cgroup_migrate_prepare_dst(&preloaded_csets);
 	if (ret)
 		goto out_err;
 
