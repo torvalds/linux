@@ -396,11 +396,14 @@ int hfi1_user_exp_rcv_setup(struct file *fp, struct hfi1_tid_info *tinfo)
 	 * pages, accept the amount pinned so far and program only that.
 	 * User space knows how to deal with partially programmed buffers.
 	 */
+	if (!hfi1_can_pin_pages(dd, fd->tid_n_pinned, npages))
+		return -ENOMEM;
 	pinned = hfi1_acquire_user_pages(vaddr, npages, true, pages);
 	if (pinned <= 0) {
 		ret = pinned;
 		goto bail;
 	}
+	fd->tid_n_pinned += npages;
 
 	/* Find sets of physically contiguous pages */
 	npagesets = find_phys_blocks(pages, pinned, pagesets);
@@ -549,10 +552,12 @@ nomem:
 	 * If not everything was mapped (due to insufficient RcvArray entries,
 	 * for example), unpin all unmapped pages so we can pin them nex time.
 	 */
-	if (mapped_pages != pinned)
+	if (mapped_pages != pinned) {
 		hfi1_release_user_pages(current->mm, &pages[mapped_pages],
 					pinned - mapped_pages,
 					false);
+		fd->tid_n_pinned -= pinned - mapped_pages;
+	}
 bail:
 	kfree(pagesets);
 	kfree(pages);
@@ -924,6 +929,7 @@ static void clear_tid_node(struct hfi1_filedata *fd, u16 subctxt,
 	pci_unmap_single(dd->pcidev, node->dma_addr, node->mmu.len,
 			 PCI_DMA_FROMDEVICE);
 	hfi1_release_user_pages(current->mm, node->pages, node->npages, true);
+	fd->tid_n_pinned -= node->npages;
 
 	node->grp->used--;
 	node->grp->map &= ~(1 << (node->rcventry - node->grp->base));
