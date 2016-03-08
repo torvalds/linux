@@ -45,6 +45,7 @@
 #include "xfs_filestream.h"
 #include "xfs_quota.h"
 #include "xfs_sysfs.h"
+#include "xfs_ondisk.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -1816,6 +1817,8 @@ STATIC int __init
 init_xfs_fs(void)
 {
 	int			error;
+
+	xfs_check_ondisk_structs();
 
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");
