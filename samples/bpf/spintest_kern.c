@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/version.h>
 #include <uapi/linux/bpf.h>
+#include <uapi/linux/perf_event.h>
 #include "bpf_helpers.h"
 
 struct bpf_map_def SEC("maps") my_map = {
@@ -23,6 +24,13 @@ struct bpf_map_def SEC("maps") my_map2 = {
 	.max_entries = 1024,
 };
 
+struct bpf_map_def SEC("maps") stackmap = {
+	.type = BPF_MAP_TYPE_STACK_TRACE,
+	.key_size = sizeof(u32),
+	.value_size = PERF_MAX_STACK_DEPTH * sizeof(u64),
+	.max_entries = 10000,
+};
+
 #define PROG(foo) \
 int foo(struct pt_regs *ctx) \
 { \
@@ -32,6 +40,7 @@ int foo(struct pt_regs *ctx) \
 	bpf_map_update_elem(&my_map, &v, &v, BPF_ANY); \
 	bpf_map_update_elem(&my_map2, &v, &v, BPF_ANY); \
 	bpf_map_delete_elem(&my_map2, &v); \
+	bpf_get_stackid(ctx, &stackmap, BPF_F_REUSE_STACKID); \
 	return 0; \
 }
 
