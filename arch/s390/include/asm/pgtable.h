@@ -520,15 +520,6 @@ static inline int pmd_bad(pmd_t pmd)
 	return (pmd_val(pmd) & ~_SEGMENT_ENTRY_BITS) != 0;
 }
 
-#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
-extern int pmdp_set_access_flags(struct vm_area_struct *vma,
-				 unsigned long address, pmd_t *pmdp,
-				 pmd_t entry, int dirty);
-
-#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
-extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
-				  unsigned long address, pmd_t *pmdp);
-
 #define __HAVE_ARCH_PMD_WRITE
 static inline int pmd_write(pmd_t pmd)
 {
@@ -1203,54 +1194,51 @@ static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
 		: "cc" );
 }
 
-static inline void pmdp_flush_direct(struct mm_struct *mm,
-				     unsigned long address, pmd_t *pmdp)
-{
-	int active, count;
-
-	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
-		return;
-	if (!MACHINE_HAS_IDTE) {
-		__pmdp_csp(pmdp);
-		return;
-	}
-	active = (mm == current->active_mm) ? 1 : 0;
-	count = atomic_add_return(0x10000, &mm->context.attach_count);
-	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pmdp_idte_local(address, pmdp);
-	else
-		__pmdp_idte(address, pmdp);
-	atomic_sub(0x10000, &mm->context.attach_count);
-}
-
-static inline void pmdp_flush_lazy(struct mm_struct *mm,
-				   unsigned long address, pmd_t *pmdp)
-{
-	int active, count;
-
-	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
-		return;
-	active = (mm == current->active_mm) ? 1 : 0;
-	count = atomic_add_return(0x10000, &mm->context.attach_count);
-	if ((count & 0xffff) <= active) {
-		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
-		mm->context.flush_mm = 1;
-	} else if (MACHINE_HAS_IDTE)
-		__pmdp_idte(address, pmdp);
-	else
-		__pmdp_csp(pmdp);
-	atomic_sub(0x10000, &mm->context.attach_count);
-}
+pmd_t pmdp_xchg_direct(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
+pmd_t pmdp_xchg_lazy(struct mm_struct *, unsigned long, pmd_t *, pmd_t);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
-extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-				       pgtable_t pgtable);
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable);
 
 #define __HAVE_ARCH_PGTABLE_WITHDRAW
-extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+
+#define  __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
+					unsigned long addr, pmd_t *pmdp,
+					pmd_t entry, int dirty)
+{
+	VM_BUG_ON(addr & ~HPAGE_MASK);
+
+	entry = pmd_mkyoung(entry);
+	if (dirty)
+		entry = pmd_mkdirty(entry);
+	if (pmd_val(*pmdp) == pmd_val(entry))
+		return 0;
+	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, entry);
+	return 1;
+}
+
+#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long addr, pmd_t *pmdp)
+{
+	pmd_t pmd = *pmdp;
+
+	pmd = pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd_mkold(pmd));
+	return pmd_young(pmd);
+}
+
+#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+static inline int pmdp_clear_flush_young(struct vm_area_struct *vma,
+					 unsigned long addr, pmd_t *pmdp)
+{
+	VM_BUG_ON(addr & ~HPAGE_MASK);
+	return pmdp_test_and_clear_young(vma, addr, pmdp);
+}
 
 static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			      pmd_t *pmdp, pmd_t entry)
@@ -1266,66 +1254,48 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 	return pmd;
 }
 
-#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
-static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
-					    unsigned long address, pmd_t *pmdp)
-{
-	pmd_t pmd;
-
-	pmd = *pmdp;
-	pmdp_flush_direct(vma->vm_mm, address, pmdp);
-	*pmdp = pmd_mkold(pmd);
-	return pmd_young(pmd);
-}
-
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
-					    unsigned long address, pmd_t *pmdp)
+					    unsigned long addr, pmd_t *pmdp)
 {
-	pmd_t pmd = *pmdp;
-
-	pmdp_flush_direct(mm, address, pmdp);
-	pmd_clear(pmdp);
-	return pmd;
+	return pmdp_xchg_direct(mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_INVALID));
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR_FULL
 static inline pmd_t pmdp_huge_get_and_clear_full(struct mm_struct *mm,
-						 unsigned long address,
+						 unsigned long addr,
 						 pmd_t *pmdp, int full)
 {
-	pmd_t pmd = *pmdp;
-
-	if (!full)
-		pmdp_flush_lazy(mm, address, pmdp);
-	pmd_clear(pmdp);
-	return pmd;
+	if (full) {
+		pmd_t pmd = *pmdp;
+		*pmdp = __pmd(_SEGMENT_ENTRY_INVALID);
+		return pmd;
+	}
+	return pmdp_xchg_lazy(mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_INVALID));
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_CLEAR_FLUSH
 static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
-					  unsigned long address, pmd_t *pmdp)
+					  unsigned long addr, pmd_t *pmdp)
 {
-	return pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
+	return pmdp_huge_get_and_clear(vma->vm_mm, addr, pmdp);
 }
 
 #define __HAVE_ARCH_PMDP_INVALIDATE
 static inline void pmdp_invalidate(struct vm_area_struct *vma,
-				   unsigned long address, pmd_t *pmdp)
+				   unsigned long addr, pmd_t *pmdp)
 {
-	pmdp_flush_direct(vma->vm_mm, address, pmdp);
+	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_INVALID));
 }
 
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT
 static inline void pmdp_set_wrprotect(struct mm_struct *mm,
-				      unsigned long address, pmd_t *pmdp)
+				      unsigned long addr, pmd_t *pmdp)
 {
 	pmd_t pmd = *pmdp;
 
-	if (pmd_write(pmd)) {
-		pmdp_flush_direct(mm, address, pmdp);
-		set_pmd_at(mm, address, pmdp, pmd_wrprotect(pmd));
-	}
+	if (pmd_write(pmd))
+		pmd = pmdp_xchg_lazy(mm, addr, pmdp, pmd_wrprotect(pmd));
 }
 
 static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,

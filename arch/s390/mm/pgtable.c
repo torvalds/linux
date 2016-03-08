@@ -1418,6 +1418,74 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 }
 EXPORT_SYMBOL(ptep_modify_prot_commit);
 
+static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
+				      unsigned long addr, pmd_t *pmdp)
+{
+	int active, count;
+	pmd_t old;
+
+	old = *pmdp;
+	if (pmd_val(old) & _SEGMENT_ENTRY_INVALID)
+		return old;
+	if (!MACHINE_HAS_IDTE) {
+		__pmdp_csp(pmdp);
+		return old;
+	}
+	active = (mm == current->active_mm) ? 1 : 0;
+	count = atomic_add_return(0x10000, &mm->context.attach_count);
+	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
+		__pmdp_idte_local(addr, pmdp);
+	else
+		__pmdp_idte(addr, pmdp);
+	atomic_sub(0x10000, &mm->context.attach_count);
+	return old;
+}
+
+static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
+				    unsigned long addr, pmd_t *pmdp)
+{
+	int active, count;
+	pmd_t old;
+
+	old = *pmdp;
+	if (pmd_val(old) & _SEGMENT_ENTRY_INVALID)
+		return old;
+	active = (mm == current->active_mm) ? 1 : 0;
+	count = atomic_add_return(0x10000, &mm->context.attach_count);
+	if ((count & 0xffff) <= active) {
+		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
+		mm->context.flush_mm = 1;
+	} else if (MACHINE_HAS_IDTE)
+		__pmdp_idte(addr, pmdp);
+	else
+		__pmdp_csp(pmdp);
+	atomic_sub(0x10000, &mm->context.attach_count);
+	return old;
+}
+
+pmd_t pmdp_xchg_direct(struct mm_struct *mm, unsigned long addr,
+		       pmd_t *pmdp, pmd_t new)
+{
+	pmd_t old;
+
+	old = pmdp_flush_direct(mm, addr, pmdp);
+	*pmdp = new;
+	return old;
+}
+EXPORT_SYMBOL(pmdp_xchg_direct);
+
+pmd_t pmdp_xchg_lazy(struct mm_struct *mm, unsigned long addr,
+		     pmd_t *pmdp, pmd_t new)
+{
+	pmd_t old;
+
+	old = pmdp_flush_lazy(mm, addr, pmdp);
+	*pmdp = new;
+	return old;
+}
+EXPORT_SYMBOL(pmdp_xchg_lazy);
+
 /*
  * switch on pgstes for its userspace process (for kvm)
  */
@@ -1525,31 +1593,6 @@ void s390_reset_cmma(struct mm_struct *mm)
 EXPORT_SYMBOL_GPL(s390_reset_cmma);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,
-			   pmd_t *pmdp)
-{
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-	/* No need to flush TLB
-	 * On s390 reference bits are in storage key and never in TLB */
-	return pmdp_test_and_clear_young(vma, address, pmdp);
-}
-
-int pmdp_set_access_flags(struct vm_area_struct *vma,
-			  unsigned long address, pmd_t *pmdp,
-			  pmd_t entry, int dirty)
-{
-	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-
-	entry = pmd_mkyoung(entry);
-	if (dirty)
-		entry = pmd_mkdirty(entry);
-	if (pmd_same(*pmdp, entry))
-		return 0;
-	pmdp_invalidate(vma, address, pmdp);
-	set_pmd_at(vma->vm_mm, address, pmdp, entry);
-	return 1;
-}
-
 void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 				pgtable_t pgtable)
 {
