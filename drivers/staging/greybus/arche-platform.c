@@ -44,7 +44,7 @@ struct arche_platform_drvdata {
 
 	enum arche_platform_state state;
 
-	unsigned int svc_refclk_req;
+	int svc_refclk_req;
 	struct clk *svc_ref_clk;
 
 	struct pinctrl *pinctrl;

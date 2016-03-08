@@ -37,7 +37,7 @@ struct arche_apb_ctrl_drvdata {
 	struct regulator *vcore;
 	struct regulator *vio;
 
-	unsigned int clk_en_gpio;
+	int clk_en_gpio;
 	struct clk *clk;
 
 	struct pinctrl *pinctrl;
