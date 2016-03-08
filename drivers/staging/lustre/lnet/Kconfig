@@ -3,8 +3,8 @@ config LNET
 	depends on LUSTRE_FS
 
 config LNET_MAX_PAYLOAD
-	int "Lustre lnet max transfer payload (default 2MB)"
-	depends on LUSTRE_FS
+	int "Lustre lnet max transfer payload (default 1MB)"
+	depends on LNET
 	default "1048576"
 	help
 	  This option defines the maximum size of payload in bytes that lnet
