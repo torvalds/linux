@@ -111,9 +111,9 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pdata->snvs = syscon_regmap_lookup_by_phandle(np, "regmap");
-	if (!pdata->snvs) {
+	if (IS_ERR(pdata->snvs)) {
 		dev_err(&pdev->dev, "Can't get snvs syscon\n");
-		return -ENODEV;
+		return PTR_ERR(pdata->snvs);
 	}
 
 	if (of_property_read_u32(np, "linux,keycode", &pdata->keycode)) {
