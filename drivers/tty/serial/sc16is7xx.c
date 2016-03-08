@@ -822,16 +822,10 @@ static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
 
 static unsigned int sc16is7xx_get_mctrl(struct uart_port *port)
 {
-	unsigned int msr;
-	unsigned int ret = 0;
-
-	msr = sc16is7xx_port_read(port, SC16IS7XX_MSR_REG);
-
-	ret |= (msr & SC16IS7XX_MSR_CTS_BIT) ? TIOCM_CTS : 0;
-	ret |= (msr & SC16IS7XX_MSR_DSR_BIT) ? TIOCM_DSR : 0;
-	ret |= (msr & SC16IS7XX_MSR_RI_BIT)  ? TIOCM_RNG : 0;
-	ret |= (msr & SC16IS7XX_MSR_CD_BIT)  ? TIOCM_CAR : 0;
-	return ret;
+	/* DCD and DSR are not wired and CTS/RTS is handled automatically
+	 * so just indicate DSR and CAR asserted
+	 */
+	return TIOCM_DSR | TIOCM_CAR;
 }
 
 static void sc16is7xx_set_mctrl(struct uart_port *port, unsigned int mctrl)
