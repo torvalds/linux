@@ -1782,81 +1782,6 @@ void d_instantiate(struct dentry *entry, struct inode * inode)
 EXPORT_SYMBOL(d_instantiate);
 
 /**
- * d_instantiate_unique - instantiate a non-aliased dentry
- * @entry: dentry to instantiate
- * @inode: inode to attach to this dentry
- *
- * Fill in inode information in the entry. On success, it returns NULL.
- * If an unhashed alias of "entry" already exists, then we return the
- * aliased dentry instead and drop one reference to inode.
- *
- * Note that in order to avoid conflicts with rename() etc, the caller
- * had better be holding the parent directory semaphore.
- *
- * This also assumes that the inode count has been incremented
- * (or otherwise set) by the caller to indicate that it is now
- * in use by the dcache.
- */
-static struct dentry *__d_instantiate_unique(struct dentry *entry,
-					     struct inode *inode)
-{
-	struct dentry *alias;
-	int len = entry->d_name.len;
-	const char *name = entry->d_name.name;
-	unsigned int hash = entry->d_name.hash;
-
-	if (!inode) {
-		__d_instantiate(entry, NULL);
-		return NULL;
-	}
-
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
-		/*
-		 * Don't need alias->d_lock here, because aliases with
-		 * d_parent == entry->d_parent are not subject to name or
-		 * parent changes, because the parent inode i_mutex is held.
-		 */
-		if (alias->d_name.hash != hash)
-			continue;
-		if (alias->d_parent != entry->d_parent)
-			continue;
-		if (alias->d_name.len != len)
-			continue;
-		if (dentry_cmp(alias, name, len))
-			continue;
-		__dget(alias);
-		return alias;
-	}
-
-	__d_instantiate(entry, inode);
-	return NULL;
-}
-
-struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
-{
-	struct dentry *result;
-
-	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-
-	if (inode)
-		spin_lock(&inode->i_lock);
-	result = __d_instantiate_unique(entry, inode);
-	if (inode)
-		spin_unlock(&inode->i_lock);
-
-	if (!result) {
-		security_d_instantiate(entry, inode);
-		return NULL;
-	}
-
-	BUG_ON(!d_unhashed(result));
-	iput(inode);
-	return result;
-}
-
-EXPORT_SYMBOL(d_instantiate_unique);
-
-/**
  * d_instantiate_no_diralias - instantiate a non-aliased dentry
  * @entry: dentry to complete
  * @inode: inode to attach to this dentry
@@ -2435,6 +2360,56 @@ void d_rehash(struct dentry * entry)
 	spin_unlock(&entry->d_lock);
 }
 EXPORT_SYMBOL(d_rehash);
+
+/**
+ * d_exact_alias - find and hash an exact unhashed alias
+ * @entry: dentry to add
+ * @inode: The inode to go with this dentry
+ *
+ * If an unhashed dentry with the same name/parent and desired
+ * inode already exists, hash and return it.  Otherwise, return
+ * NULL.
+ *
+ * Parent directory should be locked.
+ */
+struct dentry *d_exact_alias(struct dentry *entry, struct inode *inode)
+{
+	struct dentry *alias;
+	int len = entry->d_name.len;
+	const char *name = entry->d_name.name;
+	unsigned int hash = entry->d_name.hash;
+
+	spin_lock(&inode->i_lock);
+	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+		/*
+		 * Don't need alias->d_lock here, because aliases with
+		 * d_parent == entry->d_parent are not subject to name or
+		 * parent changes, because the parent inode i_mutex is held.
+		 */
+		if (alias->d_name.hash != hash)
+			continue;
+		if (alias->d_parent != entry->d_parent)
+			continue;
+		if (alias->d_name.len != len)
+			continue;
+		if (dentry_cmp(alias, name, len))
+			continue;
+		spin_lock(&alias->d_lock);
+		if (!d_unhashed(alias)) {
+			spin_unlock(&alias->d_lock);
+			alias = NULL;
+		} else {
+			__dget_dlock(alias);
+			_d_rehash(alias);
+			spin_unlock(&alias->d_lock);
+		}
+		spin_unlock(&inode->i_lock);
+		return alias;
+	}
+	spin_unlock(&inode->i_lock);
+	return NULL;
+}
+EXPORT_SYMBOL(d_exact_alias);
 
 /**
  * dentry_update_name_case - update case insensitive dentry with a new name
