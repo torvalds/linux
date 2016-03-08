@@ -58,6 +58,11 @@ static inline void arch_wb_cache_pmem(void __pmem *addr, size_t size)
 {
 	BUG();
 }
+
+static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
+{
+	BUG();
+}
 #endif
 
 /*
@@ -183,6 +188,20 @@ static inline void clear_pmem(void __pmem *addr, size_t size)
 		arch_clear_pmem(addr, size);
 	else
 		default_clear_pmem(addr, size);
+}
+
+/**
+ * invalidate_pmem - flush a pmem range from the cache hierarchy
+ * @addr:	virtual start address
+ * @size:	bytes to invalidate (internally aligned to cache line size)
+ *
+ * For platforms that support clearing poison this flushes any poisoned
+ * ranges out of the cache
+ */
+static inline void invalidate_pmem(void __pmem *addr, size_t size)
+{
+	if (arch_has_pmem_api())
+		arch_invalidate_pmem(addr, size);
 }
 
 /**

@@ -159,6 +159,52 @@ void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event)
 }
 EXPORT_SYMBOL_GPL(nvdimm_region_notify);
 
+long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
+		unsigned int len)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct nvdimm_bus_descriptor *nd_desc;
+	struct nd_cmd_clear_error clear_err;
+	struct nd_cmd_ars_cap ars_cap;
+	u32 clear_err_unit, mask;
+	int cmd_rc, rc;
+
+	if (!nvdimm_bus)
+		return -ENXIO;
+
+	nd_desc = nvdimm_bus->nd_desc;
+	if (!nd_desc->ndctl)
+		return -ENXIO;
+
+	memset(&ars_cap, 0, sizeof(ars_cap));
+	ars_cap.address = phys;
+	ars_cap.length = len;
+	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_CAP, &ars_cap,
+			sizeof(ars_cap), &cmd_rc);
+	if (rc < 0)
+		return rc;
+	if (cmd_rc < 0)
+		return cmd_rc;
+	clear_err_unit = ars_cap.clear_err_unit;
+	if (!clear_err_unit || !is_power_of_2(clear_err_unit))
+		return -ENXIO;
+
+	mask = clear_err_unit - 1;
+	if ((phys | len) & mask)
+		return -ENXIO;
+	memset(&clear_err, 0, sizeof(clear_err));
+	clear_err.address = phys;
+	clear_err.length = len;
+	rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_CLEAR_ERROR, &clear_err,
+			sizeof(clear_err), &cmd_rc);
+	if (rc < 0)
+		return rc;
+	if (cmd_rc < 0)
+		return cmd_rc;
+	return clear_err.cleared;
+}
+EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
+
 static struct bus_type nvdimm_bus_type = {
 	.name = "nd",
 	.uevent = nvdimm_bus_uevent,

@@ -62,17 +62,40 @@ static bool is_bad_pmem(struct badblocks *bb, sector_t sector, unsigned int len)
 	return false;
 }
 
+static void pmem_clear_poison(struct pmem_device *pmem, phys_addr_t offset,
+		unsigned int len)
+{
+	struct device *dev = disk_to_dev(pmem->pmem_disk);
+	sector_t sector;
+	long cleared;
+
+	sector = (offset - pmem->data_offset) / 512;
+	cleared = nvdimm_clear_poison(dev, pmem->phys_addr + offset, len);
+
+	if (cleared > 0 && cleared / 512) {
+		dev_dbg(dev, "%s: %llx clear %ld sector%s\n",
+				__func__, (unsigned long long) sector,
+				cleared / 512, cleared / 512 > 1 ? "s" : "");
+		badblocks_clear(&pmem->bb, sector, cleared / 512);
+	}
+	invalidate_pmem(pmem->virt_addr + offset, len);
+}
+
 static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 			unsigned int len, unsigned int off, int rw,
 			sector_t sector)
 {
 	int rc = 0;
+	bool bad_pmem = false;
 	void *mem = kmap_atomic(page);
 	phys_addr_t pmem_off = sector * 512 + pmem->data_offset;
 	void __pmem *pmem_addr = pmem->virt_addr + pmem_off;
 
+	if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
+		bad_pmem = true;
+
 	if (rw == READ) {
-		if (unlikely(is_bad_pmem(&pmem->bb, sector, len)))
+		if (unlikely(bad_pmem))
 			rc = -EIO;
 		else {
 			memcpy_from_pmem(mem + off, pmem_addr, len);
@@ -81,6 +104,10 @@ static int pmem_do_bvec(struct pmem_device *pmem, struct page *page,
 	} else {
 		flush_dcache_page(page);
 		memcpy_to_pmem(pmem_addr, mem + off, len);
+		if (unlikely(bad_pmem)) {
+			pmem_clear_poison(pmem, pmem_off, len);
+			memcpy_to_pmem(pmem_addr, mem + off, len);
+		}
 	}
 
 	kunmap_atomic(mem);
