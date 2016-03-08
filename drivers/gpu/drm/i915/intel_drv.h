@@ -483,8 +483,8 @@ struct intel_crtc_state {
 	 * haswell. */
 	struct dpll dpll;
 
-	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
-	enum intel_dpll_id shared_dpll;
+	/* Selected dpll when shared or NULL. */
+	struct intel_shared_dpll *shared_dpll;
 
 	/*
 	 * - PORT_CLK_SEL for DDI ports on HSW/BDW.
@@ -1204,7 +1204,20 @@ void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
 
 /* shared dpll functions */
-struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
+struct intel_shared_dpll *
+intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
+			    enum intel_dpll_id id);
+enum intel_dpll_id
+intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
+			 struct intel_shared_dpll *pll);
+void
+intel_shared_dpll_config_get(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc);
+void
+intel_shared_dpll_config_put(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc);
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll,
 			bool state);

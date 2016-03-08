@@ -145,7 +145,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder)
 	if (HAS_PCH_SPLIT(dev)) {
 		assert_fdi_rx_pll_disabled(dev_priv, pipe);
 		assert_shared_dpll_disabled(dev_priv,
-					    intel_crtc_to_shared_dpll(crtc));
+					    crtc->config->shared_dpll);
 	} else {
 		assert_pll_disabled(dev_priv, pipe);
 	}

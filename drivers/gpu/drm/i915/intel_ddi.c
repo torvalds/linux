@@ -1209,6 +1209,7 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		   struct intel_crtc_state *crtc_state,
 		   struct intel_encoder *intel_encoder)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	int clock = crtc_state->port_clock;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
@@ -1244,7 +1245,8 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		    WARN_ON(spll->hw_state.spll != crtc_state->dpll_hw_state.spll))
 			return false;
 
-		crtc_state->shared_dpll = DPLL_ID_SPLL;
+		crtc_state->shared_dpll =
+			intel_get_shared_dpll_by_id(dev_priv, DPLL_ID_SPLL);
 		spll->hw_state.spll = crtc_state->dpll_hw_state.spll;
 		spll->crtc_mask |= 1 << intel_crtc->pipe;
 	}

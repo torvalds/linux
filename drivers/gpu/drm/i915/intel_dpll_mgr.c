@@ -24,14 +24,43 @@
 #include "intel_drv.h"
 
 struct intel_shared_dpll *
-intel_crtc_to_shared_dpll(struct intel_crtc *crtc)
+intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
+			    enum intel_dpll_id id)
 {
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	return &dev_priv->shared_dplls[id];
+}
 
-	if (crtc->config->shared_dpll < 0)
-		return NULL;
+enum intel_dpll_id
+intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
+			 struct intel_shared_dpll *pll)
+{
+	if (WARN_ON(pll < dev_priv->shared_dplls||
+		    pll > &dev_priv->shared_dplls[dev_priv->num_shared_dpll]))
+		return -1;
 
-	return &dev_priv->shared_dplls[crtc->config->shared_dpll];
+	return (enum intel_dpll_id) (pll - dev_priv->shared_dplls);
+}
+
+void
+intel_shared_dpll_config_get(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum intel_dpll_id id = intel_get_shared_dpll_id(dev_priv, pll);
+
+	config[id].crtc_mask |= 1 << crtc->pipe;
+}
+
+void
+intel_shared_dpll_config_put(struct intel_shared_dpll_config *config,
+			     struct intel_shared_dpll *pll,
+			     struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum intel_dpll_id id = intel_get_shared_dpll_id(dev_priv, pll);
+
+	config[id].crtc_mask &= ~(1 << crtc->pipe);
 }
 
 /* For ILK+ */
@@ -55,7 +84,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
 		return;
@@ -82,7 +111,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	if (WARN_ON(pll == NULL))
 		return;
@@ -112,7 +141,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
 
 	/* PCH only available on ILK+ */
 	if (INTEL_INFO(dev)->gen < 5)
@@ -265,11 +294,11 @@ intel_get_shared_dpll(struct intel_crtc *crtc,
 		shared_dpll[i].hw_state =
 			crtc_state->dpll_hw_state;
 
-	crtc_state->shared_dpll = i;
+	crtc_state->shared_dpll = pll;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
-	shared_dpll[i].crtc_mask |= 1 << crtc->pipe;
+	intel_shared_dpll_config_get(shared_dpll, pll, crtc);
 
 	return pll;
 }
@@ -360,7 +389,7 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 
 	/* Make sure no transcoder isn't still depending on us. */
 	for_each_intel_crtc(dev, crtc) {
-		if (intel_crtc_to_shared_dpll(crtc) == pll)
+		if (crtc->config->shared_dpll == pll)
 			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 	}
 
