@@ -33,7 +33,7 @@ struct virtio_net_dev {
 	struct virtio_dev dev;
 	struct lkl_virtio_net_config config;
 	struct lkl_dev_net_ops *ops;
-	union lkl_netdev nd;
+	struct lkl_netdev *nd;
 	struct virtio_net_poll rx_poll, tx_poll;
 	struct lkl_mutex_t **queue_locks;
 };
@@ -155,7 +155,7 @@ static struct lkl_mutex_t **init_queue_locks(int num_queues)
 	return ret;
 }
 
-int lkl_netdev_add(union lkl_netdev nd, void *mac)
+int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
 {
 	struct virtio_net_dev *dev;
 	static int count;
@@ -173,7 +173,7 @@ int lkl_netdev_add(union lkl_netdev nd, void *mac)
 	dev->dev.config_data = &dev->config;
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &net_ops;
-	dev->ops = &lkl_dev_net_ops;
+	dev->ops = nd->ops;
 	dev->nd = nd;
 	dev->queue_locks = init_queue_locks(NUM_QUEUES);
 

@@ -59,7 +59,8 @@ if [ ! -c /dev/net/tun ]; then
     exit 0
 fi
 
-export LKL_HIJACK_NET_TAP=lkl_ptt0
+export LKL_HIJACK_NET_IFTYPE=tap
+export LKL_HIJACK_NET_IFPARAMS=lkl_ptt0
 export LKL_HIJACK_NET_IP=192.168.13.2
 export LKL_HIJACK_NET_NETMASK_LEN=24
 

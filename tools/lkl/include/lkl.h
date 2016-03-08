@@ -210,12 +210,11 @@ int lkl_set_ipv4_gateway(unsigned int addr);
 
 /**
  * lkl_netdev - host network device handle
- *
- * @fd - TAP device or packet socket file descriptor
  */
-union lkl_netdev {
-	int fd;
+struct lkl_netdev {
+	struct lkl_dev_net_ops *ops;
 };
+
 
 /**
  * lkl_netdev_add - add a new network device
@@ -227,7 +226,7 @@ union lkl_netdev {
  * @returns a network device id (0 is valid) or a strictly negative value in
  * case of error
  */
-int lkl_netdev_add(union lkl_netdev nd, void *mac);
+int lkl_netdev_add(struct lkl_netdev *nd, void *mac);
 
 /**
  * lkl_netdev_get_ifindex - retrieve the interface index for a given network
@@ -255,6 +254,15 @@ int lkl_create_syscall_thread(void);
  * Stop the system call thread associated with this host thread, if any.
  */
 int lkl_stop_syscall_thread(void);
+
+/**
+ * lkl_netdev_tap_create - create TAP net_device for the virtio net backend
+ *
+ * @ifname - interface name for the TAP device. need to be configured
+ * on host in advance
+ */
+struct lkl_netdev *lkl_netdev_tap_create(const char *ifname);
+
 
 #ifdef __cplusplus
 }
