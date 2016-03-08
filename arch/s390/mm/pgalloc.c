@@ -137,6 +137,29 @@ static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
 	return new;
 }
 
+#ifdef CONFIG_PGSTE
+
+struct page *page_table_alloc_pgste(struct mm_struct *mm)
+{
+	struct page *page;
+	unsigned long *table;
+
+	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
+	if (page) {
+		table = (unsigned long *) page_to_phys(page);
+		clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
+		clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+	}
+	return page;
+}
+
+void page_table_free_pgste(struct page *page)
+{
+	__free_page(page);
+}
+
+#endif /* CONFIG_PGSTE */
+
 /*
  * page table entry allocation/free routines.
  */

@@ -10,6 +10,7 @@
 
 /**
  * struct gmap_struct - guest address space
+ * @list: list head for the mm->context gmap list
  * @crst_list: list of all crst tables used in the guest address space
  * @mm: pointer to the parent mm_struct
  * @guest_to_host: radix tree with guest to host address translation
@@ -19,6 +20,13 @@
  * @table: pointer to the page directory
  * @asce: address space control element for gmap page table
  * @pfault_enabled: defines if pfaults are applicable for the guest
+ * @host_to_rmap: radix tree with gmap_rmap lists
+ * @children: list of shadow gmap structures
+ * @pt_list: list of all page tables used in the shadow guest address space
+ * @shadow_lock: spinlock to protect the shadow gmap list
+ * @parent: pointer to the parent gmap for shadow guest address spaces
+ * @orig_asce: ASCE for which the shadow page table has been created
+ * @removed: flag to indicate if a shadow guest address space has been removed
  */
 struct gmap {
 	struct list_head list;
@@ -33,7 +41,31 @@ struct gmap {
 	unsigned long asce_end;
 	void *private;
 	bool pfault_enabled;
+	/* Additional data for shadow guest address spaces */
+	struct radix_tree_root host_to_rmap;
+	struct list_head children;
+	struct list_head pt_list;
+	spinlock_t shadow_lock;
+	struct gmap *parent;
+	unsigned long orig_asce;
+	bool removed;
 };
+
+/**
+ * struct gmap_rmap - reverse mapping for shadow page table entries
+ * @next: pointer to next rmap in the list
+ * @raddr: virtual rmap address in the shadow guest address space
+ */
+struct gmap_rmap {
+	struct gmap_rmap *next;
+	unsigned long raddr;
+};
+
+#define gmap_for_each_rmap(pos, head) \
+	for (pos = (head); pos; pos = pos->next)
+
+#define gmap_for_each_rmap_safe(pos, n, head) \
+	for (pos = (head); n = pos ? pos->next : NULL, pos; pos = n)
 
 /**
  * struct gmap_notifier - notify function block for page invalidation
@@ -45,6 +77,11 @@ struct gmap_notifier {
 	void (*notifier_call)(struct gmap *gmap, unsigned long start,
 			      unsigned long end);
 };
+
+static inline int gmap_is_shadow(struct gmap *gmap)
+{
+	return !!gmap->parent;
+}
 
 struct gmap *gmap_create(struct mm_struct *mm, unsigned long limit);
 void gmap_remove(struct gmap *gmap);
@@ -64,9 +101,22 @@ void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
 void __gmap_zap(struct gmap *, unsigned long gaddr);
 void gmap_unlink(struct mm_struct *, unsigned long *table, unsigned long vmaddr);
 
+int gmap_read_table(struct gmap *gmap, unsigned long gaddr, unsigned long *val);
+
+struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce);
+int gmap_shadow_r2t(struct gmap *sg, unsigned long saddr, unsigned long r2t);
+int gmap_shadow_r3t(struct gmap *sg, unsigned long saddr, unsigned long r3t);
+int gmap_shadow_sgt(struct gmap *sg, unsigned long saddr, unsigned long sgt);
+int gmap_shadow_pgt(struct gmap *sg, unsigned long saddr, unsigned long pgt);
+int gmap_shadow_pgt_lookup(struct gmap *sg, unsigned long saddr,
+			   unsigned long *pgt, int *dat_protection);
+int gmap_shadow_page(struct gmap *sg, unsigned long saddr,
+		     unsigned long paddr, int write);
+
 void gmap_register_pte_notifier(struct gmap_notifier *);
 void gmap_unregister_pte_notifier(struct gmap_notifier *);
-void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *);
+void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *,
+		     unsigned long bits);
 
 int gmap_mprotect_notify(struct gmap *, unsigned long start,
 			 unsigned long len, int prot);
