@@ -355,7 +355,7 @@ static void sdma_v3_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 static void sdma_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
 				   struct amdgpu_ib *ib)
 {
-	u32 vmid = (ib->vm ? ib->vm->ids[ring->idx].id : 0) & 0xf;
+	u32 vmid = ib->vm_id & 0xf;
 	u32 next_rptr = ring->wptr + 5;
 
 	while ((next_rptr & 7) != 2)

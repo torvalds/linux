@@ -75,6 +75,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	}
 
 	ib->vm = vm;
+	ib->vm_id = 0;
 
 	return 0;
 }
@@ -139,7 +140,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	if (vm && !ibs->grabbed_vmid) {
+	if (vm && !ibs->vm_id) {
 		dev_err(adev->dev, "VM IB without ID\n");
 		return -EINVAL;
 	}
@@ -152,10 +153,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (vm) {
 		/* do context switch */
-		amdgpu_vm_flush(ring, vm, last_vm_update);
+		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr);
 
 		if (ring->funcs->emit_gds_switch)
-			amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,
+			amdgpu_ring_emit_gds_switch(ring, ib->vm_id,
 						    ib->gds_base, ib->gds_size,
 						    ib->gws_base, ib->gws_size,
 						    ib->oa_base, ib->oa_size);

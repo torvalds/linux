@@ -105,16 +105,23 @@ static struct fence *amdgpu_job_dependency(struct amd_sched_job *sched_job)
 
 	struct fence *fence = amdgpu_sync_get_fence(&job->sync);
 
-	if (fence == NULL && vm && !job->ibs->grabbed_vmid) {
+	if (fence == NULL && vm && !job->ibs->vm_id) {
 		struct amdgpu_ring *ring = job->ring;
+		unsigned i, vm_id;
+		uint64_t vm_pd_addr;
 		int r;
 
 		r = amdgpu_vm_grab_id(vm, ring, &job->sync,
-				      &job->base.s_fence->base);
+				      &job->base.s_fence->base,
+				      &vm_id, &vm_pd_addr);
 		if (r)
 			DRM_ERROR("Error getting VM ID (%d)\n", r);
-		else
-			job->ibs->grabbed_vmid = true;
+		else {
+			for (i = 0; i < job->num_ibs; ++i) {
+				job->ibs[i].vm_id = vm_id;
+				job->ibs[i].vm_pd_addr = vm_pd_addr;
+			}
+		}
 
 		fence = amdgpu_sync_get_fence(&job->sync);
 	}

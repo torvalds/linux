@@ -118,6 +118,7 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		usermm = amdgpu_ttm_tt_get_usermm(entry->robj->tbo.ttm);
 		if (usermm) {
 			if (usermm != current->mm) {
+				amdgpu_bo_unref(&entry->robj);
 				r = -EPERM;
 				goto error_free;
 			}
@@ -151,6 +152,8 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 	return 0;
 
 error_free:
+	while (i--)
+		amdgpu_bo_unref(&array[i].robj);
 	drm_free_large(array);
 	return r;
 }

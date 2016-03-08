@@ -2,7 +2,6 @@ menu "ACP Configuration"
 
 config DRM_AMD_ACP
        bool "Enable ACP IP support"
-       default y
        select MFD_CORE
        select PM_GENERIC_DOMAINS if PM
        help

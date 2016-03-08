@@ -100,21 +100,24 @@ TRACE_EVENT(amdgpu_sched_run_job,
 
 
 TRACE_EVENT(amdgpu_vm_grab_id,
-	    TP_PROTO(struct amdgpu_vm *vm, unsigned vmid, int ring),
-	    TP_ARGS(vm, vmid, ring),
+	    TP_PROTO(struct amdgpu_vm *vm, int ring, unsigned vmid,
+		     uint64_t pd_addr),
+	    TP_ARGS(vm, ring, vmid, pd_addr),
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_vm *, vm)
-			     __field(u32, vmid)
 			     __field(u32, ring)
+			     __field(u32, vmid)
+			     __field(u64, pd_addr)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->vm = vm;
-			   __entry->vmid = vmid;
 			   __entry->ring = ring;
+			   __entry->vmid = vmid;
+			   __entry->pd_addr = pd_addr;
 			   ),
-	    TP_printk("vm=%p, id=%u, ring=%u", __entry->vm, __entry->vmid,
-		      __entry->ring)
+	    TP_printk("vm=%p, ring=%u, id=%u, pd_addr=%010Lx", __entry->vm,
+		      __entry->ring, __entry->vmid, __entry->pd_addr)
 );
 
 TRACE_EVENT(amdgpu_vm_bo_map,
@@ -231,8 +234,8 @@ TRACE_EVENT(amdgpu_vm_flush,
 			   __entry->ring = ring;
 			   __entry->id = id;
 			   ),
-	    TP_printk("pd_addr=%010Lx, ring=%u, id=%u",
-		      __entry->pd_addr, __entry->ring, __entry->id)
+	    TP_printk("ring=%u, id=%u, pd_addr=%010Lx",
+		      __entry->ring, __entry->id, __entry->pd_addr)
 );
 
 TRACE_EVENT(amdgpu_bo_list_set,
