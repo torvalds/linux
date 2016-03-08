@@ -451,6 +451,19 @@ struct cgroup_subsys {
 	bool early_init:1;
 
 	/*
+	 * If %true, the controller, on the default hierarchy, doesn't show
+	 * up in "cgroup.controllers" or "cgroup.subtree_control", is
+	 * implicitly enabled on all cgroups on the default hierarchy, and
+	 * bypasses the "no internal process" constraint.  This is for
+	 * utility type controllers which is transparent to userland.
+	 *
+	 * An implicit controller can be stolen from the default hierarchy
+	 * anytime and thus must be okay with offline csses from previous
+	 * hierarchies coexisting with csses for the current one.
+	 */
+	bool implicit_on_dfl:1;
+
+	/*
 	 * If %false, this subsystem is properly hierarchical -
 	 * configuration, resource accounting and restriction on a parent
 	 * cgroup cover those of its children.  If %true, hierarchy support

@@ -186,6 +186,9 @@ static u16 cgroup_no_v1_mask;
 /* some controllers are not supported in the default hierarchy */
 static u16 cgrp_dfl_inhibit_ss_mask;
 
+/* some controllers are implicitly enabled on the default hierarchy */
+static unsigned long cgrp_dfl_implicit_ss_mask;
+
 /* The list of hierarchy roots */
 
 static LIST_HEAD(cgroup_roots);
@@ -359,8 +362,8 @@ static u16 cgroup_control(struct cgroup *cgrp)
 		return parent->subtree_control;
 
 	if (cgroup_on_dfl(cgrp))
-		root_ss_mask &= ~cgrp_dfl_inhibit_ss_mask;
-
+		root_ss_mask &= ~(cgrp_dfl_inhibit_ss_mask |
+				  cgrp_dfl_implicit_ss_mask);
 	return root_ss_mask;
 }
 
@@ -1327,6 +1330,8 @@ static u16 cgroup_calc_subtree_ss_mask(u16 subtree_control, u16 this_ss_mask)
 
 	lockdep_assert_held(&cgroup_mutex);
 
+	cur_ss_mask |= cgrp_dfl_implicit_ss_mask;
+
 	while (true) {
 		u16 new_ss_mask = cur_ss_mask;
 
@@ -1512,8 +1517,13 @@ static int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask)
 	lockdep_assert_held(&cgroup_mutex);
 
 	do_each_subsys_mask(ss, ssid, ss_mask) {
-		/* if @ss has non-root csses attached to it, can't move */
-		if (css_next_child(NULL, cgroup_css(&ss->root->cgrp, ss)))
+		/*
+		 * If @ss has non-root csses attached to it, can't move.
+		 * If @ss is an implicit controller, it is exempt from this
+		 * rule and can be stolen.
+		 */
+		if (css_next_child(NULL, cgroup_css(&ss->root->cgrp, ss)) &&
+		    !ss->implicit_on_dfl)
 			return -EBUSY;
 
 		/* can't move between two non-dummy roots either */
@@ -3039,6 +3049,18 @@ static void cgroup_restore_control(struct cgroup *cgrp)
 	}
 }
 
+static bool css_visible(struct cgroup_subsys_state *css)
+{
+	struct cgroup_subsys *ss = css->ss;
+	struct cgroup *cgrp = css->cgroup;
+
+	if (cgroup_control(cgrp) & (1 << ss->id))
+		return true;
+	if (!(cgroup_ss_mask(cgrp) & (1 << ss->id)))
+		return false;
+	return cgroup_on_dfl(cgrp) && ss->implicit_on_dfl;
+}
+
 /**
  * cgroup_apply_control_enable - enable or show csses according to control
  * @cgrp: root of the target subtree
@@ -3074,7 +3096,7 @@ static int cgroup_apply_control_enable(struct cgroup *cgrp)
 					return PTR_ERR(css);
 			}
 
-			if (cgroup_control(dsct) & (1 << ss->id)) {
+			if (css_visible(css)) {
 				ret = css_populate_dir(css);
 				if (ret)
 					return ret;
@@ -3117,7 +3139,7 @@ static void cgroup_apply_control_disable(struct cgroup *cgrp)
 			if (css->parent &&
 			    !(cgroup_ss_mask(dsct) & (1 << ss->id))) {
 				kill_css(css);
-			} else if (!(cgroup_control(dsct) & (1 << ss->id))) {
+			} else if (!css_visible(css)) {
 				css_clear_dir(css);
 				if (ss->css_reset)
 					ss->css_reset(css);
@@ -5455,7 +5477,9 @@ int __init cgroup_init(void)
 
 		cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 
-		if (!ss->dfl_cftypes)
+		if (ss->implicit_on_dfl)
+			cgrp_dfl_implicit_ss_mask |= 1 << ss->id;
+		else if (!ss->dfl_cftypes)
 			cgrp_dfl_inhibit_ss_mask |= 1 << ss->id;
 
 		if (ss->dfl_cftypes == ss->legacy_cftypes) {
