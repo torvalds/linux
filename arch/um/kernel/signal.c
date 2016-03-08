@@ -69,7 +69,7 @@ void do_signal(struct pt_regs *regs)
 	struct ksignal ksig;
 	int handled_sig = 0;
 
-	if (get_signal(&ksig)) {
+	while (get_signal(&ksig)) {
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(&ksig, regs);

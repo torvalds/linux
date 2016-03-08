@@ -497,7 +497,7 @@ static int adp1653_probe(struct i2c_client *client,
 		if (!client->dev.platform_data) {
 			dev_err(&client->dev,
 				"Neither DT not platform data provided\n");
-			return EINVAL;
+			return -EINVAL;
 		}
 		flash->platform_data = client->dev.platform_data;
 	}

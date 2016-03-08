@@ -287,6 +287,7 @@ struct ceph_inode_info {
 
 	struct ceph_dir_layout i_dir_layout;
 	struct ceph_file_layout i_layout;
+	size_t i_pool_ns_len;
 	char *i_symlink;
 
 	/* for dirs */

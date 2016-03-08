@@ -5282,14 +5282,14 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 {
 	unsigned long ramrod_flags = 0;
 	int rc = 0;
-	u32 cid = elem->message.data.eth_event.echo & BNX2X_SWCID_MASK;
+	u32 echo = le32_to_cpu(elem->message.data.eth_event.echo);
+	u32 cid = echo & BNX2X_SWCID_MASK;
 	struct bnx2x_vlan_mac_obj *vlan_mac_obj;
 
 	/* Always push next commands out, don't wait here */
 	__set_bit(RAMROD_CONT, &ramrod_flags);
 
-	switch (le32_to_cpu((__force __le32)elem->message.data.eth_event.echo)
-			    >> BNX2X_SWCID_SHIFT) {
+	switch (echo >> BNX2X_SWCID_SHIFT) {
 	case BNX2X_FILTER_MAC_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MAC completions\n");
 		if (CNIC_LOADED(bp) && (cid == BNX2X_ISCSI_ETH_CID(bp)))
@@ -5310,8 +5310,7 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 		bnx2x_handle_mcast_eqe(bp);
 		return;
 	default:
-		BNX2X_ERR("Unsupported classification command: %d\n",
-			  elem->message.data.eth_event.echo);
+		BNX2X_ERR("Unsupported classification command: 0x%x\n", echo);
 		return;
 	}
 
@@ -5480,9 +5479,6 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			goto next_spqe;
 		}
 
-		/* elem CID originates from FW; actually LE */
-		cid = SW_CID((__force __le32)
-			     elem->message.data.cfc_del_event.cid);
 		opcode = elem->message.opcode;
 
 		/* handle eq element */
@@ -5505,6 +5501,10 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 			 * we may want to verify here that the bp state is
 			 * HALTING
 			 */
+
+			/* elem CID originates from FW; actually LE */
+			cid = SW_CID(elem->message.data.cfc_del_event.cid);
+
 			DP(BNX2X_MSG_SP,
 			   "got delete ramrod for MULTI[%d]\n", cid);
 
@@ -5598,10 +5598,8 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 		      BNX2X_STATE_OPENING_WAIT4_PORT):
 		case (EVENT_RING_OPCODE_RSS_UPDATE_RULES |
 		      BNX2X_STATE_CLOSING_WAIT4_HALT):
-			cid = elem->message.data.eth_event.echo &
-				BNX2X_SWCID_MASK;
 			DP(BNX2X_MSG_SP, "got RSS_UPDATE ramrod. CID %d\n",
-			   cid);
+			   SW_CID(elem->message.data.eth_event.echo));
 			rss_raw->clear_pending(rss_raw);
 			break;
 
@@ -5686,7 +5684,7 @@ static void bnx2x_sp_task(struct work_struct *work)
 		if (status & BNX2X_DEF_SB_IDX) {
 			struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
 
-		if (FCOE_INIT(bp) &&
+			if (FCOE_INIT(bp) &&
 			    (bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
 				/* Prevent local bottom-halves from running as
 				 * we are going to change the local NAPI list.

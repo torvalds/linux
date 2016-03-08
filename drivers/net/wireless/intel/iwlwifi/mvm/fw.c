@@ -126,7 +126,7 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }
 
-static void iwl_free_fw_paging(struct iwl_mvm *mvm)
+void iwl_free_fw_paging(struct iwl_mvm *mvm)
 {
 	int i;
 
@@ -146,6 +146,8 @@ static void iwl_free_fw_paging(struct iwl_mvm *mvm)
 			     get_order(mvm->fw_paging_db[i].fw_paging_size));
 	}
 	kfree(mvm->trans->paging_download_buf);
+	mvm->trans->paging_download_buf = NULL;
+
 	memset(mvm->fw_paging_db, 0, sizeof(mvm->fw_paging_db));
 }
 

@@ -480,7 +480,7 @@ static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 {
 	struct sctp_association *assoc;
-	struct sctp_transport *tsp;
+	struct sctp_transport *transport, *tsp;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "ADDR ASSOC_ID HB_ACT RTO MAX_PATH_RTX "
@@ -488,10 +488,10 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	tsp = (struct sctp_transport *)v;
-	if (!sctp_transport_hold(tsp))
+	transport = (struct sctp_transport *)v;
+	if (!sctp_transport_hold(transport))
 		return 0;
-	assoc = tsp->asoc;
+	assoc = transport->asoc;
 
 	list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,
 				transports) {
@@ -544,7 +544,7 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "\n");
 	}
 
-	sctp_transport_put(tsp);
+	sctp_transport_put(transport);
 
 	return 0;
 }

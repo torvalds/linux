@@ -303,6 +303,7 @@ EXPORT_SYMBOL(of_phy_find_device);
  * @dev: pointer to net_device claiming the phy
  * @phy_np: Pointer to device tree node for the PHY
  * @hndlr: Link state callback for the network device
+ * @flags: flags to pass to the PHY
  * @iface: PHY data interface type
  *
  * If successful, returns a pointer to the phy_device with the embedded

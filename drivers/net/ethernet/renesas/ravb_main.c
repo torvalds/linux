@@ -1708,7 +1708,6 @@ static int ravb_set_gti(struct net_device *ndev)
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct ravb_private *priv;
 	enum ravb_chip_id chip_id;
 	struct net_device *ndev;
@@ -1740,8 +1739,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->base_addr = res->start;
 	ndev->dma = -1;
 
-	match = of_match_device(of_match_ptr(ravb_match_table), &pdev->dev);
-	chip_id = (enum ravb_chip_id)match->data;
+	chip_id = (enum ravb_chip_id)of_device_get_match_data(&pdev->dev);
 
 	if (chip_id == RCAR_GEN3)
 		irq = platform_get_irq_byname(pdev, "ch22");

@@ -1272,6 +1272,7 @@ err_set_port:
 static int mlx4_mf_bond(struct mlx4_dev *dev)
 {
 	int err = 0;
+	int nvfs;
 	struct mlx4_slaves_pport slaves_port1;
 	struct mlx4_slaves_pport slaves_port2;
 	DECLARE_BITMAP(slaves_port_1_2, MLX4_MFUNC_MAX);
@@ -1288,11 +1289,18 @@ static int mlx4_mf_bond(struct mlx4_dev *dev)
 		return -EINVAL;
 	}
 
+	/* number of virtual functions is number of total functions minus one
+	 * physical function for each port.
+	 */
+	nvfs = bitmap_weight(slaves_port1.slaves, dev->persist->num_vfs + 1) +
+		bitmap_weight(slaves_port2.slaves, dev->persist->num_vfs + 1) - 2;
+
 	/* limit on maximum allowed VFs */
-	if ((bitmap_weight(slaves_port1.slaves, dev->persist->num_vfs + 1) +
-	    bitmap_weight(slaves_port2.slaves, dev->persist->num_vfs + 1)) >
-	    MAX_MF_BOND_ALLOWED_SLAVES)
+	if (nvfs > MAX_MF_BOND_ALLOWED_SLAVES) {
+		mlx4_warn(dev, "HA mode is not supported for %d VFs (max %d are allowed)\n",
+			  nvfs, MAX_MF_BOND_ALLOWED_SLAVES);
 		return -EINVAL;
+	}
 
 	if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		mlx4_warn(dev, "HA mode unsupported for NON DMFS steering\n");

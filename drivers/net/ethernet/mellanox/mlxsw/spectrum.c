@@ -2592,9 +2592,7 @@ static int mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (mlxsw_sp_port->bridged) {
 		mlxsw_sp_port_active_vlans_del(mlxsw_sp_port);
 		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, false);
-
-		if (lag->ref_count == 1)
-			mlxsw_sp_master_bridge_dec(mlxsw_sp, NULL);
+		mlxsw_sp_master_bridge_dec(mlxsw_sp, NULL);
 	}
 
 	if (lag->ref_count == 1) {

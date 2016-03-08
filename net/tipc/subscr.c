@@ -326,7 +326,8 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 		return tipc_subscrp_cancel(s, subscriber);
 	}
 
-	tipc_subscrp_subscribe(net, s, subscriber, swap);
+	if (s)
+		tipc_subscrp_subscribe(net, s, subscriber, swap);
 }
 
 /* Handle one request to establish a new subscriber */
