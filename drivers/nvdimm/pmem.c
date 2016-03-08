@@ -50,8 +50,6 @@ struct pmem_device {
 	struct badblocks	bb;
 };
 
-static int pmem_major;
-
 static bool is_bad_pmem(struct badblocks *bb, sector_t sector, unsigned int len)
 {
 	if (bb->count) {
@@ -231,8 +229,6 @@ static int pmem_attach_disk(struct device *dev,
 		return -ENOMEM;
 	}
 
-	disk->major		= pmem_major;
-	disk->first_minor	= 0;
 	disk->fops		= &pmem_fops;
 	disk->private_data	= pmem;
 	disk->queue		= pmem->pmem_queue;
@@ -579,26 +575,13 @@ static struct nd_device_driver nd_pmem_driver = {
 
 static int __init pmem_init(void)
 {
-	int error;
-
-	pmem_major = register_blkdev(0, "pmem");
-	if (pmem_major < 0)
-		return pmem_major;
-
-	error = nd_driver_register(&nd_pmem_driver);
-	if (error) {
-		unregister_blkdev(pmem_major, "pmem");
-		return error;
-	}
-
-	return 0;
+	return nd_driver_register(&nd_pmem_driver);
 }
 module_init(pmem_init);
 
 static void pmem_exit(void)
 {
 	driver_unregister(&nd_pmem_driver.drv);
-	unregister_blkdev(pmem_major, "pmem");
 }
 module_exit(pmem_exit);
 
