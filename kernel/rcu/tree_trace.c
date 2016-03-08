@@ -189,9 +189,9 @@ static int show_rcuexp(struct seq_file *m, void *v)
 
 	for_each_possible_cpu(cpu) {
 		rdp = per_cpu_ptr(rsp->rda, cpu);
-		s1 += atomic_long_read(&rdp->expedited_workdone1);
-		s2 += atomic_long_read(&rdp->expedited_workdone2);
-		s3 += atomic_long_read(&rdp->expedited_workdone3);
+		s1 += atomic_long_read(&rdp->exp_workdone1);
+		s2 += atomic_long_read(&rdp->exp_workdone2);
+		s3 += atomic_long_read(&rdp->exp_workdone3);
 	}
 	seq_printf(m, "s=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
 		   rsp->expedited_sequence, s1, s2, s3,

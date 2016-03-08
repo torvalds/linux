@@ -388,9 +388,9 @@ struct rcu_data {
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 	struct mutex exp_funnel_mutex;
-	atomic_long_t expedited_workdone1;	/* # done by others #1. */
-	atomic_long_t expedited_workdone2;	/* # done by others #2. */
-	atomic_long_t expedited_workdone3;	/* # done by others #3. */
+	atomic_long_t exp_workdone1;	/* # done by others #1. */
+	atomic_long_t exp_workdone2;	/* # done by others #2. */
+	atomic_long_t exp_workdone3;	/* # done by others #3. */
 
 	/* 7) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU

@@ -3624,15 +3624,14 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 	 * can be inexact, as it is just promoting locality and is not
 	 * strictly needed for correctness.
 	 */
-	if (sync_exp_work_done(rsp, NULL, NULL, &rdp->expedited_workdone1, s))
+	if (sync_exp_work_done(rsp, NULL, NULL, &rdp->exp_workdone1, s))
 		return NULL;
 	mutex_lock(&rdp->exp_funnel_mutex);
 	trace_rcu_exp_funnel_lock(rsp->name, rdp->mynode->level + 1,
 				  rdp->cpu, rdp->cpu, TPS("acq"));
 	rnp0 = rdp->mynode;
 	for (; rnp0 != NULL; rnp0 = rnp0->parent) {
-		if (sync_exp_work_done(rsp, rnp1, rdp,
-				       &rdp->expedited_workdone2, s))
+		if (sync_exp_work_done(rsp, rnp1, rdp, &rdp->exp_workdone2, s))
 			return NULL;
 		mutex_lock(&rnp0->exp_funnel_mutex);
 		trace_rcu_exp_funnel_lock(rsp->name, rnp0->level,
@@ -3651,8 +3650,7 @@ static struct rcu_node *exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 		}
 		rnp1 = rnp0;
 	}
-	if (sync_exp_work_done(rsp, rnp1, rdp,
-			       &rdp->expedited_workdone3, s))
+	if (sync_exp_work_done(rsp, rnp1, rdp, &rdp->exp_workdone3, s))
 		return NULL;
 	return rnp1;
 }
