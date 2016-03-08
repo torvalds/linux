@@ -115,7 +115,7 @@ static int pwm_voltage_to_duty_cycle_percentage(struct regulator_dev *rdev, int 
 	int max_uV = rdev->constraints->max_uV;
 	int diff = max_uV - min_uV;
 
-	return 100 - (((req_uV * 100) - (min_uV * 100)) / diff);
+	return ((req_uV * 100) - (min_uV * 100)) / diff;
 }
 
 static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
