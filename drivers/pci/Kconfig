@@ -121,4 +121,5 @@ config PCI_LABEL
 	def_bool y if (DMI || ACPI)
 	select NLS
 
+source "drivers/pci/hotplug/Kconfig"
 source "drivers/pci/host/Kconfig"

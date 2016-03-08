@@ -576,8 +576,6 @@ config PCI_SYSCALL
 
 source "drivers/pci/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 source "drivers/pcmcia/Kconfig"
 
 endmenu

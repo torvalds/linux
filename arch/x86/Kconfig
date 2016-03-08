@@ -2586,8 +2586,6 @@ config AMD_NB
 
 source "drivers/pcmcia/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 config RAPIDIO
 	tristate "RapidIO support"
 	depends on PCI

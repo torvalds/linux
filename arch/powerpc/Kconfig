@@ -832,8 +832,6 @@ source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 config HAS_RAPIDIO
 	bool
 	default n
