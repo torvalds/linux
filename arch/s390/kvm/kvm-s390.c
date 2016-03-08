@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/slab.h>
@@ -185,7 +186,7 @@ static struct notifier_block kvm_clock_notifier = {
 int kvm_arch_hardware_setup(void)
 {
 	gmap_notifier.notifier_call = kvm_gmap_notifier;
-	gmap_register_ipte_notifier(&gmap_notifier);
+	gmap_register_pte_notifier(&gmap_notifier);
 	atomic_notifier_chain_register(&s390_epoch_delta_notifier,
 				       &kvm_clock_notifier);
 	return 0;
@@ -193,7 +194,7 @@ int kvm_arch_hardware_setup(void)
 
 void kvm_arch_hardware_unsetup(void)
 {
-	gmap_unregister_ipte_notifier(&gmap_notifier);
+	gmap_unregister_pte_notifier(&gmap_notifier);
 	atomic_notifier_chain_unregister(&s390_epoch_delta_notifier,
 					 &kvm_clock_notifier);
 }
@@ -2272,16 +2273,16 @@ retry:
 		return 0;
 	/*
 	 * We use MMU_RELOAD just to re-arm the ipte notifier for the
-	 * guest prefix page. gmap_ipte_notify will wait on the ptl lock.
+	 * guest prefix page. gmap_mprotect_notify will wait on the ptl lock.
 	 * This ensures that the ipte instruction for this request has
 	 * already finished. We might race against a second unmapper that
 	 * wants to set the blocking bit. Lets just retry the request loop.
 	 */
 	if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu)) {
 		int rc;
-		rc = gmap_ipte_notify(vcpu->arch.gmap,
-				      kvm_s390_get_prefix(vcpu),
-				      PAGE_SIZE * 2);
+		rc = gmap_mprotect_notify(vcpu->arch.gmap,
+					  kvm_s390_get_prefix(vcpu),
+					  PAGE_SIZE * 2, PROT_WRITE);
 		if (rc)
 			return rc;
 		goto retry;

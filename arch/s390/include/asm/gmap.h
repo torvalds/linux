@@ -59,8 +59,11 @@ void gmap_discard(struct gmap *, unsigned long from, unsigned long to);
 void __gmap_zap(struct gmap *, unsigned long gaddr);
 void gmap_unlink(struct mm_struct *, unsigned long *table, unsigned long vmaddr);
 
-void gmap_register_ipte_notifier(struct gmap_notifier *);
-void gmap_unregister_ipte_notifier(struct gmap_notifier *);
-int gmap_ipte_notify(struct gmap *, unsigned long start, unsigned long len);
+void gmap_register_pte_notifier(struct gmap_notifier *);
+void gmap_unregister_pte_notifier(struct gmap_notifier *);
+void gmap_pte_notify(struct mm_struct *, unsigned long addr, pte_t *);
+
+int gmap_mprotect_notify(struct gmap *, unsigned long start,
+			 unsigned long len, int prot);
 
 #endif /* _ASM_S390_GMAP_H */

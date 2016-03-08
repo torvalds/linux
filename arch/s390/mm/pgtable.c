@@ -179,9 +179,9 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 	return pgste;
 }
 
-static inline pgste_t pgste_ipte_notify(struct mm_struct *mm,
-					unsigned long addr,
-					pte_t *ptep, pgste_t pgste)
+static inline pgste_t pgste_pte_notify(struct mm_struct *mm,
+				       unsigned long addr,
+				       pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
 	if (pgste_val(pgste) & PGSTE_IN_BIT) {
@@ -199,7 +199,7 @@ static inline pgste_t ptep_xchg_start(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_ipte_notify(mm, addr, ptep, pgste);
+		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
 	}
 	return pgste;
 }
@@ -414,6 +414,50 @@ void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 	pgste_set_unlock(ptep, pgste);
 }
 
+/**
+ * ptep_force_prot - change access rights of a locked pte
+ * @mm: pointer to the process mm_struct
+ * @addr: virtual address in the guest address space
+ * @ptep: pointer to the page table entry
+ * @prot: indicates guest access rights: PROT_NONE, PROT_READ or PROT_WRITE
+ *
+ * Returns 0 if the access rights were changed and -EAGAIN if the current
+ * and requested access rights are incompatible.
+ */
+int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
+		    pte_t *ptep, int prot)
+{
+	pte_t entry;
+	pgste_t pgste;
+	int pte_i, pte_p;
+
+	pgste = pgste_get_lock(ptep);
+	entry = *ptep;
+	/* Check pte entry after all locks have been acquired */
+	pte_i = pte_val(entry) & _PAGE_INVALID;
+	pte_p = pte_val(entry) & _PAGE_PROTECT;
+	if ((pte_i && (prot != PROT_NONE)) ||
+	    (pte_p && (prot & PROT_WRITE))) {
+		pgste_set_unlock(ptep, pgste);
+		return -EAGAIN;
+	}
+	/* Change access rights and set the pgste notification bit */
+	if (prot == PROT_NONE && !pte_i) {
+		ptep_flush_direct(mm, addr, ptep);
+		pgste = pgste_update_all(entry, pgste, mm);
+		pte_val(entry) |= _PAGE_INVALID;
+	}
+	if (prot == PROT_READ && !pte_p) {
+		ptep_flush_direct(mm, addr, ptep);
+		pte_val(entry) &= ~_PAGE_INVALID;
+		pte_val(entry) |= _PAGE_PROTECT;
+	}
+	pgste_val(pgste) |= PGSTE_IN_BIT;
+	pgste = pgste_set_pte(ptep, pgste, entry);
+	pgste_set_unlock(ptep, pgste);
+	return 0;
+}
+
 static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
 {
 	if (!non_swap_entry(entry))
@@ -483,7 +527,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pgste_val(pgste) &= ~PGSTE_UC_BIT;
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
-		pgste = pgste_ipte_notify(mm, addr, ptep, pgste);
+		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
 		__ptep_ipte(addr, ptep);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;

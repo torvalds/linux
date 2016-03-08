@@ -553,29 +553,29 @@ static LIST_HEAD(gmap_notifier_list);
 static DEFINE_SPINLOCK(gmap_notifier_lock);
 
 /**
- * gmap_register_ipte_notifier - register a pte invalidation callback
+ * gmap_register_pte_notifier - register a pte invalidation callback
  * @nb: pointer to the gmap notifier block
  */
-void gmap_register_ipte_notifier(struct gmap_notifier *nb)
+void gmap_register_pte_notifier(struct gmap_notifier *nb)
 {
 	spin_lock(&gmap_notifier_lock);
 	list_add_rcu(&nb->list, &gmap_notifier_list);
 	spin_unlock(&gmap_notifier_lock);
 }
-EXPORT_SYMBOL_GPL(gmap_register_ipte_notifier);
+EXPORT_SYMBOL_GPL(gmap_register_pte_notifier);
 
 /**
- * gmap_unregister_ipte_notifier - remove a pte invalidation callback
+ * gmap_unregister_pte_notifier - remove a pte invalidation callback
  * @nb: pointer to the gmap notifier block
  */
-void gmap_unregister_ipte_notifier(struct gmap_notifier *nb)
+void gmap_unregister_pte_notifier(struct gmap_notifier *nb)
 {
 	spin_lock(&gmap_notifier_lock);
 	list_del_rcu(&nb->list);
 	spin_unlock(&gmap_notifier_lock);
 	synchronize_rcu();
 }
-EXPORT_SYMBOL_GPL(gmap_unregister_ipte_notifier);
+EXPORT_SYMBOL_GPL(gmap_unregister_pte_notifier);
 
 /**
  * gmap_call_notifier - call all registered invalidation callbacks
@@ -593,62 +593,150 @@ static void gmap_call_notifier(struct gmap *gmap, unsigned long start,
 }
 
 /**
- * gmap_ipte_notify - mark a range of ptes for invalidation notification
+ * gmap_table_walk - walk the gmap page tables
+ * @gmap: pointer to guest mapping meta data structure
+ * @gaddr: virtual address in the guest address space
+ *
+ * Returns a table pointer for the given guest address.
+ */
+static inline unsigned long *gmap_table_walk(struct gmap *gmap,
+					     unsigned long gaddr)
+{
+	unsigned long *table;
+
+	table = gmap->table;
+	switch (gmap->asce & _ASCE_TYPE_MASK) {
+	case _ASCE_TYPE_REGION1:
+		table += (gaddr >> 53) & 0x7ff;
+		if (*table & _REGION_ENTRY_INVALID)
+			return NULL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* Fallthrough */
+	case _ASCE_TYPE_REGION2:
+		table += (gaddr >> 42) & 0x7ff;
+		if (*table & _REGION_ENTRY_INVALID)
+			return NULL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* Fallthrough */
+	case _ASCE_TYPE_REGION3:
+		table += (gaddr >> 31) & 0x7ff;
+		if (*table & _REGION_ENTRY_INVALID)
+			return NULL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* Fallthrough */
+	case _ASCE_TYPE_SEGMENT:
+		table += (gaddr >> 20) & 0x7ff;
+	}
+	return table;
+}
+
+/**
+ * gmap_pte_op_walk - walk the gmap page table, get the page table lock
+ *		      and return the pte pointer
+ * @gmap: pointer to guest mapping meta data structure
+ * @gaddr: virtual address in the guest address space
+ * @ptl: pointer to the spinlock pointer
+ *
+ * Returns a pointer to the locked pte for a guest address, or NULL
+ */
+static pte_t *gmap_pte_op_walk(struct gmap *gmap, unsigned long gaddr,
+			       spinlock_t **ptl)
+{
+	unsigned long *table;
+
+	/* Walk the gmap page table, lock and get pte pointer */
+	table = gmap_table_walk(gmap, gaddr);
+	if (!table || *table & _SEGMENT_ENTRY_INVALID)
+		return NULL;
+	return pte_alloc_map_lock(gmap->mm, (pmd_t *) table, gaddr, ptl);
+}
+
+/**
+ * gmap_pte_op_fixup - force a page in and connect the gmap page table
+ * @gmap: pointer to guest mapping meta data structure
+ * @gaddr: virtual address in the guest address space
+ * @vmaddr: address in the host process address space
+ *
+ * Returns 0 if the caller can retry __gmap_translate (might fail again),
+ * -ENOMEM if out of memory and -EFAULT if anything goes wrong while fixing
+ * up or connecting the gmap page table.
+ */
+static int gmap_pte_op_fixup(struct gmap *gmap, unsigned long gaddr,
+			     unsigned long vmaddr)
+{
+	struct mm_struct *mm = gmap->mm;
+	bool unlocked = false;
+
+	if (fixup_user_fault(current, mm, vmaddr, FAULT_FLAG_WRITE, &unlocked))
+		return -EFAULT;
+	if (unlocked)
+		/* lost mmap_sem, caller has to retry __gmap_translate */
+		return 0;
+	/* Connect the page tables */
+	return __gmap_link(gmap, gaddr, vmaddr);
+}
+
+/**
+ * gmap_pte_op_end - release the page table lock
+ * @ptl: pointer to the spinlock pointer
+ */
+static void gmap_pte_op_end(spinlock_t *ptl)
+{
+	spin_unlock(ptl);
+}
+
+/**
+ * gmap_mprotect_notify - change access rights for a range of ptes and
+ *                        call the notifier if any pte changes again
  * @gmap: pointer to guest mapping meta data structure
  * @gaddr: virtual address in the guest address space
  * @len: size of area
+ * @prot: indicates access rights: PROT_NONE, PROT_READ or PROT_WRITE
  *
- * Returns 0 if for each page in the given range a gmap mapping exists and
- * the invalidation notification could be set. If the gmap mapping is missing
- * for one or more pages -EFAULT is returned. If no memory could be allocated
- * -ENOMEM is returned. This function establishes missing page table entries.
+ * Returns 0 if for each page in the given range a gmap mapping exists,
+ * the new access rights could be set and the notifier could be armed.
+ * If the gmap mapping is missing for one or more pages -EFAULT is
+ * returned. If no memory could be allocated -ENOMEM is returned.
+ * This function establishes missing page table entries.
  */
-int gmap_ipte_notify(struct gmap *gmap, unsigned long gaddr, unsigned long len)
+int gmap_mprotect_notify(struct gmap *gmap, unsigned long gaddr,
+			 unsigned long len, int prot)
 {
-	unsigned long addr;
+	unsigned long vmaddr;
 	spinlock_t *ptl;
 	pte_t *ptep;
-	bool unlocked;
 	int rc = 0;
 
 	if ((gaddr & ~PAGE_MASK) || (len & ~PAGE_MASK))
 		return -EINVAL;
+	if (!MACHINE_HAS_ESOP && prot == PROT_READ)
+		return -EINVAL;
 	down_read(&gmap->mm->mmap_sem);
 	while (len) {
-		unlocked = false;
-		/* Convert gmap address and connect the page tables */
-		addr = __gmap_translate(gmap, gaddr);
-		if (IS_ERR_VALUE(addr)) {
-			rc = addr;
-			break;
+		rc = -EAGAIN;
+		ptep = gmap_pte_op_walk(gmap, gaddr, &ptl);
+		if (ptep) {
+			rc = ptep_force_prot(gmap->mm, gaddr, ptep, prot);
+			gmap_pte_op_end(ptl);
 		}
-		/* Get the page mapped */
-		if (fixup_user_fault(current, gmap->mm, addr, FAULT_FLAG_WRITE,
-				     &unlocked)) {
-			rc = -EFAULT;
-			break;
-		}
-		/* While trying to map mmap_sem got unlocked. Let us retry */
-		if (unlocked)
+		if (rc) {
+			vmaddr = __gmap_translate(gmap, gaddr);
+			if (IS_ERR_VALUE(vmaddr)) {
+				rc = vmaddr;
+				break;
+			}
+			rc = gmap_pte_op_fixup(gmap, gaddr, vmaddr);
+			if (rc)
+				break;
 			continue;
-		rc = __gmap_link(gmap, gaddr, addr);
-		if (rc)
-			break;
-		/* Walk the process page table, lock and get pte pointer */
-		ptep = get_locked_pte(gmap->mm, addr, &ptl);
-		VM_BUG_ON(!ptep);
-		/* Set notification bit in the pgste of the pte */
-		if ((pte_val(*ptep) & (_PAGE_INVALID | _PAGE_PROTECT)) == 0) {
-			ptep_set_notify(gmap->mm, addr, ptep);
-			gaddr += PAGE_SIZE;
-			len -= PAGE_SIZE;
 		}
-		pte_unmap_unlock(ptep, ptl);
+		gaddr += PAGE_SIZE;
+		len -= PAGE_SIZE;
 	}
 	up_read(&gmap->mm->mmap_sem);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(gmap_ipte_notify);
+EXPORT_SYMBOL_GPL(gmap_mprotect_notify);
 
 /**
  * ptep_notify - call all invalidation callbacks for a specific pte.
