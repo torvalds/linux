@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include "../../util/debug.h"
 #include "../../util/tsc.h"
-#include "tsc.h"
 
 int perf_read_tsc_conversion(const struct perf_event_mmap_page *pc,
 			     struct perf_tsc_conversion *tc)
