@@ -104,8 +104,7 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 	if (best && (best->eax & (F(XSAVES) | F(XSAVEC))))
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
 
-	vcpu->arch.eager_fpu = use_eager_fpu();
-	if (vcpu->arch.eager_fpu)
+	if (use_eager_fpu())
 		kvm_x86_ops->fpu_activate(vcpu);
 
 	/*
