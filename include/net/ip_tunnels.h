@@ -369,6 +369,17 @@ static inline void ip_tunnel_unneed_metadata(void)
 {
 }
 
+static inline void ip_tunnel_info_opts_get(void *to,
+					   const struct ip_tunnel_info *info)
+{
+}
+
+static inline void ip_tunnel_info_opts_set(struct ip_tunnel_info *info,
+					   const void *from, int len)
+{
+	info->options_len = 0;
+}
+
 #endif /* CONFIG_INET */
 
 #endif /* __NET_IP_TUNNELS_H */
