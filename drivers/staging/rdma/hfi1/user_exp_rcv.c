@@ -86,8 +86,6 @@ static void unlock_exp_tids(struct hfi1_ctxtdata *, struct exp_tid_set *,
 static u32 find_phys_blocks(struct page **, unsigned, struct tid_pageset *);
 static int set_rcvarray_entry(struct file *, unsigned long, u32,
 			      struct tid_group *, struct page **, unsigned);
-static inline int mmu_addr_cmp(struct mmu_rb_node *, unsigned long,
-			       unsigned long);
 static int mmu_rb_insert(struct rb_root *, struct mmu_rb_node *);
 static void mmu_rb_remove(struct rb_root *, struct mmu_rb_node *, bool);
 static int mmu_rb_invalidate(struct rb_root *, struct mmu_rb_node *);
@@ -98,7 +96,6 @@ static int unprogram_rcvarray(struct file *, u32, struct tid_group **);
 static void clear_tid_node(struct hfi1_filedata *, u16, struct tid_rb_node *);
 
 static struct mmu_rb_ops tid_rb_ops = {
-	.compare = mmu_addr_cmp,
 	.insert = mmu_rb_insert,
 	.remove = mmu_rb_remove,
 	.invalidate = mmu_rb_invalidate
@@ -1014,17 +1011,6 @@ static int mmu_rb_invalidate(struct rb_root *root, struct mmu_rb_node *mnode)
 	}
 	spin_unlock(&fdata->invalid_lock);
 	return 0;
-}
-
-static int mmu_addr_cmp(struct mmu_rb_node *node, unsigned long addr,
-			unsigned long len)
-{
-	if ((addr + len) <= node->addr)
-		return -1;
-	else if (addr >= node->addr && addr < (node->addr + node->len))
-		return 0;
-	else
-		return 1;
 }
 
 static int mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *node)

@@ -98,7 +98,7 @@ int hfi1_mmu_rb_register(struct rb_root *root, struct mmu_rb_ops *ops)
 	struct mmu_rb_handler *handlr;
 	unsigned long flags;
 
-	if (!ops->compare || !ops->invalidate)
+	if (!ops->invalidate)
 		return -EINVAL;
 
 	handlr = kmalloc(sizeof(*handlr), GFP_KERNEL);
