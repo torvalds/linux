@@ -68,6 +68,9 @@ struct hfi1_user_sdma_pkt_q {
 	wait_queue_head_t wait;
 	unsigned long unpinned;
 	struct rb_root sdma_rb_root;
+	u32 n_locked;
+	struct list_head evict;
+	spinlock_t evict_lock; /* protect evict and n_locked */
 };
 
 struct hfi1_user_sdma_comp_q {
