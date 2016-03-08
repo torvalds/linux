@@ -1342,28 +1342,155 @@ out:
 	return ret;
 }
 
+/* bxt clock parameters */
+struct bxt_clk_div {
+	int clock;
+	uint32_t p1;
+	uint32_t p2;
+	uint32_t m2_int;
+	uint32_t m2_frac;
+	bool m2_frac_en;
+	uint32_t n;
+};
+
+/* pre-calculated values for DP linkrates */
+static const struct bxt_clk_div bxt_dp_clk_val[] = {
+	{162000, 4, 2, 32, 1677722, 1, 1},
+	{270000, 4, 1, 27,       0, 0, 1},
+	{540000, 2, 1, 27,       0, 0, 1},
+	{216000, 3, 2, 32, 1677722, 1, 1},
+	{243000, 4, 1, 24, 1258291, 1, 1},
+	{324000, 4, 1, 32, 1677722, 1, 1},
+	{432000, 3, 1, 32, 1677722, 1, 1}
+};
+
 static struct intel_shared_dpll *
 bxt_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 	     struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_digital_port *intel_dig_port;
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id i;
+	struct intel_digital_port *intel_dig_port;
+	struct bxt_clk_div clk_div = {0};
+	int vco = 0;
+	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
+	uint32_t lanestagger;
+	int clock = crtc_state->port_clock;
 
-	/* PLL is attached to port in bxt */
-	encoder = intel_ddi_get_crtc_new_encoder(crtc_state);
-	if (WARN_ON(!encoder))
+	if (encoder->type == INTEL_OUTPUT_HDMI) {
+		intel_clock_t best_clock;
+
+		/* Calculate HDMI div */
+		/*
+		 * FIXME: tie the following calculation into
+		 * i9xx_crtc_compute_clock
+		 */
+		if (!bxt_find_best_dpll(crtc_state, clock, &best_clock)) {
+			DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
+					 clock, pipe_name(crtc->pipe));
+			return NULL;
+		}
+
+		clk_div.p1 = best_clock.p1;
+		clk_div.p2 = best_clock.p2;
+		WARN_ON(best_clock.m1 != 2);
+		clk_div.n = best_clock.n;
+		clk_div.m2_int = best_clock.m2 >> 22;
+		clk_div.m2_frac = best_clock.m2 & ((1 << 22) - 1);
+		clk_div.m2_frac_en = clk_div.m2_frac != 0;
+
+		vco = best_clock.vco;
+	} else if (encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
+		   encoder->type == INTEL_OUTPUT_EDP) {
+		int i;
+
+		clk_div = bxt_dp_clk_val[0];
+		for (i = 0; i < ARRAY_SIZE(bxt_dp_clk_val); ++i) {
+			if (bxt_dp_clk_val[i].clock == clock) {
+				clk_div = bxt_dp_clk_val[i];
+				break;
+			}
+		}
+		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
+	}
+
+	if (vco >= 6200000 && vco <= 6700000) {
+		prop_coef = 4;
+		int_coef = 9;
+		gain_ctl = 3;
+		targ_cnt = 8;
+	} else if ((vco > 5400000 && vco < 6200000) ||
+			(vco >= 4800000 && vco < 5400000)) {
+		prop_coef = 5;
+		int_coef = 11;
+		gain_ctl = 3;
+		targ_cnt = 9;
+	} else if (vco == 5400000) {
+		prop_coef = 3;
+		int_coef = 8;
+		gain_ctl = 1;
+		targ_cnt = 9;
+	} else {
+		DRM_ERROR("Invalid VCO\n");
 		return NULL;
+	}
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (clock > 270000)
+		lanestagger = 0x18;
+	else if (clock > 135000)
+		lanestagger = 0x0d;
+	else if (clock > 67000)
+		lanestagger = 0x07;
+	else if (clock > 33000)
+		lanestagger = 0x04;
+	else
+		lanestagger = 0x02;
+
+	crtc_state->dpll_hw_state.ebb0 =
+		PORT_PLL_P1(clk_div.p1) | PORT_PLL_P2(clk_div.p2);
+	crtc_state->dpll_hw_state.pll0 = clk_div.m2_int;
+	crtc_state->dpll_hw_state.pll1 = PORT_PLL_N(clk_div.n);
+	crtc_state->dpll_hw_state.pll2 = clk_div.m2_frac;
+
+	if (clk_div.m2_frac_en)
+		crtc_state->dpll_hw_state.pll3 =
+			PORT_PLL_M2_FRAC_ENABLE;
+
+	crtc_state->dpll_hw_state.pll6 =
+		prop_coef | PORT_PLL_INT_COEFF(int_coef);
+	crtc_state->dpll_hw_state.pll6 |=
+		PORT_PLL_GAIN_CTL(gain_ctl);
+
+	crtc_state->dpll_hw_state.pll8 = targ_cnt;
+
+	crtc_state->dpll_hw_state.pll9 = 5 << PORT_PLL_LOCK_THRESHOLD_SHIFT;
+
+	crtc_state->dpll_hw_state.pll10 =
+		PORT_PLL_DCO_AMP(PORT_PLL_DCO_AMP_DEFAULT)
+		| PORT_PLL_DCO_AMP_OVR_EN_H;
+
+	crtc_state->dpll_hw_state.ebb4 = PORT_PLL_10BIT_CLK_ENABLE;
+
+	crtc_state->dpll_hw_state.pcsdw12 =
+		LANESTAGGER_STRAP_OVRD | lanestagger;
 
 	intel_dig_port = enc_to_dig_port(&encoder->base);
+
 	/* 1:1 mapping between ports and PLLs */
-	i = (enum intel_dpll_id)intel_dig_port->port;
-	pll = &dev_priv->shared_dplls[i];
+	i = (enum intel_dpll_id) intel_dig_port->port;
+	pll = intel_get_shared_dpll_by_id(dev_priv, i);
+
 	DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
 		crtc->base.base.id, pll->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
+
+	/* shared DPLL id 0 is DPLL A */
+	crtc_state->ddi_pll_sel = pll->id;
 
 	return pll;
 }
