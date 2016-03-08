@@ -1109,7 +1109,7 @@ int kvm_s390_shadow_fault(struct gmap *sg, unsigned long saddr, int write)
 	dat_protection |= pte.p;
 	if (write && dat_protection)
 		return PGM_PROTECTION;
-	rc = gmap_shadow_page(sg, saddr, pte.pfra * 4096, write);
+	rc = gmap_shadow_page(sg, saddr, __pte(pte.val));
 	if (rc)
 		return rc;
 	return 0;

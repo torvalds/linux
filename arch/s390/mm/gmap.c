@@ -1743,8 +1743,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow_pgt);
  * gmap_shadow_page - create a shadow page mapping
  * @sg: pointer to the shadow guest address space structure
  * @saddr: faulting address in the shadow gmap
- * @paddr: parent gmap address to get mapped at @saddr
- * @write: =1 map r/w, =0 map r/o
+ * @pte: pte in parent gmap address space to get shadowed
  *
  * Returns 0 if successfully shadowed or already shadowed, -EAGAIN if the
  * shadow table structure is incomplete, -ENOMEM if out of memory and
@@ -1752,12 +1751,11 @@ EXPORT_SYMBOL_GPL(gmap_shadow_pgt);
  *
  * Called with sg->mm->mmap_sem in read.
  */
-int gmap_shadow_page(struct gmap *sg, unsigned long saddr,
-		     unsigned long paddr, int write)
+int gmap_shadow_page(struct gmap *sg, unsigned long saddr, pte_t pte)
 {
 	struct gmap *parent;
 	struct gmap_rmap *rmap;
-	unsigned long vmaddr;
+	unsigned long vmaddr, paddr;
 	spinlock_t *ptl;
 	pte_t *sptep, *tptep;
 	int rc;
@@ -1771,6 +1769,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr,
 	rmap->raddr = (saddr & PAGE_MASK) | _SHADOW_RMAP_PGTABLE;
 
 	while (1) {
+		paddr = pte_val(pte) & PAGE_MASK;
 		vmaddr = __gmap_translate(parent, paddr);
 		if (IS_ERR_VALUE(vmaddr)) {
 			rc = vmaddr;
@@ -1791,8 +1790,7 @@ int gmap_shadow_page(struct gmap *sg, unsigned long saddr,
 				radix_tree_preload_end();
 				break;
 			}
-			rc = ptep_shadow_pte(sg->mm, saddr,
-					     sptep, tptep, write);
+			rc = ptep_shadow_pte(sg->mm, saddr, sptep, tptep, pte);
 			if (rc > 0) {
 				/* Success and a new mapping */
 				gmap_insert_rmap(sg, vmaddr, rmap);
