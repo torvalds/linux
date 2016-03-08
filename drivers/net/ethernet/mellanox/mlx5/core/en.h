@@ -43,6 +43,7 @@
 #include <linux/mlx5/port.h>
 #include <linux/mlx5/vport.h>
 #include <linux/mlx5/transobj.h>
+#include <linux/rhashtable.h>
 #include "wq.h"
 #include "mlx5_core.h"
 
@@ -527,8 +528,16 @@ struct mlx5e_flow_table {
 	struct mlx5_flow_group		**g;
 };
 
+struct mlx5e_tc_flow_table {
+	struct mlx5_flow_table		*t;
+
+	struct rhashtable_params        ht_params;
+	struct rhashtable               ht;
+};
+
 struct mlx5e_flow_tables {
 	struct mlx5_flow_namespace	*ns;
+	struct mlx5e_tc_flow_table	tc;
 	struct mlx5e_flow_table		vlan;
 	struct mlx5e_flow_table		main;
 };
