@@ -111,16 +111,6 @@
 	};
 };
 
-&iomuxc {
-	imx6q-tx6q-1110 {
-		pinctrl_eeti: eetigrp {
-			fsl,pins = <
-				MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b1 /* Interrupt */
-			>;
-		};
-	};
-};
-
 &kpp {
 	status = "disabled"; /* pad conflict with backlight1 PWM */
 };
@@ -181,4 +171,12 @@
 
 &sata {
 	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_eeti: eetigrp {
+		fsl,pins = <
+			MX6QDL_PAD_EIM_D22__GPIO3_IO22 0x1b0b1 /* Interrupt */
+		>;
+	};
 };

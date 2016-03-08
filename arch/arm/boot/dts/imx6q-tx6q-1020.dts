@@ -210,22 +210,6 @@
 	status = "disabled";
 };
 
-&iomuxc {
-	imx6qdl-tx6 {
-		pinctrl_usdhc4: usdhc4grp {
-			fsl,pins = <
-				MX6QDL_PAD_SD4_CMD__SD4_CMD		0x070b1
-				MX6QDL_PAD_SD4_CLK__SD4_CLK		0x070b1
-				MX6QDL_PAD_SD4_DAT0__SD4_DATA0		0x070b1
-				MX6QDL_PAD_SD4_DAT1__SD4_DATA1		0x070b1
-				MX6QDL_PAD_SD4_DAT2__SD4_DATA2		0x070b1
-				MX6QDL_PAD_SD4_DAT3__SD4_DATA3		0x070b1
-				MX6QDL_PAD_NANDF_ALE__SD4_RESET		0x0b0b1
-			>;
-		};
-	};
-};
-
 &ipu1_di0_disp0 {
 	remote-endpoint = <&display0_in>;
 };
@@ -237,4 +221,18 @@
 	no-1-8-v;
 	fsl,wp-controller;
 	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_usdhc4: usdhc4grp {
+		fsl,pins = <
+			MX6QDL_PAD_SD4_CMD__SD4_CMD		0x070b1
+			MX6QDL_PAD_SD4_CLK__SD4_CLK		0x070b1
+			MX6QDL_PAD_SD4_DAT0__SD4_DATA0		0x070b1
+			MX6QDL_PAD_SD4_DAT1__SD4_DATA1		0x070b1
+			MX6QDL_PAD_SD4_DAT2__SD4_DATA2		0x070b1
+			MX6QDL_PAD_SD4_DAT3__SD4_DATA3		0x070b1
+			MX6QDL_PAD_NANDF_ALE__SD4_RESET		0x0b0b1
+		>;
+	};
 };
