@@ -1101,7 +1101,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 /*
  * readahead MAX_RA_NODE number of node pages.
  */
-void ra_node_pages(struct page *parent, int start)
+static void ra_node_pages(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	struct blk_plug plug;
@@ -1121,7 +1121,7 @@ void ra_node_pages(struct page *parent, int start)
 	blk_finish_plug(&plug);
 }
 
-struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
+static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 					struct page *parent, int start)
 {
 	struct page *page;
