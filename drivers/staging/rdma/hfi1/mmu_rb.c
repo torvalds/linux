@@ -157,6 +157,8 @@ int hfi1_mmu_rb_insert(struct rb_root *root, struct mmu_rb_node *mnode)
 		return -EINVAL;
 
 	spin_lock_irqsave(&handler->lock, flags);
+	hfi1_cdbg(MMU, "Inserting node addr 0x%llx, len %u", mnode->addr,
+		  mnode->len);
 	node = __mmu_rb_search(handler, mnode->addr, mnode->len);
 	if (node) {
 		ret = -EINVAL;
@@ -181,7 +183,11 @@ static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
 {
 	struct mmu_rb_node *node;
 
+	hfi1_cdbg(MMU, "Searching for addr 0x%llx, len %u", addr, len);
 	node = __mmu_int_rb_iter_first(handler->root, addr, len);
+	if (node)
+		hfi1_cdbg(MMU, "Found node addr 0x%llx, len %u", node->addr,
+			  node->len);
 	return node;
 }
 
@@ -189,6 +195,8 @@ static void __mmu_rb_remove(struct mmu_rb_handler *handler,
 			    struct mmu_rb_node *node, bool arg)
 {
 	/* Validity of handler and node pointers has been checked by caller. */
+	hfi1_cdbg(MMU, "Removing node addr 0x%llx, len %u", node->addr,
+		  node->len);
 	__mmu_int_rb_remove(node, handler->root);
 	if (handler->ops->remove)
 		handler->ops->remove(handler->root, node, arg);
@@ -266,6 +274,8 @@ static void mmu_notifier_mem_invalidate(struct mmu_notifier *mn,
 	spin_lock_irqsave(&handler->lock, flags);
 	for (node = __mmu_int_rb_iter_first(root, start, end); node;
 	     node = __mmu_int_rb_iter_next(node, start, end)) {
+		hfi1_cdbg(MMU, "Invalidating node addr 0x%llx, len %u",
+			  node->addr, node->len);
 		if (handler->ops->invalidate(root, node))
 			__mmu_rb_remove(handler, node, true);
 	}

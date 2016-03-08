@@ -232,3 +232,4 @@ __hfi1_trace_fn(DC8051);
 __hfi1_trace_fn(FIRMWARE);
 __hfi1_trace_fn(RCVCTRL);
 __hfi1_trace_fn(TID);
+__hfi1_trace_fn(MMU);
