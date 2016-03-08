@@ -2361,6 +2361,11 @@ static int adap_init0(struct adapter *adapter)
 	}
 
 	/* Check for various parameter sanity issues */
+	if (adapter->params.vfres.pmask == 0) {
+		dev_err(adapter->pdev_dev, "no port access configured\n"
+			"usable!\n");
+		return -EINVAL;
+	}
 	if (adapter->params.vfres.nvi == 0) {
 		dev_err(adapter->pdev_dev, "no virtual interfaces configured/"
 			"usable!\n");
