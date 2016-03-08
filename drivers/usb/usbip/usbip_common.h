@@ -1,5 +1,7 @@
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
+ * Copyright (C) 2015-2016 Samsung Electronics
+ *               Krzysztof Opasiak <k.opasiak@samsung.com>
  *
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -234,6 +236,7 @@ struct usbip_iso_packet_descriptor {
 enum usbip_side {
 	USBIP_VHCI,
 	USBIP_STUB,
+	USBIP_VUDC,
 };
 
 /* event handler */
@@ -247,6 +250,13 @@ enum usbip_side {
 #define	SDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_SUBMIT	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
+
+#define VUDC_EVENT_REMOVED   (USBIP_EH_SHUTDOWN | USBIP_EH_RESET | USBIP_EH_BYE)
+#define	VUDC_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
+#define	VUDC_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
+/* catastrophic emulated usb error */
+#define	VUDC_EVENT_ERROR_USB	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
+#define	VUDC_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
 
 #define	VDEV_EVENT_REMOVED	(USBIP_EH_SHUTDOWN | USBIP_EH_BYE)
 #define	VDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
