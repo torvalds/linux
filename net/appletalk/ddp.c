@@ -1625,7 +1625,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 		rt = atrtr_find(&at_hint);
 	}
-	err = ENETUNREACH;
+	err = -ENETUNREACH;
 	if (!rt)
 		goto out;
 
