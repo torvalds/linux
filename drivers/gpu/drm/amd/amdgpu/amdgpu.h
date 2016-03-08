@@ -888,7 +888,6 @@ struct amdgpu_vm_id {
 
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
-	spinlock_t		it_lock;
 	struct rb_root		va;
 
 	/* protecting invalidated */
