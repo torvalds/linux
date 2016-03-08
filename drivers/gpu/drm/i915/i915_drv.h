@@ -53,6 +53,7 @@
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
 #include "intel_guc.h"
+#include "intel_dpll_mgr.h"
 
 /* General customization:
  */
@@ -339,81 +340,6 @@ struct drm_i915_file_private {
 
 	unsigned int bsd_ring;
 };
-
-enum intel_dpll_id {
-	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
-	/* real shared dpll ids must be >= 0 */
-	DPLL_ID_PCH_PLL_A = 0,
-	DPLL_ID_PCH_PLL_B = 1,
-	/* hsw/bdw */
-	DPLL_ID_WRPLL1 = 0,
-	DPLL_ID_WRPLL2 = 1,
-	DPLL_ID_SPLL = 2,
-
-	/* skl */
-	DPLL_ID_SKL_DPLL1 = 0,
-	DPLL_ID_SKL_DPLL2 = 1,
-	DPLL_ID_SKL_DPLL3 = 2,
-};
-#define I915_NUM_PLLS 3
-
-struct intel_dpll_hw_state {
-	/* i9xx, pch plls */
-	uint32_t dpll;
-	uint32_t dpll_md;
-	uint32_t fp0;
-	uint32_t fp1;
-
-	/* hsw, bdw */
-	uint32_t wrpll;
-	uint32_t spll;
-
-	/* skl */
-	/*
-	 * DPLL_CTRL1 has 6 bits for each each this DPLL. We store those in
-	 * lower part of ctrl1 and they get shifted into position when writing
-	 * the register.  This allows us to easily compare the state to share
-	 * the DPLL.
-	 */
-	uint32_t ctrl1;
-	/* HDMI only, 0 when used for DP */
-	uint32_t cfgcr1, cfgcr2;
-
-	/* bxt */
-	uint32_t ebb0, ebb4, pll0, pll1, pll2, pll3, pll6, pll8, pll9, pll10,
-		 pcsdw12;
-};
-
-struct intel_shared_dpll_config {
-	unsigned crtc_mask; /* mask of CRTCs sharing this PLL */
-	struct intel_dpll_hw_state hw_state;
-};
-
-struct intel_shared_dpll {
-	struct intel_shared_dpll_config config;
-
-	int active; /* count of number of active CRTCs (i.e. DPMS on) */
-	bool on; /* is the PLL actually active? Disabled during modeset */
-	const char *name;
-	/* should match the index in the dev_priv->shared_dplls array */
-	enum intel_dpll_id id;
-	/* The mode_set hook is optional and should be used together with the
-	 * intel_prepare_shared_dpll function. */
-	void (*mode_set)(struct drm_i915_private *dev_priv,
-			 struct intel_shared_dpll *pll);
-	void (*enable)(struct drm_i915_private *dev_priv,
-		       struct intel_shared_dpll *pll);
-	void (*disable)(struct drm_i915_private *dev_priv,
-			struct intel_shared_dpll *pll);
-	bool (*get_hw_state)(struct drm_i915_private *dev_priv,
-			     struct intel_shared_dpll *pll,
-			     struct intel_dpll_hw_state *hw_state);
-};
-
-#define SKL_DPLL0 0
-#define SKL_DPLL1 1
-#define SKL_DPLL2 2
-#define SKL_DPLL3 3
 
 /* Used by dp and fdi links */
 struct intel_link_m_n {
