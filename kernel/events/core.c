@@ -9449,10 +9449,29 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	switch (action & ~CPU_TASKS_FROZEN) {
 
 	case CPU_UP_PREPARE:
+		/*
+		 * This must be done before the CPU comes alive, because the
+		 * moment we can run tasks we can encounter (software) events.
+		 *
+		 * Specifically, someone can have inherited events on kthreadd
+		 * or a pre-existing worker thread that gets re-bound.
+		 */
 		perf_event_init_cpu(cpu);
 		break;
 
 	case CPU_DOWN_PREPARE:
+		/*
+		 * This must be done before the CPU dies because after that an
+		 * active event might want to IPI the CPU and that'll not work
+		 * so great for dead CPUs.
+		 *
+		 * XXX smp_call_function_single() return -ENXIO without a warn
+		 * so we could possibly deal with this.
+		 *
+		 * This is safe against new events arriving because
+		 * sys_perf_event_open() serializes against hotplug using
+		 * get_online_cpus().
+		 */
 		perf_event_exit_cpu(cpu);
 		break;
 	default:
