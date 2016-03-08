@@ -1172,6 +1172,10 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= NULL,
 		.cant_stop		= true,
 	},
+	/*
+	 * Preparatory and dead notifiers. Will be replaced once the notifiers
+	 * are converted to states.
+	 */
 	[CPUHP_NOTIFY_PREPARE] = {
 		.name			= "notify:prepare",
 		.startup		= notify_prepare,
@@ -1179,12 +1183,17 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.skip_onerr		= true,
 		.cant_stop		= true,
 	},
+	/* Kicks the plugged cpu into life */
 	[CPUHP_BRINGUP_CPU] = {
 		.name			= "cpu:bringup",
 		.startup		= bringup_cpu,
 		.teardown		= NULL,
 		.cant_stop		= true,
 	},
+	/*
+	 * Handled on controll processor until the plugged processor manages
+	 * this itself.
+	 */
 	[CPUHP_TEARDOWN_CPU] = {
 		.name			= "cpu:teardown",
 		.startup		= NULL,
@@ -1197,6 +1206,23 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 /* Application processor state steps */
 static struct cpuhp_step cpuhp_ap_states[] = {
 #ifdef CONFIG_SMP
+	/* Final state before CPU kills itself */
+	[CPUHP_AP_IDLE_DEAD] = {
+		.name			= "idle:dead",
+	},
+	/*
+	 * Last state before CPU enters the idle loop to die. Transient state
+	 * for synchronization.
+	 */
+	[CPUHP_AP_OFFLINE] = {
+		.name			= "ap:offline",
+		.cant_stop		= true,
+	},
+	/*
+	 * Low level startup/teardown notifiers. Run with interrupts
+	 * disabled. Will be removed once the notifiers are converted to
+	 * states.
+	 */
 	[CPUHP_AP_NOTIFY_STARTING] = {
 		.name			= "notify:starting",
 		.startup		= notify_starting,
@@ -1204,17 +1230,32 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.skip_onerr		= true,
 		.cant_stop		= true,
 	},
+	/* Entry state on starting. Interrupts enabled from here on. Transient
+	 * state for synchronsization */
+	[CPUHP_AP_ONLINE] = {
+		.name			= "ap:online",
+	},
+	/* Handle smpboot threads park/unpark */
 	[CPUHP_AP_SMPBOOT_THREADS] = {
 		.name			= "smpboot:threads",
 		.startup		= smpboot_unpark_threads,
 		.teardown		= NULL,
 	},
+	/*
+	 * Online/down_prepare notifiers. Will be removed once the notifiers
+	 * are converted to states.
+	 */
 	[CPUHP_AP_NOTIFY_ONLINE] = {
 		.name			= "notify:online",
 		.startup		= notify_online,
 		.teardown		= notify_down_prepare,
 	},
 #endif
+	/*
+	 * The dynamically registered state space is here
+	 */
+
+	/* CPU is fully up and running. */
 	[CPUHP_ONLINE] = {
 		.name			= "online",
 		.startup		= NULL,
@@ -1232,7 +1273,11 @@ static int cpuhp_cb_check(enum cpuhp_state state)
 
 static bool cpuhp_is_ap_state(enum cpuhp_state state)
 {
-	return state > CPUHP_BRINGUP_CPU;
+	/*
+	 * The extra check for CPUHP_TEARDOWN_CPU is only for documentation
+	 * purposes as that state is handled explicitely in cpu_down.
+	 */
+	return state > CPUHP_BRINGUP_CPU && state != CPUHP_TEARDOWN_CPU;
 }
 
 static struct cpuhp_step *cpuhp_get_step(enum cpuhp_state state)
