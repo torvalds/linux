@@ -34,7 +34,6 @@
 #include <linux/rockchip/iomap.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <linux/skbuff.h>
-#include <linux/rockchip/cpu.h>
 #include <linux/fb.h>
 #include <linux/rockchip/grf.h>
 #include <linux/rockchip/common.h>
@@ -269,105 +268,9 @@ int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable)
         return -1;
     }
 
-    if (mrfkill->pdata->vref_ctrl_enble)
-        *vref_ctrl_enable = 1;
     *power = wifi_power_state;
 
     return 0;
-}
-
-/**************************************************************************
- *
- * wifi reference voltage control Func
- *
- *************************************************************************/
-int rockchip_wifi_ref_voltage(int on)
-{
-    struct rfkill_wlan_data *mrfkill = g_rfkill;
-    struct rksdmmc_gpio *vddio;
-    struct regulator *ldo = NULL;
-    int power = 0;
-    bool toggle = false;
-
-    LOG("%s: %d\n", __func__, on);
-
-    if (mrfkill == NULL) {
-        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
-        return -1;
-    }
-
-    if (!mrfkill->pdata->vref_ctrl_enble) {
-        LOG("%s: wifi io reference voltage control is disabled.\n", __func__);
-        return 0;
-    }
-
-    if (!rfkill_get_bt_power_state(&power, &toggle)) {
-        if (power == 1) {
-            LOG("%s: wifi shouldn't control io reference voltage, BT is running!\n", __func__);
-            return 0;
-        }
-    }
-
-    if (mrfkill->pdata->ioregulator.power_ctrl_by_pmu) {
-        int ret = -1;
-        char *ldostr;
-        int level = mrfkill->pdata->ioregulator.enable;
-		int voltage = 1000 * mrfkill->pdata->sdio_vol;
-
-        ldostr = mrfkill->pdata->ioregulator.pmu_regulator;
-        if (ldostr == NULL) {
-            LOG("%s: wifi io reference voltage set to be controled by pmic, but which one?\n", __func__);
-            return -1;
-        }
-        ldo = regulator_get(NULL, ldostr);
-        if (ldo == NULL || IS_ERR(ldo)) {
-            LOG("\n\n\n%s get ldo error,please mod this\n\n\n", __func__);
-            return -1;
-        } else {
-            if (on == level) {
-            	if(cpu_is_rk3036() || cpu_is_rk312x())
-            	{
-					/*regulator_set_voltage(ldo, voltage, voltage);
-					LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
-					ret = regulator_enable(ldo);
-					LOG("wifi turn on io reference voltage.\n");*/
-            	}else{
-					regulator_set_voltage(ldo, voltage, voltage);
-					LOG("%s: %s enabled, level = %d\n", __func__, ldostr, voltage);
-					ret = regulator_enable(ldo);
-					LOG("wifi turn on io reference voltage.\n");
-            	}
-            } else {
-                LOG("%s: %s disabled\n", __func__, ldostr);
-                while (regulator_is_enabled(ldo) > 0) {
-                    ret = regulator_disable(ldo);
-                }
-                LOG("wifi shut off io reference voltage.\n");
-            }
-            regulator_put(ldo);
-            msleep(100);
-        }
-    } else {
-        vddio = &mrfkill->pdata->power_n;
-
-        if (on){
-            if (gpio_is_valid(vddio->io)) {
-                gpio_set_value(vddio->io, vddio->enable);
-                msleep(100);
-            }
-
-            LOG("wifi turn on io reference voltage.\n");
-        }else{
-            if (gpio_is_valid(vddio->io)) {
-                gpio_set_value(vddio->io, !(vddio->enable));
-                msleep(100);
-            }
-
-            LOG("wifi shut off io reference voltage.\n");
-        }
-    }
-
-	return 0;
 }
 
 /**************************************************************************
@@ -403,9 +306,6 @@ int rockchip_wifi_power(int on)
             return 0;
         }
     }
-    
-    if (on)
-        rockchip_wifi_ref_voltage(1);
 
     if (mrfkill->pdata->mregulator.power_ctrl_by_pmu) {
         int ret = -1;
@@ -471,9 +371,6 @@ int rockchip_wifi_power(int on)
 		}
     }
 
-    if (!on)
-        rockchip_wifi_ref_voltage(0);
-
     return 0;
 }
 EXPORT_SYMBOL(rockchip_wifi_power);
@@ -487,17 +384,7 @@ EXPORT_SYMBOL(rockchip_wifi_power);
 extern int mmc_host_rescan(struct mmc_host *host, int val, int irq_type);
 int rockchip_wifi_set_carddetect(int val)
 {
-	int chip, irq_type;
-	chip = get_wifi_chip_type();
-
-	/*  irq_type : 0, oob; 1, cap-sdio-irq */
-	if (!strncmp(wifi_chip_type_string, "ap", 2) ||
-		!strncmp(wifi_chip_type_string, "rk", 2))
-		irq_type = 0;
-	else
-		irq_type = 1;
-
-	return mmc_host_rescan(NULL, val, irq_type);//NULL => SDIO host
+	return mmc_host_rescan(NULL, val, 1);
 }
 EXPORT_SYMBOL(rockchip_wifi_set_carddetect);
 
@@ -549,11 +436,19 @@ EXPORT_SYMBOL(rockchip_wifi_reset);
 #include <linux/etherdevice.h>
 #include <linux/errno.h>
 u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
-extern char GetSNSectorInfo(char * pbuf);
+
+static void rockchip_wifi_get_sn(char *buf)
+{
+	memset(buf, 0, 512);
+	//GetSNSectorInfo(char * pbuf);
+
+	return ;
+}
 
 //#define ENABLE_WIFI_RAND_MAC
 #ifdef ENABLE_WIFI_RAND_MAC
 #define WIFI_RAND_MAC_FILE "/data/misc/wifi_rand_mac"
+
 static int rockchip_wifi_rand_mac_addr(unsigned char *buf)
 {
     struct file *fp; 
@@ -599,7 +494,7 @@ int rockchip_wifi_mac_addr(unsigned char *buf)
         int i;
         char *tempBuf = kmalloc(512, GFP_KERNEL);
         if(tempBuf) {
-            GetSNSectorInfo(tempBuf);
+            rockchip_wifi_get_sn(tempBuf);
             for (i = 445; i <= 450; i++)
                 wifi_custom_mac_addr[i-445] = tempBuf[i];
             kfree(tempBuf);
@@ -657,49 +552,6 @@ void *rockchip_wifi_country_code(char *ccode)
 EXPORT_SYMBOL(rockchip_wifi_country_code);
 /**************************************************************************/
 
-#define RK3368_GRF_IO_VSEL 0x900
-static int rockchip_wifi_voltage_select(void)
-{
-    struct rfkill_wlan_data *mrfkill = g_rfkill;
-    int voltage = 0;
-
-    if (mrfkill == NULL) {
-        LOG("%s: rfkill-wlan driver has not Successful initialized\n", __func__);
-        return -1;
-    }
-
-    voltage = mrfkill->pdata->sdio_vol;
-    if (cpu_is_rk3288()) {
-	    if (voltage > 2700 && voltage < 3500) {
-	        writel_relaxed(0x00100000, RK_GRF_VIRT+0x380); //3.3
-	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
-	    } else if (voltage  > 1500 && voltage < 1950) {
-	        writel_relaxed(0x00100010, RK_GRF_VIRT+0x380); //1.8
-	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
-	    } else {
-	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
-	        return -1;
-	    }
-	} else if(cpu_is_rk3036() || cpu_is_rk312x()) {
-	} else { // rk3368
-#ifdef CONFIG_MFD_SYSCON
-	    if (voltage > 2700 && voltage < 3500) {
-	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(0<<3)); //3.3
-	        LOG("%s: wifi & sdio reference voltage: 3.3V\n", __func__);
-	    } else if (voltage  > 1500 && voltage < 1950) {
-	        regmap_write(mrfkill->pdata->grf, RK3368_GRF_IO_VSEL, ((1<<3)<<16)|(1<<3)); //1.8
-	        LOG("%s: wifi & sdio reference voltage: 1.8V\n", __func__);
-	    } else
-#endif
-            {
-	        LOG("%s: unsupport wifi & sdio reference voltage!\n", __func__);
-	        return -1;
-	    }
-	}
-
-    return 0;
-}
-
 static int rfkill_rk_setup_gpio(struct rksdmmc_gpio *gpio, const char* prefix, const char* name)
 {
     if (gpio_is_valid(gpio->io)) {
@@ -747,69 +599,12 @@ static int wlan_platdata_parse_dt(struct device *dev,
     }
     LOG("%s: wifi_chip_type = %s\n", __func__, wifi_chip_type_string);
 
-	if(cpu_is_rk3036() || cpu_is_rk312x()){
-		/* ret = of_property_read_u32(node, "sdio_vref", &value);
-		if (ret < 0) {
-			LOG("%s: Can't get sdio vref.", __func__);
-			return -1;
-		}
-		data->sdio_vol = value;*/
-	}else {
-		ret = of_property_read_u32(node, "sdio_vref", &value);
-		if (ret < 0) {
-			LOG("%s: Can't get sdio vref.", __func__);
-			return -1;
-		}
-		data->sdio_vol = value;
-	}
-
     if (of_find_property(node, "keep_wifi_power_on", NULL)) {
         data->wifi_power_remain = true;
         LOG("%s: wifi power will enabled while kernel starting and keep on.\n", __func__);
     } else {
         data->wifi_power_remain = false;
         LOG("%s: enable wifi power control.\n", __func__);
-    }
-       
-    if (of_find_property(node, "vref_ctrl_enable", NULL)) {
-        LOG("%s: enable wifi io reference voltage control.\n", __func__);
-        data->vref_ctrl_enble = true;
-        if (of_find_property(node, "vref_ctrl_gpio", NULL)) {
-            gpio = of_get_named_gpio_flags(node, "vref_ctrl_gpio", 0, &flags);
-            if (gpio_is_valid(gpio)){
-                data->vddio.io = gpio;
-                data->vddio.enable = (flags == GPIO_ACTIVE_HIGH)? 1:0;
-                data->ioregulator.power_ctrl_by_pmu = false;
-                LOG("%s: get property: vref_ctrl_gpio = %d, flags = %d.\n", __func__, gpio, flags);
-            } else {
-                data->vddio.io = -1;
-                data->vref_ctrl_enble = false;
-                LOG("%s: vref_ctrl_gpio defined invalid, disable wifi io reference voltage control.\n", __func__);
-            }
-        } else {
-            data->ioregulator.power_ctrl_by_pmu = true;
-            ret = of_property_read_string(node, "vref_pmu_regulator", &strings);
-            if (ret) {
-                LOG("%s: Can not read property: vref_pmu_regulator.\n", __func__);
-                data->vref_ctrl_enble = false;
-                data->ioregulator.power_ctrl_by_pmu = false;
-            } else {
-                LOG("%s: wifi io reference voltage controled by pmu(%s).\n", __func__, strings);
-                sprintf(data->ioregulator.pmu_regulator, "%s", strings);
-            }
-            ret = of_property_read_u32(node, "vref_pmu_enable_level", &value);
-            if (ret) {
-                LOG("%s: Can not read property: vref_pmu_enable_level.\n", __func__);
-                data->vref_ctrl_enble = false;
-                data->ioregulator.power_ctrl_by_pmu = false;
-            } else {
-                LOG("%s: wifi io reference voltage controled by pmu(level = %s).\n", __func__, (value == 1)?"HIGH":"LOW");
-                data->ioregulator.enable = value;
-            }
-        }
-    } else {
-        data->vref_ctrl_enble = false;
-        LOG("%s: disable wifi io reference voltage control.\n", __func__);
     }
 
     if (of_find_property(node, "power_ctrl_by_pmu", NULL)) {
@@ -975,8 +770,6 @@ static int rfkill_wlan_probe(struct platform_device *pdev)
     {
         rockchip_wifi_power(1);
     }
-
-    rockchip_wifi_voltage_select();
 
 #if BCM_STATIC_MEMORY_SUPPORT
     rockchip_init_wifi_mem();

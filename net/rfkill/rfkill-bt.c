@@ -289,8 +289,6 @@ static int rfkill_rk_set_power(void *data, bool blocked)
     }
 
 	if (false == blocked) { 
-        if (1 == vref_ctrl_enable && 0 == power)
-            rockchip_wifi_ref_voltage(1);
 
         rfkill_rk_sleep_bt(BT_WAKEUP); // ensure bt is wakeup
 
@@ -336,8 +334,6 @@ static int rfkill_rk_set_power(void *data, bool blocked)
             msleep(20);
         }
 
-        if (1 == vref_ctrl_enable && 0 == power)
-            rockchip_wifi_ref_voltage(0);
 	}
 
 	return 0;
