@@ -48,6 +48,19 @@ void bpf_register_map_type(struct bpf_map_type_list *tl)
 	list_add(&tl->list_node, &bpf_map_types);
 }
 
+int bpf_map_precharge_memlock(u32 pages)
+{
+	struct user_struct *user = get_current_user();
+	unsigned long memlock_limit, cur;
+
+	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	cur = atomic_long_read(&user->locked_vm);
+	free_uid(user);
+	if (cur + pages > memlock_limit)
+		return -EPERM;
+	return 0;
+}
+
 static int bpf_map_charge_memlock(struct bpf_map *map)
 {
 	struct user_struct *user = get_current_user();
@@ -153,7 +166,7 @@ int bpf_map_new_fd(struct bpf_map *map)
 		   offsetof(union bpf_attr, CMD##_LAST_FIELD) - \
 		   sizeof(attr->CMD##_LAST_FIELD)) != NULL
 
-#define BPF_MAP_CREATE_LAST_FIELD max_entries
+#define BPF_MAP_CREATE_LAST_FIELD map_flags
 /* called via syscall */
 static int map_create(union bpf_attr *attr)
 {
