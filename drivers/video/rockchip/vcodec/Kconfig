@@ -1,0 +1,9 @@
+menu "VCODEC"
+	depends on ARCH_ROCKCHIP
+
+config RK_VCODEC
+	tristate "VCODEC (VPU HEVC) service driver in kernel"
+	depends on ARCH_ROCKCHIP
+	default n
+
+endmenu
