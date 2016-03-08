@@ -2105,7 +2105,7 @@ static void ofdpa_fdb_cleanup(unsigned long data)
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;
-	unsigned long next_timer = jiffies + BR_MIN_AGEING_TIME;
+	unsigned long next_timer = jiffies + ofdpa->rocker->ageing_time;
 	unsigned long expires;
 	unsigned long lock_flags;
 	int flags = OFDPA_OP_FLAG_NOWAIT | OFDPA_OP_FLAG_REMOVE |
@@ -2648,9 +2648,12 @@ ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 				       struct switchdev_trans *trans)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
+	struct rocker *rocker = rocker_port->rocker;
 
 	if (!switchdev_trans_ph_prepare(trans)) {
 		ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
+		if (ofdpa_port->ageing_time < rocker->ageing_time)
+			rocker->ageing_time = ofdpa_port->ageing_time;
 		mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
 	}
 

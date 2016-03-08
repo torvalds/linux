@@ -2733,6 +2733,8 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rocker->hw.id = rocker_read64(rocker, SWITCH_ID);
 
+	rocker->ageing_time = BR_DEFAULT_AGEING_TIME;
+
 	err = rocker_probe_ports(rocker);
 	if (err) {
 		dev_err(&pdev->dev, "failed to probe ports\n");

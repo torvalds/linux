@@ -63,6 +63,7 @@ struct rocker {
 	struct {
 		u64 id;
 	} hw;
+	unsigned long ageing_time;
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
