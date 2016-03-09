@@ -37,6 +37,7 @@ extern int sort__has_parent;
 extern int sort__has_sym;
 extern int sort__has_socket;
 extern int sort__has_thread;
+extern int sort__has_comm;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
