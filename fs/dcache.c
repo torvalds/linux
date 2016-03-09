@@ -1745,13 +1745,11 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	unsigned add_flags = d_flags_for_inode(inode);
 
 	spin_lock(&dentry->d_lock);
-	if (inode)
-		hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
+	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
 	raw_write_seqcount_begin(&dentry->d_seq);
 	__d_set_inode_and_type(dentry, inode, add_flags);
 	raw_write_seqcount_end(&dentry->d_seq);
-	if (inode)
-		__fsnotify_d_instantiate(dentry);
+	__fsnotify_d_instantiate(dentry);
 	spin_unlock(&dentry->d_lock);
 }
 
@@ -1773,11 +1771,11 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 void d_instantiate(struct dentry *entry, struct inode * inode)
 {
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
-	if (inode)
+	if (inode) {
 		spin_lock(&inode->i_lock);
-	__d_instantiate(entry, inode);
-	if (inode)
+		__d_instantiate(entry, inode);
 		spin_unlock(&inode->i_lock);
+	}
 	security_d_instantiate(entry, inode);
 }
 EXPORT_SYMBOL(d_instantiate);
@@ -2764,10 +2762,9 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 
 	BUG_ON(!d_unhashed(dentry));
 
-	if (!inode) {
-		__d_instantiate(dentry, NULL);
+	if (!inode)
 		goto out;
-	}
+
 	spin_lock(&inode->i_lock);
 	if (S_ISDIR(inode->i_mode)) {
 		struct dentry *new = __d_find_any_alias(inode);
