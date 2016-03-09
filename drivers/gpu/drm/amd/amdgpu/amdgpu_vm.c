@@ -166,48 +166,63 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 {
 	uint64_t pd_addr = amdgpu_bo_gpu_offset(vm->page_directory);
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_vm_id *id = vm->ids[ring->idx];
 	struct fence *updates = sync->last_vm_update;
+	struct amdgpu_vm_id *id;
+	unsigned i = ring->idx;
 	int r;
 
 	mutex_lock(&adev->vm_manager.lock);
 
-	/* check if the id is still valid */
-	if (id) {
-		struct fence *flushed = id->flushed_updates;
-		long owner = atomic_long_read(&id->owner);
-		bool usable = pd_addr == id->pd_gpu_addr;
+	/* Check if we can use a VMID already assigned to this VM */
+	do {
+		struct fence *flushed;
 
-		if (owner != (long)&vm->ids[ring->idx])
-			usable = false;
-		else if (!flushed)
-			usable = false;
-		else if (!updates)
-			usable = true;
-		else
-			usable = !fence_is_later(updates, flushed);
+		id = vm->ids[i++];
+		if (i == AMDGPU_MAX_RINGS)
+			i = 0;
 
-		if (usable) {
+		/* Check all the prerequisites to using this VMID */
+		if (!id)
+			continue;
 
-			r = amdgpu_sync_fence(ring->adev, sync, id->first);
+		if (atomic_long_read(&id->owner) != (long)vm)
+			continue;
+
+		if (pd_addr != id->pd_gpu_addr)
+			continue;
+
+		if (id != vm->ids[ring->idx] &&
+		    (!id->last_flush || !fence_is_signaled(id->last_flush)))
+			continue;
+
+		flushed  = id->flushed_updates;
+		if (updates && (!flushed || fence_is_later(updates, flushed)))
+			continue;
+
+		/* Good we can use this VMID */
+		if (id == vm->ids[ring->idx]) {
+			r = amdgpu_sync_fence(ring->adev, sync,
+					      id->first);
 			if (r)
 				goto error;
-
-			r = amdgpu_sync_fence(ring->adev, &id->active, fence);
-			if (r)
-				goto error;
-
-			list_move_tail(&id->list, &adev->vm_manager.ids_lru);
-
-			*vm_id = id - adev->vm_manager.ids;
-			*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
-			trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id,
-						*vm_pd_addr);
-
-			mutex_unlock(&adev->vm_manager.lock);
-			return 0;
 		}
-	}
+
+		/* And remember this submission as user of the VMID */
+		r = amdgpu_sync_fence(ring->adev, &id->active, fence);
+		if (r)
+			goto error;
+
+		list_move_tail(&id->list, &adev->vm_manager.ids_lru);
+		vm->ids[ring->idx] = id;
+
+		*vm_id = id - adev->vm_manager.ids;
+		*vm_pd_addr = AMDGPU_VM_NO_FLUSH;
+		trace_amdgpu_vm_grab_id(vm, ring->idx, *vm_id, *vm_pd_addr);
+
+		mutex_unlock(&adev->vm_manager.lock);
+		return 0;
+
+	} while (i != ring->idx);
 
 	id = list_first_entry(&adev->vm_manager.ids_lru,
 			      struct amdgpu_vm_id,
@@ -245,7 +260,7 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	id->pd_gpu_addr = pd_addr;
 
 	list_move_tail(&id->list, &adev->vm_manager.ids_lru);
-	atomic_long_set(&id->owner, (long)id);
+	atomic_long_set(&id->owner, (long)vm);
 	vm->ids[ring->idx] = id;
 
 	*vm_id = id - adev->vm_manager.ids;
@@ -1464,7 +1479,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 		if (!id)
 			continue;
 
-		atomic_long_cmpxchg(&id->owner, (long)&vm->ids[i], 0);
+		atomic_long_cmpxchg(&id->owner, (long)vm, 0);
 	}
 }
 
