@@ -847,7 +847,6 @@ struct gb_svc_intf_reset_request {
 } __packed;
 /* interface reset response has no payload */
 
-#define GB_SVC_EJECT_TIME	9000
 struct gb_svc_intf_eject_request {
 	__u8	intf_id;
 } __packed;

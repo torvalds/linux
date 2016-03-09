@@ -14,6 +14,8 @@
 
 #define SVC_KEY_ARA_BUTTON	KEY_A
 
+#define SVC_INTF_EJECT_TIMEOUT	9000
+
 struct gb_svc_deferred_request {
 	struct work_struct work;
 	struct gb_operation *operation;
@@ -142,7 +144,7 @@ int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id)
 	ret = gb_operation_sync_timeout(svc->connection,
 					GB_SVC_TYPE_INTF_EJECT, &request,
 					sizeof(request), NULL, 0,
-					GB_SVC_EJECT_TIME);
+					SVC_INTF_EJECT_TIMEOUT);
 	if (ret) {
 		dev_err(&svc->dev, "failed to eject interface %u\n", intf_id);
 		return ret;
