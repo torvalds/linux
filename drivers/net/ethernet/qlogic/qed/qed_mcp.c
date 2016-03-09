@@ -390,7 +390,10 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		return;
 	}
 
-	p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
+	if (p_hwfn->b_drv_link_init)
+		p_link->link_up = !!(status & LINK_STATUS_LINK_UP);
+	else
+		p_link->link_up = false;
 
 	p_link->full_duplex = true;
 	switch ((status & LINK_STATUS_SPEED_AND_DUPLEX_MASK)) {
@@ -519,6 +522,8 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn,
 		       p_hwfn->mcp_info->drv_mb_addr +
 		       offsetof(struct public_drv_mb, union_data) + i,
 		       ((u32 *)&phy_cfg)[i >> 2]);
+
+	p_hwfn->b_drv_link_init = b_up;
 
 	if (b_up) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
