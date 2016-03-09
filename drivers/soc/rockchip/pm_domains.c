@@ -66,8 +66,8 @@ struct rockchip_pmu {
 
 #define DOMAIN(pwr, status, req, idle, ack)	\
 {						\
-	.pwr_mask = BIT(pwr),			\
-	.status_mask = BIT(status),		\
+	.pwr_mask = (pwr >= 0) ? BIT(pwr) : 0,		\
+	.status_mask = (status >= 0) ? BIT(status) : 0,	\
 	.req_mask = (req >= 0) ? BIT(req) : 0,		\
 	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
 	.ack_mask = (ack >= 0) ? BIT(ack) : 0,		\
@@ -119,6 +119,10 @@ static bool rockchip_pmu_domain_is_on(struct rockchip_pm_domain *pd)
 	struct rockchip_pmu *pmu = pd->pmu;
 	unsigned int val;
 
+	/* check idle status for idle-only domains */
+	if (pd->info->status_mask == 0)
+		return !rockchip_pmu_domain_is_idle(pd);
+
 	regmap_read(pmu->regmap, pmu->info->status_offset, &val);
 
 	/* 1'b0: power on, 1'b1: power off */
@@ -129,6 +133,9 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 					     bool on)
 {
 	struct rockchip_pmu *pmu = pd->pmu;
+
+	if (pd->info->pwr_mask == 0)
+		return;
 
 	regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
 			   pd->info->pwr_mask, on ? 0 : -1U);
