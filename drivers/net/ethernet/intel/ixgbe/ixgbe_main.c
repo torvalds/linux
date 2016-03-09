@@ -8257,19 +8257,20 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			return -EINVAL;
 
 		for (i = 0; nexthdr[i].jump; i++) {
-			if (nexthdr->o != cls->knode.sel->offoff ||
-			    nexthdr->s != cls->knode.sel->offshift ||
-			    nexthdr->m != cls->knode.sel->offmask ||
+			if (nexthdr[i].o != cls->knode.sel->offoff ||
+			    nexthdr[i].s != cls->knode.sel->offshift ||
+			    nexthdr[i].m != cls->knode.sel->offmask ||
 			    /* do not support multiple key jumps its just mad */
 			    cls->knode.sel->nkeys > 1)
 				return -EINVAL;
 
-			if (nexthdr->off != cls->knode.sel->keys[0].off ||
-			    nexthdr->val != cls->knode.sel->keys[0].val ||
-			    nexthdr->mask != cls->knode.sel->keys[0].mask)
-				return -EINVAL;
-
-			adapter->jump_tables[link_uhtid] = nexthdr->jump;
+			if (nexthdr[i].off == cls->knode.sel->keys[0].off &&
+			    nexthdr[i].val == cls->knode.sel->keys[0].val &&
+			    nexthdr[i].mask == cls->knode.sel->keys[0].mask) {
+				adapter->jump_tables[link_uhtid] =
+								nexthdr[i].jump;
+				break;
+			}
 		}
 		return 0;
 	}
