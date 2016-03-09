@@ -10,7 +10,6 @@
 #ifndef __INTERFACE_H
 #define __INTERFACE_H
 
-/* Greybus "public" definitions" */
 struct gb_interface {
 	struct device dev;
 	struct gb_control *control;
@@ -42,19 +41,6 @@ struct gb_interface {
 	bool disconnected;
 };
 #define to_gb_interface(d) container_of(d, struct gb_interface, dev)
-
-static inline void gb_interface_set_drvdata(struct gb_interface *intf,
-					    void *data)
-{
-	dev_set_drvdata(&intf->dev, data);
-}
-
-static inline void *gb_interface_get_drvdata(struct gb_interface *intf)
-{
-	return dev_get_drvdata(&intf->dev);
-}
-
-/* Greybus "private" definitions */
 
 struct gb_interface *gb_interface_find(struct gb_host_device *hd,
 				       u8 interface_id);
