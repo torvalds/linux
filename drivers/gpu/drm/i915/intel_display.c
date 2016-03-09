@@ -4669,14 +4669,20 @@ intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
 	}
 }
 
-static void intel_post_plane_update(struct intel_crtc *crtc)
+static void intel_post_plane_update(struct intel_crtc_state *old_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct drm_atomic_state *old_state = old_crtc_state->base.state;
 	struct intel_crtc_atomic_commit *atomic = &crtc->atomic;
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->base.state);
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_plane *primary = crtc->base.primary;
+	struct drm_plane_state *old_pri_state =
+		drm_atomic_get_existing_plane_state(old_state, primary);
 
-	intel_frontbuffer_flip(dev, atomic->fb_bits);
+	intel_frontbuffer_flip(dev, pipe_config->fb_bits);
 
 	crtc->wm.cxsr_allowed = true;
 
@@ -4686,8 +4692,17 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 	if (atomic->update_fbc)
 		intel_fbc_post_update(crtc);
 
-	if (atomic->post_enable_primary)
-		intel_post_enable_primary(&crtc->base);
+	if (old_pri_state) {
+		struct intel_plane_state *primary_state =
+			to_intel_plane_state(primary->state);
+		struct intel_plane_state *old_primary_state =
+			to_intel_plane_state(old_pri_state);
+
+		if (primary_state->visible &&
+		    (needs_modeset(&pipe_config->base) ||
+		     !old_primary_state->visible))
+			intel_post_enable_primary(&crtc->base);
+	}
 
 	memset(atomic, 0, sizeof(*atomic));
 }
@@ -11830,12 +11845,10 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 		to_intel_crtc_state(crtc_state)->wm.need_postvbl_update = true;
 
 	if (visible || was_visible)
-		intel_crtc->atomic.fb_bits |=
-			to_intel_plane(plane)->frontbuffer_bit;
+		pipe_config->fb_bits |= to_intel_plane(plane)->frontbuffer_bit;
 
 	switch (plane->type) {
 	case DRM_PLANE_TYPE_PRIMARY:
-		intel_crtc->atomic.post_enable_primary = turn_on;
 		intel_crtc->atomic.update_fbc = true;
 
 		break;
@@ -13625,7 +13638,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
-		intel_post_plane_update(to_intel_crtc(crtc));
+		intel_post_plane_update(to_intel_crtc_state(old_crtc_state));
 
 		if (put_domains[i])
 			modeset_put_power_domains(dev_priv, put_domains[i]);

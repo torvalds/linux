@@ -418,6 +418,7 @@ struct intel_crtc_state {
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
 	unsigned long quirks;
 
+	unsigned fb_bits; /* framebuffers to flip */
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
@@ -605,10 +606,6 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 
 	/* Sleepable operations to perform after commit */
-	unsigned fb_bits;
-	bool post_enable_primary;
-
-	/* Sleepable operations to perform before and after commit */
 	bool update_fbc;
 };
 
