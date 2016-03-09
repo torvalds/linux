@@ -27,7 +27,7 @@ OBJTOOL_IN := $(OBJTOOL)-in.o
 all: $(OBJTOOL)
 
 INCLUDES := -I$(srctree)/tools/include
-CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 $(INCLUDES)
+CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
 AWK = awk
