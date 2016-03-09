@@ -66,9 +66,8 @@ struct objtool_file {
 const char *objname;
 static bool nofp;
 
-static struct instruction *find_instruction(struct objtool_file *file,
-					    struct section *sec,
-					    unsigned long offset)
+static struct instruction *find_insn(struct objtool_file *file,
+				     struct section *sec, unsigned long offset)
 {
 	struct instruction *insn;
 
@@ -78,6 +77,31 @@ static struct instruction *find_instruction(struct objtool_file *file,
 
 	return NULL;
 }
+
+static struct instruction *next_insn_same_sec(struct objtool_file *file,
+					      struct instruction *insn)
+{
+	struct instruction *next = list_next_entry(insn, list);
+
+	if (&next->list == &file->insns || next->sec != insn->sec)
+		return NULL;
+
+	return next;
+}
+
+#define for_each_insn(file, insn)					\
+	list_for_each_entry(insn, &file->insns, list)
+
+#define func_for_each_insn(file, func, insn)				\
+	for (insn = find_insn(file, func->sec, func->offset);		\
+	     insn && &insn->list != &file->insns &&			\
+		insn->sec == func->sec &&				\
+		insn->offset < func->offset + func->len;		\
+	     insn = list_next_entry(insn, list))
+
+#define sec_for_each_insn_from(file, insn)				\
+	for (; insn; insn = next_insn_same_sec(file, insn))
+
 
 /*
  * Check if the function has been manually whitelisted with the
@@ -99,16 +123,9 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 				return true;
 
 	/* check if it has a context switching instruction */
-	insn = find_instruction(file, func->sec, func->offset);
-	if (!insn)
-		return false;
-	list_for_each_entry_from(insn, &file->insns, list) {
-		if (insn->sec != func->sec ||
-		    insn->offset >= func->offset + func->len)
-			break;
+	func_for_each_insn(file, func, insn)
 		if (insn->type == INSN_CONTEXT_SWITCH)
 			return true;
-	}
 
 	return false;
 }
@@ -131,7 +148,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 			       int recursion)
 {
 	int i;
-	struct instruction *insn, *func_insn;
+	struct instruction *insn;
 	bool empty = true;
 
 	/*
@@ -160,16 +177,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 	if (!func->sec)
 		return 0;
 
-	func_insn = find_instruction(file, func->sec, func->offset);
-	if (!func_insn)
-		return 0;
-
-	insn = func_insn;
-	list_for_each_entry_from(insn, &file->insns, list) {
-		if (insn->sec != func->sec ||
-		    insn->offset >= func->offset + func->len)
-			break;
-
+	func_for_each_insn(file, func, insn) {
 		empty = false;
 
 		if (insn->type == INSN_RETURN)
@@ -184,8 +192,7 @@ static int __dead_end_function(struct objtool_file *file, struct symbol *func,
 	 * case, the function's dead-end status depends on whether the target
 	 * of the sibling call returns.
 	 */
-	insn = func_insn;
-	list_for_each_entry_from(insn, &file->insns, list) {
+	func_for_each_insn(file, func, insn) {
 		if (insn->sec != func->sec ||
 		    insn->offset >= func->offset + func->len)
 			break;
@@ -294,17 +301,8 @@ static void get_ignores(struct objtool_file *file)
 			if (!ignore_func(file, func))
 				continue;
 
-			insn = find_instruction(file, sec, func->offset);
-			if (!insn)
-				continue;
-
-			list_for_each_entry_from(insn, &file->insns, list) {
-				if (insn->sec != func->sec ||
-				    insn->offset >= func->offset + func->len)
-					break;
-
+			func_for_each_insn(file, func, insn)
 				insn->visited = true;
-			}
 		}
 	}
 }
@@ -319,7 +317,7 @@ static int get_jump_destinations(struct objtool_file *file)
 	struct section *dest_sec;
 	unsigned long dest_off;
 
-	list_for_each_entry(insn, &file->insns, list) {
+	for_each_insn(file, insn) {
 		if (insn->type != INSN_JUMP_CONDITIONAL &&
 		    insn->type != INSN_JUMP_UNCONDITIONAL)
 			continue;
@@ -345,7 +343,7 @@ static int get_jump_destinations(struct objtool_file *file)
 			continue;
 		}
 
-		insn->jump_dest = find_instruction(file, dest_sec, dest_off);
+		insn->jump_dest = find_insn(file, dest_sec, dest_off);
 		if (!insn->jump_dest) {
 
 			/*
@@ -375,7 +373,7 @@ static int get_call_destinations(struct objtool_file *file)
 	unsigned long dest_off;
 	struct rela *rela;
 
-	list_for_each_entry(insn, &file->insns, list) {
+	for_each_insn(file, insn) {
 		if (insn->type != INSN_CALL)
 			continue;
 
@@ -438,9 +436,8 @@ static int handle_group_alt(struct objtool_file *file,
 
 	last_orig_insn = NULL;
 	insn = orig_insn;
-	list_for_each_entry_from(insn, &file->insns, list) {
-		if (insn->sec != special_alt->orig_sec ||
-		    insn->offset >= special_alt->orig_off + special_alt->orig_len)
+	sec_for_each_insn_from(file, insn) {
+		if (insn->offset >= special_alt->orig_off + special_alt->orig_len)
 			break;
 
 		if (special_alt->skip_orig)
@@ -450,8 +447,7 @@ static int handle_group_alt(struct objtool_file *file,
 		last_orig_insn = insn;
 	}
 
-	if (list_is_last(&last_orig_insn->list, &file->insns) ||
-	    list_next_entry(last_orig_insn, list)->sec != special_alt->orig_sec) {
+	if (!next_insn_same_sec(file, last_orig_insn)) {
 		WARN("%s: don't know how to handle alternatives at end of section",
 		     special_alt->orig_sec->name);
 		return -1;
@@ -476,9 +472,8 @@ static int handle_group_alt(struct objtool_file *file,
 
 	last_new_insn = NULL;
 	insn = *new_insn;
-	list_for_each_entry_from(insn, &file->insns, list) {
-		if (insn->sec != special_alt->new_sec ||
-		    insn->offset >= special_alt->new_off + special_alt->new_len)
+	sec_for_each_insn_from(file, insn) {
+		if (insn->offset >= special_alt->new_off + special_alt->new_len)
 			break;
 
 		last_new_insn = insn;
@@ -561,8 +556,8 @@ static int get_special_section_alts(struct objtool_file *file)
 			goto out;
 		}
 
-		orig_insn = find_instruction(file, special_alt->orig_sec,
-					     special_alt->orig_off);
+		orig_insn = find_insn(file, special_alt->orig_sec,
+				      special_alt->orig_off);
 		if (!orig_insn) {
 			WARN_FUNC("special: can't find orig instruction",
 				  special_alt->orig_sec, special_alt->orig_off);
@@ -572,8 +567,8 @@ static int get_special_section_alts(struct objtool_file *file)
 
 		new_insn = NULL;
 		if (!special_alt->group || special_alt->new_len) {
-			new_insn = find_instruction(file, special_alt->new_sec,
-						    special_alt->new_off);
+			new_insn = find_insn(file, special_alt->new_sec,
+					     special_alt->new_off);
 			if (!new_insn) {
 				WARN_FUNC("special: can't find new instruction",
 					  special_alt->new_sec,
@@ -619,7 +614,7 @@ static int get_switch_alts(struct objtool_file *file)
 	struct symbol *func;
 	struct alternative *alt;
 
-	list_for_each_entry(insn, &file->insns, list) {
+	for_each_insn(file, insn) {
 		if (insn->type != INSN_JUMP_DYNAMIC)
 			continue;
 
@@ -655,8 +650,7 @@ static int get_switch_alts(struct objtool_file *file)
 			    rela->addend >= func->offset + func->len)
 				break;
 
-			alt_insn = find_instruction(file, insn->sec,
-						    rela->addend);
+			alt_insn = find_insn(file, insn->sec, rela->addend);
 			if (!alt_insn) {
 				WARN("%s: can't find instruction at %s+0x%x",
 				     rodata->rela->name, insn->sec->name,
@@ -881,9 +875,8 @@ static int validate_branch(struct objtool_file *file,
 			break;
 		}
 
-		insn = list_next_entry(insn, list);
-
-		if (&insn->list == &file->insns || insn->sec != sec) {
+		insn = next_insn_same_sec(file, insn);
+		if (!insn) {
 			WARN("%s: unexpected end of section", sec->name);
 			warnings++;
 			return warnings;
@@ -934,8 +927,8 @@ static bool is_ubsan_insn(struct instruction *insn)
 			"__ubsan_handle_builtin_unreachable"));
 }
 
-static bool ignore_unreachable_insn(struct instruction *insn,
-				    unsigned long func_end)
+static bool ignore_unreachable_insn(struct symbol *func,
+				    struct instruction *insn)
 {
 	int i;
 
@@ -961,7 +954,7 @@ static bool ignore_unreachable_insn(struct instruction *insn,
 			continue;
 		}
 
-		if (insn->offset + insn->len >= func_end)
+		if (insn->offset + insn->len >= func->offset + func->len)
 			break;
 		insn = list_next_entry(insn, list);
 	}
@@ -974,7 +967,6 @@ static int validate_functions(struct objtool_file *file)
 	struct section *sec;
 	struct symbol *func;
 	struct instruction *insn;
-	unsigned long func_end;
 	int ret, warnings = 0;
 
 	list_for_each_entry(sec, &file->elf->sections, list) {
@@ -982,7 +974,7 @@ static int validate_functions(struct objtool_file *file)
 			if (func->type != STT_FUNC)
 				continue;
 
-			insn = find_instruction(file, sec, func->offset);
+			insn = find_insn(file, sec, func->offset);
 			if (!insn) {
 				WARN("%s(): can't find starting instruction",
 				     func->name);
@@ -1000,21 +992,11 @@ static int validate_functions(struct objtool_file *file)
 			if (func->type != STT_FUNC)
 				continue;
 
-			insn = find_instruction(file, sec, func->offset);
-			if (!insn)
-				continue;
-
-			func_end = func->offset + func->len;
-
-			list_for_each_entry_from(insn, &file->insns, list) {
-				if (insn->sec != func->sec ||
-				    insn->offset >= func_end)
-					break;
-
+			func_for_each_insn(file, func, insn) {
 				if (insn->visited)
 					continue;
 
-				if (!ignore_unreachable_insn(insn, func_end)) {
+				if (!ignore_unreachable_insn(func, insn)) {
 					WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
 					warnings++;
 				}
@@ -1032,7 +1014,7 @@ static int validate_uncallable_instructions(struct objtool_file *file)
 	struct instruction *insn;
 	int warnings = 0;
 
-	list_for_each_entry(insn, &file->insns, list) {
+	for_each_insn(file, insn) {
 		if (!insn->visited && insn->type == INSN_RETURN) {
 			WARN_FUNC("return instruction outside of a callable function",
 				  insn->sec, insn->offset);
