@@ -493,11 +493,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * Some ports require correctly set-up hpd registers for detection to
 	 * work properly (leading to ghost connected connector status), e.g. VGA
 	 * on gm45.  Hence we can only set up the initial fbdev config after hpd
-	 * irqs are fully enabled. Now we should scan for the initial config
-	 * only once hotplug handling is enabled, but due to screwed-up locking
-	 * around kms/fbdev init we can't protect the fdbev initial config
-	 * scanning against hotplug events. Hence do this first and ignore the
-	 * tiny window where we will loose hotplug notifactions.
+	 * irqs are fully enabled. We protect the fbdev initial config scanning
+	 * against hotplug events by waiting in intel_fbdev_output_poll_changed
+	 * until the asynchronous thread has finished.
 	 */
 	intel_fbdev_initial_config_async(dev);
 

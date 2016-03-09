@@ -808,6 +808,8 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	async_synchronize_full();
 	if (dev_priv->fbdev)
 		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
@@ -819,6 +821,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct drm_fb_helper *fb_helper;
 
+	async_synchronize_full();
 	if (!ifbdev)
 		return;
 
