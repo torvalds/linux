@@ -162,6 +162,7 @@ struct vxlan_config {
 	u16			port_max;
 	u8			tos;
 	u8			ttl;
+	__be32			label;
 	u32			flags;
 	unsigned long		age_interval;
 	unsigned int		addrmax;
