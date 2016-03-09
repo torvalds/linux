@@ -410,7 +410,9 @@ static int iwl_trans_get_paging_item(struct iwl_mvm *mvm)
 		goto exit;
 	}
 
-	mvm->trans->paging_download_buf = kzalloc(MAX_PAGING_IMAGE_SIZE,
+	/* Add an extra page for headers */
+	mvm->trans->paging_download_buf = kzalloc(PAGING_BLOCK_SIZE +
+						  FW_PAGING_SIZE,
 						  GFP_KERNEL);
 	if (!mvm->trans->paging_download_buf) {
 		ret = -ENOMEM;
