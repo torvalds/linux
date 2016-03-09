@@ -13502,7 +13502,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 {
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
 	int ret = 0, i;
@@ -13528,7 +13528,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 		if (needs_modeset(crtc->state) ||
@@ -13543,10 +13543,10 @@ static int intel_atomic_commit(struct drm_device *dev,
 		if (!needs_modeset(crtc->state))
 			continue;
 
-		intel_pre_plane_update(to_intel_crtc_state(crtc_state));
+		intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
 
-		if (crtc_state->active) {
-			intel_crtc_disable_planes(crtc, crtc_state->plane_mask);
+		if (old_crtc_state->active) {
+			intel_crtc_disable_planes(crtc, old_crtc_state->plane_mask);
 			dev_priv->display.crtc_disable(crtc);
 			intel_crtc->active = false;
 			intel_fbc_disable(intel_crtc);
@@ -13579,7 +13579,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 		bool modeset = needs_modeset(crtc->state);
 		struct intel_crtc_state *pipe_config =
@@ -13592,14 +13592,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 		}
 
 		if (!modeset)
-			intel_pre_plane_update(to_intel_crtc_state(crtc_state));
+			intel_pre_plane_update(to_intel_crtc_state(old_crtc_state));
 
 		if (crtc->state->active && intel_crtc->atomic.update_fbc)
 			intel_fbc_enable(intel_crtc);
 
 		if (crtc->state->active &&
 		    (crtc->state->planes_changed || update_pipe))
-			drm_atomic_helper_commit_planes_on_crtc(crtc_state);
+			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
 
 		if (pipe_config->base.active && needs_vblank_wait(pipe_config))
 			crtc_vblank_mask |= 1 << i;
@@ -13610,7 +13610,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (!state->legacy_cursor_update)
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		intel_post_plane_update(to_intel_crtc(crtc));
 
 		if (put_domains[i])
@@ -13627,7 +13627,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 *
 	 * TODO: Move this (and other cleanup) to an async worker eventually.
 	 */
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		intel_cstate = to_intel_crtc_state(crtc->state);
 
 		if (dev_priv->display.optimize_watermarks)
