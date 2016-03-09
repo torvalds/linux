@@ -711,6 +711,7 @@ static int watchdog_release(struct inode *inode, struct file *file)
 	struct watchdog_core_data *wd_data = file->private_data;
 	struct watchdog_device *wdd;
 	int err = -EBUSY;
+	bool running;
 
 	mutex_lock(&wd_data->lock);
 
@@ -742,14 +743,15 @@ static int watchdog_release(struct inode *inode, struct file *file)
 	clear_bit(_WDOG_DEV_OPEN, &wd_data->status);
 
 done:
+	running = wdd && watchdog_hw_running(wdd);
 	mutex_unlock(&wd_data->lock);
 	/*
 	 * Allow the owner module to be unloaded again unless the watchdog
 	 * is still running. If the watchdog is still running, it can not
 	 * be stopped, and its driver must not be unloaded.
 	 */
-	if (!watchdog_hw_running(wdd)) {
-		module_put(wdd->ops->owner);
+	if (!running) {
+		module_put(wd_data->cdev.owner);
 		kref_put(&wd_data->kref, watchdog_core_data_release);
 	}
 	return 0;
