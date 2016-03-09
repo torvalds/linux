@@ -85,19 +85,60 @@ struct kvm_vcpu_fault_info {
 	u32 hsr;		/* Hyp Syndrome Register */
 	u32 hxfar;		/* Hyp Data/Inst. Fault Address Register */
 	u32 hpfar;		/* Hyp IPA Fault Address Register */
-	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 };
 
-typedef struct vfp_hard_struct kvm_cpu_context_t;
+/*
+ * 0 is reserved as an invalid value.
+ * Order should be kept in sync with the save/restore code.
+ */
+enum vcpu_sysreg {
+	__INVALID_SYSREG__,
+	c0_MPIDR,		/* MultiProcessor ID Register */
+	c0_CSSELR,		/* Cache Size Selection Register */
+	c1_SCTLR,		/* System Control Register */
+	c1_ACTLR,		/* Auxiliary Control Register */
+	c1_CPACR,		/* Coprocessor Access Control */
+	c2_TTBR0,		/* Translation Table Base Register 0 */
+	c2_TTBR0_high,		/* TTBR0 top 32 bits */
+	c2_TTBR1,		/* Translation Table Base Register 1 */
+	c2_TTBR1_high,		/* TTBR1 top 32 bits */
+	c2_TTBCR,		/* Translation Table Base Control R. */
+	c3_DACR,		/* Domain Access Control Register */
+	c5_DFSR,		/* Data Fault Status Register */
+	c5_IFSR,		/* Instruction Fault Status Register */
+	c5_ADFSR,		/* Auxilary Data Fault Status R */
+	c5_AIFSR,		/* Auxilary Instrunction Fault Status R */
+	c6_DFAR,		/* Data Fault Address Register */
+	c6_IFAR,		/* Instruction Fault Address Register */
+	c7_PAR,			/* Physical Address Register */
+	c7_PAR_high,		/* PAR top 32 bits */
+	c9_L2CTLR,		/* Cortex A15/A7 L2 Control Register */
+	c10_PRRR,		/* Primary Region Remap Register */
+	c10_NMRR,		/* Normal Memory Remap Register */
+	c12_VBAR,		/* Vector Base Address Register */
+	c13_CID,		/* Context ID Register */
+	c13_TID_URW,		/* Thread ID, User R/W */
+	c13_TID_URO,		/* Thread ID, User R/O */
+	c13_TID_PRIV,		/* Thread ID, Privileged */
+	c14_CNTKCTL,		/* Timer Control Register (PL1) */
+	c10_AMAIR0,		/* Auxilary Memory Attribute Indirection Reg0 */
+	c10_AMAIR1,		/* Auxilary Memory Attribute Indirection Reg1 */
+	NR_CP15_REGS		/* Number of regs (incl. invalid) */
+};
+
+struct kvm_cpu_context {
+	struct kvm_regs	gp_regs;
+	struct vfp_hard_struct vfp;
+	u32 cp15[NR_CP15_REGS];
+};
+
+typedef struct kvm_cpu_context kvm_cpu_context_t;
 
 struct kvm_vcpu_arch {
-	struct kvm_regs regs;
+	struct kvm_cpu_context ctxt;
 
 	int target; /* Processor target */
 	DECLARE_BITMAP(features, KVM_VCPU_MAX_FEATURES);
-
-	/* System control coprocessor (cp15) */
-	u32 cp15[NR_CP15_REGS];
 
 	/* The CPU type we expose to the VM */
 	u32 midr;
@@ -110,9 +151,6 @@ struct kvm_vcpu_arch {
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
-
-	/* Floating point registers (VFP and Advanced SIMD/NEON) */
-	struct vfp_hard_struct vfp_guest;
 
 	/* Host FP context */
 	kvm_cpu_context_t *host_cpu_context;
@@ -158,12 +196,14 @@ struct kvm_vcpu_stat {
 	u64 exits;
 };
 
+#define vcpu_cp15(v,r)	(v)->arch.ctxt.cp15[r]
+
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init);
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
-u64 kvm_call_hyp(void *hypfn, ...);
+unsigned long kvm_call_hyp(void *hypfn, ...);
 void force_vm_exit(const cpumask_t *mask);
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
@@ -220,6 +260,11 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 	kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
 }
 
+static inline void __cpu_init_stage2(void)
+{
+	kvm_call_hyp(__init_stage2_translation);
+}
+
 static inline int kvm_arch_dev_ioctl_check_extension(long ext)
 {
 	return 0;
@@ -242,5 +287,20 @@ static inline void kvm_arm_init_debug(void) {}
 static inline void kvm_arm_setup_debug(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arm_clear_debug(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu) {}
+static inline int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
+					     struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
+static inline int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
+					     struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
+static inline int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
+					     struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
 
 #endif /* __ARM_KVM_HOST_H__ */
