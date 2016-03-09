@@ -76,6 +76,7 @@ static const char *amdgpu_asic_name[] = {
 	"POLARIS10",
 	"POLARIS11",
 	"POLARIS12",
+	"VEGA10",
 	"LAST",
 };
 
