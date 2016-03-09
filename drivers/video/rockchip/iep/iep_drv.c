@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2013 ROCKCHIP, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -9,7 +9,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  */
 
 #include <linux/clk.h>
@@ -203,7 +203,7 @@ static void iep_del_running_list_timeout(void)
 
 static inline void iep_queue_power_off_work(void)
 {
-	queue_delayed_work(system_nrt_wq, &iep_drvdata1->power_off_work, IEP_POWER_OFF_DELAY);
+	queue_delayed_work(system_wq, &iep_drvdata1->power_off_work, IEP_POWER_OFF_DELAY);
 }
 
 static void iep_power_on(void)

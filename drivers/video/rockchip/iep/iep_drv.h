@@ -5,7 +5,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 
-#if defined(CONFIG_ROCKCHIP_IOMMU) && defined(CONFIG_ION_ROCKCHIP)
+#if defined(CONFIG_RK_IOMMU) && defined(CONFIG_ION_ROCKCHIP)
 #define CONFIG_IEP_IOMMU
 #endif
 
