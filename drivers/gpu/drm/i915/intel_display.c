@@ -116,7 +116,7 @@ static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
 static void intel_modeset_setup_hw_state(struct drm_device *dev);
-static void intel_pre_disable_primary(struct drm_crtc *crtc);
+static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 
 typedef struct {
 	int	min, max;
@@ -2619,7 +2619,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 */
 	to_intel_plane_state(plane_state)->visible = false;
 	crtc_state->plane_mask &= ~(1 << drm_plane_index(primary));
-	intel_pre_disable_primary(&intel_crtc->base);
+	intel_pre_disable_primary_noatomic(&intel_crtc->base);
 	intel_plane->disable_plane(primary, &intel_crtc->base);
 
 	return;
@@ -4615,16 +4615,7 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	intel_check_pch_fifo_underruns(dev_priv);
 }
 
-/**
- * intel_pre_disable_primary - Perform operations before disabling primary plane
- * @crtc: the CRTC whose primary plane is to be disabled
- *
- * Performs potentially sleeping operations that must be done before the
- * primary plane is disabled, such as updating FBC and IPS.  Note that this may
- * be called due to an explicit primary plane update, or due to an implicit
- * disable that is caused when a sprite plane completely hides the primary
- * plane.
- */
+/* FIXME move all this to pre_plane_update() with proper state tracking */
 static void
 intel_pre_disable_primary(struct drm_crtc *crtc)
 {
@@ -4643,6 +4634,26 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	/*
+	 * FIXME IPS should be fine as long as one plane is
+	 * enabled, but in practice it seems to have problems
+	 * when going from primary only to sprite only and vice
+	 * versa.
+	 */
+	hsw_disable_ips(intel_crtc);
+}
+
+/* FIXME get rid of this and use pre_plane_update */
+static void
+intel_pre_disable_primary_noatomic(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+
+	intel_pre_disable_primary(crtc);
+
+	/*
 	 * Vblank time updates from the shadow to live plane control register
 	 * are blocked if the memory self-refresh mode is active at that
 	 * moment. So to make sure the plane gets truly disabled, disable
@@ -4656,14 +4667,6 @@ intel_pre_disable_primary(struct drm_crtc *crtc)
 		dev_priv->wm.vlv.cxsr = false;
 		intel_wait_for_vblank(dev, pipe);
 	}
-
-	/*
-	 * FIXME IPS should be fine as long as one plane is
-	 * enabled, but in practice it seems to have problems
-	 * when going from primary only to sprite only and vice
-	 * versa.
-	 */
-	hsw_disable_ips(intel_crtc);
 }
 
 static void intel_post_plane_update(struct intel_crtc *crtc)
@@ -4720,8 +4723,20 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 	if (pipe_config->disable_cxsr) {
 		crtc->wm.cxsr_allowed = false;
 
-		if (old_crtc_state->base.active)
+		/*
+		 * Vblank time updates from the shadow to live plane control register
+		 * are blocked if the memory self-refresh mode is active at that
+		 * moment. So to make sure the plane gets truly disabled, disable
+		 * first the self-refresh mode. The self-refresh enable bit in turn
+		 * will be checked/applied by the HW only at the next frame start
+		 * event which is after the vblank start event, so we need to have a
+		 * wait-for-vblank between disabling the plane and the pipe.
+		 */
+		if (old_crtc_state->base.active) {
 			intel_set_memory_cxsr(dev_priv, false);
+			dev_priv->wm.vlv.cxsr = false;
+			intel_wait_for_vblank(dev, crtc->pipe);
+		}
 	}
 
 	/*
@@ -6269,7 +6284,7 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc)
 	if (to_intel_plane_state(crtc->primary->state)->visible) {
 		WARN_ON(intel_crtc->unpin_work);
 
-		intel_pre_disable_primary(crtc);
+		intel_pre_disable_primary_noatomic(crtc);
 
 		intel_crtc_disable_planes(crtc, 1 << drm_plane_index(crtc->primary));
 		to_intel_plane_state(crtc->primary->state)->visible = false;
