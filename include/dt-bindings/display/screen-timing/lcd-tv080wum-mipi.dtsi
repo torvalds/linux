@@ -50,7 +50,7 @@ disp_timings: display-timings {
 		screen-type = <SCREEN_MIPI>;
 		lvds-format = <LVDS_8BIT_2>;
 		out-face    = <OUT_P888>;
-		clock-frequency = <120000000>;
+		clock-frequency = <150000000>;
 		hactive = <1200>;
 		vactive = <1920>;
 		hback-porch = <80>;
