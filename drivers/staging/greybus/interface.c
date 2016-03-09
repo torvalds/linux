@@ -185,6 +185,7 @@ void gb_interfaces_remove(struct gb_host_device *hd)
  */
 int gb_interface_init(struct gb_interface *intf)
 {
+	struct gb_bundle *bundle, *tmp;
 	int ret, size;
 	void *manifest;
 
@@ -211,7 +212,7 @@ int gb_interface_init(struct gb_interface *intf)
 	ret = gb_control_get_manifest_operation(intf, manifest, size);
 	if (ret) {
 		dev_err(&intf->dev, "failed to get manifest: %d\n", ret);
-		goto free_manifest;
+		goto err_free_manifest;
 	}
 
 	/*
@@ -221,18 +222,25 @@ int gb_interface_init(struct gb_interface *intf)
 	if (!gb_manifest_parse(intf, manifest, size)) {
 		dev_err(&intf->dev, "failed to parse manifest\n");
 		ret = -EINVAL;
-		goto free_manifest;
+		goto err_destroy_bundles;
 	}
 
 	ret = gb_control_get_interface_version_operation(intf);
 	if (ret)
-		goto free_manifest;
+		goto err_destroy_bundles;
 
 	ret = gb_control_get_bundle_versions(intf->control);
 	if (ret)
-		goto free_manifest;
+		goto err_destroy_bundles;
 
-free_manifest:
+	kfree(manifest);
+
+	return 0;
+
+err_destroy_bundles:
+	list_for_each_entry_safe(bundle, tmp, &intf->bundles, links)
+		gb_bundle_destroy(bundle);
+err_free_manifest:
 	kfree(manifest);
 
 	return ret;
