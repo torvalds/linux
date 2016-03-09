@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <asm/host_ops.h>
 #include <asm/syscalls.h>
+#include <asm/syscalls_32.h>
 
 struct syscall_thread_data;
 static asmlinkage long sys_create_syscall_thread(struct syscall_thread_data *);
@@ -23,6 +24,10 @@ typedef long (*syscall_handler_t)(long arg1, ...);
 syscall_handler_t syscall_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls - 1] =  (syscall_handler_t)sys_ni_syscall,
 #include <asm/unistd.h>
+
+#if __BITS_PER_LONG == 32
+#include <asm/unistd_32.h>
+#endif
 };
 
 struct syscall {
@@ -54,10 +59,11 @@ static long run_syscall(struct syscall *s)
 
 	if (s->no < 0 || s->no >= __NR_syscalls)
 		ret = -ENOSYS;
-	else
+	else {
 		ret = syscall_table[s->no](s->params[0], s->params[1],
 					   s->params[2], s->params[3],
 					   s->params[4], s->params[5]);
+	}
 	s->ret = ret;
 
 	task_work_run();
@@ -317,20 +323,6 @@ long lkl_syscall(long no, long *params)
 		data = &default_syscall_thread_data;
 
 	return __lkl_syscall(data, no, params);
-}
-
-asmlinkage
-ssize_t sys_lkl_pwrite64(unsigned int fd, const char *buf, size_t count,
-			 off_t pos_hi, off_t pos_lo)
-{
-	return sys_pwrite64(fd, buf, count, ((loff_t)pos_hi << 32) + pos_lo);
-}
-
-asmlinkage
-ssize_t sys_lkl_pread64(unsigned int fd, char *buf, size_t count,
-			off_t pos_hi, off_t pos_lo)
-{
-	return sys_pread64(fd, buf, count, ((loff_t)pos_hi << 32) + pos_lo);
 }
 
 static asmlinkage long

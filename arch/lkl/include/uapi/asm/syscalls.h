@@ -223,6 +223,7 @@ long lkl_sys_halt(void);
 #define __MAP(n,...) __MAP##n(__VA_ARGS__)
 
 #define __SC_LONG(t, a) (long)a
+#define __SC_TABLE(t, a) {sizeof(t), (long long)(a)}
 #define __SC_DECL(t, a) t a
 
 #define LKL_SYSCALL0(name)					       \
@@ -232,6 +233,31 @@ long lkl_sys_halt(void);
 		return lkl_syscall(__lkl__NR##name, params);	       \
 	}
 
+#if __BITS_PER_LONG == 32
+#define LKL_SYSCALLx(x, name, ...)				       \
+	static inline						       \
+	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
+	{							       \
+		struct {					       \
+			unsigned int size;				       \
+			long long value;			       \
+		} lkl_params[x] = { __MAP(x, __SC_TABLE, __VA_ARGS__) }; \
+		long params[6], i, k;				       \
+		for (i = k = 0;i < x && k < 6;i++, k++) {	       \
+			if (lkl_params[i].size > sizeof(long) &&       \
+			    k + 1 < 6) {     	   		       \
+				params[k] =			       \
+					(long)(lkl_params[i].value & (-1UL));	   \
+				k++;				       \
+				params[k] =			       \
+					(long)(lkl_params[i].value >> __BITS_PER_LONG); \
+			} else {				       \
+				params[k] = (long)(lkl_params[i].value); \
+			}					       \
+		}						       \
+		return lkl_syscall(__lkl__NR##name, params);	       \
+	}
+#else
 #define LKL_SYSCALLx(x, name, ...)				       \
        	static inline						       \
 	long lkl_sys##name(__MAP(x, __SC_DECL, __VA_ARGS__))	       \
@@ -239,6 +265,7 @@ long lkl_sys_halt(void);
 		long params[6] = { __MAP(x, __SC_LONG, __VA_ARGS__) }; \
 		return lkl_syscall(__lkl__NR##name, params);	       \
 	}
+#endif
 
 #define SYSCALL_DEFINE0(name, ...) LKL_SYSCALL0(name)
 #define SYSCALL_DEFINE1(name, ...) LKL_SYSCALLx(1, name, __VA_ARGS__)
@@ -248,6 +275,15 @@ long lkl_sys_halt(void);
 #define SYSCALL_DEFINE5(name, ...) LKL_SYSCALLx(5, name, __VA_ARGS__)
 #define SYSCALL_DEFINE6(name, ...) LKL_SYSCALLx(6, name, __VA_ARGS__)
 
+#if __BITS_PER_LONG == 32
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+#endif
+
 #include <asm/syscall_defs.h>
+
+#if __BITS_PER_LONG == 32
+#pragma GCC diagnostic pop
+#endif
 
 #endif
