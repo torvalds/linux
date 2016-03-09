@@ -6,6 +6,7 @@
  * MMA8453Q (10 bit)
  * MMA8652FC (12 bit)
  * MMA8653FC (10 bit)
+ * FXLS8471Q (14 bit)
  *
  * Copyright 2015 Martin Kepplinger <martin.kepplinger@theobroma-systems.com>
  * Copyright 2014 Peter Meerwald <pmeerw@pmeerw.net>
@@ -92,6 +93,7 @@
 #define MMA8453_DEVICE_ID			0x3a
 #define MMA8652_DEVICE_ID			0x4a
 #define MMA8653_DEVICE_ID			0x5a
+#define FXLS8471_DEVICE_ID			0x6a
 
 #define MMA8452_AUTO_SUSPEND_DELAY_MS		2000
 
@@ -1055,6 +1057,7 @@ enum {
 	mma8453,
 	mma8652,
 	mma8653,
+	fxls8471,
 };
 
 static const struct mma_chip_info mma_chip_info_table[] = {
@@ -1145,6 +1148,22 @@ static const struct mma_chip_info mma_chip_info_table[] = {
 		.ev_ths = MMA8452_FF_MT_THS,
 		.ev_ths_mask = MMA8452_FF_MT_THS_MASK,
 		.ev_count = MMA8452_FF_MT_COUNT,
+	},
+	[fxls8471] = {
+		.chip_id = FXLS8471_DEVICE_ID,
+		.channels = mma8451_channels,
+		.num_channels = ARRAY_SIZE(mma8451_channels),
+		.mma_scales = { {0, 2394}, {0, 4788}, {0, 9577} },
+		.ev_cfg = MMA8452_TRANSIENT_CFG,
+		.ev_cfg_ele = MMA8452_TRANSIENT_CFG_ELE,
+		.ev_cfg_chan_shift = 1,
+		.ev_src = MMA8452_TRANSIENT_SRC,
+		.ev_src_xe = MMA8452_TRANSIENT_SRC_XTRANSE,
+		.ev_src_ye = MMA8452_TRANSIENT_SRC_YTRANSE,
+		.ev_src_ze = MMA8452_TRANSIENT_SRC_ZTRANSE,
+		.ev_ths = MMA8452_TRANSIENT_THS,
+		.ev_ths_mask = MMA8452_TRANSIENT_THS_MASK,
+		.ev_count = MMA8452_TRANSIENT_COUNT,
 	},
 };
 
@@ -1275,6 +1294,7 @@ static const struct of_device_id mma8452_dt_ids[] = {
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
 	{ .compatible = "fsl,mma8653", .data = &mma_chip_info_table[mma8653] },
+	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
@@ -1312,6 +1332,7 @@ static int mma8452_probe(struct i2c_client *client,
 	case MMA8453_DEVICE_ID:
 	case MMA8652_DEVICE_ID:
 	case MMA8653_DEVICE_ID:
+	case FXLS8471_DEVICE_ID:
 		if (ret == data->chip_info->chip_id)
 			break;
 	default:
@@ -1518,6 +1539,7 @@ static const struct i2c_device_id mma8452_id[] = {
 	{ "mma8453", mma8453 },
 	{ "mma8652", mma8652 },
 	{ "mma8653", mma8653 },
+	{ "fxls8471", fxls8471 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);
