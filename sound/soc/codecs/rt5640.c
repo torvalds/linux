@@ -2337,7 +2337,10 @@ static int rt5640_i2c_probe(struct i2c_client *i2c,
 		msleep(400);
 	}
 
-	regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
+	ret = regmap_read(rt5640->regmap, RT5640_VENDOR_ID2, &val);
+	if (ret)
+		return -EPROBE_DEFER;
+
 	if (val != RT5640_DEVICE_ID) {
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5640/39\n", val);
