@@ -73,7 +73,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 
 	channel = kzalloc(sizeof(*channel), gfp);
 	if (!channel)
-		goto cleanup;
+		return NULL;
 
 	channel->needs_lock = needs_lock;
 	spin_lock_init(&channel->insert_lock);
@@ -89,14 +89,14 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	if (!channel->requested) {
 		if (uuid_le_cmp(guid, spar_video_guid)) {
 			/* Not the video channel we care about this */
-			goto cleanup;
+			goto err_destroy_channel;
 		}
 	}
 
 	channel->mapped = memremap(physaddr, size, MEMREMAP_WB);
 	if (!channel->mapped) {
 		release_mem_region(physaddr, size);
-		goto cleanup;
+		goto err_destroy_channel;
 	}
 
 	channel->physaddr = physaddr;
@@ -105,7 +105,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	err = visorchannel_read(channel, 0, &channel->chan_hdr,
 				sizeof(struct channel_header));
 	if (err)
-		goto cleanup;
+		goto err_destroy_channel;
 
 	/* we had better be a CLIENT of this channel */
 	if (channel_bytes == 0)
@@ -122,7 +122,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	if (!channel->requested) {
 		if (uuid_le_cmp(guid, spar_video_guid)) {
 			/* Different we care about this */
-			goto cleanup;
+			goto err_destroy_channel;
 		}
 	}
 
@@ -130,7 +130,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 			MEMREMAP_WB);
 	if (!channel->mapped) {
 		release_mem_region(channel->physaddr, channel_bytes);
-		goto cleanup;
+		goto err_destroy_channel;
 	}
 
 	channel->nbytes = channel_bytes;
@@ -139,7 +139,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	channel->guid = guid;
 	return channel;
 
-cleanup:
+err_destroy_channel:
 	visorchannel_destroy(channel);
 	return NULL;
 }
