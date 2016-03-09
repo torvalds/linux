@@ -3699,8 +3699,6 @@ static bool ath10k_mac_tx_can_push(struct ieee80211_hw *hw,
 int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 			   struct ieee80211_txq *txq)
 {
-	const bool is_mgmt = false;
-	const bool is_presp = false;
 	struct ath10k *ar = hw->priv;
 	struct ath10k_htt *htt = &ar->htt;
 	struct ath10k_txq *artxq = (void *)txq->drv_priv;
@@ -3713,7 +3711,7 @@ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 	int ret;
 
 	spin_lock_bh(&ar->htt.tx_lock);
-	ret = ath10k_htt_tx_inc_pending(htt, is_mgmt, is_presp);
+	ret = ath10k_htt_tx_inc_pending(htt);
 	spin_unlock_bh(&ar->htt.tx_lock);
 
 	if (ret)
@@ -3722,7 +3720,7 @@ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 	skb = ieee80211_tx_dequeue(hw, txq);
 	if (!skb) {
 		spin_lock_bh(&ar->htt.tx_lock);
-		ath10k_htt_tx_dec_pending(htt, is_mgmt);
+		ath10k_htt_tx_dec_pending(htt);
 		spin_unlock_bh(&ar->htt.tx_lock);
 
 		return -ENOENT;
@@ -3739,7 +3737,7 @@ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 		ath10k_warn(ar, "failed to push frame: %d\n", ret);
 
 		spin_lock_bh(&ar->htt.tx_lock);
-		ath10k_htt_tx_dec_pending(htt, is_mgmt);
+		ath10k_htt_tx_dec_pending(htt);
 		spin_unlock_bh(&ar->htt.tx_lock);
 
 		return ret;
@@ -3978,14 +3976,13 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 	txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
 	is_htt = (txpath == ATH10K_MAC_TX_HTT ||
 		  txpath == ATH10K_MAC_TX_HTT_MGMT);
+	is_mgmt = (txpath == ATH10K_MAC_TX_HTT_MGMT);
 
 	if (is_htt) {
 		spin_lock_bh(&ar->htt.tx_lock);
-
-		is_mgmt = ieee80211_is_mgmt(hdr->frame_control);
 		is_presp = ieee80211_is_probe_resp(hdr->frame_control);
 
-		ret = ath10k_htt_tx_inc_pending(htt, is_mgmt, is_presp);
+		ret = ath10k_htt_tx_inc_pending(htt);
 		if (ret) {
 			ath10k_warn(ar, "failed to increase tx pending count: %d, dropping\n",
 				    ret);
@@ -3994,6 +3991,15 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 			return;
 		}
 
+		ret = ath10k_htt_tx_mgmt_inc_pending(htt, is_mgmt, is_presp);
+		if (ret) {
+			ath10k_warn(ar, "failed to increase tx mgmt pending count: %d, dropping\n",
+				    ret);
+			ath10k_htt_tx_dec_pending(htt);
+			spin_unlock_bh(&ar->htt.tx_lock);
+			ieee80211_free_txskb(ar->hw, skb);
+			return;
+		}
 		spin_unlock_bh(&ar->htt.tx_lock);
 	}
 
@@ -4002,7 +4008,9 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 		ath10k_warn(ar, "failed to transmit frame: %d\n", ret);
 		if (is_htt) {
 			spin_lock_bh(&ar->htt.tx_lock);
-			ath10k_htt_tx_dec_pending(htt, is_mgmt);
+			ath10k_htt_tx_dec_pending(htt);
+			if (is_mgmt)
+				ath10k_htt_tx_mgmt_dec_pending(htt);
 			spin_unlock_bh(&ar->htt.tx_lock);
 		}
 		return;

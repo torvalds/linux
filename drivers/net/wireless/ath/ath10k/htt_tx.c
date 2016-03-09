@@ -149,44 +149,56 @@ void ath10k_htt_tx_txq_update(struct ieee80211_hw *hw,
 	spin_unlock_bh(&ar->htt.tx_lock);
 }
 
-void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt,
-			       bool is_mgmt)
+void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt)
 {
 	lockdep_assert_held(&htt->tx_lock);
-
-	if (is_mgmt)
-		htt->num_pending_mgmt_tx--;
 
 	htt->num_pending_tx--;
 	if (htt->num_pending_tx == htt->max_num_pending_tx - 1)
 		ath10k_mac_tx_unlock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 }
 
-int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt,
-			      bool is_mgmt,
-			      bool is_presp)
+int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt)
 {
-	struct ath10k *ar = htt->ar;
-
 	lockdep_assert_held(&htt->tx_lock);
 
 	if (htt->num_pending_tx >= htt->max_num_pending_tx)
 		return -EBUSY;
-
-	if (is_mgmt &&
-	    is_presp &&
-	    ar->hw_params.max_probe_resp_desc_thres &&
-	    ar->hw_params.max_probe_resp_desc_thres < htt->num_pending_mgmt_tx)
-		return -EBUSY;
-
-	if (is_mgmt)
-		htt->num_pending_mgmt_tx++;
 
 	htt->num_pending_tx++;
 	if (htt->num_pending_tx == htt->max_num_pending_tx)
 		ath10k_mac_tx_lock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 
 	return 0;
+}
+
+int ath10k_htt_tx_mgmt_inc_pending(struct ath10k_htt *htt, bool is_mgmt,
+				   bool is_presp)
+{
+	struct ath10k *ar = htt->ar;
+
+	lockdep_assert_held(&htt->tx_lock);
+
+	if (!is_mgmt || !ar->hw_params.max_probe_resp_desc_thres)
+		return 0;
+
+	if (is_presp &&
+	    ar->hw_params.max_probe_resp_desc_thres < htt->num_pending_mgmt_tx)
+		return -EBUSY;
+
+	htt->num_pending_mgmt_tx++;
+
+	return 0;
+}
+
+void ath10k_htt_tx_mgmt_dec_pending(struct ath10k_htt *htt)
+{
+	lockdep_assert_held(&htt->tx_lock);
+
+	if (!htt->ar->hw_params.max_probe_resp_desc_thres)
+		return;
+
+	htt->num_pending_mgmt_tx--;
 }
 
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)

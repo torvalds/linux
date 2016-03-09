@@ -2354,7 +2354,12 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 			break;
 		}
 
-		ath10k_txrx_tx_unref(htt, &tx_done);
+		status = ath10k_txrx_tx_unref(htt, &tx_done);
+		if (!status) {
+			spin_lock_bh(&htt->tx_lock);
+			ath10k_htt_tx_mgmt_dec_pending(htt);
+			spin_unlock_bh(&htt->tx_lock);
+		}
 		ath10k_mac_tx_push_pending(ar);
 		break;
 	}
