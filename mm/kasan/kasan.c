@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kmemleak.h>
+#include <linux/linkage.h>
 #include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/mm.h>
@@ -60,6 +61,25 @@ void kasan_unpoison_shadow(const void *address, size_t size)
 	}
 }
 
+static void __kasan_unpoison_stack(struct task_struct *task, void *sp)
+{
+	void *base = task_stack_page(task);
+	size_t size = sp - base;
+
+	kasan_unpoison_shadow(base, size);
+}
+
+/* Unpoison the entire stack for a task. */
+void kasan_unpoison_task_stack(struct task_struct *task)
+{
+	__kasan_unpoison_stack(task, task_stack_page(task) + THREAD_SIZE);
+}
+
+/* Unpoison the stack for the current task beyond a watermark sp value. */
+asmlinkage void kasan_unpoison_remaining_stack(void *sp)
+{
+	__kasan_unpoison_stack(current, sp);
+}
 
 /*
  * All functions below always inlined so compiler could
