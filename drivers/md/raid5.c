@@ -4239,7 +4239,6 @@ static void break_stripe_batch_list(struct stripe_head *head_sh,
 		WARN_ON_ONCE(sh->state & ((1 << STRIPE_ACTIVE) |
 					  (1 << STRIPE_SYNCING) |
 					  (1 << STRIPE_REPLACED) |
-					  (1 << STRIPE_PREREAD_ACTIVE) |
 					  (1 << STRIPE_DELAYED) |
 					  (1 << STRIPE_BIT_DELAY) |
 					  (1 << STRIPE_FULL_WRITE) |
@@ -4254,6 +4253,7 @@ static void break_stripe_batch_list(struct stripe_head *head_sh,
 					      (1 << STRIPE_REPLACED)));
 
 		set_mask_bits(&sh->state, ~(STRIPE_EXPAND_SYNC_FLAGS |
+					    (1 << STRIPE_PREREAD_ACTIVE) |
 					    (1 << STRIPE_DEGRADED)),
 			      head_sh->state & (1 << STRIPE_INSYNC));
 
