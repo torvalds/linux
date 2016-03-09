@@ -249,8 +249,6 @@ static int decode_instructions(struct objtool_file *file)
 	struct instruction *insn;
 	int ret;
 
-	INIT_LIST_HEAD(&file->insns);
-
 	list_for_each_entry(sec, &file->elf->sections, list) {
 
 		if (!(sec->sh.sh_flags & SHF_EXECINSTR))
