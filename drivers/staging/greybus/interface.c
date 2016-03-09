@@ -138,36 +138,6 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 }
 
 /*
- * Tear down a previously set up interface.
- */
-void gb_interface_remove(struct gb_interface *intf)
-{
-	struct gb_bundle *bundle;
-	struct gb_bundle *next;
-
-	/*
-	 * Disable the control-connection early to avoid operation timeouts
-	 * when the interface is already gone.
-	 */
-	if (intf->disconnected)
-		gb_control_disable(intf->control);
-
-	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
-		gb_bundle_destroy(bundle);
-
-	if (device_is_registered(&intf->dev)) {
-		device_del(&intf->dev);
-		dev_info(&intf->dev, "Interface removed\n");
-	}
-
-	gb_control_disable(intf->control);
-
-	list_del(&intf->links);
-
-	put_device(&intf->dev);
-}
-
-/*
  * Enable an interface by enabling its control connection and fetching the
  * manifest and other information over it.
  */
@@ -241,6 +211,25 @@ err_disable_control:
 	return ret;
 }
 
+/* Disable an interface and destroy its bundles. */
+void gb_interface_disable(struct gb_interface *intf)
+{
+	struct gb_bundle *bundle;
+	struct gb_bundle *next;
+
+	/*
+	 * Disable the control-connection early to avoid operation timeouts
+	 * when the interface is already gone.
+	 */
+	if (intf->disconnected)
+		gb_control_disable(intf->control);
+
+	list_for_each_entry_safe(bundle, next, &intf->bundles, links)
+		gb_bundle_destroy(bundle);
+
+	gb_control_disable(intf->control);
+}
+
 /* Register an interface and its bundles. */
 int gb_interface_add(struct gb_interface *intf)
 {
@@ -267,4 +256,17 @@ int gb_interface_add(struct gb_interface *intf)
 	}
 
 	return 0;
+}
+
+/* Deregister an interface and drop its reference. */
+void gb_interface_remove(struct gb_interface *intf)
+{
+	if (device_is_registered(&intf->dev)) {
+		device_del(&intf->dev);
+		dev_info(&intf->dev, "Interface removed\n");
+	}
+
+	list_del(&intf->links);
+
+	put_device(&intf->dev);
 }

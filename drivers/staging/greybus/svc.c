@@ -533,12 +533,9 @@ static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 {
 	intf->disconnected = true;
 
-	get_device(&intf->dev);
-
-	gb_interface_remove(intf);
+	gb_interface_disable(intf);
 	gb_svc_interface_route_destroy(svc, intf);
-
-	put_device(&intf->dev);
+	gb_interface_remove(intf);
 }
 
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
@@ -1001,8 +998,10 @@ static void gb_svc_remove_interfaces(struct gb_svc *svc)
 {
 	struct gb_interface *intf, *tmp;
 
-	list_for_each_entry_safe(intf, tmp, &svc->hd->interfaces, links)
+	list_for_each_entry_safe(intf, tmp, &svc->hd->interfaces, links) {
+		gb_interface_disable(intf);
 		gb_interface_remove(intf);
+	}
 }
 
 void gb_svc_del(struct gb_svc *svc)
