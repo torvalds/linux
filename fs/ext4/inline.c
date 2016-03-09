@@ -581,9 +581,10 @@ retry:
 	if (ret)
 		goto out;
 
-	if (ext4_should_dioread_nolock(inode))
-		ret = __block_write_begin(page, from, to, ext4_get_block_write);
-	else
+	if (ext4_should_dioread_nolock(inode)) {
+		ret = __block_write_begin(page, from, to,
+					  ext4_get_block_unwritten);
+	} else
 		ret = __block_write_begin(page, from, to, ext4_get_block);
 
 	if (!ret && ext4_should_journal_data(inode)) {

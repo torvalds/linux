@@ -693,21 +693,21 @@ retry:
 		}
 		if (IS_DAX(inode))
 			ret = dax_do_io(iocb, inode, iter, offset,
-					ext4_get_block, NULL, 0);
+					ext4_dio_get_block, NULL, 0);
 		else
 			ret = __blockdev_direct_IO(iocb, inode,
 						   inode->i_sb->s_bdev, iter,
-						   offset, ext4_get_block, NULL,
-						   NULL, 0);
+						   offset, ext4_dio_get_block,
+						   NULL, NULL, 0);
 		inode_dio_end(inode);
 	} else {
 locked:
 		if (IS_DAX(inode))
 			ret = dax_do_io(iocb, inode, iter, offset,
-					ext4_get_block, NULL, DIO_LOCKING);
+					ext4_dio_get_block, NULL, DIO_LOCKING);
 		else
 			ret = blockdev_direct_IO(iocb, inode, iter, offset,
-						 ext4_get_block);
+						 ext4_dio_get_block);
 
 		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 			loff_t isize = i_size_read(inode);

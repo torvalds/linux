@@ -769,6 +769,60 @@ int ext4_get_block(struct inode *inode, sector_t iblock,
 }
 
 /*
+ * Get block function used when preparing for buffered write if we require
+ * creating an unwritten extent if blocks haven't been allocated.  The extent
+ * will be converted to written after the IO is complete.
+ */
+int ext4_get_block_unwritten(struct inode *inode, sector_t iblock,
+			     struct buffer_head *bh_result, int create)
+{
+	ext4_debug("ext4_get_block_unwritten: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
+	return _ext4_get_block(inode, iblock, bh_result,
+			       EXT4_GET_BLOCKS_IO_CREATE_EXT);
+}
+
+/* Get block function for DIO reads and writes to inodes without extents */
+int ext4_dio_get_block(struct inode *inode, sector_t iblock,
+		       struct buffer_head *bh, int create)
+{
+	return _ext4_get_block(inode, iblock, bh,
+			       create ? EXT4_GET_BLOCKS_CREATE : 0);
+}
+
+/*
+ * Get block function for DIO writes when we create unwritten extent if
+ * blocks are not allocated yet. The extent will be converted to written
+ * after IO is complete.
+ */
+static int ext4_dio_get_block_unwritten(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
+{
+	ext4_debug("ext4_dio_get_block_unwritten: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
+	return _ext4_get_block(inode, iblock, bh_result,
+			       EXT4_GET_BLOCKS_IO_CREATE_EXT);
+}
+
+static int ext4_dio_get_block_overwrite(struct inode *inode, sector_t iblock,
+		   struct buffer_head *bh_result, int create)
+{
+	int ret;
+
+	ext4_debug("ext4_dio_get_block_overwrite: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
+	ret = _ext4_get_block(inode, iblock, bh_result, 0);
+	/*
+	 * Blocks should have been preallocated! ext4_file_write_iter() checks
+	 * that.
+	 */
+	WARN_ON_ONCE(!buffer_mapped(bh_result));
+
+	return ret;
+}
+
+
+/*
  * `handle' can be NULL if create is zero
  */
 struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
@@ -1079,13 +1133,14 @@ retry_journal:
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	if (ext4_should_dioread_nolock(inode))
 		ret = ext4_block_write_begin(page, pos, len,
-					     ext4_get_block_write);
+					     ext4_get_block_unwritten);
 	else
 		ret = ext4_block_write_begin(page, pos, len,
 					     ext4_get_block);
 #else
 	if (ext4_should_dioread_nolock(inode))
-		ret = __block_write_begin(page, pos, len, ext4_get_block_write);
+		ret = __block_write_begin(page, pos, len,
+					  ext4_get_block_unwritten);
 	else
 		ret = __block_write_begin(page, pos, len, ext4_get_block);
 #endif
@@ -3084,37 +3139,6 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
 		return try_to_free_buffers(page);
 }
 
-/*
- * ext4_get_block used when preparing for a DIO write or buffer write.
- * We allocate an uinitialized extent if blocks haven't been allocated.
- * The extent will be converted to initialized after the IO is complete.
- */
-int ext4_get_block_write(struct inode *inode, sector_t iblock,
-		   struct buffer_head *bh_result, int create)
-{
-	ext4_debug("ext4_get_block_write: inode %lu, create flag %d\n",
-		   inode->i_ino, create);
-	return _ext4_get_block(inode, iblock, bh_result,
-			       EXT4_GET_BLOCKS_IO_CREATE_EXT);
-}
-
-static int ext4_get_block_overwrite(struct inode *inode, sector_t iblock,
-		   struct buffer_head *bh_result, int create)
-{
-	int ret;
-
-	ext4_debug("ext4_get_block_overwrite: inode %lu, create flag %d\n",
-		   inode->i_ino, create);
-	ret = _ext4_get_block(inode, iblock, bh_result, 0);
-	/*
-	 * Blocks should have been preallocated! ext4_file_write_iter() checks
-	 * that.
-	 */
-	WARN_ON_ONCE(!buffer_mapped(bh_result));
-
-	return ret;
-}
-
 #ifdef CONFIG_FS_DAX
 int ext4_dax_mmap_get_block(struct inode *inode, sector_t iblock,
 			    struct buffer_head *bh_result, int create)
@@ -3282,7 +3306,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 	 */
 	iocb->private = NULL;
 	if (overwrite) {
-		get_block_func = ext4_get_block_overwrite;
+		get_block_func = ext4_dio_get_block_overwrite;
 	} else {
 		ext4_inode_aio_set(inode, NULL);
 		if (!is_sync_kiocb(iocb)) {
@@ -3304,7 +3328,7 @@ static ssize_t ext4_ext_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
 			 */
 			ext4_inode_aio_set(inode, io_end);
 		}
-		get_block_func = ext4_get_block_write;
+		get_block_func = ext4_dio_get_block_unwritten;
 		dio_flags = DIO_LOCKING;
 	}
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
@@ -5498,7 +5522,7 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unlock_page(page);
 	/* OK, we need to fill the hole... */
 	if (ext4_should_dioread_nolock(inode))
-		get_block = ext4_get_block_write;
+		get_block = ext4_get_block_unwritten;
 	else
 		get_block = ext4_get_block;
 retry_alloc:
