@@ -596,19 +596,6 @@ struct intel_mmio_flip {
 	unsigned int rotation;
 };
 
-/*
- * Tracking of operations that need to be performed at the beginning/end of an
- * atomic commit, outside the atomic section where interrupts are disabled.
- * These are generally operations that grab mutexes or might otherwise sleep
- * and thus can't be run with interrupts disabled.
- */
-struct intel_crtc_atomic_commit {
-	/* Sleepable operations to perform before commit */
-
-	/* Sleepable operations to perform after commit */
-	bool update_fbc;
-};
-
 struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
@@ -668,8 +655,6 @@ struct intel_crtc {
 		int min_vbl, max_vbl;
 		int scanline_start;
 	} debug;
-
-	struct intel_crtc_atomic_commit atomic;
 
 	/* scalers available on this crtc */
 	int num_scalers;
