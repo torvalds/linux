@@ -800,7 +800,7 @@ static int validate_branch(struct objtool_file *file,
 	struct instruction *insn;
 	struct section *sec;
 	unsigned char state;
-	int ret, warnings = 0;
+	int ret;
 
 	insn = first;
 	sec = insn->sec;
@@ -809,7 +809,7 @@ static int validate_branch(struct objtool_file *file,
 	if (insn->alt_group && list_empty(&insn->alts)) {
 		WARN_FUNC("don't know how to handle branch to middle of alternative instruction group",
 			  sec, insn->offset);
-		warnings++;
+		return 1;
 	}
 
 	while (1) {
@@ -817,10 +817,10 @@ static int validate_branch(struct objtool_file *file,
 			if (frame_state(insn->state) != frame_state(state)) {
 				WARN_FUNC("frame pointer state mismatch",
 					  sec, insn->offset);
-				warnings++;
+				return 1;
 			}
 
-			return warnings;
+			return 0;
 		}
 
 		/*
@@ -828,14 +828,15 @@ static int validate_branch(struct objtool_file *file,
 		 * the next function.
 		 */
 		if (is_fentry_call(insn) && (state & STATE_FENTRY))
-			return warnings;
+			return 0;
 
 		insn->visited = true;
 		insn->state = state;
 
 		list_for_each_entry(alt, &insn->alts, list) {
 			ret = validate_branch(file, alt->insn, state);
-			warnings += ret;
+			if (ret)
+				return 1;
 		}
 
 		switch (insn->type) {
@@ -845,7 +846,7 @@ static int validate_branch(struct objtool_file *file,
 				if (state & STATE_FP_SAVED) {
 					WARN_FUNC("duplicate frame pointer save",
 						  sec, insn->offset);
-					warnings++;
+					return 1;
 				}
 				state |= STATE_FP_SAVED;
 			}
@@ -856,7 +857,7 @@ static int validate_branch(struct objtool_file *file,
 				if (state & STATE_FP_SETUP) {
 					WARN_FUNC("duplicate frame pointer setup",
 						  sec, insn->offset);
-					warnings++;
+					return 1;
 				}
 				state |= STATE_FP_SETUP;
 			}
@@ -875,9 +876,9 @@ static int validate_branch(struct objtool_file *file,
 			if (!nofp && has_modified_stack_frame(insn)) {
 				WARN_FUNC("return without frame pointer restore",
 					  sec, insn->offset);
-				warnings++;
+				return 1;
 			}
-			return warnings;
+			return 0;
 
 		case INSN_CALL:
 			if (is_fentry_call(insn)) {
@@ -887,16 +888,16 @@ static int validate_branch(struct objtool_file *file,
 
 			ret = dead_end_function(file, insn->call_dest);
 			if (ret == 1)
-				return warnings;
+				return 0;
 			if (ret == -1)
-				warnings++;
+				return 1;
 
 			/* fallthrough */
 		case INSN_CALL_DYNAMIC:
 			if (!nofp && !has_valid_stack_frame(insn)) {
 				WARN_FUNC("call without frame pointer save/setup",
 					  sec, insn->offset);
-				warnings++;
+				return 1;
 			}
 			break;
 
@@ -905,15 +906,16 @@ static int validate_branch(struct objtool_file *file,
 			if (insn->jump_dest) {
 				ret = validate_branch(file, insn->jump_dest,
 						      state);
-				warnings += ret;
+				if (ret)
+					return 1;
 			} else if (has_modified_stack_frame(insn)) {
 				WARN_FUNC("sibling call from callable instruction with changed frame pointer",
 					  sec, insn->offset);
-				warnings++;
+				return 1;
 			} /* else it's a sibling call */
 
 			if (insn->type == INSN_JUMP_UNCONDITIONAL)
-				return warnings;
+				return 0;
 
 			break;
 
@@ -922,13 +924,13 @@ static int validate_branch(struct objtool_file *file,
 			    has_modified_stack_frame(insn)) {
 				WARN_FUNC("sibling call from callable instruction with changed frame pointer",
 					  sec, insn->offset);
-				warnings++;
+				return 1;
 			}
 
-			return warnings;
+			return 0;
 
 		case INSN_BUG:
-			return warnings;
+			return 0;
 
 		default:
 			break;
@@ -937,12 +939,11 @@ static int validate_branch(struct objtool_file *file,
 		insn = next_insn_same_sec(file, insn);
 		if (!insn) {
 			WARN("%s: unexpected end of section", sec->name);
-			warnings++;
-			return warnings;
+			return 1;
 		}
 	}
 
-	return warnings;
+	return 0;
 }
 
 static bool is_gcov_insn(struct instruction *insn)
@@ -1055,7 +1056,8 @@ static int validate_functions(struct objtool_file *file)
 				if (insn->visited)
 					continue;
 
-				if (!ignore_unreachable_insn(func, insn)) {
+				if (!ignore_unreachable_insn(func, insn) &&
+				    !warnings) {
 					WARN_FUNC("function has unreachable instruction", insn->sec, insn->offset);
 					warnings++;
 				}
