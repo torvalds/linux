@@ -198,15 +198,20 @@ int gb_interface_init(struct gb_interface *intf)
 	size = gb_control_get_manifest_size_operation(intf);
 	if (size <= 0) {
 		dev_err(&intf->dev, "failed to get manifest size: %d\n", size);
+
 		if (size)
-			return size;
+			ret = size;
 		else
-			return -EINVAL;
+			ret =  -EINVAL;
+
+		goto err_disable_control;
 	}
 
 	manifest = kmalloc(size, GFP_KERNEL);
-	if (!manifest)
-		return -ENOMEM;
+	if (!manifest) {
+		ret = -ENOMEM;
+		goto err_disable_control;
+	}
 
 	/* Get manifest using control protocol on CPort */
 	ret = gb_control_get_manifest_operation(intf, manifest, size);
@@ -242,6 +247,8 @@ err_destroy_bundles:
 		gb_bundle_destroy(bundle);
 err_free_manifest:
 	kfree(manifest);
+err_disable_control:
+	gb_control_disable(intf->control);
 
 	return ret;
 }
