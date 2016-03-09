@@ -158,12 +158,16 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 
 		writel(HIWORD_UPDATE(alt_div, reg_data->div_core_mask,
 					      reg_data->div_core_shift) |
-		       HIWORD_UPDATE(1, 1, reg_data->mux_core_shift),
+		       HIWORD_UPDATE(reg_data->mux_core_alt,
+				     reg_data->mux_core_mask,
+				     reg_data->mux_core_shift),
 		       cpuclk->reg_base + reg_data->core_reg);
 	} else {
 		/* select alternate parent */
-		writel(HIWORD_UPDATE(1, 1, reg_data->mux_core_shift),
-			cpuclk->reg_base + reg_data->core_reg);
+		writel(HIWORD_UPDATE(reg_data->mux_core_alt,
+				     reg_data->mux_core_mask,
+				     reg_data->mux_core_shift),
+		       cpuclk->reg_base + reg_data->core_reg);
 	}
 
 	spin_unlock_irqrestore(cpuclk->lock, flags);
@@ -198,7 +202,9 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 
 	writel(HIWORD_UPDATE(0, reg_data->div_core_mask,
 				reg_data->div_core_shift) |
-	       HIWORD_UPDATE(0, 1, reg_data->mux_core_shift),
+	       HIWORD_UPDATE(reg_data->mux_core_main,
+				reg_data->mux_core_mask,
+				reg_data->mux_core_shift),
 	       cpuclk->reg_base + reg_data->core_reg);
 
 	if (ndata->old_rate > ndata->new_rate)
