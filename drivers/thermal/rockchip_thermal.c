@@ -786,8 +786,8 @@ rockchip_thermal_register_sensor(struct platform_device *pdev,
 
 	sensor->thermal = thermal;
 	sensor->id = id;
-	sensor->tzd = thermal_zone_of_sensor_register(&pdev->dev, id, sensor,
-						      &rockchip_of_thermal_ops);
+	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev, id,
+					sensor, &rockchip_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		error = PTR_ERR(sensor->tzd);
 		dev_err(&pdev->dev, "failed to register sensor %d: %d\n",
@@ -815,7 +815,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct resource *res;
 	int irq;
-	int i, j;
+	int i;
 	int error;
 
 	match = of_match_node(of_rockchip_thermal_match, np);
@@ -898,9 +898,6 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"failed to register sensor[%d] : error = %d\n",
 				i, error);
-			for (j = 0; j < i; j++)
-				thermal_zone_of_sensor_unregister(&pdev->dev,
-						thermal->sensors[j].tzd);
 			goto err_disable_pclk;
 		}
 	}
@@ -912,7 +909,7 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	if (error) {
 		dev_err(&pdev->dev,
 			"failed to request tsadc irq: %d\n", error);
-		goto err_unregister_sensor;
+		goto err_disable_pclk;
 	}
 
 	thermal->chip->control(thermal->regs, true);
@@ -923,11 +920,6 @@ static int rockchip_thermal_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, thermal);
 
 	return 0;
-
-err_unregister_sensor:
-	while (i--)
-		thermal_zone_of_sensor_unregister(&pdev->dev,
-						  thermal->sensors[i].tzd);
 
 err_disable_pclk:
 	clk_disable_unprepare(thermal->pclk);
@@ -946,7 +938,6 @@ static int rockchip_thermal_remove(struct platform_device *pdev)
 		struct rockchip_thermal_sensor *sensor = &thermal->sensors[i];
 
 		rockchip_thermal_toggle_sensor(sensor, false);
-		thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
 	}
 
 	thermal->chip->control(thermal->regs, false);
