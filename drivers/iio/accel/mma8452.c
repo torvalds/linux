@@ -917,7 +917,7 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 static void mma8452_transient_interrupt(struct iio_dev *indio_dev)
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
-	s64 ts = iio_get_time_ns();
+	s64 ts = iio_get_time_ns(indio_dev);
 	int src;
 
 	src = i2c_smbus_read_byte_data(data->client, data->chip_info->ev_src);
@@ -997,7 +997,7 @@ static irqreturn_t mma8452_trigger_handler(int irq, void *p)
 		goto done;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
-					   iio_get_time_ns());
+					   iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

@@ -788,7 +788,7 @@ static irqreturn_t max1363_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct max1363_state *st = iio_priv(indio_dev);
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 	unsigned long mask, loc;
 	u8 rx;
 	u8 tx[2] = { st->setupbyte,
@@ -1506,7 +1506,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (b_sent < 0)
 		goto done_free;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf,
+					   iio_get_time_ns(indio_dev));
 
 done_free:
 	kfree(rxbuf);

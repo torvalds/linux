@@ -774,7 +774,7 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret, val;
-	s64 last_timestamp = iio_get_time_ns();
+	s64 last_timestamp = iio_get_time_ns(indio_dev);
 
 	/*
 	 * Could lead if badly timed to an extra read of status reg,

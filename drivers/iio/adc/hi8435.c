@@ -400,7 +400,7 @@ static void hi8435_iio_push_event(struct iio_dev *idev, unsigned int val)
 			iio_push_event(idev,
 				       IIO_UNMOD_EVENT_CODE(IIO_VOLTAGE, i,
 						    IIO_EV_TYPE_THRESH, dir),
-				       iio_get_time_ns());
+				       iio_get_time_ns(idev));
 		}
 	}
 

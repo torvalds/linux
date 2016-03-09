@@ -451,7 +451,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	u8 t;
 
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 
 	lis3l02dq_spi_read_reg_8(indio_dev,
 				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,

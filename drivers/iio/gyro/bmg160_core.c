@@ -885,25 +885,25 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 
 	if (val & BMG160_ANY_MOTION_BIT_X)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_X,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_X,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 	if (val & BMG160_ANY_MOTION_BIT_Y)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_Y,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_Y,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 	if (val & BMG160_ANY_MOTION_BIT_Z)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_Z,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_Z,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 
 ack_intr_status:
 	if (!data->dready_trigger_on) {

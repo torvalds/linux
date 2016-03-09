@@ -107,7 +107,7 @@ irqreturn_t inv_mpu6050_irq_handler(int irq, void *p)
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	s64 timestamp;
 
-	timestamp = iio_get_time_ns();
+	timestamp = iio_get_time_ns(indio_dev);
 	kfifo_in_spinlocked(&st->timestamps, &timestamp, 1,
 			    &st->time_stamp_lock);
 

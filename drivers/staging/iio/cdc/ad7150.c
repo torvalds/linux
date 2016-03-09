@@ -493,7 +493,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	u8 int_status;
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(chip->client, AD7150_STATUS);

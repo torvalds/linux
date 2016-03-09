@@ -289,7 +289,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 irqreturn_t iio_pollfunc_store_time(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	pf->timestamp = iio_get_time_ns();
+	pf->timestamp = iio_get_time_ns(pf->indio_dev);
 	return IRQ_WAKE_THREAD;
 }
 EXPORT_SYMBOL(iio_pollfunc_store_time);

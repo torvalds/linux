@@ -62,7 +62,7 @@ irqreturn_t st_sensors_trigger_handler(int irq, void *p)
 	if (sdata->hw_irq_trigger)
 		timestamp = sdata->hw_timestamp;
 	else
-		timestamp = iio_get_time_ns();
+		timestamp = iio_get_time_ns(indio_dev);
 
 	len = st_sensors_get_buffer_element(indio_dev, sdata->buffer_data);
 	if (len < 0)

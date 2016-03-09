@@ -115,7 +115,7 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	u16 t_status, v_status;
 	u16 command;
 	int i;
-	s64 timestamp = iio_get_time_ns();
+	s64 timestamp = iio_get_time_ns(indio_dev);
 
 	if (ad7291_i2c_read(chip, AD7291_T_ALERT_STATUS, &t_status))
 		return IRQ_HANDLED;

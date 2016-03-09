@@ -238,7 +238,7 @@ static irqreturn_t lidar_trigger_handler(int irq, void *private)
 	ret = lidar_get_measurement(data, data->buffer);
 	if (!ret) {
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-						   iio_get_time_ns());
+						   iio_get_time_ns(indio_dev));
 	} else if (ret != -EINVAL) {
 		dev_err(&data->client->dev, "cannot read LIDAR measurement");
 	}

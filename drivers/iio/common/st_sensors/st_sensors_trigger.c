@@ -29,7 +29,7 @@ irqreturn_t st_sensors_irq_handler(int irq, void *p)
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	/* Get the time stamp as close in time as possible */
-	sdata->hw_timestamp = iio_get_time_ns();
+	sdata->hw_timestamp = iio_get_time_ns(indio_dev);
 	return IRQ_WAKE_THREAD;
 }
 

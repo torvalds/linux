@@ -829,7 +829,8 @@ static void ak8975_fill_buffer(struct iio_dev *indio_dev)
 	buff[1] = clamp_t(s16, le16_to_cpu(buff[1]), -def->range, def->range);
 	buff[2] = clamp_t(s16, le16_to_cpu(buff[2]), -def->range, def->range);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, buff, iio_get_time_ns());
+	iio_push_to_buffers_with_timestamp(indio_dev, buff,
+					   iio_get_time_ns(indio_dev));
 	return;
 
 unlock:
