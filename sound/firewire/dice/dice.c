@@ -13,12 +13,44 @@ MODULE_LICENSE("GPL v2");
 
 #define OUI_WEISS		0x001c6a
 #define OUI_LOUD		0x000ff2
+#define OUI_FOCUSRITE		0x00130e
+#define OUI_TCELECTRONIC	0x001486
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
 #define LOUD_CATEGORY_ID	0x10
 
 #define PROBE_DELAY_MS		(2 * MSEC_PER_SEC)
+
+/*
+ * Some models support several isochronous channels, while these streams are not
+ * always available. In this case, add the model name to this list.
+ */
+static bool force_two_pcm_support(struct fw_unit *unit)
+{
+	const char *const models[] = {
+		/* TC Electronic models. */
+		"StudioKonnekt48",
+		/* Focusrite models. */
+		"SAFFIRE_PRO_40",
+		"LIQUID_SAFFIRE_56",
+		"SAFFIRE_PRO_40_1",
+	};
+	char model[32];
+	unsigned int i;
+	int err;
+
+	err = fw_csr_string(unit->directory, CSR_MODEL, model, sizeof(model));
+	if (err < 0)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(models); i++) {
+		if (strcmp(models[i], model) == 0)
+			break;
+	}
+
+	return i < ARRAY_SIZE(models);
+}
 
 static int check_dice_category(struct fw_unit *unit)
 {
@@ -44,6 +76,12 @@ static int check_dice_category(struct fw_unit *unit)
 			break;
 		}
 	}
+
+	if (vendor == OUI_FOCUSRITE || vendor == OUI_TCELECTRONIC) {
+		if (force_two_pcm_support(unit))
+			return 0;
+	}
+
 	if (vendor == OUI_WEISS)
 		category = WEISS_CATEGORY_ID;
 	else if (vendor == OUI_LOUD)
@@ -149,6 +187,9 @@ static void do_registration(struct work_struct *work)
 			   &dice->card);
 	if (err < 0)
 		return;
+
+	if (force_two_pcm_support(dice->unit))
+		dice->force_two_pcms = true;
 
 	err = snd_dice_transaction_init(dice);
 	if (err < 0)
