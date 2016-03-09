@@ -1626,7 +1626,7 @@ try:
 		if (state & Xpr) {
 			void __iomem *scc_addr;
 			unsigned long ring;
-			int i;
+			unsigned int i;
 
 			/*
 			 * - the busy condition happens (sometimes);

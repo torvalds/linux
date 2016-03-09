@@ -81,6 +81,7 @@ struct pci_dn;
 #define EEH_PE_KEEP		(1 << 8)	/* Keep PE on hotplug	*/
 #define EEH_PE_CFG_RESTRICTED	(1 << 9)	/* Block config on error */
 #define EEH_PE_REMOVED		(1 << 10)	/* Removed permanently	*/
+#define EEH_PE_PRI_BUS		(1 << 11)	/* Cached primary bus   */
 
 struct eeh_pe {
 	int type;			/* PE type: PHB/Bus/Device	*/

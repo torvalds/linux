@@ -64,6 +64,11 @@ static int pp_sw_init(void *handle)
 	if (ret == 0)
 		ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 
+	if (ret)
+		printk("amdgpu: powerplay initialization failed\n");
+	else
+		printk("amdgpu: powerplay initialized\n");
+
 	return ret;
 }
 
@@ -397,8 +402,11 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 
 		data.requested_ui_label = power_state_convert(ps);
 		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
 	}
-	break;
+	case AMD_PP_EVENT_COMPLETE_INIT:
+		ret = pem_handle_event(pp_handle->eventmgr, event_id, &data);
+		break;
 	default:
 		break;
 	}

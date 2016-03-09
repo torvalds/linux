@@ -625,7 +625,7 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
 		return -EINVAL;
 	}
 
-	ret = vb2_core_dqbuf(q, b, nonblocking);
+	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
 
 	return ret;
 }

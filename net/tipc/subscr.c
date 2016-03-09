@@ -289,15 +289,15 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 				struct sockaddr_tipc *addr, void *usr_data,
 				void *buf, size_t len)
 {
-	struct tipc_subscriber *subscriber = usr_data;
+	struct tipc_subscriber *subscrb = usr_data;
 	struct tipc_subscription *sub = NULL;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	tipc_subscrp_create(net, (struct tipc_subscr *)buf, subscriber, &sub);
+	if (tipc_subscrp_create(net, (struct tipc_subscr *)buf, subscrb, &sub))
+		return tipc_conn_terminate(tn->topsrv, subscrb->conid);
+
 	if (sub)
 		tipc_nametbl_subscribe(sub);
-	else
-		tipc_conn_terminate(tn->topsrv, subscriber->conid);
 }
 
 /* Handle one request to establish a new subscriber */

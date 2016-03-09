@@ -217,13 +217,16 @@ static int nfit_test_cmd_set_config_data(struct nd_cmd_set_config_hdr *nd_cmd,
 	return rc;
 }
 
+#define NFIT_TEST_ARS_RECORDS 4
+
 static int nfit_test_cmd_ars_cap(struct nd_cmd_ars_cap *nd_cmd,
 		unsigned int buf_len)
 {
 	if (buf_len < sizeof(*nd_cmd))
 		return -EINVAL;
 
-	nd_cmd->max_ars_out = 256;
+	nd_cmd->max_ars_out = sizeof(struct nd_cmd_ars_status)
+		+ NFIT_TEST_ARS_RECORDS * sizeof(struct nd_ars_record);
 	nd_cmd->status = (ND_ARS_PERSISTENT | ND_ARS_VOLATILE) << 16;
 
 	return 0;
@@ -246,7 +249,8 @@ static int nfit_test_cmd_ars_status(struct nd_cmd_ars_status *nd_cmd,
 	if (buf_len < sizeof(*nd_cmd))
 		return -EINVAL;
 
-	nd_cmd->out_length = 256;
+	nd_cmd->out_length = sizeof(struct nd_cmd_ars_status);
+	/* TODO: emit error records */
 	nd_cmd->num_records = 0;
 	nd_cmd->address = 0;
 	nd_cmd->length = -1ULL;

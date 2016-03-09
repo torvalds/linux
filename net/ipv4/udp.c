@@ -499,6 +499,7 @@ static struct sock *udp4_lib_lookup2(struct net *net,
 	struct sock *sk, *result;
 	struct hlist_nulls_node *node;
 	int score, badness, matches = 0, reuseport = 0;
+	bool select_ok = true;
 	u32 hash = 0;
 
 begin:
@@ -512,14 +513,18 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				struct sock *sk2;
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, skb,
-							    sizeof(struct udphdr));
-				if (sk2) {
-					result = sk2;
-					goto found;
+				if (select_ok) {
+					struct sock *sk2;
+
+					sk2 = reuseport_select_sock(sk, hash, skb,
+							sizeof(struct udphdr));
+					if (sk2) {
+						result = sk2;
+						select_ok = false;
+						goto found;
+					}
 				}
 				matches = 1;
 			}
@@ -563,6 +568,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 	unsigned int hash2, slot2, slot = udp_hashfn(net, hnum, udptable->mask);
 	struct udp_hslot *hslot2, *hslot = &udptable->hash[slot];
 	int score, badness, matches = 0, reuseport = 0;
+	bool select_ok = true;
 	u32 hash = 0;
 
 	rcu_read_lock();
@@ -601,14 +607,18 @@ begin:
 			badness = score;
 			reuseport = sk->sk_reuseport;
 			if (reuseport) {
-				struct sock *sk2;
 				hash = udp_ehashfn(net, daddr, hnum,
 						   saddr, sport);
-				sk2 = reuseport_select_sock(sk, hash, skb,
+				if (select_ok) {
+					struct sock *sk2;
+
+					sk2 = reuseport_select_sock(sk, hash, skb,
 							sizeof(struct udphdr));
-				if (sk2) {
-					result = sk2;
-					goto found;
+					if (sk2) {
+						result = sk2;
+						select_ok = false;
+						goto found;
+					}
 				}
 				matches = 1;
 			}
@@ -1038,8 +1048,10 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (msg->msg_controllen) {
 		err = ip_cmsg_send(sock_net(sk), msg, &ipc,
 				   sk->sk_family == AF_INET6);
-		if (err)
+		if (unlikely(err)) {
+			kfree(ipc.opt);
 			return err;
+		}
 		if (ipc.opt)
 			free = 1;
 		connected = 0;

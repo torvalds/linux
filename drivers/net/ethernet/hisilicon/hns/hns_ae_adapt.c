@@ -675,8 +675,12 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 {
 	int ret;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	switch (loop) {
+	case MAC_INTERNALLOOP_PHY:
+		ret = 0;
+		break;
 	case MAC_INTERNALLOOP_SERDES:
 		ret = hns_mac_config_sds_loopback(vf_cb->mac_cb, en);
 		break;
@@ -686,6 +690,10 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	default:
 		ret = -EINVAL;
 	}
+
+	if (!ret)
+		hns_dsaf_set_inner_lb(mac_cb->dsaf_dev, mac_cb->mac_id, en);
+
 	return ret;
 }
 
@@ -847,6 +855,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 {
 	struct hnae_ae_dev *ae_dev = &dsaf_dev->ae_dev;
+	static atomic_t id = ATOMIC_INIT(-1);
 
 	switch (dsaf_dev->dsaf_ver) {
 	case AE_VERSION_1:
@@ -858,6 +867,9 @@ int hns_dsaf_ae_init(struct dsaf_device *dsaf_dev)
 	default:
 		break;
 	}
+
+	snprintf(ae_dev->name, AE_NAME_SIZE, "%s%d", DSAF_DEVICE_NAME,
+		 (int)atomic_inc_return(&id));
 	ae_dev->ops = &hns_dsaf_ops;
 	ae_dev->dev = dsaf_dev->dev;
 

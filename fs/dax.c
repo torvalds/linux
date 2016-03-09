@@ -58,16 +58,35 @@ static void dax_unmap_atomic(struct block_device *bdev,
 	blk_queue_exit(bdev->bd_queue);
 }
 
+struct page *read_dax_sector(struct block_device *bdev, sector_t n)
+{
+	struct page *page = alloc_pages(GFP_KERNEL, 0);
+	struct blk_dax_ctl dax = {
+		.size = PAGE_SIZE,
+		.sector = n & ~((((int) PAGE_SIZE) / 512) - 1),
+	};
+	long rc;
+
+	if (!page)
+		return ERR_PTR(-ENOMEM);
+
+	rc = dax_map_atomic(bdev, &dax);
+	if (rc < 0)
+		return ERR_PTR(rc);
+	memcpy_from_pmem(page_address(page), dax.addr, PAGE_SIZE);
+	dax_unmap_atomic(bdev, &dax);
+	return page;
+}
+
 /*
- * dax_clear_blocks() is called from within transaction context from XFS,
+ * dax_clear_sectors() is called from within transaction context from XFS,
  * and hence this means the stack from this point must follow GFP_NOFS
  * semantics for all operations.
  */
-int dax_clear_blocks(struct inode *inode, sector_t block, long _size)
+int dax_clear_sectors(struct block_device *bdev, sector_t _sector, long _size)
 {
-	struct block_device *bdev = inode->i_sb->s_bdev;
 	struct blk_dax_ctl dax = {
-		.sector = block << (inode->i_blkbits - 9),
+		.sector = _sector,
 		.size = _size,
 	};
 
@@ -89,7 +108,7 @@ int dax_clear_blocks(struct inode *inode, sector_t block, long _size)
 	wmb_pmem();
 	return 0;
 }
-EXPORT_SYMBOL_GPL(dax_clear_blocks);
+EXPORT_SYMBOL_GPL(dax_clear_sectors);
 
 /* the clear_pmem() calls are ordered by a wmb_pmem() in the caller */
 static void dax_new_buf(void __pmem *addr, unsigned size, unsigned first,
@@ -338,7 +357,8 @@ static int dax_radix_entry(struct address_space *mapping, pgoff_t index,
 	void *entry;
 
 	WARN_ON_ONCE(pmd_entry && !dirty);
-	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+	if (dirty)
+		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
 	spin_lock_irq(&mapping->tree_lock);
 
@@ -464,11 +484,10 @@ static int dax_writeback_one(struct block_device *bdev,
  * end]. This is required by data integrity operations to ensure file data is
  * on persistent storage prior to completion of the operation.
  */
-int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
-		loff_t end)
+int dax_writeback_mapping_range(struct address_space *mapping,
+		struct block_device *bdev, struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
-	struct block_device *bdev = inode->i_sb->s_bdev;
 	pgoff_t start_index, end_index, pmd_index;
 	pgoff_t indices[PAGEVEC_SIZE];
 	struct pagevec pvec;
@@ -479,8 +498,11 @@ int dax_writeback_mapping_range(struct address_space *mapping, loff_t start,
 	if (WARN_ON_ONCE(inode->i_blkbits != PAGE_SHIFT))
 		return -EIO;
 
-	start_index = start >> PAGE_CACHE_SHIFT;
-	end_index = end >> PAGE_CACHE_SHIFT;
+	if (!mapping->nrexceptional || wbc->sync_mode != WB_SYNC_ALL)
+		return 0;
+
+	start_index = wbc->range_start >> PAGE_CACHE_SHIFT;
+	end_index = wbc->range_end >> PAGE_CACHE_SHIFT;
 	pmd_index = DAX_PMD_INDEX(start_index);
 
 	rcu_read_lock();

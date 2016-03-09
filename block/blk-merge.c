@@ -70,6 +70,18 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
 }
 
+static inline unsigned get_max_io_size(struct request_queue *q,
+				       struct bio *bio)
+{
+	unsigned sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector);
+	unsigned mask = queue_logical_block_size(q) - 1;
+
+	/* aligned to logical block size */
+	sectors &= ~(mask >> 9);
+
+	return sectors;
+}
+
 static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio *bio,
 					 struct bio_set *bs,
@@ -81,6 +93,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	unsigned front_seg_size = bio->bi_seg_front_size;
 	bool do_split = true;
 	struct bio *new = NULL;
+	const unsigned max_sectors = get_max_io_size(q, bio);
 
 	bio_for_each_segment(bv, bio, iter) {
 		/*
@@ -90,20 +103,19 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
 
-		if (sectors + (bv.bv_len >> 9) >
-				blk_max_size_offset(q, bio->bi_iter.bi_sector)) {
+		if (sectors + (bv.bv_len >> 9) > max_sectors) {
 			/*
 			 * Consider this a new segment if we're splitting in
 			 * the middle of this vector.
 			 */
 			if (nsegs < queue_max_segments(q) &&
-			    sectors < blk_max_size_offset(q,
-						bio->bi_iter.bi_sector)) {
+			    sectors < max_sectors) {
 				nsegs++;
-				sectors = blk_max_size_offset(q,
-						bio->bi_iter.bi_sector);
+				sectors = max_sectors;
 			}
-			goto split;
+			if (sectors)
+				goto split;
+			/* Make this single bvec as the 1st segment */
 		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
@@ -292,7 +304,6 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
 {
 	struct bio_vec end_bv = { NULL }, nxt_bv;
-	struct bvec_iter iter;
 
 	if (!blk_queue_cluster(q))
 		return 0;
@@ -304,11 +315,8 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 	if (!bio_has_data(bio))
 		return 1;
 
-	bio_for_each_segment(end_bv, bio, iter)
-		if (end_bv.bv_len == iter.bi_size)
-			break;
-
-	nxt_bv = bio_iovec(nxt);
+	bio_get_last_bvec(bio, &end_bv);
+	bio_get_first_bvec(nxt, &nxt_bv);
 
 	if (!BIOVEC_PHYS_MERGEABLE(&end_bv, &nxt_bv))
 		return 0;

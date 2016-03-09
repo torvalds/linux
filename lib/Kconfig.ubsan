@@ -18,6 +18,8 @@ config UBSAN_SANITIZE_ALL
 	  This option activates instrumentation for the entire kernel.
 	  If you don't enable this option, you have to explicitly specify
 	  UBSAN_SANITIZE := y for the files/directories you want to check for UB.
+	  Enabling this option will get kernel image size increased
+	  significantly.
 
 config UBSAN_ALIGNMENT
 	bool "Enable checking of pointers alignment"
@@ -25,5 +27,5 @@ config UBSAN_ALIGNMENT
 	default y if !HAVE_EFFICIENT_UNALIGNED_ACCESS
 	help
 	  This option enables detection of unaligned memory accesses.
-	  Enabling this option on architectures that support unalligned
+	  Enabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.

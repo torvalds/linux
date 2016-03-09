@@ -179,6 +179,7 @@ obj-$(CONFIG_SH_WDT) += shwdt.o
 
 obj-$(CONFIG_WATCHDOG_RIO)		+= riowd.o
 obj-$(CONFIG_WATCHDOG_CP1XXX)		+= cpwd.o
+obj-$(CONFIG_WATCHDOG_SUN4V)		+= sun4v_wdt.o
 
 # XTENSA Architecture
 

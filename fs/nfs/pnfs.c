@@ -52,9 +52,7 @@ static DEFINE_SPINLOCK(pnfs_spinlock);
  */
 static LIST_HEAD(pnfs_modules_tbl);
 
-static int
-pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
-		       enum pnfs_iomode iomode, bool sync);
+static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo);
 
 /* Return the registered pnfs layout driver module matching given id */
 static struct pnfs_layoutdriver_type *
@@ -243,6 +241,8 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 {
 	struct inode *inode = lo->plh_inode;
 
+	pnfs_layoutreturn_before_put_layout_hdr(lo);
+
 	if (atomic_dec_and_lock(&lo->plh_refcount, &inode->i_lock)) {
 		if (!list_empty(&lo->plh_segs))
 			WARN_ONCE(1, "NFS: BUG unfreed layout segments.\n");
@@ -250,6 +250,27 @@ pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo)
 		spin_unlock(&inode->i_lock);
 		pnfs_free_layout_hdr(lo);
 	}
+}
+
+/*
+ * Mark a pnfs_layout_hdr and all associated layout segments as invalid
+ *
+ * In order to continue using the pnfs_layout_hdr, a full recovery
+ * is required.
+ * Note that caller must hold inode->i_lock.
+ */
+static int
+pnfs_mark_layout_stateid_invalid(struct pnfs_layout_hdr *lo,
+		struct list_head *lseg_list)
+{
+	struct pnfs_layout_range range = {
+		.iomode = IOMODE_ANY,
+		.offset = 0,
+		.length = NFS4_MAX_UINT64,
+	};
+
+	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+	return pnfs_mark_matching_lsegs_invalid(lo, lseg_list, &range);
 }
 
 static int
@@ -345,58 +366,6 @@ pnfs_layout_remove_lseg(struct pnfs_layout_hdr *lo,
 	rpc_wake_up(&NFS_SERVER(inode)->roc_rpcwaitq);
 }
 
-/* Return true if layoutreturn is needed */
-static bool
-pnfs_layout_need_return(struct pnfs_layout_hdr *lo,
-			struct pnfs_layout_segment *lseg)
-{
-	struct pnfs_layout_segment *s;
-
-	if (!test_and_clear_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags))
-		return false;
-
-	list_for_each_entry(s, &lo->plh_segs, pls_list)
-		if (s != lseg && test_bit(NFS_LSEG_LAYOUTRETURN, &s->pls_flags))
-			return false;
-
-	return true;
-}
-
-static bool
-pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
-{
-	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
-		return false;
-	lo->plh_return_iomode = 0;
-	pnfs_get_layout_hdr(lo);
-	clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE, &lo->plh_flags);
-	return true;
-}
-
-static void pnfs_layoutreturn_before_put_lseg(struct pnfs_layout_segment *lseg,
-		struct pnfs_layout_hdr *lo, struct inode *inode)
-{
-	lo = lseg->pls_layout;
-	inode = lo->plh_inode;
-
-	spin_lock(&inode->i_lock);
-	if (pnfs_layout_need_return(lo, lseg)) {
-		nfs4_stateid stateid;
-		enum pnfs_iomode iomode;
-		bool send;
-
-		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
-		iomode = lo->plh_return_iomode;
-		send = pnfs_prepare_layoutreturn(lo);
-		spin_unlock(&inode->i_lock);
-		if (send) {
-			/* Send an async layoutreturn so we dont deadlock */
-			pnfs_send_layoutreturn(lo, &stateid, iomode, false);
-		}
-	} else
-		spin_unlock(&inode->i_lock);
-}
-
 void
 pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 {
@@ -410,15 +379,8 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 		atomic_read(&lseg->pls_refcount),
 		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
 
-	/* Handle the case where refcount != 1 */
-	if (atomic_add_unless(&lseg->pls_refcount, -1, 1))
-		return;
-
 	lo = lseg->pls_layout;
 	inode = lo->plh_inode;
-	/* Do we need a layoutreturn? */
-	if (test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags))
-		pnfs_layoutreturn_before_put_lseg(lseg, lo, inode);
 
 	if (atomic_dec_and_lock(&lseg->pls_refcount, &inode->i_lock)) {
 		if (test_bit(NFS_LSEG_VALID, &lseg->pls_flags)) {
@@ -613,9 +575,8 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 	spin_lock(&nfsi->vfs_inode.i_lock);
 	lo = nfsi->layout;
 	if (lo) {
-		lo->plh_block_lgets++; /* permanently block new LAYOUTGETs */
-		pnfs_mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
 		pnfs_get_layout_hdr(lo);
+		pnfs_mark_layout_stateid_invalid(lo, &tmp_list);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RO_FAILED);
 		pnfs_layout_clear_fail_bit(lo, NFS_LAYOUT_RW_FAILED);
 		spin_unlock(&nfsi->vfs_inode.i_lock);
@@ -676,11 +637,6 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 {
 	struct pnfs_layout_hdr *lo;
 	struct inode *inode;
-	struct pnfs_layout_range range = {
-		.iomode = IOMODE_ANY,
-		.offset = 0,
-		.length = NFS4_MAX_UINT64,
-	};
 	LIST_HEAD(lseg_list);
 	int ret = 0;
 
@@ -695,11 +651,11 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 
 		spin_lock(&inode->i_lock);
 		list_del_init(&lo->plh_bulk_destroy);
-		lo->plh_block_lgets++; /* permanently block new LAYOUTGETs */
-		if (is_bulk_recall)
-			set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
-		if (pnfs_mark_matching_lsegs_invalid(lo, &lseg_list, &range))
+		if (pnfs_mark_layout_stateid_invalid(lo, &lseg_list)) {
+			if (is_bulk_recall)
+				set_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags);
 			ret = -EAGAIN;
+		}
 		spin_unlock(&inode->i_lock);
 		pnfs_free_lseg_list(&lseg_list);
 		/* Free all lsegs that are attached to commit buckets */
@@ -937,6 +893,17 @@ void pnfs_clear_layoutreturn_waitbit(struct pnfs_layout_hdr *lo)
 	rpc_wake_up(&NFS_SERVER(lo->plh_inode)->roc_rpcwaitq);
 }
 
+static bool
+pnfs_prepare_layoutreturn(struct pnfs_layout_hdr *lo)
+{
+	if (test_and_set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+		return false;
+	lo->plh_return_iomode = 0;
+	pnfs_get_layout_hdr(lo);
+	clear_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
+	return true;
+}
+
 static int
 pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 		       enum pnfs_iomode iomode, bool sync)
@@ -969,6 +936,48 @@ pnfs_send_layoutreturn(struct pnfs_layout_hdr *lo, const nfs4_stateid *stateid,
 out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
+}
+
+/* Return true if layoutreturn is needed */
+static bool
+pnfs_layout_need_return(struct pnfs_layout_hdr *lo)
+{
+	struct pnfs_layout_segment *s;
+
+	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
+		return false;
+
+	/* Defer layoutreturn until all lsegs are done */
+	list_for_each_entry(s, &lo->plh_segs, pls_list) {
+		if (test_bit(NFS_LSEG_LAYOUTRETURN, &s->pls_flags))
+			return false;
+	}
+
+	return true;
+}
+
+static void pnfs_layoutreturn_before_put_layout_hdr(struct pnfs_layout_hdr *lo)
+{
+	struct inode *inode= lo->plh_inode;
+
+	if (!test_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags))
+		return;
+	spin_lock(&inode->i_lock);
+	if (pnfs_layout_need_return(lo)) {
+		nfs4_stateid stateid;
+		enum pnfs_iomode iomode;
+		bool send;
+
+		nfs4_stateid_copy(&stateid, &lo->plh_stateid);
+		iomode = lo->plh_return_iomode;
+		send = pnfs_prepare_layoutreturn(lo);
+		spin_unlock(&inode->i_lock);
+		if (send) {
+			/* Send an async layoutreturn so we dont deadlock */
+			pnfs_send_layoutreturn(lo, &stateid, iomode, false);
+		}
+	} else
+		spin_unlock(&inode->i_lock);
 }
 
 /*
@@ -1091,7 +1100,7 @@ bool pnfs_roc(struct inode *ino)
 
 	nfs4_stateid_copy(&stateid, &lo->plh_stateid);
 	/* always send layoutreturn if being marked so */
-	if (test_and_clear_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
+	if (test_and_clear_bit(NFS_LAYOUT_RETURN_REQUESTED,
 				   &lo->plh_flags))
 		layoutreturn = pnfs_prepare_layoutreturn(lo);
 
@@ -1744,8 +1753,19 @@ pnfs_set_plh_return_iomode(struct pnfs_layout_hdr *lo, enum pnfs_iomode iomode)
 	if (lo->plh_return_iomode != 0)
 		iomode = IOMODE_ANY;
 	lo->plh_return_iomode = iomode;
+	set_bit(NFS_LAYOUT_RETURN_REQUESTED, &lo->plh_flags);
 }
 
+/**
+ * pnfs_mark_matching_lsegs_return - Free or return matching layout segments
+ * @lo: pointer to layout header
+ * @tmp_list: list header to be used with pnfs_free_lseg_list()
+ * @return_range: describe layout segment ranges to be returned
+ *
+ * This function is mainly intended for use by layoutrecall. It attempts
+ * to free the layout segment immediately, or else to mark it for return
+ * as soon as its reference count drops to zero.
+ */
 int
 pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				struct list_head *tmp_list,
@@ -1768,12 +1788,11 @@ pnfs_mark_matching_lsegs_return(struct pnfs_layout_hdr *lo,
 				lseg, lseg->pls_range.iomode,
 				lseg->pls_range.offset,
 				lseg->pls_range.length);
+			if (mark_lseg_invalid(lseg, tmp_list))
+				continue;
+			remaining++;
 			set_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags);
 			pnfs_set_plh_return_iomode(lo, return_range->iomode);
-			if (!mark_lseg_invalid(lseg, tmp_list))
-				remaining++;
-			set_bit(NFS_LAYOUT_RETURN_BEFORE_CLOSE,
-					&lo->plh_flags);
 		}
 	return remaining;
 }

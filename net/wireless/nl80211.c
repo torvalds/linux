@@ -7547,7 +7547,7 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 
 		if ((ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT) &&
 		    no_ht) {
-			kfree(connkeys);
+			kzfree(connkeys);
 			return -EINVAL;
 		}
 	}

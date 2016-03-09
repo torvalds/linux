@@ -66,7 +66,10 @@ struct its_node {
 	unsigned long		phys_base;
 	struct its_cmd_block	*cmd_base;
 	struct its_cmd_block	*cmd_write;
-	void			*tables[GITS_BASER_NR_REGS];
+	struct {
+		void		*base;
+		u32		order;
+	} tables[GITS_BASER_NR_REGS];
 	struct its_collection	*collections;
 	struct list_head	its_device_list;
 	u64			flags;
@@ -74,6 +77,9 @@ struct its_node {
 };
 
 #define ITS_ITT_ALIGN		SZ_256
+
+/* Convert page order to size in bytes */
+#define PAGE_ORDER_TO_SIZE(o)	(PAGE_SIZE << (o))
 
 struct event_lpi_map {
 	unsigned long		*lpi_map;
@@ -597,11 +603,6 @@ static void its_unmask_irq(struct irq_data *d)
 	lpi_set_config(d, true);
 }
 
-static void its_eoi_irq(struct irq_data *d)
-{
-	gic_write_eoir(d->hwirq);
-}
-
 static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
@@ -638,7 +639,7 @@ static struct irq_chip its_irq_chip = {
 	.name			= "ITS",
 	.irq_mask		= its_mask_irq,
 	.irq_unmask		= its_unmask_irq,
-	.irq_eoi		= its_eoi_irq,
+	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_set_affinity,
 	.irq_compose_msi_msg	= its_irq_compose_msi_msg,
 };
@@ -807,9 +808,10 @@ static void its_free_tables(struct its_node *its)
 	int i;
 
 	for (i = 0; i < GITS_BASER_NR_REGS; i++) {
-		if (its->tables[i]) {
-			free_page((unsigned long)its->tables[i]);
-			its->tables[i] = NULL;
+		if (its->tables[i].base) {
+			free_pages((unsigned long)its->tables[i].base,
+				   its->tables[i].order);
+			its->tables[i].base = NULL;
 		}
 	}
 }
@@ -842,7 +844,6 @@ static int its_alloc_tables(const char *node_name, struct its_node *its)
 		u64 type = GITS_BASER_TYPE(val);
 		u64 entry_size = GITS_BASER_ENTRY_SIZE(val);
 		int order = get_order(psz);
-		int alloc_size;
 		int alloc_pages;
 		u64 tmp;
 		void *base;
@@ -874,8 +875,8 @@ static int its_alloc_tables(const char *node_name, struct its_node *its)
 			}
 		}
 
-		alloc_size = (1 << order) * PAGE_SIZE;
-		alloc_pages = (alloc_size / psz);
+retry_alloc_baser:
+		alloc_pages = (PAGE_ORDER_TO_SIZE(order) / psz);
 		if (alloc_pages > GITS_BASER_PAGES_MAX) {
 			alloc_pages = GITS_BASER_PAGES_MAX;
 			order = get_order(GITS_BASER_PAGES_MAX * psz);
@@ -889,7 +890,8 @@ static int its_alloc_tables(const char *node_name, struct its_node *its)
 			goto out_free;
 		}
 
-		its->tables[i] = base;
+		its->tables[i].base = base;
+		its->tables[i].order = order;
 
 retry_baser:
 		val = (virt_to_phys(base) 				 |
@@ -927,7 +929,7 @@ retry_baser:
 			shr = tmp & GITS_BASER_SHAREABILITY_MASK;
 			if (!shr) {
 				cache = GITS_BASER_nC;
-				__flush_dcache_area(base, alloc_size);
+				__flush_dcache_area(base, PAGE_ORDER_TO_SIZE(order));
 			}
 			goto retry_baser;
 		}
@@ -938,13 +940,16 @@ retry_baser:
 			 * size and retry. If we reach 4K, then
 			 * something is horribly wrong...
 			 */
+			free_pages((unsigned long)base, order);
+			its->tables[i].base = NULL;
+
 			switch (psz) {
 			case SZ_16K:
 				psz = SZ_4K;
-				goto retry_baser;
+				goto retry_alloc_baser;
 			case SZ_64K:
 				psz = SZ_16K;
-				goto retry_baser;
+				goto retry_alloc_baser;
 			}
 		}
 
@@ -957,7 +962,7 @@ retry_baser:
 		}
 
 		pr_info("ITS: allocated %d %s @%lx (psz %dK, shr %d)\n",
-			(int)(alloc_size / entry_size),
+			(int)(PAGE_ORDER_TO_SIZE(order) / entry_size),
 			its_base_type_string[type],
 			(unsigned long)virt_to_phys(base),
 			psz / SZ_1K, (int)shr >> GITS_BASER_SHAREABILITY_SHIFT);

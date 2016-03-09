@@ -61,6 +61,7 @@
 #include "vi.h"
 #include "vi_dpm.h"
 #include "gmc_v8_0.h"
+#include "gmc_v7_0.h"
 #include "gfx_v8_0.h"
 #include "sdma_v2_4.h"
 #include "sdma_v3_0.h"
@@ -1109,10 +1110,10 @@ static const struct amdgpu_ip_block_version topaz_ip_blocks[] =
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_GMC,
-		.major = 8,
-		.minor = 0,
+		.major = 7,
+		.minor = 4,
 		.rev = 0,
-		.funcs = &gmc_v8_0_ip_funcs,
+		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
 		.type = AMD_IP_BLOCK_TYPE_IH,
@@ -1442,8 +1443,7 @@ static int vi_common_early_init(void *handle)
 		break;
 	case CHIP_FIJI:
 		adev->has_uvd = true;
-		adev->cg_flags = AMDGPU_CG_SUPPORT_UVD_MGCG |
-				AMDGPU_CG_SUPPORT_VCE_MGCG;
+		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
@@ -1457,8 +1457,7 @@ static int vi_common_early_init(void *handle)
 	case CHIP_STONEY:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
-		/* Disable UVD pg */
-		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
+		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:

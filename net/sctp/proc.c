@@ -165,8 +165,6 @@ static void sctp_seq_dump_remote_addrs(struct seq_file *seq, struct sctp_associa
 	list_for_each_entry_rcu(transport, &assoc->peer.transport_addr_list,
 			transports) {
 		addr = &transport->ipaddr;
-		if (transport->dead)
-			continue;
 
 		af = sctp_get_af_specific(addr->sa.sa_family);
 		if (af->cmp_addr(addr, primary)) {
@@ -380,6 +378,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	}
 
 	transport = (struct sctp_transport *)v;
+	if (!sctp_transport_hold(transport))
+		return 0;
 	assoc = transport->asoc;
 	epb = &assoc->base;
 	sk = epb->sk;
@@ -411,6 +411,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 		sk->sk_sndbuf,
 		sk->sk_rcvbuf);
 	seq_printf(seq, "\n");
+
+	sctp_transport_put(transport);
 
 	return 0;
 }
@@ -480,7 +482,7 @@ static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 {
 	struct sctp_association *assoc;
-	struct sctp_transport *tsp;
+	struct sctp_transport *transport, *tsp;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "ADDR ASSOC_ID HB_ACT RTO MAX_PATH_RTX "
@@ -488,13 +490,13 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	tsp = (struct sctp_transport *)v;
-	assoc = tsp->asoc;
+	transport = (struct sctp_transport *)v;
+	if (!sctp_transport_hold(transport))
+		return 0;
+	assoc = transport->asoc;
 
 	list_for_each_entry_rcu(tsp, &assoc->peer.transport_addr_list,
 				transports) {
-		if (tsp->dead)
-			continue;
 		/*
 		 * The remote address (ADDR)
 		 */
@@ -543,6 +545,8 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "\n");
 	}
+
+	sctp_transport_put(transport);
 
 	return 0;
 }

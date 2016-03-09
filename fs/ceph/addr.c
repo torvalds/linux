@@ -1756,6 +1756,10 @@ int ceph_pool_perm_check(struct ceph_inode_info *ci, int need)
 	u32 pool;
 	int ret, flags;
 
+	/* does not support pool namespace yet */
+	if (ci->i_pool_ns_len)
+		return -EIO;
+
 	if (ceph_test_mount_opt(ceph_inode_to_client(&ci->vfs_inode),
 				NOPOOLPERM))
 		return 0;

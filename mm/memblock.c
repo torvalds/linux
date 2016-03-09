@@ -1448,7 +1448,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
  * Remaining API functions
  */
 
-phys_addr_t __init memblock_phys_mem_size(void)
+phys_addr_t __init_memblock memblock_phys_mem_size(void)
 {
 	return memblock.memory.total_size;
 }
