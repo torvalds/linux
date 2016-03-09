@@ -1750,8 +1750,9 @@ static void __d_instantiate(struct dentry *dentry, struct inode *inode)
 	raw_write_seqcount_begin(&dentry->d_seq);
 	__d_set_inode_and_type(dentry, inode, add_flags);
 	raw_write_seqcount_end(&dentry->d_seq);
+	if (inode)
+		__fsnotify_d_instantiate(dentry);
 	spin_unlock(&dentry->d_lock);
-	fsnotify_d_instantiate(dentry, inode);
 }
 
 /**
