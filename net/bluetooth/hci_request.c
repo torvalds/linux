@@ -866,6 +866,9 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING_CONNECTABLE))
 			flags |= MGMT_ADV_FLAG_CONNECTABLE;
 
+		if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
+			flags |= MGMT_ADV_FLAG_DISCOV;
+
 		return flags;
 	}
 
