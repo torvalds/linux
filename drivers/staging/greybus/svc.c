@@ -131,6 +131,7 @@ EXPORT_SYMBOL_GPL(gb_svc_intf_reset);
 int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id)
 {
 	struct gb_svc_intf_eject_request request;
+	int ret;
 
 	request.intf_id = intf_id;
 
@@ -138,10 +139,16 @@ int gb_svc_intf_eject(struct gb_svc *svc, u8 intf_id)
 	 * The pulse width for module release in svc is long so we need to
 	 * increase the timeout so the operation will not return to soon.
 	 */
-	return gb_operation_sync_timeout(svc->connection,
-					 GB_SVC_TYPE_INTF_EJECT, &request,
-					 sizeof(request), NULL, 0,
-					 GB_SVC_EJECT_TIME);
+	ret = gb_operation_sync_timeout(svc->connection,
+					GB_SVC_TYPE_INTF_EJECT, &request,
+					sizeof(request), NULL, 0,
+					GB_SVC_EJECT_TIME);
+	if (ret) {
+		dev_err(&svc->dev, "failed to eject interface %u\n", intf_id);
+		return ret;
+	}
+
+	return 0;
 }
 
 int gb_svc_dme_peer_get(struct gb_svc *svc, u8 intf_id, u16 attr, u16 selector,
