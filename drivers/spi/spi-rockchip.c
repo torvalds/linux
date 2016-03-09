@@ -322,12 +322,12 @@ static void rockchip_spi_handle_err(struct spi_master *master,
 	 */
 	if (rs->use_dma) {
 		if (rs->state & RXBUSY) {
-			dmaengine_terminate_all(rs->dma_rx.ch);
+			dmaengine_terminate_async(rs->dma_rx.ch);
 			flush_fifo(rs);
 		}
 
 		if (rs->state & TXBUSY)
-			dmaengine_terminate_all(rs->dma_tx.ch);
+			dmaengine_terminate_async(rs->dma_tx.ch);
 	}
 
 	spin_unlock_irqrestore(&rs->lock, flags);
