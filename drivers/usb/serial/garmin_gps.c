@@ -237,10 +237,10 @@ static inline int getDataLength(const __u8 *usbPacket)
  */
 static inline int isAbortTrfCmnd(const unsigned char *buf)
 {
-	if (0 == memcmp(buf, GARMIN_STOP_TRANSFER_REQ,
-					sizeof(GARMIN_STOP_TRANSFER_REQ)) ||
-	    0 == memcmp(buf, GARMIN_STOP_TRANSFER_REQ_V2,
-					sizeof(GARMIN_STOP_TRANSFER_REQ_V2)))
+	if (memcmp(buf, GARMIN_STOP_TRANSFER_REQ,
+			sizeof(GARMIN_STOP_TRANSFER_REQ)) == 0 ||
+	    memcmp(buf, GARMIN_STOP_TRANSFER_REQ_V2,
+			sizeof(GARMIN_STOP_TRANSFER_REQ_V2)) == 0)
 		return 1;
 	else
 		return 0;
@@ -350,7 +350,7 @@ static int gsp_send_ack(struct garmin_data *garmin_data_p, __u8 pkt_id)
 	unsigned  l = 0;
 
 	dev_dbg(&garmin_data_p->port->dev, "%s - pkt-id: 0x%X.\n", __func__,
-		0xFF & pkt_id);
+			pkt_id);
 
 	*ptr++ = DLE;
 	*ptr++ = ACK;
@@ -366,7 +366,7 @@ static int gsp_send_ack(struct garmin_data *garmin_data_p, __u8 pkt_id)
 		*ptr++ = DLE;
 
 	*ptr++ = 0;
-	*ptr++ = 0xFF & (-cksum);
+	*ptr++ = (-cksum) & 0xFF;
 	*ptr++ = DLE;
 	*ptr++ = ETX;
 
@@ -423,9 +423,9 @@ static int gsp_rec_packet(struct garmin_data *garmin_data_p, int count)
 		n++;
 	}
 
-	if ((0xff & (cksum + *recpkt)) != 0) {
+	if (((cksum + *recpkt) & 0xff) != 0) {
 		dev_dbg(dev, "%s - invalid checksum, expected %02x, got %02x\n",
-			__func__, 0xff & -cksum, 0xff & *recpkt);
+			__func__, -cksum & 0xff, *recpkt);
 		return -EINVPKT;
 	}
 
@@ -528,7 +528,7 @@ static int gsp_receive(struct garmin_data *garmin_data_p,
 					dev_dbg(dev, "NAK packet complete.\n");
 				} else {
 					dev_dbg(dev, "packet complete - id=0x%X.\n",
-						0xFF & data);
+							data);
 					gsp_rec_packet(garmin_data_p, size);
 				}
 
@@ -636,7 +636,7 @@ static int gsp_send(struct garmin_data *garmin_data_p,
 
 	garmin_data_p->outsize = 0;
 
-	if (GARMIN_LAYERID_APPL != getLayerId(garmin_data_p->outbuffer)) {
+	if (getLayerId(garmin_data_p->outbuffer) != GARMIN_LAYERID_APPL) {
 		dev_dbg(dev, "not an application packet (%d)\n",
 				getLayerId(garmin_data_p->outbuffer));
 		return -1;
@@ -688,7 +688,7 @@ static int gsp_send(struct garmin_data *garmin_data_p,
 			*dst++ = DLE;
 	}
 
-	cksum = 0xFF & -cksum;
+	cksum = -cksum & 0xFF;
 	*dst++ = cksum;
 	if (cksum == DLE)
 		*dst++ = DLE;
@@ -860,7 +860,6 @@ static int process_resetdev_request(struct usb_serial_port *port)
 static int garmin_clear(struct garmin_data *garmin_data_p)
 {
 	unsigned long flags;
-	int status = 0;
 
 	/* flush all queued data */
 	pkt_clear(garmin_data_p);
@@ -870,7 +869,7 @@ static int garmin_clear(struct garmin_data *garmin_data_p)
 	garmin_data_p->outsize = 0;
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
-	return status;
+	return 0;
 }
 
 
@@ -970,7 +969,7 @@ static void garmin_write_bulk_callback(struct urb *urb)
 		struct garmin_data *garmin_data_p =
 					usb_get_serial_port_data(port);
 
-		if (GARMIN_LAYERID_APPL == getLayerId(urb->transfer_buffer)) {
+		if (getLayerId(urb->transfer_buffer) == GARMIN_LAYERID_APPL) {
 
 			if (garmin_data_p->mode == MODE_GARMIN_SERIAL) {
 				gsp_send_ack(garmin_data_p,
@@ -1025,7 +1024,7 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 				dismiss_ack ? NULL : port);
 	urb->transfer_flags |= URB_ZERO_PACKET;
 
-	if (GARMIN_LAYERID_APPL == getLayerId(buffer)) {
+	if (getLayerId(buffer) == GARMIN_LAYERID_APPL) {
 
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags |= APP_REQ_SEEN;
@@ -1077,9 +1076,9 @@ static int garmin_write(struct tty_struct *tty, struct usb_serial_port *port,
 		pktsiz = getDataLength(garmin_data_p->privpkt);
 		pktid  = getPacketId(garmin_data_p->privpkt);
 
-		if (count == (GARMIN_PKTHDR_LENGTH+pktsiz)
-		    && GARMIN_LAYERID_PRIVATE ==
-				getLayerId(garmin_data_p->privpkt)) {
+		if (count == (GARMIN_PKTHDR_LENGTH + pktsiz) &&
+				getLayerId(garmin_data_p->privpkt) ==
+						GARMIN_LAYERID_PRIVATE) {
 
 			dev_dbg(dev, "%s - processing private request %d\n",
 				__func__, pktid);
@@ -1192,7 +1191,7 @@ static void garmin_read_bulk_callback(struct urb *urb)
 	garmin_read_process(garmin_data_p, data, urb->actual_length, 1);
 
 	if (urb->actual_length == 0 &&
-			0 != (garmin_data_p->flags & FLAGS_BULK_IN_RESTART)) {
+			(garmin_data_p->flags & FLAGS_BULK_IN_RESTART) != 0) {
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags &= ~FLAGS_BULK_IN_RESTART;
 		spin_unlock_irqrestore(&garmin_data_p->lock, flags);
@@ -1203,7 +1202,7 @@ static void garmin_read_bulk_callback(struct urb *urb)
 				__func__, retval);
 	} else if (urb->actual_length > 0) {
 		/* Continue trying to read until nothing more is received  */
-		if (0 == (garmin_data_p->flags & FLAGS_THROTTLED)) {
+		if ((garmin_data_p->flags & FLAGS_THROTTLED) == 0) {
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (retval)
 				dev_err(&port->dev,
@@ -1249,12 +1248,12 @@ static void garmin_read_int_callback(struct urb *urb)
 			      urb->transfer_buffer);
 
 	if (urb->actual_length == sizeof(GARMIN_BULK_IN_AVAIL_REPLY) &&
-	    0 == memcmp(data, GARMIN_BULK_IN_AVAIL_REPLY,
-				sizeof(GARMIN_BULK_IN_AVAIL_REPLY))) {
+		memcmp(data, GARMIN_BULK_IN_AVAIL_REPLY,
+				sizeof(GARMIN_BULK_IN_AVAIL_REPLY)) == 0) {
 
 		dev_dbg(&port->dev, "%s - bulk data available.\n", __func__);
 
-		if (0 == (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
+		if ((garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE) == 0) {
 
 			/* bulk data available */
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
@@ -1276,8 +1275,8 @@ static void garmin_read_int_callback(struct urb *urb)
 		}
 
 	} else if (urb->actual_length == (4+sizeof(GARMIN_START_SESSION_REPLY))
-			 && 0 == memcmp(data, GARMIN_START_SESSION_REPLY,
-					sizeof(GARMIN_START_SESSION_REPLY))) {
+			 && memcmp(data, GARMIN_START_SESSION_REPLY,
+				 sizeof(GARMIN_START_SESSION_REPLY)) == 0) {
 
 		spin_lock_irqsave(&garmin_data_p->lock, flags);
 		garmin_data_p->flags |= FLAGS_SESSION_REPLY1_SEEN;
@@ -1356,7 +1355,7 @@ static void garmin_unthrottle(struct tty_struct *tty)
 	if (garmin_data_p->mode == MODE_NATIVE)
 		garmin_flush_queue(garmin_data_p);
 
-	if (0 != (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
+	if ((garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE) != 0) {
 		status = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (status)
 			dev_err(&port->dev,

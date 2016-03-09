@@ -1842,7 +1842,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	Data = 0x0c;
 	mos7840_set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
-	if (mos7840_port->read_urb_busy == false) {
+	if (!mos7840_port->read_urb_busy) {
 		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
@@ -1906,7 +1906,7 @@ static void mos7840_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	if (mos7840_port->read_urb_busy == false) {
+	if (!mos7840_port->read_urb_busy) {
 		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
