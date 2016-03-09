@@ -440,6 +440,33 @@ int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
+					      struct qed_ptt *p_ptt)
+{
+	u32 transceiver_state;
+
+	transceiver_state = qed_rd(p_hwfn, p_ptt,
+				   p_hwfn->mcp_info->port_addr +
+				   offsetof(struct public_port,
+					    transceiver_data));
+
+	DP_VERBOSE(p_hwfn,
+		   (NETIF_MSG_HW | QED_MSG_SP),
+		   "Received transceiver state update [0x%08x] from mfw [Addr 0x%x]\n",
+		   transceiver_state,
+		   (u32)(p_hwfn->mcp_info->port_addr +
+			 offsetof(struct public_port,
+				  transceiver_data)));
+
+	transceiver_state = GET_FIELD(transceiver_state,
+				      PMM_TRANSCEIVER_STATE);
+
+	if (transceiver_state == PMM_TRANSCEIVER_STATE_PRESENT)
+		DP_NOTICE(p_hwfn, "Transceiver is present.\n");
+	else
+		DP_NOTICE(p_hwfn, "Transceiver is unplugged.\n");
+}
+
 static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt,
 				       bool b_reset)
@@ -648,6 +675,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 		switch (i) {
 		case MFW_DRV_MSG_LINK_CHANGE:
 			qed_mcp_handle_link_change(p_hwfn, p_ptt, false);
+			break;
+		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
+			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);
 			break;
 		default:
 			DP_NOTICE(p_hwfn, "Unimplemented MFW message %d\n", i);
