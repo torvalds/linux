@@ -522,7 +522,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 		frame = &gspca_dev->frame[i];
 		frame->v4l2_buf.index = i;
 		frame->v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		frame->v4l2_buf.flags = 0;
+		frame->v4l2_buf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		frame->v4l2_buf.field = V4L2_FIELD_NONE;
 		frame->v4l2_buf.length = frsz;
 		frame->v4l2_buf.memory = memory;
