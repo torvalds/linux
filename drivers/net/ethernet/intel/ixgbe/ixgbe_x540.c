@@ -747,6 +747,25 @@ static void ixgbe_release_swfw_sync_semaphore(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_init_swfw_sync_X540 - Release hardware semaphore
+ *  @hw: pointer to hardware structure
+ *
+ *  This function reset hardware semaphore bits for a semaphore that may
+ *  have be left locked due to a catastrophic failure.
+ **/
+void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw)
+{
+	/* First try to grab the semaphore but we don't need to bother
+	 * looking to see whether we got the lock or not since we do
+	 * the same thing regardless of whether we got the lock or not.
+	 * We got the lock - we release it.
+	 * We timeout trying to get the lock - we force its release.
+	 */
+	ixgbe_get_swfw_sync_semaphore(hw);
+	ixgbe_release_swfw_sync_semaphore(hw);
+}
+
+/**
  * ixgbe_blink_led_start_X540 - Blink LED based on index.
  * @hw: pointer to hardware structure
  * @index: led number to blink
@@ -854,6 +873,7 @@ static const struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,

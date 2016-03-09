@@ -2432,6 +2432,7 @@ static const struct ixgbe_mac_operations mac_ops_X550 = {
 	.setup_sfp		= NULL,
 	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.prot_autoc_read	= prot_autoc_read_generic,
 	.prot_autoc_write	= prot_autoc_write_generic,
 	.setup_fc		= ixgbe_setup_fc_generic,
@@ -2449,6 +2450,7 @@ static const struct ixgbe_mac_operations mac_ops_X550EM_x = {
 	.setup_sfp		= ixgbe_setup_sfp_modules_X550em,
 	.acquire_swfw_sync	= &ixgbe_acquire_swfw_sync_X550em,
 	.release_swfw_sync	= &ixgbe_release_swfw_sync_X550em,
+	.init_swfw_sync		= &ixgbe_init_swfw_sync_X540,
 	.setup_fc		= NULL, /* defined later */
 };
 
