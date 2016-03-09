@@ -351,8 +351,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	for_each_device_pfn(pfn, page_map) {
 		struct page *page = pfn_to_page(pfn);
 
-		/* ZONE_DEVICE pages must never appear on a slab lru */
-		list_force_poison(&page->lru);
+		/*
+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+		 * freed or placed on a driver-private list.  Seed the
+		 * storage with LIST_POISON* values.
+		 */
+		list_del(&page->lru);
 		page->pgmap = pgmap;
 	}
 	devres_add(dev, page_map);
