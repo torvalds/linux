@@ -899,11 +899,11 @@ int qed_mcp_drain(struct qed_hwfn *p_hwfn,
 	int rc;
 
 	rc = qed_mcp_cmd(p_hwfn, p_ptt,
-			 DRV_MSG_CODE_NIG_DRAIN, 100,
+			 DRV_MSG_CODE_NIG_DRAIN, 1000,
 			 &resp, &param);
 
 	/* Wait for the drain to complete before returning */
-	msleep(120);
+	msleep(1020);
 
 	return rc;
 }
