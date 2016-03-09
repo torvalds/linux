@@ -2136,11 +2136,18 @@ static int hists__browser_title(struct hists *hists,
 	if (hists->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
 				    ", UID: %s", hists->uid_filter_str);
-	if (thread)
-		printed += scnprintf(bf + printed, size - printed,
+	if (thread) {
+		if (sort__has_thread) {
+			printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				     (thread->comm_set ? thread__comm_str(thread) : ""),
 				    thread->tid);
+		} else {
+			printed += scnprintf(bf + printed, size - printed,
+				    ", Thread: %s",
+				     (thread->comm_set ? thread__comm_str(thread) : ""));
+		}
+	}
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
@@ -2321,9 +2328,15 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 		thread__zput(browser->hists->thread_filter);
 		ui_helpline__pop();
 	} else {
-		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
-				   thread->comm_set ? thread__comm_str(thread) : "",
-				   thread->tid);
+		if (sort__has_thread) {
+			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
+					   thread->comm_set ? thread__comm_str(thread) : "",
+					   thread->tid);
+		} else {
+			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s thread\"",
+					   thread->comm_set ? thread__comm_str(thread) : "");
+		}
+
 		browser->hists->thread_filter = thread__get(thread);
 		perf_hpp__set_elide(HISTC_THREAD, false);
 		pstack__push(browser->pstack, &browser->hists->thread_filter);
@@ -2338,13 +2351,22 @@ static int
 add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, struct thread *thread)
 {
-	if (!sort__has_thread || thread == NULL)
+	int ret;
+
+	if ((!sort__has_thread && !sort__has_comm) || thread == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Zoom %s %s(%d) thread",
-		     browser->hists->thread_filter ? "out of" : "into",
-		     thread->comm_set ? thread__comm_str(thread) : "",
-		     thread->tid) < 0)
+	if (sort__has_thread) {
+		ret = asprintf(optstr, "Zoom %s %s(%d) thread",
+			       browser->hists->thread_filter ? "out of" : "into",
+			       thread->comm_set ? thread__comm_str(thread) : "",
+			       thread->tid);
+	} else {
+		ret = asprintf(optstr, "Zoom %s %s thread",
+			       browser->hists->thread_filter ? "out of" : "into",
+			       thread->comm_set ? thread__comm_str(thread) : "");
+	}
+	if (ret < 0)
 		return 0;
 
 	act->thread = thread;
