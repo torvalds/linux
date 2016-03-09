@@ -730,8 +730,14 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->handle_err = rockchip_spi_handle_err;
 
 	rs->dma_tx.ch = dma_request_slave_channel(rs->dev, "tx");
-	if (!rs->dma_tx.ch)
+	if (IS_ERR_OR_NULL(rs->dma_tx.ch)) {
+		/* Check tx to see if we need defer probing driver */
+		if (PTR_ERR(rs->dma_tx.ch) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_get_fifo_len;
+		}
 		dev_warn(rs->dev, "Failed to request TX DMA channel\n");
+	}
 
 	rs->dma_rx.ch = dma_request_slave_channel(rs->dev, "rx");
 	if (!rs->dma_rx.ch) {
