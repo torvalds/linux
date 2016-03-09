@@ -45,6 +45,8 @@ __visible void enter_from_user_mode(void)
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
 	user_exit();
 }
+#else
+static inline void enter_from_user_mode(void) {}
 #endif
 
 static void do_audit_syscall_entry(struct pt_regs *regs, u32 arch)
@@ -84,17 +86,6 @@ unsigned long syscall_trace_enter_phase1(struct pt_regs *regs, u32 arch)
 		BUG_ON(regs != task_pt_regs(current));
 
 	work = ACCESS_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY;
-
-#ifdef CONFIG_CONTEXT_TRACKING
-	/*
-	 * If TIF_NOHZ is set, we are required to call user_exit() before
-	 * doing anything that could touch RCU.
-	 */
-	if (work & _TIF_NOHZ) {
-		enter_from_user_mode();
-		work &= ~_TIF_NOHZ;
-	}
-#endif
 
 #ifdef CONFIG_SECCOMP
 	/*
@@ -344,6 +335,7 @@ __visible void do_syscall_64(struct pt_regs *regs)
 	struct thread_info *ti = pt_regs_to_thread_info(regs);
 	unsigned long nr = regs->orig_ax;
 
+	enter_from_user_mode();
 	local_irq_enable();
 
 	if (READ_ONCE(ti->flags) & _TIF_WORK_SYSCALL_ENTRY)
@@ -366,9 +358,9 @@ __visible void do_syscall_64(struct pt_regs *regs)
 
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
 /*
- * Does a 32-bit syscall.  Called with IRQs on and does all entry and
- * exit work and returns with IRQs off.  This function is extremely hot
- * in workloads that use it, and it's usually called from
+ * Does a 32-bit syscall.  Called with IRQs on in CONTEXT_KERNEL.  Does
+ * all entry and exit work and returns with IRQs off.  This function is
+ * extremely hot in workloads that use it, and it's usually called from
  * do_fast_syscall_32, so forcibly inline it to improve performance.
  */
 static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
@@ -409,6 +401,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 /* Handles int $0x80 */
 __visible void do_int80_syscall_32(struct pt_regs *regs)
 {
+	enter_from_user_mode();
 	local_irq_enable();
 	do_syscall_32_irqs_on(regs);
 }
@@ -431,12 +424,11 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 	 */
 	regs->ip = landing_pad;
 
-	/*
-	 * Fetch EBP from where the vDSO stashed it.
-	 *
-	 * WARNING: We are in CONTEXT_USER and RCU isn't paying attention!
-	 */
+	enter_from_user_mode();
+
 	local_irq_enable();
+
+	/* Fetch EBP from where the vDSO stashed it. */
 	if (
 #ifdef CONFIG_X86_64
 		/*
@@ -454,9 +446,6 @@ __visible long do_fast_syscall_32(struct pt_regs *regs)
 		/* User code screwed up. */
 		local_irq_disable();
 		regs->ax = -EFAULT;
-#ifdef CONFIG_CONTEXT_TRACKING
-		enter_from_user_mode();
-#endif
 		prepare_exit_to_usermode(regs);
 		return 0;	/* Keep it simple: use IRET. */
 	}

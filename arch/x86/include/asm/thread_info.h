@@ -134,7 +134,10 @@ struct thread_info {
 #define _TIF_ADDR32		(1 << TIF_ADDR32)
 #define _TIF_X32		(1 << TIF_X32)
 
-/* work to do in syscall_trace_enter() */
+/*
+ * work to do in syscall_trace_enter().  Also includes TIF_NOHZ for
+ * enter_from_user_mode()
+ */
 #define _TIF_WORK_SYSCALL_ENTRY	\
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_EMU | _TIF_SYSCALL_AUDIT |	\
 	 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT |	\
