@@ -168,10 +168,10 @@ void gb_interface_remove(struct gb_interface *intf)
 }
 
 /*
- * Intialise an interface by enabling the control connection and fetching the
+ * Enable an interface by enabling its control connection and fetching the
  * manifest and other information over it.
  */
-int gb_interface_init(struct gb_interface *intf)
+int gb_interface_enable(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle, *tmp;
 	int ret, size;
