@@ -243,8 +243,8 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 	sensor->id = index;
 	sensor->thermal = data;
 
-	sensor->tzd = thermal_zone_of_sensor_register(&pdev->dev, sensor->id,
-				sensor, &hisi_of_thermal_ops);
+	sensor->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
+				sensor->id, sensor, &hisi_of_thermal_ops);
 	if (IS_ERR(sensor->tzd)) {
 		ret = PTR_ERR(sensor->tzd);
 		dev_err(&pdev->dev, "failed to register sensor id %d: %d\n",
@@ -364,7 +364,6 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 		struct hisi_thermal_sensor *sensor = &data->sensors[i];
 
 		hisi_thermal_toggle_sensor(sensor, false);
-		thermal_zone_of_sensor_unregister(&pdev->dev, sensor->tzd);
 	}
 
 	hisi_thermal_disable_sensor(data);
