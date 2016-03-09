@@ -991,6 +991,19 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 }
 
+static int wxh_to_mode(struct gspca_dev *gspca_dev,
+			int width, int height)
+{
+	int i;
+
+	for (i = 0; i < gspca_dev->cam.nmodes; i++) {
+		if (width == gspca_dev->cam.cam_mode[i].width
+		    && height == gspca_dev->cam.cam_mode[i].height)
+			return i;
+	}
+	return -EINVAL;
+}
+
 static int wxh_to_nearest_mode(struct gspca_dev *gspca_dev,
 			int width, int height)
 {
@@ -1233,8 +1246,12 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 				      struct v4l2_frmivalenum *fival)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
-	int mode = wxh_to_nearest_mode(gspca_dev, fival->width, fival->height);
+	int mode;
 	__u32 i;
+
+	mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	if (mode < 0)
+		return -EINVAL;
 
 	if (gspca_dev->cam.mode_framerates == NULL ||
 			gspca_dev->cam.mode_framerates[mode].nrates == 0)
