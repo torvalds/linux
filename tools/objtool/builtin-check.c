@@ -61,6 +61,7 @@ struct alternative {
 struct objtool_file {
 	struct elf *elf;
 	struct list_head insn_list;
+	struct section *rodata;
 };
 
 const char *objname;
@@ -599,6 +600,103 @@ out:
 	return ret;
 }
 
+static int add_switch_table(struct objtool_file *file, struct symbol *func,
+			    struct instruction *insn, struct rela *table,
+			    struct rela *next_table)
+{
+	struct rela *rela = table;
+	struct instruction *alt_insn;
+	struct alternative *alt;
+
+	list_for_each_entry_from(rela, &file->rodata->rela->rela_list, list) {
+		if (rela == next_table)
+			break;
+
+		if (rela->sym->sec != insn->sec ||
+		    rela->addend <= func->offset ||
+		    rela->addend >= func->offset + func->len)
+			break;
+
+		alt_insn = find_insn(file, insn->sec, rela->addend);
+		if (!alt_insn) {
+			WARN("%s: can't find instruction at %s+0x%x",
+			     file->rodata->rela->name, insn->sec->name,
+			     rela->addend);
+			return -1;
+		}
+
+		alt = malloc(sizeof(*alt));
+		if (!alt) {
+			WARN("malloc failed");
+			return -1;
+		}
+
+		alt->insn = alt_insn;
+		list_add_tail(&alt->list, &insn->alts);
+	}
+
+	return 0;
+}
+
+static int add_func_switch_tables(struct objtool_file *file,
+				  struct symbol *func)
+{
+	struct instruction *insn, *prev_jump;
+	struct rela *text_rela, *rodata_rela, *prev_rela;
+	int ret;
+
+	prev_jump = NULL;
+
+	func_for_each_insn(file, func, insn) {
+		if (insn->type != INSN_JUMP_DYNAMIC)
+			continue;
+
+		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
+						    insn->len);
+		if (!text_rela || text_rela->sym != file->rodata->sym)
+			continue;
+
+		/* common case: jmpq *[addr](,%rax,8) */
+		rodata_rela = find_rela_by_dest(file->rodata,
+						text_rela->addend);
+
+		/*
+		 * TODO: Document where this is needed, or get rid of it.
+		 *
+		 * rare case:   jmpq *[addr](%rip)
+		 */
+		if (!rodata_rela)
+			rodata_rela = find_rela_by_dest(file->rodata,
+							text_rela->addend + 4);
+
+		if (!rodata_rela)
+			continue;
+
+		/*
+		 * We found a switch table, but we don't know yet how big it
+		 * is.  Don't add it until we reach the end of the function or
+		 * the beginning of another switch table in the same function.
+		 */
+		if (prev_jump) {
+			ret = add_switch_table(file, func, prev_jump, prev_rela,
+					       rodata_rela);
+			if (ret)
+				return ret;
+		}
+
+		prev_jump = insn;
+		prev_rela = rodata_rela;
+	}
+
+	if (prev_jump) {
+		ret = add_switch_table(file, func, prev_jump, prev_rela, NULL);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 /*
  * For some switch statements, gcc generates a jump table in the .rodata
  * section which contains a list of addresses within the function to jump to.
@@ -606,66 +704,21 @@ out:
  */
 static int add_switch_table_alts(struct objtool_file *file)
 {
-	struct instruction *insn, *alt_insn;
-	struct rela *rodata_rela, *text_rela;
-	struct section *rodata;
+	struct section *sec;
 	struct symbol *func;
-	struct alternative *alt;
+	int ret;
 
-	for_each_insn(file, insn) {
-		if (insn->type != INSN_JUMP_DYNAMIC)
-			continue;
+	if (!file->rodata || !file->rodata->rela)
+		return 0;
 
-		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
-						    insn->len);
-		if (!text_rela || strcmp(text_rela->sym->name, ".rodata"))
-			continue;
+	list_for_each_entry(sec, &file->elf->sections, list) {
+		list_for_each_entry(func, &sec->symbol_list, list) {
+			if (func->type != STT_FUNC)
+				continue;
 
-		rodata = find_section_by_name(file->elf, ".rodata");
-		if (!rodata || !rodata->rela)
-			continue;
-
-		/* common case: jmpq *[addr](,%rax,8) */
-		rodata_rela = find_rela_by_dest(rodata, text_rela->addend);
-
-		/* rare case:   jmpq *[addr](%rip) */
-		if (!rodata_rela)
-			rodata_rela = find_rela_by_dest(rodata,
-							text_rela->addend + 4);
-		if (!rodata_rela)
-			continue;
-
-		func = find_containing_func(insn->sec, insn->offset);
-		if (!func) {
-			WARN_FUNC("can't find containing func",
-				  insn->sec, insn->offset);
-			return -1;
-		}
-
-		list_for_each_entry_from(rodata_rela, &rodata->rela->rela_list,
-					 list) {
-			if (rodata_rela->sym->sec != insn->sec ||
-			    rodata_rela->addend <= func->offset ||
-			    rodata_rela->addend >= func->offset + func->len)
-				break;
-
-			alt_insn = find_insn(file, insn->sec,
-					     rodata_rela->addend);
-			if (!alt_insn) {
-				WARN("%s: can't find instruction at %s+0x%x",
-				     rodata->rela->name, insn->sec->name,
-				     rodata_rela->addend);
-				return -1;
-			}
-
-			alt = malloc(sizeof(*alt));
-			if (!alt) {
-				WARN("malloc failed");
-				return -1;
-			}
-
-			alt->insn = alt_insn;
-			list_add_tail(&alt->list, &insn->alts);
+			ret = add_func_switch_tables(file, func);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -675,6 +728,8 @@ static int add_switch_table_alts(struct objtool_file *file)
 static int decode_sections(struct objtool_file *file)
 {
 	int ret;
+
+	file->rodata = find_section_by_name(file->elf, ".rodata");
 
 	ret = decode_instructions(file);
 	if (ret)
