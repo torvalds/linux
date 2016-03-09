@@ -518,21 +518,23 @@ err_ida_remove:
 	return ret;
 }
 
+static void gb_svc_interface_route_destroy(struct gb_svc *svc,
+						struct gb_interface *intf)
+{
+	gb_svc_route_destroy(svc, svc->ap_intf_id, intf->interface_id);
+	ida_simple_remove(&svc->device_id_map, intf->device_id);
+}
+
 static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 {
-	u8 intf_id = intf->interface_id;
-	u8 device_id = intf->device_id;
-
 	intf->disconnected = true;
 
+	get_device(&intf->dev);
+
 	gb_interface_remove(intf);
+	gb_svc_interface_route_destroy(svc, intf);
 
-	/*
-	 * Destroy the two-way route between the AP and the interface.
-	 */
-	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
-
-	ida_simple_remove(&svc->device_id_map, device_id);
+	put_device(&intf->dev);
 }
 
 static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
@@ -630,8 +632,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	return;
 
 destroy_route:
-	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
-	ida_simple_remove(&svc->device_id_map, intf->device_id);
+	gb_svc_interface_route_destroy(svc, intf);
 destroy_interface:
 	gb_interface_remove(intf);
 }
