@@ -117,6 +117,29 @@ temperature) and throttle appropriate devices.
 	interface. It will also silent the zone by remove the .get_temp() and
 	get_trend() thermal zone device callbacks.
 
+1.1.5 struct thermal_zone_device *devm_thermal_zone_of_sensor_register(
+		struct device *dev, int sensor_id,
+		void *data, const struct thermal_zone_of_device_ops *ops)
+
+	This interface is resource managed version of
+	thermal_zone_of_sensor_register().
+	All details of thermal_zone_of_sensor_register() described in
+	section 1.1.3 is applicable here.
+	The benefit of using this interface to register sensor is that it
+	is not require to explicitly call thermal_zone_of_sensor_unregister()
+	in error path or during driver unbinding as this is done by driver
+	resource manager.
+
+1.1.6 void devm_thermal_zone_of_sensor_unregister(struct device *dev,
+		struct thermal_zone_device *tzd)
+
+	This interface is resource managed version of
+	thermal_zone_of_sensor_unregister().
+	All details of thermal_zone_of_sensor_unregister() described in
+	section 1.1.4 is applicable here.
+	Normally this function will not need to be called and the resource
+	management code will ensure that the resource is freed.
+
 1.2 thermal cooling device interface
 1.2.1 struct thermal_cooling_device *thermal_cooling_device_register(char *name,
 		void *devdata, struct thermal_cooling_device_ops *)
