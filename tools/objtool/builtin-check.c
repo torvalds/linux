@@ -60,7 +60,7 @@ struct alternative {
 
 struct objtool_file {
 	struct elf *elf;
-	struct list_head insns;
+	struct list_head insn_list;
 };
 
 const char *objname;
@@ -71,7 +71,7 @@ static struct instruction *find_insn(struct objtool_file *file,
 {
 	struct instruction *insn;
 
-	list_for_each_entry(insn, &file->insns, list)
+	list_for_each_entry(insn, &file->insn_list, list)
 		if (insn->sec == sec && insn->offset == offset)
 			return insn;
 
@@ -83,18 +83,18 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 {
 	struct instruction *next = list_next_entry(insn, list);
 
-	if (&next->list == &file->insns || next->sec != insn->sec)
+	if (&next->list == &file->insn_list || next->sec != insn->sec)
 		return NULL;
 
 	return next;
 }
 
 #define for_each_insn(file, insn)					\
-	list_for_each_entry(insn, &file->insns, list)
+	list_for_each_entry(insn, &file->insn_list, list)
 
 #define func_for_each_insn(file, func, insn)				\
 	for (insn = find_insn(file, func->sec, func->offset);		\
-	     insn && &insn->list != &file->insns &&			\
+	     insn && &insn->list != &file->insn_list &&			\
 		insn->sec == func->sec &&				\
 		insn->offset < func->offset + func->len;		\
 	     insn = list_next_entry(insn, list))
@@ -117,7 +117,7 @@ static bool ignore_func(struct objtool_file *file, struct symbol *func)
 	/* check for STACK_FRAME_NON_STANDARD */
 	macro_sec = find_section_by_name(file->elf, "__func_stack_frame_non_standard");
 	if (macro_sec && macro_sec->rela)
-		list_for_each_entry(rela, &macro_sec->rela->relas, list)
+		list_for_each_entry(rela, &macro_sec->rela->rela_list, list)
 			if (rela->sym->sec == func->sec &&
 			    rela->addend == func->offset)
 				return true;
@@ -240,7 +240,7 @@ static int dead_end_function(struct objtool_file *file, struct symbol *func)
 
 /*
  * Call the arch-specific instruction decoder for all the instructions and add
- * them to the global insns list.
+ * them to the global instruction list.
  */
 static int decode_instructions(struct objtool_file *file)
 {
@@ -275,7 +275,7 @@ static int decode_instructions(struct objtool_file *file)
 				return -1;
 			}
 
-			list_add_tail(&insn->list, &file->insns);
+			list_add_tail(&insn->list, &file->insn_list);
 		}
 	}
 
@@ -285,14 +285,14 @@ static int decode_instructions(struct objtool_file *file)
 /*
  * Warnings shouldn't be reported for ignored functions.
  */
-static void get_ignores(struct objtool_file *file)
+static void add_ignores(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct section *sec;
 	struct symbol *func;
 
 	list_for_each_entry(sec, &file->elf->sections, list) {
-		list_for_each_entry(func, &sec->symbols, list) {
+		list_for_each_entry(func, &sec->symbol_list, list) {
 			if (func->type != STT_FUNC)
 				continue;
 
@@ -308,7 +308,7 @@ static void get_ignores(struct objtool_file *file)
 /*
  * Find the destination instructions for all jumps.
  */
-static int get_jump_destinations(struct objtool_file *file)
+static int add_jump_destinations(struct objtool_file *file)
 {
 	struct instruction *insn;
 	struct rela *rela;
@@ -365,7 +365,7 @@ static int get_jump_destinations(struct objtool_file *file)
 /*
  * Find the destination instructions for all calls.
  */
-static int get_call_destinations(struct objtool_file *file)
+static int add_call_destinations(struct objtool_file *file)
 {
 	struct instruction *insn;
 	unsigned long dest_off;
@@ -534,7 +534,7 @@ static int handle_jump_alt(struct objtool_file *file,
  * instruction(s) has them added to its insn->alts list, which will be
  * traversed in validate_branch().
  */
-static int get_special_section_alts(struct objtool_file *file)
+static int add_special_section_alts(struct objtool_file *file)
 {
 	struct list_head special_alts;
 	struct instruction *orig_insn, *new_insn;
@@ -604,10 +604,10 @@ out:
  * section which contains a list of addresses within the function to jump to.
  * This finds these jump tables and adds them to the insn->alts lists.
  */
-static int get_switch_alts(struct objtool_file *file)
+static int add_switch_table_alts(struct objtool_file *file)
 {
 	struct instruction *insn, *alt_insn;
-	struct rela *rodata_rela, *rela;
+	struct rela *rodata_rela, *text_rela;
 	struct section *rodata;
 	struct symbol *func;
 	struct alternative *alt;
@@ -616,9 +616,9 @@ static int get_switch_alts(struct objtool_file *file)
 		if (insn->type != INSN_JUMP_DYNAMIC)
 			continue;
 
-		rodata_rela = find_rela_by_dest_range(insn->sec, insn->offset,
-						      insn->len);
-		if (!rodata_rela || strcmp(rodata_rela->sym->name, ".rodata"))
+		text_rela = find_rela_by_dest_range(insn->sec, insn->offset,
+						    insn->len);
+		if (!text_rela || strcmp(text_rela->sym->name, ".rodata"))
 			continue;
 
 		rodata = find_section_by_name(file->elf, ".rodata");
@@ -626,13 +626,13 @@ static int get_switch_alts(struct objtool_file *file)
 			continue;
 
 		/* common case: jmpq *[addr](,%rax,8) */
-		rela = find_rela_by_dest(rodata, rodata_rela->addend);
+		rodata_rela = find_rela_by_dest(rodata, text_rela->addend);
 
 		/* rare case:   jmpq *[addr](%rip) */
-		if (!rela)
-			rela = find_rela_by_dest(rodata,
-						 rodata_rela->addend + 4);
-		if (!rela)
+		if (!rodata_rela)
+			rodata_rela = find_rela_by_dest(rodata,
+							text_rela->addend + 4);
+		if (!rodata_rela)
 			continue;
 
 		func = find_containing_func(insn->sec, insn->offset);
@@ -642,17 +642,19 @@ static int get_switch_alts(struct objtool_file *file)
 			return -1;
 		}
 
-		list_for_each_entry_from(rela, &rodata->rela->relas, list) {
-			if (rela->sym->sec != insn->sec ||
-			    rela->addend <= func->offset ||
-			    rela->addend >= func->offset + func->len)
+		list_for_each_entry_from(rodata_rela, &rodata->rela->rela_list,
+					 list) {
+			if (rodata_rela->sym->sec != insn->sec ||
+			    rodata_rela->addend <= func->offset ||
+			    rodata_rela->addend >= func->offset + func->len)
 				break;
 
-			alt_insn = find_insn(file, insn->sec, rela->addend);
+			alt_insn = find_insn(file, insn->sec,
+					     rodata_rela->addend);
 			if (!alt_insn) {
 				WARN("%s: can't find instruction at %s+0x%x",
 				     rodata->rela->name, insn->sec->name,
-				     rela->addend);
+				     rodata_rela->addend);
 				return -1;
 			}
 
@@ -678,21 +680,21 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
-	get_ignores(file);
+	add_ignores(file);
 
-	ret = get_jump_destinations(file);
+	ret = add_jump_destinations(file);
 	if (ret)
 		return ret;
 
-	ret = get_call_destinations(file);
+	ret = add_call_destinations(file);
 	if (ret)
 		return ret;
 
-	ret = get_special_section_alts(file);
+	ret = add_special_section_alts(file);
 	if (ret)
 		return ret;
 
-	ret = get_switch_alts(file);
+	ret = add_switch_table_alts(file);
 	if (ret)
 		return ret;
 
@@ -901,7 +903,7 @@ static bool is_gcov_insn(struct instruction *insn)
 	sec = rela->sym->sec;
 	offset = rela->addend + insn->offset + insn->len - rela->offset;
 
-	list_for_each_entry(sym, &sec->symbols, list) {
+	list_for_each_entry(sym, &sec->symbol_list, list) {
 		if (sym->type != STT_OBJECT)
 			continue;
 
@@ -968,7 +970,7 @@ static int validate_functions(struct objtool_file *file)
 	int ret, warnings = 0;
 
 	list_for_each_entry(sec, &file->elf->sections, list) {
-		list_for_each_entry(func, &sec->symbols, list) {
+		list_for_each_entry(func, &sec->symbol_list, list) {
 			if (func->type != STT_FUNC)
 				continue;
 
@@ -986,7 +988,7 @@ static int validate_functions(struct objtool_file *file)
 	}
 
 	list_for_each_entry(sec, &file->elf->sections, list) {
-		list_for_each_entry(func, &sec->symbols, list) {
+		list_for_each_entry(func, &sec->symbol_list, list) {
 			if (func->type != STT_FUNC)
 				continue;
 
@@ -1028,7 +1030,7 @@ static void cleanup(struct objtool_file *file)
 	struct instruction *insn, *tmpinsn;
 	struct alternative *alt, *tmpalt;
 
-	list_for_each_entry_safe(insn, tmpinsn, &file->insns, list) {
+	list_for_each_entry_safe(insn, tmpinsn, &file->insn_list, list) {
 		list_for_each_entry_safe(alt, tmpalt, &insn->alts, list) {
 			list_del(&alt->list);
 			free(alt);
@@ -1067,7 +1069,7 @@ int cmd_check(int argc, const char **argv)
 		return 1;
 	}
 
-	INIT_LIST_HEAD(&file.insns);
+	INIT_LIST_HEAD(&file.insn_list);
 
 	ret = decode_sections(&file);
 	if (ret < 0)

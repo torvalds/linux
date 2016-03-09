@@ -25,8 +25,8 @@
 struct section {
 	struct list_head list;
 	GElf_Shdr sh;
-	struct list_head symbols;
-	struct list_head relas;
+	struct list_head symbol_list;
+	struct list_head rela_list;
 	struct section *base, *rela;
 	struct symbol *sym;
 	Elf_Data *elf_data;
