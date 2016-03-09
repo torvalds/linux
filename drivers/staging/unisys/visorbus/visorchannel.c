@@ -293,14 +293,14 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 		err = visorchannel_write(channel, offset + written,
 					 buf, thisbytes);
 		if (err)
-			goto cleanup;
+			goto out_free_page;
 
 		written += thisbytes;
 		nbytes -= thisbytes;
 	}
 	err = 0;
 
-cleanup:
+out_free_page:
 	free_page((unsigned long)buf);
 	return err;
 }
