@@ -377,7 +377,7 @@ static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 			divider = (*ns) / base;
 			break;
 		case CMDF_ROUND_UP:
-			divider = (*ns + base - 1) / base;
+			divider = DIV_ROUND_UP(*ns, base);
 			break;
 		}
 		if (divider < 256) {
