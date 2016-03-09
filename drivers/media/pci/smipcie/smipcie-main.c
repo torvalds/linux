@@ -1086,6 +1086,15 @@ static struct smi_cfg_info dvbsky_t9580_cfg = {
 	.fe_1 = DVBSKY_FE_M88DS3103,
 };
 
+static struct smi_cfg_info technotrend_s2_4200_cfg = {
+	.type = SMI_TECHNOTREND_S2_4200,
+	.name = "TechnoTrend TT-budget S2-4200 Twin",
+	.ts_0 = SMI_TS_DMA_BOTH,
+	.ts_1 = SMI_TS_DMA_BOTH,
+	.fe_0 = DVBSKY_FE_M88RS6000,
+	.fe_1 = DVBSKY_FE_M88RS6000,
+};
+
 /* PCI IDs */
 #define SMI_ID(_subvend, _subdev, _driverdata) {	\
 	.vendor      = SMI_VID,    .device    = SMI_PID, \
@@ -1096,6 +1105,7 @@ static const struct pci_device_id smi_id_table[] = {
 	SMI_ID(0x4254, 0x0550, dvbsky_s950_cfg),
 	SMI_ID(0x4254, 0x0552, dvbsky_s952_cfg),
 	SMI_ID(0x4254, 0x5580, dvbsky_t9580_cfg),
+	SMI_ID(0x13c2, 0x3016, technotrend_s2_4200_cfg),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, smi_id_table);
