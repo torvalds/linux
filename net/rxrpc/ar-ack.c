@@ -23,7 +23,7 @@
  * How long to wait before scheduling ACK generation after seeing a
  * packet with RXRPC_REQUEST_ACK set (in jiffies).
  */
-unsigned rxrpc_requested_ack_delay = 1;
+unsigned int rxrpc_requested_ack_delay = 1;
 
 /*
  * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
@@ -32,7 +32,7 @@ unsigned rxrpc_requested_ack_delay = 1;
  * all consumed within this time we will send a DELAY ACK if an ACK was not
  * requested to let the sender know it doesn't need to resend.
  */
-unsigned rxrpc_soft_ack_delay = 1 * HZ;
+unsigned int rxrpc_soft_ack_delay = 1 * HZ;
 
 /*
  * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
@@ -41,7 +41,7 @@ unsigned rxrpc_soft_ack_delay = 1 * HZ;
  * further packets aren't immediately received to decide when to send an IDLE
  * ACK let the other end know that it can free up its Tx buffer space.
  */
-unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
+unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
 
 /*
  * Receive window size in packets.  This indicates the maximum number of
@@ -49,19 +49,19 @@ unsigned rxrpc_idle_ack_delay = 0.5 * HZ;
  * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
  * packets.
  */
-unsigned rxrpc_rx_window_size = 32;
+unsigned int rxrpc_rx_window_size = 32;
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
  * made by gluing normal packets together that we're willing to handle.
  */
-unsigned rxrpc_rx_mtu = 5692;
+unsigned int rxrpc_rx_mtu = 5692;
 
 /*
  * The maximum number of fragments in a received jumbo packet that we tell the
  * sender that we're willing to handle.
  */
-unsigned rxrpc_rx_jumbo_max = 4;
+unsigned int rxrpc_rx_jumbo_max = 4;
 
 static const char *rxrpc_acks(u8 reason)
 {

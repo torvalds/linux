@@ -21,7 +21,7 @@
 /*
  * Time till a connection expires after last use (in seconds).
  */
-unsigned rxrpc_connection_expiry = 10 * 60;
+unsigned int rxrpc_connection_expiry = 10 * 60;
 
 static void rxrpc_connection_reaper(struct work_struct *work);
 

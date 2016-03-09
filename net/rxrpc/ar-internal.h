@@ -478,12 +478,12 @@ int rxrpc_reject_call(struct rxrpc_sock *);
 /*
  * ar-ack.c
  */
-extern unsigned rxrpc_requested_ack_delay;
-extern unsigned rxrpc_soft_ack_delay;
-extern unsigned rxrpc_idle_ack_delay;
-extern unsigned rxrpc_rx_window_size;
-extern unsigned rxrpc_rx_mtu;
-extern unsigned rxrpc_rx_jumbo_max;
+extern unsigned int rxrpc_requested_ack_delay;
+extern unsigned int rxrpc_soft_ack_delay;
+extern unsigned int rxrpc_idle_ack_delay;
+extern unsigned int rxrpc_rx_window_size;
+extern unsigned int rxrpc_rx_mtu;
+extern unsigned int rxrpc_rx_jumbo_max;
 
 void __rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
 void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool);
@@ -492,8 +492,8 @@ void rxrpc_process_call(struct work_struct *);
 /*
  * ar-call.c
  */
-extern unsigned rxrpc_max_call_lifetime;
-extern unsigned rxrpc_dead_call_expiry;
+extern unsigned int rxrpc_max_call_lifetime;
+extern unsigned int rxrpc_dead_call_expiry;
 extern struct kmem_cache *rxrpc_call_jar;
 extern struct list_head rxrpc_calls;
 extern rwlock_t rxrpc_call_lock;
@@ -516,7 +516,7 @@ void __exit rxrpc_destroy_all_calls(void);
 /*
  * ar-connection.c
  */
-extern unsigned rxrpc_connection_expiry;
+extern unsigned int rxrpc_connection_expiry;
 extern struct list_head rxrpc_connections;
 extern rwlock_t rxrpc_connection_lock;
 
@@ -579,7 +579,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *, const void *, time_t,
 /*
  * ar-output.c
  */
-extern unsigned rxrpc_resend_timeout;
+extern unsigned int rxrpc_resend_timeout;
 
 int rxrpc_send_packet(struct rxrpc_transport *, struct sk_buff *);
 int rxrpc_client_sendmsg(struct rxrpc_sock *, struct rxrpc_transport *,
@@ -627,7 +627,7 @@ void rxrpc_packet_destructor(struct sk_buff *);
 /*
  * ar-transport.c
  */
-extern unsigned rxrpc_transport_expiry;
+extern unsigned int rxrpc_transport_expiry;
 
 struct rxrpc_transport *rxrpc_get_transport(struct rxrpc_local *,
 					    struct rxrpc_peer *, gfp_t);

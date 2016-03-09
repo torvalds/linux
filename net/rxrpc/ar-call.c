@@ -21,12 +21,12 @@
 /*
  * Maximum lifetime of a call (in jiffies).
  */
-unsigned rxrpc_max_call_lifetime = 60 * HZ;
+unsigned int rxrpc_max_call_lifetime = 60 * HZ;
 
 /*
  * Time till dead call expires after last use (in jiffies).
  */
-unsigned rxrpc_dead_call_expiry = 2 * HZ;
+unsigned int rxrpc_dead_call_expiry = 2 * HZ;
 
 const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",

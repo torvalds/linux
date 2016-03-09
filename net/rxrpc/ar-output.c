@@ -21,7 +21,7 @@
 /*
  * Time till packet resend (in jiffies).
  */
-unsigned rxrpc_resend_timeout = 4 * HZ;
+unsigned int rxrpc_resend_timeout = 4 * HZ;
 
 static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,

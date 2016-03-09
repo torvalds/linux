@@ -20,7 +20,7 @@
 /*
  * Time after last use at which transport record is cleaned up.
  */
-unsigned rxrpc_transport_expiry = 3600 * 24;
+unsigned int rxrpc_transport_expiry = 3600 * 24;
 
 static void rxrpc_transport_reaper(struct work_struct *work);
 

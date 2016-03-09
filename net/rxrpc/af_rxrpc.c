@@ -81,7 +81,7 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 				  struct sockaddr_rxrpc *srx,
 				  int len)
 {
-	unsigned tail;
+	unsigned int tail;
 
 	if (len < sizeof(struct sockaddr_rxrpc))
 		return -EINVAL;
