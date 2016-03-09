@@ -68,9 +68,9 @@ struct rockchip_pmu {
 {						\
 	.pwr_mask = BIT(pwr),			\
 	.status_mask = BIT(status),		\
-	.req_mask = BIT(req),			\
-	.idle_mask = BIT(idle),			\
-	.ack_mask = BIT(ack),			\
+	.req_mask = (req >= 0) ? BIT(req) : 0,		\
+	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
+	.ack_mask = (ack >= 0) ? BIT(ack) : 0,		\
 }
 
 #define DOMAIN_RK3288(pwr, status, req)		\
@@ -95,6 +95,9 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 	const struct rockchip_domain_info *pd_info = pd->info;
 	struct rockchip_pmu *pmu = pd->pmu;
 	unsigned int val;
+
+	if (pd_info->req_mask == 0)
+		return 0;
 
 	regmap_update_bits(pmu->regmap, pmu->info->req_offset,
 			   pd_info->req_mask, idle ? -1U : 0);
