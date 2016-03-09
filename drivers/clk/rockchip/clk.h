@@ -217,14 +217,20 @@ struct rockchip_cpuclk_rate_table {
  * @core_reg:		register offset of the core settings register
  * @div_core_shift:	core divider offset used to divide the pll value
  * @div_core_mask:	core divider mask
+ * @mux_core_alt:	mux value to select alternate parent
+ * @mux_core_main:	mux value to select main parent of core
  * @mux_core_shift:	offset of the core multiplexer
+ * @mux_core_mask:	core multiplexer mask
  */
 struct rockchip_cpuclk_reg_data {
 	int		core_reg;
 	u8		div_core_shift;
 	u32		div_core_mask;
 	int		mux_core_reg;
+	u8		mux_core_alt;
+	u8		mux_core_main;
 	u8		mux_core_shift;
+	u32		mux_core_mask;
 };
 
 struct clk *rockchip_clk_register_cpuclk(const char *name,

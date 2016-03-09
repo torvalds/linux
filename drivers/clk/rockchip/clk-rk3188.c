@@ -155,7 +155,10 @@ static const struct rockchip_cpuclk_reg_data rk3066_cpuclk_data = {
 	.core_reg = RK2928_CLKSEL_CON(0),
 	.div_core_shift = 0,
 	.div_core_mask = 0x1f,
+	.mux_core_alt = 1,
+	.mux_core_main = 0,
 	.mux_core_shift = 8,
+	.mux_core_mask = 0x1,
 };
 
 #define RK3188_DIV_ACLK_CORE_MASK	0x7
@@ -191,7 +194,10 @@ static const struct rockchip_cpuclk_reg_data rk3188_cpuclk_data = {
 	.core_reg = RK2928_CLKSEL_CON(0),
 	.div_core_shift = 9,
 	.div_core_mask = 0x1f,
+	.mux_core_alt = 1,
+	.mux_core_main = 0,
 	.mux_core_shift = 8,
+	.mux_core_mask = 0x1,
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
