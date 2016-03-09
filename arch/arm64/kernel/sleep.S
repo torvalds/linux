@@ -130,6 +130,11 @@ ENTRY(_cpu_resume)
 	 */
 	bl	cpu_do_resume
 
+#ifdef CONFIG_KASAN
+	mov	x0, sp
+	bl	kasan_unpoison_remaining_stack
+#endif
+
 	ldp	x19, x20, [x29, #16]
 	ldp	x21, x22, [x29, #32]
 	ldp	x23, x24, [x29, #48]
