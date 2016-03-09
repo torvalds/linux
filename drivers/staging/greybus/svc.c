@@ -521,8 +521,12 @@ err_ida_remove:
 static void gb_svc_interface_route_destroy(struct gb_svc *svc,
 						struct gb_interface *intf)
 {
+	if (intf->device_id == GB_DEVICE_ID_BAD)
+		return;
+
 	gb_svc_route_destroy(svc, svc->ap_intf_id, intf->interface_id);
 	ida_simple_remove(&svc->device_id_map, intf->device_id);
+	intf->device_id = GB_DEVICE_ID_BAD;
 }
 
 static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
@@ -615,30 +619,22 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	if (ret) {
 		dev_err(&svc->dev, "failed to clear boot status of interface %u: %d\n",
 				intf_id, ret);
-		goto destroy_interface;
+		goto out_interface_add;
 	}
 
 	ret = gb_svc_interface_route_create(svc, intf);
 	if (ret)
-		goto destroy_interface;
+		goto out_interface_add;
 
 	ret = gb_interface_init(intf);
 	if (ret) {
 		dev_err(&svc->dev, "failed to initialize interface %u: %d\n",
 				intf_id, ret);
-		goto destroy_route;
+		goto out_interface_add;
 	}
 
-	ret = gb_interface_add(intf);
-	if (ret)
-		goto destroy_route;
-
-	return;
-
-destroy_route:
-	gb_svc_interface_route_destroy(svc, intf);
-destroy_interface:
-	gb_interface_remove(intf);
+out_interface_add:
+	gb_interface_add(intf);
 }
 
 static void gb_svc_process_intf_hot_unplug(struct gb_operation *operation)
