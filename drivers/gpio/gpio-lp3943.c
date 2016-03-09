@@ -45,6 +45,26 @@ struct lp3943_gpio {
 	u16 input_mask;		/* 1 = GPIO is input direction, 0 = output */
 };
 
+static int lp3943_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
+	struct lp3943 *lp3943 = lp3943_gpio->lp3943;
+
+	/* Return an error if the pin is already assigned */
+	if (test_and_set_bit(offset, &lp3943->pin_used))
+		return -EBUSY;
+
+	return 0;
+}
+
+static void lp3943_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	struct lp3943_gpio *lp3943_gpio = gpiochip_get_data(chip);
+	struct lp3943 *lp3943 = lp3943_gpio->lp3943;
+
+	clear_bit(offset, &lp3943->pin_used);
+}
+
 static int lp3943_gpio_set_mode(struct lp3943_gpio *lp3943_gpio, u8 offset,
 				u8 val)
 {
@@ -157,6 +177,8 @@ static int lp3943_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 static const struct gpio_chip lp3943_gpio_chip = {
 	.label			= "lp3943",
 	.owner			= THIS_MODULE,
+	.request		= lp3943_gpio_request,
+	.free			= lp3943_gpio_free,
 	.direction_input	= lp3943_gpio_direction_input,
 	.get			= lp3943_gpio_get,
 	.direction_output	= lp3943_gpio_direction_output,
