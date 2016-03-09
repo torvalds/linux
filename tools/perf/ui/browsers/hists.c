@@ -2322,6 +2322,9 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 {
 	struct thread *thread = act->thread;
 
+	if ((!sort__has_thread && !sort__has_comm) || thread == NULL)
+		return 0;
+
 	if (browser->hists->thread_filter) {
 		pstack__remove(browser->pstack, &browser->hists->thread_filter);
 		perf_hpp__set_elide(HISTC_THREAD, false);
@@ -2378,6 +2381,9 @@ static int
 do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 {
 	struct map *map = act->ms.map;
+
+	if (!sort__has_dso || map == NULL)
+		return 0;
 
 	if (browser->hists->dso_filter) {
 		pstack__remove(browser->pstack, &browser->hists->dso_filter);
@@ -2530,6 +2536,9 @@ add_exit_opt(struct hist_browser *browser __maybe_unused,
 static int
 do_zoom_socket(struct hist_browser *browser, struct popup_action *act)
 {
+	if (!sort__has_socket || act->socket < 0)
+		return 0;
+
 	if (browser->hists->socket_filter > -1) {
 		pstack__remove(browser->pstack, &browser->hists->socket_filter);
 		browser->hists->socket_filter = -1;
