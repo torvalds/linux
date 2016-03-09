@@ -2058,7 +2058,7 @@ static int ni_ns_to_timer(const struct comedi_device *dev, unsigned nanosec,
 		divider = (nanosec) / devpriv->clock_ns;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (nanosec + devpriv->clock_ns - 1) / devpriv->clock_ns;
+		divider = DIV_ROUND_UP(nanosec, devpriv->clock_ns);
 		break;
 	}
 	return divider - 1;
@@ -4241,8 +4241,7 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			break;
 		case CMDF_ROUND_UP:
 			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[2], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
@@ -4257,8 +4256,7 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			break;
 		case CMDF_ROUND_UP:
 			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[4], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
@@ -4303,8 +4301,7 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			break;
 		case CMDF_ROUND_UP:
 			up_count =
-			    (data[2] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[2], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
@@ -4319,8 +4316,7 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			break;
 		case CMDF_ROUND_UP:
 			down_count =
-			    (data[4] + devpriv->clock_ns -
-			     1) / devpriv->clock_ns;
+			    DIV_ROUND_UP(data[4], devpriv->clock_ns);
 			break;
 		default:
 			return -EINVAL;
