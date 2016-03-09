@@ -713,6 +713,17 @@
 		status = "disabled";
 	};
 
+	iep: iep@ff900000 {
+		compatible = "rockchip,iep";
+		iommu_enabled = <1>;
+		reg = <0x0 0xff900000 0x0 0x800>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk_iep", "hclk_iep";
+		version = <2>;
+		status = "disabled";
+	};
+
 	rga: rga@ff920000 {
 		compatible = "rockchip,rga2";
 		dev_mode = <1>;
