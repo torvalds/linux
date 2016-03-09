@@ -991,7 +991,7 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 }
 
-static int wxh_to_mode(struct gspca_dev *gspca_dev,
+static int wxh_to_nearest_mode(struct gspca_dev *gspca_dev,
 			int width, int height)
 {
 	int i;
@@ -1125,8 +1125,8 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	PDEBUG_MODE(gspca_dev, D_CONF, "try fmt cap",
 		    fmt->fmt.pix.pixelformat, w, h);
 
-	/* search the closest mode for width and height */
-	mode = wxh_to_mode(gspca_dev, w, h);
+	/* search the nearest mode for width and height */
+	mode = wxh_to_nearest_mode(gspca_dev, w, h);
 
 	/* OK if right palette */
 	if (gspca_dev->cam.cam_mode[mode].pixelformat
@@ -1233,7 +1233,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 				      struct v4l2_frmivalenum *fival)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
-	int mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	int mode = wxh_to_nearest_mode(gspca_dev, fival->width, fival->height);
 	__u32 i;
 
 	if (gspca_dev->cam.mode_framerates == NULL ||
