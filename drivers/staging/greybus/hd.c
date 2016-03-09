@@ -138,7 +138,6 @@ void gb_hd_del(struct gb_host_device *hd)
 	 * removing the remaining interfaces.
 	 */
 	gb_svc_del(hd->svc);
-	gb_interfaces_remove(hd);
 
 	device_del(&hd->dev);
 }

@@ -167,14 +167,6 @@ void gb_interface_remove(struct gb_interface *intf)
 	put_device(&intf->dev);
 }
 
-void gb_interfaces_remove(struct gb_host_device *hd)
-{
-	struct gb_interface *intf, *temp;
-
-	list_for_each_entry_safe(intf, temp, &hd->interfaces, links)
-		gb_interface_remove(intf);
-}
-
 /*
  * Intialise an interface by enabling the control connection and fetching the
  * manifest and other information over it.

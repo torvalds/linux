@@ -997,6 +997,14 @@ int gb_svc_add(struct gb_svc *svc)
 	return 0;
 }
 
+static void gb_svc_remove_interfaces(struct gb_svc *svc)
+{
+	struct gb_interface *intf, *tmp;
+
+	list_for_each_entry_safe(intf, tmp, &svc->hd->interfaces, links)
+		gb_interface_remove(intf);
+}
+
 void gb_svc_del(struct gb_svc *svc)
 {
 	gb_connection_disable(svc->connection);
@@ -1012,6 +1020,8 @@ void gb_svc_del(struct gb_svc *svc)
 	}
 
 	flush_workqueue(svc->wq);
+
+	gb_svc_remove_interfaces(svc);
 }
 
 void gb_svc_put(struct gb_svc *svc)
