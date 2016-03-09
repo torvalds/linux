@@ -456,9 +456,9 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ret = -EINVAL;
 	lc->log_kthread = kthread_run(log_writes_kthread, lc, "log-write");
-	if (!lc->log_kthread) {
+	if (IS_ERR(lc->log_kthread)) {
+		ret = PTR_ERR(lc->log_kthread);
 		ti->error = "Couldn't alloc kthread";
 		dm_put_device(ti, lc->dev);
 		dm_put_device(ti, lc->logdev);
