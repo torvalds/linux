@@ -147,6 +147,10 @@ void gb_interface_remove(struct gb_interface *intf)
 	struct gb_bundle *bundle;
 	struct gb_bundle *next;
 
+	/*
+	 * Disable the control-connection early to avoid operation timeouts
+	 * when the interface is already gone.
+	 */
 	if (intf->disconnected)
 		gb_control_disable(intf->control);
 
