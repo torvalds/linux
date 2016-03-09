@@ -186,13 +186,11 @@ void gb_interfaces_remove(struct gb_host_device *hd)
  * Finally initialize all the bundles to set routes via SVC and initialize all
  * connections.
  */
-int gb_interface_init(struct gb_interface *intf, u8 device_id)
+int gb_interface_init(struct gb_interface *intf)
 {
 	struct gb_bundle *bundle, *tmp;
 	int ret, size;
 	void *manifest;
-
-	intf->device_id = device_id;
 
 	/* Establish control connection */
 	ret = gb_control_enable(intf->control);

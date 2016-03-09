@@ -463,6 +463,61 @@ static int gb_svc_hello(struct gb_operation *op)
 	return 0;
 }
 
+static int gb_svc_interface_route_create(struct gb_svc *svc,
+						struct gb_interface *intf)
+{
+	u8 intf_id = intf->interface_id;
+	u8 device_id;
+	int ret;
+
+	/*
+	 * Create a device id for the interface:
+	 * - device id 0 (GB_DEVICE_ID_SVC) belongs to the SVC
+	 * - device id 1 (GB_DEVICE_ID_AP) belongs to the AP
+	 *
+	 * XXX Do we need to allocate device ID for SVC or the AP here? And what
+	 * XXX about an AP with multiple interface blocks?
+	 */
+	ret = ida_simple_get(&svc->device_id_map,
+			     GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
+	if (ret < 0) {
+		dev_err(&svc->dev, "failed to allocate device id for interface %u: %d\n",
+				intf_id, ret);
+		return ret;
+	}
+	device_id = ret;
+
+	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
+	if (ret) {
+		dev_err(&svc->dev, "failed to set device id %u for interface %u: %d\n",
+				device_id, intf_id, ret);
+		goto err_ida_remove;
+	}
+
+	/* Create a two-way route between the AP and the new interface. */
+	ret = gb_svc_route_create(svc, svc->ap_intf_id, GB_DEVICE_ID_AP,
+				  intf_id, device_id);
+	if (ret) {
+		dev_err(&svc->dev, "failed to create route to interface %u (device id %u): %d\n",
+				intf_id, device_id, ret);
+		goto err_svc_id_free;
+	}
+
+	intf->device_id = device_id;
+
+	return 0;
+
+err_svc_id_free:
+	/*
+	 * XXX Should we tell SVC that this id doesn't belong to interface
+	 * XXX anymore.
+	 */
+err_ida_remove:
+	ida_simple_remove(&svc->device_id_map, device_id);
+
+	return ret;
+}
+
 static void gb_svc_intf_remove(struct gb_svc *svc, struct gb_interface *intf)
 {
 	u8 intf_id = intf->interface_id;
@@ -487,7 +542,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 	struct gb_svc *svc = connection->private;
 	struct gb_host_device *hd = connection->hd;
 	struct gb_interface *intf;
-	u8 intf_id, device_id;
+	u8 intf_id;
 	u32 vendor_id = 0;
 	u32 product_id = 0;
 	int ret;
@@ -561,45 +616,14 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		goto destroy_interface;
 	}
 
-	/*
-	 * Create a device id for the interface:
-	 * - device id 0 (GB_DEVICE_ID_SVC) belongs to the SVC
-	 * - device id 1 (GB_DEVICE_ID_AP) belongs to the AP
-	 *
-	 * XXX Do we need to allocate device ID for SVC or the AP here? And what
-	 * XXX about an AP with multiple interface blocks?
-	 */
-	device_id = ida_simple_get(&svc->device_id_map,
-				   GB_DEVICE_ID_MODULES_START, 0, GFP_KERNEL);
-	if (device_id < 0) {
-		ret = device_id;
-		dev_err(&svc->dev, "failed to allocate device id for interface %u: %d\n",
-				intf_id, ret);
+	ret = gb_svc_interface_route_create(svc, intf);
+	if (ret)
 		goto destroy_interface;
-	}
 
-	ret = gb_svc_intf_device_id(svc, intf_id, device_id);
+	ret = gb_interface_init(intf);
 	if (ret) {
-		dev_err(&svc->dev, "failed to set device id %u for interface %u: %d\n",
-				device_id, intf_id, ret);
-		goto ida_put;
-	}
-
-	/*
-	 * Create a two-way route between the AP and the new interface
-	 */
-	ret = gb_svc_route_create(svc, svc->ap_intf_id, GB_DEVICE_ID_AP,
-				  intf_id, device_id);
-	if (ret) {
-		dev_err(&svc->dev, "failed to create route to interface %u (device id %u): %d\n",
-				intf_id, device_id, ret);
-		goto svc_id_free;
-	}
-
-	ret = gb_interface_init(intf, device_id);
-	if (ret) {
-		dev_err(&svc->dev, "failed to initialize interface %u (device id %u): %d\n",
-				intf_id, device_id, ret);
+		dev_err(&svc->dev, "failed to initialize interface %u: %d\n",
+				intf_id, ret);
 		goto destroy_route;
 	}
 
@@ -607,13 +631,7 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 
 destroy_route:
 	gb_svc_route_destroy(svc, svc->ap_intf_id, intf_id);
-svc_id_free:
-	/*
-	 * XXX Should we tell SVC that this id doesn't belong to interface
-	 * XXX anymore.
-	 */
-ida_put:
-	ida_simple_remove(&svc->device_id_map, device_id);
+	ida_simple_remove(&svc->device_id_map, intf->device_id);
 destroy_interface:
 	gb_interface_remove(intf);
 }
