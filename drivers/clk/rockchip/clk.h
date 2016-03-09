@@ -27,6 +27,7 @@
 #define CLK_ROCKCHIP_CLK_H
 
 #include <linux/io.h>
+#include <linux/clk-provider.h>
 
 struct clk;
 
@@ -127,6 +128,22 @@ enum rockchip_pll_type {
 	.nb = _nb,						\
 }
 
+/**
+ * struct rockchip_clk_provider: information about clock provider
+ * @reg_base: virtual address for the register base.
+ * @clk_data: holds clock related data like clk* and number of clocks.
+ * @cru_node: device-node of the clock-provider
+ * @grf: regmap of the general-register-files syscon
+ * @lock: maintains exclusion between callbacks for a given clock-provider.
+ */
+struct rockchip_clk_provider {
+	void __iomem *reg_base;
+	struct clk_onecell_data clk_data;
+	struct device_node *cru_node;
+	struct regmap *grf;
+	spinlock_t lock;
+};
+
 struct rockchip_pll_rate_table {
 	unsigned long rate;
 	unsigned int nr;
@@ -194,12 +211,13 @@ struct rockchip_pll_clock {
 		.rate_table	= _rtable,				\
 	}
 
-struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
+struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
+		enum rockchip_pll_type pll_type,
 		const char *name, const char *const *parent_names,
-		u8 num_parents, void __iomem *base, int con_offset,
-		int grf_lock_offset, int lock_shift, int reg_mode,
-		int mode_shift, struct rockchip_pll_rate_table *rate_table,
-		u8 clk_pll_flags, spinlock_t *lock);
+		u8 num_parents, int con_offset, int grf_lock_offset,
+		int lock_shift, int mode_offset, int mode_shift,
+		struct rockchip_pll_rate_table *rate_table,
+		u8 clk_pll_flags);
 
 struct rockchip_cpuclk_clksel {
 	int reg;
@@ -558,21 +576,28 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
-void rockchip_clk_init(struct device_node *np, void __iomem *base,
-		       unsigned long nr_clks);
-struct regmap *rockchip_clk_get_grf(void);
-void rockchip_clk_add_lookup(struct clk *clk, unsigned int id);
-void rockchip_clk_register_branches(struct rockchip_clk_branch *clk_list,
+struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
+			void __iomem *base, unsigned long nr_clks);
+void rockchip_clk_of_add_provider(struct device_node *np,
+				struct rockchip_clk_provider *ctx);
+struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx);
+void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
+			     struct clk *clk, unsigned int id);
+void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
+				    struct rockchip_clk_branch *list,
 				    unsigned int nr_clk);
-void rockchip_clk_register_plls(struct rockchip_pll_clock *pll_list,
+void rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
+				struct rockchip_pll_clock *pll_list,
 				unsigned int nr_pll, int grf_lock_offset);
-void rockchip_clk_register_armclk(unsigned int lookup_id, const char *name,
+void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
+			unsigned int lookup_id, const char *name,
 			const char *const *parent_names, u8 num_parents,
 			const struct rockchip_cpuclk_reg_data *reg_data,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
 void rockchip_clk_protect_critical(const char *const clocks[], int nclocks);
-void rockchip_register_restart_notifier(unsigned int reg, void (*cb)(void));
+void rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
+					unsigned int reg, void (*cb)(void));
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
 

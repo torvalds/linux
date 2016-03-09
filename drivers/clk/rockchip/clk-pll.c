@@ -46,6 +46,8 @@ struct rockchip_clk_pll {
 	const struct rockchip_pll_rate_table *rate_table;
 	unsigned int		rate_count;
 	spinlock_t		*lock;
+
+	struct rockchip_clk_provider *ctx;
 };
 
 #define to_rockchip_clk_pll(_hw) container_of(_hw, struct rockchip_clk_pll, hw)
@@ -90,7 +92,7 @@ static long rockchip_pll_round_rate(struct clk_hw *hw,
  */
 static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 {
-	struct regmap *grf = rockchip_clk_get_grf();
+	struct regmap *grf = rockchip_clk_get_grf(pll->ctx);
 	unsigned int val;
 	int delay = 24000000, ret;
 
@@ -251,7 +253,7 @@ static int rockchip_rk3036_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 	unsigned long old_rate = rockchip_rk3036_pll_recalc_rate(hw, prate);
-	struct regmap *grf = rockchip_clk_get_grf();
+	struct regmap *grf = rockchip_clk_get_grf(pll->ctx);
 
 	if (IS_ERR(grf)) {
 		pr_debug("%s: grf regmap not available, aborting rate change\n",
@@ -490,7 +492,7 @@ static int rockchip_rk3066_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
 	const struct rockchip_pll_rate_table *rate;
 	unsigned long old_rate = rockchip_rk3066_pll_recalc_rate(hw, prate);
-	struct regmap *grf = rockchip_clk_get_grf();
+	struct regmap *grf = rockchip_clk_get_grf(pll->ctx);
 
 	if (IS_ERR(grf)) {
 		pr_debug("%s: grf regmap not available, aborting rate change\n",
@@ -563,7 +565,7 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 		 rate->no, cur.no, rate->nf, cur.nf, rate->nb, cur.nb);
 	if (rate->nr != cur.nr || rate->no != cur.no || rate->nf != cur.nf
 						     || rate->nb != cur.nb) {
-		struct regmap *grf = rockchip_clk_get_grf();
+		struct regmap *grf = rockchip_clk_get_grf(pll->ctx);
 
 		if (IS_ERR(grf))
 			return;
@@ -595,12 +597,13 @@ static const struct clk_ops rockchip_rk3066_pll_clk_ops = {
  * Common registering of pll clocks
  */
 
-struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
+struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
+		enum rockchip_pll_type pll_type,
 		const char *name, const char *const *parent_names,
-		u8 num_parents, void __iomem *base, int con_offset,
-		int grf_lock_offset, int lock_shift, int mode_offset,
-		int mode_shift, struct rockchip_pll_rate_table *rate_table,
-		u8 clk_pll_flags, spinlock_t *lock)
+		u8 num_parents, int con_offset, int grf_lock_offset,
+		int lock_shift, int mode_offset, int mode_shift,
+		struct rockchip_pll_rate_table *rate_table,
+		u8 clk_pll_flags)
 {
 	const char *pll_parents[3];
 	struct clk_init_data init;
@@ -624,11 +627,11 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 	/* create the mux on top of the real pll */
 	pll->pll_mux_ops = &clk_mux_ops;
 	pll_mux = &pll->pll_mux;
-	pll_mux->reg = base + mode_offset;
+	pll_mux->reg = ctx->reg_base + mode_offset;
 	pll_mux->shift = mode_shift;
 	pll_mux->mask = PLL_MODE_MASK;
 	pll_mux->flags = 0;
-	pll_mux->lock = lock;
+	pll_mux->lock = &ctx->lock;
 	pll_mux->hw.init = &init;
 
 	if (pll_type == pll_rk3036 || pll_type == pll_rk3066)
@@ -695,11 +698,12 @@ struct clk *rockchip_clk_register_pll(enum rockchip_pll_type pll_type,
 
 	pll->hw.init = &init;
 	pll->type = pll_type;
-	pll->reg_base = base + con_offset;
+	pll->reg_base = ctx->reg_base + con_offset;
 	pll->lock_offset = grf_lock_offset;
 	pll->lock_shift = lock_shift;
 	pll->flags = clk_pll_flags;
-	pll->lock = lock;
+	pll->lock = &ctx->lock;
+	pll->ctx = ctx;
 
 	pll_clk = clk_register(NULL, &pll->hw);
 	if (IS_ERR(pll_clk)) {
