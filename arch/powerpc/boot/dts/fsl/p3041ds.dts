@@ -97,7 +97,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801";
+				compatible = "spansion,s25sl12801", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <35000000>; /* input clock */
 				partition@u-boot {
