@@ -676,6 +676,7 @@ dtb-$(CONFIG_MACH_SUN6I) += \
 	sun6i-a31-i7.dtb \
 	sun6i-a31-m9.dtb \
 	sun6i-a31-mele-a1000g-quad.dtb \
+	sun6i-a31s-colorfly-e708-q1.dtb \
 	sun6i-a31s-cs908.dtb \
 	sun6i-a31s-primo81.dtb \
 	sun6i-a31s-sina31s.dtb \
