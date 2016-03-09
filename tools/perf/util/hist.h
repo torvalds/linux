@@ -79,7 +79,6 @@ struct hists {
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
-	int			nr_sort_keys;
 	int			nr_hpp_node;
 };
 
@@ -241,7 +240,6 @@ struct perf_hpp_fmt {
 struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
-	int nr_sort_keys;
 };
 
 extern struct perf_hpp_list perf_hpp_list;

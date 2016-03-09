@@ -2703,29 +2703,6 @@ out:
 	return ret;
 }
 
-static void evlist__set_hists_nr_sort_keys(struct perf_evlist *evlist)
-{
-	struct perf_evsel *evsel;
-
-	evlist__for_each(evlist, evsel) {
-		struct perf_hpp_fmt *fmt;
-		struct hists *hists = evsel__hists(evsel);
-
-		hists->nr_sort_keys = perf_hpp_list.nr_sort_keys;
-
-		/*
-		 * If dynamic entries were used, it might add multiple
-		 * entries to each evsel for a single field name.  Set
-		 * actual number of sort keys for each hists.
-		 */
-		perf_hpp_list__for_each_sort_list(&perf_hpp_list, fmt) {
-			if (perf_hpp__is_dynamic_entry(fmt) &&
-			    !perf_hpp__defined_dynamic_entry(fmt, hists))
-				hists->nr_sort_keys--;
-		}
-	}
-}
-
 int setup_sorting(struct perf_evlist *evlist)
 {
 	int err;
@@ -2739,9 +2716,6 @@ int setup_sorting(struct perf_evlist *evlist)
 		if (err < 0)
 			return err;
 	}
-
-	if (evlist != NULL)
-		evlist__set_hists_nr_sort_keys(evlist);
 
 	reset_dimensions();
 
