@@ -342,6 +342,10 @@ get_new_buffer_index:
 	if (ctx->pos == ORANGEFS_ITERATE_NEXT)
 		ctx->pos = 0;
 
+	gossip_debug(GOSSIP_DIR_DEBUG,
+		     "%s: dirent_outcount:%d:\n",
+		     __func__,
+		     rhandle.readdir_response.orangefs_dirent_outcount);
 	for (i = ctx->pos;
 	     i < rhandle.readdir_response.orangefs_dirent_outcount;
 	     i++) {
