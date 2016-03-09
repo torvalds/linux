@@ -180,21 +180,57 @@ populate_shared_memory:
 	}
 
 	if (ret < 0) {
-		/*
-		 * don't write an error to syslog on signaled operation
-		 * termination unless we've got debugging turned on, as
-		 * this can happen regularly (i.e. ctrl-c)
-		 */
-		if (ret == -EINTR)
+		if (ret == -EINTR) {
+			/*
+			 * We can't return EINTR if any data was written,
+			 * it's not POSIX. It is minimally acceptable
+			 * to give a partial write, the way NFS does.
+			 *
+			 * It would be optimal to return all or nothing,
+			 * but if a userspace write is bigger than
+			 * an IO buffer, and the interrupt occurs
+			 * between buffer writes, that would not be
+			 * possible.
+			 */
+			switch (new_op->op_state - OP_VFS_STATE_GIVEN_UP) {
+			/*
+			 * If the op was waiting when the interrupt
+			 * occurred, then the client-core did not
+			 * trigger the write.
+			 */
+			case OP_VFS_STATE_WAITING:
+				if (*offset == 0)
+					ret = -EINTR;
+				else
+					ret = 0;
+				break;
+			/* 
+			 * If the op was in progress when the interrupt
+			 * occurred, then the client-core was able to
+			 * trigger the write.
+			 */
+			case OP_VFS_STATE_INPROGR:
+				ret = total_size;
+				break;
+			default:
+				gossip_err("%s: unexpected op state :%d:.\n",
+					   __func__,
+					   new_op->op_state);
+				ret = 0;
+				break;
+			}
 			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s: returning error %ld\n", __func__,
-				     (long)ret);
-		else
+				     "%s: got EINTR, state:%d: %p\n",
+				     __func__,
+				     new_op->op_state,
+				     new_op);
+		} else {
 			gossip_err("%s: error in %s handle %pU, returning %zd\n",
 				__func__,
 				type == ORANGEFS_IO_READ ?
 					"read from" : "write to",
 				handle, ret);
+		}
 		if (orangefs_cancel_op_in_progress(new_op))
 			return ret;
 
