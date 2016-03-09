@@ -596,6 +596,28 @@ static void iwl_pcie_free_tso_page(struct sk_buff *skb)
 	}
 }
 
+static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->reg_lock);
+
+	if (trans_pcie->ref_cmd_in_flight) {
+		trans_pcie->ref_cmd_in_flight = false;
+		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
+		iwl_trans_pcie_unref(trans);
+	}
+
+	if (!trans->cfg->base_params->apmg_wake_up_wa)
+		return;
+	if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
+		return;
+
+	trans_pcie->cmd_hold_nic_awake = false;
+	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+}
+
 /*
  * iwl_pcie_txq_unmap -  Unmap any remaining DMA mappings and free skb's
  */
@@ -620,6 +642,20 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		}
 		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr);
+
+		if (q->read_ptr == q->write_ptr) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&trans_pcie->reg_lock, flags);
+			if (txq_id != trans_pcie->cmd_queue) {
+				IWL_DEBUG_RPM(trans, "Q %d - last tx freed\n",
+					      q->id);
+				iwl_trans_pcie_unref(trans);
+			} else {
+				iwl_pcie_clear_cmd_in_flight(trans);
+			}
+			spin_unlock_irqrestore(&trans_pcie->reg_lock, flags);
+		}
 	}
 	txq->active = false;
 
@@ -1145,29 +1181,6 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
 		trans_pcie->cmd_hold_nic_awake = true;
 	}
 
-	return 0;
-}
-
-static int iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	lockdep_assert_held(&trans_pcie->reg_lock);
-
-	if (trans_pcie->ref_cmd_in_flight) {
-		trans_pcie->ref_cmd_in_flight = false;
-		IWL_DEBUG_RPM(trans, "clear ref_cmd_in_flight - unref\n");
-		iwl_trans_pcie_unref(trans);
-	}
-
-	if (trans->cfg->base_params->apmg_wake_up_wa) {
-		if (WARN_ON(!trans_pcie->cmd_hold_nic_awake))
-			return 0;
-
-		trans_pcie->cmd_hold_nic_awake = false;
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	}
 	return 0;
 }
 
