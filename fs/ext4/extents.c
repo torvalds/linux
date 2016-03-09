@@ -1736,6 +1736,12 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	 */
 	if (ext1_ee_len + ext2_ee_len > EXT_INIT_MAX_LEN)
 		return 0;
+	/*
+	 * The check for IO to unwritten extent is somewhat racy as we
+	 * increment i_unwritten / set EXT4_STATE_DIO_UNWRITTEN only after
+	 * dropping i_data_sem. But reserved blocks should save us in that
+	 * case.
+	 */
 	if (ext4_ext_is_unwritten(ex1) &&
 	    (ext4_test_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN) ||
 	     atomic_read(&EXT4_I(inode)->i_unwritten) ||
@@ -4007,7 +4013,6 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 	struct ext4_ext_path *path = *ppath;
 	int ret = 0;
 	int err = 0;
-	ext4_io_end_t *io = ext4_inode_aio(inode);
 
 	ext_debug("ext4_ext_handle_unwritten_extents: inode %lu, logical "
 		  "block %llu, max_blocks %u, flags %x, allocated %u\n",
@@ -4030,15 +4035,6 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 					 flags | EXT4_GET_BLOCKS_CONVERT);
 		if (ret <= 0)
 			goto out;
-		/*
-		 * Flag the inode(non aio case) or end_io struct (aio case)
-		 * that this IO needs to conversion to written when IO is
-		 * completed
-		 */
-		if (io)
-			ext4_set_io_unwritten_flag(inode, io);
-		else
-			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
 		goto out;
 	}
@@ -4283,9 +4279,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
-	ext4_io_end_t *io = ext4_inode_aio(inode);
 	ext4_lblk_t cluster_offset;
-	int set_unwritten = 0;
 	bool map_from_cluster = false;
 
 	ext_debug("blocks %u/%u requested for inode %lu\n",
@@ -4482,15 +4476,6 @@ got_allocated_blocks:
 	if (flags & EXT4_GET_BLOCKS_UNWRIT_EXT){
 		ext4_ext_mark_unwritten(&newex);
 		map->m_flags |= EXT4_MAP_UNWRITTEN;
-		/*
-		 * io_end structure was created for every IO write to an
-		 * unwritten extent. To avoid unnecessary conversion,
-		 * here we flag the IO that really needs the conversion.
-		 * For non asycn direct IO case, flag the inode state
-		 * that we need to perform conversion when IO is done.
-		 */
-		if (flags & EXT4_GET_BLOCKS_PRE_IO)
-			set_unwritten = 1;
 	}
 
 	err = 0;
@@ -4500,14 +4485,6 @@ got_allocated_blocks:
 	if (!err)
 		err = ext4_ext_insert_extent(handle, inode, &path,
 					     &newex, flags);
-
-	if (!err && set_unwritten) {
-		if (io)
-			ext4_set_io_unwritten_flag(inode, io);
-		else
-			ext4_set_inode_state(inode,
-					     EXT4_STATE_DIO_UNWRITTEN);
-	}
 
 	if (err && free_on_err) {
 		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?

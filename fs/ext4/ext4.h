@@ -1513,16 +1513,6 @@ static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 	}
 }
 
-static inline ext4_io_end_t *ext4_inode_aio(struct inode *inode)
-{
-	return inode->i_private;
-}
-
-static inline void ext4_inode_aio_set(struct inode *inode, ext4_io_end_t *io)
-{
-	inode->i_private = io;
-}
-
 /*
  * Inode dynamic state flags
  */
