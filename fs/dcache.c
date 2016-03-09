@@ -2362,6 +2362,22 @@ void d_rehash(struct dentry * entry)
 EXPORT_SYMBOL(d_rehash);
 
 /**
+ * d_add - add dentry to hash queues
+ * @entry: dentry to add
+ * @inode: The inode to attach to this dentry
+ *
+ * This adds the entry to the hash queues and initializes @inode.
+ * The entry was actually filled in earlier during d_alloc().
+ */
+
+void d_add(struct dentry *entry, struct inode *inode)
+{
+	d_instantiate(entry, inode);
+	d_rehash(entry);
+}
+EXPORT_SYMBOL(d_add);
+
+/**
  * d_exact_alias - find and hash an exact unhashed alias
  * @entry: dentry to add
  * @inode: The inode to go with this dentry

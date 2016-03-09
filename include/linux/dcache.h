@@ -273,21 +273,8 @@ extern int have_submounts(struct dentry *);
  * This adds the entry to the hash queues.
  */
 extern void d_rehash(struct dentry *);
-
-/**
- * d_add - add dentry to hash queues
- * @entry: dentry to add
- * @inode: The inode to attach to this dentry
- *
- * This adds the entry to the hash queues and initializes @inode.
- * The entry was actually filled in earlier during d_alloc().
- */
  
-static inline void d_add(struct dentry *entry, struct inode *inode)
-{
-	d_instantiate(entry, inode);
-	d_rehash(entry);
-}
+extern void d_add(struct dentry *, struct inode *);
 
 extern void dentry_update_name_case(struct dentry *, struct qstr *);
 
