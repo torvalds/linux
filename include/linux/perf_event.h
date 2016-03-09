@@ -129,6 +129,10 @@ struct hw_perf_event {
 		struct { /* itrace */
 			int			itrace_started;
 		};
+		struct { /* amd_power */
+			u64	pwr_acc;
+			u64	ptsc;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
 			/*
