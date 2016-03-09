@@ -65,6 +65,12 @@ config ARMADA_370_XP_IRQ
 	select GENERIC_IRQ_CHIP
 	select PCI_MSI_IRQ_DOMAIN if PCI_MSI
 
+config ALPINE_MSI
+	bool
+	depends on PCI && PCI_MSI
+	select GENERIC_IRQ_CHIP
+	select PCI_MSI_IRQ_DOMAIN
+
 config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
