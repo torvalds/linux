@@ -1056,6 +1056,7 @@ EXPORT_SYMBOL_GPL(dax_pmd_fault);
 int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct file *file = vma->vm_file;
+	int error;
 
 	/*
 	 * We pass NO_SECTOR to dax_radix_entry() because we expect that a
@@ -1065,7 +1066,13 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * saves us from having to make a call to get_block() here to look
 	 * up the sector.
 	 */
-	dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false, true);
+	error = dax_radix_entry(file->f_mapping, vmf->pgoff, NO_SECTOR, false,
+			true);
+
+	if (error == -ENOMEM)
+		return VM_FAULT_OOM;
+	if (error)
+		return VM_FAULT_SIGBUS;
 	return VM_FAULT_NOPAGE;
 }
 EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
