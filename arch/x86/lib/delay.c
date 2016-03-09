@@ -102,7 +102,7 @@ static void delay_mwaitx(unsigned long __loops)
 		 * Use cpu_tss as a cacheline-aligned, seldomly
 		 * accessed per-cpu variable as the monitor target.
 		 */
-		__monitorx(this_cpu_ptr(&cpu_tss), 0, 0);
+		__monitorx(raw_cpu_ptr(&cpu_tss), 0, 0);
 
 		/*
 		 * AMD, like Intel, supports the EAX hint and EAX=0xf
