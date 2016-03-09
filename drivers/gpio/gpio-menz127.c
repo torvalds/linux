@@ -35,7 +35,6 @@
 struct men_z127_gpio {
 	struct gpio_chip gc;
 	void __iomem *reg_base;
-	struct mcb_device *mdev;
 	struct resource *mem;
 	spinlock_t lock;
 };
@@ -44,7 +43,7 @@ static int men_z127_debounce(struct gpio_chip *gc, unsigned gpio,
 			     unsigned debounce)
 {
 	struct men_z127_gpio *priv = gpiochip_get_data(gc);
-	struct device *dev = &priv->mdev->dev;
+	struct device *dev = gc->parent;
 	unsigned int rnd;
 	u32 db_en, db_cnt;
 
@@ -136,7 +135,6 @@ static int men_z127_probe(struct mcb_device *mdev,
 		goto err_release;
 	}
 
-	men_z127_gpio->mdev = mdev;
 	mcb_set_drvdata(mdev, men_z127_gpio);
 
 	ret = bgpio_init(&men_z127_gpio->gc, &mdev->dev, 4,
