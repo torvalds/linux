@@ -716,7 +716,8 @@ static int smi_fe_init(struct smi_port *port)
 	/* init MAC.*/
 	ret = smi_read_eeprom(&dev->i2c_bus[0], 0xc0, mac_ee, 16);
 	dev_info(&port->dev->pci_dev->dev,
-		"DVBSky SMI PCIe MAC= %pM\n", mac_ee + (port->idx)*8);
+		"%s port %d MAC: %pM\n", dev->info->name,
+		port->idx, mac_ee + (port->idx)*8);
 	memcpy(adap->proposed_mac, mac_ee + (port->idx)*8, 6);
 	return ret;
 }
