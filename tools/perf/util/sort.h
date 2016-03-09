@@ -129,7 +129,6 @@ struct hist_entry {
 	void			*raw_data;
 	u32			raw_size;
 	void			*trace_output;
-	struct perf_hpp_fmt	*fmt;
 	struct perf_hpp_list	*hpp_list;
 	struct hist_entry	*parent_he;
 	union {
