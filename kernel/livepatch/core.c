@@ -190,8 +190,8 @@ static int klp_find_object_symbol(const char *objname, const char *name,
 	if (args.addr == 0)
 		pr_err("symbol '%s' not found in symbol table\n", name);
 	else if (args.count > 1 && sympos == 0) {
-		pr_err("unresolvable ambiguity (%lu matches) on symbol '%s' in object '%s'\n",
-		       args.count, name, objname);
+		pr_err("unresolvable ambiguity for symbol '%s' in object '%s'\n",
+		       name, objname);
 	} else if (sympos != args.count && sympos > 0) {
 		pr_err("symbol position %lu for symbol '%s' in object '%s' not found\n",
 		       sympos, name, objname ? objname : "vmlinux");
