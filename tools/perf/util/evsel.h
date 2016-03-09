@@ -93,10 +93,8 @@ struct perf_evsel {
 	const char		*unit;
 	struct event_format	*tp_format;
 	off_t			id_offset;
-	union {
-		void		*priv;
-		u64		db_id;
-	};
+	void			*priv;
+	u64			db_id;
 	struct cgroup_sel	*cgrp;
 	void			*handler;
 	struct cpu_map		*cpus;
