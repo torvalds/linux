@@ -201,7 +201,7 @@ extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	if (pte_valid(pte)) {
+	if (pte_present(pte)) {
 		if (pte_sw_dirty(pte) && pte_write(pte))
 			pte_val(pte) &= ~PTE_RDONLY;
 		else
@@ -626,6 +626,7 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
  *	bits 0-1:	present (must be zero)
  *	bits 2-7:	swap type
  *	bits 8-57:	swap offset
+ *	bit  58:	PTE_PROT_NONE (must be zero)
  */
 #define __SWP_TYPE_SHIFT	2
 #define __SWP_TYPE_BITS		6
