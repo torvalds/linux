@@ -531,7 +531,7 @@ static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 		divider = (*nanosec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = (*nanosec + base - 1) / base;
+		divider = DIV_ROUND_UP(*nanosec, base);
 		break;
 	}
 
