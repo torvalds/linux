@@ -54,9 +54,6 @@ static struct attribute *interface_attrs[] = {
 ATTRIBUTE_GROUPS(interface);
 
 
-/* XXX This could be per-host device */
-static DEFINE_SPINLOCK(gb_interfaces_lock);
-
 // FIXME, odds are you don't want to call this function, rework the caller to
 // not need it please.
 struct gb_interface *gb_interface_find(struct gb_host_device *hd,
@@ -100,6 +97,9 @@ struct device_type greybus_interface_type = {
  *
  * Returns a pointer to the new interfce or a null pointer if a
  * failure occurs due to memory exhaustion.
+ *
+ * Locking: Caller ensures serialisation with gb_interface_remove and
+ * gb_interface_find.
  */
 struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 					 u8 interface_id)
@@ -132,9 +132,7 @@ struct gb_interface *gb_interface_create(struct gb_host_device *hd,
 		return NULL;
 	}
 
-	spin_lock_irq(&gb_interfaces_lock);
 	list_add(&intf->links, &hd->interfaces);
-	spin_unlock_irq(&gb_interfaces_lock);
 
 	return intf;
 }
@@ -164,9 +162,7 @@ void gb_interface_remove(struct gb_interface *intf)
 
 	gb_control_disable(intf->control);
 
-	spin_lock_irq(&gb_interfaces_lock);
 	list_del(&intf->links);
-	spin_unlock_irq(&gb_interfaces_lock);
 
 	put_device(&intf->dev);
 }
