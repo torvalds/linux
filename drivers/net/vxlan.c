@@ -2066,7 +2066,7 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			return;
 		}
 		udp_tunnel6_xmit_skb(ndst, sk, skb, dev,
-				     &saddr, &dst->sin6.sin6_addr, tos, ttl,
+				     &saddr, &dst->sin6.sin6_addr, tos, ttl, 0,
 				     src_port, dst_port, !udp_sum);
 #endif
 	}

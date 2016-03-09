@@ -196,7 +196,7 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		ttl = ip6_dst_hoplimit(ndst);
 		err = udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, skb,
 					   ndst->dev, &src->ipv6,
-					   &dst->ipv6, 0, ttl, src->udp_port,
+					   &dst->ipv6, 0, ttl, 0, src->udp_port,
 					   dst->udp_port, false);
 #endif
 	}

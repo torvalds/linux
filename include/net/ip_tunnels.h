@@ -48,6 +48,7 @@ struct ip_tunnel_key {
 	__be16			tun_flags;
 	u8			tos;		/* TOS for IPv4, TC for IPv6 */
 	u8			ttl;		/* TTL for IPv4, HL for IPv6 */
+	__be32			label;		/* Flow Label for IPv6 */
 	__be16			tp_src;
 	__be16			tp_dst;
 };
@@ -181,7 +182,7 @@ int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
 
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 				      __be32 saddr, __be32 daddr,
-				      u8 tos, u8 ttl,
+				      u8 tos, u8 ttl, __be32 label,
 				      __be16 tp_src, __be16 tp_dst,
 				      __be64 tun_id, __be16 tun_flags)
 {
@@ -192,6 +193,7 @@ static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 	       0, IP_TUNNEL_KEY_IPV4_PAD_LEN);
 	key->tos = tos;
 	key->ttl = ttl;
+	key->label = label;
 	key->tun_flags = tun_flags;
 
 	/* For the tunnel types on the top of IPsec, the tp_src and tp_dst of
