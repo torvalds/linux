@@ -747,6 +747,15 @@
 		status = "disabled";
 	};
 
+	iep_mmu: iep-mmu {
+		dbgname = "iep";
+		compatible = "rockchip,iep_mmu";
+		reg = <0x0 0xff900800 0x0 0x100>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		status = "disabled";
+	};
+
 	vpu_mmu: vpu_mmu {
 		dbgname = "vpu";
 		compatible = "rockchip,vpu_mmu";

@@ -654,6 +654,10 @@
 	status = "okay";
 };
 
+&iep_mmu {
+	status = "okay";
+};
+
 &vpu_mmu {
 	status = "okay";
 };
