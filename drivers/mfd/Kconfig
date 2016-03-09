@@ -91,14 +91,29 @@ config MFD_BCM590XX
 	  Support for the BCM590xx PMUs from Broadcom
 
 config MFD_AXP20X
-	bool "X-Powers AXP20X"
+	tristate
 	select MFD_CORE
-	select REGMAP_I2C
 	select REGMAP_IRQ
-	depends on I2C=y
+
+config MFD_AXP20X_I2C
+	tristate "X-Powers AXP series PMICs with I2C"
+	select MFD_AXP20X
+	select REGMAP_I2C
+	depends on I2C
 	help
-	  If you say Y here you get support for the X-Powers AXP202, AXP209 and
-	  AXP288 power management IC (PMIC).
+	  If you say Y here you get support for the X-Powers AXP series power
+	  management ICs (PMICs) controlled with I2C.
+	  This driver include only the core APIs. You have to select individual
+	  components like regulators or the PEK (Power Enable Key) under the
+	  corresponding menus.
+
+config MFD_AXP20X_RSB
+	tristate "X-Powers AXP series PMICs with RSB"
+	select MFD_AXP20X
+	depends on SUNXI_RSB
+	help
+	  If you say Y here you get support for the X-Powers AXP series power
+	  management ICs (PMICs) controlled with RSB.
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
@@ -270,6 +285,15 @@ config MFD_MC13XXX_I2C
 	select MFD_MC13XXX
 	help
 	  Select this if your MC13xxx is connected via an I2C bus.
+
+config MFD_MX25_TSADC
+	tristate "Freescale i.MX25 integrated Touchscreen and ADC unit"
+	select REGMAP_MMIO
+	depends on (SOC_IMX25 && OF) || COMPILE_TEST
+	help
+	  Enable support for the integrated Touchscreen and ADC unit of the
+	  i.MX25 processors. They consist of a conversion queue for general
+	  purpose ADC and a queue for Touchscreens.
 
 config MFD_HI6421_PMIC
 	tristate "HiSilicon Hi6421 PMU/Codec IC"
@@ -1181,27 +1205,25 @@ config MFD_TPS65910
 	  Power Management chips.
 
 config MFD_TPS65912
-	bool "TI TPS65912 Power Management chip"
-	depends on GPIOLIB
+	tristate
 	select MFD_CORE
-	help
-	  If you say yes here you get support for the TPS65912 series of
-	  PM chips.
+	select REGMAP
+	select REGMAP_IRQ
 
 config MFD_TPS65912_I2C
-	bool "TI TPS65912 Power Management chip with I2C"
-	select MFD_CORE
+	tristate "TI TPS65912 Power Management chip with I2C"
 	select MFD_TPS65912
-	depends on I2C=y && GPIOLIB
+	select REGMAP_I2C
+	depends on I2C
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with I2C interface.
 
 config MFD_TPS65912_SPI
-	bool "TI TPS65912 Power Management chip with SPI"
-	select MFD_CORE
+	tristate "TI TPS65912 Power Management chip with SPI"
 	select MFD_TPS65912
-	depends on SPI_MASTER && GPIOLIB
+	select REGMAP_SPI
+	depends on SPI_MASTER
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.

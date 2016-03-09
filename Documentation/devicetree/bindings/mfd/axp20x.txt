@@ -5,11 +5,12 @@ axp152 (X-Powers)
 axp202 (X-Powers)
 axp209 (X-Powers)
 axp221 (X-Powers)
+axp223 (X-Powers)
 
 Required properties:
 - compatible: "x-powers,axp152", "x-powers,axp202", "x-powers,axp209",
-	      "x-powers,axp221"
-- reg: The I2C slave address for the AXP chip
+	      "x-powers,axp221", "x-powers,axp223"
+- reg: The I2C slave address or RSB hardware address for the AXP chip
 - interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
 - interrupt-controller: The PMIC has its own internal IRQs
@@ -51,7 +52,7 @@ LDO3		: LDO		: ldo3in-supply
 LDO4		: LDO		: ldo24in-supply	: shared supply
 LDO5		: LDO		: ldo5in-supply
 
-AXP221 regulators, type, and corresponding input supply names:
+AXP221/AXP223 regulators, type, and corresponding input supply names:
 
 Regulator	  Type		  Supply Name		  Notes
 ---------	  ----		  -----------		  -----
