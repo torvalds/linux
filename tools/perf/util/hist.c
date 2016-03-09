@@ -1453,6 +1453,31 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 	hists->stats.total_period += h->stat.period;
 }
 
+static void hierarchy_recalc_total_periods(struct hists *hists)
+{
+	struct rb_node *node;
+	struct hist_entry *he;
+
+	node = rb_first(&hists->entries);
+
+	hists->stats.total_period = 0;
+	hists->stats.total_non_filtered_period = 0;
+
+	/*
+	 * recalculate total period using top-level entries only
+	 * since lower level entries only see non-filtered entries
+	 * but upper level entries have sum of both entries.
+	 */
+	while (node) {
+		he = rb_entry(node, struct hist_entry, rb_node);
+		node = rb_next(node);
+
+		hists->stats.total_period += he->stat.period;
+		if (!he->filtered)
+			hists->stats.total_non_filtered_period += he->stat.period;
+	}
+}
+
 static void hierarchy_insert_output_entry(struct rb_root *root,
 					  struct hist_entry *he)
 {
@@ -1517,11 +1542,6 @@ static void hists__hierarchy_output_resort(struct hists *hists,
 
 			continue;
 		}
-
-		/* only update stat for leaf entries to avoid duplication */
-		hists__inc_stats(hists, he);
-		if (!he->filtered)
-			hists__calc_col_len(hists, he);
 
 		if (!use_callchain)
 			continue;
@@ -1602,11 +1622,13 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	hists__reset_col_len(hists);
 
 	if (symbol_conf.report_hierarchy) {
-		return hists__hierarchy_output_resort(hists, prog,
-						      &hists->entries_collapsed,
-						      &hists->entries,
-						      min_callchain_hits,
-						      use_callchain);
+		hists__hierarchy_output_resort(hists, prog,
+					       &hists->entries_collapsed,
+					       &hists->entries,
+					       min_callchain_hits,
+					       use_callchain);
+		hierarchy_recalc_total_periods(hists);
+		return;
 	}
 
 	if (sort__need_collapse)
@@ -1926,6 +1948,8 @@ static void hists__filter_hierarchy(struct hists *hists, int type, const void *a
 			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_SIBLING);
 		}
 	}
+
+	hierarchy_recalc_total_periods(hists);
 
 	/*
 	 * resort output after applying a new filter since filter in a lower
