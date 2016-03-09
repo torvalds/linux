@@ -233,9 +233,9 @@ static struct resource * __request_resource(struct resource *root, struct resour
 	}
 }
 
-static int __release_resource(struct resource *old)
+static int __release_resource(struct resource *old, bool release_child)
 {
-	struct resource *tmp, **p;
+	struct resource *tmp, **p, *chd;
 
 	p = &old->parent->child;
 	for (;;) {
@@ -243,7 +243,17 @@ static int __release_resource(struct resource *old)
 		if (!tmp)
 			break;
 		if (tmp == old) {
-			*p = tmp->sibling;
+			if (release_child || !(tmp->child)) {
+				*p = tmp->sibling;
+			} else {
+				for (chd = tmp->child;; chd = chd->sibling) {
+					chd->parent = tmp->parent;
+					if (!(chd->sibling))
+						break;
+				}
+				*p = tmp->child;
+				chd->sibling = tmp->sibling;
+			}
 			old->parent = NULL;
 			return 0;
 		}
@@ -325,7 +335,7 @@ int release_resource(struct resource *old)
 	int retval;
 
 	write_lock(&resource_lock);
-	retval = __release_resource(old);
+	retval = __release_resource(old, true);
 	write_unlock(&resource_lock);
 	return retval;
 }
@@ -679,7 +689,7 @@ static int reallocate_resource(struct resource *root, struct resource *old,
 		old->start = new.start;
 		old->end = new.end;
 	} else {
-		__release_resource(old);
+		__release_resource(old, true);
 		*old = new;
 		conflict = __request_resource(root, old);
 		BUG_ON(conflict);
@@ -825,6 +835,9 @@ static struct resource * __insert_resource(struct resource *parent, struct resou
  * entirely fit within the range of the new resource, then the new
  * resource is inserted and the conflicting resources become children of
  * the new resource.
+ *
+ * This function is intended for producers of resources, such as FW modules
+ * and bus drivers.
  */
 struct resource *insert_resource_conflict(struct resource *parent, struct resource *new)
 {
@@ -842,6 +855,9 @@ struct resource *insert_resource_conflict(struct resource *parent, struct resour
  * @new: new resource to insert
  *
  * Returns 0 on success, -EBUSY if the resource can't be inserted.
+ *
+ * This function is intended for producers of resources, such as FW modules
+ * and bus drivers.
  */
 int insert_resource(struct resource *parent, struct resource *new)
 {
@@ -883,6 +899,31 @@ void insert_resource_expand_to_fit(struct resource *root, struct resource *new)
 		printk("Expanded resource %s due to conflict with %s\n", new->name, conflict->name);
 	}
 	write_unlock(&resource_lock);
+}
+
+/**
+ * remove_resource - Remove a resource in the resource tree
+ * @old: resource to remove
+ *
+ * Returns 0 on success, -EINVAL if the resource is not valid.
+ *
+ * This function removes a resource previously inserted by insert_resource()
+ * or insert_resource_conflict(), and moves the children (if any) up to
+ * where they were before.  insert_resource() and insert_resource_conflict()
+ * insert a new resource, and move any conflicting resources down to the
+ * children of the new resource.
+ *
+ * insert_resource(), insert_resource_conflict() and remove_resource() are
+ * intended for producers of resources, such as FW modules and bus drivers.
+ */
+int remove_resource(struct resource *old)
+{
+	int retval;
+
+	write_lock(&resource_lock);
+	retval = __release_resource(old, false);
+	write_unlock(&resource_lock);
+	return retval;
 }
 
 static int __adjust_resource(struct resource *res, resource_size_t start,
