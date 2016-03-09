@@ -29,10 +29,10 @@ __weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 
 static void *try_ram_remap(resource_size_t offset, size_t size)
 {
-	struct page *page = pfn_to_page(offset >> PAGE_SHIFT);
+	unsigned long pfn = PHYS_PFN(offset);
 
 	/* In the simple case just return the existing linear address */
-	if (!PageHighMem(page))
+	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
 		return __va(offset);
 	return NULL; /* fallback to ioremap_cache */
 }
