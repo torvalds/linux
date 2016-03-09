@@ -629,6 +629,10 @@ static void gb_svc_process_intf_hotplug(struct gb_operation *operation)
 		goto destroy_route;
 	}
 
+	ret = gb_interface_add(intf);
+	if (ret)
+		goto destroy_route;
+
 	return;
 
 destroy_route:

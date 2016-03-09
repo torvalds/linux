@@ -179,16 +179,12 @@ void gb_interfaces_remove(struct gb_host_device *hd)
 		gb_interface_remove(intf);
 }
 
-/**
- * gb_interface_init
- *
- * Create connection for control CPort and then request/parse manifest.
- * Finally initialize all the bundles to set routes via SVC and initialize all
- * connections.
+/*
+ * Intialise an interface by enabling the control connection and fetching the
+ * manifest and other information over it.
  */
 int gb_interface_init(struct gb_interface *intf)
 {
-	struct gb_bundle *bundle, *tmp;
 	int ret, size;
 	void *manifest;
 
@@ -236,11 +232,22 @@ int gb_interface_init(struct gb_interface *intf)
 	if (ret)
 		goto free_manifest;
 
-	/* Register the interface and its bundles. */
+free_manifest:
+	kfree(manifest);
+
+	return ret;
+}
+
+/* Register an interface and its bundles. */
+int gb_interface_add(struct gb_interface *intf)
+{
+	struct gb_bundle *bundle, *tmp;
+	int ret;
+
 	ret = device_add(&intf->dev);
 	if (ret) {
 		dev_err(&intf->dev, "failed to register interface: %d\n", ret);
-		goto free_manifest;
+		return ret;
 	}
 
 	dev_info(&intf->dev, "Interface added: VID=0x%08x, PID=0x%08x\n",
@@ -256,9 +263,5 @@ int gb_interface_init(struct gb_interface *intf)
 		}
 	}
 
-	ret = 0;
-
-free_manifest:
-	kfree(manifest);
-	return ret;
+	return 0;
 }
