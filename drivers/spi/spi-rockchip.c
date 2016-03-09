@@ -436,7 +436,7 @@ static void rockchip_spi_dma_txcb(void *data)
 	spin_unlock_irqrestore(&rs->lock, flags);
 }
 
-static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
+static int rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 {
 	unsigned long flags;
 	struct dma_slave_config rxconf, txconf;
@@ -459,6 +459,8 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 				rs->dma_rx.ch,
 				rs->rx_sg.sgl, rs->rx_sg.nents,
 				rs->dma_rx.direction, DMA_PREP_INTERRUPT);
+		if (!rxdesc)
+			return -EINVAL;
 
 		rxdesc->callback = rockchip_spi_dma_rxcb;
 		rxdesc->callback_param = rs;
@@ -476,6 +478,11 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 				rs->dma_tx.ch,
 				rs->tx_sg.sgl, rs->tx_sg.nents,
 				rs->dma_tx.direction, DMA_PREP_INTERRUPT);
+		if (!txdesc) {
+			if (rxdesc)
+				dmaengine_terminate_sync(rs->dma_rx.ch);
+			return -EINVAL;
+		}
 
 		txdesc->callback = rockchip_spi_dma_txcb;
 		txdesc->callback_param = rs;
@@ -497,6 +504,8 @@ static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(rs->dma_tx.ch);
 	}
+
+	return 0;
 }
 
 static void rockchip_spi_config(struct rockchip_spi *rs)
@@ -610,12 +619,12 @@ static int rockchip_spi_transfer_one(
 	if (rs->use_dma) {
 		if (rs->tmode == CR0_XFM_RO) {
 			/* rx: dma must be prepared first */
-			rockchip_spi_prepare_dma(rs);
+			ret = rockchip_spi_prepare_dma(rs);
 			spi_enable_chip(rs, 1);
 		} else {
 			/* tx or tr: spi must be enabled first */
 			spi_enable_chip(rs, 1);
-			rockchip_spi_prepare_dma(rs);
+			ret = rockchip_spi_prepare_dma(rs);
 		}
 	} else {
 		spi_enable_chip(rs, 1);
