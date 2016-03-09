@@ -463,8 +463,6 @@ static struct sk_buff **geneve_gro_receive(struct sk_buff **head,
 			goto out;
 	}
 
-	flush = 0;
-
 	for (p = *head; p; p = p->next) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
@@ -481,14 +479,13 @@ static struct sk_buff **geneve_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (!ptype) {
-		flush = 1;
+	if (!ptype)
 		goto out_unlock;
-	}
 
 	skb_gro_pull(skb, gh_len);
 	skb_gro_postpull_rcsum(skb, gh, gh_len);
 	pp = ptype->callbacks.gro_receive(head, skb);
+	flush = 0;
 
 out_unlock:
 	rcu_read_unlock();

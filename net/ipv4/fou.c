@@ -319,8 +319,6 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 
 	skb_gro_pull(skb, hdrlen);
 
-	flush = 0;
-
 	for (p = *head; p; p = p->next) {
 		const struct guehdr *guehdr2;
 
@@ -352,6 +350,7 @@ static struct sk_buff **gue_gro_receive(struct sk_buff **head,
 		goto out_unlock;
 
 	pp = ops->callbacks.gro_receive(head, skb);
+	flush = 0;
 
 out_unlock:
 	rcu_read_unlock();
