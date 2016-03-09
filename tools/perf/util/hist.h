@@ -318,6 +318,10 @@ bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *his
 bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_thread_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_comm_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_dso_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_sym_entry(struct perf_hpp_fmt *fmt);
 
 struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt);
 

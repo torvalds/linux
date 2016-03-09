@@ -1488,38 +1488,26 @@ bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format)
 	return format->header == __sort__hpp_header;
 }
 
-bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt)
-{
-	struct hpp_sort_entry *hse;
-
-	if (!perf_hpp__is_sort_entry(fmt))
-		return false;
-
-	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	return hse->se == &sort_trace;
+#define MK_SORT_ENTRY_CHK(key)					\
+bool perf_hpp__is_ ## key ## _entry(struct perf_hpp_fmt *fmt)	\
+{								\
+	struct hpp_sort_entry *hse;				\
+								\
+	if (!perf_hpp__is_sort_entry(fmt))			\
+		return false;					\
+								\
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);	\
+	return hse->se == &sort_ ## key ;			\
 }
 
-bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt)
-{
-	struct hpp_sort_entry *hse;
+MK_SORT_ENTRY_CHK(trace)
+MK_SORT_ENTRY_CHK(srcline)
+MK_SORT_ENTRY_CHK(srcfile)
+MK_SORT_ENTRY_CHK(thread)
+MK_SORT_ENTRY_CHK(comm)
+MK_SORT_ENTRY_CHK(dso)
+MK_SORT_ENTRY_CHK(sym)
 
-	if (!perf_hpp__is_sort_entry(fmt))
-		return false;
-
-	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	return hse->se == &sort_srcline;
-}
-
-bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt)
-{
-	struct hpp_sort_entry *hse;
-
-	if (!perf_hpp__is_sort_entry(fmt))
-		return false;
-
-	hse = container_of(fmt, struct hpp_sort_entry, hpp);
-	return hse->se == &sort_srcfile;
-}
 
 static bool __sort__hpp_equal(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b)
 {
