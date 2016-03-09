@@ -34,6 +34,8 @@
 #include "arch.h"
 #include "warn.h"
 
+#include <linux/hashtable.h>
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 #define STATE_FP_SAVED		0x1
@@ -42,6 +44,7 @@
 
 struct instruction {
 	struct list_head list;
+	struct hlist_node hash;
 	struct section *sec;
 	unsigned long offset;
 	unsigned int len, state;
@@ -61,7 +64,8 @@ struct alternative {
 struct objtool_file {
 	struct elf *elf;
 	struct list_head insn_list;
-	struct section *rodata;
+	DECLARE_HASHTABLE(insn_hash, 16);
+	struct section *rodata, *whitelist;
 };
 
 const char *objname;
@@ -72,7 +76,7 @@ static struct instruction *find_insn(struct objtool_file *file,
 {
 	struct instruction *insn;
 
-	list_for_each_entry(insn, &file->insn_list, list)
+	hash_for_each_possible(file->insn_hash, insn, hash, offset)
 		if (insn->sec == sec && insn->offset == offset)
 			return insn;
 
@@ -111,14 +115,12 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
  */
 static bool ignore_func(struct objtool_file *file, struct symbol *func)
 {
-	struct section *macro_sec;
 	struct rela *rela;
 	struct instruction *insn;
 
 	/* check for STACK_FRAME_NON_STANDARD */
-	macro_sec = find_section_by_name(file->elf, "__func_stack_frame_non_standard");
-	if (macro_sec && macro_sec->rela)
-		list_for_each_entry(rela, &macro_sec->rela->rela_list, list)
+	if (file->whitelist && file->whitelist->rela)
+		list_for_each_entry(rela, &file->whitelist->rela->rela_list, list)
 			if (rela->sym->sec == func->sec &&
 			    rela->addend == func->offset)
 				return true;
@@ -276,6 +278,7 @@ static int decode_instructions(struct objtool_file *file)
 				return -1;
 			}
 
+			hash_add(file->insn_hash, &insn->hash, insn->offset);
 			list_add_tail(&insn->list, &file->insn_list);
 		}
 	}
@@ -729,6 +732,7 @@ static int decode_sections(struct objtool_file *file)
 {
 	int ret;
 
+	file->whitelist = find_section_by_name(file->elf, "__func_stack_frame_non_standard");
 	file->rodata = find_section_by_name(file->elf, ".rodata");
 
 	ret = decode_instructions(file);
@@ -1091,6 +1095,7 @@ static void cleanup(struct objtool_file *file)
 			free(alt);
 		}
 		list_del(&insn->list);
+		hash_del(&insn->hash);
 		free(insn);
 	}
 	elf_close(file->elf);
@@ -1125,6 +1130,7 @@ int cmd_check(int argc, const char **argv)
 	}
 
 	INIT_LIST_HEAD(&file.insn_list);
+	hash_init(file.insn_hash);
 
 	ret = decode_sections(&file);
 	if (ret < 0)

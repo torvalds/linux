@@ -21,12 +21,15 @@
 #include <stdio.h>
 #include <gelf.h>
 #include <linux/list.h>
+#include <linux/hashtable.h>
 
 struct section {
 	struct list_head list;
 	GElf_Shdr sh;
 	struct list_head symbol_list;
+	DECLARE_HASHTABLE(symbol_hash, 8);
 	struct list_head rela_list;
+	DECLARE_HASHTABLE(rela_hash, 16);
 	struct section *base, *rela;
 	struct symbol *sym;
 	Elf_Data *elf_data;
@@ -38,10 +41,11 @@ struct section {
 
 struct symbol {
 	struct list_head list;
+	struct hlist_node hash;
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
-	int idx;
+	unsigned int idx;
 	unsigned char bind, type;
 	unsigned long offset;
 	unsigned int len;
@@ -49,10 +53,11 @@ struct symbol {
 
 struct rela {
 	struct list_head list;
+	struct hlist_node hash;
 	GElf_Rela rela;
 	struct symbol *sym;
 	unsigned int type;
-	int offset;
+	unsigned long offset;
 	int addend;
 };
 
@@ -62,6 +67,7 @@ struct elf {
 	int fd;
 	char *name;
 	struct list_head sections;
+	DECLARE_HASHTABLE(rela_hash, 16);
 };
 
 
