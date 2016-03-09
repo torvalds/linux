@@ -71,7 +71,7 @@ enum greybus_class_type {
 	GREYBUS_CLASS_LOOPBACK		= 0x11,
 	GREYBUS_CLASS_AUDIO		= 0x12,
 	/* 0x13 is unused */
-	GREYBUS_CLASS_SVC		= 0x14,
+	/* 0x14 is unused */
 	GREYBUS_CLASS_FIRMWARE		= 0x15,
 		/* ... */
 	GREYBUS_CLASS_RAW		= 0xfe,
