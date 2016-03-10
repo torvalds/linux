@@ -223,6 +223,7 @@ struct mlx5e_pport_stats {
 
 static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
+	"bytes",
 	"csum_none",
 	"csum_sw",
 	"lro_packets",
@@ -232,16 +233,18 @@ static const char rq_stats_strings[][ETH_GSTRING_LEN] = {
 
 struct mlx5e_rq_stats {
 	u64 packets;
+	u64 bytes;
 	u64 csum_none;
 	u64 csum_sw;
 	u64 lro_packets;
 	u64 lro_bytes;
 	u64 wqe_err;
-#define NUM_RQ_STATS 6
+#define NUM_RQ_STATS 7
 };
 
 static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 	"packets",
+	"bytes",
 	"tso_packets",
 	"tso_bytes",
 	"csum_offload_none",
@@ -253,6 +256,7 @@ static const char sq_stats_strings[][ETH_GSTRING_LEN] = {
 
 struct mlx5e_sq_stats {
 	u64 packets;
+	u64 bytes;
 	u64 tso_packets;
 	u64 tso_bytes;
 	u64 csum_offload_none;
@@ -260,7 +264,7 @@ struct mlx5e_sq_stats {
 	u64 wake;
 	u64 dropped;
 	u64 nop;
-#define NUM_SQ_STATS 8
+#define NUM_SQ_STATS 9
 };
 
 struct mlx5e_stats {
@@ -304,14 +308,9 @@ enum {
 	MLX5E_RQ_STATE_POST_WQES_ENABLE,
 };
 
-enum cq_flags {
-	MLX5E_CQ_HAS_CQES = 1,
-};
-
 struct mlx5e_cq {
 	/* data path - accessed per cqe */
 	struct mlx5_cqwq           wq;
-	unsigned long              flags;
 
 	/* data path - accessed per napi poll */
 	struct napi_struct        *napi;
@@ -451,6 +450,8 @@ enum mlx5e_traffic_types {
 	MLX5E_TT_ANY,
 	MLX5E_NUM_TT,
 };
+
+#define IS_HASHING_TT(tt) (tt != MLX5E_TT_ANY)
 
 enum mlx5e_rqt_ix {
 	MLX5E_INDIRECTION_RQT,
@@ -618,9 +619,12 @@ void mlx5e_enable_vlan_filter(struct mlx5e_priv *priv);
 void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
 
 int mlx5e_redirect_rqt(struct mlx5e_priv *priv, enum mlx5e_rqt_ix rqt_ix);
+void mlx5e_build_tir_ctx_hash(void *tirc, struct mlx5e_priv *priv);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
+void mlx5e_build_default_indir_rqt(u32 *indirection_rqt, int len,
+				   int num_channels);
 
 static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 				      struct mlx5e_tx_wqe *wqe, int bf_sz)

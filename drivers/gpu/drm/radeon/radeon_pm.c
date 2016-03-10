@@ -1079,10 +1079,8 @@ force:
 
 	/* update display watermarks based on new power state */
 	radeon_bandwidth_update(rdev);
-
-	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
-	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
-	rdev->pm.dpm.single_display = single_display;
+	/* update displays */
+	radeon_dpm_display_configuration_changed(rdev);
 
 	/* wait for the rings to drain */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
@@ -1099,8 +1097,9 @@ force:
 
 	radeon_dpm_post_set_power_state(rdev);
 
-	/* update displays */
-	radeon_dpm_display_configuration_changed(rdev);
+	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+	rdev->pm.dpm.single_display = single_display;
 
 	if (rdev->asic->dpm.force_performance_level) {
 		if (rdev->pm.dpm.thermal_active) {

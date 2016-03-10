@@ -3061,15 +3061,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp->ether_link_active_low = pd->ether_link_active_low;
 
 	/* set cpu data */
-	if (id) {
+	if (id)
 		mdp->cd = (struct sh_eth_cpu_data *)id->driver_data;
-	} else	{
-		const struct of_device_id *match;
+	else
+		mdp->cd = (struct sh_eth_cpu_data *)of_device_get_match_data(&pdev->dev);
 
-		match = of_match_device(of_match_ptr(sh_eth_match_table),
-					&pdev->dev);
-		mdp->cd = (struct sh_eth_cpu_data *)match->data;
-	}
 	mdp->reg_offset = sh_eth_get_register_offset(mdp->cd->register_type);
 	if (!mdp->reg_offset) {
 		dev_err(&pdev->dev, "Unknown register type (%d)\n",
