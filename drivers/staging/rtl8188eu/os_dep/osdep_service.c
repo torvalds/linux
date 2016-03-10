@@ -64,8 +64,7 @@ u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
 		return _FAIL;
-	else
-		return _SUCCESS;
+	return _SUCCESS;
 }
 
 void	_rtw_init_queue(struct __queue *pqueue)
