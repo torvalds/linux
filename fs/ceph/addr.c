@@ -175,8 +175,8 @@ static void ceph_invalidatepage(struct page *page, unsigned int offset,
 
 static int ceph_releasepage(struct page *page, gfp_t g)
 {
-	struct inode *inode = page->mapping ? page->mapping->host : NULL;
-	dout("%p releasepage %p idx %lu\n", inode, page, page->index);
+	dout("%p releasepage %p idx %lu\n", page->mapping->host,
+	     page, page->index);
 	WARN_ON(PageDirty(page));
 
 	/* Can we release the page from the cache? */
