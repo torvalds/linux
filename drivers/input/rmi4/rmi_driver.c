@@ -20,6 +20,7 @@
 #include <linux/kconfig.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <uapi/linux/input.h>
 #include <linux/rmi.h>
 #include "rmi_bus.h"
@@ -821,6 +822,27 @@ static int rmi_driver_remove(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static int rmi_driver_of_probe(struct device *dev,
+				struct rmi_device_platform_data *pdata)
+{
+	int retval;
+
+	retval = rmi_of_property_read_u32(dev, &pdata->reset_delay_ms,
+					"syna,reset-delay-ms", 1);
+	if (retval)
+		return retval;
+
+	return 0;
+}
+#else
+static inline int rmi_driver_of_probe(struct device *dev,
+					struct rmi_device_platform_data *pdata)
+{
+	return -ENODEV;
+}
+#endif
+
 static int rmi_driver_probe(struct device *dev)
 {
 	struct rmi_driver *rmi_driver;
@@ -845,6 +867,12 @@ static int rmi_driver_probe(struct device *dev)
 	rmi_dev->driver = rmi_driver;
 
 	pdata = rmi_get_platform_data(rmi_dev);
+
+	if (rmi_dev->xport->dev->of_node) {
+		retval = rmi_driver_of_probe(rmi_dev->xport->dev, pdata);
+		if (retval)
+			return retval;
+	}
 
 	data = devm_kzalloc(dev, sizeof(struct rmi_driver_data), GFP_KERNEL);
 	if (!data)

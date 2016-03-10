@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/rmi.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include "rmi_driver.h"
 
 #define BUFFER_SIZE_INCREMENT 32
@@ -207,6 +208,14 @@ static int rmi_i2c_init_irq(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id rmi_i2c_of_match[] = {
+	{ .compatible = "syna,rmi4-i2c" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rmi_i2c_of_match);
+#endif
+
 static int rmi_i2c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -223,7 +232,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 
 	pdata = &rmi_i2c->xport.pdata;
 
-	if (client_pdata)
+	if (!client->dev.of_node && client_pdata)
 		*pdata = *client_pdata;
 
 	if (client->irq > 0)
@@ -372,6 +381,7 @@ static struct i2c_driver rmi_i2c_driver = {
 	.driver = {
 		.name	= "rmi4_i2c",
 		.pm	= &rmi_i2c_pm,
+		.of_match_table = of_match_ptr(rmi_i2c_of_match),
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_i2c_probe,

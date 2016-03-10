@@ -172,10 +172,6 @@ extern struct bus_type rmi_bus_type;
 
 int rmi_of_property_read_u32(struct device *dev, u32 *result,
 				const char *prop, bool optional);
-int rmi_of_property_read_u16(struct device *dev, u16 *result,
-				const char *prop, bool optional);
-int rmi_of_property_read_u8(struct device *dev, u8 *result,
-				const char *prop, bool optional);
 
 #define RMI_DEBUG_CORE			BIT(0)
 #define RMI_DEBUG_XPORT			BIT(1)

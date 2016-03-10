@@ -247,6 +247,50 @@ char *rmi_f01_get_product_ID(struct rmi_function *fn)
 	return f01->properties.product_id;
 }
 
+#ifdef CONFIG_OF
+static int rmi_f01_of_probe(struct device *dev,
+				struct rmi_device_platform_data *pdata)
+{
+	int retval;
+	u32 val;
+
+	retval = rmi_of_property_read_u32(dev,
+			(u32 *)&pdata->power_management.nosleep,
+			"syna,nosleep-mode", 1);
+	if (retval)
+		return retval;
+
+	retval = rmi_of_property_read_u32(dev, &val,
+			"syna,wakeup-threshold", 1);
+	if (retval)
+		return retval;
+
+	pdata->power_management.wakeup_threshold = val;
+
+	retval = rmi_of_property_read_u32(dev, &val,
+			"syna,doze-holdoff-ms", 1);
+	if (retval)
+		return retval;
+
+	pdata->power_management.doze_holdoff = val * 100;
+
+	retval = rmi_of_property_read_u32(dev, &val,
+			"syna,doze-interval-ms", 1);
+	if (retval)
+		return retval;
+
+	pdata->power_management.doze_interval = val / 10;
+
+	return 0;
+}
+#else
+static inline int rmi_f01_of_probe(struct device *dev,
+					struct rmi_device_platform_data *pdata)
+{
+	return -ENODEV;
+}
+#endif
+
 static int rmi_f01_probe(struct rmi_function *fn)
 {
 	struct rmi_device *rmi_dev = fn->rmi_dev;
@@ -257,6 +301,12 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	u16 ctrl_base_addr = fn->fd.control_base_addr;
 	u8 device_status;
 	u8 temp;
+
+	if (fn->dev.of_node) {
+		error = rmi_f01_of_probe(&fn->dev, pdata);
+		if (error)
+			return error;
+	}
 
 	f01 = devm_kzalloc(&fn->dev, sizeof(struct f01_data), GFP_KERNEL);
 	if (!f01)
