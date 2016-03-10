@@ -539,13 +539,6 @@ static int amdgpu_uvd_cs_msg(struct amdgpu_uvd_cs_ctx *ctx,
 		return -EINVAL;
 	}
 
-	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, true, false,
-						MAX_SCHEDULE_TIMEOUT);
-	if (r < 0) {
-		DRM_ERROR("Failed waiting for UVD message (%ld)!\n", r);
-		return r;
-	}
-
 	r = amdgpu_bo_kmap(bo, &ptr);
 	if (r) {
 		DRM_ERROR("Failed mapping the UVD message (%ld)!\n", r);
