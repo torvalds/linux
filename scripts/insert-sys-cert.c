@@ -7,7 +7,8 @@
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
- * Usage: insert-sys-cert [-s <System.map> -b <vmlinux> -c <certfile>
+ * Usage: insert-sys-cert [-s <System.map>] -b <vmlinux> -c <certfile>
+ *                        [-s <System.map>] -z <bzImage> -c <certfile>
  */
 
 #define _GNU_SOURCE
@@ -257,6 +258,169 @@ static char *read_file(char *file_name, int *size)
 	return buf;
 }
 
+static void get_payload_info(char *bzimage, int *offset, int *size)
+{
+	unsigned int system_offset;
+	unsigned char setup_sectors;
+
+	setup_sectors = bzimage[0x1f1] + 1;
+	system_offset = setup_sectors * 512;
+	*offset = system_offset + *((int*)&bzimage[0x248]);
+	*size = *((int*)&bzimage[0x24c]);
+}
+
+static void update_payload_info(char* bzimage, int new_size)
+{
+	int offset, size;
+	get_payload_info(bzimage, &offset, &size);
+	*((int*)&bzimage[0x24c]) = new_size;
+	if (new_size < size)
+		memset(bzimage + offset + new_size, 0, size - new_size);
+}
+
+struct zipper {
+	unsigned char pattern[10];
+	int length;
+	char *command;
+	char *compress;
+};
+
+struct zipper zippers[] = {
+	{{0x7F,'E','L','F'}, 4, "cat", "cat"},
+	{{0x1F,0x8B}, 2, "gunzip", "gzip -n -f -9"},
+	{{0xFD,'7','z','X','Z',0}, 6, "unxz", "xz"},
+	{{'B','Z','h'},3, "bunzip2", "bzip2 -9"},
+	{{0xFF,'L','Z','M','A',0}, 6, "unlzma", "lzma -9"},
+	{{0xD3,'L','Z','O',0,'\r','\n',0x20,'\n'}, 9, "lzop -d", "lzop -9"}
+};
+
+static struct zipper* get_zipper(char *p) {
+	int i;
+	for (i = 0; i < sizeof(zippers)/sizeof(struct zipper); i++) {
+		if (memcmp(p, zippers[i].pattern, zippers[i].length) == 0)
+			return &zippers[i];
+	}
+	return NULL;
+}
+
+/*
+ * This only works for x86 bzImage
+ */
+static void extract_vmlinux(char *bzimage, int bzimage_size,
+			char **file, struct zipper **zipper)
+{
+	int r;
+	char src[15] = "vmlinux-XXXXXX";
+	char dest[15] = "vmlinux-XXXXXX";
+	char cmd[100];
+	int src_fd, dest_fd;
+	int offset, size;
+	struct zipper *z;
+
+	/* TODO: verify that bzImage is supported */
+
+	get_payload_info(bzimage, &offset, &size);
+	z = get_zipper(bzimage + offset);
+	if (z == NULL) {
+		err("Unable to determine the compression of vmlinux\n");
+		return;
+	}
+
+	src_fd = mkstemp(src);
+	if (src_fd == -1) {
+		perror("Could not create temp file");
+		return;
+	}
+
+	r = write(src_fd, bzimage + offset, size);
+	if (r != size) {
+		perror("Could not write vmlinux");
+		return;
+	}
+	dest_fd = mkstemp(dest);
+	if (dest_fd == -1) {
+		perror("Could not create temp file");
+		return;
+	}
+
+	snprintf(cmd, sizeof(cmd), "%s <%s >%s", z->command, src, dest);
+	info("Executing: %s\n", cmd);
+	r = system(cmd);
+	if (r!=0)
+		warn("Possible errors when extracting\n");
+
+	r = remove(src);
+	if (r!=0)
+		perror(src);
+
+	*file = strdup(dest);
+	*zipper = z;
+}
+
+static void repack_image(char *bzimage, int bzimage_size,
+			char* vmlinux_file, struct zipper *z)
+{
+	char tmp[15] = "vmlinux-XXXXXX";
+	char cmd[100];
+	int fd;
+	struct stat st;
+	int new_size;
+	int r;
+	int offset, size;
+
+	get_payload_info(bzimage, &offset, &size);
+
+	fd = mkstemp(tmp);
+	if (fd == -1) {
+		perror("Could not create temp file");
+		return;
+	}
+	snprintf(cmd, sizeof(cmd), "%s <%s >%s",
+			z->compress, vmlinux_file, tmp);
+
+	info("Executing: %s\n", cmd);
+	r = system(cmd);
+	if (r!=0)
+		warn("Possible errors when compressing\n");
+
+	r = remove(vmlinux_file);
+	if (r!=0)
+		perror(vmlinux_file);
+
+	if (fstat(fd, &st)) {
+		perror("Could not determine file size");
+		close(fd);
+
+	}
+	new_size = st.st_size;
+	if (new_size > size) {
+		err("Increase in compressed size is not supported.\n");
+		err("Old size was %d, new size is %d\n", size, new_size);
+		exit(EXIT_FAILURE);
+	}
+
+	r = read(fd, bzimage + offset, new_size);
+	if (r != new_size)
+		perror(tmp);
+
+	r = remove(tmp);
+	if (r!=0)
+		perror(tmp);
+
+	/* x86 specific patching of bzimage */
+	update_payload_info(bzimage, new_size);
+
+	/* TODO: update CRC */
+
+}
+
+static void fill_random(unsigned char *p, int n) {
+	srand(0);
+	int i;
+	for (i = 0; i < n; i++)
+		p[i] = rand();
+}
+
 static void print_sym(Elf_Ehdr *hdr, struct sym *s)
 {
 	info("sym:    %s\n", s->name);
@@ -267,18 +431,23 @@ static void print_sym(Elf_Ehdr *hdr, struct sym *s)
 
 static void print_usage(char *e)
 {
-	printf("Usage %s [-s <System.map>] -b <vmlinux> -c <certfile>\n", e);
+	printf("Usage: %s [-s <System.map>] -b <vmlinux> -c <certfile>\n", e);
+	printf("       %s [-s <System.map>] -z <bzImage> -c <certfile>\n", e);
 }
 
 int main(int argc, char **argv)
 {
 	char *system_map_file = NULL;
 	char *vmlinux_file = NULL;
+	char *bzimage_file = NULL;
 	char *cert_file = NULL;
 	int vmlinux_size;
+	int bzimage_size;
 	int cert_size;
 	Elf_Ehdr *hdr;
 	char *cert;
+	char *bzimage = NULL;
+	struct zipper *z = NULL;
 	FILE *system_map;
 	unsigned long *lsize;
 	int *used;
@@ -286,13 +455,16 @@ int main(int argc, char **argv)
 	Elf_Shdr *symtab = NULL;
 	struct sym cert_sym, lsize_sym, used_sym;
 
-	while ((opt = getopt(argc, argv, "b:c:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "b:z:c:s:")) != -1) {
 		switch (opt) {
 		case 's':
 			system_map_file = optarg;
 			break;
 		case 'b':
 			vmlinux_file = optarg;
+			break;
+		case 'z':
+			bzimage_file = optarg;
 			break;
 		case 'c':
 			cert_file = optarg;
@@ -302,7 +474,9 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (!vmlinux_file || !cert_file) {
+	if (!cert_file ||
+	(!vmlinux_file && !bzimage_file) ||
+	(vmlinux_file && bzimage_file)) {
 		print_usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -310,6 +484,16 @@ int main(int argc, char **argv)
 	cert = read_file(cert_file, &cert_size);
 	if (!cert)
 		exit(EXIT_FAILURE);
+
+	if (bzimage_file) {
+		bzimage = map_file(bzimage_file, &bzimage_size);
+		if (!bzimage)
+			exit(EXIT_FAILURE);
+
+		extract_vmlinux(bzimage, bzimage_size, &vmlinux_file, &z);
+		if (!vmlinux_file)
+			exit(EXIT_FAILURE);
+	}
 
 	hdr = map_file(vmlinux_file, &vmlinux_size);
 	if (!hdr)
@@ -386,7 +570,7 @@ int main(int argc, char **argv)
 	}
 
 	/* If the existing cert is the same, don't overwrite */
-	if (cert_size == *used &&
+	if (cert_size > 0 && cert_size == *used &&
 	    strncmp(cert_sym.content, cert, cert_size) == 0) {
 		warn("Certificate was already inserted.\n");
 		exit(EXIT_SUCCESS);
@@ -396,9 +580,11 @@ int main(int argc, char **argv)
 		warn("Replacing previously inserted certificate.\n");
 
 	memcpy(cert_sym.content, cert, cert_size);
+
 	if (cert_size < cert_sym.size)
-		memset(cert_sym.content + cert_size,
-			0, cert_sym.size - cert_size);
+		/* This makes the reserved space incompressable */
+		fill_random(cert_sym.content + cert_size,
+				cert_sym.size - cert_size);
 
 	*lsize = *lsize + cert_size - *used;
 	*used = cert_size;
@@ -406,5 +592,15 @@ int main(int argc, char **argv)
 						cert_sym.address);
 	info("Used %d bytes out of %d bytes reserved.\n", *used,
 						 cert_sym.size);
+
+	if (munmap(hdr, vmlinux_size) == -1) {
+		perror(vmlinux_file);
+		exit(EXIT_FAILURE);
+	}
+
+	if (bzimage) {
+		repack_image(bzimage, bzimage_size, vmlinux_file, z);
+	}
+
 	exit(EXIT_SUCCESS);
 }
