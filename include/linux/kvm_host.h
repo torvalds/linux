@@ -1091,6 +1091,11 @@ static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
 
 static inline void kvm_make_request(int req, struct kvm_vcpu *vcpu)
 {
+	/*
+	 * Ensure the rest of the request is published to kvm_check_request's
+	 * caller.  Paired with the smp_mb__after_atomic in kvm_check_request.
+	 */
+	smp_wmb();
 	set_bit(req, &vcpu->requests);
 }
 
@@ -1098,6 +1103,12 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 {
 	if (test_bit(req, &vcpu->requests)) {
 		clear_bit(req, &vcpu->requests);
+
+		/*
+		 * Ensure the rest of the request is visible to kvm_check_request's
+		 * caller.  Paired with the smp_wmb in kvm_make_request.
+		 */
+		smp_mb__after_atomic();
 		return true;
 	} else {
 		return false;
