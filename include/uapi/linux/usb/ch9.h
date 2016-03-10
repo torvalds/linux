@@ -172,6 +172,22 @@
 #define USB_DEV_STAT_U2_ENABLED		3	/* transition into U2 state */
 #define USB_DEV_STAT_LTM_ENABLED	4	/* Latency tolerance messages */
 
+/*
+ * Feature selectors from Table 9-8 USB Power Delivery spec
+ */
+#define USB_DEVICE_BATTERY_WAKE_MASK	40
+#define USB_DEVICE_OS_IS_PD_AWARE	41
+#define USB_DEVICE_POLICY_MODE		42
+#define USB_PORT_PR_SWAP		43
+#define USB_PORT_GOTO_MIN		44
+#define USB_PORT_RETURN_POWER		45
+#define USB_PORT_ACCEPT_PD_REQUEST	46
+#define USB_PORT_REJECT_PD_REQUEST	47
+#define USB_PORT_PORT_PD_RESET		48
+#define USB_PORT_C_PORT_PD_CHANGE	49
+#define USB_PORT_CABLE_PD_RESET		50
+#define USB_DEVICE_CHARGING_POLICY	54
+
 /**
  * struct usb_ctrlrequest - SETUP data for a USB device control request
  * @bRequestType: matches the USB bmRequestType field
