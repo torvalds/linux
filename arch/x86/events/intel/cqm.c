@@ -211,6 +211,20 @@ static void __put_rmid(u32 rmid)
 	list_add_tail(&entry->list, &cqm_rmid_limbo_lru);
 }
 
+static void cqm_cleanup(void)
+{
+	int i;
+
+	if (!cqm_rmid_ptrs)
+		return;
+
+	for (i = 0; i < cqm_max_rmid; i++)
+		kfree(cqm_rmid_ptrs[i]);
+
+	kfree(cqm_rmid_ptrs);
+	cqm_rmid_ptrs = NULL;
+}
+
 static int intel_cqm_setup_rmid_cache(void)
 {
 	struct cqm_rmid_entry *entry;
@@ -218,7 +232,7 @@ static int intel_cqm_setup_rmid_cache(void)
 	int r = 0;
 
 	nr_rmids = cqm_max_rmid + 1;
-	cqm_rmid_ptrs = kmalloc(sizeof(struct cqm_rmid_entry *) *
+	cqm_rmid_ptrs = kzalloc(sizeof(struct cqm_rmid_entry *) *
 				nr_rmids, GFP_KERNEL);
 	if (!cqm_rmid_ptrs)
 		return -ENOMEM;
@@ -249,11 +263,9 @@ static int intel_cqm_setup_rmid_cache(void)
 	mutex_unlock(&cache_mutex);
 
 	return 0;
-fail:
-	while (r--)
-		kfree(cqm_rmid_ptrs[r]);
 
-	kfree(cqm_rmid_ptrs);
+fail:
+	cqm_cleanup();
 	return -ENOMEM;
 }
 
@@ -1312,7 +1324,7 @@ static const struct x86_cpu_id intel_cqm_match[] = {
 
 static int __init intel_cqm_init(void)
 {
-	char *str, scale[20];
+	char *str = NULL, scale[20];
 	int i, cpu, ret;
 
 	if (!x86_match_cpu(intel_cqm_match))
@@ -1372,16 +1384,25 @@ static int __init intel_cqm_init(void)
 		cqm_pick_event_reader(i);
 	}
 
-	__perf_cpu_notifier(intel_cqm_cpu_notifier);
-
 	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
-	if (ret)
+	if (ret) {
 		pr_err("Intel CQM perf registration failed: %d\n", ret);
-	else
-		pr_info("Intel CQM monitoring enabled\n");
+		goto out;
+	}
 
+	pr_info("Intel CQM monitoring enabled\n");
+
+	/*
+	 * Register the hot cpu notifier once we are sure cqm
+	 * is enabled to avoid notifier leak.
+	 */
+	__perf_cpu_notifier(intel_cqm_cpu_notifier);
 out:
 	cpu_notifier_register_done();
+	if (ret) {
+		kfree(str);
+		cqm_cleanup();
+	}
 
 	return ret;
 }
