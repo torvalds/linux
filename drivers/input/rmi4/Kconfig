@@ -1,0 +1,10 @@
+#
+# RMI4 configuration
+#
+config RMI4_CORE
+	tristate "Synaptics RMI4 bus support"
+	help
+	  Say Y here if you want to support the Synaptics RMI4 bus.  This is
+	  required for all RMI4 device support.
+
+	  If unsure, say Y.
