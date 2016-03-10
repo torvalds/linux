@@ -601,7 +601,7 @@ static void brcmnand_wr_corr_thresh(struct brcmnand_host *host, u8 val)
 
 static inline int brcmnand_cmd_shift(struct brcmnand_controller *ctrl)
 {
-	if (ctrl->nand_version < 0x0700)
+	if (ctrl->nand_version < 0x0602)
 		return 24;
 	return 0;
 }
@@ -2115,6 +2115,7 @@ static const struct of_device_id brcmnand_of_match[] = {
 	{ .compatible = "brcm,brcmnand-v5.0" },
 	{ .compatible = "brcm,brcmnand-v6.0" },
 	{ .compatible = "brcm,brcmnand-v6.1" },
+	{ .compatible = "brcm,brcmnand-v6.2" },
 	{ .compatible = "brcm,brcmnand-v7.0" },
 	{ .compatible = "brcm,brcmnand-v7.1" },
 	{},

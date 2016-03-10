@@ -24,6 +24,7 @@ Required properties:
                          brcm,brcmnand-v5.0
                          brcm,brcmnand-v6.0
                          brcm,brcmnand-v6.1
+                         brcm,brcmnand-v6.2
                          brcm,brcmnand-v7.0
                          brcm,brcmnand-v7.1
                          brcm,brcmnand
