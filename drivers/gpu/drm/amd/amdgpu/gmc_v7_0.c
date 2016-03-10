@@ -934,6 +934,14 @@ static int gmc_v7_0_early_init(void *handle)
 	gmc_v7_0_set_gart_funcs(adev);
 	gmc_v7_0_set_irq_funcs(adev);
 
+	adev->mc.shared_aperture_start = 0x2000000000000000ULL;
+	adev->mc.shared_aperture_end =
+		adev->mc.shared_aperture_start + (4ULL << 30) - 1;
+	adev->mc.private_aperture_start =
+		adev->mc.shared_aperture_end + 1;
+	adev->mc.private_aperture_end =
+		adev->mc.private_aperture_start + (4ULL << 30) - 1;
+
 	return 0;
 }
 

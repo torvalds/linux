@@ -3859,7 +3859,7 @@ static void gfx_v8_0_config_init(struct amdgpu_device *adev)
 
 static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 {
-	u32 tmp;
+	u32 tmp, sh_static_mem_cfg;
 	int i;
 
 	WREG32_FIELD(GRBM_CNTL, READ_TIMEOUT, 0xFF);
@@ -3874,8 +3874,14 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
+	sh_static_mem_cfg = REG_SET_FIELD(0, SH_STATIC_MEM_CONFIG,
+				   SWIZZLE_ENABLE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   ELEMENT_SIZE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   INDEX_STRIDE, 3);
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < adev->vm_manager.num_ids; i++) {
 		vi_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		if (i == 0) {
@@ -3884,17 +3890,20 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 			WREG32(mmSH_MEM_CONFIG, tmp);
+			WREG32(mmSH_MEM_BASES, 0);
 		} else {
 			tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, DEFAULT_MTYPE, MTYPE_NC);
-			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, APE1_MTYPE, MTYPE_NC);
+			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, APE1_MTYPE, MTYPE_UC);
 			tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, ALIGNMENT_MODE,
 					    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 			WREG32(mmSH_MEM_CONFIG, tmp);
+			tmp = adev->mc.shared_aperture_start >> 48;
+			WREG32(mmSH_MEM_BASES, tmp);
 		}
 
 		WREG32(mmSH_MEM_APE1_BASE, 1);
 		WREG32(mmSH_MEM_APE1_LIMIT, 0);
-		WREG32(mmSH_MEM_BASES, 0);
+		WREG32(mmSH_STATIC_MEM_CONFIG, sh_static_mem_cfg);
 	}
 	vi_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);

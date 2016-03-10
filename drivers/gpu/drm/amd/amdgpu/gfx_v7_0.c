@@ -1889,7 +1889,8 @@ static void gfx_v7_0_config_init(struct amdgpu_device *adev)
  */
 static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 {
-	u32 tmp, sh_mem_cfg;
+	u32 sh_mem_cfg, sh_static_mem_cfg, sh_mem_base;
+	u32 tmp;
 	int i;
 
 	WREG32(mmGRBM_CNTL, (0xff << GRBM_CNTL__READ_TIMEOUT__SHIFT));
@@ -1920,15 +1921,32 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 				   SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, DEFAULT_MTYPE,
+				   MTYPE_NC);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, APE1_MTYPE,
+				   MTYPE_UC);
+	sh_mem_cfg = REG_SET_FIELD(sh_mem_cfg, SH_MEM_CONFIG, PRIVATE_ATC, 0);
+
+	sh_static_mem_cfg = REG_SET_FIELD(0, SH_STATIC_MEM_CONFIG,
+				   SWIZZLE_ENABLE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   ELEMENT_SIZE, 1);
+	sh_static_mem_cfg = REG_SET_FIELD(sh_static_mem_cfg, SH_STATIC_MEM_CONFIG,
+				   INDEX_STRIDE, 3);
 
 	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < adev->vm_manager.num_ids; i++) {
+		if (i == 0)
+			sh_mem_base = 0;
+		else
+			sh_mem_base = adev->mc.shared_aperture_start >> 48;
 		cik_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
 		WREG32(mmSH_MEM_CONFIG, sh_mem_cfg);
 		WREG32(mmSH_MEM_APE1_BASE, 1);
 		WREG32(mmSH_MEM_APE1_LIMIT, 0);
-		WREG32(mmSH_MEM_BASES, 0);
+		WREG32(mmSH_MEM_BASES, sh_mem_base);
+		WREG32(mmSH_STATIC_MEM_CONFIG, sh_static_mem_cfg);
 	}
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);

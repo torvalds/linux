@@ -570,6 +570,11 @@ struct amdgpu_mc {
 	uint32_t                srbm_soft_reset;
 	struct amdgpu_mode_mc_save save;
 	bool			prt_warning;
+	/* apertures */
+	u64					shared_aperture_start;
+	u64					shared_aperture_end;
+	u64					private_aperture_start;
+	u64					private_aperture_end;
 };
 
 /*
