@@ -216,17 +216,13 @@ static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	err = hid_parse(hdev);
 	if (err)
-		goto error;
-
-	err = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
-	if (err)
-		goto error;
+		return err;
 
 	mutex_init(&tdev->lock);
 
 	err = thingm_version(tdev);
 	if (err)
-		goto stop;
+		return err;
 
 	hid_dbg(hdev, "firmware version: %c.%c\n",
 			tdev->version.major, tdev->version.minor);
@@ -237,17 +233,18 @@ static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (!tdev->fwinfo) {
 		hid_err(hdev, "unsupported firmware %c\n", tdev->version.major);
-		err = -ENODEV;
-		goto stop;
+		return -ENODEV;
 	}
 
 	tdev->rgb = devm_kzalloc(&hdev->dev,
 			sizeof(struct thingm_rgb) * tdev->fwinfo->numrgb,
 			GFP_KERNEL);
-	if (!tdev->rgb) {
-		err = -ENOMEM;
-		goto stop;
-	}
+	if (!tdev->rgb)
+		return -ENOMEM;
+
+	err = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+	if (err)
+		return err;
 
 	for (i = 0; i < tdev->fwinfo->numrgb; ++i) {
 		struct thingm_rgb *rgb = tdev->rgb + i;
@@ -255,15 +252,13 @@ static int thingm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		rgb->tdev = tdev;
 		rgb->num = tdev->fwinfo->first + i;
 		err = thingm_init_rgb(rgb);
-		if (err)
-			goto stop;
+		if (err) {
+			hid_hw_stop(hdev);
+			return err;
+		}
 	}
 
 	return 0;
-stop:
-	hid_hw_stop(hdev);
-error:
-	return err;
 }
 
 static const struct hid_device_id thingm_table[] = {
