@@ -248,7 +248,6 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = trapnr;
 
-#ifdef CONFIG_X86_64
 	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
 	    printk_ratelimit()) {
 		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
@@ -257,7 +256,6 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 		print_vma_addr(" in ", regs->ip);
 		pr_cont("\n");
 	}
-#endif
 
 	force_sig_info(signr, info ?: SEND_SIG_PRIV, tsk);
 }
