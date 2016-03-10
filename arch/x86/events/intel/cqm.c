@@ -15,6 +15,7 @@
 
 static u32 cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
+static bool cqm_enabled, mbm_enabled;
 
 /**
  * struct intel_pqr_state - State cache for the PQR MSR
@@ -42,6 +43,24 @@ struct intel_pqr_state {
  * interrupts disabled, which is sufficient for the protection.
  */
 static DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+/**
+ * struct sample - mbm event's (local or total) data
+ * @total_bytes    #bytes since we began monitoring
+ * @prev_msr       previous value of MSR
+ */
+struct sample {
+	u64	total_bytes;
+	u64	prev_msr;
+};
+
+/*
+ * samples profiled for total memory bandwidth type events
+ */
+static struct sample *mbm_total;
+/*
+ * samples profiled for local memory bandwidth type events
+ */
+static struct sample *mbm_local;
 
 /*
  * Protects cache_cgroups and cqm_rmid_free_lru and cqm_rmid_limbo_lru.
@@ -223,6 +242,7 @@ static void cqm_cleanup(void)
 
 	kfree(cqm_rmid_ptrs);
 	cqm_rmid_ptrs = NULL;
+	cqm_enabled = false;
 }
 
 static int intel_cqm_setup_rmid_cache(void)
@@ -1164,6 +1184,16 @@ EVENT_ATTR_STR(llc_occupancy.unit, intel_cqm_llc_unit, "Bytes");
 EVENT_ATTR_STR(llc_occupancy.scale, intel_cqm_llc_scale, NULL);
 EVENT_ATTR_STR(llc_occupancy.snapshot, intel_cqm_llc_snapshot, "1");
 
+EVENT_ATTR_STR(total_bytes, intel_cqm_total_bytes, "event=0x02");
+EVENT_ATTR_STR(total_bytes.per-pkg, intel_cqm_total_bytes_pkg, "1");
+EVENT_ATTR_STR(total_bytes.unit, intel_cqm_total_bytes_unit, "MB");
+EVENT_ATTR_STR(total_bytes.scale, intel_cqm_total_bytes_scale, "1e-6");
+
+EVENT_ATTR_STR(local_bytes, intel_cqm_local_bytes, "event=0x03");
+EVENT_ATTR_STR(local_bytes.per-pkg, intel_cqm_local_bytes_pkg, "1");
+EVENT_ATTR_STR(local_bytes.unit, intel_cqm_local_bytes_unit, "MB");
+EVENT_ATTR_STR(local_bytes.scale, intel_cqm_local_bytes_scale, "1e-6");
+
 static struct attribute *intel_cqm_events_attr[] = {
 	EVENT_PTR(intel_cqm_llc),
 	EVENT_PTR(intel_cqm_llc_pkg),
@@ -1173,9 +1203,38 @@ static struct attribute *intel_cqm_events_attr[] = {
 	NULL,
 };
 
+static struct attribute *intel_mbm_events_attr[] = {
+	EVENT_PTR(intel_cqm_total_bytes),
+	EVENT_PTR(intel_cqm_local_bytes),
+	EVENT_PTR(intel_cqm_total_bytes_pkg),
+	EVENT_PTR(intel_cqm_local_bytes_pkg),
+	EVENT_PTR(intel_cqm_total_bytes_unit),
+	EVENT_PTR(intel_cqm_local_bytes_unit),
+	EVENT_PTR(intel_cqm_total_bytes_scale),
+	EVENT_PTR(intel_cqm_local_bytes_scale),
+	NULL,
+};
+
+static struct attribute *intel_cmt_mbm_events_attr[] = {
+	EVENT_PTR(intel_cqm_llc),
+	EVENT_PTR(intel_cqm_total_bytes),
+	EVENT_PTR(intel_cqm_local_bytes),
+	EVENT_PTR(intel_cqm_llc_pkg),
+	EVENT_PTR(intel_cqm_total_bytes_pkg),
+	EVENT_PTR(intel_cqm_local_bytes_pkg),
+	EVENT_PTR(intel_cqm_llc_unit),
+	EVENT_PTR(intel_cqm_total_bytes_unit),
+	EVENT_PTR(intel_cqm_local_bytes_unit),
+	EVENT_PTR(intel_cqm_llc_scale),
+	EVENT_PTR(intel_cqm_total_bytes_scale),
+	EVENT_PTR(intel_cqm_local_bytes_scale),
+	EVENT_PTR(intel_cqm_llc_snapshot),
+	NULL,
+};
+
 static struct attribute_group intel_cqm_events_group = {
 	.name = "events",
-	.attrs = intel_cqm_events_attr,
+	.attrs = NULL,
 };
 
 PMU_FORMAT_ATTR(event, "config:0-7");
@@ -1322,12 +1381,57 @@ static const struct x86_cpu_id intel_cqm_match[] = {
 	{}
 };
 
+static void mbm_cleanup(void)
+{
+	if (!mbm_enabled)
+		return;
+
+	kfree(mbm_local);
+	kfree(mbm_total);
+	mbm_enabled = false;
+}
+
+static const struct x86_cpu_id intel_mbm_local_match[] = {
+	{ .vendor = X86_VENDOR_INTEL, .feature = X86_FEATURE_CQM_MBM_LOCAL },
+	{}
+};
+
+static const struct x86_cpu_id intel_mbm_total_match[] = {
+	{ .vendor = X86_VENDOR_INTEL, .feature = X86_FEATURE_CQM_MBM_TOTAL },
+	{}
+};
+
+static int intel_mbm_init(void)
+{
+	int array_size, maxid = cqm_max_rmid + 1;
+
+	array_size = sizeof(struct sample) * maxid * topology_max_packages();
+	mbm_local = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_local)
+		return -ENOMEM;
+
+	mbm_total = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_total) {
+		mbm_cleanup();
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int __init intel_cqm_init(void)
 {
 	char *str = NULL, scale[20];
 	int i, cpu, ret;
 
-	if (!x86_match_cpu(intel_cqm_match))
+	if (x86_match_cpu(intel_cqm_match))
+		cqm_enabled = true;
+
+	if (x86_match_cpu(intel_mbm_local_match) &&
+	     x86_match_cpu(intel_mbm_total_match))
+		mbm_enabled = true;
+
+	if (!cqm_enabled && !mbm_enabled)
 		return -ENODEV;
 
 	cqm_l3_scale = boot_cpu_data.x86_cache_occ_scale;
@@ -1384,13 +1488,28 @@ static int __init intel_cqm_init(void)
 		cqm_pick_event_reader(i);
 	}
 
+	if (mbm_enabled)
+		ret = intel_mbm_init();
+	if (ret && !cqm_enabled)
+		goto out;
+
+	if (cqm_enabled && mbm_enabled)
+		intel_cqm_events_group.attrs = intel_cmt_mbm_events_attr;
+	else if (!cqm_enabled && mbm_enabled)
+		intel_cqm_events_group.attrs = intel_mbm_events_attr;
+	else if (cqm_enabled && !mbm_enabled)
+		intel_cqm_events_group.attrs = intel_cqm_events_attr;
+
 	ret = perf_pmu_register(&intel_cqm_pmu, "intel_cqm", -1);
 	if (ret) {
 		pr_err("Intel CQM perf registration failed: %d\n", ret);
 		goto out;
 	}
 
-	pr_info("Intel CQM monitoring enabled\n");
+	if (cqm_enabled)
+		pr_info("Intel CQM monitoring enabled\n");
+	if (mbm_enabled)
+		pr_info("Intel MBM enabled\n");
 
 	/*
 	 * Register the hot cpu notifier once we are sure cqm
@@ -1402,6 +1521,7 @@ out:
 	if (ret) {
 		kfree(str);
 		cqm_cleanup();
+		mbm_cleanup();
 	}
 
 	return ret;
