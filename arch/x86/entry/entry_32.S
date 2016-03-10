@@ -343,6 +343,15 @@ sysenter_past_esp:
 	popl	%eax			/* pt_regs->ax */
 
 	/*
+	 * Restore all flags except IF. (We restore IF separately because
+	 * STI gives a one-instruction window in which we won't be interrupted,
+	 * whereas POPF does not.)
+	 */
+	addl	$PT_EFLAGS-PT_DS, %esp	/* point esp at pt_regs->flags */
+	btr	$X86_EFLAGS_IF_BIT, (%esp)
+	popfl
+
+	/*
 	 * Return back to the vDSO, which will pop ecx and edx.
 	 * Don't bother with DS and ES (they already contain __USER_DS).
 	 */
