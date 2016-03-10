@@ -1159,6 +1159,8 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 		res_attr->size = pci_resource_len(pdev, num);
 		res_attr->private = &pdev->resource[num];
 		retval = sysfs_create_bin_file(&pdev->dev.kobj, res_attr);
+		if (retval)
+			kfree(res_attr);
 	} else
 		retval = -ENOMEM;
 
