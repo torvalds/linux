@@ -35,6 +35,7 @@
 #include <linux/tcp.h>
 #include <net/busy_poll.h>
 #include "en.h"
+#include "en_tc.h"
 
 static inline bool mlx5e_rx_hw_stamp(struct mlx5e_tstamp *tstamp)
 {
@@ -224,6 +225,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 	if (cqe_has_vlan(cqe))
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 				       be16_to_cpu(cqe->vlan_info));
+
+	skb->mark = be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK;
 }
 
 int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)

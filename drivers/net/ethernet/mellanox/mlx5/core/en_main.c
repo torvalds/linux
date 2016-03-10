@@ -30,9 +30,12 @@
  * SOFTWARE.
  */
 
+#include <net/tc_act/tc_gact.h>
+#include <net/pkt_cls.h>
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
 #include "en.h"
+#include "en_tc.h"
 #include "eswitch.h"
 #include "vxlan.h"
 
@@ -1883,7 +1886,25 @@ static int mlx5e_setup_tc(struct net_device *netdev, u8 tc)
 static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 			      __be16 proto, struct tc_to_netdev *tc)
 {
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
+		goto mqprio;
+
+	switch (tc->type) {
+	case TC_SETUP_CLSFLOWER:
+		switch (tc->cls_flower->command) {
+		case TC_CLSFLOWER_REPLACE:
+			return mlx5e_configure_flower(priv, proto, tc->cls_flower);
+		case TC_CLSFLOWER_DESTROY:
+			return mlx5e_delete_flower(priv, tc->cls_flower);
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
+
+mqprio:
+	if (tc->type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	return mlx5e_setup_tc(dev, tc->tc);
@@ -1966,6 +1987,13 @@ static int mlx5e_set_features(struct net_device *netdev,
 			mlx5e_enable_vlan_filter(priv);
 		else
 			mlx5e_disable_vlan_filter(priv);
+	}
+
+	if ((changes & NETIF_F_HW_TC) && !(features & NETIF_F_HW_TC) &&
+	    mlx5e_tc_num_filters(priv)) {
+		netdev_err(netdev,
+			   "Active offloaded tc filters, can't turn hw_tc_offload off\n");
+		return -EINVAL;
 	}
 
 	return err;
@@ -2375,6 +2403,13 @@ static void mlx5e_build_netdev(struct net_device *netdev)
 	if (!priv->params.lro_en)
 		netdev->features  &= ~NETIF_F_LRO;
 
+#define FT_CAP(f) MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.f)
+	if (FT_CAP(flow_modify_en) &&
+	    FT_CAP(modify_root) &&
+	    FT_CAP(identified_miss_table_mode) &&
+	    FT_CAP(flow_table_modify))
+		priv->netdev->hw_features      |= NETIF_F_HW_TC;
+
 	netdev->features         |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags       |= IFF_UNICAST_FLT;
@@ -2496,6 +2531,10 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 
 	mlx5e_vxlan_init(priv);
 
+	err = mlx5e_tc_init(priv);
+	if (err)
+		goto err_destroy_flow_tables;
+
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_ieee_setets_core(priv, &priv->params.ets);
 #endif
@@ -2503,7 +2542,7 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 	err = register_netdev(netdev);
 	if (err) {
 		mlx5_core_err(mdev, "register_netdev failed, %d\n", err);
-		goto err_destroy_flow_tables;
+		goto err_tc_cleanup;
 	}
 
 	if (mlx5e_vxlan_allowed(mdev))
@@ -2513,6 +2552,9 @@ static void *mlx5e_create_netdev(struct mlx5_core_dev *mdev)
 	schedule_work(&priv->set_rx_mode_work);
 
 	return priv;
+
+err_tc_cleanup:
+	mlx5e_tc_cleanup(priv);
 
 err_destroy_flow_tables:
 	mlx5e_destroy_flow_tables(priv);
@@ -2561,6 +2603,7 @@ static void mlx5e_destroy_netdev(struct mlx5_core_dev *mdev, void *vpriv)
 	mlx5e_disable_async_events(priv);
 	flush_scheduled_work();
 	unregister_netdev(netdev);
+	mlx5e_tc_cleanup(priv);
 	mlx5e_vxlan_cleanup(priv);
 	mlx5e_destroy_flow_tables(priv);
 	mlx5e_destroy_tirs(priv);
