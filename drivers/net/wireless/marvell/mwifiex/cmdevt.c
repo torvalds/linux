@@ -105,6 +105,47 @@ mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 }
 
 /*
+ * This function returns a command to the command free queue.
+ *
+ * The function also calls the completion callback if required, before
+ * cleaning the command node and re-inserting it into the free queue.
+ */
+static void
+mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
+			     struct cmd_ctrl_node *cmd_node)
+{
+	unsigned long flags;
+
+	if (!cmd_node)
+		return;
+
+	if (cmd_node->wait_q_enabled)
+		mwifiex_complete_cmd(adapter, cmd_node);
+	/* Clean the node */
+	mwifiex_clean_cmd_node(adapter, cmd_node);
+
+	/* Insert node into cmd_free_q */
+	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
+	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
+	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
+}
+
+/* This function reuses a command node. */
+void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
+			      struct cmd_ctrl_node *cmd_node)
+{
+	struct host_cmd_ds_command *host_cmd = (void *)cmd_node->cmd_skb->data;
+
+	mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+
+	atomic_dec(&adapter->cmd_pending);
+	mwifiex_dbg(adapter, CMD,
+		    "cmd: FREE_CMD: cmd=%#x, cmd_pending=%d\n",
+		le16_to_cpu(host_cmd->command),
+		atomic_read(&adapter->cmd_pending));
+}
+
+/*
  * This function sends a host command to the firmware.
  *
  * The function copies the host command into the driver command
@@ -611,47 +652,6 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	}
 
 	return ret;
-}
-
-/*
- * This function returns a command to the command free queue.
- *
- * The function also calls the completion callback if required, before
- * cleaning the command node and re-inserting it into the free queue.
- */
-void
-mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
-			     struct cmd_ctrl_node *cmd_node)
-{
-	unsigned long flags;
-
-	if (!cmd_node)
-		return;
-
-	if (cmd_node->wait_q_enabled)
-		mwifiex_complete_cmd(adapter, cmd_node);
-	/* Clean the node */
-	mwifiex_clean_cmd_node(adapter, cmd_node);
-
-	/* Insert node into cmd_free_q */
-	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
-	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
-	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
-}
-
-/* This function reuses a command node. */
-void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
-			      struct cmd_ctrl_node *cmd_node)
-{
-	struct host_cmd_ds_command *host_cmd = (void *)cmd_node->cmd_skb->data;
-
-	mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
-
-	atomic_dec(&adapter->cmd_pending);
-	mwifiex_dbg(adapter, CMD,
-		    "cmd: FREE_CMD: cmd=%#x, cmd_pending=%d\n",
-		le16_to_cpu(host_cmd->command),
-		atomic_read(&adapter->cmd_pending));
 }
 
 /*
