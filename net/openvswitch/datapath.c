@@ -1096,26 +1096,32 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_match match;
 	struct sw_flow_id sfid;
 	u32 ufid_flags = ovs_nla_get_ufid_flags(a[OVS_FLOW_ATTR_UFID_FLAGS]);
-	int error;
+	int error = 0;
 	bool log = !a[OVS_FLOW_ATTR_PROBE];
 	bool ufid_present;
 
-	/* Extract key. */
-	error = -EINVAL;
-	if (!a[OVS_FLOW_ATTR_KEY]) {
-		OVS_NLERR(log, "Flow key attribute not present in set flow.");
-		goto error;
-	}
-
 	ufid_present = ovs_nla_get_ufid(&sfid, a[OVS_FLOW_ATTR_UFID], log);
-	ovs_match_init(&match, &key, &mask);
-	error = ovs_nla_get_match(net, &match, a[OVS_FLOW_ATTR_KEY],
-				  a[OVS_FLOW_ATTR_MASK], log);
+	if (a[OVS_FLOW_ATTR_KEY]) {
+		ovs_match_init(&match, &key, &mask);
+		error = ovs_nla_get_match(net, &match, a[OVS_FLOW_ATTR_KEY],
+					  a[OVS_FLOW_ATTR_MASK], log);
+	} else if (!ufid_present) {
+		OVS_NLERR(log,
+			  "Flow set message rejected, Key attribute missing.");
+		error = -EINVAL;
+	}
 	if (error)
 		goto error;
 
 	/* Validate actions. */
 	if (a[OVS_FLOW_ATTR_ACTIONS]) {
+		if (!a[OVS_FLOW_ATTR_KEY]) {
+			OVS_NLERR(log,
+				  "Flow key attribute not present in set flow.");
+			error = -EINVAL;
+			goto error;
+		}
+
 		acts = get_flow_actions(net, a[OVS_FLOW_ATTR_ACTIONS], &key,
 					&mask, log);
 		if (IS_ERR(acts)) {
