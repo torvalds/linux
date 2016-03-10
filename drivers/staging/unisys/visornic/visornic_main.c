@@ -760,9 +760,8 @@ static unsigned long devdata_xmits_outstanding(struct visornic_devdata *devdata)
 	if (devdata->chstat.sent_xmit >= devdata->chstat.got_xmit_done)
 		return devdata->chstat.sent_xmit -
 			devdata->chstat.got_xmit_done;
-	else
-		return (ULONG_MAX - devdata->chstat.got_xmit_done
-			+ devdata->chstat.sent_xmit + 1);
+	return (ULONG_MAX - devdata->chstat.got_xmit_done
+		+ devdata->chstat.sent_xmit + 1);
 }
 
 /**
