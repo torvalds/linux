@@ -108,7 +108,7 @@ libperf-$(CONFIG_ZLIB) += zlib.o
 libperf-$(CONFIG_LZMA) += lzma.o
 libperf-y += demangle-java.o
 
-ifdef CONFIG_DWARF
+ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
 libperf-$(CONFIG_LIBELF) += genelf.o
 libperf-$(CONFIG_LIBELF) += genelf_debug.o
