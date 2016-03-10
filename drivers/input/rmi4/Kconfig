@@ -43,3 +43,12 @@ config RMI4_F12
 	  Function 12 provides 2D multifinger pointing for touchscreens and
 	  touchpads. For sensors that support relative pointing, F12 also
 	  provides mouse input.
+
+config RMI4_F30
+	bool "RMI4 Function 30 (GPIO LED)"
+	depends on RMI4_CORE
+	help
+	  Say Y here if you want to add support for RMI4 function 30.
+
+	  Function 30 provides GPIO and LED support for RMI4 devices. This
+	  includes support for buttons on TouchPads and ClickPads.
