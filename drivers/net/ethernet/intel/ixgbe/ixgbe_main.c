@@ -4447,6 +4447,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 fctrl, vmolr = IXGBE_VMOLR_BAM | IXGBE_VMOLR_AUPE;
+	netdev_features_t features = netdev->features;
 	int count;
 
 	/* Check for Promiscuous and All Multicast modes */
@@ -4464,14 +4465,13 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		vmolr |= IXGBE_VMOLR_MPE;
-		ixgbe_vlan_promisc_enable(adapter);
+		features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
 			vmolr |= IXGBE_VMOLR_MPE;
 		}
 		hw->addr_ctrl.user_set_promisc = false;
-		ixgbe_vlan_promisc_disable(adapter);
 	}
 
 	/*
@@ -4504,7 +4504,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	}
 
 	/* This is useful for sniffing bad packets. */
-	if (adapter->netdev->features & NETIF_F_RXALL) {
+	if (features & NETIF_F_RXALL) {
 		/* UPE and MPE will be handled by normal PROMISC logic
 		 * in e1000e_set_rx_mode */
 		fctrl |= (IXGBE_FCTRL_SBP | /* Receive bad packets */
@@ -4517,10 +4517,15 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
 
-	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		ixgbe_vlan_strip_enable(adapter);
 	else
 		ixgbe_vlan_strip_disable(adapter);
+
+	if (features & NETIF_F_HW_VLAN_CTAG_FILTER)
+		ixgbe_vlan_promisc_disable(adapter);
+	else
+		ixgbe_vlan_promisc_enable(adapter);
 }
 
 static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
@@ -8495,11 +8500,6 @@ static int ixgbe_set_features(struct net_device *netdev,
 			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	}
 
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
-		ixgbe_vlan_strip_enable(adapter);
-	else
-		ixgbe_vlan_strip_disable(adapter);
-
 	if (changed & NETIF_F_RXALL)
 		need_reset = true;
 
@@ -8516,6 +8516,9 @@ static int ixgbe_set_features(struct net_device *netdev,
 
 	if (need_reset)
 		ixgbe_do_reset(netdev);
+	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX |
+			    NETIF_F_HW_VLAN_CTAG_FILTER))
+		ixgbe_set_rx_mode(netdev);
 
 	return 0;
 }
@@ -9190,7 +9193,8 @@ skip_sriov:
 			   NETIF_F_RXCSUM |
 			   NETIF_F_HW_CSUM |
 			   NETIF_F_HW_VLAN_CTAG_TX |
-			   NETIF_F_HW_VLAN_CTAG_RX;
+			   NETIF_F_HW_VLAN_CTAG_RX |
+			   NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	if (hw->mac.type >= ixgbe_mac_82599EB)
 		netdev->features |= NETIF_F_SCTP_CRC;
@@ -9203,9 +9207,6 @@ skip_sriov:
 	if (hw->mac.type >= ixgbe_mac_82599EB)
 		netdev->hw_features |= NETIF_F_NTUPLE |
 				       NETIF_F_HW_TC;
-
-	/* set this bit last since it cannot be part of hw_features */
-	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= NETIF_F_SG |
 				 NETIF_F_TSO |
