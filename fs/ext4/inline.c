@@ -1697,7 +1697,6 @@ int ext4_delete_inline_entry(handle_t *handle,
 	if (err)
 		goto out;
 
-	BUFFER_TRACE(bh, "call ext4_handle_dirty_metadata");
 	err = ext4_mark_inode_dirty(handle, dir);
 	if (unlikely(err))
 		goto out;
