@@ -8,6 +8,29 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * Playback Volume
+ *	amixer set "DVC Out" 100%
+ *
+ * Capture Volume
+ *	amixer set "DVC In" 100%
+ *
+ * Playback Mute
+ *	amixer set "DVC Out Mute" on
+ *
+ * Capture Mute
+ *	amixer set "DVC In Mute" on
+ *
+ * Volume Ramp
+ *	amixer set "DVC Out Ramp Up Rate"   "0.125 dB/64 steps"
+ *	amixer set "DVC Out Ramp Down Rate" "0.125 dB/512 steps"
+ *	amixer set "DVC Out Ramp" on
+ *	aplay xxx.wav &
+ *	amixer set "DVC Out"  80%  // Volume Down
+ *	amixer set "DVC Out" 100%  // Volume Up
+ */
+
 #include "rsnd.h"
 
 #define RSND_DVC_NAME_SIZE	16
