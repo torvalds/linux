@@ -598,6 +598,13 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	dr6 &= ~DR6_RESERVED;
 
 	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
+
+	/*
 	 * If dr6 has no reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
@@ -611,11 +618,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 
 	/* DR6 may or may not be cleared by the CPU */
 	set_debugreg(0, 6);
-
-	/*
-	 * The processor cleared BTF, so don't mark that we need it set.
-	 */
-	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
