@@ -804,40 +804,6 @@ ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 	return dma_cookie_status(c, cookie, txstate);
 }
 
-static int ioat_irq_reinit(struct ioatdma_device *ioat_dma)
-{
-	struct pci_dev *pdev = ioat_dma->pdev;
-	int irq = pdev->irq, i;
-
-	if (!is_bwd_ioat(pdev))
-		return 0;
-
-	switch (ioat_dma->irq_mode) {
-	case IOAT_MSIX:
-		for (i = 0; i < ioat_dma->dma_dev.chancnt; i++) {
-			struct msix_entry *msix = &ioat_dma->msix_entries[i];
-			struct ioatdma_chan *ioat_chan;
-
-			ioat_chan = ioat_chan_by_index(ioat_dma, i);
-			devm_free_irq(&pdev->dev, msix->vector, ioat_chan);
-		}
-
-		pci_disable_msix(pdev);
-		break;
-	case IOAT_MSI:
-		pci_disable_msi(pdev);
-		/* fall through */
-	case IOAT_INTX:
-		devm_free_irq(&pdev->dev, irq, ioat_dma);
-		break;
-	default:
-		return 0;
-	}
-	ioat_dma->irq_mode = IOAT_NOIRQ;
-
-	return ioat_dma_setup_interrupts(ioat_dma);
-}
-
 int ioat_reset_hw(struct ioatdma_chan *ioat_chan)
 {
 	/* throw away whatever the channel was doing and get it
@@ -877,9 +843,21 @@ int ioat_reset_hw(struct ioatdma_chan *ioat_chan)
 		}
 	}
 
+	if (is_bwd_ioat(pdev) && (ioat_dma->irq_mode == IOAT_MSIX)) {
+		ioat_dma->msixtba0 = readq(ioat_dma->reg_base + 0x1000);
+		ioat_dma->msixdata0 = readq(ioat_dma->reg_base + 0x1008);
+		ioat_dma->msixpba = readq(ioat_dma->reg_base + 0x1800);
+	}
+
+
 	err = ioat_reset_sync(ioat_chan, msecs_to_jiffies(200));
-	if (!err)
-		err = ioat_irq_reinit(ioat_dma);
+	if (!err) {
+		if (is_bwd_ioat(pdev) && (ioat_dma->irq_mode == IOAT_MSIX)) {
+			writeq(ioat_dma->msixtba0, ioat_dma->reg_base + 0x1000);
+			writeq(ioat_dma->msixdata0, ioat_dma->reg_base + 0x1008);
+			writeq(ioat_dma->msixpba, ioat_dma->reg_base + 0x1800);
+		}
+	}
 
 	if (err)
 		dev_err(&pdev->dev, "Failed to reset: %d\n", err);
