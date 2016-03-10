@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include "rmi_driver.h"
 
 #define RMI_SPI_DEFAULT_XFER_BUF_SIZE	64
@@ -360,6 +361,41 @@ static int rmi_spi_init_irq(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static int rmi_spi_of_probe(struct spi_device *spi,
+			struct rmi_device_platform_data *pdata)
+{
+	struct device *dev = &spi->dev;
+	int retval;
+
+	retval = rmi_of_property_read_u32(dev,
+			&pdata->spi_data.read_delay_us,
+			"spi-rx-delay-us", 1);
+	if (retval)
+		return retval;
+
+	retval = rmi_of_property_read_u32(dev,
+			&pdata->spi_data.write_delay_us,
+			"spi-tx-delay-us", 1);
+	if (retval)
+		return retval;
+
+	return 0;
+}
+
+static const struct of_device_id rmi_spi_of_match[] = {
+	{ .compatible = "syna,rmi4-spi" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rmi_spi_of_match);
+#else
+static inline int rmi_spi_of_probe(struct spi_device *spi,
+				struct rmi_device_platform_data *pdata)
+{
+	return -ENODEV;
+}
+#endif
+
 static int rmi_spi_probe(struct spi_device *spi)
 {
 	struct rmi_spi_xport *rmi_spi;
@@ -377,8 +413,13 @@ static int rmi_spi_probe(struct spi_device *spi)
 
 	pdata = &rmi_spi->xport.pdata;
 
-	if (spi_pdata)
+	if (spi->dev.of_node) {
+		retval = rmi_spi_of_probe(spi, pdata);
+		if (retval)
+			return retval;
+	} else if (spi_pdata) {
 		*pdata = *spi_pdata;
+	}
 
 	if (pdata->spi_data.bits_per_word)
 		spi->bits_per_word = pdata->spi_data.bits_per_word;
@@ -532,6 +573,7 @@ static struct spi_driver rmi_spi_driver = {
 	.driver = {
 		.name	= "rmi4_spi",
 		.pm	= &rmi_spi_pm,
+		.of_match_table = of_match_ptr(rmi_spi_of_match),
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_spi_probe,
