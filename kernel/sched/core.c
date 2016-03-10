@@ -7139,9 +7139,6 @@ static int sched_cpu_inactive(struct notifier_block *nfb,
 			set_cpu_active(cpu, true);
 			return notifier_from_errno(ret);
 		}
-		return NOTIFY_OK;
-
-	case CPU_DEAD:
 		sched_domains_numa_masks_clear(cpu);
 		return NOTIFY_OK;
 	default:
