@@ -898,6 +898,10 @@ spi_max_transfer_size(struct spi_device *spi)
 
 /* SPI transfer replacement methods which make use of spi_res */
 
+struct spi_replaced_transfers;
+typedef void (*spi_replaced_release_t)(struct spi_master *master,
+				       struct spi_message *msg,
+				       struct spi_replaced_transfers *res);
 /**
  * struct spi_replaced_transfers - structure describing the spi_transfer
  *                                 replacements that have occurred
@@ -917,10 +921,6 @@ spi_max_transfer_size(struct spi_device *spi)
  * if some extra allocation is requested, so alignment will be the same
  * as for spi_transfers
  */
-struct spi_replaced_transfers;
-typedef void (*spi_replaced_release_t)(struct spi_master *master,
-				       struct spi_message *msg,
-				       struct spi_replaced_transfers *res);
 struct spi_replaced_transfers {
 	spi_replaced_release_t release;
 	void *extradata;
