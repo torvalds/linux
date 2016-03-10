@@ -281,9 +281,13 @@ static bool __match_event(struct perf_event *a, struct perf_event *b)
 
 	/*
 	 * Events that target same task are placed into the same cache group.
+	 * Mark it as a multi event group, so that we update ->count
+	 * for every event rather than just the group leader later.
 	 */
-	if (a->hw.target == b->hw.target)
+	if (a->hw.target == b->hw.target) {
+		b->hw.is_group_event = true;
 		return true;
+	}
 
 	/*
 	 * Are we an inherited event?
@@ -849,6 +853,7 @@ static void intel_cqm_setup_event(struct perf_event *event,
 	bool conflict = false;
 	u32 rmid;
 
+	event->hw.is_group_event = false;
 	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
 		rmid = iter->hw.cqm_rmid;
 
@@ -940,7 +945,9 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 		return __perf_event_count(event);
 
 	/*
-	 * Only the group leader gets to report values. This stops us
+	 * Only the group leader gets to report values except in case of
+	 * multiple events in the same group, we still need to read the
+	 * other events.This stops us
 	 * reporting duplicate values to userspace, and gives us a clear
 	 * rule for which task gets to report the values.
 	 *
@@ -948,7 +955,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	 * specific packages - we forfeit that ability when we create
 	 * task events.
 	 */
-	if (!cqm_group_leader(event))
+	if (!cqm_group_leader(event) && !event->hw.is_group_event)
 		return 0;
 
 	/*
