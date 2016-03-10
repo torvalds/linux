@@ -294,12 +294,28 @@ sysenter_past_esp:
 	pushl	$__USER_DS		/* pt_regs->ss */
 	pushl	%ebp			/* pt_regs->sp (stashed in bp) */
 	pushfl				/* pt_regs->flags (except IF = 0) */
-	ASM_CLAC			/* Clear AC after saving FLAGS */
 	orl	$X86_EFLAGS_IF, (%esp)	/* Fix IF */
 	pushl	$__USER_CS		/* pt_regs->cs */
 	pushl	$0			/* pt_regs->ip = 0 (placeholder) */
 	pushl	%eax			/* pt_regs->orig_ax */
 	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
+
+	/*
+	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
+	 * ourselves.  To save a few cycles, we can check whether
+	 * either was set instead of doing an unconditional popfq.
+	 * This needs to happen before enabling interrupts so that
+	 * we don't get preempted with NT set.
+	 *
+	 * NB.: .Lsysenter_fix_flags is a label with the code under it moved
+	 * out-of-line as an optimization: NT is unlikely to be set in the
+	 * majority of the cases and instead of polluting the I$ unnecessarily,
+	 * we're keeping that code behind a branch which will predict as
+	 * not-taken and therefore its instructions won't be fetched.
+	 */
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC, PT_EFLAGS(%esp)
+	jnz	.Lsysenter_fix_flags
+.Lsysenter_flags_fixed:
 
 	/*
 	 * User mode is traced as though IRQs are on, and SYSENTER
@@ -339,6 +355,11 @@ sysenter_past_esp:
 .popsection
 	_ASM_EXTABLE(1b, 2b)
 	PTGS_TO_GS_EX
+
+.Lsysenter_fix_flags:
+	pushl	$X86_EFLAGS_FIXED
+	popfl
+	jmp	.Lsysenter_flags_fixed
 ENDPROC(entry_SYSENTER_32)
 
 	# system call handler stub
