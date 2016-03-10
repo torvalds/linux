@@ -54,6 +54,11 @@ static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOPPED;
 }
 
+static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
+{
+	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_WAIT;
+}
+
 static inline int kvm_is_ucontrol(struct kvm *kvm)
 {
 #ifdef CONFIG_KVM_S390_UCONTROL
@@ -155,8 +160,8 @@ static inline void kvm_s390_set_psw_cc(struct kvm_vcpu *vcpu, unsigned long cc)
 /* test availability of facility in a kvm instance */
 static inline int test_kvm_facility(struct kvm *kvm, unsigned long nr)
 {
-	return __test_facility(nr, kvm->arch.model.fac->mask) &&
-		__test_facility(nr, kvm->arch.model.fac->list);
+	return __test_facility(nr, kvm->arch.model.fac_mask) &&
+		__test_facility(nr, kvm->arch.model.fac_list);
 }
 
 static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
@@ -263,6 +268,8 @@ int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
 unsigned long kvm_s390_fac_list_mask_size(void);
 extern unsigned long kvm_s390_fac_list_mask[];
+void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm);
+__u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu);
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);

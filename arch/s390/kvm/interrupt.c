@@ -182,8 +182,9 @@ static int cpu_timer_interrupts_enabled(struct kvm_vcpu *vcpu)
 
 static int cpu_timer_irq_pending(struct kvm_vcpu *vcpu)
 {
-	return (vcpu->arch.sie_block->cputm >> 63) &&
-	       cpu_timer_interrupts_enabled(vcpu);
+	if (!cpu_timer_interrupts_enabled(vcpu))
+		return 0;
+	return kvm_s390_get_cpu_timer(vcpu) >> 63;
 }
 
 static inline int is_ioirq(unsigned long irq_type)
@@ -908,9 +909,35 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return ckc_irq_pending(vcpu) || cpu_timer_irq_pending(vcpu);
 }
 
+static u64 __calculate_sltime(struct kvm_vcpu *vcpu)
+{
+	u64 now, cputm, sltime = 0;
+
+	if (ckc_interrupts_enabled(vcpu)) {
+		now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
+		sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
+		/* already expired or overflow? */
+		if (!sltime || vcpu->arch.sie_block->ckc <= now)
+			return 0;
+		if (cpu_timer_interrupts_enabled(vcpu)) {
+			cputm = kvm_s390_get_cpu_timer(vcpu);
+			/* already expired? */
+			if (cputm >> 63)
+				return 0;
+			return min(sltime, tod_to_ns(cputm));
+		}
+	} else if (cpu_timer_interrupts_enabled(vcpu)) {
+		sltime = kvm_s390_get_cpu_timer(vcpu);
+		/* already expired? */
+		if (sltime >> 63)
+			return 0;
+	}
+	return sltime;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 {
-	u64 now, sltime;
+	u64 sltime;
 
 	vcpu->stat.exit_wait_state++;
 
@@ -923,22 +950,20 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP; /* disabled wait */
 	}
 
-	if (!ckc_interrupts_enabled(vcpu)) {
+	if (!ckc_interrupts_enabled(vcpu) &&
+	    !cpu_timer_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		__set_cpu_idle(vcpu);
 		goto no_timer;
 	}
 
-	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
-	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
-
-	/* underflow */
-	if (vcpu->arch.sie_block->ckc < now)
+	sltime = __calculate_sltime(vcpu);
+	if (!sltime)
 		return 0;
 
 	__set_cpu_idle(vcpu);
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
-	VCPU_EVENT(vcpu, 4, "enabled wait via clock comparator: %llu ns", sltime);
+	VCPU_EVENT(vcpu, 4, "enabled wait: %llu ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	kvm_vcpu_block(vcpu);
@@ -965,18 +990,16 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu;
-	u64 now, sltime;
+	u64 sltime;
 
 	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
-	now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
-	sltime = tod_to_ns(vcpu->arch.sie_block->ckc - now);
+	sltime = __calculate_sltime(vcpu);
 
 	/*
 	 * If the monotonic clock runs faster than the tod clock we might be
 	 * woken up too early and have to go back to sleep to avoid deadlocks.
 	 */
-	if (vcpu->arch.sie_block->ckc > now &&
-	    hrtimer_forward_now(timer, ns_to_ktime(sltime)))
+	if (sltime && hrtimer_forward_now(timer, ns_to_ktime(sltime)))
 		return HRTIMER_RESTART;
 	kvm_s390_vcpu_wakeup(vcpu);
 	return HRTIMER_NORESTART;
