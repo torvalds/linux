@@ -1236,6 +1236,12 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "ap:offline",
 		.cant_stop		= true,
 	},
+	/* First state is scheduler control. Interrupts are disabled */
+	[CPUHP_AP_SCHED_STARTING] = {
+		.name			= "sched:starting",
+		.startup		= sched_cpu_starting,
+		.teardown		= NULL,
+	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
 	 * disabled. Will be removed once the notifiers are converted to
