@@ -593,6 +593,18 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	ist_enter(regs);
 
 	get_debugreg(dr6, 6);
+	/*
+	 * The Intel SDM says:
+	 *
+	 *   Certain debug exceptions may clear bits 0-3. The remaining
+	 *   contents of the DR6 register are never cleared by the
+	 *   processor. To avoid confusion in identifying debug
+	 *   exceptions, debug handlers should clear the register before
+	 *   returning to the interrupted task.
+	 *
+	 * Keep it simple: clear DR6 immediately.
+	 */
+	set_debugreg(0, 6);
 
 	/* Filter out all the reserved bits which are preset to 1 */
 	dr6 &= ~DR6_RESERVED;
@@ -615,9 +627,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	/* Catch kmemcheck conditions first of all! */
 	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
 		goto exit;
-
-	/* DR6 may or may not be cleared by the CPU */
-	set_debugreg(0, 6);
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
