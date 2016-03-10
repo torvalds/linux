@@ -16,8 +16,8 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
-
 #include <linux/phy/phy-qcom-ufs.h>
+
 #include "ufshcd.h"
 #include "ufshcd-pltfrm.h"
 #include "unipro.h"
@@ -106,9 +106,11 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	clk_disable_unprepare(host->tx_l1_sync_clk);
+	if (host->hba->lanes_per_direction > 1)
+		clk_disable_unprepare(host->tx_l1_sync_clk);
 	clk_disable_unprepare(host->tx_l0_sync_clk);
-	clk_disable_unprepare(host->rx_l1_sync_clk);
+	if (host->hba->lanes_per_direction > 1)
+		clk_disable_unprepare(host->rx_l1_sync_clk);
 	clk_disable_unprepare(host->rx_l0_sync_clk);
 
 	host->is_lane_clks_enabled = false;
@@ -272,9 +274,8 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	ret = ufs_qcom_phy_calibrate_phy(phy, is_rate_B);
 
 	if (ret) {
-		dev_err(hba->dev,
-		"%s: ufs_qcom_phy_calibrate_phy()failed, ret = %d\n",
-		__func__, ret);
+		dev_err(hba->dev, "%s: ufs_qcom_phy_calibrate_phy() failed, ret = %d\n",
+			__func__, ret);
 		goto out;
 	}
 
@@ -523,6 +524,18 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 			 */
 			err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba,
 									  150);
+
+		/*
+		 * Some UFS devices (and may be host) have issues if LCC is
+		 * enabled. So we are setting PA_Local_TX_LCC_Enable to 0
+		 * before link startup which will make sure that both host
+		 * and device TX LCC are disabled once link startup is
+		 * completed.
+		 */
+		if (ufshcd_get_local_unipro_ver(hba) != UFS_UNIPRO_VER_1_41)
+			err = ufshcd_dme_set(hba,
+					UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE),
+					0);
 
 		break;
 	case POST_CHANGE:
@@ -1542,7 +1555,7 @@ static int ufs_qcom_probe(struct platform_device *pdev)
  * ufs_qcom_remove - set driver_data of the device to NULL
  * @pdev: pointer to platform device handle
  *
- * Always return 0
+ * Always returns 0
  */
 static int ufs_qcom_remove(struct platform_device *pdev)
 {
