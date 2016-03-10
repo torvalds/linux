@@ -81,13 +81,11 @@ acpi_status __init acpi_load_tables(void)
 	 * between acpi_initialize_subsystem() and acpi_load_tables() to use
 	 * their customized default region handlers.
 	 */
-	if (acpi_gbl_group_module_level_code) {
-		status = acpi_ev_install_region_handlers();
-		if (ACPI_FAILURE(status) && status != AE_ALREADY_EXISTS) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"During Region initialization"));
-			return_ACPI_STATUS(status);
-		}
+	status = acpi_ev_install_region_handlers();
+	if (ACPI_FAILURE(status) && status != AE_ALREADY_EXISTS) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"During Region initialization"));
+		return_ACPI_STATUS(status);
 	}
 
 	/* Load the namespace from the tables */
@@ -105,6 +103,20 @@ acpi_status __init acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
+	if (!acpi_gbl_group_module_level_code) {
+		/*
+		 * Initialize the objects that remain uninitialized. This
+		 * runs the executable AML that may be part of the
+		 * declaration of these objects:
+		 * operation_regions, buffer_fields, Buffers, and Packages.
+		 */
+		status = acpi_ns_initialize_objects();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	acpi_gbl_namespace_initialized = TRUE;
 	return_ACPI_STATUS(status);
 }
 
