@@ -29,10 +29,10 @@ __weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 
 static void *try_ram_remap(resource_size_t offset, size_t size)
 {
-	struct page *page = pfn_to_page(offset >> PAGE_SHIFT);
+	unsigned long pfn = PHYS_PFN(offset);
 
 	/* In the simple case just return the existing linear address */
-	if (!PageHighMem(page))
+	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
 		return __va(offset);
 	return NULL; /* fallback to ioremap_cache */
 }
@@ -270,13 +270,16 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
 void *devm_memremap_pages(struct device *dev, struct resource *res,
 		struct percpu_ref *ref, struct vmem_altmap *altmap)
 {
-	int is_ram = region_intersects(res->start, resource_size(res),
-			"System RAM");
 	resource_size_t key, align_start, align_size, align_end;
 	struct dev_pagemap *pgmap;
 	struct page_map *page_map;
+	int error, nid, is_ram;
 	unsigned long pfn;
-	int error, nid;
+
+	align_start = res->start & ~(SECTION_SIZE - 1);
+	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+		- align_start;
+	is_ram = region_intersects(align_start, align_size, "System RAM");
 
 	if (is_ram == REGION_MIXED) {
 		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
@@ -314,8 +317,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 
 	mutex_lock(&pgmap_lock);
 	error = 0;
-	align_start = res->start & ~(SECTION_SIZE - 1);
-	align_size = ALIGN(resource_size(res), SECTION_SIZE);
 	align_end = align_start + align_size - 1;
 	for (key = align_start; key <= align_end; key += SECTION_SIZE) {
 		struct dev_pagemap *dup;
@@ -351,8 +352,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	for_each_device_pfn(pfn, page_map) {
 		struct page *page = pfn_to_page(pfn);
 
-		/* ZONE_DEVICE pages must never appear on a slab lru */
-		list_force_poison(&page->lru);
+		/*
+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+		 * freed or placed on a driver-private list.  Seed the
+		 * storage with LIST_POISON* values.
+		 */
+		list_del(&page->lru);
 		page->pgmap = pgmap;
 	}
 	devres_add(dev, page_map);
