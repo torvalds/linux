@@ -591,6 +591,15 @@ config RTC_DRV_RV3029C2
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv3029c2.
 
+config RTC_DRV_RV3029_HWMON
+	bool "HWMON support for RV3029"
+	depends on RTC_DRV_RV3029C2 && HWMON
+	depends on !(RTC_DRV_RV3029C2=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-rv3029c2.
+
 config RTC_DRV_RV8803
 	tristate "Micro Crystal RV8803"
 	help

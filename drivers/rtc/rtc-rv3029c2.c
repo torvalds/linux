@@ -18,6 +18,8 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 #include <linux/of.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 
 
 /* Register map */
@@ -637,6 +639,123 @@ static void rv3029_trickle_config(struct i2c_client *client)
 	}
 }
 
+#ifdef CONFIG_RTC_DRV_RV3029_HWMON
+
+static int rv3029_read_temp(struct i2c_client *client, int *temp_mC)
+{
+	int ret;
+	u8 temp;
+
+	ret = rv3029_i2c_read_regs(client, RV3029_TEMP_PAGE, &temp, 1);
+	if (ret < 0)
+		return ret;
+
+	*temp_mC = ((int)temp - 60) * 1000;
+
+	return 0;
+}
+
+static ssize_t rv3029_hwmon_show_temp(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct i2c_client *client = dev_get_drvdata(dev);
+	int ret, temp_mC;
+
+	ret = rv3029_read_temp(client, &temp_mC);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n", temp_mC);
+}
+
+static ssize_t rv3029_hwmon_set_update_interval(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t count)
+{
+	struct i2c_client *client = dev_get_drvdata(dev);
+	unsigned long interval_ms;
+	int ret;
+	u8 th_set_bits = 0;
+
+	ret = kstrtoul(buf, 10, &interval_ms);
+	if (ret < 0)
+		return ret;
+
+	if (interval_ms != 0) {
+		th_set_bits |= RV3029_EECTRL_THE;
+		if (interval_ms >= 16000)
+			th_set_bits |= RV3029_EECTRL_THP;
+	}
+	ret = rv3029_eeprom_update_bits(client, RV3029_CONTROL_E2P_EECTRL,
+					RV3029_EECTRL_THE | RV3029_EECTRL_THP,
+					th_set_bits);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static ssize_t rv3029_hwmon_show_update_interval(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct i2c_client *client = dev_get_drvdata(dev);
+	int ret, interval_ms;
+	u8 eectrl;
+
+	ret = rv3029_eeprom_read(client, RV3029_CONTROL_E2P_EECTRL,
+				 &eectrl, 1);
+	if (ret < 0)
+		return ret;
+
+	if (eectrl & RV3029_EECTRL_THE) {
+		if (eectrl & RV3029_EECTRL_THP)
+			interval_ms = 16000;
+		else
+			interval_ms = 1000;
+	} else {
+		interval_ms = 0;
+	}
+
+	return sprintf(buf, "%d\n", interval_ms);
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, rv3029_hwmon_show_temp,
+			  NULL, 0);
+static SENSOR_DEVICE_ATTR(update_interval, S_IWUSR | S_IRUGO,
+			  rv3029_hwmon_show_update_interval,
+			  rv3029_hwmon_set_update_interval, 0);
+
+static struct attribute *rv3029_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_update_interval.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(rv3029_hwmon);
+
+static void rv3029_hwmon_register(struct i2c_client *client)
+{
+	struct device *hwmon_dev;
+
+	hwmon_dev = devm_hwmon_device_register_with_groups(
+		&client->dev, client->name, client, rv3029_hwmon_groups);
+	if (IS_ERR(hwmon_dev)) {
+		dev_warn(&client->dev,
+			"unable to register hwmon device %ld\n",
+			PTR_ERR(hwmon_dev));
+	}
+}
+
+#else /* CONFIG_RTC_DRV_RV3029_HWMON */
+
+static void rv3029_hwmon_register(struct i2c_client *client)
+{
+}
+
+#endif /* CONFIG_RTC_DRV_RV3029_HWMON */
+
 static const struct rtc_class_ops rv3029_rtc_ops = {
 	.read_time	= rv3029_rtc_read_time,
 	.set_time	= rv3029_rtc_set_time,
@@ -668,6 +787,7 @@ static int rv3029_probe(struct i2c_client *client,
 	}
 
 	rv3029_trickle_config(client);
+	rv3029_hwmon_register(client);
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
 				       &rv3029_rtc_ops, THIS_MODULE);
