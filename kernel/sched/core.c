@@ -5424,11 +5424,6 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 
-	case CPU_UP_PREPARE:
-		rq->calc_load_update = calc_load_update;
-		account_reset_rq(rq);
-		break;
-
 	case CPU_ONLINE:
 		/* Update our root-domain */
 		raw_spin_lock_irqsave(&rq->lock, flags);
@@ -7139,9 +7134,19 @@ int sched_cpu_deactivate(unsigned int cpu)
 	return 0;
 }
 
+static void sched_rq_cpu_starting(unsigned int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+
+	rq->calc_load_update = calc_load_update;
+	account_reset_rq(rq);
+	update_max_interval();
+}
+
 int sched_cpu_starting(unsigned int cpu)
 {
 	set_cpu_rq_start_time(cpu);
+	sched_rq_cpu_starting(cpu);
 	return 0;
 }
 
@@ -7182,11 +7187,8 @@ void __init sched_init_smp(void)
 static int __init migration_init(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
-	int err;
 
-	/* Initialize migration for the boot CPU */
-	err = migration_call(&migration_notifier, CPU_UP_PREPARE, cpu);
-	BUG_ON(err == NOTIFY_BAD);
+	sched_rq_cpu_starting(smp_processor_id());
 	migration_call(&migration_notifier, CPU_ONLINE, cpu);
 	register_cpu_notifier(&migration_notifier);
 
