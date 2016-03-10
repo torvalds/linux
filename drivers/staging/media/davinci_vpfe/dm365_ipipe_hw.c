@@ -242,7 +242,7 @@ static int get_ipipe_mode(struct vpfe_ipipe_device *ipipe)
 
 	if (ipipeif_sink == IPIPEIF_INPUT_MEMORY)
 		return IPIPE_MODE_SINGLE_SHOT;
-	else if (ipipeif_sink == IPIPEIF_INPUT_ISIF)
+	if (ipipeif_sink == IPIPEIF_INPUT_ISIF)
 		return IPIPE_MODE_CONTINUOUS;
 
 	return -EINVAL;
