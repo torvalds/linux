@@ -713,6 +713,14 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
+#if defined(CONFIG_X86_32)
+	/*
+	 * This is the most likely code path that involves non-trivial use
+	 * of the SYSENTER stack.  Check that we haven't overrun it.
+	 */
+	WARN(this_cpu_read(cpu_tss.SYSENTER_stack_canary) != STACK_END_MAGIC,
+	     "Overran or corrupted SYSENTER stack\n");
+#endif
 	ist_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug);

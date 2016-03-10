@@ -299,8 +299,9 @@ struct tss_struct {
 
 #ifdef CONFIG_X86_32
 	/*
-	 * Space for the temporary SYSENTER stack:
+	 * Space for the temporary SYSENTER stack.
 	 */
+	unsigned long		SYSENTER_stack_canary;
 	unsigned long		SYSENTER_stack[64];
 #endif
 
