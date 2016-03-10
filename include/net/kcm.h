@@ -180,8 +180,8 @@ struct kcm_mux {
 int kcm_proc_init(void);
 void kcm_proc_exit(void);
 #else
-static int kcm_proc_init(void) { return 0; }
-static void kcm_proc_exit(void) { }
+static inline int kcm_proc_init(void) { return 0; }
+static inline void kcm_proc_exit(void) { }
 #endif
 
 static inline void aggregate_psock_stats(struct kcm_psock_stats *stats,
