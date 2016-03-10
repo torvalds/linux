@@ -407,6 +407,9 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 			RK3368_CLKSEL_CON(22), 6, 2, MFLAGS, 0, 6, DFLAGS,
 			RK3368_CLKGATE_CON(4), 9, GFLAGS),
 
+	GATE(PCLK_ISP, "pclk_isp", "ext_isp", 0,
+			RK3368_CLKGATE_CON(17), 2, GFLAGS),
+
 	GATE(SCLK_HDMI_HDCP, "sclk_hdmi_hdcp", "xin24m", 0,
 			RK3368_CLKGATE_CON(4), 13, GFLAGS),
 	GATE(SCLK_HDMI_CEC, "sclk_hdmi_cec", "clk_32k", 0,
