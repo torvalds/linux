@@ -34,6 +34,7 @@
 #include "disk-io.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
+#include "compression.h"
 
 static int g_verbose = 0;
 

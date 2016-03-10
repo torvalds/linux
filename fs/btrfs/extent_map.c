@@ -4,6 +4,7 @@
 #include <linux/hardirq.h>
 #include "ctree.h"
 #include "extent_map.h"
+#include "compression.h"
 
 
 static struct kmem_cache *extent_map_cache;

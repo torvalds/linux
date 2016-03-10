@@ -26,6 +26,7 @@
 #include "print-tree.h"
 #include "backref.h"
 #include "hash.h"
+#include "compression.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *

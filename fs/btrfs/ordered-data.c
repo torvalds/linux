@@ -25,6 +25,7 @@
 #include "btrfs_inode.h"
 #include "extent_io.h"
 #include "disk-io.h"
+#include "compression.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 
