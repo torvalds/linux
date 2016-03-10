@@ -244,6 +244,11 @@ static void __user *u64_to_ptr(__u64 val)
 	return (void __user *) (unsigned long) val;
 }
 
+int __weak bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
+{
+	return -ENOTSUPP;
+}
+
 /* last field in 'union bpf_attr' used by this command */
 #define BPF_MAP_LOOKUP_ELEM_LAST_FIELD value
 
