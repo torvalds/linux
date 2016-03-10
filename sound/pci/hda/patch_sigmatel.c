@@ -493,9 +493,9 @@ static void jack_update_power(struct hda_codec *codec,
 	if (!spec->num_pwrs)
 		return;
 
-	if (jack && jack->tbl->nid) {
-		stac_toggle_power_map(codec, jack->tbl->nid,
-				      snd_hda_jack_detect(codec, jack->tbl->nid),
+	if (jack && jack->nid) {
+		stac_toggle_power_map(codec, jack->nid,
+				      snd_hda_jack_detect(codec, jack->nid),
 				      true);
 		return;
 	}

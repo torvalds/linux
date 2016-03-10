@@ -21,6 +21,7 @@ static struct regmap_config qfprom_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 8,
 	.reg_stride = 1,
+	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static struct nvmem_config econfig = {

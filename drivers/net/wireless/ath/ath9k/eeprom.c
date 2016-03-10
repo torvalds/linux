@@ -150,18 +150,18 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 		return -EIO;
 	}
 
-	if (magic == AR5416_EEPROM_MAGIC) {
-		*swap_needed = false;
-	} else if (swab16(magic) == AR5416_EEPROM_MAGIC) {
+	*swap_needed = false;
+	if (swab16(magic) == AR5416_EEPROM_MAGIC) {
 		if (ah->ah_flags & AH_NO_EEP_SWAP) {
 			ath_info(common,
 				 "Ignoring endianness difference in EEPROM magic bytes.\n");
-
-			*swap_needed = false;
 		} else {
 			*swap_needed = true;
 		}
-	} else {
+	} else if (magic != AR5416_EEPROM_MAGIC) {
+		if (ath9k_hw_use_flash(ah))
+			return 0;
+
 		ath_err(common,
 			"Invalid EEPROM Magic (0x%04x).\n", magic);
 		return -EINVAL;
