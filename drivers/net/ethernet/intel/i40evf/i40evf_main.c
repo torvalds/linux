@@ -1994,6 +1994,8 @@ static void i40evf_adminq_task(struct work_struct *work)
 
 	/* check for error indications */
 	val = rd32(hw, hw->aq.arq.len);
+	if (val == 0xdeadbeef) /* indicates device in reset */
+		goto freedom;
 	oldval = val;
 	if (val & I40E_VF_ARQLEN1_ARQVFE_MASK) {
 		dev_info(&adapter->pdev->dev, "ARQ VF Error detected\n");
