@@ -1223,7 +1223,7 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	[CPUHP_AP_SCHED_STARTING] = {
 		.name			= "sched:starting",
 		.startup		= sched_cpu_starting,
-		.teardown		= NULL,
+		.teardown		= sched_cpu_dying,
 	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts

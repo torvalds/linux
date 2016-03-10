@@ -5411,51 +5411,6 @@ static void set_rq_offline(struct rq *rq)
 	}
 }
 
-/*
- * migration_call - callback that gets triggered when a CPU is added.
- * Here we can start up the necessary migration thread for the new CPU.
- */
-static int
-migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-	unsigned long flags;
-	struct rq *rq = cpu_rq(cpu);
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-
-#ifdef CONFIG_HOTPLUG_CPU
-	case CPU_DYING:
-		sched_ttwu_pending();
-		/* Update our root-domain */
-		raw_spin_lock_irqsave(&rq->lock, flags);
-		if (rq->rd) {
-			BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
-			set_rq_offline(rq);
-		}
-		migrate_tasks(rq);
-		BUG_ON(rq->nr_running != 1); /* the migration thread */
-		raw_spin_unlock_irqrestore(&rq->lock, flags);
-		calc_load_migrate(rq);
-		break;
-#endif
-	}
-
-	update_max_interval();
-
-	return NOTIFY_OK;
-}
-
-/*
- * Register at high priority so that task migration (migrate_all_tasks)
- * happens before everything else.  This has to be lower priority than
- * the notifier in the perf_event subsystem, though.
- */
-static struct notifier_block migration_notifier = {
-	.notifier_call = migration_call,
-	.priority = CPU_PRI_MIGRATION,
-};
-
 static void set_cpu_rq_start_time(unsigned int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -7158,6 +7113,28 @@ int sched_cpu_starting(unsigned int cpu)
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+int sched_cpu_dying(unsigned int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long flags;
+
+	/* Handle pending wakeups and then migrate everything off */
+	sched_ttwu_pending();
+	raw_spin_lock_irqsave(&rq->lock, flags);
+	if (rq->rd) {
+		BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
+		set_rq_offline(rq);
+	}
+	migrate_tasks(rq);
+	BUG_ON(rq->nr_running != 1);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
+	calc_load_migrate(rq);
+	update_max_interval();
+	return 0;
+}
+#endif
+
 void __init sched_init_smp(void)
 {
 	cpumask_var_t non_isolated_cpus;
@@ -7194,12 +7171,7 @@ void __init sched_init_smp(void)
 
 static int __init migration_init(void)
 {
-	void *cpu = (void *)(long)smp_processor_id();
-
 	sched_rq_cpu_starting(smp_processor_id());
-	migration_call(&migration_notifier, CPU_ONLINE, cpu);
-	register_cpu_notifier(&migration_notifier);
-
 	return 0;
 }
 early_initcall(migration_init);

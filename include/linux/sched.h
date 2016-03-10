@@ -376,6 +376,12 @@ extern int sched_cpu_starting(unsigned int cpu);
 extern int sched_cpu_activate(unsigned int cpu);
 extern int sched_cpu_deactivate(unsigned int cpu);
 
+#ifdef CONFIG_HOTPLUG_CPU
+extern int sched_cpu_dying(unsigned int cpu);
+#else
+# define sched_cpu_dying	NULL
+#endif
+
 extern void sched_show_task(struct task_struct *p);
 
 #ifdef CONFIG_LOCKUP_DETECTOR
