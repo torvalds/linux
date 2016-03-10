@@ -135,8 +135,12 @@
 
 #define IFI_CANFD_RXFIFO_ID			0x6c
 #define IFI_CANFD_RXFIFO_ID_ID_OFFSET		0
-#define IFI_CANFD_RXFIFO_ID_ID_STD_MASK		0x3ff
-#define IFI_CANFD_RXFIFO_ID_ID_XTD_MASK		0x1fffffff
+#define IFI_CANFD_RXFIFO_ID_ID_STD_MASK		CAN_SFF_MASK
+#define IFI_CANFD_RXFIFO_ID_ID_STD_OFFSET	0
+#define IFI_CANFD_RXFIFO_ID_ID_STD_WIDTH	10
+#define IFI_CANFD_RXFIFO_ID_ID_XTD_MASK		CAN_EFF_MASK
+#define IFI_CANFD_RXFIFO_ID_ID_XTD_OFFSET	11
+#define IFI_CANFD_RXFIFO_ID_ID_XTD_WIDTH	18
 #define IFI_CANFD_RXFIFO_ID_IDE			BIT(29)
 
 #define IFI_CANFD_RXFIFO_DATA			0x70	/* 0x70..0xac */
@@ -156,8 +160,12 @@
 
 #define IFI_CANFD_TXFIFO_ID			0xbc
 #define IFI_CANFD_TXFIFO_ID_ID_OFFSET		0
-#define IFI_CANFD_TXFIFO_ID_ID_STD_MASK		0x3ff
-#define IFI_CANFD_TXFIFO_ID_ID_XTD_MASK		0x1fffffff
+#define IFI_CANFD_TXFIFO_ID_ID_STD_MASK		CAN_SFF_MASK
+#define IFI_CANFD_TXFIFO_ID_ID_STD_OFFSET	0
+#define IFI_CANFD_TXFIFO_ID_ID_STD_WIDTH	10
+#define IFI_CANFD_TXFIFO_ID_ID_XTD_MASK		CAN_EFF_MASK
+#define IFI_CANFD_TXFIFO_ID_ID_XTD_OFFSET	11
+#define IFI_CANFD_TXFIFO_ID_ID_XTD_WIDTH	18
 #define IFI_CANFD_TXFIFO_ID_IDE			BIT(29)
 
 #define IFI_CANFD_TXFIFO_DATA			0xc0	/* 0xb0..0xfc */
@@ -229,10 +237,20 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 
 	rxid = readl(priv->base + IFI_CANFD_RXFIFO_ID);
 	id = (rxid >> IFI_CANFD_RXFIFO_ID_ID_OFFSET);
-	if (id & IFI_CANFD_RXFIFO_ID_IDE)
+	if (id & IFI_CANFD_RXFIFO_ID_IDE) {
 		id &= IFI_CANFD_RXFIFO_ID_ID_XTD_MASK;
-	else
+		/*
+		 * In case the Extended ID frame is received, the standard
+		 * and extended part of the ID are swapped in the register,
+		 * so swap them back to obtain the correct ID.
+		 */
+		id = (id >> IFI_CANFD_RXFIFO_ID_ID_XTD_OFFSET) |
+		     ((id & IFI_CANFD_RXFIFO_ID_ID_STD_MASK) <<
+		       IFI_CANFD_RXFIFO_ID_ID_XTD_WIDTH);
+		id |= CAN_EFF_FLAG;
+	} else {
 		id &= IFI_CANFD_RXFIFO_ID_ID_STD_MASK;
+	}
 	cf->can_id = id;
 
 	if (rxdlc & IFI_CANFD_RXFIFO_DLC_ESI) {
@@ -514,25 +532,25 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 
 static const struct can_bittiming_const ifi_canfd_bittiming_const = {
 	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 2,	/* Time segment 1 = prop_seg + phase_seg1 */
+	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
 	.tseg1_max	= 64,
-	.tseg2_min	= 1,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 16,
+	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
+	.tseg2_max	= 64,
 	.sjw_max	= 16,
-	.brp_min	= 1,
-	.brp_max	= 1024,
+	.brp_min	= 2,
+	.brp_max	= 256,
 	.brp_inc	= 1,
 };
 
 static const struct can_bittiming_const ifi_canfd_data_bittiming_const = {
 	.name		= KBUILD_MODNAME,
-	.tseg1_min	= 2,	/* Time segment 1 = prop_seg + phase_seg1 */
-	.tseg1_max	= 16,
-	.tseg2_min	= 1,	/* Time segment 2 = phase_seg2 */
-	.tseg2_max	= 8,
-	.sjw_max	= 4,
-	.brp_min	= 1,
-	.brp_max	= 32,
+	.tseg1_min	= 1,	/* Time segment 1 = prop_seg + phase_seg1 */
+	.tseg1_max	= 64,
+	.tseg2_min	= 2,	/* Time segment 2 = phase_seg2 */
+	.tseg2_max	= 64,
+	.sjw_max	= 16,
+	.brp_min	= 2,
+	.brp_max	= 256,
 	.brp_inc	= 1,
 };
 
@@ -545,32 +563,34 @@ static void ifi_canfd_set_bittiming(struct net_device *ndev)
 	u32 noniso_arg = 0;
 	u32 time_off;
 
-	if (priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO) {
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) &&
+	    !(priv->can.ctrlmode & CAN_CTRLMODE_FD_NON_ISO)) {
+		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
+	} else {
 		noniso_arg = IFI_CANFD_TIME_SET_TIMEB_BOSCH |
 			     IFI_CANFD_TIME_SET_TIMEA_BOSCH |
 			     IFI_CANFD_TIME_SET_PRESC_BOSCH |
 			     IFI_CANFD_TIME_SET_SJW_BOSCH;
 		time_off = IFI_CANFD_TIME_SJW_OFF_BOSCH;
-	} else {
-		time_off = IFI_CANFD_TIME_SJW_OFF_ISO;
 	}
 
 	/* Configure bit timing */
-	brp = bt->brp - 1;
+	brp = bt->brp - 2;
 	sjw = bt->sjw - 1;
 	tseg1 = bt->prop_seg + bt->phase_seg1 - 1;
-	tseg2 = bt->phase_seg2 - 1;
+	tseg2 = bt->phase_seg2 - 2;
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
-	       (sjw << time_off),
+	       (sjw << time_off) |
+	       noniso_arg,
 	       priv->base + IFI_CANFD_TIME);
 
 	/* Configure data bit timing */
-	brp = dbt->brp - 1;
+	brp = dbt->brp - 2;
 	sjw = dbt->sjw - 1;
 	tseg1 = dbt->prop_seg + dbt->phase_seg1 - 1;
-	tseg2 = dbt->phase_seg2 - 1;
+	tseg2 = dbt->phase_seg2 - 2;
 	writel((tseg2 << IFI_CANFD_TIME_TIMEB_OFF) |
 	       (tseg1 << IFI_CANFD_TIME_TIMEA_OFF) |
 	       (brp << IFI_CANFD_TIME_PRESCALE_OFF) |
@@ -747,8 +767,7 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 {
 	struct ifi_canfd_priv *priv = netdev_priv(ndev);
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
-	u32 txst, txid;
-	u32 txdlc = 0;
+	u32 txst, txid, txdlc;
 	int i;
 
 	if (can_dropped_invalid_skb(ndev, skb))
@@ -766,17 +785,25 @@ static netdev_tx_t ifi_canfd_start_xmit(struct sk_buff *skb,
 
 	if (cf->can_id & CAN_EFF_FLAG) {
 		txid = cf->can_id & CAN_EFF_MASK;
+		/*
+		 * In case the Extended ID frame is transmitted, the
+		 * standard and extended part of the ID are swapped
+		 * in the register, so swap them back to send the
+		 * correct ID.
+		 */
+		txid = (txid >> IFI_CANFD_TXFIFO_ID_ID_XTD_WIDTH) |
+		       ((txid & IFI_CANFD_TXFIFO_ID_ID_XTD_MASK) <<
+		         IFI_CANFD_TXFIFO_ID_ID_XTD_OFFSET);
 		txid |= IFI_CANFD_TXFIFO_ID_IDE;
 	} else {
 		txid = cf->can_id & CAN_SFF_MASK;
 	}
 
-	if (priv->can.ctrlmode & (CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO)) {
-		if (can_is_canfd_skb(skb)) {
-			txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
-			if (cf->flags & CANFD_BRS)
-				txdlc |= IFI_CANFD_TXFIFO_DLC_BRS;
-		}
+	txdlc = can_len2dlc(cf->len);
+	if ((priv->can.ctrlmode & CAN_CTRLMODE_FD) && can_is_canfd_skb(skb)) {
+		txdlc |= IFI_CANFD_TXFIFO_DLC_EDL;
+		if (cf->flags & CANFD_BRS)
+			txdlc |= IFI_CANFD_TXFIFO_DLC_BRS;
 	}
 
 	if (cf->can_id & CAN_RTR_FLAG)
@@ -847,7 +874,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 
 	priv->can.state = CAN_STATE_STOPPED;
 
-	priv->can.clock.freq = readl(addr + IFI_CANFD_SYSCLOCK);
+	priv->can.clock.freq = readl(addr + IFI_CANFD_CANCLOCK);
 
 	priv->can.bittiming_const	= &ifi_canfd_bittiming_const;
 	priv->can.data_bittiming_const	= &ifi_canfd_data_bittiming_const;
