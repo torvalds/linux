@@ -172,16 +172,6 @@ long syscall_trace_enter_phase2(struct pt_regs *regs, u32 arch,
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		BUG_ON(regs != task_pt_regs(current));
 
-	/*
-	 * If we stepped into a sysenter/syscall insn, it trapped in
-	 * kernel mode; do_debug() cleared TF and set TIF_SINGLESTEP.
-	 * If user-mode had set TF itself, then it's still clear from
-	 * do_debug() and we need to set it again to restore the user
-	 * state.  If we entered on the slow path, TF was already set.
-	 */
-	if (work & _TIF_SINGLESTEP)
-		regs->flags |= X86_EFLAGS_TF;
-
 #ifdef CONFIG_SECCOMP
 	/*
 	 * Call seccomp_phase2 before running the other hooks so that
