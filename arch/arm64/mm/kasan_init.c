@@ -158,15 +158,12 @@ void __init kasan_init(void)
 	 * vmemmap_populate() has populated the shadow region that covers the
 	 * kernel image with SWAPPER_BLOCK_SIZE mappings, so we have to round
 	 * the start and end addresses to SWAPPER_BLOCK_SIZE as well, to prevent
-	 * kasan_populate_zero_shadow() from replacing the PMD block mappings
-	 * with PMD table mappings at the edges of the shadow region for the
-	 * kernel image.
+	 * kasan_populate_zero_shadow() from replacing the page table entries
+	 * (PMD or PTE) at the edges of the shadow region for the kernel
+	 * image.
 	 */
-	if (ARM64_SWAPPER_USES_SECTION_MAPS) {
-		kimg_shadow_start = round_down(kimg_shadow_start,
-					       SWAPPER_BLOCK_SIZE);
-		kimg_shadow_end = round_up(kimg_shadow_end, SWAPPER_BLOCK_SIZE);
-	}
+	kimg_shadow_start = round_down(kimg_shadow_start, SWAPPER_BLOCK_SIZE);
+	kimg_shadow_end = round_up(kimg_shadow_end, SWAPPER_BLOCK_SIZE);
 
 	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
 				   (void *)mod_shadow_start);
