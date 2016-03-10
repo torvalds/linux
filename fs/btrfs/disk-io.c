@@ -512,9 +512,20 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct page *page)
 	eb = (struct extent_buffer *)page->private;
 	if (page != eb->pages[0])
 		return 0;
+
 	found_start = btrfs_header_bytenr(eb);
-	if (WARN_ON(found_start != start || !PageUptodate(page)))
-		return 0;
+	/*
+	 * Please do not consolidate these warnings into a single if.
+	 * It is useful to know what went wrong.
+	 */
+	if (WARN_ON(found_start != start))
+		return -EUCLEAN;
+	if (WARN_ON(!PageUptodate(page)))
+		return -EUCLEAN;
+
+	ASSERT(memcmp_extent_buffer(eb, fs_info->fsid,
+			btrfs_header_fsid(), BTRFS_FSID_SIZE) == 0);
+
 	return csum_tree_block(fs_info, eb, 0);
 }
 
