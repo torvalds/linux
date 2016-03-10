@@ -884,7 +884,7 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu)
 	sample->core_pct_busy = (int32_t)core_pct;
 }
 
-static inline void intel_pstate_sample(struct cpudata *cpu, u64 time)
+static inline bool intel_pstate_sample(struct cpudata *cpu, u64 time)
 {
 	u64 aperf, mperf;
 	unsigned long flags;
@@ -894,9 +894,9 @@ static inline void intel_pstate_sample(struct cpudata *cpu, u64 time)
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
 	tsc = rdtsc();
-	if ((cpu->prev_mperf == mperf) || (cpu->prev_tsc == tsc)) {
+	if (cpu->prev_mperf == mperf || cpu->prev_tsc == tsc) {
 		local_irq_restore(flags);
-		return;
+		return false;
 	}
 	local_irq_restore(flags);
 
@@ -912,6 +912,7 @@ static inline void intel_pstate_sample(struct cpudata *cpu, u64 time)
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
 	cpu->prev_tsc = tsc;
+	return true;
 }
 
 static inline int32_t get_avg_frequency(struct cpudata *cpu)
@@ -1025,8 +1026,9 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 	u64 delta_ns = time - cpu->sample.time;
 
 	if ((s64)delta_ns >= pid_params.sample_rate_ns) {
-		intel_pstate_sample(cpu, time);
-		if (!hwp_active)
+		bool sample_taken = intel_pstate_sample(cpu, time);
+
+		if (sample_taken && !hwp_active)
 			intel_pstate_adjust_busy_pstate(cpu);
 	}
 }
