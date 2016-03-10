@@ -2163,6 +2163,8 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     v_DSP_LUT_EN(1));
 		rk3368_lcdc_bcsh_path_sel(dev_drv);
 		rk3368_config_timing(dev_drv);
+		if (lcdc_dev->soc_type == VOP_FULL_RK3366)
+			lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	rk3368_lcdc_set_dclk(dev_drv, 1);
