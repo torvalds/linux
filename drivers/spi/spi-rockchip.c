@@ -173,7 +173,7 @@ struct rockchip_spi {
 	u8 tmode;
 	u8 bpw;
 	u8 n_bytes;
-	u8 rsd_nsecs;
+	u32 rsd_nsecs;
 	unsigned len;
 	u32 speed;
 
