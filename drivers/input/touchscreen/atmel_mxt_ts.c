@@ -2364,7 +2364,7 @@ static int mxt_set_up_active_stylus(struct input_dev *input_dev,
 
 	error = __mxt_read_reg(client, object->start_address, 1, &ctrl);
 	if (error)
-		return;
+		return error;
 
 	/* Check enable bit */
 	if (!(ctrl & 0x01))
