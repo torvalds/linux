@@ -6371,7 +6371,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 			break;
 		default:
 			dev_info(&pf->pdev->dev,
-				 "ARQ Error: Unknown event 0x%04x received\n",
+				 "ARQ: Unknown event 0x%04x ignored\n",
 				 opcode);
 			break;
 		}
