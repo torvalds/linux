@@ -54,6 +54,7 @@
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/regulator/consumer.h>
+#include "unipro.h"
 
 #include <asm/irq.h>
 #include <asm/byteorder.h>
@@ -688,6 +689,14 @@ static inline int ufshcd_dme_peer_get(struct ufs_hba *hba,
 }
 
 int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size);
+
+static inline bool ufshcd_is_hs_mode(struct ufs_pa_layer_attr *pwr_info)
+{
+	return (pwr_info->pwr_rx == FAST_MODE ||
+		pwr_info->pwr_rx == FASTAUTO_MODE) &&
+		(pwr_info->pwr_tx == FAST_MODE ||
+		pwr_info->pwr_tx == FASTAUTO_MODE);
+}
 
 #define ASCII_STD true
 

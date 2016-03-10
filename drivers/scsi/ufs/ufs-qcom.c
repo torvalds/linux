@@ -980,6 +980,10 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 			goto out;
 		}
 
+		/* enable the device ref clock before changing to HS mode */
+		if (!ufshcd_is_hs_mode(&hba->pwr_info) &&
+			ufshcd_is_hs_mode(dev_req_params))
+			ufs_qcom_dev_ref_clk_ctrl(host, true);
 		break;
 	case POST_CHANGE:
 		if (ufs_qcom_cfg_timers(hba, dev_req_params->gear_rx,
@@ -1007,6 +1011,11 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		memcpy(&host->dev_req_params,
 				dev_req_params, sizeof(*dev_req_params));
 		ufs_qcom_update_bus_bw_vote(host);
+
+		/* disable the device ref clock if entered PWM mode */
+		if (ufshcd_is_hs_mode(&hba->pwr_info) &&
+			!ufshcd_is_hs_mode(dev_req_params))
+			ufs_qcom_dev_ref_clk_ctrl(host, false);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1108,6 +1117,9 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on)
 			ufs_qcom_phy_disable_iface_clk(host->generic_phy);
 			goto out;
 		}
+		/* enable the device ref clock for HS mode*/
+		if (ufshcd_is_hs_mode(&hba->pwr_info))
+			ufs_qcom_dev_ref_clk_ctrl(host, true);
 		vote = host->bus_vote.saved_vote;
 		if (vote == host->bus_vote.min_bw_vote)
 			ufs_qcom_update_bus_bw_vote(host);
