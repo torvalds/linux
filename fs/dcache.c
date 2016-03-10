@@ -2360,6 +2360,19 @@ void d_rehash(struct dentry * entry)
 }
 EXPORT_SYMBOL(d_rehash);
 
+
+/* inode->i_lock held if inode is non-NULL */
+
+static inline void __d_add(struct dentry *dentry, struct inode *inode)
+{
+	if (inode) {
+		__d_instantiate(dentry, inode);
+		spin_unlock(&inode->i_lock);
+	}
+	security_d_instantiate(dentry, inode);
+	d_rehash(dentry);
+}
+
 /**
  * d_add - add dentry to hash queues
  * @entry: dentry to add
@@ -2371,8 +2384,9 @@ EXPORT_SYMBOL(d_rehash);
 
 void d_add(struct dentry *entry, struct inode *inode)
 {
-	d_instantiate(entry, inode);
-	d_rehash(entry);
+	if (inode)
+		spin_lock(&inode->i_lock);
+	__d_add(entry, inode);
 }
 EXPORT_SYMBOL(d_add);
 
@@ -2798,12 +2812,8 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 			return new;
 		}
 	}
-	/* already taking inode->i_lock, so d_add() by hand */
-	__d_instantiate(dentry, inode);
-	spin_unlock(&inode->i_lock);
 out:
-	security_d_instantiate(dentry, inode);
-	d_rehash(dentry);
+	__d_add(dentry, inode);
 	return NULL;
 }
 EXPORT_SYMBOL(d_splice_alias);
