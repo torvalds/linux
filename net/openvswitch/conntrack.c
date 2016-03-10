@@ -382,7 +382,8 @@ static bool skb_nfct_cached(const struct net *net, const struct sk_buff *skb,
 }
 
 /* Pass 'skb' through conntrack in 'net', using zone configured in 'info', if
- * not done already.  Update key with new CT state.
+ * not done already.  Update key with new CT state after passing the packet
+ * through conntrack.
  * Note that if the packet is deemed invalid by conntrack, skb->nfct will be
  * set to NULL and 0 will be returned.
  */
@@ -411,13 +412,13 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 				    skb) != NF_ACCEPT)
 			return -ENOENT;
 
+		ovs_ct_update_key(skb, info, key, true);
+
 		if (ovs_ct_helper(skb, info->family) != NF_ACCEPT) {
 			WARN_ONCE(1, "helper rejected packet");
 			return -EINVAL;
 		}
 	}
-
-	ovs_ct_update_key(skb, info, key, true);
 
 	return 0;
 }
