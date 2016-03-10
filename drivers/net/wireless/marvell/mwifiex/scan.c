@@ -900,14 +900,11 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 		/* Set the BSS type scan filter, use Adapter setting if
 		   unset */
 		scan_cfg_out->bss_mode =
-			(user_scan_in->bss_mode ? (u8) user_scan_in->
-			 bss_mode : (u8) adapter->scan_mode);
+			(u8)(user_scan_in->bss_mode ?: adapter->scan_mode);
 
 		/* Set the number of probes to send, use Adapter setting
 		   if unset */
-		num_probes =
-			(user_scan_in->num_probes ? user_scan_in->
-			 num_probes : adapter->scan_probes);
+		num_probes = user_scan_in->num_probes ?: adapter->scan_probes;
 
 		/*
 		 * Set the BSSID filter to the incoming configuration,
