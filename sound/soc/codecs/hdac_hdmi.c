@@ -303,7 +303,6 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 		if (ret < 0)
 			return ret;
 
-		dip = (u8 *)&frame;
 		break;
 
 	case DRM_ELD_CONN_TYPE_DP:
@@ -332,9 +331,9 @@ static int hdac_hdmi_setup_audio_infoframe(struct hdac_ext_device *hdac,
 	/*  Fill infoframe. Index auto-incremented */
 	hdac_hdmi_set_dip_index(hdac, pin_nid, 0x0, 0x0);
 	if (conn_type == DRM_ELD_CONN_TYPE_HDMI) {
-		for (i = 0; i < sizeof(frame); i++)
+		for (i = 0; i < sizeof(buffer); i++)
 			snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
-				AC_VERB_SET_HDMI_DIP_DATA, dip[i]);
+				AC_VERB_SET_HDMI_DIP_DATA, buffer[i]);
 	} else {
 		for (i = 0; i < sizeof(dp_ai); i++)
 			snd_hdac_codec_write(&hdac->hdac, pin_nid, 0,
