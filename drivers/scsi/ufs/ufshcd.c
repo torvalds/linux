@@ -40,6 +40,7 @@
 #include <linux/async.h>
 #include <linux/devfreq.h>
 
+#include <linux/of.h>
 #include "ufshcd.h"
 #include "unipro.h"
 
