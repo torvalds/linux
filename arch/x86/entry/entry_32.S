@@ -307,6 +307,38 @@ ENTRY(xen_sysenter_target)
 	jmp	sysenter_past_esp
 #endif
 
+/*
+ * 32-bit SYSENTER entry.
+ *
+ * 32-bit system calls through the vDSO's __kernel_vsyscall enter here
+ * if X86_FEATURE_SEP is available.  This is the preferred system call
+ * entry on 32-bit systems.
+ *
+ * The SYSENTER instruction, in principle, should *only* occur in the
+ * vDSO.  In practice, a small number of Android devices were shipped
+ * with a copy of Bionic that inlined a SYSENTER instruction.  This
+ * never happened in any of Google's Bionic versions -- it only happened
+ * in a narrow range of Intel-provided versions.
+ *
+ * SYSENTER loads SS, ESP, CS, and EIP from previously programmed MSRs.
+ * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
+ * SYSENTER does not save anything on the stack,
+ * and does not save old EIP (!!!), ESP, or EFLAGS.
+ *
+ * To avoid losing track of EFLAGS.VM (and thus potentially corrupting
+ * user and/or vm86 state), we explicitly disable the SYSENTER
+ * instruction in vm86 mode by reprogramming the MSRs.
+ *
+ * Arguments:
+ * eax  system call number
+ * ebx  arg1
+ * ecx  arg2
+ * edx  arg3
+ * esi  arg4
+ * edi  arg5
+ * ebp  user stack
+ * 0(%ebp) arg6
+ */
 ENTRY(entry_SYSENTER_32)
 	movl	TSS_sysenter_sp0(%esp), %esp
 sysenter_past_esp:
@@ -397,7 +429,34 @@ sysenter_past_esp:
 GLOBAL(__end_SYSENTER_singlestep_region)
 ENDPROC(entry_SYSENTER_32)
 
-	# system call handler stub
+/*
+ * 32-bit legacy system call entry.
+ *
+ * 32-bit x86 Linux system calls traditionally used the INT $0x80
+ * instruction.  INT $0x80 lands here.
+ *
+ * This entry point can be used by any 32-bit perform system calls.
+ * Instances of INT $0x80 can be found inline in various programs and
+ * libraries.  It is also used by the vDSO's __kernel_vsyscall
+ * fallback for hardware that doesn't support a faster entry method.
+ * Restarted 32-bit system calls also fall back to INT $0x80
+ * regardless of what instruction was originally used to do the system
+ * call.  (64-bit programs can use INT $0x80 as well, but they can
+ * only run on 64-bit kernels and therefore land in
+ * entry_INT80_compat.)
+ *
+ * This is considered a slow path.  It is not used by most libc
+ * implementations on modern hardware except during process startup.
+ *
+ * Arguments:
+ * eax  system call number
+ * ebx  arg1
+ * ecx  arg2
+ * edx  arg3
+ * esi  arg4
+ * edi  arg5
+ * ebp  arg6
+ */
 ENTRY(entry_INT80_32)
 	ASM_CLAC
 	pushl	%eax			/* pt_regs->orig_ax */

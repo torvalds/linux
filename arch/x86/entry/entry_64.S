@@ -103,6 +103,16 @@ ENDPROC(native_usergs_sysret64)
 /*
  * 64-bit SYSCALL instruction entry. Up to 6 arguments in registers.
  *
+ * This is the only entry point used for 64-bit system calls.  The
+ * hardware interface is reasonably well designed and the register to
+ * argument mapping Linux uses fits well with the registers that are
+ * available when SYSCALL is used.
+ *
+ * SYSCALL instructions can be found inlined in libc implementations as
+ * well as some other programs and libraries.  There are also a handful
+ * of SYSCALL instructions in the vDSO used, for example, as a
+ * clock_gettimeofday fallback.
+ *
  * 64-bit SYSCALL saves rip to rcx, clears rflags.RF, then saves rflags to r11,
  * then loads new ss, cs, and rip from previously programmed MSRs.
  * rflags gets masked by a value from another MSR (so CLD and CLAC
