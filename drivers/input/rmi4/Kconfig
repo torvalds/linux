@@ -18,6 +18,15 @@ config RMI4_I2C
 
 	  If unsure, say Y.
 
+config RMI4_SPI
+	tristate "RMI4 SPI Support"
+	depends on RMI4_CORE && SPI
+	help
+	  Say Y here if you want to support RMI4 devices connected to a SPI
+	  bus.
+
+	  If unsure, say N.
+
 config RMI4_2D_SENSOR
 	bool
 	depends on RMI4_CORE
