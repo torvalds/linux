@@ -1349,10 +1349,10 @@ config RTC_DRV_GENERIC
 	  just say Y.
 
 config RTC_DRV_PXA
-       tristate "PXA27x/PXA3xx"
-       depends on ARCH_PXA
-       select RTC_DRV_SA1100
-       help
+	tristate "PXA27x/PXA3xx"
+	depends on ARCH_PXA
+	select RTC_DRV_SA1100
+	help
          If you say Y here you will get access to the real time clock
          built into your PXA27x or PXA3xx CPU. This RTC is actually 2 RTCs
          consisting of an SA1100 compatible RTC and the extended PXA RTC.
