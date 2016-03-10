@@ -3,15 +3,13 @@ menu "IEP"
 
 config IEP
 	tristate "ROCKCHIP IEP driver"
-        default y
 	help
 	  rockchip iep module.
 
 config IEP_MMU
-        tristate "ROCKCHIP IEP MMU driver"
-        depends on ARCH_ROCKCHIP
-        default n
-        help
-          rockchip iep mmu
+	tristate "ROCKCHIP IEP MMU driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  rockchip iep mmu
 
 endmenu
