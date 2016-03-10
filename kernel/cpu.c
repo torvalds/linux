@@ -1242,12 +1242,6 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	[CPUHP_AP_ONLINE] = {
 		.name			= "ap:online",
 	},
-	/* First state is scheduler control. Interrupts are enabled */
-	[CPUHP_AP_ACTIVE] = {
-		.name			= "sched:active",
-		.startup		= sched_cpu_activate,
-		.teardown		= sched_cpu_deactivate,
-	},
 	/* Handle smpboot threads park/unpark */
 	[CPUHP_AP_SMPBOOT_THREADS] = {
 		.name			= "smpboot:threads",
@@ -1268,6 +1262,15 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	/*
 	 * The dynamically registered state space is here
 	 */
+
+#ifdef CONFIG_SMP
+	/* Last state is scheduler control setting the cpu active */
+	[CPUHP_AP_ACTIVE] = {
+		.name			= "sched:active",
+		.startup		= sched_cpu_activate,
+		.teardown		= sched_cpu_deactivate,
+	},
+#endif
 
 	/* CPU is fully up and running. */
 	[CPUHP_ONLINE] = {
