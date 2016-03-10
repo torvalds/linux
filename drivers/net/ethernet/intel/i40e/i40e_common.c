@@ -2157,6 +2157,9 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_add_get_update_vsi *cmd =
 		(struct i40e_aqc_add_get_update_vsi *)&desc.params.raw;
+	struct i40e_aqc_add_get_update_vsi_completion *resp =
+		(struct i40e_aqc_add_get_update_vsi_completion *)
+		&desc.params.raw;
 	i40e_status status;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
@@ -2167,6 +2170,9 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 
 	status = i40e_asq_send_command(hw, &desc, &vsi_ctx->info,
 				    sizeof(vsi_ctx->info), cmd_details);
+
+	vsi_ctx->vsis_allocated = le16_to_cpu(resp->vsi_used);
+	vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
 
 	return status;
 }
