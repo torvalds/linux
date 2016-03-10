@@ -308,6 +308,24 @@ static int rv3029_eeprom_write(struct i2c_client *client, u8 reg,
 	return ret;
 }
 
+static int rv3029_eeprom_update_bits(struct i2c_client *client,
+				     u8 reg, u8 mask, u8 set)
+{
+	u8 buf;
+	int ret;
+
+	ret = rv3029_eeprom_read(client, reg, &buf, 1);
+	if (ret < 0)
+		return ret;
+	buf &= ~mask;
+	buf |= set & mask;
+	ret = rv3029_eeprom_write(client, reg, &buf, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int
 rv3029_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 {
@@ -588,23 +606,16 @@ static void rv3029_trickle_config(struct i2c_client *client)
 	const struct rv3029_trickle_tab_elem *elem;
 	int i, err;
 	u32 ohms;
-	u8 eectrl;
+	u8 trickle_set_bits;
 
 	if (!of_node)
 		return;
 
 	/* Configure the trickle charger. */
-	err = rv3029_eeprom_read(client, RV3029_CONTROL_E2P_EECTRL,
-				 &eectrl, 1);
-	if (err < 0) {
-		dev_err(&client->dev,
-			"Failed to read trickle charger config\n");
-		return;
-	}
 	err = of_property_read_u32(of_node, "trickle-resistor-ohms", &ohms);
 	if (err) {
 		/* Disable trickle charger. */
-		eectrl &= ~RV3029_TRICKLE_MASK;
+		trickle_set_bits = 0;
 	} else {
 		/* Enable trickle charger. */
 		for (i = 0; i < ARRAY_SIZE(rv3029_trickle_tab); i++) {
@@ -612,17 +623,17 @@ static void rv3029_trickle_config(struct i2c_client *client)
 			if (elem->r >= ohms)
 				break;
 		}
-		eectrl &= ~RV3029_TRICKLE_MASK;
-		eectrl |= elem->conf;
+		trickle_set_bits = elem->conf;
 		dev_info(&client->dev,
 			 "Trickle charger enabled at %d ohms resistance.\n",
 			 elem->r);
 	}
-	err = rv3029_eeprom_write(client, RV3029_CONTROL_E2P_EECTRL,
-				  &eectrl, 1);
+	err = rv3029_eeprom_update_bits(client, RV3029_CONTROL_E2P_EECTRL,
+					RV3029_TRICKLE_MASK,
+					trickle_set_bits);
 	if (err < 0) {
 		dev_err(&client->dev,
-			"Failed to write trickle charger config\n");
+			"Failed to update trickle charger config\n");
 	}
 }
 
