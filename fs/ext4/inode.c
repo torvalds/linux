@@ -3272,13 +3272,12 @@ out:
 	WARN_ON_ONCE(ret == 0 && create);
 	if (ret > 0) {
 		map_bh(bh_result, inode->i_sb, map.m_pblk);
-		bh_result->b_state = (bh_result->b_state & ~EXT4_MAP_FLAGS) |
-					map.m_flags;
 		/*
 		 * At least for now we have to clear BH_New so that DAX code
 		 * doesn't attempt to zero blocks again in a racy way.
 		 */
-		bh_result->b_state &= ~(1 << BH_New);
+		map.m_flags &= ~EXT4_MAP_NEW;
+		ext4_update_bh_state(bh_result, map.m_flags);
 		bh_result->b_size = map.m_len << inode->i_blkbits;
 		ret = 0;
 	}
