@@ -872,6 +872,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	r = amd_sched_job_init(&job->base, &ring->sched,
 						&p->ctx->rings[ring->idx].entity,
 						amdgpu_job_timeout_func,
+						amdgpu_job_free_func,
 						p->filp, &fence);
 	if (r) {
 		amdgpu_job_free(job);

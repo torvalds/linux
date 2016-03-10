@@ -333,7 +333,8 @@ void amd_sched_job_finish(struct amd_sched_job *s_job)
 	struct amd_gpu_scheduler *sched = s_job->sched;
 
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT) {
-		cancel_delayed_work(&s_job->work_tdr); /*TODO: how to deal the case that tdr is running */
+		if (cancel_delayed_work(&s_job->work_tdr))
+			amd_sched_job_put(s_job);
 
 		/* queue TDR for next job */
 		next = list_first_entry_or_null(&sched->ring_mirror_list,
@@ -341,6 +342,7 @@ void amd_sched_job_finish(struct amd_sched_job *s_job)
 
 		if (next) {
 			INIT_DELAYED_WORK(&next->work_tdr, s_job->timeout_callback);
+			amd_sched_job_get(next);
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
 		}
 	}
@@ -354,6 +356,7 @@ void amd_sched_job_begin(struct amd_sched_job *s_job)
 		list_first_entry_or_null(&sched->ring_mirror_list, struct amd_sched_job, node) == s_job)
 	{
 		INIT_DELAYED_WORK(&s_job->work_tdr, s_job->timeout_callback);
+		amd_sched_job_get(s_job);
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
 	}
 }
@@ -382,9 +385,11 @@ int amd_sched_job_init(struct amd_sched_job *job,
 						struct amd_gpu_scheduler *sched,
 						struct amd_sched_entity *entity,
 						void (*timeout_cb)(struct work_struct *work),
+						void (*free_cb)(struct kref *refcount),
 						void *owner, struct fence **fence)
 {
 	INIT_LIST_HEAD(&job->node);
+	kref_init(&job->refcount);
 	job->sched = sched;
 	job->s_entity = entity;
 	job->s_fence = amd_sched_fence_create(entity, owner);
@@ -393,6 +398,7 @@ int amd_sched_job_init(struct amd_sched_job *job,
 
 	job->s_fence->s_job = job;
 	job->timeout_callback = timeout_cb;
+	job->free_callback = free_cb;
 
 	if (fence)
 		*fence = &job->s_fence->base;

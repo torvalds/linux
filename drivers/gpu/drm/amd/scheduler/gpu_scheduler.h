@@ -78,6 +78,7 @@ struct amd_sched_fence {
 };
 
 struct amd_sched_job {
+	struct kref refcount;
 	struct amd_gpu_scheduler        *sched;
 	struct amd_sched_entity         *s_entity;
 	struct amd_sched_fence          *s_fence;
@@ -87,6 +88,7 @@ struct amd_sched_job {
 	struct list_head			   node;
 	struct delayed_work work_tdr;
 	void (*timeout_callback) (struct work_struct *work);
+	void (*free_callback)(struct kref *refcount);
 };
 
 extern const struct fence_ops amd_sched_fence_ops;
@@ -155,9 +157,20 @@ int amd_sched_job_init(struct amd_sched_job *job,
 					struct amd_gpu_scheduler *sched,
 					struct amd_sched_entity *entity,
 					void (*timeout_cb)(struct work_struct *work),
+					void (*free_cb)(struct kref* refcount),
 					void *owner, struct fence **fence);
 void amd_sched_job_pre_schedule(struct amd_gpu_scheduler *sched ,
 								struct amd_sched_job *s_job);
 void amd_sched_job_finish(struct amd_sched_job *s_job);
 void amd_sched_job_begin(struct amd_sched_job *s_job);
+static inline void amd_sched_job_get(struct amd_sched_job *job) {
+	if (job)
+		kref_get(&job->refcount);
+}
+
+static inline void amd_sched_job_put(struct amd_sched_job *job) {
+	if (job)
+		kref_put(&job->refcount, job->free_callback);
+}
+
 #endif

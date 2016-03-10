@@ -31,7 +31,7 @@
 static void amdgpu_job_free_handler(struct work_struct *ws)
 {
 	struct amdgpu_job *job = container_of(ws, struct amdgpu_job, base.work_free_job);
-	kfree(job);
+	amd_sched_job_put(&job->base);
 }
 
 void amdgpu_job_timeout_func(struct work_struct *work)
@@ -41,6 +41,8 @@ void amdgpu_job_timeout_func(struct work_struct *work)
 				job->base.sched->name,
 				(uint32_t)atomic_read(&job->ring->fence_drv.last_seq),
 				job->ring->fence_drv.sync_seq);
+
+	amd_sched_job_put(&job->base);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
@@ -101,6 +103,12 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		kfree(job);
 }
 
+void amdgpu_job_free_func(struct kref *refcount)
+{
+	struct amdgpu_job *job = container_of(refcount, struct amdgpu_job, base.refcount);
+	kfree(job);
+}
+
 int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		      struct amd_sched_entity *entity, void *owner,
 		      struct fence **f)
@@ -113,9 +121,10 @@ int amdgpu_job_submit(struct amdgpu_job *job, struct amdgpu_ring *ring,
 		return -EINVAL;
 
 	r = amd_sched_job_init(&job->base, &ring->sched,
-							entity, owner,
+							entity,
 							amdgpu_job_timeout_func,
-							&fence);
+							amdgpu_job_free_func,
+							owner, &fence);
 	if (r)
 		return r;
 
