@@ -1611,7 +1611,6 @@ gckKERNEL_Dispatch(
 #endif
     gckVIRTUAL_COMMAND_BUFFER_PTR buffer;
 
-    gckVIDMEM_NODE nodeObject;
     gctBOOL powerMutexAcquired = gcvFALSE;
 
     gcmkHEADER_ARG("Kernel=0x%x FromUser=%d Interface=0x%x",
@@ -2417,35 +2416,6 @@ gckKERNEL_Dispatch(
     case gcvHAL_CACHE:
 
         logical = gcmUINT64_TO_PTR(Interface->u.Cache.logical);
-
-        if (Interface->u.Cache.node)
-        {
-            gcmkONERROR(gckVIDMEM_HANDLE_Lookup(
-                Kernel,
-                processID,
-                Interface->u.Cache.node,
-                &nodeObject));
-
-            /* Verify the nodeObject. */
-            if ((nodeObject == gcvNULL)
-            ||  (nodeObject->node == gcvNULL)
-            ||  (nodeObject->node->VidMem.memory == gcvNULL)
-            )
-            {
-                /* Invalid object. */
-                gcmkONERROR(gcvSTATUS_INVALID_OBJECT);
-            }
-
-            if (nodeObject->node->VidMem.memory->object.type == gcvOBJ_VIDMEM
-             || nodeObject->node->Virtual.contiguous
-            )
-            {
-                /* If memory is contiguous, get physical address. */
-                gcmkONERROR(gckOS_UserLogicalToPhysical(
-                    Kernel->os, logical, &paddr));
-            }
-        }
-
         bytes = (gctSIZE_T) Interface->u.Cache.bytes;
         switch(Interface->u.Cache.operation)
         {
