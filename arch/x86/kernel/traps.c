@@ -559,6 +559,29 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 NOKPROBE_SYMBOL(fixup_bad_iret);
 #endif
 
+static bool is_sysenter_singlestep(struct pt_regs *regs)
+{
+	/*
+	 * We don't try for precision here.  If we're anywhere in the region of
+	 * code that can be single-stepped in the SYSENTER entry path, then
+	 * assume that this is a useless single-step trap due to SYSENTER
+	 * being invoked with TF set.  (We don't know in advance exactly
+	 * which instructions will be hit because BTF could plausibly
+	 * be set.)
+	 */
+#ifdef CONFIG_X86_32
+	return (regs->ip - (unsigned long)__begin_SYSENTER_singlestep_region) <
+		(unsigned long)__end_SYSENTER_singlestep_region -
+		(unsigned long)__begin_SYSENTER_singlestep_region;
+#elif defined(CONFIG_IA32_EMULATION)
+	return (regs->ip - (unsigned long)entry_SYSENTER_compat) <
+		(unsigned long)__end_entry_SYSENTER_compat -
+		(unsigned long)entry_SYSENTER_compat;
+#else
+	return false;
+#endif
+}
+
 /*
  * Our handling of the processor debug registers is non-trivial.
  * We do not clear them on entry and exit from the kernel. Therefore
@@ -616,6 +639,18 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 */
 	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
 
+	if (unlikely(!user_mode(regs) && (dr6 & DR_STEP) &&
+		     is_sysenter_singlestep(regs))) {
+		dr6 &= ~DR_STEP;
+		if (!dr6)
+			goto exit;
+		/*
+		 * else we might have gotten a single-step trap and hit a
+		 * watchpoint at the same time, in which case we should fall
+		 * through and handle the watchpoint.
+		 */
+	}
+
 	/*
 	 * If dr6 has no reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
@@ -624,7 +659,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
 
-	/* Catch kmemcheck conditions first of all! */
+	/* Catch kmemcheck conditions! */
 	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
 		goto exit;
 
@@ -659,14 +694,13 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		goto exit;
 	}
 
-	/*
-	 * Single-stepping through system calls: ignore any exceptions in
-	 * kernel space, but re-enable TF when returning to user mode.
-	 *
-	 * We already checked v86 mode above, so we can check for kernel mode
-	 * by just checking the CPL of CS.
-	 */
-	if ((dr6 & DR_STEP) && !user_mode(regs)) {
+	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
+		/*
+		 * Historical junk that used to handle SYSENTER single-stepping.
+		 * This should be unreachable now.  If we survive for a while
+		 * without anyone hitting this warning, we'll turn this into
+		 * an oops.
+		 */
 		tsk->thread.debugreg6 &= ~DR_STEP;
 		set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 		regs->flags &= ~X86_EFLAGS_TF;

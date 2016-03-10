@@ -94,13 +94,19 @@ ENTRY(entry_SYSENTER_compat)
 	 * This needs to happen before enabling interrupts so that
 	 * we don't get preempted with NT set.
 	 *
+	 * If TF is set, we will single-step all the way to here -- do_debug
+	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * single-stepping in general.  This allows us to avoid having
+	 * a more complicated code to handle the case where a user program
+	 * forces us to single-step through the SYSENTER entry code.)
+	 *
 	 * NB.: .Lsysenter_fix_flags is a label with the code under it moved
 	 * out-of-line as an optimization: NT is unlikely to be set in the
 	 * majority of the cases and instead of polluting the I$ unnecessarily,
 	 * we're keeping that code behind a branch which will predict as
 	 * not-taken and therefore its instructions won't be fetched.
 	 */
-	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC, EFLAGS(%rsp)
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, EFLAGS(%rsp)
 	jnz	.Lsysenter_fix_flags
 .Lsysenter_flags_fixed:
 
@@ -121,6 +127,7 @@ ENTRY(entry_SYSENTER_compat)
 	pushq	$X86_EFLAGS_FIXED
 	popfq
 	jmp	.Lsysenter_flags_fixed
+GLOBAL(__end_entry_SYSENTER_compat)
 ENDPROC(entry_SYSENTER_compat)
 
 /*

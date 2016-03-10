@@ -287,7 +287,26 @@ need_resched:
 END(resume_kernel)
 #endif
 
-	# SYSENTER  call handler stub
+GLOBAL(__begin_SYSENTER_singlestep_region)
+/*
+ * All code from here through __end_SYSENTER_singlestep_region is subject
+ * to being single-stepped if a user program sets TF and executes SYSENTER.
+ * There is absolutely nothing that we can do to prevent this from happening
+ * (thanks Intel!).  To keep our handling of this situation as simple as
+ * possible, we handle TF just like AC and NT, except that our #DB handler
+ * will ignore all of the single-step traps generated in this range.
+ */
+
+#ifdef CONFIG_XEN
+/*
+ * Xen doesn't set %esp to be precisely what the normal SYSENTER
+ * entry point expects, so fix it up before using the normal path.
+ */
+ENTRY(xen_sysenter_target)
+	addl	$5*4, %esp			/* remove xen-provided frame */
+	jmp	sysenter_past_esp
+#endif
+
 ENTRY(entry_SYSENTER_32)
 	movl	TSS_sysenter_sp0(%esp), %esp
 sysenter_past_esp:
@@ -301,11 +320,17 @@ sysenter_past_esp:
 	SAVE_ALL pt_regs_ax=$-ENOSYS	/* save rest */
 
 	/*
-	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
-	 * ourselves.  To save a few cycles, we can check whether
+	 * SYSENTER doesn't filter flags, so we need to clear NT, AC
+	 * and TF ourselves.  To save a few cycles, we can check whether
 	 * either was set instead of doing an unconditional popfq.
 	 * This needs to happen before enabling interrupts so that
 	 * we don't get preempted with NT set.
+	 *
+	 * If TF is set, we will single-step all the way to here -- do_debug
+	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * single-stepping in general.  This allows us to avoid having
+	 * a more complicated code to handle the case where a user program
+	 * forces us to single-step through the SYSENTER entry code.)
 	 *
 	 * NB.: .Lsysenter_fix_flags is a label with the code under it moved
 	 * out-of-line as an optimization: NT is unlikely to be set in the
@@ -313,7 +338,7 @@ sysenter_past_esp:
 	 * we're keeping that code behind a branch which will predict as
 	 * not-taken and therefore its instructions won't be fetched.
 	 */
-	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC, PT_EFLAGS(%esp)
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, PT_EFLAGS(%esp)
 	jnz	.Lsysenter_fix_flags
 .Lsysenter_flags_fixed:
 
@@ -369,6 +394,7 @@ sysenter_past_esp:
 	pushl	$X86_EFLAGS_FIXED
 	popfl
 	jmp	.Lsysenter_flags_fixed
+GLOBAL(__end_SYSENTER_singlestep_region)
 ENDPROC(entry_SYSENTER_32)
 
 	# system call handler stub
@@ -651,14 +677,6 @@ ENTRY(spurious_interrupt_bug)
 END(spurious_interrupt_bug)
 
 #ifdef CONFIG_XEN
-/*
- * Xen doesn't set %esp to be precisely what the normal SYSENTER
- * entry point expects, so fix it up before using the normal path.
- */
-ENTRY(xen_sysenter_target)
-	addl	$5*4, %esp			/* remove xen-provided frame */
-	jmp	sysenter_past_esp
-
 ENTRY(xen_hypervisor_callback)
 	pushl	$-1				/* orig_ax = -1 => not a system call */
 	SAVE_ALL
