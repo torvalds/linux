@@ -456,6 +456,7 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
 	int ret;
+	struct media_entity *entity, *demod = NULL, *tuner = NULL;
 
 	if (!dev->media_dev)
 		return 0;
@@ -479,6 +480,31 @@ static int au0828_media_device_register(struct au0828_dev *dev,
 		*/
 		au0828_media_graph_notify(NULL, (void *) dev);
 	}
+
+	/*
+	 * Find tuner and demod to disable the link between
+	 * the two to avoid disable step when tuner is requested
+	 * by video or audio. Note that this step can't be done
+	 * until dvb graph is created during dvb register.
+	*/
+	media_device_for_each_entity(entity, dev->media_dev) {
+		if (entity->function == MEDIA_ENT_F_DTV_DEMOD)
+			demod = entity;
+		else if (entity->function == MEDIA_ENT_F_TUNER)
+			tuner = entity;
+	}
+	/* Disable link between tuner and demod */
+	if (tuner && demod) {
+		struct media_link *link;
+
+		list_for_each_entry(link, &demod->links, list) {
+			if (link->sink->entity == demod &&
+			    link->source->entity == tuner) {
+				media_entity_setup_link(link, 0);
+			}
+		}
+	}
+
 	/* register entity_notify callback */
 	dev->entity_notify.notify_data = (void *) dev;
 	dev->entity_notify.notify = (void *) au0828_media_graph_notify;

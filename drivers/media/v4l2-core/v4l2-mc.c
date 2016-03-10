@@ -57,9 +57,6 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 		case MEDIA_ENT_F_ATV_DECODER:
 			decoder = entity;
 			break;
-		case MEDIA_ENT_F_DTV_DEMOD:
-			dtv_demod = entity;
-			break;
 		case MEDIA_ENT_F_IO_V4L:
 			io_v4l = entity;
 			break;
@@ -192,21 +189,6 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 			return ret;
 
 		flags = 0;
-	}
-
-	/*
-	 * Disable tuner to demod link to avoid disable step
-	 * when tuner is requested by video or audio
-	 */
-	if (tuner && dtv_demod) {
-		struct media_link *link;
-
-		list_for_each_entry(link, &dtv_demod->links, list) {
-			if (link->sink->entity == dtv_demod &&
-			    link->source->entity == tuner) {
-				media_entity_setup_link(link, 0);
-			}
-		}
 	}
 
 	return 0;
