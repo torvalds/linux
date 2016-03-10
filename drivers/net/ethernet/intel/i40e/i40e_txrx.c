@@ -2305,7 +2305,8 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 			/* remove payload length from outer checksum */
 			paylen = (__force u16)l4.udp->check;
-			paylen += ntohs(1) * (u16)~(skb->len - l4_offset);
+			paylen += ntohs((__force __be16)1) *
+					(u16)~(skb->len - l4_offset);
 			l4.udp->check = ~csum_fold((__force __wsum)paylen);
 		}
 
@@ -2327,7 +2328,7 @@ static int i40e_tso(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	/* remove payload length from inner checksum */
 	paylen = (__force u16)l4.tcp->check;
-	paylen += ntohs(1) * (u16)~(skb->len - l4_offset);
+	paylen += ntohs((__force __be16)1) * (u16)~(skb->len - l4_offset);
 	l4.tcp->check = ~csum_fold((__force __wsum)paylen);
 
 	/* compute length of segmentation header */
