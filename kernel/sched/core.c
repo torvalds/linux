@@ -249,29 +249,6 @@ void hrtick_start(struct rq *rq, u64 delay)
 	}
 }
 
-static int
-hotplug_hrtick(struct notifier_block *nfb, unsigned long action, void *hcpu)
-{
-	int cpu = (int)(long)hcpu;
-
-	switch (action) {
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		hrtick_clear(cpu_rq(cpu));
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static __init void init_hrtick(void)
-{
-	hotcpu_notifier(hotplug_hrtick, 0);
-}
 #else
 /*
  * Called to set the hrtick timer state.
@@ -287,10 +264,6 @@ void hrtick_start(struct rq *rq, u64 delay)
 	delay = max_t(u64, delay, 10000LL);
 	hrtimer_start(&rq->hrtick_timer, ns_to_ktime(delay),
 		      HRTIMER_MODE_REL_PINNED);
-}
-
-static inline void init_hrtick(void)
-{
 }
 #endif /* CONFIG_SMP */
 
@@ -313,10 +286,6 @@ static inline void hrtick_clear(struct rq *rq)
 }
 
 static inline void init_rq_hrtick(struct rq *rq)
-{
-}
-
-static inline void init_hrtick(void)
 {
 }
 #endif	/* CONFIG_SCHED_HRTICK */
@@ -7132,6 +7101,7 @@ int sched_cpu_dying(unsigned int cpu)
 	calc_load_migrate(rq);
 	update_max_interval();
 	nohz_balance_exit_idle(cpu);
+	hrtick_clear(rq);
 	return 0;
 }
 #endif
@@ -7156,8 +7126,6 @@ void __init sched_init_smp(void)
 	if (cpumask_empty(non_isolated_cpus))
 		cpumask_set_cpu(smp_processor_id(), non_isolated_cpus);
 	mutex_unlock(&sched_domains_mutex);
-
-	init_hrtick();
 
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed_ptr(current, non_isolated_cpus) < 0)
