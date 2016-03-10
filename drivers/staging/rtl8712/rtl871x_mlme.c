@@ -468,8 +468,7 @@ static int is_desired_network(struct _adapter *adapter,
 		    pnetwork->network.IELength, wps_ie,
 		    &wps_ielen))
 			return true;
-		else
-			return false;
+		return false;
 	}
 	if ((psecuritypriv->PrivacyAlgrthm != _NO_PRIVACY_) &&
 		    (pnetwork->network.Privacy == 0))
