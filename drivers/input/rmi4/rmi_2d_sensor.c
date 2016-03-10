@@ -219,3 +219,111 @@ int rmi_2d_sensor_configure_input(struct rmi_function *fn,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rmi_2d_sensor_configure_input);
+
+#ifdef CONFIG_OF
+int rmi_2d_sensor_of_probe(struct device *dev,
+			struct rmi_2d_sensor_platform_data *pdata)
+{
+	int retval;
+	u32 val;
+
+	pdata->axis_align.swap_axes = of_property_read_bool(dev->of_node,
+						"touchscreen-swapped-x-y");
+
+	pdata->axis_align.flip_x = of_property_read_bool(dev->of_node,
+						"touchscreen-inverted-x");
+
+	pdata->axis_align.flip_y = of_property_read_bool(dev->of_node,
+						"touchscreen-inverted-y");
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-x-low", 1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.clip_x_low = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-y-low",	1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.clip_y_low = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-x-high", 1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.clip_x_high = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-y-high", 1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.clip_y_high = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,offset-x", 1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.offset_x = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,offset-y", 1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.offset_y = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,delta-x-threshold",
+						1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.delta_x_threshold = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,delta-y-threshold",
+						1);
+	if (retval)
+		return retval;
+
+	pdata->axis_align.delta_y_threshold = val;
+
+	retval = rmi_of_property_read_u32(dev, (u32 *)&pdata->sensor_type,
+			"syna,sensor-type", 1);
+	if (retval)
+		return retval;
+
+	retval = rmi_of_property_read_u32(dev, &val, "touchscreen-x-mm", 1);
+	if (retval)
+		return retval;
+
+	pdata->x_mm = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "touchscreen-y-mm", 1);
+	if (retval)
+		return retval;
+
+	pdata->y_mm = val;
+
+	retval = rmi_of_property_read_u32(dev, &val,
+				"syna,disable-report-mask", 1);
+	if (retval)
+		return retval;
+
+	pdata->disable_report_mask = val;
+
+	retval = rmi_of_property_read_u32(dev, &val, "syna,rezero-wait-ms",
+						1);
+	if (retval)
+		return retval;
+
+	pdata->rezero_wait = val;
+
+	return 0;
+}
+#else
+inline int rmi_2d_sensor_of_probe(struct device *dev,
+			struct rmi_2d_sensor_platform_data *pdata)
+{
+	return -ENODEV;
+}
+#endif
+EXPORT_SYMBOL_GPL(rmi_2d_sensor_of_probe);
