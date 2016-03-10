@@ -11306,8 +11306,10 @@ static void i40e_remove(struct pci_dev *pdev)
 	/* no more scheduling of any task */
 	set_bit(__I40E_SUSPENDED, &pf->state);
 	set_bit(__I40E_DOWN, &pf->state);
-	del_timer_sync(&pf->service_timer);
-	cancel_work_sync(&pf->service_task);
+	if (pf->service_timer.data)
+		del_timer_sync(&pf->service_timer);
+	if (pf->service_task.func)
+		cancel_work_sync(&pf->service_task);
 
 	if (pf->flags & I40E_FLAG_SRIOV_ENABLED) {
 		i40e_free_vfs(pf);
