@@ -42,6 +42,7 @@
 #include <linux/nls.h>
 #include <linux/of.h>
 #include "ufshcd.h"
+#include "ufs_quirks.h"
 #include "unipro.h"
 
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
@@ -4564,6 +4565,75 @@ out:
 	return ret;
 }
 
+static int ufs_get_device_info(struct ufs_hba *hba,
+				struct ufs_device_info *card_data)
+{
+	int err;
+	u8 model_index;
+	u8 str_desc_buf[QUERY_DESC_STRING_MAX_SIZE + 1] = {0};
+	u8 desc_buf[QUERY_DESC_DEVICE_MAX_SIZE];
+
+	err = ufshcd_read_device_desc(hba, desc_buf,
+					QUERY_DESC_DEVICE_MAX_SIZE);
+	if (err) {
+		dev_err(hba->dev, "%s: Failed reading Device Desc. err = %d\n",
+			__func__, err);
+		goto out;
+	}
+
+	/*
+	 * getting vendor (manufacturerID) and Bank Index in big endian
+	 * format
+	 */
+	card_data->wmanufacturerid = desc_buf[DEVICE_DESC_PARAM_MANF_ID] << 8 |
+				     desc_buf[DEVICE_DESC_PARAM_MANF_ID + 1];
+
+	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
+
+	err = ufshcd_read_string_desc(hba, model_index, str_desc_buf,
+					QUERY_DESC_STRING_MAX_SIZE, ASCII_STD);
+	if (err) {
+		dev_err(hba->dev, "%s: Failed reading Product Name. err = %d\n",
+			__func__, err);
+		goto out;
+	}
+
+	str_desc_buf[QUERY_DESC_STRING_MAX_SIZE] = '\0';
+	strlcpy(card_data->model, (str_desc_buf + QUERY_DESC_HDR_SIZE),
+		min_t(u8, str_desc_buf[QUERY_DESC_LENGTH_OFFSET],
+		      MAX_MODEL_LEN));
+
+	/* Null terminate the model string */
+	card_data->model[MAX_MODEL_LEN] = '\0';
+
+out:
+	return err;
+}
+
+void ufs_advertise_fixup_device(struct ufs_hba *hba)
+{
+	int err;
+	struct ufs_dev_fix *f;
+	struct ufs_device_info card_data;
+
+	card_data.wmanufacturerid = 0;
+
+	err = ufs_get_device_info(hba, &card_data);
+	if (err) {
+		dev_err(hba->dev, "%s: Failed getting device info. err = %d\n",
+			__func__, err);
+		return;
+	}
+
+	for (f = ufs_fixups; f->quirk; f++) {
+		if (((f->card.wmanufacturerid == card_data.wmanufacturerid) ||
+		    (f->card.wmanufacturerid == UFS_ANY_VENDOR)) &&
+		    (STR_PRFX_EQUAL(f->card.model, card_data.model) ||
+		     !strcmp(f->card.model, UFS_ANY_MODEL)))
+			hba->dev_quirks |= f->quirk;
+	}
+}
+
 /**
  * ufshcd_probe_hba - probe hba to detect device and initialize
  * @hba: per-adapter instance
@@ -4591,6 +4661,7 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	if (ret)
 		goto out;
 
+	ufs_advertise_fixup_device(hba);
 	/* UFS device is also active now */
 	ufshcd_set_ufs_dev_active(hba);
 	ufshcd_force_reset_auto_bkops(hba);

@@ -470,6 +470,9 @@ struct ufs_hba {
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
+	/* Device deviations from standard UFS device spec. */
+	unsigned int dev_quirks;
+
 	wait_queue_head_t tm_wq;
 	wait_queue_head_t tm_tag_wq;
 	unsigned long tm_condition;
