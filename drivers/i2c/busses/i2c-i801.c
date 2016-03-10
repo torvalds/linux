@@ -94,6 +94,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/itco_wdt.h>
+#include <linux/pm_runtime.h>
 
 #if (defined CONFIG_I2C_MUX_GPIO || defined CONFIG_I2C_MUX_GPIO_MODULE) && \
 		defined CONFIG_DMI
@@ -714,8 +715,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 {
 	int hwpec;
 	int block = 0;
-	int ret, xact = 0;
+	int ret = 0, xact = 0;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
+
+	pm_runtime_get_sync(&priv->pci_dev->dev);
 
 	hwpec = (priv->features & FEATURE_SMBUS_PEC) && (flags & I2C_CLIENT_PEC)
 		&& size != I2C_SMBUS_QUICK
@@ -773,7 +776,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	default:
 		dev_err(&priv->pci_dev->dev, "Unsupported transaction %d\n",
 			size);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
 
 	if (hwpec)	/* enable/disable hardware PEC */
@@ -796,11 +800,11 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		       ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B), SMBAUXCTL(priv));
 
 	if (block)
-		return ret;
+		goto out;
 	if (ret)
-		return ret;
+		goto out;
 	if ((read_write == I2C_SMBUS_WRITE) || (xact == I801_QUICK))
-		return 0;
+		goto out;
 
 	switch (xact & 0x7f) {
 	case I801_BYTE:	/* Result put in SMBHSTDAT0 */
@@ -812,7 +816,11 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 			     (inb_p(SMBHSTDAT1(priv)) << 8);
 		break;
 	}
-	return 0;
+
+out:
+	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
+	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
+	return ret;
 }
 
 
@@ -1413,12 +1421,20 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	pci_set_drvdata(dev, priv);
 
+	pm_runtime_set_autosuspend_delay(&dev->dev, 1000);
+	pm_runtime_use_autosuspend(&dev->dev);
+	pm_runtime_put_autosuspend(&dev->dev);
+	pm_runtime_allow(&dev->dev);
+
 	return 0;
 }
 
 static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
+
+	pm_runtime_forbid(&dev->dev);
+	pm_runtime_get_noresume(&dev->dev);
 
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
