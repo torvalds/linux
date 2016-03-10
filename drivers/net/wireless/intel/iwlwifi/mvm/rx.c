@@ -97,6 +97,7 @@ void iwl_mvm_rx_rx_phy_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
  * Adds the rxb to a new skb and give it to mac80211
  */
 static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
+					    struct ieee80211_sta *sta,
 					    struct napi_struct *napi,
 					    struct sk_buff *skb,
 					    struct ieee80211_hdr *hdr, u16 len,
@@ -131,7 +132,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 				fraglen, rxb->truesize);
 	}
 
-	ieee80211_rx_napi(mvm->hw, NULL, skb, napi);
+	ieee80211_rx_napi(mvm->hw, sta, skb, napi);
 }
 
 /*
@@ -453,8 +454,12 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		     mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED))
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_FOUND;
 
-	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, hdr, len, ampdu_status,
-					crypt_len, rxb);
+	if (unlikely(ieee80211_is_beacon(hdr->frame_control) ||
+		     ieee80211_is_probe_resp(hdr->frame_control)))
+		rx_status->boottime_ns = ktime_get_boot_ns();
+
+	iwl_mvm_pass_packet_to_mac80211(mvm, sta, napi, skb, hdr, len,
+					ampdu_status, crypt_len, rxb);
 }
 
 static void iwl_mvm_update_rx_statistics(struct iwl_mvm *mvm,
