@@ -976,51 +976,48 @@ error_code:
 	jmp	ret_from_exception
 END(page_fault)
 
-/*
- * Debug traps and NMI can happen at the one SYSENTER instruction
- * that sets up the real kernel stack. Check here, since we can't
- * allow the wrong stack to be used.
- *
- * "TSS_sysenter_sp0+12" is because the NMI/debug handler will have
- * already pushed 3 words if it hits on the sysenter instruction:
- * eflags, cs and eip.
- *
- * We just load the right stack, and push the three (known) values
- * by hand onto the new stack - while updating the return eip past
- * the instruction that would have done it for sysenter.
- */
-.macro FIX_STACK offset ok label
-	cmpw	$__KERNEL_CS, 4(%esp)
-	jne	\ok
-\label:
-	movl	TSS_sysenter_sp0 + \offset(%esp), %esp
-	pushfl
-	pushl	$__KERNEL_CS
-	pushl	$sysenter_past_esp
-.endm
-
 ENTRY(debug)
+	/*
+	 * #DB can happen at the first instruction of
+	 * entry_SYSENTER_32 or in Xen's SYSENTER prologue.  If this
+	 * happens, then we will be running on a very small stack.  We
+	 * need to detect this condition and switch to the thread
+	 * stack before calling any C code at all.
+	 *
+	 * If you edit this code, keep in mind that NMIs can happen in here.
+	 */
 	ASM_CLAC
-	cmpl	$entry_SYSENTER_32, (%esp)
-	jne	debug_stack_correct
-	FIX_STACK 12, debug_stack_correct, debug_esp_fix_insn
-debug_stack_correct:
 	pushl	$-1				# mark this as an int
 	SAVE_ALL
-	TRACE_IRQS_OFF
 	xorl	%edx, %edx			# error code 0
 	movl	%esp, %eax			# pt_regs pointer
+
+	/* Are we currently on the SYSENTER stack? */
+	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
+	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
+	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	jb	.Ldebug_from_sysenter_stack
+
+	TRACE_IRQS_OFF
 	call	do_debug
+	jmp	ret_from_exception
+
+.Ldebug_from_sysenter_stack:
+	/* We're on the SYSENTER stack.  Switch off. */
+	movl	%esp, %ebp
+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+	TRACE_IRQS_OFF
+	call	do_debug
+	movl	%ebp, %esp
 	jmp	ret_from_exception
 END(debug)
 
 /*
- * NMI is doubly nasty. It can happen _while_ we're handling
- * a debug fault, and the debug fault hasn't yet been able to
- * clear up the stack. So we first check whether we got  an
- * NMI on the sysenter entry path, but after that we need to
- * check whether we got an NMI on the debug path where the debug
- * fault happened on the sysenter path.
+ * NMI is doubly nasty.  It can happen on the first instruction of
+ * entry_SYSENTER_32 (just like #DB), but it can also interrupt the beginning
+ * of the #DB handler even if that #DB in turn hit before entry_SYSENTER_32
+ * switched stacks.  We handle both conditions by simply checking whether we
+ * interrupted kernel code running on the SYSENTER stack.
  */
 ENTRY(nmi)
 	ASM_CLAC
@@ -1031,41 +1028,32 @@ ENTRY(nmi)
 	popl	%eax
 	je	nmi_espfix_stack
 #endif
-	cmpl	$entry_SYSENTER_32, (%esp)
-	je	nmi_stack_fixup
-	pushl	%eax
-	movl	%esp, %eax
-	/*
-	 * Do not access memory above the end of our stack page,
-	 * it might not exist.
-	 */
-	andl	$(THREAD_SIZE-1), %eax
-	cmpl	$(THREAD_SIZE-20), %eax
-	popl	%eax
-	jae	nmi_stack_correct
-	cmpl	$entry_SYSENTER_32, 12(%esp)
-	je	nmi_debug_stack_check
-nmi_stack_correct:
-	pushl	%eax
+
+	pushl	%eax				# pt_regs->orig_ax
 	SAVE_ALL
 	xorl	%edx, %edx			# zero error code
 	movl	%esp, %eax			# pt_regs pointer
+
+	/* Are we currently on the SYSENTER stack? */
+	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
+	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
+	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	jb	.Lnmi_from_sysenter_stack
+
+	/* Not on SYSENTER stack. */
 	call	do_nmi
 	jmp	restore_all_notrace
 
-nmi_stack_fixup:
-	FIX_STACK 12, nmi_stack_correct, 1
-	jmp	nmi_stack_correct
-
-nmi_debug_stack_check:
-	cmpw	$__KERNEL_CS, 16(%esp)
-	jne	nmi_stack_correct
-	cmpl	$debug, (%esp)
-	jb	nmi_stack_correct
-	cmpl	$debug_esp_fix_insn, (%esp)
-	ja	nmi_stack_correct
-	FIX_STACK 24, nmi_stack_correct, 1
-	jmp	nmi_stack_correct
+.Lnmi_from_sysenter_stack:
+	/*
+	 * We're on the SYSENTER stack.  Switch off.  No one (not even debug)
+	 * is using the thread stack right now, so it's safe for us to use it.
+	 */
+	movl	%esp, %ebp
+	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp
+	call	do_nmi
+	movl	%ebp, %esp
+	jmp	restore_all_notrace
 
 #ifdef CONFIG_X86_ESPFIX32
 nmi_espfix_stack:
