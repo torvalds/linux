@@ -59,6 +59,12 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd e
     LDFLAGS +=-L$(RTE_SDK)/$(RTE_TARGET)/lib
     LDFLAGS +=-Wl,--whole-archive -ldpdk -Wl,--no-whole-archive -lm -ldl
   endif
+  # Virtual Distributed Ethernet configuration
+  ifeq ($(vde),yes)
+    export CONFIG_AUTO_LKL_VIRTIO_NET_VDE=y
+    CFLAGS     += -DCONFIG_AUTO_LKL_VIRTIO_NET_VDE
+    LDLIBS     += $(shell pkg-config --libs vdeplug)
+  endif
 else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386))
   KOPT      = "KALLSYMS_EXTRA_PASS=1"
   LDLIBS   += -lws2_32

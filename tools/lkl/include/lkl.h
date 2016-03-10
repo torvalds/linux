@@ -271,6 +271,14 @@ struct lkl_netdev *lkl_netdev_tap_create(const char *ifname);
  */
 struct lkl_netdev *lkl_netdev_dpdk_create(const char *ifname);
 
+/**
+ * lkl_netdev_vde_create - create VDE net_device for the virtio net backend
+ *
+ * @switch_path - path to the VDE switch directory. Needs to be started on host
+ * in advance.
+ */
+struct lkl_netdev *lkl_netdev_vde_create(const char *switch_path);
+
 #ifdef __cplusplus
 }
 #endif
