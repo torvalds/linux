@@ -923,8 +923,6 @@ void cpuhp_online_idle(enum cpuhp_state state)
 
 	st->state = CPUHP_AP_ONLINE_IDLE;
 
-	/* The cpu is marked online, set it active now */
-	set_cpu_active(cpu, true);
 	/* Unpark the stopper thread and the hotplug thread of this cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
@@ -1258,6 +1256,12 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	 * state for synchronsization */
 	[CPUHP_AP_ONLINE] = {
 		.name			= "ap:online",
+	},
+	/* First state is scheduler control. Interrupts are enabled */
+	[CPUHP_AP_ACTIVE] = {
+		.name			= "sched:active",
+		.startup		= sched_cpu_activate,
+		.teardown		= sched_cpu_deactivate,
 	},
 	/* Handle smpboot threads park/unpark */
 	[CPUHP_AP_SMPBOOT_THREADS] = {
