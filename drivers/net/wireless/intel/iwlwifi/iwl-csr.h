@@ -598,4 +598,14 @@ enum msix_hw_int_causes {
 #define MSIX_AUTO_CLEAR_CAUSE			0
 #define MSIX_NON_AUTO_CLEAR_CAUSE		BIT(7)
 
+/*****************************************************************************
+ *                     HW address related registers                          *
+ *****************************************************************************/
+
+#define CSR_ADDR_BASE			(0x380)
+#define CSR_MAC_ADDR0_OTP		(CSR_ADDR_BASE)
+#define CSR_MAC_ADDR1_OTP		(CSR_ADDR_BASE + 4)
+#define CSR_MAC_ADDR0_STRAP		(CSR_ADDR_BASE + 8)
+#define CSR_MAC_ADDR1_STRAP		(CSR_ADDR_BASE + 0xC)
+
 #endif /* !__iwl_csr_h__ */

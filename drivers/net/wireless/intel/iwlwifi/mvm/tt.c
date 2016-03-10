@@ -211,10 +211,14 @@ void iwl_mvm_temp_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	 * the firmware and hence to take the mutex.
 	 * Avoid the deadlock by unlocking the mutex here.
 	 */
-	mutex_unlock(&mvm->mutex);
-	thermal_notify_framework(mvm->tz_device.tzone,
-				 mvm->tz_device.fw_trips_index[ths_crossed]);
-	mutex_lock(&mvm->mutex);
+	if (mvm->tz_device.tzone) {
+		struct iwl_mvm_thermal_device *tz_dev = &mvm->tz_device;
+
+		mutex_unlock(&mvm->mutex);
+		thermal_notify_framework(tz_dev->tzone,
+					 tz_dev->fw_trips_index[ths_crossed]);
+		mutex_lock(&mvm->mutex);
+	}
 #endif /* CONFIG_THERMAL */
 }
 
@@ -506,6 +510,74 @@ static const struct iwl_tt_params iwl_mvm_default_tt_params = {
 	.support_tx_backoff = true,
 };
 
+/* budget in mWatt */
+static const u32 iwl_mvm_cdev_budgets[] = {
+	2000,	/* cooling state 0 */
+	1800,	/* cooling state 1 */
+	1600,	/* cooling state 2 */
+	1400,	/* cooling state 3 */
+	1200,	/* cooling state 4 */
+	1000,	/* cooling state 5 */
+	900,	/* cooling state 6 */
+	800,	/* cooling state 7 */
+	700,	/* cooling state 8 */
+	650,	/* cooling state 9 */
+	600,	/* cooling state 10 */
+	550,	/* cooling state 11 */
+	500,	/* cooling state 12 */
+	450,	/* cooling state 13 */
+	400,	/* cooling state 14 */
+	350,	/* cooling state 15 */
+	300,	/* cooling state 16 */
+	250,	/* cooling state 17 */
+	200,	/* cooling state 18 */
+	150,	/* cooling state 19 */
+};
+
+int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 state)
+{
+	struct iwl_mvm_ctdp_cmd cmd = {
+		.operation = cpu_to_le32(op),
+		.budget = cpu_to_le32(iwl_mvm_cdev_budgets[state]),
+		.window_size = 0,
+	};
+	int ret;
+	u32 status;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
+						       CTDP_CONFIG_CMD),
+					  sizeof(cmd), &cmd, &status);
+
+	if (ret) {
+		IWL_ERR(mvm, "cTDP command failed (err=%d)\n", ret);
+		return ret;
+	}
+
+	switch (op) {
+	case CTDP_CMD_OPERATION_START:
+#ifdef CONFIG_THERMAL
+		mvm->cooling_dev.cur_state = state;
+#endif /* CONFIG_THERMAL */
+		break;
+	case CTDP_CMD_OPERATION_REPORT:
+		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
+		/* when the function is called with CTDP_CMD_OPERATION_REPORT
+		 * option the function should return the average budget value
+		 * that is received from the FW.
+		 * The budget can't be less or equal to 0, so it's possible
+		 * to distinguish between error values and budgets.
+		 */
+		return status;
+	case CTDP_CMD_OPERATION_STOP:
+		IWL_DEBUG_TEMP(mvm, "cTDP stopped successfully\n");
+		break;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_THERMAL
 static int compare_temps(const void *a, const void *b)
 {
@@ -520,16 +592,20 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (!mvm->tz_device.tzone)
+		return -EINVAL;
+
 	/* The driver holds array of temperature trips that are unsorted
 	 * and uncompressed, the FW should get it compressed and sorted
 	 */
 
 	/* compress temp_trips to cmd array, remove uninitialized values*/
-	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++)
+	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++) {
 		if (mvm->tz_device.temp_trips[i] != S16_MIN) {
 			cmd.thresholds[idx++] =
 				cpu_to_le16(mvm->tz_device.temp_trips[i]);
 		}
+	}
 	cmd.num_temps = cpu_to_le32(idx);
 
 	if (!idx)
@@ -696,6 +772,7 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 		IWL_DEBUG_TEMP(mvm,
 			       "Failed to register to thermal zone (err = %ld)\n",
 			       PTR_ERR(mvm->tz_device.tzone));
+		mvm->tz_device.tzone = NULL;
 		return;
 	}
 
@@ -704,59 +781,6 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 	 */
 	for (i = 0 ; i < IWL_MAX_DTS_TRIPS; i++)
 		mvm->tz_device.temp_trips[i] = S16_MIN;
-}
-
-static const u32 iwl_mvm_cdev_budgets[] = {
-	2000,	/* cooling state 0 */
-	1800,	/* cooling state 1 */
-	1600,	/* cooling state 2 */
-	1400,	/* cooling state 3 */
-	1200,	/* cooling state 4 */
-	1000,	/* cooling state 5 */
-	900,	/* cooling state 6 */
-	800,	/* cooling state 7 */
-	700,	/* cooling state 8 */
-	650,	/* cooling state 9 */
-	600,	/* cooling state 10 */
-	550,	/* cooling state 11 */
-	500,	/* cooling state 12 */
-	450,	/* cooling state 13 */
-	400,	/* cooling state 14 */
-	350,	/* cooling state 15 */
-	300,	/* cooling state 16 */
-	250,	/* cooling state 17 */
-	200,	/* cooling state 18 */
-	150,	/* cooling state 19 */
-};
-
-int iwl_mvm_ctdp_command(struct iwl_mvm *mvm, u32 op, u32 budget)
-{
-	struct iwl_mvm_ctdp_cmd cmd = {
-		.operation = cpu_to_le32(op),
-		.budget = cpu_to_le32(budget),
-		.window_size = 0,
-	};
-	int ret;
-	u32 status;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, WIDE_ID(PHY_OPS_GROUP,
-						       CTDP_CONFIG_CMD),
-					  sizeof(cmd), &cmd, &status);
-
-	if (ret) {
-		IWL_ERR(mvm, "cTDP command failed (err=%d)\n", ret);
-		return ret;
-	}
-
-	if (op == CTDP_CMD_OPERATION_START)
-		mvm->cooling_dev.cur_state = budget;
-
-	else if (op == CTDP_CMD_OPERATION_REPORT)
-		IWL_DEBUG_TEMP(mvm, "cTDP avg energy in mWatt = %d\n", status);
-
-	return 0;
 }
 
 static int iwl_mvm_tcool_get_max_state(struct thermal_cooling_device *cdev,
@@ -776,6 +800,7 @@ static int iwl_mvm_tcool_get_cur_state(struct thermal_cooling_device *cdev,
 		return -EBUSY;
 
 	*state = mvm->cooling_dev.cur_state;
+
 	return 0;
 }
 
@@ -799,7 +824,7 @@ static int iwl_mvm_tcool_set_cur_state(struct thermal_cooling_device *cdev,
 	}
 
 	ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
-				   iwl_mvm_cdev_budgets[new_state]);
+				   new_state);
 
 unlock:
 	mutex_unlock(&mvm->mutex);
@@ -812,15 +837,12 @@ static struct thermal_cooling_device_ops tcooling_ops = {
 	.set_cur_state = iwl_mvm_tcool_set_cur_state,
 };
 
-int iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
+static void iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
 {
 	char name[] = "iwlwifi";
 
-	if (!iwl_mvm_is_ctdp_supported(mvm)) {
-		mvm->cooling_dev.cdev = NULL;
-
-		return 0;
-	}
+	if (!iwl_mvm_is_ctdp_supported(mvm))
+		return;
 
 	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
 
@@ -833,34 +855,29 @@ int iwl_mvm_cooling_device_register(struct iwl_mvm *mvm)
 		IWL_DEBUG_TEMP(mvm,
 			       "Failed to register to cooling device (err = %ld)\n",
 			       PTR_ERR(mvm->cooling_dev.cdev));
-		return PTR_ERR(mvm->cooling_dev.cdev);
+		mvm->cooling_dev.cdev = NULL;
+		return;
 	}
-
-	return 0;
 }
 
 static void iwl_mvm_thermal_zone_unregister(struct iwl_mvm *mvm)
 {
-	if (!iwl_mvm_is_tt_in_fw(mvm))
+	if (!iwl_mvm_is_tt_in_fw(mvm) || !mvm->tz_device.tzone)
 		return;
 
-	if (mvm->tz_device.tzone) {
-		IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
-		thermal_zone_device_unregister(mvm->tz_device.tzone);
-		mvm->tz_device.tzone = NULL;
-	}
+	IWL_DEBUG_TEMP(mvm, "Thermal zone device unregister\n");
+	thermal_zone_device_unregister(mvm->tz_device.tzone);
+	mvm->tz_device.tzone = NULL;
 }
 
 static void iwl_mvm_cooling_device_unregister(struct iwl_mvm *mvm)
 {
-	if (!iwl_mvm_is_ctdp_supported(mvm))
+	if (!iwl_mvm_is_ctdp_supported(mvm) || !mvm->cooling_dev.cdev)
 		return;
 
-	if (mvm->cooling_dev.cdev) {
-		IWL_DEBUG_TEMP(mvm, "Cooling device unregister\n");
-		thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
-		mvm->cooling_dev.cdev = NULL;
-	}
+	IWL_DEBUG_TEMP(mvm, "Cooling device unregister\n");
+	thermal_cooling_device_unregister(mvm->cooling_dev.cdev);
+	mvm->cooling_dev.cdev = NULL;
 }
 #endif /* CONFIG_THERMAL */
 

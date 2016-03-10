@@ -610,8 +610,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			IWL_UCODE_TLV_CAPA_WFA_TPC_REP_IE_SUPPORT))
 		hw->wiphy->features |= NL80211_FEATURE_WFA_TPC_IE_IN_PROBES;
 
-	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_RRM);
-
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP
@@ -2556,10 +2554,8 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	u32 duration = min(IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS,
-			   200 + vif->bss_conf.beacon_int);
-	u32 min_duration = min(IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS,
-			       100 + vif->bss_conf.beacon_int);
+	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
+	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
 
 	if (WARN_ON_ONCE(vif->bss_conf.assoc))
 		return;
@@ -2690,8 +2686,12 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			 * GTK on AP interface is a TX-only key, return 0;
 			 * on IBSS they're per-station and because we're lazy
 			 * we don't support them for RX, so do the same.
+			 * CMAC in AP/IBSS modes must be done in software.
 			 */
-			ret = 0;
+			if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC)
+				ret = -EOPNOTSUPP;
+			else
+				ret = 0;
 			key->hw_key_idx = STA_KEY_IDX_INVALID;
 			break;
 		}
