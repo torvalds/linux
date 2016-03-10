@@ -52,7 +52,7 @@ struct gpioline_info {
 	char consumer[32];
 };
 
-#define GPIO_GET_CHIPINFO_IOCTL _IOR('o', 0x01, struct gpiochip_info)
-#define GPIO_GET_LINEINFO_IOCTL _IOWR('o', 0x02, struct gpioline_info)
+#define GPIO_GET_CHIPINFO_IOCTL _IOR(0xB4, 0x01, struct gpiochip_info)
+#define GPIO_GET_LINEINFO_IOCTL _IOWR(0xB4, 0x02, struct gpioline_info)
 
 #endif /* _UAPI_GPIO_H_ */
