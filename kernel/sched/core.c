@@ -5482,39 +5482,6 @@ static void set_cpu_rq_start_time(unsigned int cpu)
 	rq->age_stamp = sched_clock_cpu(cpu);
 }
 
-static int sched_cpu_active(struct notifier_block *nfb,
-				      unsigned long action, void *hcpu)
-{
-	int cpu = (long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DOWN_FAILED:
-		set_cpu_active(cpu, true);
-		return NOTIFY_OK;
-
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static int sched_cpu_inactive(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
-{
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DOWN_PREPARE:
-		set_cpu_active((long)hcpu, false);
-		return NOTIFY_OK;
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-int sched_cpu_starting(unsigned int cpu)
-{
-	set_cpu_rq_start_time(cpu);
-	return 0;
-}
-
 static cpumask_var_t sched_domains_tmpmask; /* sched_domains_mutex */
 
 #ifdef CONFIG_SCHED_DEBUG
@@ -6662,10 +6629,13 @@ static void sched_init_numa(void)
 	init_numa_topology_type();
 }
 
-static void sched_domains_numa_masks_set(int cpu)
+static void sched_domains_numa_masks_set(unsigned int cpu)
 {
-	int i, j;
 	int node = cpu_to_node(cpu);
+	int i, j;
+
+	if (!sched_smp_initialized)
+		return;
 
 	for (i = 0; i < sched_domains_numa_levels; i++) {
 		for (j = 0; j < nr_node_ids; j++) {
@@ -6675,54 +6645,23 @@ static void sched_domains_numa_masks_set(int cpu)
 	}
 }
 
-static void sched_domains_numa_masks_clear(int cpu)
+static void sched_domains_numa_masks_clear(unsigned int cpu)
 {
 	int i, j;
+
+	if (!sched_smp_initialized)
+		return;
+
 	for (i = 0; i < sched_domains_numa_levels; i++) {
 		for (j = 0; j < nr_node_ids; j++)
 			cpumask_clear_cpu(cpu, sched_domains_numa_masks[i][j]);
 	}
 }
 
-/*
- * Update sched_domains_numa_masks[level][node] array when new cpus
- * are onlined.
- */
-static int sched_domains_numa_masks_update(struct notifier_block *nfb,
-					   unsigned long action,
-					   void *hcpu)
-{
-	int cpu = (long)hcpu;
-
-	if (!sched_smp_initialized)
-		return NOTIFY_DONE;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-		sched_domains_numa_masks_set(cpu);
-		break;
-
-	case CPU_DEAD:
-		sched_domains_numa_masks_clear(cpu);
-		break;
-
-	default:
-		return NOTIFY_DONE;
-	}
-
-	return NOTIFY_OK;
-}
 #else
-static inline void sched_init_numa(void)
-{
-}
-
-static int sched_domains_numa_masks_update(struct notifier_block *nfb,
-					   unsigned long action,
-					   void *hcpu)
-{
-	return 0;
-}
+static inline void sched_init_numa(void) { }
+static void sched_domains_numa_masks_set(unsigned int cpu) { }
+static void sched_domains_numa_masks_clear(unsigned int cpu) { }
 #endif /* CONFIG_NUMA */
 
 static int __sdt_alloc(const struct cpumask *cpu_map)
@@ -7112,16 +7051,12 @@ static int num_cpus_frozen;	/* used to mark begin/end of suspend/resume */
  * If we come here as part of a suspend/resume, don't touch cpusets because we
  * want to restore it back to its original state upon resume anyway.
  */
-static int cpuset_cpu_active(struct notifier_block *nfb, unsigned long action,
-			     void *hcpu)
+static void cpuset_cpu_active(bool frozen)
 {
 	if (!sched_smp_initialized)
-		return NOTIFY_DONE;
+		return;
 
-	switch (action) {
-	case CPU_ONLINE_FROZEN:
-	case CPU_DOWN_FAILED_FROZEN:
-
+	if (frozen) {
 		/*
 		 * num_cpus_frozen tracks how many CPUs are involved in suspend
 		 * resume sequence. As long as this is not the last online
@@ -7131,38 +7066,28 @@ static int cpuset_cpu_active(struct notifier_block *nfb, unsigned long action,
 		num_cpus_frozen--;
 		if (likely(num_cpus_frozen)) {
 			partition_sched_domains(1, NULL, NULL);
-			break;
+			return;
 		}
-
 		/*
 		 * This is the last CPU online operation. So fall through and
 		 * restore the original sched domains by considering the
 		 * cpuset configurations.
 		 */
-
-	case CPU_ONLINE:
-		cpuset_update_active_cpus(true);
-		break;
-	default:
-		return NOTIFY_DONE;
 	}
-	return NOTIFY_OK;
+	cpuset_update_active_cpus(true);
 }
 
-static int cpuset_cpu_inactive(struct notifier_block *nfb, unsigned long action,
-			       void *hcpu)
+static int cpuset_cpu_inactive(unsigned int cpu, bool frozen)
 {
 	unsigned long flags;
-	long cpu = (long)hcpu;
 	struct dl_bw *dl_b;
 	bool overflow;
 	int cpus;
 
 	if (!sched_smp_initialized)
-		return NOTIFY_DONE;
+		return 0;
 
-	switch (action) {
-	case CPU_DOWN_PREPARE:
+	if (!frozen) {
 		rcu_read_lock_sched();
 		dl_b = dl_bw_of(cpu);
 
@@ -7174,17 +7099,60 @@ static int cpuset_cpu_inactive(struct notifier_block *nfb, unsigned long action,
 		rcu_read_unlock_sched();
 
 		if (overflow)
-			return notifier_from_errno(-EBUSY);
+			return -EBUSY;
 		cpuset_update_active_cpus(false);
-		break;
-	case CPU_DOWN_PREPARE_FROZEN:
+	} else {
 		num_cpus_frozen++;
 		partition_sched_domains(1, NULL, NULL);
-		break;
+	}
+	return 0;
+}
+
+static int sched_cpu_active(struct notifier_block *nfb, unsigned long action,
+			    void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		set_cpu_active(cpu, true);
+		sched_domains_numa_masks_set(cpu);
+		cpuset_cpu_active(action & CPU_TASKS_FROZEN);
+		return NOTIFY_OK;
 	default:
 		return NOTIFY_DONE;
 	}
-	return NOTIFY_OK;
+}
+
+static int sched_cpu_inactive(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+	int ret;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		set_cpu_active(cpu, false);
+		ret = cpuset_cpu_inactive(cpu, action & CPU_TASKS_FROZEN);
+		if (ret) {
+			set_cpu_active(cpu, true);
+			return notifier_from_errno(ret);
+		}
+		return NOTIFY_OK;
+
+	case CPU_DEAD:
+		sched_domains_numa_masks_clear(cpu);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+int sched_cpu_starting(unsigned int cpu)
+{
+	set_cpu_rq_start_time(cpu);
+	return 0;
 }
 
 void __init sched_init_smp(void)
@@ -7235,10 +7203,6 @@ static int __init migration_init(void)
 	/* Register cpu active notifiers */
 	cpu_notifier(sched_cpu_active, CPU_PRI_SCHED_ACTIVE);
 	cpu_notifier(sched_cpu_inactive, CPU_PRI_SCHED_INACTIVE);
-
-	hotcpu_notifier(sched_domains_numa_masks_update, CPU_PRI_SCHED_ACTIVE);
-	hotcpu_notifier(cpuset_cpu_active, CPU_PRI_CPUSET_ACTIVE);
-	hotcpu_notifier(cpuset_cpu_inactive, CPU_PRI_CPUSET_INACTIVE);
 
 	return 0;
 }
