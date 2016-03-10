@@ -32,3 +32,14 @@ config RMI4_F11
 	  Function 11 provides 2D multifinger pointing for touchscreens and
 	  touchpads. For sensors that support relative pointing, F11 also
 	  provides mouse input.
+
+config RMI4_F12
+	bool "RMI4 Function 12 (2D pointing)"
+	select RMI4_2D_SENSOR
+	depends on RMI4_CORE
+	help
+	  Say Y here if you want to add support for RMI4 function 12.
+
+	  Function 12 provides 2D multifinger pointing for touchscreens and
+	  touchpads. For sensors that support relative pointing, F12 also
+	  provides mouse input.
