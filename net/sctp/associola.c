@@ -1263,7 +1263,7 @@ static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 	if (score_curr > score_best)
 		return curr;
 	else if (score_curr == score_best)
-		return sctp_trans_elect_tie(curr, best);
+		return sctp_trans_elect_tie(best, curr);
 	else
 		return best;
 }
