@@ -66,8 +66,6 @@ ENTRY(entry_SYSENTER_compat)
 	 */
 	pushfq				/* pt_regs->flags (except IF = 0) */
 	orl	$X86_EFLAGS_IF, (%rsp)	/* Fix saved flags */
-	ASM_CLAC			/* Clear AC after saving FLAGS */
-
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	xorq    %r8,%r8
 	pushq	%r8			/* pt_regs->ip = 0 (placeholder) */
@@ -90,9 +88,9 @@ ENTRY(entry_SYSENTER_compat)
 	cld
 
 	/*
-	 * Sysenter doesn't filter flags, so we need to clear NT
+	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
 	 * ourselves.  To save a few cycles, we can check whether
-	 * NT was set instead of doing an unconditional popfq.
+	 * either was set instead of doing an unconditional popfq.
 	 * This needs to happen before enabling interrupts so that
 	 * we don't get preempted with NT set.
 	 *
@@ -102,7 +100,7 @@ ENTRY(entry_SYSENTER_compat)
 	 * we're keeping that code behind a branch which will predict as
 	 * not-taken and therefore its instructions won't be fetched.
 	 */
-	testl	$X86_EFLAGS_NT, EFLAGS(%rsp)
+	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC, EFLAGS(%rsp)
 	jnz	.Lsysenter_fix_flags
 .Lsysenter_flags_fixed:
 
