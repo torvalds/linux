@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+# Copyright (C) 2010-2016 ARM Limited. All rights reserved.
 # 
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -17,6 +17,7 @@ MALI_DMA_BUF_MAP_ON_ATTACH ?= 1
 MALI_PMU_PARALLEL_POWER_UP ?= 0
 USING_DT ?= 0
 MALI_MEM_SWAP_TRACKING ?= 0
+USING_DEVFREQ ?= 0
 
 # The Makefile sets up "arch" based on the CONFIG, creates the version info
 # string and the __malidrv_build_info.c file, and then call the Linux build
@@ -155,6 +156,15 @@ ifdef CONFIG_OF
 ifeq ($(USING_DT),1)
 export CONFIG_MALI_DT=y
 export EXTRA_DEFINES += -DCONFIG_MALI_DT
+endif
+endif
+
+ifeq ($(USING_DEVFREQ), 1)
+ifdef CONFIG_PM_DEVFREQ
+export CONFIG_MALI_DEVFREQ=y
+export EXTRA_DEFINES += -DCONFIG_MALI_DEVFREQ=1
+else
+$(warning "You want to support DEVFREQ but kernel didn't support DEVFREQ.")
 endif
 endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -48,6 +48,7 @@ typedef enum
 	_UMP_IOC_SWITCH_HW_USAGE,
 	_UMP_IOC_LOCK,
 	_UMP_IOC_UNLOCK,
+	_UMP_IOC_DMABUF_IMPORT,
 } _ump_uk_functions;
 
 typedef enum
@@ -185,6 +186,14 @@ typedef struct _ump_uk_unlock_s
 	void *ctx;            /**< [in,out] user-kernel context (trashed on output) */
 	u32 secure_id;        /**< [in] secure_id that identifies the ump buffer */
 } _ump_uk_unlock_s;
+
+typedef struct _ump_uk_dmabuf_s
+{
+	void *ctx;            /**< [in,out] user-kernel context (trashed on output) */
+	int fd;               /**< [in] dmabuf_fd that identifies the dmabuf buffer */
+	size_t size;          /**< [in] size of the buffer */
+	u32 secure_id;        /**< [out] secure_id that identifies the ump buffer */
+} _ump_uk_dmabuf_s;
 
 #ifdef __cplusplus
 }

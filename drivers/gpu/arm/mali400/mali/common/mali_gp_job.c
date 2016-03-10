@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2011-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -120,33 +120,32 @@ struct mali_gp_job *mali_gp_job_create(struct mali_session_data *session, _mali_
 		INIT_LIST_HEAD(&job->vary_todo);
 		job->dmem = NULL;
 
-		if (job->uargs.varying_alloc_num > session->allocation_mgr.mali_allocation_num) {
+		if (job->uargs.deferred_mem_num > session->allocation_mgr.mali_allocation_num) {
 			MALI_PRINT_ERROR(("Mali GP job: The number of  varying buffer to defer bind  is invalid !\n"));
 			goto fail1;
 		}
 
 		/* add varying allocation list*/
-		if (job->uargs.varying_alloc_num > 0) {
+		if (job->uargs.deferred_mem_num > 0) {
 			/* copy varying list from user space*/
-			job->varying_list = _mali_osk_calloc(1, sizeof(u32) * job->uargs.varying_alloc_num);
+			job->varying_list = _mali_osk_calloc(1, sizeof(u32) * job->uargs.deferred_mem_num);
 			if (!job->varying_list) {
-				MALI_PRINT_ERROR(("Mali GP job: allocate varying_list failed varying_alloc_num = %d !\n", job->uargs.varying_alloc_num));
+				MALI_PRINT_ERROR(("Mali GP job: allocate varying_list failed varying_alloc_num = %d !\n", job->uargs.deferred_mem_num));
 				goto fail1;
 			}
 
 			if (0 != _mali_osk_copy_from_user(&copy_of_uargs, uargs, sizeof(_mali_uk_gp_start_job_s))) {
 				goto fail1;
 			}
+			memory_list = (u32 __user *)(uintptr_t)copy_of_uargs.deferred_mem_list;
 
-			memory_list = (u32 __user *)(uintptr_t)copy_of_uargs.varying_alloc_list;
-
-			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32) * job->uargs.varying_alloc_num)) {
+			if (0 != _mali_osk_copy_from_user(job->varying_list, memory_list, sizeof(u32) * job->uargs.deferred_mem_num)) {
 				MALI_PRINT_ERROR(("Mali GP job: Failed to copy varying list from user space!\n"));
 				goto fail;
 			}
 
 			if (unlikely(_mali_gp_add_varying_allocations(session, job, job->varying_list,
-					job->uargs.varying_alloc_num))) {
+					job->uargs.deferred_mem_num))) {
 				MALI_PRINT_ERROR(("Mali GP job: _mali_gp_add_varying_allocations failed!\n"));
 				goto fail;
 			}

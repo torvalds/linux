@@ -50,7 +50,7 @@ endif
 ccflags-y += -DSVN_REV=$(SVN_REV)
 ccflags-y += -DSVN_REV_STRING=\"$(DRIVER_REV)\"
 
-ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../../ump/include/ump
+ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/include -I$(src)/../../ump/include/ump
 ccflags-y += -DMALI_STATE_TRACKING=0
 ccflags-y += -DMALI_ENABLE_CPU_CYCLES=0
 ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
@@ -78,12 +78,15 @@ ump-y = common/ump_kernel_common.o \
 	linux/ump_osk_atomics.o \
 	linux/ump_osk_low_level_mem.o \
 	linux/ump_osk_misc.o \
-	linux/ump_kernel_random_mapping.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+	linux/ump_kernel_random_mapping.o
+
+ifneq ($(CONFIG_MALI400),y)	
+ump-y += $(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
+	 $(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
+	 $(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
+	 $(UDD_FILE_PREFIX)linux/mali_osk_math.o \
+	 $(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+endif
 
 obj-$(CONFIG_UMP) := ump.o
 

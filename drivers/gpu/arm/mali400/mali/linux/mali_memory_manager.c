@@ -31,6 +31,7 @@
 #include "mali_memory_os_alloc.h"
 #if defined(CONFIG_DMA_SHARED_BUFFER)
 #include "mali_memory_dma_buf.h"
+#include "mali_memory_secure.h"
 #endif
 #if defined(CONFIG_MALI400_UMP)
 #include "mali_memory_ump.h"
@@ -439,6 +440,8 @@ _mali_osk_errcode_t _mali_ukk_mem_allocate(_mali_uk_alloc_mem_s *args)
 	} else if (args->flags & _MALI_MEMORY_ALLOCATE_RESIZEABLE) {
 		mali_allocation->type = MALI_MEM_OS;
 		mali_allocation->flags |= MALI_MEM_FLAG_CAN_RESIZE;
+	} else if (args->flags & _MALI_MEMORY_ALLOCATE_SECURE) {
+		mali_allocation->type = MALI_MEM_SECURE;
 	} else if (MALI_TRUE == mali_memory_have_dedicated_memory()) {
 		mali_allocation->type = MALI_MEM_BLOCK;
 	} else {
@@ -495,31 +498,47 @@ _mali_osk_errcode_t _mali_ukk_mem_allocate(_mali_uk_alloc_mem_s *args)
 
 		goto done;
 	}
-	/**
-	*allocate physical memory
-	*/
+
 	if (likely(mali_allocation->psize > 0)) {
 
-		if (mem_backend->type == MALI_MEM_OS) {
-			retval = mali_mem_os_alloc_pages(&mem_backend->os_mem, mem_backend->size);
-		} else if (mem_backend->type == MALI_MEM_BLOCK) {
-			/* try to allocated from BLOCK memory first, then try OS memory if failed.*/
-			if (mali_mem_block_alloc(&mem_backend->block_mem, mem_backend->size)) {
-				retval = mali_mem_os_alloc_pages(&mem_backend->os_mem, mem_backend->size);
-				mem_backend->type = MALI_MEM_OS;
-				mali_allocation->type = MALI_MEM_OS;
+		if (MALI_MEM_SECURE == mem_backend->type) {
+#if defined(CONFIG_DMA_SHARED_BUFFER)
+			ret = mali_mem_secure_attach_dma_buf(&mem_backend->secure_mem, mem_backend->size, args->secure_shared_fd);
+			if (_MALI_OSK_ERR_OK != ret) {
+				MALI_DEBUG_PRINT(1, ("Failed to attach dma buf for secure memory! \n"));
+				goto failed_alloc_pages;
 			}
-		} else if (MALI_MEM_SWAP == mem_backend->type) {
-			retval = mali_mem_swap_alloc_pages(&mem_backend->swap_mem, mali_allocation->mali_vma_node.vm_node.size, &mem_backend->start_idx);
-		} else {
-			/* ONLY support mem_os type */
-			MALI_DEBUG_ASSERT(0);
-		}
-
-		if (retval) {
-			ret = _MALI_OSK_ERR_NOMEM;
-			MALI_DEBUG_PRINT(1, (" can't allocate enough pages! \n"));
+#else
+			ret = _MALI_OSK_ERR_UNSUPPORTED;
+			MALI_DEBUG_PRINT(1, ("DMA not supported for mali secure memory! \n"));
 			goto failed_alloc_pages;
+#endif
+		} else {
+
+			/**
+			*allocate physical memory
+			*/
+			if (mem_backend->type == MALI_MEM_OS) {
+				retval = mali_mem_os_alloc_pages(&mem_backend->os_mem, mem_backend->size);
+			} else if (mem_backend->type == MALI_MEM_BLOCK) {
+				/* try to allocated from BLOCK memory first, then try OS memory if failed.*/
+				if (mali_mem_block_alloc(&mem_backend->block_mem, mem_backend->size)) {
+					retval = mali_mem_os_alloc_pages(&mem_backend->os_mem, mem_backend->size);
+					mem_backend->type = MALI_MEM_OS;
+					mali_allocation->type = MALI_MEM_OS;
+				}
+			} else if (MALI_MEM_SWAP == mem_backend->type) {
+				retval = mali_mem_swap_alloc_pages(&mem_backend->swap_mem, mali_allocation->mali_vma_node.vm_node.size, &mem_backend->start_idx);
+			}  else {
+				/* ONLY support mem_os type */
+				MALI_DEBUG_ASSERT(0);
+			}
+
+			if (retval) {
+				ret = _MALI_OSK_ERR_NOMEM;
+				MALI_DEBUG_PRINT(1, (" can't allocate enough pages! \n"));
+				goto failed_alloc_pages;
+			}
 		}
 	}
 
@@ -540,6 +559,10 @@ _mali_osk_errcode_t _mali_ukk_mem_allocate(_mali_uk_alloc_mem_s *args)
 		} else if (mem_backend->type == MALI_MEM_SWAP) {
 			ret = mali_mem_swap_mali_map(&mem_backend->swap_mem, session, args->gpu_vaddr,
 						     mali_allocation->mali_mapping.properties);
+		} else if (mem_backend->type == MALI_MEM_SECURE) {
+#if defined(CONFIG_DMA_SHARED_BUFFER)
+			ret = mali_mem_secure_mali_map(&mem_backend->secure_mem, session, args->gpu_vaddr, mali_allocation->mali_mapping.properties);
+#endif
 		} else { /* unsupport type */
 			MALI_DEBUG_ASSERT(0);
 		}
@@ -551,6 +574,8 @@ done:
 		atomic_add(mem_backend->os_mem.count, &session->mali_mem_allocated_pages);
 	} else if (MALI_MEM_BLOCK == mem_backend->type) {
 		atomic_add(mem_backend->block_mem.count, &session->mali_mem_allocated_pages);
+	} else if (MALI_MEM_SECURE == mem_backend->type) {
+		atomic_add(mem_backend->secure_mem.count, &session->mali_mem_allocated_pages);
 	} else {
 		MALI_DEBUG_ASSERT(MALI_MEM_SWAP == mem_backend->type);
 		atomic_add(mem_backend->swap_mem.count, &session->mali_mem_allocated_pages);

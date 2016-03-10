@@ -600,8 +600,8 @@ u32 mali_mem_cow_release(mali_mem_backend *mem_bkend, mali_bool is_mali_mapped)
 	alloc = mem_bkend->mali_allocation;
 	MALI_DEBUG_ASSERT_POINTER(alloc);
 
-	 session = alloc->session;
-	 MALI_DEBUG_ASSERT_POINTER(session);
+	session = alloc->session;
+	MALI_DEBUG_ASSERT_POINTER(session);
 
 	if (MALI_MEM_BACKEND_FLAG_SWAP_COWED != (MALI_MEM_BACKEND_FLAG_SWAP_COWED & mem_bkend->flags)) {
 		/* Unmap the memory from the mali virtual address space. */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2013-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2013-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -25,7 +25,9 @@ extern "C" {
 
 
 int ump_allocate_wrapper(u32 __user *argument, struct ump_session_data   *session_data);
-
+#ifdef CONFIG_DMA_SHARED_BUFFER
+int ump_dmabuf_import_wrapper(u32 __user *argument, struct ump_session_data  *session_data);
+#endif
 
 #ifdef __cplusplus
 }

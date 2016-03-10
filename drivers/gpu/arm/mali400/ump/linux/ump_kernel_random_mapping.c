@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011, 2013-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2011, 2013-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -186,6 +186,21 @@ void ump_random_mapping_put(ump_dd_mem *mem)
 	if (0 == new_ref) {
 		DBG_MSG(3, ("Final release of memory. ID: %u\n", mem->secure_id));
 
+#ifdef CONFIG_DMA_SHARED_BUFFER
+		if (mem->import_attach) {
+			struct dma_buf_attachment *attach = mem->import_attach;
+			struct dma_buf *dma_buf;
+                        
+			if (mem->sgt)
+				dma_buf_unmap_attachment(attach, mem->sgt,
+							DMA_BIDIRECTIONAL);
+
+			dma_buf = attach->dmabuf;
+			dma_buf_detach(attach->dmabuf, attach);
+			dma_buf_put(dma_buf);
+
+		}
+#endif
 		ump_random_mapping_remove_internal(device.secure_id_map, mem->secure_id);
 
 		mem->release_func(mem->ctx, mem);

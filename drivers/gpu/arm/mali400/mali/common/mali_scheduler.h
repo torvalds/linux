@@ -60,9 +60,10 @@ MALI_STATIC_INLINE u32 mali_scheduler_job_gp_big_job_count(void)
 	return job_queue_gp.big_job_num;
 }
 
-u32 mali_scheduler_job_physical_head_count(void);
+u32 mali_scheduler_job_physical_head_count(mali_bool gpu_mode_is_secure);
 
 mali_bool mali_scheduler_job_next_is_virtual(void);
+struct mali_pp_job *mali_scheduler_job_pp_next(void);
 
 struct mali_gp_job *mali_scheduler_job_gp_get(void);
 struct mali_pp_job *mali_scheduler_job_pp_physical_peek(void);

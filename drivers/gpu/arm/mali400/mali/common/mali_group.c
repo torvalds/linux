@@ -1468,19 +1468,19 @@ _mali_osk_errcode_t mali_group_upper_half_mmu(void *data)
 		/* group complete and on job shedule on it, it already power off */
 		if (NULL != group->gp_core) {
 			_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_STOP |
-					MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
-					MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
-					0, 0, /* No pid and tid for interrupt handler */
-					MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP_MMU(0),
-					0xFFFFFFFF, 0);
+						      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
+						      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
+						      0, 0, /* No pid and tid for interrupt handler */
+						      MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP_MMU(0),
+						      0xFFFFFFFF, 0);
 		} else {
 			_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_STOP |
-					MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
-					MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
-					0, 0, /* No pid and tid for interrupt handler */
-					MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP_MMU(
-						mali_pp_core_get_id(group->pp_core)),
-					0xFFFFFFFF, 0);
+						      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
+						      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
+						      0, 0, /* No pid and tid for interrupt handler */
+						      MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP_MMU(
+							      mali_pp_core_get_id(group->pp_core)),
+						      0xFFFFFFFF, 0);
 		}
 
 		mali_executor_unlock();
@@ -1597,11 +1597,11 @@ _mali_osk_errcode_t mali_group_upper_half_gp(void *data)
 	if (!mali_group_is_working(group) && (!mali_group_power_is_on(group))) {
 		/* group complete and on job shedule on it, it already power off */
 		_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_STOP |
-				      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
-				      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
-				      0, 0, /* No pid and tid for interrupt handler */
-				      MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP(0),
-				      0xFFFFFFFF, 0);
+					      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
+					      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
+					      0, 0, /* No pid and tid for interrupt handler */
+					      MALI_PROFILING_MAKE_EVENT_DATA_CORE_GP(0),
+					      0xFFFFFFFF, 0);
 		mali_executor_unlock();
 		return ret;
 	}
@@ -1687,12 +1687,12 @@ _mali_osk_errcode_t mali_group_upper_half_pp(void *data)
 	if (!mali_group_is_working(group) && (!mali_group_power_is_on(group))) {
 		/* group complete and on job shedule on it, it already power off */
 		_mali_osk_profiling_add_event(MALI_PROFILING_EVENT_TYPE_STOP |
-				      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
-				      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
-				      0, 0, /* No pid and tid for interrupt handler */
-				      MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP(
-					      mali_pp_core_get_id(group->pp_core)),
-				      0xFFFFFFFF, 0);
+					      MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |
+					      MALI_PROFILING_EVENT_REASON_START_STOP_SW_UPPER_HALF,
+					      0, 0, /* No pid and tid for interrupt handler */
+					      MALI_PROFILING_MAKE_EVENT_DATA_CORE_PP(
+						      mali_pp_core_get_id(group->pp_core)),
+					      0xFFFFFFFF, 0);
 		mali_executor_unlock();
 		return ret;
 	}

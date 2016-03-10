@@ -73,7 +73,7 @@ struct mali_gp_job {
 	u32 bind_flag;                                     /** < flag for deferbind*/
 	u32 *varying_list;                                 /**< varying memory list need to to defer bind*/
 	struct list_head vary_todo;                        /**< list of backend list need to do defer bind*/
-	u32 required_varying_memsize;			   /** < size of varying memory to reallocate*/
+	u32 required_varying_memsize;                      /** < size of varying memory to reallocate*/
 	u32 big_job;                                       /** < if the gp job have large varying output and may take long time*/
 };
 

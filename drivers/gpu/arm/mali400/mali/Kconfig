@@ -50,7 +50,7 @@ config MALI400_UMP
 
 config MALI_DVFS
 	bool "Enable Mali dynamically frequency change"
-	depends on MALI400
+	depends on MALI400 && !MALI_DEVFREQ
 	default y
 	---help---
 	  This enables support for dynamic change frequency of Mali with the goal of lowering power consumption.
@@ -95,6 +95,17 @@ config MALI_DT
 	  and disable the old config method. Mali driver could run on the platform which the
 	  device tree is enabled in kernel and corresponding hardware description is implemented
 	  properly in device DTS file.
+
+config MALI_DEVFREQ
+	bool "Using devfreq to tuning frequency"
+	depends on MALI400 && PM_DEVFREQ
+	default n
+	---help---
+	Support devfreq for Mali.
+
+	Using the devfreq framework and, by default, the simpleondemand
+	governor, the frequency of Mali will be dynamically selected from the
+	available OPPs.
 
 config MALI_QUIET
 	bool "Make Mali driver very quiet"

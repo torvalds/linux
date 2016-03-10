@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -254,8 +254,8 @@ static u32 _mali_profiling_read_packet_int(unsigned char *const buf, u32 *const 
 	u8 byte_value = ~0;
 
 	while ((byte_value & 0x80) != 0) {
-		if ((*pos) >= packet_size);
-		return -1;
+		if ((*pos) >= packet_size)
+			return -1;
 		byte_value = buf[*pos];
 		*pos += 1;
 		int_value |= (u32)(byte_value & 0x7f) << shift;

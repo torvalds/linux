@@ -756,6 +756,9 @@ _mali_osk_errcode_t mali_initialize_subsystems(void)
 		return err;
 	}
 
+	/*Try to init gpu secure mode */
+	_mali_osk_gpu_secure_mode_init();
+
 #if defined(CONFIG_MALI400_PROFILING)
 	err = _mali_osk_profiling_init(mali_boot_profiling ? MALI_TRUE : MALI_FALSE);
 	if (_MALI_OSK_ERR_OK != err) {
@@ -938,6 +941,8 @@ void mali_terminate_subsystems(void)
 #if defined(CONFIG_MALI400_PROFILING)
 	_mali_osk_profiling_term();
 #endif
+
+	_mali_osk_gpu_secure_mode_deinit();
 
 	mali_memory_terminate();
 

@@ -120,7 +120,7 @@ int profiling_control_set_wrapper(struct mali_session_data *session_data, _mali_
 
 	kargs.ctx = (uintptr_t)session_data;
 
-	
+
 	/* Sanity check about the size */
 	if (kargs.control_packet_size > PAGE_SIZE || kargs.response_packet_size > PAGE_SIZE)
 		return -EINVAL;

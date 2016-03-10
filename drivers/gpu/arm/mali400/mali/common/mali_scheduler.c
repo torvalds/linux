@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -20,7 +20,7 @@
 #include "mali_group.h"
 #include <linux/wait.h>
 #include <linux/sched.h>
-
+#include "mali_pm_metrics.h"
 
 #if defined(CONFIG_DMA_SHARED_BUFFER)
 #include "mali_memory_dma_buf.h"
@@ -191,7 +191,7 @@ void mali_scheduler_terminate(void)
 	_mali_osk_atomic_term(&mali_job_id_autonumber);
 }
 
-u32 mali_scheduler_job_physical_head_count(void)
+u32 mali_scheduler_job_physical_head_count(mali_bool gpu_mode_is_secure)
 {
 	/*
 	 * Count how many physical sub jobs are present from the head of queue
@@ -216,16 +216,23 @@ u32 mali_scheduler_job_physical_head_count(void)
 			 * Remember; virtual jobs can't be queued and started
 			 * at the same time, so this must be a physical job
 			 */
-			count += mali_pp_job_unstarted_sub_job_count(job);
-			if (MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS <= count) {
-				return MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS;
+			if ((MALI_FALSE  == gpu_mode_is_secure && MALI_FALSE == mali_pp_job_is_protected_job(job))
+			    || (MALI_TRUE  == gpu_mode_is_secure && MALI_TRUE == mali_pp_job_is_protected_job(job))) {
+
+				count += mali_pp_job_unstarted_sub_job_count(job);
+				if (MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS <= count) {
+					return MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS;
+				}
 			}
 		}
 	}
 
 	_MALI_OSK_LIST_FOREACHENTRY(job, temp, &job_queue_pp.high_pri,
 				    struct mali_pp_job, list) {
-		if (MALI_FALSE == mali_pp_job_is_virtual(job)) {
+		if ((MALI_FALSE == mali_pp_job_is_virtual(job))
+		    && ((MALI_FALSE  == gpu_mode_is_secure && MALI_FALSE == mali_pp_job_is_protected_job(job))
+			|| (MALI_TRUE  == gpu_mode_is_secure && MALI_TRUE == mali_pp_job_is_protected_job(job)))) {
+
 			count += mali_pp_job_unstarted_sub_job_count(job);
 			if (MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS <= count) {
 				return MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS;
@@ -238,22 +245,55 @@ u32 mali_scheduler_job_physical_head_count(void)
 
 	_MALI_OSK_LIST_FOREACHENTRY(job, temp, &job_queue_pp.normal_pri,
 				    struct mali_pp_job, list) {
-		if (MALI_FALSE == mali_pp_job_is_virtual(job)) {
-			/* any partially started is already counted */
-			if (MALI_FALSE == mali_pp_job_has_started_sub_jobs(job)) {
-				count += mali_pp_job_unstarted_sub_job_count(job);
-				if (MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS <=
-				    count) {
-					return MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS;
-				}
+		if ((MALI_FALSE == mali_pp_job_is_virtual(job))
+		    && (MALI_FALSE == mali_pp_job_has_started_sub_jobs(job))
+		    && ((MALI_FALSE  == gpu_mode_is_secure && MALI_FALSE == mali_pp_job_is_protected_job(job))
+			|| (MALI_TRUE  == gpu_mode_is_secure && MALI_TRUE == mali_pp_job_is_protected_job(job)))) {
+
+			count += mali_pp_job_unstarted_sub_job_count(job);
+			if (MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS <= count) {
+				return MALI_MAX_NUMBER_OF_PHYSICAL_PP_GROUPS;
 			}
 		} else {
 			/* Came across a virtual job, so stop counting */
 			return count;
 		}
 	}
-
 	return count;
+}
+
+struct mali_pp_job *mali_scheduler_job_pp_next(void)
+{
+	struct mali_pp_job *job;
+	struct mali_pp_job *temp;
+
+	MALI_DEBUG_ASSERT_LOCK_HELD(mali_scheduler_lock_obj);
+
+	/* Check for partially started normal pri jobs */
+	if (!_mali_osk_list_empty(&job_queue_pp.normal_pri)) {
+		MALI_DEBUG_ASSERT(0 < job_queue_pp.depth);
+
+		job = _MALI_OSK_LIST_ENTRY(job_queue_pp.normal_pri.next,
+					   struct mali_pp_job, list);
+
+		MALI_DEBUG_ASSERT_POINTER(job);
+
+		if (MALI_TRUE == mali_pp_job_has_started_sub_jobs(job)) {
+			return job;
+		}
+	}
+
+	_MALI_OSK_LIST_FOREACHENTRY(job, temp, &job_queue_pp.high_pri,
+				    struct mali_pp_job, list) {
+		return job;
+	}
+
+	_MALI_OSK_LIST_FOREACHENTRY(job, temp, &job_queue_pp.normal_pri,
+				    struct mali_pp_job, list) {
+		return job;
+	}
+
+	return NULL;
 }
 
 mali_bool mali_scheduler_job_next_is_virtual(void)
@@ -534,6 +574,7 @@ void mali_scheduler_complete_gp_job(struct mali_gp_job *job,
 		if (mali_utilization_enabled()) {
 			mali_utilization_gp_end();
 		}
+		mali_pm_record_gpu_idle(MALI_TRUE);
 	}
 
 	mali_gp_job_delete(job);
@@ -561,6 +602,7 @@ void mali_scheduler_complete_pp_job(struct mali_pp_job *job,
 		if (mali_utilization_enabled()) {
 			mali_utilization_pp_end();
 		}
+		mali_pm_record_gpu_idle(MALI_FALSE);
 	}
 
 	/* With ZRAM feature enabled, all pp jobs will be force to use deferred delete. */
@@ -987,6 +1029,8 @@ static mali_bool mali_scheduler_queue_gp_job(struct mali_gp_job *job)
 		mali_utilization_gp_start();
 	}
 
+	mali_pm_record_gpu_active(MALI_TRUE);
+
 	/* Add profiling events for job enqueued */
 	_mali_osk_profiling_add_event(
 		MALI_PROFILING_EVENT_TYPE_SINGLE |
@@ -1062,8 +1106,9 @@ static mali_bool mali_scheduler_queue_pp_job(struct mali_pp_job *job)
 		mali_utilization_pp_start();
 	}
 
-	/* Add profiling events for job enqueued */
+	mali_pm_record_gpu_active(MALI_FALSE);
 
+	/* Add profiling events for job enqueued */
 	_mali_osk_profiling_add_event(
 		MALI_PROFILING_EVENT_TYPE_SINGLE |
 		MALI_PROFILING_EVENT_CHANNEL_SOFTWARE |

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2014, 2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -73,7 +73,7 @@ struct ump_device {
 
 /* The global variable containing the global device data */
 static struct ump_device ump_device;
-
+struct device *ump_global_mdev = NULL;
 
 /* Forward declare static functions */
 static int ump_file_open(struct inode *inode, struct file *filp);
@@ -112,7 +112,7 @@ static int ump_initialize_module(void)
 	err = ump_kernel_constructor();
 	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("UMP device driver init failed\n"));
-		return map_errcode(err);
+		return ump_map_errcode(err);
 	}
 
 	MSG(("UMP device driver %s loaded\n", SVN_REV_STRING));
@@ -192,13 +192,12 @@ int ump_kernel_device_initialize(void)
 			if (IS_ERR(ump_device.ump_class)) {
 				err = PTR_ERR(ump_device.ump_class);
 			} else {
-				struct device *mdev;
-				mdev = device_create(ump_device.ump_class, NULL, dev, NULL, ump_dev_name);
-				if (!IS_ERR(mdev)) {
+				ump_global_mdev = device_create(ump_device.ump_class, NULL, dev, NULL, ump_dev_name);
+				if (!IS_ERR(ump_global_mdev)) {
 					return 0;
 				}
 
-				err = PTR_ERR(mdev);
+				err = PTR_ERR(ump_global_mdev);
 			}
 			cdev_del(&ump_device.cdev);
 #else
@@ -256,7 +255,7 @@ static int ump_file_open(struct inode *inode, struct file *filp)
 	err = _ump_ukk_open((void **) &session_data);
 	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("Ump failed to open a new session\n"));
-		return map_errcode(err);
+		return ump_map_errcode(err);
 	}
 
 	filp->private_data = (void *)session_data;
@@ -276,7 +275,7 @@ static int ump_file_release(struct inode *inode, struct file *filp)
 
 	err = _ump_ukk_close((void **) &filp->private_data);
 	if (_MALI_OSK_ERR_OK != err) {
-		return map_errcode(err);
+		return ump_map_errcode(err);
 	}
 
 	return 0;  /* success */
@@ -347,6 +346,15 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 		err = ump_unlock_wrapper((u32 __user *)argument, session_data);
 		break;
 
+	case UMP_IOC_DMABUF_IMPORT:
+		#ifdef CONFIG_DMA_SHARED_BUFFER
+		err = ump_dmabuf_import_wrapper((u32 __user *)argument, session_data);
+		#else
+		err = -EFAULT;
+		DBG_MSG(1, ("User space use dmabuf API, but kernel don't support DMA BUF\n"));
+		#endif
+		break;
+
 	default:
 		DBG_MSG(1, ("No handler for IOCTL. cmd: 0x%08x, arg: 0x%08lx\n", cmd, arg));
 		err = -EFAULT;
@@ -356,7 +364,7 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 	return err;
 }
 
-int map_errcode(_mali_osk_errcode_t err)
+int ump_map_errcode(_mali_osk_errcode_t err)
 {
 	switch (err) {
 	case _MALI_OSK_ERR_OK :
@@ -418,7 +426,7 @@ static int ump_file_mmap(struct file *filp, struct vm_area_struct *vma)
 	err = _ump_ukk_map_mem(&args);
 	if (_MALI_OSK_ERR_OK != err) {
 		MSG_ERR(("_ump_ukk_map_mem() failed in function ump_file_mmap()"));
-		return map_errcode(err);
+		return ump_map_errcode(err);
 	}
 
 	return 0; /* success */

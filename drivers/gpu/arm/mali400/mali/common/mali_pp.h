@@ -93,6 +93,7 @@ MALI_STATIC_INLINE enum mali_interrupt_result mali_pp_get_interrupt_result(struc
 	} else if (MALI200_REG_VAL_IRQ_END_OF_FRAME == rawstat_used) {
 		return MALI_INTERRUPT_RESULT_SUCCESS;
 	}
+
 	return MALI_INTERRUPT_RESULT_ERROR;
 }
 

@@ -91,6 +91,7 @@ MALI_STATIC_INLINE enum mali_interrupt_result mali_mmu_get_interrupt_result(stru
 	if (0 == rawstat_used) {
 		return MALI_INTERRUPT_RESULT_NONE;
 	}
+
 	return MALI_INTERRUPT_RESULT_ERROR;
 }
 

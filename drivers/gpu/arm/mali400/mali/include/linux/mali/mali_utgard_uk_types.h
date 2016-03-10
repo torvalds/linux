@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -283,8 +283,8 @@ typedef struct {
 	_mali_uk_fence_t fence;             /**< [in] fence this job must wait on */
 	u64 timeline_point_ptr;            /**< [in,out] pointer to u32: location where point on gp timeline for this job will be written */
 	u32 varying_memsize;            /** < [in] size of varying memory to use deffer bind*/
-	u32 varying_alloc_num;
-	u64 varying_alloc_list;         /** < [in] memory hanlde list of varying buffer to use deffer bind */
+	u32 deferred_mem_num;
+	u64 deferred_mem_list;         /** < [in] memory hanlde list of varying buffer to use deffer bind */
 } _mali_uk_gp_start_job_s;
 
 #define _MALI_PERFORMANCE_COUNTER_FLAG_SRC0_ENABLE (1<<0) /**< Enable performance counter SRC0 for a job */
@@ -324,6 +324,7 @@ typedef struct {
 /** Flag for _mali_uk_pp_start_job_s */
 #define _MALI_PP_JOB_FLAG_NO_NOTIFICATION (1<<0)
 #define _MALI_PP_JOB_FLAG_IS_WINDOW_SURFACE (1<<1)
+#define _MALI_PP_JOB_FLAG_PROTECTED (1<<2)
 
 /** @defgroup _mali_uk_ppstartjob_s Fragment Processor Start Job
  * @{ */
@@ -664,7 +665,7 @@ typedef struct {
  * The 16bit integer is stored twice in a 32bit integer
  * For example, for version 1 the value would be 0x00010001
  */
-#define _MALI_API_VERSION 850
+#define _MALI_API_VERSION 900
 #define _MALI_UK_API_VERSION _MAKE_VERSION_ID(_MALI_API_VERSION)
 
 /**
@@ -770,6 +771,7 @@ typedef struct {
 #define _MALI_MEMORY_ALLOCATE_NO_BIND_GPU (1<<5) /*Not map to GPU when allocate, must call bind later*/
 #define _MALI_MEMORY_ALLOCATE_SWAPPABLE   (1<<6) /* Allocate swappale memory. */
 #define _MALI_MEMORY_ALLOCATE_DEFER_BIND (1<<7) /*Not map to GPU when allocate, must call bind later*/
+#define _MALI_MEMORY_ALLOCATE_SECURE (1<<8) /* Allocate secure memory. */
 
 
 typedef struct {
@@ -779,6 +781,7 @@ typedef struct {
 	u32 psize;                                        /**< [in] physical size of the allocation */
 	u32 flags;
 	u64 backend_handle;                               /**< [out] backend handle */
+	s32 secure_shared_fd;                           /** < [in] the mem handle for secure mem */
 	struct {
 		/* buffer types*/
 		/* CPU read/write info*/

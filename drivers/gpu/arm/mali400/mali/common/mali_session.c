@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2012-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -116,20 +116,20 @@ void mali_session_memory_tracking(_mali_osk_print_ctx *print_ctx)
 		_mali_osk_ctxprintf(print_ctx, "  %-25s  %-10u  %-10u  %-15u  %-15u  %-10u  %-10u  %-10u\n",
 				    session->comm, session->pid,
 				    (atomic_read(&session->mali_mem_allocated_pages)) * _MALI_OSK_MALI_PAGE_SIZE,
-				    session->max_mali_mem_allocated_size,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_EXTERNAL])) * _MALI_OSK_MALI_PAGE_SIZE,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_UMP])) * _MALI_OSK_MALI_PAGE_SIZE,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_DMA_BUF])) * _MALI_OSK_MALI_PAGE_SIZE,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_SWAP])) * _MALI_OSK_MALI_PAGE_SIZE
+				    (unsigned int)session->max_mali_mem_allocated_size,
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_EXTERNAL])) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_UMP])) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_DMA_BUF])) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_SWAP])) * _MALI_OSK_MALI_PAGE_SIZE)
 				   );
 #else
 		_mali_osk_ctxprintf(print_ctx, "  %-25s  %-10u  %-10u  %-15u  %-15u  %-10u  %-10u  \n",
 				    session->comm, session->pid,
-				    (atomic_read(&session->mali_mem_allocated_pages)) * _MALI_OSK_MALI_PAGE_SIZE,
-				    session->max_mali_mem_allocated_size,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_EXTERNAL])) * _MALI_OSK_MALI_PAGE_SIZE,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_UMP])) * _MALI_OSK_MALI_PAGE_SIZE,
-				    (atomic_read(&session->mali_mem_array[MALI_MEM_DMA_BUF])) * _MALI_OSK_MALI_PAGE_SIZE
+				    (unsigned int)((atomic_read(&session->mali_mem_allocated_pages)) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)session->max_mali_mem_allocated_size,
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_EXTERNAL])) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_UMP])) * _MALI_OSK_MALI_PAGE_SIZE),
+				    (unsigned int)((atomic_read(&session->mali_mem_array[MALI_MEM_DMA_BUF])) * _MALI_OSK_MALI_PAGE_SIZE)
 				   );
 #endif
 	}

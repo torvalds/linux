@@ -27,6 +27,15 @@
 #include "mali_osk.h"           /* kernel side OS functions */
 #include "mali_kernel_linux.h"
 
+static mali_bool mali_secure_mode_enabled = MALI_FALSE;
+static mali_bool mali_secure_mode_supported = MALI_FALSE;
+
+/* Function that init the mali gpu secure mode */
+void (*mali_secure_mode_deinit)(void) = NULL;
+/* Function that enable the mali gpu secure mode */
+int (*mali_secure_mode_enable)(void) = NULL;
+/* Function that disable the mali gpu secure mode */
+int (*mali_secure_mode_disable)(void) = NULL;
 
 
 #ifdef CONFIG_MALI_DT
@@ -409,3 +418,95 @@ mali_bool _mali_osk_shared_interrupts(void)
 
 	return MALI_FALSE;
 }
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_init(void)
+{
+	_mali_osk_device_data data = { 0, };
+
+	if (_MALI_OSK_ERR_OK ==  _mali_osk_device_data_get(&data)) {
+		if ((NULL != data.secure_mode_init) && (NULL != data.secure_mode_deinit)
+		    && (NULL != data.secure_mode_enable) && (NULL != data.secure_mode_disable)) {
+			int err = data.secure_mode_init();
+			if (err) {
+				MALI_DEBUG_PRINT(1, ("Failed to init gpu secure mode.\n"));
+				return _MALI_OSK_ERR_FAULT;
+			}
+
+			mali_secure_mode_deinit = data.secure_mode_deinit;
+			mali_secure_mode_enable = data.secure_mode_enable;
+			mali_secure_mode_disable = data.secure_mode_disable;
+
+			mali_secure_mode_supported = MALI_TRUE;
+			mali_secure_mode_enabled = MALI_FALSE;
+			return _MALI_OSK_ERR_OK;
+		}
+	}
+	MALI_DEBUG_PRINT(3, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_deinit(void)
+{
+	if (NULL !=  mali_secure_mode_deinit) {
+		mali_secure_mode_deinit();
+		mali_secure_mode_enabled = MALI_FALSE;
+		mali_secure_mode_supported = MALI_FALSE;
+		return _MALI_OSK_ERR_OK;
+	}
+	MALI_DEBUG_PRINT(3, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_enable(void)
+{
+	/* the mali executor lock must be held before enter this function. */
+
+	MALI_DEBUG_ASSERT(MALI_FALSE == mali_secure_mode_enabled);
+
+	if (NULL !=  mali_secure_mode_enable) {
+		if (mali_secure_mode_enable()) {
+			MALI_DEBUG_PRINT(1, ("Failed to enable gpu secure mode.\n"));
+			return _MALI_OSK_ERR_FAULT;
+		}
+		mali_secure_mode_enabled = MALI_TRUE;
+		return _MALI_OSK_ERR_OK;
+	}
+	MALI_DEBUG_PRINT(1, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+}
+
+_mali_osk_errcode_t _mali_osk_gpu_secure_mode_disable(void)
+{
+	/* the mali executor lock must be held before enter this function. */
+
+	MALI_DEBUG_ASSERT(MALI_TRUE == mali_secure_mode_enabled);
+
+	if (NULL != mali_secure_mode_disable) {
+		if (mali_secure_mode_disable()) {
+			MALI_DEBUG_PRINT(1, ("Failed to disable gpu secure mode.\n"));
+			return _MALI_OSK_ERR_FAULT;
+		}
+		mali_secure_mode_enabled = MALI_FALSE;
+
+		return _MALI_OSK_ERR_OK;
+
+	}
+	MALI_DEBUG_PRINT(1, ("GPU secure mode not supported.\n"));
+	return _MALI_OSK_ERR_UNSUPPORTED;
+
+}
+
+mali_bool _mali_osk_gpu_secure_mode_is_enabled(void)
+{
+	return mali_secure_mode_enabled;
+}
+
+mali_bool _mali_osk_gpu_secure_mode_is_supported(void)
+{
+	return mali_secure_mode_supported;
+}
+
+

@@ -15,6 +15,8 @@
 #include "regs/mali_200_regs.h"
 #include "mali_kernel_common.h"
 #include "mali_kernel_core.h"
+#include "mali_osk_mali.h"
+
 #if defined(CONFIG_MALI400_PROFILING)
 #include "mali_osk_profiling.h"
 #endif
@@ -295,6 +297,13 @@ void mali_pp_job_start(struct mali_pp_core *core, struct mali_pp_job *job, u32 s
 	u32 counter_src1 = mali_pp_job_get_perf_counter_src1(job, sub_job);
 
 	MALI_DEBUG_ASSERT_POINTER(core);
+
+	/* Change gpu secure mode if needed. */
+	if (MALI_TRUE == mali_pp_job_is_protected_job(job) && MALI_FALSE == _mali_osk_gpu_secure_mode_is_enabled()) {
+		_mali_osk_gpu_secure_mode_enable();
+	} else if (MALI_FALSE == mali_pp_job_is_protected_job(job) && MALI_TRUE == _mali_osk_gpu_secure_mode_is_enabled()) {
+		_mali_osk_gpu_secure_mode_disable();
+	}
 
 	/* Write frame registers */
 

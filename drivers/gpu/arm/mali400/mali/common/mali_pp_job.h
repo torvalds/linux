@@ -495,6 +495,13 @@ MALI_STATIC_INLINE mali_bool mali_pp_job_is_window_surface(
 	       ? MALI_TRUE : MALI_FALSE;
 }
 
+MALI_STATIC_INLINE mali_bool mali_pp_job_is_protected_job(struct mali_pp_job *job)
+{
+	MALI_DEBUG_ASSERT_POINTER(job);
+	return (job->uargs.flags & _MALI_PP_JOB_FLAG_PROTECTED)
+	       ? MALI_TRUE : MALI_FALSE;
+}
+
 MALI_STATIC_INLINE u32 mali_pp_job_get_perf_counter_flag(struct mali_pp_job *job)
 {
 	MALI_DEBUG_ASSERT_POINTER(job);

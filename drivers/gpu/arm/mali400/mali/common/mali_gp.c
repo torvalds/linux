@@ -12,6 +12,7 @@
 #include "mali_hw_core.h"
 #include "mali_group.h"
 #include "mali_osk.h"
+#include "mali_osk_mali.h"
 #include "regs/mali_gp_regs.h"
 #include "mali_kernel_common.h"
 #include "mali_kernel_core.h"
@@ -198,6 +199,11 @@ void mali_gp_job_start(struct mali_gp_core *core, struct mali_gp_job *job)
 	u32 *frame_registers = mali_gp_job_get_frame_registers(job);
 	u32 counter_src0 = mali_gp_job_get_perf_counter_src0(job);
 	u32 counter_src1 = mali_gp_job_get_perf_counter_src1(job);
+
+	/* Disable gpu secure mode. */
+	if (MALI_TRUE == _mali_osk_gpu_secure_mode_is_enabled()) {
+		_mali_osk_gpu_secure_mode_disable();
+	}
 
 	MALI_DEBUG_ASSERT_POINTER(core);
 

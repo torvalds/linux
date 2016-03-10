@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010, 2012-2015 ARM Limited. All rights reserved.
+ * Copyright (C) 2010, 2012-2016 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -30,6 +30,10 @@
 #include "arm_core_scaling.h"
 #include "mali_executor.h"
 
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+#include <linux/devfreq_cooling.h>
+#include <linux/thermal.h>
+#endif
 
 static int mali_core_scaling_enable = 0;
 
@@ -37,6 +41,77 @@ void mali_gpu_utilization_callback(struct mali_gpu_utilization_data *data);
 static u32 mali_read_phys(u32 phys_addr);
 #if defined(CONFIG_ARCH_REALVIEW)
 static void mali_write_phys(u32 phys_addr, u32 value);
+#endif
+
+#if defined(CONFIG_ARCH_VEXPRESS) && defined(CONFIG_ARM64)
+
+#define SECURE_MODE_CONTROL_HANDLER     0x6F02006C
+void *secure_mode_mapped_addr = NULL;
+/**
+ * Enable/Disable Mali secure mode.
+ * @Return value:
+ * 0: success
+ * non-0: failure.
+ */
+
+static int mali_secure_mode_enable_juno(void)
+{
+	u32 phys_offset    = SECURE_MODE_CONTROL_HANDLER & 0x00001FFF;
+	MALI_DEBUG_ASSERT(NULL != secure_mode_mapped_addr);
+
+	iowrite32(1, ((u8 *)secure_mode_mapped_addr) + phys_offset);
+
+	if (1 == (u32)ioread32(((u8 *)secure_mode_mapped_addr) + phys_offset)) {
+		MALI_DEBUG_PRINT(3, ("Mali enables secured mode successfully! \n"));
+		return 0;
+	}
+
+	MALI_PRINT_ERROR(("Failed to enable Mali secured mode !!! \n"));
+
+	return -1;
+
+}
+
+static int mali_secure_mode_disable_juno(void)
+{
+	u32 phys_offset    = SECURE_MODE_CONTROL_HANDLER & 0x00001FFF;
+	MALI_DEBUG_ASSERT(NULL != secure_mode_mapped_addr);
+
+	iowrite32(0, ((u8 *)secure_mode_mapped_addr) + phys_offset);
+
+	if (0 == (u32)ioread32(((u8 *)secure_mode_mapped_addr) + phys_offset)) {
+		MALI_DEBUG_PRINT(3, ("Mali disable secured mode successfully! \n"));
+		return 0;
+	}
+
+	MALI_PRINT_ERROR(("Failed to disable mali secured mode !!! \n"));
+	return -1;
+}
+
+static int mali_secure_mode_init_juno(void)
+{
+	u32 phys_addr_page = SECURE_MODE_CONTROL_HANDLER & 0xFFFFE000;
+	u32 phys_offset    = SECURE_MODE_CONTROL_HANDLER & 0x00001FFF;
+	u32 map_size       = phys_offset + sizeof(u32);
+
+	MALI_DEBUG_ASSERT(NULL == secure_mode_mapped_addr);
+
+	secure_mode_mapped_addr = ioremap_nocache(phys_addr_page, map_size);
+	if (NULL != secure_mode_mapped_addr) {
+		return mali_secure_mode_disable_juno();
+	}
+	MALI_DEBUG_PRINT(2, ("Failed to ioremap for Mali secured mode! \n"));
+	return -1;
+}
+
+static void mali_secure_mode_deinit_juno(void)
+{
+	if (NULL != secure_mode_mapped_addr) {
+		mali_secure_mode_disable_juno();
+		iounmap(secure_mode_mapped_addr);
+		secure_mode_mapped_addr = NULL;
+	}
+}
 #endif
 
 #ifndef CONFIG_MALI_DT
@@ -101,14 +176,86 @@ static struct resource mali_gpu_resources_m400_mp2[] = {
 #endif
 #endif
 
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+
+#define FALLBACK_STATIC_TEMPERATURE 55000
+
+static struct thermal_zone_device *gpu_tz;
+
+/* Calculate gpu static power example for reference */
+static unsigned long arm_model_static_power(unsigned long voltage)
+{
+	int temperature, temp;
+	int temp_squared, temp_cubed, temp_scaling_factor;
+	const unsigned long coefficient = (410UL << 20) / (729000000UL >> 10);
+	const unsigned long voltage_cubed = (voltage * voltage * voltage) >> 10;
+	unsigned long static_power;
+
+	if (gpu_tz) {
+		int ret;
+
+		ret = gpu_tz->ops->get_temp(gpu_tz, &temperature);
+		if (ret) {
+			MALI_DEBUG_PRINT(2, ("Error reading temperature for gpu thermal zone: %d\n", ret));
+			temperature = FALLBACK_STATIC_TEMPERATURE;
+		}
+	} else {
+		temperature = FALLBACK_STATIC_TEMPERATURE;
+	}
+
+	/* Calculate the temperature scaling factor. To be applied to the
+	 * voltage scaled power.
+	 */
+	temp = temperature / 1000;
+	temp_squared = temp * temp;
+	temp_cubed = temp_squared * temp;
+	temp_scaling_factor =
+		(2 * temp_cubed)
+		- (80 * temp_squared)
+		+ (4700 * temp)
+		+ 32000;
+
+	static_power = (((coefficient * voltage_cubed) >> 20)
+			* temp_scaling_factor)
+		       / 1000000;
+
+	return static_power;
+}
+
+/* Calculate gpu dynamic power example for reference */
+static unsigned long arm_model_dynamic_power(unsigned long freq,
+		unsigned long voltage)
+{
+	/* The inputs: freq (f) is in Hz, and voltage (v) in mV.
+	 * The coefficient (c) is in mW/(MHz mV mV).
+	 *
+	 * This function calculates the dynamic power after this formula:
+	 * Pdyn (mW) = c (mW/(MHz*mV*mV)) * v (mV) * v (mV) * f (MHz)
+	 */
+	const unsigned long v2 = (voltage * voltage) / 1000; /* m*(V*V) */
+	const unsigned long f_mhz = freq / 1000000; /* MHz */
+	const unsigned long coefficient = 3600; /* mW/(MHz*mV*mV) */
+	unsigned long dynamic_power;
+
+	dynamic_power = (coefficient * v2 * f_mhz) / 1000000; /* mW */
+
+	return dynamic_power;
+}
+
+struct devfreq_cooling_power arm_cooling_ops = {
+	.get_static_power = arm_model_static_power,
+	.get_dynamic_power = arm_model_dynamic_power,
+};
+#endif
+
 static struct mali_gpu_device_data mali_gpu_data = {
 #ifndef CONFIG_MALI_DT
 	.pmu_switch_delay = 0xFF, /* do not have to be this high on FPGA, but it is good for testing to have a delay */
-	.max_job_runtime = 60000, /* 60 seconds */
 #if defined(CONFIG_ARCH_VEXPRESS)
 	.shared_mem_size = 256 * 1024 * 1024, /* 256MB */
 #endif
 #endif
+	.max_job_runtime = 60000, /* 60 seconds */
 
 #if defined(CONFIG_ARCH_REALVIEW)
 	.dedicated_mem_start = 0x80000000, /* Physical start address (use 0xD0000000 for old indirect setup) */
@@ -129,6 +276,20 @@ static struct mali_gpu_device_data mali_gpu_data = {
 	.get_clock_info = NULL,
 	.get_freq = NULL,
 	.set_freq = NULL,
+#if defined(CONFIG_ARCH_VEXPRESS) && defined(CONFIG_ARM64)
+	.secure_mode_init = mali_secure_mode_init_juno,
+	.secure_mode_deinit = mali_secure_mode_deinit_juno,
+	.secure_mode_enable = mali_secure_mode_enable_juno,
+	.secure_mode_disable = mali_secure_mode_disable_juno,
+#else
+	.secure_mode_init = NULL,
+	.secure_mode_deinit = NULL,
+	.secure_mode_enable = NULL,
+	.secure_mode_disable = NULL,
+#endif
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+	.gpu_cooling_ops = &arm_cooling_ops,
+#endif
 };
 
 #ifndef CONFIG_MALI_DT
@@ -260,6 +421,9 @@ void mali_platform_device_unregister(void)
 	MALI_DEBUG_PRINT(4, ("mali_platform_device_unregister() called\n"));
 
 	mali_core_scaling_term();
+#ifdef CONFIG_PM_RUNTIME
+	pm_runtime_disable(&(mali_gpu_device.dev));
+#endif
 	platform_device_unregister(&mali_gpu_device);
 
 	platform_device_put(&mali_gpu_device);
@@ -365,6 +529,18 @@ int mali_platform_device_init(struct platform_device *device)
 		mali_core_scaling_init(num_pp_cores);
 	}
 
+#if defined(CONFIG_MALI_DEVFREQ) && defined(CONFIG_DEVFREQ_THERMAL)
+	/* Get thermal zone */
+	gpu_tz = thermal_zone_get_zone_by_name("soc_thermal");
+	if (IS_ERR(gpu_tz)) {
+		MALI_DEBUG_PRINT(2, ("Error getting gpu thermal zone (%ld), not yet ready?\n",
+				     PTR_ERR(gpu_tz)));
+		gpu_tz = NULL;
+
+		err =  -EPROBE_DEFER;
+	}
+#endif
+
 	return err;
 }
 
@@ -375,6 +551,9 @@ int mali_platform_device_deinit(struct platform_device *device)
 	MALI_DEBUG_PRINT(4, ("mali_platform_device_deinit() called\n"));
 
 	mali_core_scaling_term();
+#ifdef CONFIG_PM_RUNTIME
+	pm_runtime_disable(&(device->dev));
+#endif
 
 #if defined(CONFIG_ARCH_REALVIEW)
 	mali_write_phys(0xC0010020, 0x9); /* Restore default (legacy) memory mapping */
