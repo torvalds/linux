@@ -615,6 +615,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &uart2 {
 	status = "okay";
 };
