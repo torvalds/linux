@@ -1105,7 +1105,7 @@ static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_vpd_pg80 && !sdev->vpd_pg80)
 		return 0;
 
-	if (attr == &dev_attr_vpd_pg83 && sdev->vpd_pg83)
+	if (attr == &dev_attr_vpd_pg83 && !sdev->vpd_pg83)
 		return 0;
 
 	return S_IRUGO;
