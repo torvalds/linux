@@ -330,19 +330,14 @@ static void imx6_pcie_init_phy(struct pcie_port *pp)
 
 static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 {
-	unsigned int retries;
+	/* check if the link is up or not */
+	if (!dw_pcie_wait_for_link(pp))
+		return 0;
 
-	for (retries = 0; retries < 200; retries++) {
-		if (dw_pcie_link_up(pp))
-			return 0;
-		usleep_range(100, 1000);
-	}
-
-	dev_err(pp->dev, "phy link never came up\n");
 	dev_dbg(pp->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
 		readl(pp->dbi_base + PCIE_PHY_DEBUG_R0),
 		readl(pp->dbi_base + PCIE_PHY_DEBUG_R1));
-	return -EINVAL;
+	return -ETIMEDOUT;
 }
 
 static int imx6_pcie_wait_for_speed_change(struct pcie_port *pp)
