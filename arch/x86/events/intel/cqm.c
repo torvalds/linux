@@ -450,6 +450,7 @@ struct rmid_read {
 
 static void __intel_cqm_event_count(void *info);
 static void init_mbm_sample(u32 rmid, u32 evt_type);
+static void __intel_mbm_event_count(void *info);
 
 static bool is_mbm_event(int e)
 {
@@ -476,8 +477,14 @@ static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 			.rmid = old_rmid,
 		};
 
-		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count,
-				 &rr, 1);
+		if (is_mbm_event(group->attr.config)) {
+			rr.evt_type = group->attr.config;
+			on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count,
+					 &rr, 1);
+		} else {
+			on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count,
+					 &rr, 1);
+		}
 		local64_set(&group->count, atomic64_read(&rr.value));
 	}
 
@@ -488,6 +495,22 @@ static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 		event->hw.cqm_rmid = rmid;
 
 	raw_spin_unlock_irq(&cache_lock);
+
+	/*
+	 * If the allocation is for mbm, init the mbm stats.
+	 * Need to check if each event in the group is mbm event
+	 * because there could be multiple type of events in the same group.
+	 */
+	if (__rmid_valid(rmid)) {
+		event = group;
+		if (is_mbm_event(event->attr.config))
+			init_mbm_sample(rmid, event->attr.config);
+
+		list_for_each_entry(event, head, hw.cqm_group_entry) {
+			if (is_mbm_event(event->attr.config))
+				init_mbm_sample(rmid, event->attr.config);
+		}
+	}
 
 	return old_rmid;
 }
@@ -978,7 +1001,7 @@ static void intel_cqm_setup_event(struct perf_event *event,
 			/* All tasks in a group share an RMID */
 			event->hw.cqm_rmid = rmid;
 			*group = iter;
-			if (is_mbm_event(event->attr.config))
+			if (is_mbm_event(event->attr.config) && __rmid_valid(rmid))
 				init_mbm_sample(rmid, event->attr.config);
 			return;
 		}
@@ -996,7 +1019,7 @@ static void intel_cqm_setup_event(struct perf_event *event,
 	else
 		rmid = __get_rmid();
 
-	if (is_mbm_event(event->attr.config))
+	if (is_mbm_event(event->attr.config) && __rmid_valid(rmid))
 		init_mbm_sample(rmid, event->attr.config);
 
 	event->hw.cqm_rmid = rmid;
