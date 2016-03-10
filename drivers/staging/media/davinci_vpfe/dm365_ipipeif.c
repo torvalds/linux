@@ -94,7 +94,7 @@ static int get_oneshot_mode(enum ipipeif_input_entity input)
 {
 	if (input == IPIPEIF_INPUT_MEMORY)
 		return IPIPEIF_MODE_ONE_SHOT;
-	else if (input == IPIPEIF_INPUT_ISIF)
+	if (input == IPIPEIF_INPUT_ISIF)
 		return IPIPEIF_MODE_CONTINUOUS;
 
 	return -EINVAL;
