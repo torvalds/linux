@@ -3763,13 +3763,50 @@ out:
  */
 static int ufshcd_urgent_bkops(struct ufs_hba *hba)
 {
-	return ufshcd_bkops_ctrl(hba, BKOPS_STATUS_PERF_IMPACT);
+	return ufshcd_bkops_ctrl(hba, hba->urgent_bkops_lvl);
 }
 
 static inline int ufshcd_get_ee_status(struct ufs_hba *hba, u32 *status)
 {
 	return ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
 			QUERY_ATTR_IDN_EE_STATUS, 0, 0, status);
+}
+
+static void ufshcd_bkops_exception_event_handler(struct ufs_hba *hba)
+{
+	int err;
+	u32 curr_status = 0;
+
+	if (hba->is_urgent_bkops_lvl_checked)
+		goto enable_auto_bkops;
+
+	err = ufshcd_get_bkops_status(hba, &curr_status);
+	if (err) {
+		dev_err(hba->dev, "%s: failed to get BKOPS status %d\n",
+				__func__, err);
+		goto out;
+	}
+
+	/*
+	 * We are seeing that some devices are raising the urgent bkops
+	 * exception events even when BKOPS status doesn't indicate performace
+	 * impacted or critical. Handle these device by determining their urgent
+	 * bkops status at runtime.
+	 */
+	if (curr_status < BKOPS_STATUS_PERF_IMPACT) {
+		dev_err(hba->dev, "%s: device raised urgent BKOPS exception for bkops status %d\n",
+				__func__, curr_status);
+		/* update the current status as the urgent bkops level */
+		hba->urgent_bkops_lvl = curr_status;
+		hba->is_urgent_bkops_lvl_checked = true;
+	}
+
+enable_auto_bkops:
+	err = ufshcd_enable_auto_bkops(hba);
+out:
+	if (err < 0)
+		dev_err(hba->dev, "%s: failed to handle urgent bkops %d\n",
+				__func__, err);
 }
 
 /**
@@ -3795,12 +3832,10 @@ static void ufshcd_exception_event_handler(struct work_struct *work)
 	}
 
 	status &= hba->ee_ctrl_mask;
-	if (status & MASK_EE_URGENT_BKOPS) {
-		err = ufshcd_urgent_bkops(hba);
-		if (err < 0)
-			dev_err(hba->dev, "%s: failed to handle urgent bkops %d\n",
-					__func__, err);
-	}
+
+	if (status & MASK_EE_URGENT_BKOPS)
+		ufshcd_bkops_exception_event_handler(hba);
+
 out:
 	pm_runtime_put_sync(hba->dev);
 	return;
@@ -4831,6 +4866,10 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 		goto out;
 
 	ufshcd_init_pwr_info(hba);
+
+	/* set the default level for urgent bkops */
+	hba->urgent_bkops_lvl = BKOPS_STATUS_PERF_IMPACT;
+	hba->is_urgent_bkops_lvl_checked = false;
 
 	/* UniPro link is active now */
 	ufshcd_set_link_active(hba);
