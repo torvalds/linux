@@ -4357,7 +4357,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		main_fbi->fbops->fb_pan_display(&main_fbi->var, main_fbi);
 #endif
 	} else {
-		struct fb_info *extend_fbi = rk_fb->fb[rk_fb->num_fb >> 1];
+		struct fb_info *extend_fbi = rk_fb->fb[dev_drv->fb_index_base];
 
 		extend_fbi->var.pixclock = rk_fb->fb[0]->var.pixclock;
 		extend_fbi->fbops->fb_open(extend_fbi, 1);
