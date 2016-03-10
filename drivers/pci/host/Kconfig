@@ -16,6 +16,17 @@ config PCI_MVEBU
 	depends on ARCH_MVEBU || ARCH_DOVE
 	depends on OF
 
+config PCIE_DW_PLAT
+	bool "Platform bus based DesignWare PCIe Controller"
+	select PCIE_DW
+	---help---
+	 This selects the DesignWare PCIe controller support. Select this if
+	 you have a PCIe controller on Platform bus.
+
+	 If you have a controller with this interface, say Y or M here.
+
+	 If unsure, say N.
+
 config PCIE_DW
 	bool
 
