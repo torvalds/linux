@@ -44,6 +44,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "rockchip,rk3399";
@@ -92,6 +93,8 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
+
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu_l1: cpu@1 {
@@ -116,6 +119,8 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x100>;
+
+			#cooling-cells = <2>; /* min followed by max */
 		};
 
 		cpu_b1: cpu@101 {
@@ -294,6 +299,27 @@
 		pinctrl-0 = <&spi5_clk &spi5_tx &spi5_rx &spi5_cs0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	thermal-zones {
+		#include "rk3368-thermal.dtsi"
+	};
+
+	tsadc: tsadc@ff260000 {
+		compatible = "rockchip,rk3399-tsadc";
+		reg = <0x0 0xff260000 0x0 0x100>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_TSADC>, <&cru PCLK_TSADC>;
+		clock-names = "tsadc", "apb_pclk";
+		resets = <&cru SRST_TSADC>;
+		reset-names = "tsadc-apb";
+		pinctrl-names = "init", "default", "sleep";
+		pinctrl-0 = <&otp_gpio>;
+		pinctrl-1 = <&otp_out>;
+		pinctrl-2 = <&otp_gpio>;
+		#thermal-sensor-cells = <1>;
+		rockchip,hw-tshut-temp = <95000>;
 		status = "disabled";
 	};
 
@@ -860,6 +886,16 @@
 			spi5_tx: spi5-tx {
 				rockchip,pins =
 					<2 21 RK_FUNC_2 &pcfg_pull_up>;
+			};
+		};
+
+		tsadc {
+			otp_gpio: otp-gpio {
+				rockchip,pins = <1 6 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
+			otp_out: otp-out {
+				rockchip,pins = <1 6 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
