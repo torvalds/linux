@@ -131,6 +131,8 @@ enum iwl_led_mode {
 #define IWL_MAX_WD_TIMEOUT	120000
 
 #define IWL_DEFAULT_MAX_TX_POWER 22
+#define IWL_TX_CSUM_NETIF_FLAGS (NETIF_F_IPV6_CSUM | NETIF_F_IP_CSUM |\
+				 NETIF_F_TSO | NETIF_F_TSO6)
 
 /* Antenna presence definitions */
 #define	ANT_NONE	0x0

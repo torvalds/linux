@@ -137,6 +137,7 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.dccm2_len = IWL9000_DCCM2_LEN,					\
 	.smem_offset = IWL9000_SMEM_OFFSET,				\
 	.smem_len = IWL9000_SMEM_LEN,					\
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.thermal_params = &iwl9000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.mq_rx_supported = true,					\

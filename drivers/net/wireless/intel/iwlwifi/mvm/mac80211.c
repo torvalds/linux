@@ -665,12 +665,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	hw->netdev_features |= mvm->cfg->features;
-	if (!iwl_mvm_is_csum_supported(mvm))
-		hw->netdev_features &= ~NETIF_F_RXCSUM;
-
-	if (IWL_MVM_SW_TX_CSUM_OFFLOAD)
-		hw->netdev_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_TSO | NETIF_F_TSO6;
+	if (!iwl_mvm_is_csum_supported(mvm)) {
+		hw->netdev_features &= ~(IWL_TX_CSUM_NETIF_FLAGS |
+					 NETIF_F_RXCSUM);
+		/* We may support SW TX CSUM */
+		if (IWL_MVM_SW_TX_CSUM_OFFLOAD)
+			hw->netdev_features |= IWL_TX_CSUM_NETIF_FLAGS;
+	}
 
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)

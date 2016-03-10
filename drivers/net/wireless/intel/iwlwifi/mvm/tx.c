@@ -67,6 +67,7 @@
 #include <linux/etherdevice.h>
 #include <linux/tcp.h>
 #include <net/ip.h>
+#include <net/ipv6.h>
 
 #include "iwl-trans.h"
 #include "iwl-eeprom-parse.h"
@@ -96,6 +97,111 @@ iwl_mvm_bar_check_trigger(struct iwl_mvm *mvm, const u8 *addr,
 	iwl_mvm_fw_dbg_collect_trig(mvm, trig,
 				    "BAR sent to %pM, tid %d, ssn %d",
 				    addr, tid, ssn);
+}
+
+#define OPT_HDR(type, skb, off) \
+	(type *)(skb_network_header(skb) + (off))
+
+static void iwl_mvm_tx_csum(struct iwl_mvm *mvm, struct sk_buff *skb,
+			    struct ieee80211_hdr *hdr,
+			    struct ieee80211_tx_info *info,
+			    struct iwl_tx_cmd *tx_cmd)
+{
+#if IS_ENABLED(CONFIG_INET)
+	u16 mh_len = ieee80211_hdrlen(hdr->frame_control);
+	u16 offload_assist = le16_to_cpu(tx_cmd->offload_assist);
+	u8 protocol = 0;
+
+	/*
+	 * Do not compute checksum if already computed or if transport will
+	 * compute it
+	 */
+	if (skb->ip_summed != CHECKSUM_PARTIAL || IWL_MVM_SW_TX_CSUM_OFFLOAD)
+		return;
+
+	/* We do not expect to be requested to csum stuff we do not support */
+	if (WARN_ONCE(!(mvm->hw->netdev_features & IWL_TX_CSUM_NETIF_FLAGS) ||
+		      (skb->protocol != htons(ETH_P_IP) &&
+		       skb->protocol != htons(ETH_P_IPV6)),
+		      "No support for requested checksum\n")) {
+		skb_checksum_help(skb);
+		return;
+	}
+
+	if (skb->protocol == htons(ETH_P_IP)) {
+		protocol = ip_hdr(skb)->protocol;
+	} else {
+#if IS_ENABLED(CONFIG_IPV6)
+		struct ipv6hdr *ipv6h =
+			(struct ipv6hdr *)skb_network_header(skb);
+		unsigned int off = sizeof(*ipv6h);
+
+		protocol = ipv6h->nexthdr;
+		while (protocol != NEXTHDR_NONE && ipv6_ext_hdr(protocol)) {
+			/* only supported extension headers */
+			if (protocol != NEXTHDR_ROUTING &&
+			    protocol != NEXTHDR_HOP &&
+			    protocol != NEXTHDR_DEST &&
+			    protocol != NEXTHDR_FRAGMENT) {
+				skb_checksum_help(skb);
+				return;
+			}
+
+			if (protocol == NEXTHDR_FRAGMENT) {
+				struct frag_hdr *hp =
+					OPT_HDR(struct frag_hdr, skb, off);
+
+				protocol = hp->nexthdr;
+				off += sizeof(struct frag_hdr);
+			} else {
+				struct ipv6_opt_hdr *hp =
+					OPT_HDR(struct ipv6_opt_hdr, skb, off);
+
+				protocol = hp->nexthdr;
+				off += ipv6_optlen(hp);
+			}
+		}
+		/* if we get here - protocol now should be TCP/UDP */
+#endif
+	}
+
+	if (protocol != IPPROTO_TCP && protocol != IPPROTO_UDP) {
+		WARN_ON_ONCE(1);
+		skb_checksum_help(skb);
+		return;
+	}
+
+	/* enable L4 csum */
+	offload_assist |= BIT(TX_CMD_OFFLD_L4_EN);
+
+	/*
+	 * Set offset to IP header (snap).
+	 * We don't support tunneling so no need to take care of inner header.
+	 * Size is in words.
+	 */
+	offload_assist |= (4 << TX_CMD_OFFLD_IP_HDR);
+
+	/* Do IPv4 csum for AMSDU only (no IP csum for Ipv6) */
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    (offload_assist & BIT(TX_CMD_OFFLD_AMSDU))) {
+		ip_hdr(skb)->check = 0;
+		offload_assist |= BIT(TX_CMD_OFFLD_L3_EN);
+	}
+
+	/* reset UDP/TCP header csum */
+	if (protocol == IPPROTO_TCP)
+		tcp_hdr(skb)->check = 0;
+	else
+		udp_hdr(skb)->check = 0;
+
+	/* mac header len should include IV, size is in words */
+	if (info->control.hw_key)
+		mh_len += info->control.hw_key->iv_len;
+	mh_len /= 2;
+	offload_assist |= mh_len << TX_CMD_OFFLD_MH_SIZE;
+
+	tx_cmd->offload_assist = cpu_to_le16(offload_assist);
+#endif
 }
 
 /*
@@ -196,6 +302,8 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (ieee80211_hdrlen(fc) % 4 &&
 	    !(tx_cmd->offload_assist & cpu_to_le16(BIT(TX_CMD_OFFLD_AMSDU))))
 		tx_cmd->offload_assist |= cpu_to_le16(BIT(TX_CMD_OFFLD_PAD));
+
+	iwl_mvm_tx_csum(mvm, skb, hdr, info, tx_cmd);
 }
 
 /*
@@ -466,6 +574,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
 	u16 amsdu_add, snap_ip_tcp, pad, i = 0;
 	unsigned int dbg_max_amsdu_len;
+	netdev_features_t netdev_features = NETIF_F_CSUM_MASK | NETIF_F_SG;
 	u8 *qc, tid, txf;
 
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
@@ -481,6 +590,19 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !mvmsta->tlc_amsdu) {
 		num_subframes = 1;
 		pad = 0;
+		goto segment;
+	}
+
+	/*
+	 * Do not build AMSDU for IPv6 with extension headers.
+	 * ask stack to segment and checkum the generated MPDUs for us.
+	 */
+	if (skb->protocol == htons(ETH_P_IPV6) &&
+	    ((struct ipv6hdr *)skb_network_header(skb))->nexthdr !=
+	    IPPROTO_TCP) {
+		num_subframes = 1;
+		pad = 0;
+		netdev_features &= ~NETIF_F_CSUM_MASK;
 		goto segment;
 	}
 
@@ -577,7 +699,7 @@ segment:
 	skb_shinfo(skb)->gso_size = num_subframes * mss;
 	memcpy(cb, skb->cb, sizeof(cb));
 
-	next = skb_gso_segment(skb, NETIF_F_CSUM_MASK | NETIF_F_SG);
+	next = skb_gso_segment(skb, netdev_features);
 	skb_shinfo(skb)->gso_size = mss;
 	if (WARN_ON_ONCE(IS_ERR(next)))
 		return -EINVAL;
