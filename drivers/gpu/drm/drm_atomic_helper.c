@@ -2924,8 +2924,8 @@ void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	blob = drm_property_create_blob(dev,
 					sizeof(struct drm_color_lut) * size,
 					NULL);
-	if (!blob) {
-		ret = -ENOMEM;
+	if (IS_ERR(blob)) {
+		ret = PTR_ERR(blob);
 		goto fail;
 	}
 
