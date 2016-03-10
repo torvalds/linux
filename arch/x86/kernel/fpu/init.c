@@ -302,12 +302,6 @@ u64 __init fpu__get_supported_xfeatures_mask(void)
 static void __init fpu__clear_eager_fpu_features(void)
 {
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX);
-	setup_clear_cpu_cap(X86_FEATURE_AVX2);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512F);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512PF);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
-	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
 }
 
 /*
