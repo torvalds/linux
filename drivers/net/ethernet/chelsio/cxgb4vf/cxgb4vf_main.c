@@ -790,10 +790,6 @@ static int cxgb4vf_open(struct net_device *dev)
 	/*
 	 * Note that this interface is up and start everything up ...
 	 */
-	netif_set_real_num_tx_queues(dev, pi->nqsets);
-	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
-	if (err)
-		goto err_unwind;
 	err = link_start(dev);
 	if (err)
 		goto err_unwind;
@@ -2176,6 +2172,73 @@ static void cleanup_debugfs(struct adapter *adapter)
 	/* nothing to do */
 }
 
+/* Figure out how many Ports and Queue Sets we can support.  This depends on
+ * knowing our Virtual Function Resources and may be called a second time if
+ * we fall back from MSI-X to MSI Interrupt Mode.
+ */
+static void size_nports_qsets(struct adapter *adapter)
+{
+	struct vf_resources *vfres = &adapter->params.vfres;
+	unsigned int ethqsets, pmask_nports;
+
+	/* The number of "ports" which we support is equal to the number of
+	 * Virtual Interfaces with which we've been provisioned.
+	 */
+	adapter->params.nports = vfres->nvi;
+	if (adapter->params.nports > MAX_NPORTS) {
+		dev_warn(adapter->pdev_dev, "only using %d of %d maximum"
+			 " allowed virtual interfaces\n", MAX_NPORTS,
+			 adapter->params.nports);
+		adapter->params.nports = MAX_NPORTS;
+	}
+
+	/* We may have been provisioned with more VIs than the number of
+	 * ports we're allowed to access (our Port Access Rights Mask).
+	 * This is obviously a configuration conflict but we don't want to
+	 * crash the kernel or anything silly just because of that.
+	 */
+	pmask_nports = hweight32(adapter->params.vfres.pmask);
+	if (pmask_nports < adapter->params.nports) {
+		dev_warn(adapter->pdev_dev, "only using %d of %d provissioned"
+			 " virtual interfaces; limited by Port Access Rights"
+			 " mask %#x\n", pmask_nports, adapter->params.nports,
+			 adapter->params.vfres.pmask);
+		adapter->params.nports = pmask_nports;
+	}
+
+	/* We need to reserve an Ingress Queue for the Asynchronous Firmware
+	 * Event Queue.  And if we're using MSI Interrupts, we'll also need to
+	 * reserve an Ingress Queue for a Forwarded Interrupts.
+	 *
+	 * The rest of the FL/Intr-capable ingress queues will be matched up
+	 * one-for-one with Ethernet/Control egress queues in order to form
+	 * "Queue Sets" which will be aportioned between the "ports".  For
+	 * each Queue Set, we'll need the ability to allocate two Egress
+	 * Contexts -- one for the Ingress Queue Free List and one for the TX
+	 * Ethernet Queue.
+	 *
+	 * Note that even if we're currently configured to use MSI-X
+	 * Interrupts (module variable msi == MSI_MSIX) we may get downgraded
+	 * to MSI Interrupts if we can't get enough MSI-X Interrupts.  If that
+	 * happens we'll need to adjust things later.
+	 */
+	ethqsets = vfres->niqflint - 1 - (msi == MSI_MSI);
+	if (vfres->nethctrl != ethqsets)
+		ethqsets = min(vfres->nethctrl, ethqsets);
+	if (vfres->neq < ethqsets*2)
+		ethqsets = vfres->neq/2;
+	if (ethqsets > MAX_ETH_QSETS)
+		ethqsets = MAX_ETH_QSETS;
+	adapter->sge.max_ethqsets = ethqsets;
+
+	if (adapter->sge.max_ethqsets < adapter->params.nports) {
+		dev_warn(adapter->pdev_dev, "only using %d of %d available"
+			 " virtual interfaces (too few Queue Sets)\n",
+			 adapter->sge.max_ethqsets, adapter->params.nports);
+		adapter->params.nports = adapter->sge.max_ethqsets;
+	}
+}
+
 /*
  * Perform early "adapter" initialization.  This is where we discover what
  * adapter parameters we're going to be using and initialize basic adapter
@@ -2183,10 +2246,8 @@ static void cleanup_debugfs(struct adapter *adapter)
  */
 static int adap_init0(struct adapter *adapter)
 {
-	struct vf_resources *vfres = &adapter->params.vfres;
 	struct sge_params *sge_params = &adapter->params.sge;
 	struct sge *s = &adapter->sge;
-	unsigned int ethqsets;
 	int err;
 	u32 param, val = 0;
 
@@ -2295,69 +2356,23 @@ static int adap_init0(struct adapter *adapter)
 		return err;
 	}
 
-	/*
-	 * The number of "ports" which we support is equal to the number of
-	 * Virtual Interfaces with which we've been provisioned.
-	 */
-	adapter->params.nports = vfres->nvi;
-	if (adapter->params.nports > MAX_NPORTS) {
-		dev_warn(adapter->pdev_dev, "only using %d of %d allowed"
-			 " virtual interfaces\n", MAX_NPORTS,
-			 adapter->params.nports);
-		adapter->params.nports = MAX_NPORTS;
+	/* Check for various parameter sanity issues */
+	if (adapter->params.vfres.pmask == 0) {
+		dev_err(adapter->pdev_dev, "no port access configured\n"
+			"usable!\n");
+		return -EINVAL;
 	}
-
-	/*
-	 * We need to reserve a number of the ingress queues with Free List
-	 * and Interrupt capabilities for special interrupt purposes (like
-	 * asynchronous firmware messages, or forwarded interrupts if we're
-	 * using MSI).  The rest of the FL/Intr-capable ingress queues will be
-	 * matched up one-for-one with Ethernet/Control egress queues in order
-	 * to form "Queue Sets" which will be aportioned between the "ports".
-	 * For each Queue Set, we'll need the ability to allocate two Egress
-	 * Contexts -- one for the Ingress Queue Free List and one for the TX
-	 * Ethernet Queue.
-	 */
-	ethqsets = vfres->niqflint - INGQ_EXTRAS;
-	if (vfres->nethctrl != ethqsets) {
-		dev_warn(adapter->pdev_dev, "unequal number of [available]"
-			 " ingress/egress queues (%d/%d); using minimum for"
-			 " number of Queue Sets\n", ethqsets, vfres->nethctrl);
-		ethqsets = min(vfres->nethctrl, ethqsets);
-	}
-	if (vfres->neq < ethqsets*2) {
-		dev_warn(adapter->pdev_dev, "Not enough Egress Contexts (%d)"
-			 " to support Queue Sets (%d); reducing allowed Queue"
-			 " Sets\n", vfres->neq, ethqsets);
-		ethqsets = vfres->neq/2;
-	}
-	if (ethqsets > MAX_ETH_QSETS) {
-		dev_warn(adapter->pdev_dev, "only using %d of %d allowed Queue"
-			 " Sets\n", MAX_ETH_QSETS, adapter->sge.max_ethqsets);
-		ethqsets = MAX_ETH_QSETS;
-	}
-	if (vfres->niq != 0 || vfres->neq > ethqsets*2) {
-		dev_warn(adapter->pdev_dev, "unused resources niq/neq (%d/%d)"
-			 " ignored\n", vfres->niq, vfres->neq - ethqsets*2);
-	}
-	adapter->sge.max_ethqsets = ethqsets;
-
-	/*
-	 * Check for various parameter sanity issues.  Most checks simply
-	 * result in us using fewer resources than our provissioning but we
-	 * do need at least  one "port" with which to work ...
-	 */
-	if (adapter->sge.max_ethqsets < adapter->params.nports) {
-		dev_warn(adapter->pdev_dev, "only using %d of %d available"
-			 " virtual interfaces (too few Queue Sets)\n",
-			 adapter->sge.max_ethqsets, adapter->params.nports);
-		adapter->params.nports = adapter->sge.max_ethqsets;
-	}
-	if (adapter->params.nports == 0) {
+	if (adapter->params.vfres.nvi == 0) {
 		dev_err(adapter->pdev_dev, "no virtual interfaces configured/"
 			"usable!\n");
 		return -EINVAL;
 	}
+
+	/* Initialize nports and max_ethqsets now that we have our Virtual
+	 * Function Resources.
+	 */
+	size_nports_qsets(adapter);
+
 	return 0;
 }
 
@@ -2771,6 +2786,40 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
+	/* See what interrupts we'll be using.  If we've been configured to
+	 * use MSI-X interrupts, try to enable them but fall back to using
+	 * MSI interrupts if we can't enable MSI-X interrupts.  If we can't
+	 * get MSI interrupts we bail with the error.
+	 */
+	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
+		adapter->flags |= USING_MSIX;
+	else {
+		if (msi == MSI_MSIX) {
+			dev_info(adapter->pdev_dev,
+				 "Unable to use MSI-X Interrupts; falling "
+				 "back to MSI Interrupts\n");
+
+			/* We're going to need a Forwarded Interrupt Queue so
+			 * that may cut into how many Queue Sets we can
+			 * support.
+			 */
+			msi = MSI_MSI;
+			size_nports_qsets(adapter);
+		}
+		err = pci_enable_msi(pdev);
+		if (err) {
+			dev_err(&pdev->dev, "Unable to allocate MSI Interrupts;"
+				" err=%d\n", err);
+			goto err_free_dev;
+		}
+		adapter->flags |= USING_MSI;
+	}
+
+	/* Now that we know how many "ports" we have and what interrupt
+	 * mechanism we're going to use, we can configure our queue resources.
+	 */
+	cfg_queues(adapter);
+
 	/*
 	 * The "card" is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole "card" but rather proceed
@@ -2778,9 +2827,13 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * must register at least one net device.
 	 */
 	for_each_port(adapter, pidx) {
+		struct port_info *pi = netdev_priv(adapter->port[pidx]);
 		netdev = adapter->port[pidx];
 		if (netdev == NULL)
 			continue;
+
+		netif_set_real_num_tx_queues(netdev, pi->nqsets);
+		netif_set_real_num_rx_queues(netdev, pi->nqsets);
 
 		err = register_netdev(netdev);
 		if (err) {
@@ -2793,7 +2846,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	}
 	if (adapter->registered_device_map == 0) {
 		dev_err(&pdev->dev, "could not register any net devices\n");
-		goto err_free_dev;
+		goto err_disable_interrupts;
 	}
 
 	/*
@@ -2809,32 +2862,6 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		else
 			setup_debugfs(adapter);
 	}
-
-	/*
-	 * See what interrupts we'll be using.  If we've been configured to
-	 * use MSI-X interrupts, try to enable them but fall back to using
-	 * MSI interrupts if we can't enable MSI-X interrupts.  If we can't
-	 * get MSI interrupts we bail with the error.
-	 */
-	if (msi == MSI_MSIX && enable_msix(adapter) == 0)
-		adapter->flags |= USING_MSIX;
-	else {
-		err = pci_enable_msi(pdev);
-		if (err) {
-			dev_err(&pdev->dev, "Unable to allocate %s interrupts;"
-				" err=%d\n",
-				msi == MSI_MSIX ? "MSI-X or MSI" : "MSI", err);
-			goto err_free_debugfs;
-		}
-		adapter->flags |= USING_MSI;
-	}
-
-	/*
-	 * Now that we know how many "ports" we have and what their types are,
-	 * and how many Queue Sets we can support, we can configure our queue
-	 * resources.
-	 */
-	cfg_queues(adapter);
 
 	/*
 	 * Print a short notice on the existence and configuration of the new
@@ -2856,11 +2883,13 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Error recovery and exit code.  Unwind state that's been created
 	 * so far and return the error.
 	 */
-
-err_free_debugfs:
-	if (!IS_ERR_OR_NULL(adapter->debugfs_root)) {
-		cleanup_debugfs(adapter);
-		debugfs_remove_recursive(adapter->debugfs_root);
+err_disable_interrupts:
+	if (adapter->flags & USING_MSIX) {
+		pci_disable_msix(adapter->pdev);
+		adapter->flags &= ~USING_MSIX;
+	} else if (adapter->flags & USING_MSI) {
+		pci_disable_msi(adapter->pdev);
+		adapter->flags &= ~USING_MSI;
 	}
 
 err_free_dev:
