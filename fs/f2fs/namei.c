@@ -308,13 +308,13 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 			!fscrypt_has_permitted_context(dir, inode)) {
 		bool nokey = f2fs_encrypted_inode(inode) &&
 			!fscrypt_has_encryption_key(inode);
-		iput(inode);
-		return nokey ? ERR_PTR(-ENOKEY) : ERR_PTR(-EPERM);
+		err = nokey ? -ENOKEY : -EPERM;
+		goto err_out;
 	}
 	return d_splice_alias(inode, dentry);
 
 err_out:
-	iget_failed(inode);
+	iput(inode);
 	return ERR_PTR(err);
 }
 
