@@ -63,7 +63,7 @@ static void i40e_vc_vf_broadcast(struct i40e_pf *pf,
 }
 
 /**
- * i40e_vc_notify_link_state
+ * i40e_vc_notify_vf_link_state
  * @vf: pointer to the VF structure
  *
  * send a link status message to a single VF
