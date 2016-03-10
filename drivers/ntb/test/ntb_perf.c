@@ -550,6 +550,8 @@ static ssize_t debugfs_run_read(struct file *filp, char __user *ubuf,
 		return 0;
 
 	buf = kmalloc(64, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 	out_offset = snprintf(buf, 64, "%d\n", perf->run);
 	ret = simple_read_from_buffer(ubuf, count, offp, buf, out_offset);
 	kfree(buf);
