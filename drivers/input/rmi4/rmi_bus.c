@@ -306,6 +306,9 @@ struct bus_type rmi_bus_type = {
 
 static struct rmi_function_handler *fn_handlers[] = {
 	&rmi_f01_handler,
+#ifdef CONFIG_RMI4_F11
+	&rmi_f11_handler,
+#endif
 };
 
 static void __rmi_unregister_function_handlers(int start_idx)

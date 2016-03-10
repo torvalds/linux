@@ -20,6 +20,88 @@
 #define NAME_BUFFER_SIZE 256
 
 /**
+ * struct rmi_2d_axis_alignment - target axis alignment
+ * @swap_axes: set to TRUE if desired to swap x- and y-axis
+ * @flip_x: set to TRUE if desired to flip direction on x-axis
+ * @flip_y: set to TRUE if desired to flip direction on y-axis
+ * @clip_x_low - reported X coordinates below this setting will be clipped to
+ *               the specified value
+ * @clip_x_high - reported X coordinates above this setting will be clipped to
+ *               the specified value
+ * @clip_y_low - reported Y coordinates below this setting will be clipped to
+ *               the specified value
+ * @clip_y_high - reported Y coordinates above this setting will be clipped to
+ *               the specified value
+ * @offset_x - this value will be added to all reported X coordinates
+ * @offset_y - this value will be added to all reported Y coordinates
+ * @rel_report_enabled - if set to true, the relative reporting will be
+ *               automatically enabled for this sensor.
+ */
+struct rmi_2d_axis_alignment {
+	bool swap_axes;
+	bool flip_x;
+	bool flip_y;
+	u16 clip_x_low;
+	u16 clip_y_low;
+	u16 clip_x_high;
+	u16 clip_y_high;
+	u16 offset_x;
+	u16 offset_y;
+	u8 delta_x_threshold;
+	u8 delta_y_threshold;
+};
+
+/** This is used to override any hints an F11 2D sensor might have provided
+ * as to what type of sensor it is.
+ *
+ * @rmi_f11_sensor_default - do not override, determine from F11_2D_QUERY14 if
+ * available.
+ * @rmi_f11_sensor_touchscreen - treat the sensor as a touchscreen (direct
+ * pointing).
+ * @rmi_f11_sensor_touchpad - thread the sensor as a touchpad (indirect
+ * pointing).
+ */
+enum rmi_sensor_type {
+	rmi_sensor_default = 0,
+	rmi_sensor_touchscreen,
+	rmi_sensor_touchpad
+};
+
+#define RMI_F11_DISABLE_ABS_REPORT      BIT(0)
+
+/**
+ * struct rmi_2d_sensor_data - overrides defaults for a 2D sensor.
+ * @axis_align - provides axis alignment overrides (see above).
+ * @sensor_type - Forces the driver to treat the sensor as an indirect
+ * pointing device (touchpad) rather than a direct pointing device
+ * (touchscreen).  This is useful when F11_2D_QUERY14 register is not
+ * available.
+ * @disable_report_mask - Force data to not be reported even if it is supported
+ * by the firware.
+ * @topbuttonpad - Used with the "5 buttons touchpads" found on the Lenovo 40
+ * series
+ * @kernel_tracking - most moderns RMI f11 firmwares implement Multifinger
+ * Type B protocol. However, there are some corner cases where the user
+ * triggers some jumps by tapping with two fingers on the touchpad.
+ * Use this setting and dmax to filter out these jumps.
+ * Also, when using an old sensor using MF Type A behavior, set to true to
+ * report an actual MT protocol B.
+ * @dmax - the maximum distance (in sensor units) the kernel tracking allows two
+ * distincts fingers to be considered the same.
+ */
+struct rmi_2d_sensor_platform_data {
+	struct rmi_2d_axis_alignment axis_align;
+	enum rmi_sensor_type sensor_type;
+	int x_mm;
+	int y_mm;
+	int disable_report_mask;
+	u16 rezero_wait;
+	bool topbuttonpad;
+	bool kernel_tracking;
+	int dmax;
+};
+
+/**
  * struct rmi_f01_power - override default power management settings.
  *
  */
@@ -63,6 +145,7 @@ struct rmi_device_platform_data {
 	int reset_delay_ms;
 
 	/* function handler pdata */
+	struct rmi_2d_sensor_platform_data *sensor_pdata;
 	struct rmi_f01_power_management power_management;
 };
 
