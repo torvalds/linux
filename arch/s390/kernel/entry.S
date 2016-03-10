@@ -1197,114 +1197,12 @@ cleanup_critical:
 	.quad	.Lpsw_idle_lpsw
 
 .Lcleanup_save_fpu_regs:
-	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	bor	%r14
-	clg	%r9,BASED(.Lcleanup_save_fpu_regs_done)
-	jhe	5f
-	clg	%r9,BASED(.Lcleanup_save_fpu_regs_fp)
-	jhe	4f
-	clg	%r9,BASED(.Lcleanup_save_fpu_regs_vx_high)
-	jhe	3f
-	clg	%r9,BASED(.Lcleanup_save_fpu_regs_vx_low)
-	jhe	2f
-	clg	%r9,BASED(.Lcleanup_save_fpu_fpc_end)
-	jhe	1f
-	lg	%r2,__LC_CURRENT
-	aghi	%r2,__TASK_thread
-0:	# Store floating-point controls
-	stfpc	__THREAD_FPU_fpc(%r2)
-1:	# Load register save area and check if VX is active
-	lg	%r3,__THREAD_FPU_regs(%r2)
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
-	jz	4f			  # no VX -> store FP regs
-2:	# Store vector registers (V0-V15)
-	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
-3:	# Store vector registers (V16-V31)
-	VSTM	%v16,%v31,256,%r3	  # vstm 16,31,256(3)
-	j	5f			  # -> done, set CIF_FPU flag
-4:	# Store floating-point registers
-	std	0,0(%r3)
-	std	1,8(%r3)
-	std	2,16(%r3)
-	std	3,24(%r3)
-	std	4,32(%r3)
-	std	5,40(%r3)
-	std	6,48(%r3)
-	std	7,56(%r3)
-	std	8,64(%r3)
-	std	9,72(%r3)
-	std	10,80(%r3)
-	std	11,88(%r3)
-	std	12,96(%r3)
-	std	13,104(%r3)
-	std	14,112(%r3)
-	std	15,120(%r3)
-5:	# Set CIF_FPU flag
-	oi	__LC_CPU_FLAGS+7,_CIF_FPU
-	lg	%r9,48(%r11)		# return from save_fpu_regs
+	larl	%r9,save_fpu_regs
 	br	%r14
-.Lcleanup_save_fpu_fpc_end:
-	.quad	.Lsave_fpu_regs_fpc_end
-.Lcleanup_save_fpu_regs_vx_low:
-	.quad	.Lsave_fpu_regs_vx_low
-.Lcleanup_save_fpu_regs_vx_high:
-	.quad	.Lsave_fpu_regs_vx_high
-.Lcleanup_save_fpu_regs_fp:
-	.quad	.Lsave_fpu_regs_fp
-.Lcleanup_save_fpu_regs_done:
-	.quad	.Lsave_fpu_regs_done
 
 .Lcleanup_load_fpu_regs:
-	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
-	bnor	%r14
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_done)
-	jhe	1f
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_fp)
-	jhe	2f
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx_high)
-	jhe	3f
-	clg	%r9,BASED(.Lcleanup_load_fpu_regs_vx)
-	jhe	4f
-	lg	%r4,__LC_CURRENT
-	aghi	%r4,__TASK_thread
-	lfpc	__THREAD_FPU_fpc(%r4)
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
-	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
-	jz	2f				# -> no VX, load FP regs
-4:	# Load V0 ..V15 registers
-	VLM	%v0,%v15,0,%r4
-3:	# Load V16..V31 registers
-	VLM	%v16,%v31,256,%r4
-	j	1f
-2:	# Load floating-point registers
-	ld	0,0(%r4)
-	ld	1,8(%r4)
-	ld	2,16(%r4)
-	ld	3,24(%r4)
-	ld	4,32(%r4)
-	ld	5,40(%r4)
-	ld	6,48(%r4)
-	ld	7,56(%r4)
-	ld	8,64(%r4)
-	ld	9,72(%r4)
-	ld	10,80(%r4)
-	ld	11,88(%r4)
-	ld	12,96(%r4)
-	ld	13,104(%r4)
-	ld	14,112(%r4)
-	ld	15,120(%r4)
-1:	# Clear CIF_FPU bit
-	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
-	lg	%r9,48(%r11)		# return from load_fpu_regs
+	larl	%r9,load_fpu_regs
 	br	%r14
-.Lcleanup_load_fpu_regs_vx:
-	.quad	.Lload_fpu_regs_vx
-.Lcleanup_load_fpu_regs_vx_high:
-	.quad	.Lload_fpu_regs_vx_high
-.Lcleanup_load_fpu_regs_fp:
-	.quad	.Lload_fpu_regs_fp
-.Lcleanup_load_fpu_regs_done:
-	.quad	.Lload_fpu_regs_done
 
 /*
  * Integer constants
