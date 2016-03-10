@@ -76,6 +76,27 @@ static u8 mwifiex_rsn_oui[CIPHER_SUITE_MAX][4] = {
 	{ 0x00, 0x0f, 0xac, 0x04 },	/* AES  */
 };
 
+static void
+_dbg_security_flags(int log_level, const char *func, const char *desc,
+		    struct mwifiex_private *priv,
+		    struct mwifiex_bssdescriptor *bss_desc)
+{
+	_mwifiex_dbg(priv->adapter, log_level,
+		     "info: %s: %s:\twpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\tEncMode=%#x privacy=%#x\n",
+		     func, desc,
+		     bss_desc->bcn_wpa_ie ?
+		     bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
+		     bss_desc->bcn_rsn_ie ?
+		     bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
+		     priv->sec_info.wep_enabled ? "e" : "d",
+		     priv->sec_info.wpa_enabled ? "e" : "d",
+		     priv->sec_info.wpa2_enabled ? "e" : "d",
+		     priv->sec_info.encryption_mode,
+		     bss_desc->privacy);
+}
+#define dbg_security_flags(mask, desc, priv, bss_desc) \
+	_dbg_security_flags(MWIFIEX_DBG_##mask, desc, __func__, priv, bss_desc)
+
 static bool
 has_ieee_hdr(struct ieee_types_generic *ie, u8 key)
 {
@@ -243,19 +264,7 @@ mwifiex_is_bss_wpa(struct mwifiex_private *priv,
 	    * LinkSys WRT54G && bss_desc->privacy
 	    */
 	 ) {
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: WPA:\t"
-			    "wpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\t"
-			    "EncMode=%#x privacy=%#x\n", __func__,
-			    bss_desc->bcn_wpa_ie ?
-			    bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
-			    bss_desc->bcn_rsn_ie ?
-			    bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "WPA", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -276,19 +285,7 @@ mwifiex_is_bss_wpa2(struct mwifiex_private *priv,
 		 * Privacy bit may NOT be set in some APs like
 		 * LinkSys WRT54G && bss_desc->privacy
 		 */
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: WPA2:\t"
-			    "wpa_ie=%#x wpa2_ie=%#x WEP=%s WPA=%s WPA2=%s\t"
-			    "EncMode=%#x privacy=%#x\n", __func__,
-			    bss_desc->bcn_wpa_ie ?
-			    bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
-			    bss_desc->bcn_rsn_ie ?
-			    bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "WAP2", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -325,17 +322,7 @@ mwifiex_is_bss_dynamic_wep(struct mwifiex_private *priv,
 	    !has_vendor_hdr(bss_desc->bcn_wpa_ie, WLAN_EID_VENDOR_SPECIFIC) &&
 	    !has_ieee_hdr(bss_desc->bcn_rsn_ie, WLAN_EID_RSN) &&
 	    priv->sec_info.encryption_mode && bss_desc->privacy) {
-		mwifiex_dbg(priv->adapter, INFO,
-			    "info: %s: dynamic\t"
-			    "WEP: wpa_ie=%#x wpa2_ie=%#x\t"
-			    "EncMode=%#x privacy=%#x\n",
-			    __func__,
-			    bss_desc->bcn_wpa_ie ?
-			    bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
-			    bss_desc->bcn_rsn_ie ?
-			    bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
-			    priv->sec_info.encryption_mode,
-			    bss_desc->privacy);
+		dbg_security_flags(INFO, "dynamic", priv, bss_desc);
 		return true;
 	}
 	return false;
@@ -448,18 +435,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 		}
 
 		/* Security doesn't match */
-		mwifiex_dbg(adapter, ERROR,
-			    "info: %s: failed: wpa_ie=%#x wpa2_ie=%#x WEP=%s\t"
-			    "WPA=%s WPA2=%s EncMode=%#x privacy=%#x\n",
-			    __func__,
-			    bss_desc->bcn_wpa_ie ?
-			    bss_desc->bcn_wpa_ie->vend_hdr.element_id : 0,
-			    bss_desc->bcn_rsn_ie ?
-			    bss_desc->bcn_rsn_ie->ieee_hdr.element_id : 0,
-			    (priv->sec_info.wep_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa_enabled) ? "e" : "d",
-			    (priv->sec_info.wpa2_enabled) ? "e" : "d",
-			    priv->sec_info.encryption_mode, bss_desc->privacy);
+		dbg_security_flags(ERROR, "failed", priv, bss_desc);
 		return -1;
 	}
 
