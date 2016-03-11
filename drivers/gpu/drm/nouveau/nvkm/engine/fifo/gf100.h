@@ -11,8 +11,10 @@ struct gf100_fifo {
 
 	struct list_head chan;
 
-	struct work_struct fault;
-	u64 mask;
+	struct {
+		struct work_struct work;
+		u64 mask;
+	} recover;
 
 	int pbdma_nr;
 

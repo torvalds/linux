@@ -134,9 +134,9 @@ gf100_fifo_engine(struct gf100_fifo *fifo, u32 engn)
 }
 
 static void
-gf100_fifo_recover_work(struct work_struct *work)
+gf100_fifo_recover_work(struct work_struct *w)
 {
-	struct gf100_fifo *fifo = container_of(work, typeof(*fifo), fault);
+	struct gf100_fifo *fifo = container_of(w, typeof(*fifo), recover.work);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_engine *engine;
 	unsigned long flags;
@@ -144,8 +144,8 @@ gf100_fifo_recover_work(struct work_struct *work)
 	u64 mask, todo;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	mask = fifo->mask;
-	fifo->mask = 0ULL;
+	mask = fifo->recover.mask;
+	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
 	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn))
@@ -180,8 +180,8 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	fifo->mask |= 1ULL << engine->subdev.index;
-	schedule_work(&fifo->fault);
+	fifo->recover.mask |= 1ULL << engine->subdev.index;
+	schedule_work(&fifo->recover.work);
 }
 
 static const struct nvkm_enum
@@ -587,7 +587,7 @@ static void
 gf100_fifo_fini(struct nvkm_fifo *base)
 {
 	struct gf100_fifo *fifo = gf100_fifo(base);
-	flush_work(&fifo->fault);
+	flush_work(&fifo->recover.work);
 }
 
 static void
@@ -660,7 +660,7 @@ gf100_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&fifo->chan);
-	INIT_WORK(&fifo->fault, gf100_fifo_recover_work);
+	INIT_WORK(&fifo->recover.work, gf100_fifo_recover_work);
 	*pfifo = &fifo->base;
 
 	return nvkm_fifo_ctor(&gf100_fifo, device, index, 128, &fifo->base);
