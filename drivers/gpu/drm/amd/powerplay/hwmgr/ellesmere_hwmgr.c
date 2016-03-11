@@ -4687,6 +4687,11 @@ static const struct pp_hwmgr_func ellesmere_hwmgr_funcs = {
 	.register_internal_thermal_interrupt = ellesmere_register_internal_thermal_interrupt,
 	.check_smc_update_required_for_display_configuration = ellesmere_check_smc_update_required_for_display_configuration,
 	.check_states_equal = ellesmere_check_states_equal,
+	.get_pp_table = ellesmere_get_pp_table,
+	.set_pp_table = ellesmere_set_pp_table,
+	.force_clock_level = ellesmere_force_clock_level,
+	.print_clock_levels = ellesmere_print_clock_levels,
+	.enable_per_cu_power_gating = ellesmere_phm_enable_per_cu_power_gating,
 };
 
 int ellesemere_hwmgr_init(struct pp_hwmgr *hwmgr)

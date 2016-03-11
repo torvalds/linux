@@ -398,3 +398,31 @@ int ellesmere_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
+/* This function is for Baffin only for now,
+ * Powerplay will only control the static per CU Power Gating.
+ * Dynamic per CU Power Gating will be done in gfx.
+ */
+int ellesmere_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct cgs_system_info sys_info = {0};
+	uint32_t active_cus;
+	int result;
+
+	sys_info.size = sizeof(struct cgs_system_info);
+	sys_info.info_id = CGS_SYSTEM_INFO_GFX_CU_INFO;
+
+	result = cgs_query_system_info(hwmgr->device, &sys_info);
+
+	if (result)
+		return -EINVAL;
+	else
+		active_cus = sys_info.value;
+
+	if (enable)
+		return smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_GFX_CU_PG_ENABLE, active_cus);
+	else
+		return smum_send_msg_to_smc(hwmgr->smumgr,
+				PPSMC_MSG_GFX_CU_PG_DISABLE);
+}
