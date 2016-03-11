@@ -1028,7 +1028,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 	for (port = 0; port < pdev->num_resources / 2; port++) {
 		ndev = alloc_etherdev_mq(sizeof(struct xlr_net_priv), 32);
 		if (!ndev) {
-			pr_err("Allocation of Ethernet device failed\n");
+			dev_err(&pdev->dev,
+				"Allocation of Ethernet device failed\n");
 			return -ENOMEM;
 		}
 
@@ -1048,7 +1049,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, port);
 		if (!res) {
-			pr_err("No irq resource for MAC %d\n", priv->port_id);
+			dev_err(&pdev->dev, "No irq resource for MAC %d\n",
+				priv->port_id);
 			err = -ENODEV;
 			goto err_gmac;
 		}
@@ -1083,7 +1085,8 @@ static int xlr_net_probe(struct platform_device *pdev)
 		if (strcmp(res->name, "gmac") == 0) {
 			err = xlr_gmac_init(priv, pdev);
 			if (err) {
-				pr_err("gmac%d init failed\n", priv->port_id);
+				dev_err(&pdev->dev, "gmac%d init failed\n",
+					priv->port_id);
 				goto err_gmac;
 			}
 		}
@@ -1096,8 +1099,9 @@ static int xlr_net_probe(struct platform_device *pdev)
 
 		err = register_netdev(ndev);
 		if (err) {
-			pr_err("Registering netdev failed for gmac%d\n",
-			       priv->port_id);
+			dev_err(&pdev->dev,
+				"Registering netdev failed for gmac%d\n",
+				priv->port_id);
 			goto err_netdev;
 		}
 		platform_set_drvdata(pdev, priv);
