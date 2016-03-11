@@ -54,6 +54,10 @@ extern struct bus_type spi_bus_type;
  *
  * @transfer_bytes_histo:
  *                 transfer bytes histogramm
+ *
+ * @transfers_split_maxsize:
+ *                 number of transfers that have been split because of
+ *                 maxsize limit
  */
 struct spi_statistics {
 	spinlock_t		lock; /* lock for the whole structure */
@@ -73,6 +77,8 @@ struct spi_statistics {
 
 #define SPI_STATISTICS_HISTO_SIZE 17
 	unsigned long transfer_bytes_histo[SPI_STATISTICS_HISTO_SIZE];
+
+	unsigned long transfers_split_maxsize;
 };
 
 void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
@@ -594,6 +600,37 @@ extern void spi_unregister_master(struct spi_master *master);
 
 extern struct spi_master *spi_busnum_to_master(u16 busnum);
 
+/*
+ * SPI resource management while processing a SPI message
+ */
+
+/**
+ * struct spi_res - spi resource management structure
+ * @entry:   list entry
+ * @release: release code called prior to freeing this resource
+ * @data:    extra data allocated for the specific use-case
+ *
+ * this is based on ideas from devres, but focused on life-cycle
+ * management during spi_message processing
+ */
+typedef void (*spi_res_release_t)(struct spi_master *master,
+				  struct spi_message *msg,
+				  void *res);
+struct spi_res {
+	struct list_head        entry;
+	spi_res_release_t       release;
+	unsigned long long      data[]; /* guarantee ull alignment */
+};
+
+extern void *spi_res_alloc(struct spi_device *spi,
+			   spi_res_release_t release,
+			   size_t size, gfp_t gfp);
+extern void spi_res_add(struct spi_message *message, void *res);
+extern void spi_res_free(void *res);
+
+extern void spi_res_release(struct spi_master *master,
+			    struct spi_message *message);
+
 /*---------------------------------------------------------------------------*/
 
 /*
@@ -732,6 +769,7 @@ struct spi_transfer {
  * @status: zero for success, else negative errno
  * @queue: for use by whichever driver currently owns the message
  * @state: for use by whichever driver currently owns the message
+ * @resources: for resource management when the spi message is processed
  *
  * A @spi_message is used to execute an atomic sequence of data transfers,
  * each represented by a struct spi_transfer.  The sequence is "atomic"
@@ -778,11 +816,15 @@ struct spi_message {
 	 */
 	struct list_head	queue;
 	void			*state;
+
+	/* list of spi_res reources when the spi message is processed */
+	struct list_head        resources;
 };
 
 static inline void spi_message_init_no_memset(struct spi_message *m)
 {
 	INIT_LIST_HEAD(&m->transfers);
+	INIT_LIST_HEAD(&m->resources);
 }
 
 static inline void spi_message_init(struct spi_message *m)
@@ -863,6 +905,60 @@ spi_max_transfer_size(struct spi_device *spi)
 		return SIZE_MAX;
 	return master->max_transfer_size(spi);
 }
+
+/*---------------------------------------------------------------------------*/
+
+/* SPI transfer replacement methods which make use of spi_res */
+
+struct spi_replaced_transfers;
+typedef void (*spi_replaced_release_t)(struct spi_master *master,
+				       struct spi_message *msg,
+				       struct spi_replaced_transfers *res);
+/**
+ * struct spi_replaced_transfers - structure describing the spi_transfer
+ *                                 replacements that have occurred
+ *                                 so that they can get reverted
+ * @release:            some extra release code to get executed prior to
+ *                      relasing this structure
+ * @extradata:          pointer to some extra data if requested or NULL
+ * @replaced_transfers: transfers that have been replaced and which need
+ *                      to get restored
+ * @replaced_after:     the transfer after which the @replaced_transfers
+ *                      are to get re-inserted
+ * @inserted:           number of transfers inserted
+ * @inserted_transfers: array of spi_transfers of array-size @inserted,
+ *                      that have been replacing replaced_transfers
+ *
+ * note: that @extradata will point to @inserted_transfers[@inserted]
+ * if some extra allocation is requested, so alignment will be the same
+ * as for spi_transfers
+ */
+struct spi_replaced_transfers {
+	spi_replaced_release_t release;
+	void *extradata;
+	struct list_head replaced_transfers;
+	struct list_head *replaced_after;
+	size_t inserted;
+	struct spi_transfer inserted_transfers[];
+};
+
+extern struct spi_replaced_transfers *spi_replace_transfers(
+	struct spi_message *msg,
+	struct spi_transfer *xfer_first,
+	size_t remove,
+	size_t insert,
+	spi_replaced_release_t release,
+	size_t extradatasize,
+	gfp_t gfp);
+
+/*---------------------------------------------------------------------------*/
+
+/* SPI transfer transformation methods */
+
+extern int spi_split_transfers_maxsize(struct spi_master *master,
+				       struct spi_message *msg,
+				       size_t maxsize,
+				       gfp_t gfp);
 
 /*---------------------------------------------------------------------------*/
 
