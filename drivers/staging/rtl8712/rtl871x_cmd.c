@@ -315,27 +315,6 @@ u8 r8712_setbasicrate_cmd(struct _adapter *padapter, u8 *rateset)
 	return _SUCCESS;
 }
 
-/* power tracking mechanism setting */
-u8 r8712_setptm_cmd(struct _adapter *padapter, u8 type)
-{
-	struct cmd_obj		*ph2c;
-	struct writePTM_parm	*pwriteptmparm;
-	struct cmd_priv		*pcmdpriv = &padapter->cmdpriv;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
-		return _FAIL;
-	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
-	if (pwriteptmparm == NULL) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetPT));
-	pwriteptmparm->type = type;
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
 u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type)
 {
 	struct cmd_obj *ph2c;
@@ -726,32 +705,6 @@ u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrttblparm,
 				   GEN_CMD_CODE(_SetRaTable));
 	memcpy(psetrttblparm, prate_table, sizeof(struct setratable_parm));
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
-u8 r8712_gettssi_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
-{
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	struct cmd_obj *ph2c;
-	struct readTSSI_parm *prdtssiparm;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
-		return _FAIL;
-	prdtssiparm = kmalloc(sizeof(*prdtssiparm), GFP_ATOMIC);
-	if (prdtssiparm == NULL) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	INIT_LIST_HEAD(&ph2c->list);
-	ph2c->cmdcode = GEN_CMD_CODE(_ReadTSSI);
-	ph2c->parmbuf = (unsigned char *)prdtssiparm;
-	ph2c->cmdsz = sizeof(struct readTSSI_parm);
-	ph2c->rsp = pval;
-	ph2c->rspsz = sizeof(struct readTSSI_rsp);
-
-	prdtssiparm->offset = offset;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 	return _SUCCESS;
 }
