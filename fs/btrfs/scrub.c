@@ -611,7 +611,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	u64 flags = 0;
 	u64 ref_root;
 	u32 item_size;
-	u8 ref_level;
+	u8 ref_level = 0;
 	int ret;
 
 	WARN_ON(sblock->page_count < 1);
