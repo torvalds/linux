@@ -17,13 +17,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <signal.h>
 
 #define MAX_NUM_DEVICES 10
 #define MAX_SYSFS_PATH	0x200
 #define CSV_MAX_LINE	0x1000
 #define SYSFS_MAX_INT	0x20
 #define MAX_STR_LEN	255
-#define DEFAULT_POLL_TIMEOUT_SEC 30
 #define DEFAULT_ASYNC_TIMEOUT 200000
 
 struct dict {
@@ -88,7 +88,6 @@ struct loopback_test {
 	int list_devices;
 	int use_async;
 	int async_timeout;
-	int poll_timeout;
 	int async_outstanding_operations;
 	int us_wait;
 	int file_output;
@@ -96,6 +95,7 @@ struct loopback_test {
 	char test_name[MAX_STR_LEN];
 	char sysfs_prefix[MAX_SYSFS_PATH];
 	char debugfs_prefix[MAX_SYSFS_PATH];
+	struct timespec poll_timeout;
 	struct loopback_device devices[MAX_NUM_DEVICES];
 	struct loopback_results aggregate_results;
 	struct pollfd fds[MAX_NUM_DEVICES];
@@ -706,22 +706,51 @@ static int is_complete(struct loopback_test *t)
 	return 1;
 }
 
+static void stop_tests(struct loopback_test *t)
+{
+	int i;
+
+	for (i = 0; i < t->device_count; i++) {
+		if (!device_enabled(t, i))
+			continue;
+		write_sysfs_val(t->devices[i].sysfs_entry, "type", 0);
+	}
+}
+
+static void handler(int sig) { /* do nothing */  }
+
 static int wait_for_complete(struct loopback_test *t)
 {
 	int number_of_events = 0;
 	char dummy;
 	int ret;
 	int i;
+	struct timespec *ts = NULL;
+	struct sigaction sa;
+	sigset_t mask_old, mask;
+
+	sigemptyset(&mask);
+	sigemptyset(&mask_old);
+	sigaddset(&mask, SIGINT);
+	sigprocmask(SIG_BLOCK, &mask, &mask_old);
+
+	sa.sa_handler = handler;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(SIGINT, &sa, NULL) == -1) {
+		fprintf(stderr, "sigaction error\n");
+		return -1;
+	}
+
+	if (t->poll_timeout.tv_sec != 0)
+		ts = &t->poll_timeout;
 
 	while (1) {
-		ret = poll(t->fds, t->poll_count, t->poll_timeout * 1000);
-		if (ret == 0) {
-			fprintf(stderr, "Poll timmed out!\n");
-			return -1;
-		}
 
-		if (ret < 0) {
-			fprintf(stderr, "Poll Error!\n");
+		ret = ppoll(t->fds, t->poll_count, ts, &mask_old);
+		if (ret <= 0) {
+			stop_tests(t);
+			fprintf(stderr, "Poll exit with errno %d\n", errno);
 			return -1;
 		}
 
@@ -861,6 +890,7 @@ static int sanity_check(struct loopback_test *t)
 
 	return 0;
 }
+
 int main(int argc, char *argv[])
 {
 	int o, ret;
@@ -915,7 +945,7 @@ int main(int argc, char *argv[])
 			t.async_timeout = atoi(optarg);
 			break;
 		case 'O':
-			t.poll_timeout = atoi(optarg);
+			t.poll_timeout.tv_sec = atoi(optarg);
 			break;
 		case 'c':
 			t.async_outstanding_operations = atoi(optarg);
@@ -954,9 +984,6 @@ int main(int argc, char *argv[])
 
 	if (t.async_timeout == 0)
 		t.async_timeout = DEFAULT_ASYNC_TIMEOUT;
-
-	if (t.poll_timeout == 0)
-		t.poll_timeout = DEFAULT_POLL_TIMEOUT_SEC;
 
 	loopback_run(&t);
 
