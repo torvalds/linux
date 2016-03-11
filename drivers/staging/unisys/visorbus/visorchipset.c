@@ -1131,14 +1131,14 @@ bus_create(struct controlvm_message *inmsg)
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto cleanup;
+		goto out_bus_epilog;
 	}
 	bus_info = kzalloc(sizeof(*bus_info), GFP_KERNEL);
 	if (!bus_info) {
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-		goto cleanup;
+		goto out_bus_epilog;
 	}
 
 	INIT_LIST_HEAD(&bus_info->list_all);
@@ -1158,7 +1158,7 @@ bus_create(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
 		kfree(bus_info);
 		bus_info = NULL;
-		goto cleanup;
+		goto out_bus_epilog;
 	}
 	bus_info->visorchannel = visorchannel;
 	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
@@ -1168,7 +1168,7 @@ bus_create(struct controlvm_message *inmsg)
 
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
-cleanup:
+out_bus_epilog:
 	bus_epilog(bus_info, CONTROLVM_BUS_CREATE, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
