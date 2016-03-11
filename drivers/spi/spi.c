@@ -1589,13 +1589,30 @@ static void of_register_spi_devices(struct spi_master *master) { }
 static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 {
 	struct spi_device *spi = data;
+	struct spi_master *master = spi->master;
 
 	if (ares->type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
 		struct acpi_resource_spi_serialbus *sb;
 
 		sb = &ares->data.spi_serial_bus;
 		if (sb->type == ACPI_RESOURCE_SERIAL_TYPE_SPI) {
-			spi->chip_select = sb->device_selection;
+			/*
+			 * ACPI DeviceSelection numbering is handled by the
+			 * host controller driver in Windows and can vary
+			 * from driver to driver. In Linux we always expect
+			 * 0 .. max - 1 so we need to ask the driver to
+			 * translate between the two schemes.
+			 */
+			if (master->fw_translate_cs) {
+				int cs = master->fw_translate_cs(master,
+						sb->device_selection);
+				if (cs < 0)
+					return cs;
+				spi->chip_select = cs;
+			} else {
+				spi->chip_select = sb->device_selection;
+			}
+
 			spi->max_speed_hz = sb->connection_speed;
 
 			if (sb->clock_phase == ACPI_SPI_SECOND_PHASE)
