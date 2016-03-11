@@ -108,37 +108,40 @@ gk104_fifo_recover_work(struct work_struct *w)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_engine *engine;
 	unsigned long flags;
-	u32 engn, engm = 0;
-	u64 mask, todo;
+	u32 engm, runm, todo;
+	int engn, runl;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	mask = fifo->recover.mask;
-	fifo->recover.mask = 0ULL;
+	runm = fifo->recover.runm;
+	engm = fifo->recover.engm;
+	fifo->recover.engm = 0;
+	fifo->recover.runm = 0;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn))
-		engm |= 1 << gk104_fifo_subdev_engine(engn);
-	nvkm_mask(device, 0x002630, engm, engm);
+	nvkm_mask(device, 0x002630, runm, runm);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn)) {
-		if ((engine = nvkm_device_engine(device, engn))) {
+	for (todo = engm; engn = __ffs(todo), todo; todo &= ~BIT(engn)) {
+		if ((engine = fifo->engine[engn].engine)) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
 		}
-		gk104_fifo_runlist_commit(fifo, gk104_fifo_subdev_engine(engn));
 	}
 
-	nvkm_wr32(device, 0x00262c, engm);
-	nvkm_mask(device, 0x002630, engm, 0x00000000);
+	for (todo = runm; runl = __ffs(todo), todo; todo &= ~BIT(runl))
+		gk104_fifo_runlist_commit(fifo, runl);
+
+	nvkm_wr32(device, 0x00262c, runm);
+	nvkm_mask(device, 0x002630, runm, 0x00000000);
 }
 
 static void
 gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
-		  struct gk104_fifo_chan *chan)
+		   struct gk104_fifo_chan *chan)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 chid = chan->base.chid;
+	int engn;
 
 	nvkm_error(subdev, "%s engine fault on channel %d, recovering...\n",
 		   nvkm_subdev_name[engine->subdev.index], chid);
@@ -148,7 +151,14 @@ gk104_fifo_recover(struct gk104_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	fifo->recover.mask |= 1ULL << engine->subdev.index;
+	for (engn = 0; engn < fifo->engine_nr; engn++) {
+		if (fifo->engine[engn].engine == engine) {
+			fifo->recover.engm |= BIT(engn);
+			break;
+		}
+	}
+
+	fifo->recover.runm |= BIT(chan->runl);
 	schedule_work(&fifo->recover.work);
 }
 
