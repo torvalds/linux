@@ -167,6 +167,8 @@ hijack_init(void)
 
 	if (!nd && iftype && ifparams && (strncmp(iftype, "tap", 3) == 0))
 		nd = lkl_netdev_tap_create(ifparams);
+	else if (!tap && iftype && ifparams && (strncmp(iftype, "dpdk", 4) == 0))
+		nd = lkl_netdev_dpdk_create(ifparams);
 
 	if (nd) {
 		ret = parse_mac_str(mac_str, mac);
