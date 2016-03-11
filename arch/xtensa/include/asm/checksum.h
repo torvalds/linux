@@ -123,9 +123,8 @@ static __inline__ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 }
 
 static __inline__ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
-						   unsigned short len,
-						   unsigned short proto,
-						   __wsum sum)
+					    __u32 len, __u8 proto,
+					    __wsum sum)
 {
 
 #ifdef __XTENSA_EL__
@@ -157,9 +156,8 @@ static __inline__ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
  * returns a 16-bit checksum, already complemented
  */
 static __inline__ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
-						       unsigned short len,
-						       unsigned short proto,
-						       __wsum sum)
+					    __u32 len, __u8 proto,
+					    __wsum sum)
 {
 	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
 }

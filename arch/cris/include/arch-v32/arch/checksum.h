@@ -11,7 +11,7 @@
  */
 static inline __wsum
 csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
-		   unsigned short len, unsigned short proto, __wsum sum)
+		   __u32 len, __u8 proto, __wsum sum)
 {
 	__wsum res;
 
