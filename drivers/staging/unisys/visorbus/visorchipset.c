@@ -1979,8 +1979,11 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	u16 local_crash_msg_count;
 
 	/* make sure visorbus is registered for controlvm callbacks */
-	if (visorchipset_visorbusregwait && !visorbusregistered)
-		goto cleanup;
+	if (visorchipset_visorbusregwait && !visorbusregistered) {
+		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
+		schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
+		return;
+	}
 
 	POSTCODE_LINUX_2(CRASH_DEV_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
@@ -2057,13 +2060,6 @@ setup_crash_devices_work_queue(struct work_struct *work)
 		return;
 	}
 	POSTCODE_LINUX_2(CRASH_DEV_EXIT_PC, POSTCODE_SEVERITY_INFO);
-	return;
-
-cleanup:
-
-	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_SLOW;
-
-	schedule_delayed_work(&periodic_controlvm_work, poll_jiffies);
 }
 
 static void
