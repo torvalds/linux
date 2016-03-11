@@ -106,20 +106,29 @@ static struct kmem_cache *ashmem_range_cachep __read_mostly;
 #define range_on_lru(range) \
 	((range)->purged == ASHMEM_NOT_PURGED)
 
-#define page_range_subsumes_range(range, start, end) \
-	(((range)->pgstart >= (start)) && ((range)->pgend <= (end)))
+static inline int page_range_subsumes_range(struct ashmem_range *range,
+					    size_t start, size_t end)
+{
+	return (((range)->pgstart >= (start)) && ((range)->pgend <= (end)));
+}
 
-#define page_range_subsumed_by_range(range, start, end) \
-	(((range)->pgstart <= (start)) && ((range)->pgend >= (end)))
+static inline int page_range_subsumed_by_range(struct ashmem_range *range,
+					       size_t start, size_t end)
+{
+	return (((range)->pgstart <= (start)) && ((range)->pgend >= (end)));
+}
 
 static inline int page_in_range(struct ashmem_range *range, size_t page)
 {
 	return (((range)->pgstart <= (page)) && ((range)->pgend >= (page)));
 }
 
-#define page_range_in_range(range, start, end) \
-	(page_in_range(range, start) || page_in_range(range, end) || \
-		page_range_subsumes_range(range, start, end))
+static inline int page_range_in_range(struct ashmem_range *range,
+				      size_t start, size_t end)
+{
+	return (page_in_range(range, start) || page_in_range(range, end) ||
+		page_range_subsumes_range(range, start, end));
+}
 
 static inline int range_before_page(struct ashmem_range *range, size_t page)
 {
