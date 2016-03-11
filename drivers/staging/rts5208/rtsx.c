@@ -656,9 +656,6 @@ static void rtsx_release_resources(struct rtsx_dev *dev)
 	if (dev->remap_addr)
 		iounmap(dev->remap_addr);
 
-	pci_disable_device(dev->pci);
-	pci_release_regions(dev->pci);
-
 	rtsx_release_chip(dev->chip);
 	kfree(dev->chip);
 }
@@ -850,7 +847,7 @@ static int rtsx_probe(struct pci_dev *pci,
 
 	dev_dbg(&pci->dev, "Realtek PCI-E card reader detected\n");
 
-	err = pci_enable_device(pci);
+	err = pcim_enable_device(pci);
 	if (err < 0) {
 		dev_err(&pci->dev, "PCI enable device failed!\n");
 		return err;
@@ -860,7 +857,6 @@ static int rtsx_probe(struct pci_dev *pci,
 	if (err < 0) {
 		dev_err(&pci->dev, "PCI request regions for %s failed!\n",
 			CR_DRIVER_NAME);
-		pci_disable_device(pci);
 		return err;
 	}
 
@@ -871,8 +867,6 @@ static int rtsx_probe(struct pci_dev *pci,
 	host = scsi_host_alloc(&rtsx_host_template, sizeof(*dev));
 	if (!host) {
 		dev_err(&pci->dev, "Unable to allocate the scsi host\n");
-		pci_release_regions(pci);
-		pci_disable_device(pci);
 		return -ENOMEM;
 	}
 
