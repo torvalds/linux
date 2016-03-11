@@ -196,6 +196,17 @@ config MDIO_OCTEON
 	  buses. It is required by the Octeon and ThunderX ethernet device
 	  drivers on some systems.
 
+config MDIO_THUNDER
+	tristate "Support for MDIO buses on on ThunderX SOCs"
+	depends on 64BIT
+	depends on PCI
+	select MDIO_CAVIUM
+	help
+	  This driver supports the MDIO interfaces found on Cavium
+	  ThunderX SoCs when the MDIO bus device appears on as a PCI
+	  device.
+
+
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
 	depends on ARCH_SUNXI
