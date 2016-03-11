@@ -10,6 +10,7 @@ include $(src)/nvkm/engine/dma/Kbuild
 include $(src)/nvkm/engine/fifo/Kbuild
 include $(src)/nvkm/engine/gr/Kbuild
 include $(src)/nvkm/engine/mpeg/Kbuild
+include $(src)/nvkm/engine/msenc/Kbuild
 include $(src)/nvkm/engine/mspdec/Kbuild
 include $(src)/nvkm/engine/msppp/Kbuild
 include $(src)/nvkm/engine/msvld/Kbuild
