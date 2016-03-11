@@ -7,7 +7,7 @@
 struct gk104_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct gk104_fifo *fifo;
-	int engine;
+	int runl;
 
 	struct list_head head;
 	bool killed;

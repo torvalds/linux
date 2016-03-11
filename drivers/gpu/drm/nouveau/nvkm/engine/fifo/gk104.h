@@ -6,13 +6,6 @@
 #include <subdev/mmu.h>
 
 struct gk104_fifo_chan;
-struct gk104_fifo_engn {
-	struct nvkm_memory *runlist[2];
-	int cur_runlist;
-	wait_queue_head_t wait;
-	struct list_head chan;
-};
-
 struct gk104_fifo {
 	struct nvkm_fifo base;
 
@@ -23,7 +16,13 @@ struct gk104_fifo {
 
 	int pbdma_nr;
 
-	struct gk104_fifo_engn engine[7];
+	struct {
+		struct nvkm_memory *mem[2];
+		int next;
+		wait_queue_head_t wait;
+		struct list_head chan;
+	} runlist[7];
+
 	struct {
 		struct nvkm_memory *mem;
 		struct nvkm_vma bar;
@@ -41,7 +40,7 @@ void gk104_fifo_uevent_init(struct nvkm_fifo *);
 void gk104_fifo_uevent_fini(struct nvkm_fifo *);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
-void gk104_fifo_runlist_commit(struct gk104_fifo *, u32 engine);
+void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl);
 
 static inline u64
 gk104_fifo_engine_subdev(int engine)

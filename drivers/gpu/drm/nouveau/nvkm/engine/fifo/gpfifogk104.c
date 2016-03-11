@@ -155,7 +155,7 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 		gk104_fifo_runlist_remove(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
 		gk104_fifo_gpfifo_kick(chan);
-		gk104_fifo_runlist_commit(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->runl);
 	}
 
 	nvkm_wr32(device, 0x800000 + coff, 0x00000000);
@@ -170,13 +170,13 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 	u32 addr = chan->base.inst->addr >> 12;
 	u32 coff = chan->base.chid * 8;
 
-	nvkm_mask(device, 0x800004 + coff, 0x000f0000, chan->engine << 16);
+	nvkm_mask(device, 0x800004 + coff, 0x000f0000, chan->runl << 16);
 	nvkm_wr32(device, 0x800000 + coff, 0x80000000 | addr);
 
 	if (list_empty(&chan->head) && !chan->killed) {
 		gk104_fifo_runlist_insert(fifo, chan);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
-		gk104_fifo_runlist_commit(fifo, chan->engine);
+		gk104_fifo_runlist_commit(fifo, chan->runl);
 		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 	}
 }
@@ -227,7 +227,7 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		return ret;
 
 	/* determine which downstream engines are present */
-	for (i = 0, engines = 0; i < ARRAY_SIZE(fifo->engine); i++) {
+	for (i = 0, engines = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
 		u64 subdevs = gk104_fifo_engine_subdev(i);
 		if (!nvkm_device_engine(device, __ffs64(subdevs)))
 			continue;
@@ -255,12 +255,12 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		return -ENOMEM;
 	*pobject = &chan->base.object;
 	chan->fifo = fifo;
-	chan->engine = __ffs(args->v0.engine);
+	chan->runl = __ffs(args->v0.engine);
 	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vm, 0,
-				  gk104_fifo_engine_subdev(chan->engine),
+				  gk104_fifo_engine_subdev(chan->runl),
 				  1, fifo->user.bar.offset, 0x200,
 				  oclass, &chan->base);
 	if (ret)

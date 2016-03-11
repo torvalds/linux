@@ -47,38 +47,41 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 }
 
 void
-gk104_fifo_runlist_commit(struct gk104_fifo *fifo, u32 engine)
+gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 {
-	struct gk104_fifo_engn *engn = &fifo->engine[engine];
 	struct gk104_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_memory *cur;
+	struct nvkm_memory *mem;
 	int nr = 0;
 	int target;
 
 	mutex_lock(&subdev->mutex);
-	cur = engn->runlist[engn->cur_runlist];
-	engn->cur_runlist = !engn->cur_runlist;
+	mem = fifo->runlist[runl].mem[fifo->runlist[runl].next];
+	fifo->runlist[runl].next = !fifo->runlist[runl].next;
 
-	nvkm_kmap(cur);
-	list_for_each_entry(chan, &engn->chan, head) {
-		nvkm_wo32(cur, (nr * 8) + 0, chan->base.chid);
-		nvkm_wo32(cur, (nr * 8) + 4, 0x00000000);
+	nvkm_kmap(mem);
+	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
+		nvkm_wo32(mem, (nr * 8) + 0, chan->base.chid);
+		nvkm_wo32(mem, (nr * 8) + 4, 0x00000000);
 		nr++;
 	}
-	nvkm_done(cur);
+	nvkm_done(mem);
 
-	target = (nvkm_memory_target(cur) == NVKM_MEM_TARGET_HOST) ? 0x3 : 0x0;
+	if (nvkm_memory_target(mem) == NVKM_MEM_TARGET_VRAM)
+		target = 0;
+	else
+		target = 3;
 
-	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(cur) >> 12) |
+	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
 				    (target << 28));
-	nvkm_wr32(device, 0x002274, (engine << 20) | nr);
+	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
 
-	if (wait_event_timeout(engn->wait, !(nvkm_rd32(device, 0x002284 +
-			       (engine * 0x08)) & 0x00100000),
-				msecs_to_jiffies(2000)) == 0)
-		nvkm_error(subdev, "runlist %d update timeout\n", engine);
+	if (wait_event_timeout(fifo->runlist[runl].wait,
+			       !(nvkm_rd32(device, 0x002284 + (runl * 0x08))
+				       & 0x00100000),
+			       msecs_to_jiffies(2000)) == 0)
+		nvkm_error(subdev, "runlist %d update timeout\n", runl);
 	mutex_unlock(&subdev->mutex);
 }
 
@@ -94,7 +97,7 @@ void
 gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 {
 	mutex_lock(&fifo->base.engine.subdev.mutex);
-	list_add_tail(&chan->head, &fifo->engine[chan->engine].chan);
+	list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
 	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
@@ -199,7 +202,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	u32 engn;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	for (engn = 0; engn < ARRAY_SIZE(fifo->engine); engn++) {
+	for (engn = 0; engn < ARRAY_SIZE(fifo->runlist); engn++) {
 		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
 		u32 busy = (stat & 0x80000000);
 		u32 next = (stat & 0x0fff0000) >> 16;
@@ -211,7 +214,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 		(void)save;
 
 		if (busy && chsw) {
-			list_for_each_entry(chan, &fifo->engine[engn].chan, head) {
+			list_for_each_entry(chan, &fifo->runlist[engn].chan, head) {
 				if (chan->base.chid == chid) {
 					engine = gk104_fifo_engine(fifo, engn);
 					if (!engine)
@@ -541,10 +544,10 @@ gk104_fifo_intr_runlist(struct gk104_fifo *fifo)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	u32 mask = nvkm_rd32(device, 0x002a00);
 	while (mask) {
-		u32 engn = __ffs(mask);
-		wake_up(&fifo->engine[engn].wait);
-		nvkm_wr32(device, 0x002a00, 1 << engn);
-		mask &= ~(1 << engn);
+		int runl = __ffs(mask);
+		wake_up(&fifo->runlist[runl].wait);
+		nvkm_wr32(device, 0x002a00, 1 << runl);
+		mask &= ~(1 << runl);
 	}
 }
 
@@ -669,21 +672,21 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x000204));
 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
-	for (i = 0; i < ARRAY_SIZE(fifo->engine); i++) {
+	for (i = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 				      0x8000, 0x1000, false,
-				      &fifo->engine[i].runlist[0]);
+				      &fifo->runlist[i].mem[0]);
 		if (ret)
 			return ret;
 
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 				      0x8000, 0x1000, false,
-				      &fifo->engine[i].runlist[1]);
+				      &fifo->runlist[i].mem[1]);
 		if (ret)
 			return ret;
 
-		init_waitqueue_head(&fifo->engine[i].wait);
-		INIT_LIST_HEAD(&fifo->engine[i].chan);
+		init_waitqueue_head(&fifo->runlist[i].wait);
+		INIT_LIST_HEAD(&fifo->runlist[i].chan);
 	}
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
@@ -739,9 +742,9 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	nvkm_vm_put(&fifo->user.bar);
 	nvkm_memory_del(&fifo->user.mem);
 
-	for (i = 0; i < ARRAY_SIZE(fifo->engine); i++) {
-		nvkm_memory_del(&fifo->engine[i].runlist[1]);
-		nvkm_memory_del(&fifo->engine[i].runlist[0]);
+	for (i = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
+		nvkm_memory_del(&fifo->runlist[i].mem[1]);
+		nvkm_memory_del(&fifo->runlist[i].mem[0]);
 	}
 
 	return fifo;
