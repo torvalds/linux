@@ -9,7 +9,11 @@
 UTS_MACHINE := arc
 
 ifeq ($(CROSS_COMPILE),)
+ifndef CONFIG_CPU_BIG_ENDIAN
 CROSS_COMPILE := arc-linux-
+else
+CROSS_COMPILE := arceb-linux-
+endif
 endif
 
 KBUILD_DEFCONFIG := nsim_700_defconfig
