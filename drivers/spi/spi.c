@@ -1047,6 +1047,7 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
  * __spi_pump_messages - function which processes spi message queue
  * @master: master to process queue for
  * @in_kthread: true if we are in the context of the message pump thread
+ * @bus_locked: true if the bus mutex is held when calling this function
  *
  * This function checks if there is any spi message in the queue that
  * needs processing and if so call out to the driver to initialize hardware
@@ -1056,7 +1057,8 @@ EXPORT_SYMBOL_GPL(spi_finalize_current_transfer);
  * inside spi_sync(); the queue extraction handling at the top of the
  * function should deal with this safely.
  */
-static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
+static void __spi_pump_messages(struct spi_master *master, bool in_kthread,
+				bool bus_locked)
 {
 	unsigned long flags;
 	bool was_busy = false;
@@ -1152,7 +1154,9 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		}
 	}
 
-	mutex_lock(&master->bus_lock_mutex);
+	if (!bus_locked)
+		mutex_lock(&master->bus_lock_mutex);
+
 	trace_spi_message_start(master->cur_msg);
 
 	if (master->prepare_message) {
@@ -1162,8 +1166,7 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 				"failed to prepare message: %d\n", ret);
 			master->cur_msg->status = ret;
 			spi_finalize_current_message(master);
-			mutex_unlock(&master->bus_lock_mutex);
-			return;
+			goto out;
 		}
 		master->cur_msg_prepared = true;
 	}
@@ -1172,21 +1175,23 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 	if (ret) {
 		master->cur_msg->status = ret;
 		spi_finalize_current_message(master);
-		mutex_unlock(&master->bus_lock_mutex);
-		return;
+		goto out;
 	}
 
 	ret = master->transfer_one_message(master, master->cur_msg);
 	if (ret) {
 		dev_err(&master->dev,
 			"failed to transfer one message from queue\n");
-		mutex_unlock(&master->bus_lock_mutex);
-		return;
+		goto out;
 	}
-	mutex_unlock(&master->bus_lock_mutex);
+
+out:
+	if (!bus_locked)
+		mutex_unlock(&master->bus_lock_mutex);
 
 	/* Prod the scheduler in case transfer_one() was busy waiting */
-	cond_resched();
+	if (!ret)
+		cond_resched();
 }
 
 /**
@@ -1198,7 +1203,7 @@ static void spi_pump_messages(struct kthread_work *work)
 	struct spi_master *master =
 		container_of(work, struct spi_master, pump_messages);
 
-	__spi_pump_messages(master, true);
+	__spi_pump_messages(master, true, false);
 }
 
 static int spi_init_queue(struct spi_master *master)
@@ -2479,7 +2484,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 						       spi_sync_immediate);
 			SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics,
 						       spi_sync_immediate);
-			__spi_pump_messages(master, false);
+			__spi_pump_messages(master, false, bus_locked);
 		}
 
 		wait_for_completion(&done);
