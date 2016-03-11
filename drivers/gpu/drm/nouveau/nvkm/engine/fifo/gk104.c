@@ -735,6 +735,8 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		case 0x0000000b: engidx = NVKM_ENGINE_MSENC; break;
 		case 0x0000000c: engidx = NVKM_ENGINE_VIC; break;
 		case 0x0000000d: engidx = NVKM_ENGINE_SEC; break;
+		case 0x0000000e: engidx = NVKM_ENGINE_NVENC0; break;
+		case 0x0000000f: engidx = NVKM_ENGINE_NVENC1; break;
 			break;
 		default:
 			break;

@@ -67,6 +67,8 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSPPP : return 0x0260;
 	case NVKM_ENGINE_MSVLD : return 0x0270;
 	case NVKM_ENGINE_MSENC : return 0x0290;
+	case NVKM_ENGINE_NVENC0: return 0x02100290;
+	case NVKM_ENGINE_NVENC1: return 0x0210;
 	default:
 		WARN_ON(1);
 		return 0;
@@ -77,9 +79,9 @@ static int
 gk104_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine, bool suspend)
 {
-	const u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct nvkm_gpuobj *inst = chan->base.inst;
+	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
 	int ret;
 
 	ret = gk104_fifo_gpfifo_kick(chan);
@@ -88,8 +90,12 @@ gk104_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 
 	if (offset) {
 		nvkm_kmap(inst);
-		nvkm_wo32(inst, offset + 0x00, 0x00000000);
-		nvkm_wo32(inst, offset + 0x04, 0x00000000);
+		nvkm_wo32(inst, (offset & 0xffff) + 0x00, 0x00000000);
+		nvkm_wo32(inst, (offset & 0xffff) + 0x04, 0x00000000);
+		if ((offset >>= 16)) {
+			nvkm_wo32(inst, offset + 0x00, 0x00000000);
+			nvkm_wo32(inst, offset + 0x04, 0x00000000);
+		}
 		nvkm_done(inst);
 	}
 
@@ -100,15 +106,21 @@ static int
 gk104_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {
-	const u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct nvkm_gpuobj *inst = chan->base.inst;
+	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
 
 	if (offset) {
-		u64 addr = chan->engn[engine->subdev.index].vma.offset;
+		u64   addr = chan->engn[engine->subdev.index].vma.offset;
+		u32 datalo = lower_32_bits(addr) | 0x00000004;
+		u32 datahi = upper_32_bits(addr);
 		nvkm_kmap(inst);
-		nvkm_wo32(inst, offset + 0x00, lower_32_bits(addr) | 4);
-		nvkm_wo32(inst, offset + 0x04, upper_32_bits(addr));
+		nvkm_wo32(inst, (offset & 0xffff) + 0x00, datalo);
+		nvkm_wo32(inst, (offset & 0xffff) + 0x04, datahi);
+		if ((offset >>= 16)) {
+			nvkm_wo32(inst, offset + 0x00, datalo);
+			nvkm_wo32(inst, offset + 0x04, datahi);
+		}
 		nvkm_done(inst);
 	}
 
@@ -331,6 +343,8 @@ gk104_fifo_gpfifo[] = {
 	{ NVA06F_V0_ENGINE_MSPDEC, BIT_ULL(NVKM_ENGINE_MSPDEC) },
 	{ NVA06F_V0_ENGINE_MSPPP , BIT_ULL(NVKM_ENGINE_MSPPP ) },
 	{ NVA06F_V0_ENGINE_MSENC , BIT_ULL(NVKM_ENGINE_MSENC ) },
+	{ NVA06F_V0_ENGINE_NVENC0, BIT_ULL(NVKM_ENGINE_NVENC0) },
+	{ NVA06F_V0_ENGINE_NVENC1, BIT_ULL(NVKM_ENGINE_NVENC1) },
 	{ NVA06F_V0_ENGINE_CE0   , BIT_ULL(NVKM_ENGINE_CE0   ) },
 	{ NVA06F_V0_ENGINE_CE1   , BIT_ULL(NVKM_ENGINE_CE1   ) },
 	{ NVA06F_V0_ENGINE_CE2   , BIT_ULL(NVKM_ENGINE_CE2   ) },
