@@ -578,11 +578,14 @@ int amdgpu_gem_debugfs_init(struct amdgpu_device *adev);
  * Assumption is that there won't be hole (all object on same
  * alignment).
  */
+
+#define AMDGPU_SA_NUM_FENCE_LISTS	32
+
 struct amdgpu_sa_manager {
 	wait_queue_head_t	wq;
 	struct amdgpu_bo	*bo;
 	struct list_head	*hole;
-	struct list_head	flist[AMDGPU_MAX_RINGS];
+	struct list_head	flist[AMDGPU_SA_NUM_FENCE_LISTS];
 	struct list_head	olist;
 	unsigned		size;
 	uint64_t		gpu_addr;
