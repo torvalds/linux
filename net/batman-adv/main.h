@@ -296,7 +296,8 @@ static inline bool batadv_compare_eth(const void *data1, const void *data2)
 }
 
 /**
- * has_timed_out - compares current time (jiffies) and timestamp + timeout
+ * batadv_has_timed_out - compares current time (jiffies) and timestamp +
+ *  timeout
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
  *

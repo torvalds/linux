@@ -501,7 +501,7 @@ struct batadv_coded_packet {
 #pragma pack()
 
 /**
- * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
+ * struct batadv_unicast_tvlv_packet - generic unicast packet with tvlv payload
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
