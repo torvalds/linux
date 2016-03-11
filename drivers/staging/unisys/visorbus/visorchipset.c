@@ -1382,35 +1382,23 @@ initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 				  struct visor_controlvm_payload_info *info)
 {
 	u8 *payload = NULL;
-	int rc = CONTROLVM_RESP_SUCCESS;
 
-	if (!info) {
-		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
-		goto cleanup;
-	}
+	if (!info)
+		return -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
+
 	memset(info, 0, sizeof(struct visor_controlvm_payload_info));
-	if ((offset == 0) || (bytes == 0)) {
-		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
-		goto cleanup;
-	}
+	if ((offset == 0) || (bytes == 0))
+		return -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
+
 	payload = memremap(phys_addr + offset, bytes, MEMREMAP_WB);
-	if (!payload) {
-		rc = -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
-		goto cleanup;
-	}
+	if (!payload)
+		return -CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 
 	info->offset = offset;
 	info->bytes = bytes;
 	info->ptr = payload;
 
-cleanup:
-	if (rc < 0) {
-		if (payload) {
-			memunmap(payload);
-			payload = NULL;
-		}
-	}
-	return rc;
+	return CONTROLVM_RESP_SUCCESS;
 }
 
 static void
