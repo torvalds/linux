@@ -801,9 +801,9 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 	if (unlikely(!skb))
 		return;
 
-	/* if budget is 0 assume netpoll w/ IRQs disabled */
+	/* Zero budget indicate non-NAPI context called us, like netpoll */
 	if (unlikely(!budget)) {
-		dev_consume_skb_irq(skb);
+		dev_consume_skb_any(skb);
 		return;
 	}
 
