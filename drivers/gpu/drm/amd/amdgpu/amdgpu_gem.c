@@ -258,12 +258,10 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	    AMDGPU_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
-	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) && (
-	     !(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
-	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER))) {
+	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) &&
+	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
 
-		/* if we want to write to it we must require anonymous
-		   memory and install a MMU notifier */
+		/* if we want to write to it we must install a MMU notifier */
 		return -EACCES;
 	}
 
