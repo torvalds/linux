@@ -40,6 +40,7 @@ struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	void (*wait_for_update)(struct drm_crtc *crtc);
+	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
 };
 
 struct rockchip_atomic_commit {

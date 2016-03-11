@@ -875,10 +875,30 @@ static void vop_crtc_wait_for_update(struct drm_crtc *crtc)
 	WARN_ON(!wait_for_completion_timeout(&vop->wait_update_complete, 100));
 }
 
+static void vop_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+					   struct drm_file *file_priv)
+{
+	struct drm_device *drm = crtc->dev;
+	struct vop *vop = to_vop(crtc);
+	struct drm_pending_vblank_event *e;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drm->event_lock, flags);
+	e = vop->event;
+	if (e && e->base.file_priv == file_priv) {
+		vop->event = NULL;
+
+		e->base.destroy(&e->base);
+		file_priv->event_space += sizeof(e->event);
+	}
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.wait_for_update = vop_crtc_wait_for_update,
+	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
