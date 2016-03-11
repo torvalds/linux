@@ -1046,93 +1046,6 @@ void rtw_set_macaddr_acl23a(struct rtw_adapter *padapter, int mode)
 	pacl_list->mode = mode;
 }
 
-int rtw_acl_add_sta23a(struct rtw_adapter *padapter, u8 *addr)
-{
-	struct list_head *phead;
-	u8 added = false;
-	int i, ret = 0;
-	struct rtw_wlan_acl_node *paclnode;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-	struct rtw_queue *pacl_node_q = &pacl_list->acl_node_q;
-
-	DBG_8723A("%s(acl_num =%d) =%pM\n", __func__, pacl_list->num, addr);
-
-	if ((NUM_ACL-1) < pacl_list->num)
-		return -1;
-
-	spin_lock_bh(&pacl_node_q->lock);
-	phead = get_list_head(pacl_node_q);
-	list_for_each_entry(paclnode, phead, list) {
-		if (!memcmp(paclnode->addr, addr, ETH_ALEN)) {
-			if (paclnode->valid == true) {
-				added = true;
-				DBG_8723A("%s, sta has been added\n", __func__);
-				break;
-			}
-		}
-	}
-	spin_unlock_bh(&pacl_node_q->lock);
-
-	if (added)
-		return ret;
-
-	spin_lock_bh(&pacl_node_q->lock);
-
-	for (i = 0; i < NUM_ACL; i++) {
-		paclnode = &pacl_list->aclnode[i];
-
-		if (!paclnode->valid) {
-			INIT_LIST_HEAD(&paclnode->list);
-
-			memcpy(paclnode->addr, addr, ETH_ALEN);
-
-			paclnode->valid = true;
-
-			list_add_tail(&paclnode->list, get_list_head(pacl_node_q));
-
-			pacl_list->num++;
-
-			break;
-		}
-	}
-
-	DBG_8723A("%s, acl_num =%d\n", __func__, pacl_list->num);
-
-	spin_unlock_bh(&pacl_node_q->lock);
-	return ret;
-}
-
-int rtw_acl_remove_sta23a(struct rtw_adapter *padapter, u8 *addr)
-{
-	struct list_head *phead;
-	struct rtw_wlan_acl_node *paclnode, *ptmp;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
-	struct rtw_queue *pacl_node_q = &pacl_list->acl_node_q;
-
-	DBG_8723A("%s(acl_num =%d) = %pM\n", __func__, pacl_list->num, addr);
-
-	spin_lock_bh(&pacl_node_q->lock);
-	phead = get_list_head(pacl_node_q);
-	list_for_each_entry_safe(paclnode, ptmp, phead, list) {
-		if (!memcmp(paclnode->addr, addr, ETH_ALEN)) {
-			if (paclnode->valid) {
-				paclnode->valid = false;
-
-				list_del_init(&paclnode->list);
-
-				pacl_list->num--;
-			}
-		}
-	}
-	spin_unlock_bh(&pacl_node_q->lock);
-
-	DBG_8723A("%s, acl_num =%d\n", __func__, pacl_list->num);
-
-	return 0;
-}
-
 static void update_bcn_erpinfo_ie(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1596,34 +1509,6 @@ u8 ap_free_sta23a(struct rtw_adapter *padapter, struct sta_info *psta, bool acti
 	spin_unlock_bh(&pstapriv->sta_hash_lock);
 
 	return beacon_updated;
-}
-
-int rtw_ap_inform_ch_switch23a(struct rtw_adapter *padapter, u8 new_ch, u8 ch_offset)
-{
-	struct list_head *phead;
-	struct sta_info *psta = NULL;
-	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-	if ((pmlmeinfo->state&0x03) != MSR_AP)
-		return 0;
-
-	DBG_8723A("%s(%s): with ch:%u, offset:%u\n", __func__,
-		  padapter->pnetdev->name, new_ch, ch_offset);
-
-	spin_lock_bh(&pstapriv->asoc_list_lock);
-	phead = &pstapriv->asoc_list;
-	list_for_each_entry(psta, phead, asoc_list) {
-		issue_action_spct_ch_switch23a(padapter, psta->hwaddr, new_ch, ch_offset);
-		psta->expire_to = ((pstapriv->expire_to * 2) > 5) ? 5 : (pstapriv->expire_to * 2);
-	}
-	spin_unlock_bh(&pstapriv->asoc_list_lock);
-
-	issue_action_spct_ch_switch23a(padapter, bc_addr, new_ch, ch_offset);
-
-	return 0;
 }
 
 int rtw_sta_flush23a(struct rtw_adapter *padapter)
