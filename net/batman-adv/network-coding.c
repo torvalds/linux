@@ -521,12 +521,10 @@ static bool batadv_nc_hash_compare(const struct hlist_node *node,
 	nc_path2 = data2;
 
 	/* Return 1 if the two keys are identical */
-	if (memcmp(nc_path1->prev_hop, nc_path2->prev_hop,
-		   sizeof(nc_path1->prev_hop)) != 0)
+	if (!batadv_compare_eth(nc_path1->prev_hop, nc_path2->prev_hop))
 		return false;
 
-	if (memcmp(nc_path1->next_hop, nc_path2->next_hop,
-		   sizeof(nc_path1->next_hop)) != 0)
+	if (!batadv_compare_eth(nc_path1->next_hop, nc_path2->next_hop))
 		return false;
 
 	return true;
