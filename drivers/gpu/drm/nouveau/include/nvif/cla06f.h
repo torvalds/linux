@@ -11,6 +11,7 @@ struct kepler_channel_gpfifo_a_v0 {
 #define NVA06F_V0_ENGINE_MSPDEC                                      0x00000020
 #define NVA06F_V0_ENGINE_MSPPP                                       0x00000040
 #define NVA06F_V0_ENGINE_MSENC                                       0x00000080
+#define NVA06F_V0_ENGINE_NVDEC                                       0x00000200
 #define NVA06F_V0_ENGINE_NVENC0                                      0x00000400
 #define NVA06F_V0_ENGINE_NVENC1                                      0x00000800
 #define NVA06F_V0_ENGINE_CE0                                         0x00010000
