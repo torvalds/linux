@@ -962,25 +962,29 @@ bus_epilog(struct visor_device *bus_info,
 	bool notified = false;
 	struct controlvm_message_header *pmsg_hdr = NULL;
 
+	down(&notifier_lock);
+
 	if (!bus_info) {
 		/* relying on a valid passed in response code */
 		/* be lazy and re-use msg_hdr for this failure, is this ok?? */
 		pmsg_hdr = msg_hdr;
-		goto away;
+		goto out_respond_and_unlock;
 	}
 
 	if (bus_info->pending_msg_hdr) {
 		/* only non-NULL if dev is still waiting on a response */
 		response = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
 		pmsg_hdr = bus_info->pending_msg_hdr;
-		goto away;
+		goto out_respond_and_unlock;
 	}
 
 	if (need_response) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
-			response = -CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
-			goto away;
+			POSTCODE_LINUX_4(MALLOC_FAILURE_PC, cmd,
+					 bus_info->chipset_bus_no,
+					 POSTCODE_SEVERITY_ERR);
+			goto out_unlock;
 		}
 
 		memcpy(pmsg_hdr, msg_hdr,
@@ -988,7 +992,6 @@ bus_epilog(struct visor_device *bus_info,
 		bus_info->pending_msg_hdr = pmsg_hdr;
 	}
 
-	down(&notifier_lock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
@@ -1005,7 +1008,8 @@ bus_epilog(struct visor_device *bus_info,
 			break;
 		}
 	}
-away:
+
+out_respond_and_unlock:
 	if (notified)
 		/* The callback function just called above is responsible
 		 * for calling the appropriate visorchipset_busdev_responders
@@ -1019,6 +1023,8 @@ away:
 		 * directly and kfree() there.
 		 */
 		bus_responder(cmd, pmsg_hdr, response);
+
+out_unlock:
 	up(&notifier_lock);
 }
 
