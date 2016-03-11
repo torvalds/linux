@@ -101,16 +101,6 @@ gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
 	mutex_unlock(&fifo->base.engine.subdev.mutex);
 }
 
-static inline struct nvkm_engine *
-gk104_fifo_engine(struct gk104_fifo *fifo, u32 engn)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u64 subdevs = gk104_fifo_engine_subdev(engn);
-	if (subdevs)
-		return nvkm_device_engine(device, __ffs(subdevs));
-	return NULL;
-}
-
 static void
 gk104_fifo_recover_work(struct work_struct *w)
 {
@@ -196,13 +186,14 @@ static void
 gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_engine *engine;
 	struct gk104_fifo_chan *chan;
 	unsigned long flags;
 	u32 engn;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	for (engn = 0; engn < fifo->engine_nr; engn++) {
+		struct nvkm_engine *engine = fifo->engine[engn].engine;
+		int runl = fifo->engine[engn].runl;
 		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
 		u32 busy = (stat & 0x80000000);
 		u32 next = (stat & 0x0fff0000) >> 16;
@@ -213,15 +204,13 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 		u32 chid = load ? next : prev;
 		(void)save;
 
-		if (busy && chsw) {
-			list_for_each_entry(chan, &fifo->runlist[engn].chan, head) {
-				if (chan->base.chid == chid) {
-					engine = gk104_fifo_engine(fifo, engn);
-					if (!engine)
-						break;
-					gk104_fifo_recover(fifo, engine, chan);
-					break;
-				}
+		if (!busy || !chsw)
+			continue;
+
+		list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
+			if (chan->base.chid == chid && engine) {
+				gk104_fifo_recover(fifo, engine, chan);
+				break;
 			}
 		}
 	}
