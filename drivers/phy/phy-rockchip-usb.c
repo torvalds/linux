@@ -38,6 +38,10 @@
 #define SIDDQ_ON		BIT(13)
 #define SIDDQ_OFF		(0 << 13)
 
+#define USB2_PHY_WRITE_ENA	(0xffff << 16)
+#define USB2_PHY_SUSPEND	(0x5 << 0 | 0xd << 4 | 0x1 << 8)
+#define USB2_PHY_RESUME	(0)
+
 struct rockchip_usb_phys {
 	int reg;
 	const char *pll_name;
@@ -45,6 +49,9 @@ struct rockchip_usb_phys {
 
 struct rockchip_usb_phy_pdata {
 	struct rockchip_usb_phys *phys;
+	unsigned int phy_pw_on;
+	unsigned int phy_pw_off;
+	bool siddq_ctl;
 };
 
 struct rockchip_usb_phy_base {
@@ -64,10 +71,12 @@ struct rockchip_usb_phy {
 };
 
 static int rockchip_usb_phy_power(struct rockchip_usb_phy *phy,
-					   bool siddq)
+					   bool off)
 {
-	return regmap_write(phy->base->reg_base, phy->reg_offset,
-			    SIDDQ_WRITE_ENA | (siddq ? SIDDQ_ON : SIDDQ_OFF));
+	unsigned int val;
+
+	val = !off ? phy->base->pdata->phy_pw_on : phy->base->pdata->phy_pw_off;
+	return regmap_write(phy->base->reg_base, phy->reg_offset, val);
 }
 
 static unsigned long rockchip_usb_phy480m_recalc_rate(struct clk_hw *hw,
@@ -83,17 +92,22 @@ static void rockchip_usb_phy480m_disable(struct clk_hw *hw)
 						    clk480m_hw);
 
 	/* Power down usb phy analog blocks by set siddq 1 */
-	rockchip_usb_phy_power(phy, 1);
+	if (phy->base->pdata->siddq_ctl)
+		rockchip_usb_phy_power(phy, 1);
 }
 
 static int rockchip_usb_phy480m_enable(struct clk_hw *hw)
 {
+	int ret = 0;
 	struct rockchip_usb_phy *phy = container_of(hw,
 						    struct rockchip_usb_phy,
 						    clk480m_hw);
 
 	/* Power up usb phy analog blocks by set siddq 0 */
-	return rockchip_usb_phy_power(phy, 0);
+	if (phy->base->pdata->siddq_ctl)
+		ret = rockchip_usb_phy_power(phy, 0);
+
+	return ret;
 }
 
 static int rockchip_usb_phy480m_is_enabled(struct clk_hw *hw)
@@ -101,14 +115,18 @@ static int rockchip_usb_phy480m_is_enabled(struct clk_hw *hw)
 	struct rockchip_usb_phy *phy = container_of(hw,
 						    struct rockchip_usb_phy,
 						    clk480m_hw);
-	int ret;
+	int ret = 1;
 	u32 val;
 
-	ret = regmap_read(phy->base->reg_base, phy->reg_offset, &val);
-	if (ret < 0)
-		return ret;
+	if (phy->base->pdata->siddq_ctl) {
+		ret = regmap_read(phy->base->reg_base, phy->reg_offset, &val);
+		if (ret < 0)
+			return ret;
 
-	return (val & SIDDQ_ON) ? 0 : 1;
+		ret = (val & SIDDQ_ON) ? 0 : 1;
+	}
+
+	return ret;
 }
 
 static const struct clk_ops rockchip_usb_phy480m_ops = {
@@ -120,18 +138,32 @@ static const struct clk_ops rockchip_usb_phy480m_ops = {
 
 static int rockchip_usb_phy_power_off(struct phy *_phy)
 {
+	int ret = 0;
 	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
 
-	clk_disable_unprepare(phy->clk480m);
+	if (!phy->base->pdata->siddq_ctl) {
+		ret = rockchip_usb_phy_power(phy, 1);
+		if (ret)
+			return ret;
+	}
 
+	clk_disable_unprepare(phy->clk480m);
 	return 0;
 }
 
 static int rockchip_usb_phy_power_on(struct phy *_phy)
 {
+	int ret = 0;
 	struct rockchip_usb_phy *phy = phy_get_drvdata(_phy);
 
-	return clk_prepare_enable(phy->clk480m);
+	ret = clk_prepare_enable(phy->clk480m);
+	if (ret)
+		return ret;
+
+	if (!phy->base->pdata->siddq_ctl)
+		ret = rockchip_usb_phy_power(phy, 0);
+
+	return ret;
 }
 
 static const struct phy_ops ops = {
@@ -249,6 +281,9 @@ static const struct rockchip_usb_phy_pdata rk3066a_pdata = {
 		{ .reg = 0x188, .pll_name = "sclk_otgphy1_480m" },
 		{ /* sentinel */ }
 	},
+	.phy_pw_on  = SIDDQ_WRITE_ENA | SIDDQ_OFF,
+	.phy_pw_off = SIDDQ_WRITE_ENA | SIDDQ_ON,
+	.siddq_ctl  = true,
 };
 
 static const struct rockchip_usb_phy_pdata rk3188_pdata = {
@@ -257,6 +292,9 @@ static const struct rockchip_usb_phy_pdata rk3188_pdata = {
 		{ .reg = 0x11c, .pll_name = "sclk_otgphy1_480m" },
 		{ /* sentinel */ }
 	},
+	.phy_pw_on  = SIDDQ_WRITE_ENA | SIDDQ_OFF,
+	.phy_pw_off = SIDDQ_WRITE_ENA | SIDDQ_ON,
+	.siddq_ctl  = true,
 };
 
 static const struct rockchip_usb_phy_pdata rk3288_pdata = {
@@ -266,6 +304,20 @@ static const struct rockchip_usb_phy_pdata rk3288_pdata = {
 		{ .reg = 0x348, .pll_name = "sclk_otgphy2_480m" },
 		{ /* sentinel */ }
 	},
+	.phy_pw_on  = SIDDQ_WRITE_ENA | SIDDQ_OFF,
+	.phy_pw_off = SIDDQ_WRITE_ENA | SIDDQ_ON,
+	.siddq_ctl  = true,
+};
+
+static const struct rockchip_usb_phy_pdata rk336x_pdata = {
+	.phys = (struct rockchip_usb_phys[]){
+		{ .reg = 0x700, .pll_name = "sclk_otgphy0_480m" },
+		{ .reg = 0x728, .pll_name = "sclk_otgphy1_480m" },
+		{ /* sentinel */ }
+	},
+	.phy_pw_on  = USB2_PHY_WRITE_ENA | USB2_PHY_RESUME,
+	.phy_pw_off = USB2_PHY_WRITE_ENA | USB2_PHY_SUSPEND,
+	.siddq_ctl  = false,
 };
 
 static int rockchip_usb_phy_probe(struct platform_device *pdev)
@@ -313,6 +365,7 @@ static const struct of_device_id rockchip_usb_phy_dt_ids[] = {
 	{ .compatible = "rockchip,rk3066a-usb-phy", .data = &rk3066a_pdata },
 	{ .compatible = "rockchip,rk3188-usb-phy", .data = &rk3188_pdata },
 	{ .compatible = "rockchip,rk3288-usb-phy", .data = &rk3288_pdata },
+	{ .compatible = "rockchip,rk336x-usb-phy", .data = &rk336x_pdata },
 	{}
 };
 
