@@ -53,6 +53,10 @@ struct sst_dsp_device;
 /* HIPCT */
 #define SKL_ADSP_REG_HIPCT_BUSY		BIT(31)
 
+/* FW base IDs */
+#define SKL_INSTANCE_ID			0
+#define SKL_BASE_FW_MODULE_ID		0
+
 /* Intel HD Audio SRAM Window 1 */
 #define SKL_ADSP_SRAM1_BASE		0xA000
 
