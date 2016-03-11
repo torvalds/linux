@@ -41,6 +41,7 @@
 #include <engine/pm.h>
 #include <engine/sec.h>
 #include <engine/sw.h>
+#include <engine/vic.h>
 #include <engine/vp.h>
 
 int  nvkm_device_ctor(const struct nvkm_device_func *,
