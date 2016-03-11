@@ -1,6 +1,7 @@
 #include <linux/init.h>
 #include <linux/init_task.h>
 #include <linux/reboot.h>
+#include <linux/tick.h>
 #include <linux/fs.h>
 #include <linux/start_kernel.h>
 #include <linux/syscalls.h>
@@ -145,6 +146,10 @@ void arch_cpu_idle(void)
 		 * segfault because the tx/rx threads are still
 		 * running in parallel. */
 		/* free_mem(); */
+
+		/* Shutdown the clockevents source. */
+		tick_suspend_local();
+
 		lkl_ops->sem_up(halt_sem);
 		lkl_ops->thread_exit();
 	}
