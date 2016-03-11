@@ -180,7 +180,6 @@ extern int amdgpu_powerplay;
 #define CIK_CURSOR_HEIGHT 128
 
 struct amdgpu_device;
-struct amdgpu_fence;
 struct amdgpu_ib;
 struct amdgpu_vm;
 struct amdgpu_ring;
@@ -402,16 +401,6 @@ struct amdgpu_fence_driver {
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
-
-struct amdgpu_fence {
-	struct fence base;
-
-	/* RB, DMA, etc. */
-	struct amdgpu_ring		*ring;
-	uint64_t			seq;
-
-	wait_queue_t			fence_wake;
-};
 
 struct amdgpu_user_fence {
 	/* write-back bo */
@@ -2107,20 +2096,6 @@ void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
-
-/*
- * Cast helper
- */
-extern const struct fence_ops amdgpu_fence_ops;
-static inline struct amdgpu_fence *to_amdgpu_fence(struct fence *f)
-{
-	struct amdgpu_fence *__f = container_of(f, struct amdgpu_fence, base);
-
-	if (__f->base.ops == &amdgpu_fence_ops)
-		return __f;
-
-	return NULL;
-}
 
 /*
  * Registers read & write functions.

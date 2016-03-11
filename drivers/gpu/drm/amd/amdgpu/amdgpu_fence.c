@@ -47,8 +47,32 @@
  * that the the relevant GPU caches have been flushed.
  */
 
+struct amdgpu_fence {
+	struct fence base;
+
+	/* RB, DMA, etc. */
+	struct amdgpu_ring		*ring;
+	uint64_t			seq;
+
+	wait_queue_t			fence_wake;
+};
+
 static struct kmem_cache *amdgpu_fence_slab;
 static atomic_t amdgpu_fence_slab_ref = ATOMIC_INIT(0);
+
+/*
+ * Cast helper
+ */
+static const struct fence_ops amdgpu_fence_ops;
+static inline struct amdgpu_fence *to_amdgpu_fence(struct fence *f)
+{
+	struct amdgpu_fence *__f = container_of(f, struct amdgpu_fence, base);
+
+	if (__f->base.ops == &amdgpu_fence_ops)
+		return __f;
+
+	return NULL;
+}
 
 /**
  * amdgpu_fence_write - write a fence value
@@ -663,7 +687,7 @@ static void amdgpu_fence_release(struct fence *f)
 	kmem_cache_free(amdgpu_fence_slab, fence);
 }
 
-const struct fence_ops amdgpu_fence_ops = {
+static const struct fence_ops amdgpu_fence_ops = {
 	.get_driver_name = amdgpu_fence_get_driver_name,
 	.get_timeline_name = amdgpu_fence_get_timeline_name,
 	.enable_signaling = amdgpu_fence_enable_signaling,
