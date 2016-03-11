@@ -148,11 +148,11 @@ gf100_fifo_recover_work(struct work_struct *w)
 	fifo->recover.mask = 0ULL;
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn))
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn))
 		engm |= 1 << gf100_fifo_engidx(fifo, engn);
 	nvkm_mask(device, 0x002630, engm, engm);
 
-	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~(1 << engn)) {
+	for (todo = mask; engn = __ffs64(todo), todo; todo &= ~BIT_ULL(engn)) {
 		if ((engine = nvkm_device_engine(device, engn))) {
 			nvkm_subdev_fini(&engine->subdev, false);
 			WARN_ON(nvkm_subdev_init(&engine->subdev));
