@@ -283,7 +283,7 @@ __be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
 
 static int mlx5_use_mad_ifc(struct mlx5_ib_dev *dev)
 {
-	return !dev->mdev->issi;
+	return !MLX5_CAP_GEN(dev->mdev, ib_virt);
 }
 
 enum {
