@@ -1555,7 +1555,7 @@ static int debug_shrink_set(void *data, u64 val)
 	struct shrink_control sc;
 	int objs;
 
-	sc.gfp_mask = -1;
+	sc.gfp_mask = GFP_HIGHUSER;
 	sc.nr_to_scan = val;
 
 	if (!val) {
@@ -1573,7 +1573,7 @@ static int debug_shrink_get(void *data, u64 *val)
 	struct shrink_control sc;
 	int objs;
 
-	sc.gfp_mask = -1;
+	sc.gfp_mask = GFP_HIGHUSER;
 	sc.nr_to_scan = 0;
 
 	objs = heap->shrinker.count_objects(&heap->shrinker, &sc);
