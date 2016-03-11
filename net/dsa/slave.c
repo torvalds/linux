@@ -896,11 +896,15 @@ static void dsa_slave_adjust_link(struct net_device *dev)
 static int dsa_slave_fixed_link_update(struct net_device *dev,
 				       struct fixed_phy_status *status)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->parent;
+	struct dsa_slave_priv *p;
+	struct dsa_switch *ds;
 
-	if (ds->drv->fixed_link_update)
-		ds->drv->fixed_link_update(ds, p->port, status);
+	if (dev) {
+		p = netdev_priv(dev);
+		ds = p->parent;
+		if (ds->drv->fixed_link_update)
+			ds->drv->fixed_link_update(ds, p->port, status);
+	}
 
 	return 0;
 }
