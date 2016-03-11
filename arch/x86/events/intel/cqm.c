@@ -14,10 +14,15 @@
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 
 #define MBM_CNTR_WIDTH		24
+/*
+ * Guaranteed time in ms as per SDM where MBM counters will not overflow.
+ */
+#define MBM_CTR_OVERFLOW_TIME	1000
 
 static u32 cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 static bool cqm_enabled, mbm_enabled;
+unsigned int mbm_socket_max;
 
 /**
  * struct intel_pqr_state - State cache for the PQR MSR
@@ -45,6 +50,7 @@ struct intel_pqr_state {
  * interrupts disabled, which is sufficient for the protection.
  */
 static DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+static struct hrtimer *mbm_timers;
 /**
  * struct sample - mbm event's (local or total) data
  * @total_bytes    #bytes since we began monitoring
@@ -945,6 +951,10 @@ static u64 update_sample(unsigned int rmid, u32 evt_type, int first)
 		return mbm_current->total_bytes;
 	}
 
+	/*
+	 * The h/w guarantees that counters will not overflow
+	 * so long as we poll them at least once per second.
+	 */
 	shift = 64 - MBM_CNTR_WIDTH;
 	bytes = (val << shift) - (mbm_current->prev_msr << shift);
 	bytes >>= shift;
@@ -1088,6 +1098,84 @@ static void __intel_mbm_event_count(void *info)
 	atomic64_add(val, &rr->value);
 }
 
+static enum hrtimer_restart mbm_hrtimer_handle(struct hrtimer *hrtimer)
+{
+	struct perf_event *iter, *iter1;
+	int ret = HRTIMER_RESTART;
+	struct list_head *head;
+	unsigned long flags;
+	u32 grp_rmid;
+
+	/*
+	 * Need to cache_lock as the timer Event Select MSR reads
+	 * can race with the mbm/cqm count() and mbm_init() reads.
+	 */
+	raw_spin_lock_irqsave(&cache_lock, flags);
+
+	if (list_empty(&cache_groups)) {
+		ret = HRTIMER_NORESTART;
+		goto out;
+	}
+
+	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
+		grp_rmid = iter->hw.cqm_rmid;
+		if (!__rmid_valid(grp_rmid))
+			continue;
+		if (is_mbm_event(iter->attr.config))
+			update_sample(grp_rmid, iter->attr.config, 0);
+
+		head = &iter->hw.cqm_group_entry;
+		if (list_empty(head))
+			continue;
+		list_for_each_entry(iter1, head, hw.cqm_group_entry) {
+			if (!iter1->hw.is_group_event)
+				break;
+			if (is_mbm_event(iter1->attr.config))
+				update_sample(iter1->hw.cqm_rmid,
+					      iter1->attr.config, 0);
+		}
+	}
+
+	hrtimer_forward_now(hrtimer, ms_to_ktime(MBM_CTR_OVERFLOW_TIME));
+out:
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
+
+	return ret;
+}
+
+static void __mbm_start_timer(void *info)
+{
+	hrtimer_start(&mbm_timers[pkg_id], ms_to_ktime(MBM_CTR_OVERFLOW_TIME),
+			     HRTIMER_MODE_REL_PINNED);
+}
+
+static void __mbm_stop_timer(void *info)
+{
+	hrtimer_cancel(&mbm_timers[pkg_id]);
+}
+
+static void mbm_start_timers(void)
+{
+	on_each_cpu_mask(&cqm_cpumask, __mbm_start_timer, NULL, 1);
+}
+
+static void mbm_stop_timers(void)
+{
+	on_each_cpu_mask(&cqm_cpumask, __mbm_stop_timer, NULL, 1);
+}
+
+static void mbm_hrtimer_init(void)
+{
+	struct hrtimer *hr;
+	int i;
+
+	for (i = 0; i < mbm_socket_max; i++) {
+		hr = &mbm_timers[i];
+		hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hr->function = mbm_hrtimer_handle;
+	}
+}
+
 static u64 intel_cqm_event_count(struct perf_event *event)
 {
 	unsigned long flags;
@@ -1217,8 +1305,14 @@ static int intel_cqm_event_add(struct perf_event *event, int mode)
 static void intel_cqm_event_destroy(struct perf_event *event)
 {
 	struct perf_event *group_other = NULL;
+	unsigned long flags;
 
 	mutex_lock(&cache_mutex);
+	/*
+	* Hold the cache_lock as mbm timer handlers could be
+	* scanning the list of events.
+	*/
+	raw_spin_lock_irqsave(&cache_lock, flags);
 
 	/*
 	 * If there's another event in this group...
@@ -1250,6 +1344,14 @@ static void intel_cqm_event_destroy(struct perf_event *event)
 		}
 	}
 
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
+
+	/*
+	 * Stop the mbm overflow timers when the last event is destroyed.
+	*/
+	if (mbm_enabled && list_empty(&cache_groups))
+		mbm_stop_timers();
+
 	mutex_unlock(&cache_mutex);
 }
 
@@ -1257,6 +1359,7 @@ static int intel_cqm_event_init(struct perf_event *event)
 {
 	struct perf_event *group = NULL;
 	bool rotate = false;
+	unsigned long flags;
 
 	if (event->attr.type != intel_cqm_pmu.type)
 		return -ENOENT;
@@ -1282,8 +1385,20 @@ static int intel_cqm_event_init(struct perf_event *event)
 
 	mutex_lock(&cache_mutex);
 
+	/*
+	 * Start the mbm overflow timers when the first event is created.
+	*/
+	if (mbm_enabled && list_empty(&cache_groups))
+		mbm_start_timers();
+
 	/* Will also set rmid */
 	intel_cqm_setup_event(event, &group);
+
+	/*
+	* Hold the cache_lock as mbm timer handlers be
+	* scanning the list of events.
+	*/
+	raw_spin_lock_irqsave(&cache_lock, flags);
 
 	if (group) {
 		list_add_tail(&event->hw.cqm_group_entry,
@@ -1303,6 +1418,7 @@ static int intel_cqm_event_init(struct perf_event *event)
 			rotate = true;
 	}
 
+	raw_spin_unlock_irqrestore(&cache_lock, flags);
 	mutex_unlock(&cache_mutex);
 
 	if (rotate)
@@ -1536,20 +1652,33 @@ static const struct x86_cpu_id intel_mbm_total_match[] = {
 
 static int intel_mbm_init(void)
 {
-	int array_size, maxid = cqm_max_rmid + 1;
+	int ret = 0, array_size, maxid = cqm_max_rmid + 1;
 
-	array_size = sizeof(struct sample) * maxid * topology_max_packages();
+	mbm_socket_max = topology_max_packages();
+	array_size = sizeof(struct sample) * maxid * mbm_socket_max;
 	mbm_local = kmalloc(array_size, GFP_KERNEL);
 	if (!mbm_local)
 		return -ENOMEM;
 
 	mbm_total = kmalloc(array_size, GFP_KERNEL);
 	if (!mbm_total) {
-		mbm_cleanup();
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
-	return 0;
+	array_size = sizeof(struct hrtimer) * mbm_socket_max;
+	mbm_timers = kmalloc(array_size, GFP_KERNEL);
+	if (!mbm_timers) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	mbm_hrtimer_init();
+
+out:
+	if (ret)
+		mbm_cleanup();
+
+	return ret;
 }
 
 static int __init intel_cqm_init(void)
