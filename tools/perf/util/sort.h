@@ -37,6 +37,7 @@ extern int sort__has_parent;
 extern int sort__has_sym;
 extern int sort__has_socket;
 extern int sort__has_thread;
+extern int sort__has_comm;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
@@ -129,7 +130,6 @@ struct hist_entry {
 	void			*raw_data;
 	u32			raw_size;
 	void			*trace_output;
-	struct perf_hpp_fmt	*fmt;
 	struct perf_hpp_list	*hpp_list;
 	struct hist_entry	*parent_he;
 	union {

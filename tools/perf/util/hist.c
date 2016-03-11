@@ -1087,10 +1087,103 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
  */
 
 static void hists__apply_filters(struct hists *hists, struct hist_entry *he);
+static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *he,
+				       enum hist_filter type);
+
+typedef bool (*fmt_chk_fn)(struct perf_hpp_fmt *fmt);
+
+static bool check_thread_entry(struct perf_hpp_fmt *fmt)
+{
+	return perf_hpp__is_thread_entry(fmt) || perf_hpp__is_comm_entry(fmt);
+}
+
+static void hist_entry__check_and_remove_filter(struct hist_entry *he,
+						enum hist_filter type,
+						fmt_chk_fn check)
+{
+	struct perf_hpp_fmt *fmt;
+	bool type_match = false;
+	struct hist_entry *parent = he->parent_he;
+
+	switch (type) {
+	case HIST_FILTER__THREAD:
+		if (symbol_conf.comm_list == NULL &&
+		    symbol_conf.pid_list == NULL &&
+		    symbol_conf.tid_list == NULL)
+			return;
+		break;
+	case HIST_FILTER__DSO:
+		if (symbol_conf.dso_list == NULL)
+			return;
+		break;
+	case HIST_FILTER__SYMBOL:
+		if (symbol_conf.sym_list == NULL)
+			return;
+		break;
+	case HIST_FILTER__PARENT:
+	case HIST_FILTER__GUEST:
+	case HIST_FILTER__HOST:
+	case HIST_FILTER__SOCKET:
+	default:
+		return;
+	}
+
+	/* if it's filtered by own fmt, it has to have filter bits */
+	perf_hpp_list__for_each_format(he->hpp_list, fmt) {
+		if (check(fmt)) {
+			type_match = true;
+			break;
+		}
+	}
+
+	if (type_match) {
+		/*
+		 * If the filter is for current level entry, propagate
+		 * filter marker to parents.  The marker bit was
+		 * already set by default so it only needs to clear
+		 * non-filtered entries.
+		 */
+		if (!(he->filtered & (1 << type))) {
+			while (parent) {
+				parent->filtered &= ~(1 << type);
+				parent = parent->parent_he;
+			}
+		}
+	} else {
+		/*
+		 * If current entry doesn't have matching formats, set
+		 * filter marker for upper level entries.  it will be
+		 * cleared if its lower level entries is not filtered.
+		 *
+		 * For lower-level entries, it inherits parent's
+		 * filter bit so that lower level entries of a
+		 * non-filtered entry won't set the filter marker.
+		 */
+		if (parent == NULL)
+			he->filtered |= (1 << type);
+		else
+			he->filtered |= (parent->filtered & (1 << type));
+	}
+}
+
+static void hist_entry__apply_hierarchy_filters(struct hist_entry *he)
+{
+	hist_entry__check_and_remove_filter(he, HIST_FILTER__THREAD,
+					    check_thread_entry);
+
+	hist_entry__check_and_remove_filter(he, HIST_FILTER__DSO,
+					    perf_hpp__is_dso_entry);
+
+	hist_entry__check_and_remove_filter(he, HIST_FILTER__SYMBOL,
+					    perf_hpp__is_sym_entry);
+
+	hists__apply_filters(he->hists, he);
+}
 
 static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 						 struct rb_root *root,
 						 struct hist_entry *he,
+						 struct hist_entry *parent_he,
 						 struct perf_hpp_list *hpp_list)
 {
 	struct rb_node **p = &root->rb_node;
@@ -1125,11 +1218,13 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 	if (new == NULL)
 		return NULL;
 
-	hists__apply_filters(hists, new);
 	hists->nr_entries++;
 
 	/* save related format list for output */
 	new->hpp_list = hpp_list;
+	new->parent_he = parent_he;
+
+	hist_entry__apply_hierarchy_filters(new);
 
 	/* some fields are now passed to 'new' */
 	perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
@@ -1170,14 +1265,13 @@ static int hists__hierarchy_insert_entry(struct hists *hists,
 			continue;
 
 		/* insert copy of 'he' for each fmt into the hierarchy */
-		new_he = hierarchy_insert_entry(hists, root, he, &node->hpp);
+		new_he = hierarchy_insert_entry(hists, root, he, parent, &node->hpp);
 		if (new_he == NULL) {
 			ret = -1;
 			break;
 		}
 
 		root = &new_he->hroot_in;
-		new_he->parent_he = parent;
 		new_he->depth = depth++;
 		parent = new_he;
 	}
@@ -1359,6 +1453,31 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 	hists->stats.total_period += h->stat.period;
 }
 
+static void hierarchy_recalc_total_periods(struct hists *hists)
+{
+	struct rb_node *node;
+	struct hist_entry *he;
+
+	node = rb_first(&hists->entries);
+
+	hists->stats.total_period = 0;
+	hists->stats.total_non_filtered_period = 0;
+
+	/*
+	 * recalculate total period using top-level entries only
+	 * since lower level entries only see non-filtered entries
+	 * but upper level entries have sum of both entries.
+	 */
+	while (node) {
+		he = rb_entry(node, struct hist_entry, rb_node);
+		node = rb_next(node);
+
+		hists->stats.total_period += he->stat.period;
+		if (!he->filtered)
+			hists->stats.total_non_filtered_period += he->stat.period;
+	}
+}
+
 static void hierarchy_insert_output_entry(struct rb_root *root,
 					  struct hist_entry *he)
 {
@@ -1423,11 +1542,6 @@ static void hists__hierarchy_output_resort(struct hists *hists,
 
 			continue;
 		}
-
-		/* only update stat for leaf entries to avoid duplication */
-		hists__inc_stats(hists, he);
-		if (!he->filtered)
-			hists__calc_col_len(hists, he);
 
 		if (!use_callchain)
 			continue;
@@ -1508,11 +1622,13 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	hists__reset_col_len(hists);
 
 	if (symbol_conf.report_hierarchy) {
-		return hists__hierarchy_output_resort(hists, prog,
-						      &hists->entries_collapsed,
-						      &hists->entries,
-						      min_callchain_hits,
-						      use_callchain);
+		hists__hierarchy_output_resort(hists, prog,
+					       &hists->entries_collapsed,
+					       &hists->entries,
+					       min_callchain_hits,
+					       use_callchain);
+		hierarchy_recalc_total_periods(hists);
+		return;
 	}
 
 	if (sort__need_collapse)
@@ -1832,6 +1948,8 @@ static void hists__filter_hierarchy(struct hists *hists, int type, const void *a
 			nd = __rb_hierarchy_next(&h->rb_node, HMD_FORCE_SIBLING);
 		}
 	}
+
+	hierarchy_recalc_total_periods(hists);
 
 	/*
 	 * resort output after applying a new filter since filter in a lower

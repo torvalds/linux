@@ -515,9 +515,6 @@ void perf_hpp_list__column_register(struct perf_hpp_list *list,
 void perf_hpp_list__register_sort_field(struct perf_hpp_list *list,
 					struct perf_hpp_fmt *format)
 {
-	if (perf_hpp__is_sort_entry(format) || perf_hpp__is_dynamic_entry(format))
-		list->nr_sort_keys++;
-
 	list_add_tail(&format->sort_list, &list->sorts);
 }
 

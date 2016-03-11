@@ -1928,8 +1928,7 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 
 static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 						 struct hist_entry *he,
-						 FILE *fp, int level,
-						 int nr_sort_keys)
+						 FILE *fp, int level)
 {
 	char s[8192];
 	int printed = 0;
@@ -1939,23 +1938,20 @@ static int hist_browser__fprintf_hierarchy_entry(struct hist_browser *browser,
 		.size = sizeof(s),
 	};
 	struct perf_hpp_fmt *fmt;
+	struct perf_hpp_list_node *fmt_node;
 	bool first = true;
 	int ret;
-	int hierarchy_indent = nr_sort_keys * HIERARCHY_INDENT;
+	int hierarchy_indent = (he->hists->nr_hpp_node - 2) * HIERARCHY_INDENT;
 
 	printed = fprintf(fp, "%*s", level * HIERARCHY_INDENT, "");
 
 	folded_sign = hist_entry__folded(he);
 	printed += fprintf(fp, "%c", folded_sign);
 
-	hists__for_each_format(he->hists, fmt) {
-		if (perf_hpp__should_skip(fmt, he->hists))
-			continue;
-
-		if (perf_hpp__is_sort_entry(fmt) ||
-		    perf_hpp__is_dynamic_entry(fmt))
-			break;
-
+	/* the first hpp_list_node is for overhead columns */
+	fmt_node = list_first_entry(&he->hists->hpp_formats,
+				    struct perf_hpp_list_node, list);
+	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
 		if (!first) {
 			ret = scnprintf(hpp.buf, hpp.size, "  ");
 			advance_hpp(&hpp, ret);
@@ -1992,7 +1988,6 @@ static int hist_browser__fprintf(struct hist_browser *browser, FILE *fp)
 	struct rb_node *nd = hists__filter_entries(rb_first(browser->b.entries),
 						   browser->min_pcnt);
 	int printed = 0;
-	int nr_sort = browser->hists->nr_sort_keys;
 
 	while (nd) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
@@ -2000,8 +1995,7 @@ static int hist_browser__fprintf(struct hist_browser *browser, FILE *fp)
 		if (symbol_conf.report_hierarchy) {
 			printed += hist_browser__fprintf_hierarchy_entry(browser,
 									 h, fp,
-									 h->depth,
-									 nr_sort);
+									 h->depth);
 		} else {
 			printed += hist_browser__fprintf_entry(browser, h, fp);
 		}
@@ -2142,11 +2136,18 @@ static int hists__browser_title(struct hists *hists,
 	if (hists->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
 				    ", UID: %s", hists->uid_filter_str);
-	if (thread)
-		printed += scnprintf(bf + printed, size - printed,
+	if (thread) {
+		if (sort__has_thread) {
+			printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				     (thread->comm_set ? thread__comm_str(thread) : ""),
 				    thread->tid);
+		} else {
+			printed += scnprintf(bf + printed, size - printed,
+				    ", Thread: %s",
+				     (thread->comm_set ? thread__comm_str(thread) : ""));
+		}
+	}
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
@@ -2321,15 +2322,24 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 {
 	struct thread *thread = act->thread;
 
+	if ((!sort__has_thread && !sort__has_comm) || thread == NULL)
+		return 0;
+
 	if (browser->hists->thread_filter) {
 		pstack__remove(browser->pstack, &browser->hists->thread_filter);
 		perf_hpp__set_elide(HISTC_THREAD, false);
 		thread__zput(browser->hists->thread_filter);
 		ui_helpline__pop();
 	} else {
-		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
-				   thread->comm_set ? thread__comm_str(thread) : "",
-				   thread->tid);
+		if (sort__has_thread) {
+			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
+					   thread->comm_set ? thread__comm_str(thread) : "",
+					   thread->tid);
+		} else {
+			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s thread\"",
+					   thread->comm_set ? thread__comm_str(thread) : "");
+		}
+
 		browser->hists->thread_filter = thread__get(thread);
 		perf_hpp__set_elide(HISTC_THREAD, false);
 		pstack__push(browser->pstack, &browser->hists->thread_filter);
@@ -2344,13 +2354,22 @@ static int
 add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, struct thread *thread)
 {
-	if (!sort__has_thread || thread == NULL)
+	int ret;
+
+	if ((!sort__has_thread && !sort__has_comm) || thread == NULL)
 		return 0;
 
-	if (asprintf(optstr, "Zoom %s %s(%d) thread",
-		     browser->hists->thread_filter ? "out of" : "into",
-		     thread->comm_set ? thread__comm_str(thread) : "",
-		     thread->tid) < 0)
+	if (sort__has_thread) {
+		ret = asprintf(optstr, "Zoom %s %s(%d) thread",
+			       browser->hists->thread_filter ? "out of" : "into",
+			       thread->comm_set ? thread__comm_str(thread) : "",
+			       thread->tid);
+	} else {
+		ret = asprintf(optstr, "Zoom %s %s thread",
+			       browser->hists->thread_filter ? "out of" : "into",
+			       thread->comm_set ? thread__comm_str(thread) : "");
+	}
+	if (ret < 0)
 		return 0;
 
 	act->thread = thread;
@@ -2362,6 +2381,9 @@ static int
 do_zoom_dso(struct hist_browser *browser, struct popup_action *act)
 {
 	struct map *map = act->ms.map;
+
+	if (!sort__has_dso || map == NULL)
+		return 0;
 
 	if (browser->hists->dso_filter) {
 		pstack__remove(browser->pstack, &browser->hists->dso_filter);
@@ -2514,6 +2536,9 @@ add_exit_opt(struct hist_browser *browser __maybe_unused,
 static int
 do_zoom_socket(struct hist_browser *browser, struct popup_action *act)
 {
+	if (!sort__has_socket || act->socket < 0)
+		return 0;
+
 	if (browser->hists->socket_filter > -1) {
 		pstack__remove(browser->pstack, &browser->hists->socket_filter);
 		browser->hists->socket_filter = -1;

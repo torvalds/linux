@@ -98,7 +98,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	char scale[128];
 	int fd, ret = -1;
 	char path[PATH_MAX];
-	const char *lc;
+	char *lc;
 
 	snprintf(path, PATH_MAX, "%s/%s.scale", dir, name);
 
@@ -146,7 +146,7 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	/* restore locale */
 	setlocale(LC_NUMERIC, lc);
 
-	free((char *) lc);
+	free(lc);
 
 	ret = 0;
 error:

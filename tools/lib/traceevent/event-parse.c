@@ -2398,6 +2398,12 @@ static int arg_num_eval(struct print_arg *arg, long long *val)
 				break;
 			*val = left + right;
 			break;
+		case '~':
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
+			*val = ~right;
+			break;
 		default:
 			do_warning("unknown op '%s'", arg->op.op);
 			ret = 0;

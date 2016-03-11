@@ -79,7 +79,6 @@ struct hists {
 	int			socket_filter;
 	struct perf_hpp_list	*hpp_list;
 	struct list_head	hpp_formats;
-	int			nr_sort_keys;
 	int			nr_hpp_node;
 };
 
@@ -241,7 +240,6 @@ struct perf_hpp_fmt {
 struct perf_hpp_list {
 	struct list_head fields;
 	struct list_head sorts;
-	int nr_sort_keys;
 };
 
 extern struct perf_hpp_list perf_hpp_list;
@@ -318,6 +316,10 @@ bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt, struct hists *his
 bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcline_entry(struct perf_hpp_fmt *fmt);
 bool perf_hpp__is_srcfile_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_thread_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_comm_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_dso_entry(struct perf_hpp_fmt *fmt);
+bool perf_hpp__is_sym_entry(struct perf_hpp_fmt *fmt);
 
 struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt);
 
