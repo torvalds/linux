@@ -50,6 +50,7 @@ int
 lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 {
 	lnet_test_peer_t *tp;
+	lnet_test_peer_t *temp;
 	struct list_head *el;
 	struct list_head *next;
 	struct list_head cull;
@@ -88,9 +89,7 @@ lnet_fail_nid(lnet_nid_t nid, unsigned int threshold)
 
 	lnet_net_unlock(0);
 
-	while (!list_empty(&cull)) {
-		tp = list_entry(cull.next, lnet_test_peer_t, tp_list);
-
+	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
 		LIBCFS_FREE(tp, sizeof(*tp));
 	}
@@ -101,6 +100,7 @@ static int
 fail_peer(lnet_nid_t nid, int outgoing)
 {
 	lnet_test_peer_t *tp;
+	lnet_test_peer_t *temp;
 	struct list_head *el;
 	struct list_head *next;
 	struct list_head cull;
@@ -147,8 +147,7 @@ fail_peer(lnet_nid_t nid, int outgoing)
 
 	lnet_net_unlock(0);
 
-	while (!list_empty(&cull)) {
-		tp = list_entry(cull.next, lnet_test_peer_t, tp_list);
+	list_for_each_entry_safe(tp, temp, &cull, tp_list) {
 		list_del(&tp->tp_list);
 
 		LIBCFS_FREE(tp, sizeof(*tp));
