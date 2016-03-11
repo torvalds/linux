@@ -13,6 +13,8 @@
 #define MSR_IA32_QM_CTR		0x0c8e
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 
+#define MBM_CNTR_WIDTH		24
+
 static u32 cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 static bool cqm_enabled, mbm_enabled;
@@ -62,6 +64,16 @@ static struct sample *mbm_total;
  */
 static struct sample *mbm_local;
 
+#define pkg_id	topology_physical_package_id(smp_processor_id())
+/*
+ * rmid_2_index returns the index for the rmid in mbm_local/mbm_total array.
+ * mbm_total[] and mbm_local[] are linearly indexed by socket# * max number of
+ * rmids per socket, an example is given below
+ * RMID1 of Socket0:  vrmid =  1
+ * RMID1 of Socket1:  vrmid =  1 * (cqm_max_rmid + 1) + 1
+ * RMID1 of Socket2:  vrmid =  2 * (cqm_max_rmid + 1) + 1
+ */
+#define rmid_2_index(rmid)  ((pkg_id * (cqm_max_rmid + 1)) + rmid)
 /*
  * Protects cache_cgroups and cqm_rmid_free_lru and cqm_rmid_limbo_lru.
  * Also protects event->hw.cqm_rmid
@@ -84,9 +96,13 @@ static cpumask_t cqm_cpumask;
 #define RMID_VAL_ERROR		(1ULL << 63)
 #define RMID_VAL_UNAVAIL	(1ULL << 62)
 
-#define QOS_L3_OCCUP_EVENT_ID	(1 << 0)
-
-#define QOS_EVENT_MASK	QOS_L3_OCCUP_EVENT_ID
+/*
+ * Event IDs are used to program IA32_QM_EVTSEL before reading event
+ * counter from IA32_QM_CTR
+ */
+#define QOS_L3_OCCUP_EVENT_ID	0x01
+#define QOS_MBM_TOTAL_EVENT_ID	0x02
+#define QOS_MBM_LOCAL_EVENT_ID	0x03
 
 /*
  * This is central to the rotation algorithm in __intel_cqm_rmid_rotate().
@@ -428,10 +444,17 @@ static bool __conflict_event(struct perf_event *a, struct perf_event *b)
 
 struct rmid_read {
 	u32 rmid;
+	u32 evt_type;
 	atomic64_t value;
 };
 
 static void __intel_cqm_event_count(void *info);
+static void init_mbm_sample(u32 rmid, u32 evt_type);
+
+static bool is_mbm_event(int e)
+{
+	return (e >= QOS_MBM_TOTAL_EVENT_ID && e <= QOS_MBM_LOCAL_EVENT_ID);
+}
 
 /*
  * Exchange the RMID of a group of events.
@@ -873,6 +896,68 @@ static void intel_cqm_rmid_rotate(struct work_struct *work)
 	schedule_delayed_work(&intel_cqm_rmid_work, delay);
 }
 
+static u64 update_sample(unsigned int rmid, u32 evt_type, int first)
+{
+	struct sample *mbm_current;
+	u32 vrmid = rmid_2_index(rmid);
+	u64 val, bytes, shift;
+	u32 eventid;
+
+	if (evt_type == QOS_MBM_LOCAL_EVENT_ID) {
+		mbm_current = &mbm_local[vrmid];
+		eventid     = QOS_MBM_LOCAL_EVENT_ID;
+	} else {
+		mbm_current = &mbm_total[vrmid];
+		eventid     = QOS_MBM_TOTAL_EVENT_ID;
+	}
+
+	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
+	rdmsrl(MSR_IA32_QM_CTR, val);
+	if (val & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+		return mbm_current->total_bytes;
+
+	if (first) {
+		mbm_current->prev_msr = val;
+		mbm_current->total_bytes = 0;
+		return mbm_current->total_bytes;
+	}
+
+	shift = 64 - MBM_CNTR_WIDTH;
+	bytes = (val << shift) - (mbm_current->prev_msr << shift);
+	bytes >>= shift;
+
+	bytes *= cqm_l3_scale;
+
+	mbm_current->total_bytes += bytes;
+	mbm_current->prev_msr = val;
+
+	return mbm_current->total_bytes;
+}
+
+static u64 rmid_read_mbm(unsigned int rmid, u32 evt_type)
+{
+	return update_sample(rmid, evt_type, 0);
+}
+
+static void __intel_mbm_event_init(void *info)
+{
+	struct rmid_read *rr = info;
+
+	update_sample(rr->rmid, rr->evt_type, 1);
+}
+
+static void init_mbm_sample(u32 rmid, u32 evt_type)
+{
+	struct rmid_read rr = {
+		.rmid = rmid,
+		.evt_type = evt_type,
+		.value = ATOMIC64_INIT(0),
+	};
+
+	/* on each socket, init sample */
+	on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_init, &rr, 1);
+}
+
 /*
  * Find a group and setup RMID.
  *
@@ -893,6 +978,8 @@ static void intel_cqm_setup_event(struct perf_event *event,
 			/* All tasks in a group share an RMID */
 			event->hw.cqm_rmid = rmid;
 			*group = iter;
+			if (is_mbm_event(event->attr.config))
+				init_mbm_sample(rmid, event->attr.config);
 			return;
 		}
 
@@ -908,6 +995,9 @@ static void intel_cqm_setup_event(struct perf_event *event,
 		rmid = INVALID_RMID;
 	else
 		rmid = __get_rmid();
+
+	if (is_mbm_event(event->attr.config))
+		init_mbm_sample(rmid, event->attr.config);
 
 	event->hw.cqm_rmid = rmid;
 }
@@ -930,7 +1020,10 @@ static void intel_cqm_event_read(struct perf_event *event)
 	if (!__rmid_valid(rmid))
 		goto out;
 
-	val = __rmid_read(rmid);
+	if (is_mbm_event(event->attr.config))
+		val = rmid_read_mbm(rmid, event->attr.config);
+	else
+		val = __rmid_read(rmid);
 
 	/*
 	 * Ignore this reading on error states and do not update the value.
@@ -959,6 +1052,17 @@ static void __intel_cqm_event_count(void *info)
 static inline bool cqm_group_leader(struct perf_event *event)
 {
 	return !list_empty(&event->hw.cqm_groups_entry);
+}
+
+static void __intel_mbm_event_count(void *info)
+{
+	struct rmid_read *rr = info;
+	u64 val;
+
+	val = rmid_read_mbm(rr->rmid, rr->evt_type);
+	if (val & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL))
+		return;
+	atomic64_add(val, &rr->value);
 }
 
 static u64 intel_cqm_event_count(struct perf_event *event)
@@ -1014,7 +1118,12 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	if (!__rmid_valid(rr.rmid))
 		goto out;
 
-	on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, &rr, 1);
+	if (is_mbm_event(event->attr.config)) {
+		rr.evt_type = event->attr.config;
+		on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count, &rr, 1);
+	} else {
+		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, &rr, 1);
+	}
 
 	raw_spin_lock_irqsave(&cache_lock, flags);
 	if (event->hw.cqm_rmid == rr.rmid)
@@ -1129,7 +1238,8 @@ static int intel_cqm_event_init(struct perf_event *event)
 	if (event->attr.type != intel_cqm_pmu.type)
 		return -ENOENT;
 
-	if (event->attr.config & ~QOS_EVENT_MASK)
+	if ((event->attr.config < QOS_L3_OCCUP_EVENT_ID) ||
+	     (event->attr.config > QOS_MBM_LOCAL_EVENT_ID))
 		return -EINVAL;
 
 	/* unsupported modes and filters */
