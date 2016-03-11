@@ -185,9 +185,9 @@ static int ina2xx_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->address) {
 		case INA2XX_SHUNT_VOLTAGE:
-			/* processed (mV) = raw*1000/shunt_div */
+			/* processed (mV) = raw/shunt_div */
 			*val2 = chip->config->shunt_div;
-			*val = 1000;
+			*val = 1;
 			return IIO_VAL_FRACTIONAL;
 
 		case INA2XX_BUS_VOLTAGE:
