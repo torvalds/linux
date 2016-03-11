@@ -463,6 +463,14 @@ static bool is_mbm_event(int e)
 	return (e >= QOS_MBM_TOTAL_EVENT_ID && e <= QOS_MBM_LOCAL_EVENT_ID);
 }
 
+static void cqm_mask_call(struct rmid_read *rr)
+{
+	if (is_mbm_event(rr->evt_type))
+		on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count, rr, 1);
+	else
+		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, rr, 1);
+}
+
 /*
  * Exchange the RMID of a group of events.
  */
@@ -479,18 +487,12 @@ static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 	 */
 	if (__rmid_valid(old_rmid) && !__rmid_valid(rmid)) {
 		struct rmid_read rr = {
-			.value = ATOMIC64_INIT(0),
 			.rmid = old_rmid,
+			.evt_type = group->attr.config,
+			.value = ATOMIC64_INIT(0),
 		};
 
-		if (is_mbm_event(group->attr.config)) {
-			rr.evt_type = group->attr.config;
-			on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count,
-					 &rr, 1);
-		} else {
-			on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count,
-					 &rr, 1);
-		}
+		cqm_mask_call(&rr);
 		local64_set(&group->count, atomic64_read(&rr.value));
 	}
 
@@ -1180,6 +1182,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 {
 	unsigned long flags;
 	struct rmid_read rr = {
+		.evt_type = event->attr.config,
 		.value = ATOMIC64_INIT(0),
 	};
 
@@ -1229,12 +1232,7 @@ static u64 intel_cqm_event_count(struct perf_event *event)
 	if (!__rmid_valid(rr.rmid))
 		goto out;
 
-	if (is_mbm_event(event->attr.config)) {
-		rr.evt_type = event->attr.config;
-		on_each_cpu_mask(&cqm_cpumask, __intel_mbm_event_count, &rr, 1);
-	} else {
-		on_each_cpu_mask(&cqm_cpumask, __intel_cqm_event_count, &rr, 1);
-	}
+	cqm_mask_call(&rr);
 
 	raw_spin_lock_irqsave(&cache_lock, flags);
 	if (event->hw.cqm_rmid == rr.rmid)
