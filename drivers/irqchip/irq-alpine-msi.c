@@ -220,7 +220,7 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 					       middle_domain);
 	if (!msi_domain) {
 		pr_err("Failed to create MSI domain\n");
-		irq_domain_remove(msi_domain);
+		irq_domain_remove(middle_domain);
 		return -ENOMEM;
 	}
 
