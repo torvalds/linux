@@ -1770,12 +1770,15 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 		return -EPROTO;
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
+		case offsetof(struct bpf_tunnel_key, tunnel_label):
+			goto set_compat;
 		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
 			/* Fixup deprecated structure layouts here, so we have
 			 * a common path later on.
 			 */
 			if (ip_tunnel_info_af(info) != AF_INET)
 				return -EINVAL;
+set_compat:
 			to = (struct bpf_tunnel_key *)compat;
 			break;
 		default:
@@ -1787,11 +1790,13 @@ static u64 bpf_skb_get_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 	to->tunnel_tos = info->key.tos;
 	to->tunnel_ttl = info->key.ttl;
 
-	if (flags & BPF_F_TUNINFO_IPV6)
+	if (flags & BPF_F_TUNINFO_IPV6) {
 		memcpy(to->remote_ipv6, &info->key.u.ipv6.src,
 		       sizeof(to->remote_ipv6));
-	else
+		to->tunnel_label = be32_to_cpu(info->key.label);
+	} else {
 		to->remote_ipv4 = be32_to_cpu(info->key.u.ipv4.src);
+	}
 
 	if (unlikely(size != sizeof(struct bpf_tunnel_key)))
 		memcpy((void *)(long) r2, to, size);
@@ -1850,6 +1855,7 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 		return -EINVAL;
 	if (unlikely(size != sizeof(struct bpf_tunnel_key))) {
 		switch (size) {
+		case offsetof(struct bpf_tunnel_key, tunnel_label):
 		case offsetof(struct bpf_tunnel_key, remote_ipv6[1]):
 			/* Fixup deprecated structure layouts here, so we have
 			 * a common path later on.
@@ -1862,6 +1868,8 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 			return -EINVAL;
 		}
 	}
+	if (unlikely(!(flags & BPF_F_TUNINFO_IPV6) && from->tunnel_label))
+		return -EINVAL;
 
 	skb_dst_drop(skb);
 	dst_hold((struct dst_entry *) md);
@@ -1882,6 +1890,8 @@ static u64 bpf_skb_set_tunnel_key(u64 r1, u64 r2, u64 size, u64 flags, u64 r5)
 		info->mode |= IP_TUNNEL_INFO_IPV6;
 		memcpy(&info->key.u.ipv6.dst, from->remote_ipv6,
 		       sizeof(from->remote_ipv6));
+		info->key.label = cpu_to_be32(from->tunnel_label) &
+				  IPV6_FLOWLABEL_MASK;
 	} else {
 		info->key.u.ipv4.dst = cpu_to_be32(from->remote_ipv4);
 		if (flags & BPF_F_ZERO_CSUM_TX)
