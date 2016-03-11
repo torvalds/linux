@@ -17,11 +17,20 @@ struct gk104_fifo {
 	int pbdma_nr;
 
 	struct {
+		struct nvkm_engine *engine;
+		int runl;
+		int pbid;
+	} engine[16];
+	int engine_nr;
+
+	struct {
 		struct nvkm_memory *mem[2];
 		int next;
 		wait_queue_head_t wait;
 		struct list_head chan;
-	} runlist[7];
+		u32 engm;
+	} runlist[16];
+	int runlist_nr;
 
 	struct {
 		struct nvkm_memory *mem;

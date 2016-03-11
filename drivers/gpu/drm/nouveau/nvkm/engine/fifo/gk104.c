@@ -202,7 +202,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	u32 engn;
 
 	spin_lock_irqsave(&fifo->base.lock, flags);
-	for (engn = 0; engn < ARRAY_SIZE(fifo->runlist); engn++) {
+	for (engn = 0; engn < fifo->engine_nr; engn++) {
 		u32 stat = nvkm_rd32(device, 0x002640 + (engn * 0x08));
 		u32 busy = (stat & 0x80000000);
 		u32 next = (stat & 0x0fff0000) >> 16;
@@ -666,13 +666,102 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ret, i;
+	u32 *map;
 
 	/* Determine number of PBDMAs by checking valid enable bits. */
 	nvkm_wr32(device, 0x000204, 0xffffffff);
 	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x000204));
 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
-	for (i = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
+	/* Read PBDMA->runlist(s) mapping from HW. */
+	if (!(map = kzalloc(sizeof(*map) * fifo->pbdma_nr, GFP_KERNEL)))
+		return -ENOMEM;
+
+	for (i = 0; i < fifo->pbdma_nr; i++)
+		map[i] = nvkm_rd32(device, 0x002390 + (i * 0x04));
+
+	/* Read device topology from HW. */
+	for (i = 0; i < 64; i++) {
+		int type = -1, pbid = -1, engidx = -1;
+		int engn = -1, runl = -1, intr = -1, mcen = -1;
+		int fault = -1, j;
+		u32 data, addr = 0;
+
+		do {
+			data = nvkm_rd32(device, 0x022700 + (i * 0x04));
+			nvkm_trace(subdev, "%02x: %08x\n", i, data);
+			switch (data & 0x00000003) {
+			case 0x00000000: /* NOT_VALID */
+				continue;
+			case 0x00000001: /* DATA */
+				addr  = (data & 0x00fff000);
+				fault = (data & 0x000000f8) >> 3;
+				break;
+			case 0x00000002: /* ENUM */
+				if (data & 0x00000020)
+					engn = (data & 0x3c000000) >> 26;
+				if (data & 0x00000010)
+					runl = (data & 0x01e00000) >> 21;
+				if (data & 0x00000008)
+					intr = (data & 0x000f8000) >> 15;
+				if (data & 0x00000004)
+					mcen = (data & 0x00003e00) >> 9;
+				break;
+			case 0x00000003: /* ENGINE_TYPE */
+				type = (data & 0x7ffffffc) >> 2;
+				break;
+			}
+		} while ((data & 0x80000000) && ++i < 64);
+
+		if (!data)
+			continue;
+
+		/* Determine which PBDMA handles requests for this engine. */
+		for (j = 0; runl >= 0 && j < fifo->pbdma_nr; j++) {
+			if (map[j] & (1 << runl)) {
+				pbid = j;
+				break;
+			}
+		}
+
+		/* Translate engine type to NVKM engine identifier. */
+		switch (type) {
+		case 0x00000000: engidx = NVKM_ENGINE_GR; break;
+		case 0x00000001: engidx = NVKM_ENGINE_CE0; break;
+		case 0x00000002: engidx = NVKM_ENGINE_CE1; break;
+		case 0x00000003: engidx = NVKM_ENGINE_CE2; break;
+		case 0x00000008: engidx = NVKM_ENGINE_MSPDEC; break;
+		case 0x00000009: engidx = NVKM_ENGINE_MSPPP; break;
+		case 0x0000000a: engidx = NVKM_ENGINE_MSVLD; break;
+		case 0x0000000b: engidx = NVKM_ENGINE_MSENC; break;
+		case 0x0000000c: engidx = NVKM_ENGINE_VIC; break;
+		case 0x0000000d: engidx = NVKM_ENGINE_SEC; break;
+			break;
+		default:
+			break;
+		}
+
+		nvkm_debug(subdev, "%02x (%8s): engine %2d runlist %2d "
+				   "pbdma %2d intr %2d reset %2d "
+				   "fault %2d addr %06x\n", type,
+			   engidx < 0 ? NULL : nvkm_subdev_name[engidx],
+			   engn, runl, pbid, intr, mcen, fault, addr);
+
+		/* Mark the engine as supported if everything checks out. */
+		if (engn >= 0 && runl >= 0) {
+			fifo->engine[engn].engine = engidx < 0 ? NULL :
+				nvkm_device_engine(device, engidx);
+			fifo->engine[engn].runl = runl;
+			fifo->engine[engn].pbid = pbid;
+			fifo->engine_nr = max(fifo->engine_nr, engn + 1);
+			fifo->runlist[runl].engm |= 1 << engn;
+			fifo->runlist_nr = max(fifo->runlist_nr, runl + 1);
+		}
+	}
+
+	kfree(map);
+
+	for (i = 0; i < fifo->runlist_nr; i++) {
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 				      0x8000, 0x1000, false,
 				      &fifo->runlist[i].mem[0]);
@@ -742,7 +831,7 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	nvkm_vm_put(&fifo->user.bar);
 	nvkm_memory_del(&fifo->user.mem);
 
-	for (i = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
+	for (i = 0; i < fifo->runlist_nr; i++) {
 		nvkm_memory_del(&fifo->runlist[i].mem[1]);
 		nvkm_memory_del(&fifo->runlist[i].mem[0]);
 	}

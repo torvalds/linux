@@ -227,7 +227,7 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		return ret;
 
 	/* determine which downstream engines are present */
-	for (i = 0, engines = 0; i < ARRAY_SIZE(fifo->runlist); i++) {
+	for (i = 0, engines = 0; i < fifo->runlist_nr; i++) {
 		u64 subdevs = gk104_fifo_engine_subdev(i);
 		if (!nvkm_device_engine(device, __ffs64(subdevs)))
 			continue;
