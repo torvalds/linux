@@ -19,12 +19,13 @@ struct gk104_fifo {
 	struct work_struct fault;
 	u64 mask;
 
+	int pbdma_nr;
+
 	struct gk104_fifo_engn engine[7];
 	struct {
 		struct nvkm_memory *mem;
 		struct nvkm_vma bar;
 	} user;
-	int spoon_nr;
 };
 
 int gk104_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,

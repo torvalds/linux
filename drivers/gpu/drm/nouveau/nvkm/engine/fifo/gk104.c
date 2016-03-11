@@ -660,8 +660,14 @@ int
 gk104_fifo_oneinit(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
 	int ret, i;
+
+	/* Determine number of PBDMAs by checking valid enable bits. */
+	nvkm_wr32(device, 0x000204, 0xffffffff);
+	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x000204));
+	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 	for (i = 0; i < ARRAY_SIZE(fifo->engine); i++) {
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
@@ -699,24 +705,21 @@ void
 gk104_fifo_init(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int i;
 
-	/* enable all available PBDMA units */
-	nvkm_wr32(device, 0x000204, 0xffffffff);
-	fifo->spoon_nr = hweight32(nvkm_rd32(device, 0x000204));
-	nvkm_debug(subdev, "%d PBDMA unit(s)\n", fifo->spoon_nr);
+	/* Enable PBDMAs. */
+	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
 
 	/* PBDMA[n] */
-	for (i = 0; i < fifo->spoon_nr; i++) {
+	for (i = 0; i < fifo->pbdma_nr; i++) {
 		nvkm_mask(device, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
 		nvkm_wr32(device, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
 		nvkm_wr32(device, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
 	}
 
 	/* PBDMA[n].HCE */
-	for (i = 0; i < fifo->spoon_nr; i++) {
+	for (i = 0; i < fifo->pbdma_nr; i++) {
 		nvkm_wr32(device, 0x040148 + (i * 0x2000), 0xffffffff); /* INTR */
 		nvkm_wr32(device, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
 	}
