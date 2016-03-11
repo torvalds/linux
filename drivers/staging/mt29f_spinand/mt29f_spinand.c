@@ -893,7 +893,8 @@ static int spinand_probe(struct spi_device *spi_nand)
 #else
 	chip->ecc.mode	= NAND_ECC_SOFT;
 	if (spinand_disable_ecc(spi_nand) < 0)
-		pr_info("%s: disable ecc failed!\n", __func__);
+		dev_info(&spi_nand->dev, "%s: disable ecc failed!\n",
+			 __func__);
 #endif
 
 	nand_set_flash_node(chip, spi_nand->dev.of_node);
