@@ -66,6 +66,7 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSPDEC: return 0x0250;
 	case NVKM_ENGINE_MSPPP : return 0x0260;
 	case NVKM_ENGINE_MSVLD : return 0x0270;
+	case NVKM_ENGINE_MSENC : return 0x0290;
 	default:
 		WARN_ON(1);
 		return 0;
