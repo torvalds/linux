@@ -226,7 +226,6 @@ void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->Part4Port = BaseAddr + SIS_CRT2_PORT_14;
 	/* 301 palette address port registers */
 	XGI_Pr->Part5Port = BaseAddr + SIS_CRT2_PORT_14 + 2;
-
 }
 
 /* ------------------ Internal helper routines ----------------- */
@@ -315,10 +314,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 				if (XGIbios_mode[myindex].bpp > 8)
 					return -1;
 			}
-
 		}
 		goto check_memory;
-
 	}
 
 	/* FIXME: for now, all is valid on XG27 */
@@ -518,7 +515,6 @@ check_memory:
 	if (required_mem > xgifb_info->video_size)
 		return -1;
 	return myindex;
-
 }
 
 static void XGIfb_search_crt2type(const char *name)
