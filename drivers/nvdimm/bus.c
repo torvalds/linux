@@ -40,6 +40,8 @@ static int to_nd_device_type(struct device *dev)
 		return ND_DEVICE_REGION_PMEM;
 	else if (is_nd_blk(dev))
 		return ND_DEVICE_REGION_BLK;
+	else if (is_nd_dax(dev))
+		return ND_DEVICE_DAX_PMEM;
 	else if (is_nd_pmem(dev->parent) || is_nd_blk(dev->parent))
 		return nd_region_to_nstype(to_nd_region(dev->parent));
 
@@ -246,6 +248,8 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
 
 void __nd_device_register(struct device *dev)
 {
+	if (!dev)
+		return;
 	dev->bus = &nvdimm_bus_type;
 	get_device(dev);
 	async_schedule_domain(nd_async_device_register, dev,

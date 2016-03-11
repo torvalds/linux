@@ -85,6 +85,8 @@ static bool is_idle(struct device *dev, struct nd_namespace_common *ndns)
 		seed = nd_region->btt_seed;
 	else if (is_nd_pfn(dev))
 		seed = nd_region->pfn_seed;
+	else if (is_nd_dax(dev))
+		seed = nd_region->dax_seed;
 
 	if (seed == dev || ndns || dev->driver)
 		return false;

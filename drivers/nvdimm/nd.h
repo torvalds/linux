@@ -101,10 +101,12 @@ struct nd_region {
 	struct ida ns_ida;
 	struct ida btt_ida;
 	struct ida pfn_ida;
+	struct ida dax_ida;
 	unsigned long flags;
 	struct device *ns_seed;
 	struct device *btt_seed;
 	struct device *pfn_seed;
+	struct device *dax_seed;
 	u16 ndr_mappings;
 	u64 ndr_size;
 	u64 ndr_start;
@@ -159,6 +161,10 @@ struct nd_pfn {
 	enum nd_pfn_mode mode;
 	struct nd_pfn_sb *pfn_sb;
 	struct nd_namespace_common *ndns;
+};
+
+struct nd_dax {
+	struct nd_pfn nd_pfn;
 };
 
 enum nd_async_mode {
@@ -224,7 +230,10 @@ struct nd_pfn *to_nd_pfn(struct device *dev);
 int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
+struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
+		struct nd_namespace_common *ndns);
 int nd_pfn_validate(struct nd_pfn *nd_pfn);
+extern struct attribute_group nd_pfn_attribute_group;
 #else
 static inline int nd_pfn_probe(struct device *dev,
 		struct nd_namespace_common *ndns)
@@ -245,6 +254,22 @@ static inline struct device *nd_pfn_create(struct nd_region *nd_region)
 static inline int nd_pfn_validate(struct nd_pfn *nd_pfn)
 {
 	return -ENODEV;
+}
+#endif
+
+struct nd_dax *to_nd_dax(struct device *dev);
+#if IS_ENABLED(CONFIG_NVDIMM_DAX)
+bool is_nd_dax(struct device *dev);
+struct device *nd_dax_create(struct nd_region *nd_region);
+#else
+static inline bool is_nd_dax(struct device *dev)
+{
+	return false;
+}
+
+static inline struct device *nd_dax_create(struct nd_region *nd_region)
+{
+	return NULL;
 }
 #endif
 
