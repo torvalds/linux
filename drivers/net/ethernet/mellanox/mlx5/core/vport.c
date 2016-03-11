@@ -852,7 +852,8 @@ int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev)
 EXPORT_SYMBOL_GPL(mlx5_nic_vport_disable_roce);
 
 int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
-				  u8 port_num, void *out, size_t out_sz)
+				  int vf, u8 port_num, void *out,
+				  size_t out_sz)
 {
 	int	in_sz = MLX5_ST_SZ_BYTES(query_vport_counter_in);
 	int	is_group_manager;
@@ -871,7 +872,7 @@ int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
 	if (other_vport) {
 		if (is_group_manager) {
 			MLX5_SET(query_vport_counter_in, in, other_vport, 1);
-			MLX5_SET(query_vport_counter_in, in, vport_number, 0);
+			MLX5_SET(query_vport_counter_in, in, vport_number, vf + 1);
 		} else {
 			err = -EPERM;
 			goto free;
