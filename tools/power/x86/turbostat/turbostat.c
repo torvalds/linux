@@ -3052,6 +3052,17 @@ guess:
 	return 0;
 }
 
+void decode_feature_control_msr(void)
+{
+	unsigned long long msr;
+
+	if (!get_msr(base_cpu, MSR_IA32_FEATURE_CONTROL, &msr))
+		fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
+			base_cpu, msr,
+			msr & FEATURE_CONTROL_LOCKED ? "" : "UN-",
+			msr & (1 << 18) ? "SGX" : "");
+}
+
 void decode_misc_enable_msr(void)
 {
 	unsigned long long msr;
@@ -3111,9 +3122,10 @@ void process_cpuid()
 	if (debug) {
 		fprintf(outf, "%d CPUID levels; family:model:stepping 0x%x:%x:%x (%d:%d:%d)\n",
 			max_level, family, model, stepping, family, model, stepping);
-		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s\n",
+		fprintf(outf, "CPUID(1): %s %s %s %s %s %s %s %s %s\n",
 			ecx & (1 << 0) ? "SSE3" : "-",
 			ecx & (1 << 3) ? "MONITOR" : "-",
+			ecx & (1 << 6) ? "SMX" : "-",
 			ecx & (1 << 7) ? "EIST" : "-",
 			ecx & (1 << 8) ? "TM2" : "-",
 			edx & (1 << 4) ? "TSC" : "-",
@@ -3174,6 +3186,20 @@ void process_cpuid()
 
 	if (debug)
 		decode_misc_enable_msr();
+
+	if (max_level >= 0x7) {
+		int has_sgx;
+
+		ecx = 0;
+
+		__cpuid_count(0x7, 0, eax, ebx, ecx, edx);
+
+		has_sgx = ebx & (1 << 2);
+		fprintf(outf, "CPUID(7): %sSGX\n", has_sgx ? "" : "No-");
+
+		if (has_sgx)
+			decode_feature_control_msr();
+	}
 
 	if (max_level >= 0x15) {
 		unsigned int eax_crystal;
