@@ -1352,6 +1352,7 @@ lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp, int cpt)
 	int npages = rbp->rbp_npages;
 	struct list_head tmp;
 	lnet_rtrbuf_t *rb;
+	lnet_rtrbuf_t *temp;
 
 	if (!rbp->rbp_nbuffers) /* not initialized or already freed */
 		return;
@@ -1368,8 +1369,7 @@ lnet_rtrpool_free_bufs(lnet_rtrbufpool_t *rbp, int cpt)
 	lnet_net_unlock(cpt);
 
 	/* Free buffers on the free list. */
-	while (!list_empty(&tmp)) {
-		rb = list_entry(tmp.next, lnet_rtrbuf_t, rb_list);
+	list_for_each_entry_safe(rb, temp, &tmp, rb_list) {
 		list_del(&rb->rb_list);
 		lnet_destroy_rtrbuf(rb, npages);
 	}
