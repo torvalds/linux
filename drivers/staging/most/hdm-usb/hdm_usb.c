@@ -221,11 +221,10 @@ static void free_anchored_buffers(struct most_dev *mdev, unsigned int channel)
 		}
 		spin_lock_irqsave(&mdev->anchor_list_lock[channel], flags);
 		list_del(&anchor->list);
+		cancel_work_sync(&anchor->clear_work_obj);
 		kfree(anchor);
 	}
 	spin_unlock_irqrestore(&mdev->anchor_list_lock[channel], flags);
-
-	cancel_work_sync(&anchor->clear_work_obj);
 }
 
 /**
