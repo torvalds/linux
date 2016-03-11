@@ -16,8 +16,10 @@ struct gk104_fifo_engn {
 struct gk104_fifo {
 	struct nvkm_fifo base;
 
-	struct work_struct fault;
-	u64 mask;
+	struct {
+		struct work_struct work;
+		u64 mask;
+	} recover;
 
 	int pbdma_nr;
 
