@@ -42,6 +42,7 @@ endif
 test:
 	$(call run,)
 	$(HIJACK_TEST)
+	./net.sh
 
 valgrind:
 	$(call for_fs,$(VALGRIND_CMD))

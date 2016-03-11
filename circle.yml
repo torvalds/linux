@@ -6,6 +6,7 @@ machine:
   # Add some environment variables
   environment:
     CROSS_COMPILE: $(case $CIRCLE_NODE_INDEX in 0) host='' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $host)
+    MKARG: $(case $CIRCLE_NODE_INDEX in 0) mkarg='dpdk=yes' ;; 1) host='i686-w64-mingw32-' ;; 2) host='arm-linux-androideabi-' ;; esac; echo $mkarg)
     PATH: /home/ubuntu/android-toolchain/bin:${PATH}
 
 ## Customize dependencies
@@ -13,7 +14,7 @@ dependencies:
   pre:
     # required for 14.04 container
     # - sudo dpkg --add-architecture i386
-    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine qemu-user-static
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine qemu-user-static linux-headers-generic
     - /usr/local/android-ndk/build/tools/make-standalone-toolchain.sh --platform=android-21 --install-dir=/home/ubuntu/android-toolchain --arch=arm
 
 
@@ -25,7 +26,9 @@ test:
   override:
     - cd tools/lkl && make clean:
         parallel: true
-    - cd tools/lkl && make -j8:
+    - cd tools/lkl && ./scripts/dpdk-sdk-build.sh:
+        parallel: true
+    - cd tools/lkl &&  make -j8 ${MKARG}:
         parallel: true
     - cd tools/lkl && if [ $CIRCLE_NODE_INDEX -eq 2 ] ; then make tests/boot-in.o; arm-linux-androideabi-gcc -o tests/boot tests/boot-in.o liblkl.a -static ; fi:
         parallel: true

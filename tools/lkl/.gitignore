@@ -6,3 +6,4 @@ lklfuse
 tests/valgrind*.xml
 *.exe
 *.dll
+tests/net-test

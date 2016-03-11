@@ -10,3 +10,4 @@ lkl-y += virtio_blk.o
 lkl-y += virtio.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_tap.o
+lkl-$(CONFIG_AUTO_LKL_VIRTIO_NET_DPDK) += virtio_net_dpdk.o
