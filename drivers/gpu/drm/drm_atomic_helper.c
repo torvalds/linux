@@ -2926,6 +2926,7 @@ void drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 					NULL);
 	if (IS_ERR(blob)) {
 		ret = PTR_ERR(blob);
+		blob = NULL;
 		goto fail;
 	}
 
