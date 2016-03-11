@@ -399,7 +399,7 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 		snprintf(gpcid, sizeof(gpcid), "GPC%d/", gpc);
 	}
 
-	if (eu) {
+	if (eu && eu->data2) {
 		switch (eu->data2) {
 		case NVKM_SUBDEV_BAR:
 			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
