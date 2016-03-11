@@ -56,6 +56,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
+#include <linux/if_link.h>
 #include <linux/atomic.h>
 #include <linux/mmu_notifier.h>
 #include <asm/uaccess.h>
@@ -218,6 +219,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_SIGNATURE_HANDOVER		= (1 << 30),
 	IB_DEVICE_ON_DEMAND_PAGING		= (1 << 31),
 	IB_DEVICE_SG_GAPS_REG			= (1ULL << 32),
+	IB_DEVICE_VIRTUAL_FUNCTION		= ((u64)1 << 33),
 };
 
 enum ib_signature_prot_cap {
@@ -1867,6 +1869,14 @@ struct ib_device {
 	void			   (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	void			   (*drain_rq)(struct ib_qp *qp);
 	void			   (*drain_sq)(struct ib_qp *qp);
+	int			   (*set_vf_link_state)(struct ib_device *device, int vf, u8 port,
+							int state);
+	int			   (*get_vf_config)(struct ib_device *device, int vf, u8 port,
+						   struct ifla_vf_info *ivf);
+	int			   (*get_vf_stats)(struct ib_device *device, int vf, u8 port,
+						   struct ifla_vf_stats *stats);
+	int			   (*set_vf_guid)(struct ib_device *device, int vf, u8 port, u64 guid,
+						  int type);
 
 	struct ib_dma_mapping_ops   *dma_ops;
 
@@ -2309,6 +2319,15 @@ static inline bool rdma_cap_roce_gid_table(const struct ib_device *device,
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid,
 		 struct ib_gid_attr *attr);
+
+int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
+			 int state);
+int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
+		     struct ifla_vf_info *info);
+int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
+		    struct ifla_vf_stats *stats);
+int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
+		   int type);
 
 int ib_query_pkey(struct ib_device *device,
 		  u8 port_num, u16 index, u16 *pkey);
