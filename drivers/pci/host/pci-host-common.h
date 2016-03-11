@@ -41,4 +41,7 @@ struct gen_pci {
 	struct list_head			resources;
 };
 
+int pci_host_common_probe(struct platform_device *pdev,
+			  struct gen_pci *pci);
+
 #endif /* _PCI_HOST_COMMON_H */
