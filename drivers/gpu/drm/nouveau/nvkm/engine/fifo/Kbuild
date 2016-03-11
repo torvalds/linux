@@ -10,6 +10,7 @@ nvkm-y += nvkm/engine/fifo/gk104.o
 nvkm-y += nvkm/engine/fifo/gk110.o
 nvkm-y += nvkm/engine/fifo/gk208.o
 nvkm-y += nvkm/engine/fifo/gk20a.o
+nvkm-y += nvkm/engine/fifo/gm107.o
 nvkm-y += nvkm/engine/fifo/gm200.o
 nvkm-y += nvkm/engine/fifo/gm20b.o
 

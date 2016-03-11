@@ -1974,7 +1974,7 @@ nv117_chipset = {
 	.ce[2] = gk104_ce_new,
 	.disp = gm107_disp_new,
 	.dma = gf119_dma_new,
-	.fifo = gk208_fifo_new,
+	.fifo = gm107_fifo_new,
 	.gr = gm107_gr_new,
 	.sw = gf100_sw_new,
 };
