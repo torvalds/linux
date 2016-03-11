@@ -121,7 +121,7 @@ static int rk3368_set_cabc_lut(struct rk_lcdc_driver *dev_drv, int *cabc_lut)
 		     v_CABC_LUT_EN(0));
 	lcdc_cfg_done(lcdc_dev);
 	mdelay(25);
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 128; i++) {
 		v = cabc_lut[i];
 		c = lcdc_dev->cabc_lut_addr_base + i;
 		writel_relaxed(v, c);
@@ -5011,7 +5011,9 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lcdc_dev->reg_phy_base = res->start;
 	lcdc_dev->len = resource_size(res);
-	lcdc_dev->regs = devm_ioremap_resource(dev, res);
+
+	lcdc_dev->regs = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
 	if (IS_ERR(lcdc_dev->regs))
 		return PTR_ERR(lcdc_dev->regs);
 	else

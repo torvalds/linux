@@ -1350,12 +1350,12 @@
 
 #define CABC_CTRL0			(0x01c0)
 #define v_CABC_EN(x)				(((x)&1)<<0)
-#define v_PWM_CONFIG_MODE(x)			(((x)&3)<<1)
-#define v_CABC_HANDLE_EN(x)			(((x)&1)<<3)
+#define v_CABC_HANDLE_EN(x)			(((x)&1)<<1)
+#define v_PWM_CONFIG_MODE(x)			(((x)&3)<<2)
 #define v_CABC_CALC_PIXEL_NUM(x)		(((x)&0x7fffff)<<4)
 #define m_CABC_EN				(1<<0)
-#define m_PWM_CONFIG_MODE			(3<<1)
-#define m_CABC_HANDLE_EN			(1<<3)
+#define m_CABC_HANDLE_EN			(1<<1)
+#define m_PWM_CONFIG_MODE			(3<<2)
 #define m_CABC_CALC_PIXEL_NUM			(0x7fffff<<4)
 
 #define CABC_CTRL1			(0x01c4)
