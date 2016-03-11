@@ -702,6 +702,7 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 		       enum dma_data_direction dir)
 {
 	const bool vmalloced_buf = is_vmalloc_addr(buf);
+	unsigned int max_seg_size = dma_get_max_seg_size(dev);
 	int desc_len;
 	int sgs;
 	struct page *vm_page;
@@ -710,10 +711,10 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 	int i, ret;
 
 	if (vmalloced_buf) {
-		desc_len = PAGE_SIZE;
+		desc_len = min_t(int, max_seg_size, PAGE_SIZE);
 		sgs = DIV_ROUND_UP(len + offset_in_page(buf), desc_len);
 	} else {
-		desc_len = master->max_dma_len;
+		desc_len = min_t(int, max_seg_size, master->max_dma_len);
 		sgs = DIV_ROUND_UP(len, desc_len);
 	}
 
@@ -738,7 +739,6 @@ static int spi_map_buf(struct spi_master *master, struct device *dev,
 			sg_buf = buf;
 			sg_set_buf(&sgt->sgl[i], sg_buf, min);
 		}
-
 
 		buf += min;
 		len -= min;
