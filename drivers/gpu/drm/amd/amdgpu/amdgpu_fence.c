@@ -155,15 +155,15 @@ static void amdgpu_fence_schedule_fallback(struct amdgpu_ring *ring)
 }
 
 /**
- * amdgpu_fence_activity - check for fence activity
+ * amdgpu_fence_process - check for fence activity
  *
  * @ring: pointer to struct amdgpu_ring
  *
  * Checks the current fence value and calculates the last
- * signalled fence value. Returns true if activity occured
- * on the ring, and the fence_queue should be waken up.
+ * signalled fence value. Wakes the fence queue if the
+ * sequence number has increased.
  */
-static bool amdgpu_fence_activity(struct amdgpu_ring *ring)
+void amdgpu_fence_process(struct amdgpu_ring *ring)
 {
 	uint64_t seq, last_seq, last_emitted;
 	bool wake = false;
@@ -193,21 +193,7 @@ static bool amdgpu_fence_activity(struct amdgpu_ring *ring)
 	if (seq < last_emitted)
 		amdgpu_fence_schedule_fallback(ring);
 
-	return wake;
-}
-
-/**
- * amdgpu_fence_process - process a fence
- *
- * @adev: amdgpu_device pointer
- * @ring: ring index the fence is associated with
- *
- * Checks the current fence value and wakes the fence queue
- * if the sequence number has increased (all asics).
- */
-void amdgpu_fence_process(struct amdgpu_ring *ring)
-{
-	if (amdgpu_fence_activity(ring))
+	if (wake)
 		wake_up_all(&ring->fence_drv.fence_queue);
 }
 
