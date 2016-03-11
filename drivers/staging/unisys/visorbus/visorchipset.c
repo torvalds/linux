@@ -761,7 +761,7 @@ chipset_init(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (chipset_inited) {
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
-		goto cleanup;
+		goto out_respond;
 	}
 	chipset_inited = 1;
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -778,7 +778,7 @@ chipset_init(struct controlvm_message *inmsg)
 	 */
 	features |= ULTRA_CHIPSET_FEATURE_REPLY;
 
-cleanup:
+out_respond:
 	if (inmsg->hdr.flags.response_expected)
 		controlvm_respond_chipset_init(&inmsg->hdr, rc, features);
 }
