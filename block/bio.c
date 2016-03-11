@@ -300,7 +300,8 @@ static void bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	parent->bi_error = bio->bi_error;
+	if (!parent->bi_error)
+		parent->bi_error = bio->bi_error;
 	bio_endio(parent);
 	bio_put(bio);
 }
@@ -1753,7 +1754,9 @@ void bio_endio(struct bio *bio)
 		 */
 		if (bio->bi_end_io == bio_chain_endio) {
 			struct bio *parent = bio->bi_private;
-			parent->bi_error = bio->bi_error;
+
+			if (!parent->bi_error)
+				parent->bi_error = bio->bi_error;
 			bio_put(bio);
 			bio = parent;
 		} else {
