@@ -217,7 +217,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	do {
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
-			args.kepler.engine  = engine;
+			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
 			args.kepler.vm = 0;

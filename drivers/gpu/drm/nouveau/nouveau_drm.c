@@ -215,13 +215,13 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		ret = nouveau_channel_new(drm, &drm->device,
-					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0|
-					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1,
+					  NVA06F_V0_ENGINE_CE0 |
+					  NVA06F_V0_ENGINE_CE1,
 					  0, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
-		arg0 = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
+		arg0 = NVA06F_V0_ENGINE_GR;
 		arg1 = 1;
 	} else
 	if (device->info.chipset >= 0xa3 &&

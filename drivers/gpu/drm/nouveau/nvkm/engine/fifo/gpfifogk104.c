@@ -202,73 +202,79 @@ gk104_fifo_gpfifo_func = {
 	.engine_fini = gk104_fifo_gpfifo_engine_fini,
 };
 
-int
-gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
-		      void *data, u32 size, struct nvkm_object **pobject)
+struct gk104_fifo_chan_func {
+	u32 engine;
+	u64 subdev;
+};
+
+static int
+gk104_fifo_gpfifo_new_(const struct gk104_fifo_chan_func *func,
+		       struct gk104_fifo *fifo, u32 *engmask, u16 *chid,
+		       u64 vm, u64 ioffset, u64 ilength,
+		       const struct nvkm_oclass *oclass,
+		       struct nvkm_object **pobject)
 {
-	union {
-		struct kepler_channel_gpfifo_a_v0 v0;
-	} *args = data;
-	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_object *parent = oclass->parent;
 	struct gk104_fifo_chan *chan;
-	u64 usermem, ioffset, ilength;
-	u32 engines;
-	int ret = -ENOSYS, i;
+	int runlist = -1, ret = -ENOSYS, i, j;
+	u32 engines = 0, present = 0;
+	u64 subdevs = 0;
+	u64 usermem;
 
-	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
-				   "ioffset %016llx ilength %08x engine %08x\n",
-			   args->v0.version, args->v0.vm, args->v0.ioffset,
-			   args->v0.ilength, args->v0.engine);
-	} else
-		return ret;
+	/* Determine which downstream engines are present */
+	for (i = 0; i < fifo->engine_nr; i++) {
+		struct nvkm_engine *engine = fifo->engine[i].engine;
+		if (engine) {
+			u64 submask = BIT_ULL(engine->subdev.index);
+			for (j = 0; func[j].subdev; j++) {
+				if (func[j].subdev & submask) {
+					present |= func[j].engine;
+					break;
+				}
+			}
 
-	/* determine which downstream engines are present */
-	for (i = 0, engines = 0; i < fifo->runlist_nr; i++) {
-		u64 subdevs = gk104_fifo_engine_subdev(i);
-		if (!nvkm_device_engine(device, __ffs64(subdevs)))
-			continue;
-		engines |= (1 << i);
+			if (!func[j].subdev)
+				continue;
+
+			if (runlist < 0 && (*engmask & present))
+				runlist = fifo->engine[i].runl;
+			if (runlist == fifo->engine[i].runl) {
+				engines |= func[j].engine;
+				subdevs |= func[j].subdev;
+			}
+		}
 	}
 
-	/* if this is an engine mask query, we're done */
-	if (!args->v0.engine) {
-		args->v0.engine = engines;
+	/* Just an engine mask query?  All done here! */
+	if (!*engmask) {
+		*engmask = present;
 		return nvkm_object_new(oclass, NULL, 0, pobject);
 	}
 
-	/* check that we support a requested engine - note that the user
-	 * argument is a mask in order to allow the user to request (for
-	 * example) *any* copy engine, but doesn't matter which.
-	 */
-	args->v0.engine &= engines;
-	if (!args->v0.engine) {
-		nvif_ioctl(parent, "no supported engine\n");
+	/* No runlist?  No supported engines. */
+	*engmask = present;
+	if (runlist < 0)
 		return -ENODEV;
-	}
+	*engmask = engines;
 
-	/* allocate the channel */
+	/* Allocate the channel. */
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
 		return -ENOMEM;
 	*pobject = &chan->base.object;
 	chan->fifo = fifo;
-	chan->runl = __ffs(args->v0.engine);
+	chan->runl = runlist;
 	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
-				  0x1000, 0x1000, true, args->v0.vm, 0,
-				  gk104_fifo_engine_subdev(chan->runl),
+				  0x1000, 0x1000, true, vm, 0, subdevs,
 				  1, fifo->user.bar.offset, 0x200,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;
 
-	args->v0.chid = chan->base.chid;
+	*chid = chan->base.chid;
 
-	/* page directory */
+	/* Page directory. */
 	ret = nvkm_gpuobj_new(device, 0x10000, 0x1000, false, NULL, &chan->pgd);
 	if (ret)
 		return ret;
@@ -284,10 +290,9 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	if (ret)
 		return ret;
 
-	/* clear channel control registers */
+	/* Clear channel control registers. */
 	usermem = chan->base.chid * 0x200;
-	ioffset = args->v0.ioffset;
-	ilength = order_base_2(args->v0.ilength / 8);
+	ilength = order_base_2(ilength / 8);
 
 	nvkm_kmap(fifo->user.mem);
 	for (i = 0; i < 0x200; i += 4)
@@ -314,6 +319,51 @@ gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	nvkm_wo32(chan->base.inst, 0xfc, 0x10000010); /* 0x002350 */
 	nvkm_done(chan->base.inst);
 	return 0;
+}
+
+static const struct gk104_fifo_chan_func
+gk104_fifo_gpfifo[] = {
+	{ NVA06F_V0_ENGINE_SW | NVA06F_V0_ENGINE_GR,
+		BIT_ULL(NVKM_ENGINE_SW) | BIT_ULL(NVKM_ENGINE_GR)
+	},
+	{ NVA06F_V0_ENGINE_MSVLD , BIT_ULL(NVKM_ENGINE_MSVLD ) },
+	{ NVA06F_V0_ENGINE_MSPDEC, BIT_ULL(NVKM_ENGINE_MSPDEC) },
+	{ NVA06F_V0_ENGINE_MSPPP , BIT_ULL(NVKM_ENGINE_MSPPP ) },
+	{ NVA06F_V0_ENGINE_MSENC , BIT_ULL(NVKM_ENGINE_MSENC ) },
+	{ NVA06F_V0_ENGINE_CE0   , BIT_ULL(NVKM_ENGINE_CE0   ) },
+	{ NVA06F_V0_ENGINE_CE1   , BIT_ULL(NVKM_ENGINE_CE1   ) },
+	{ NVA06F_V0_ENGINE_CE2   , BIT_ULL(NVKM_ENGINE_CE2   ) },
+	{}
+};
+
+int
+gk104_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
+		      void *data, u32 size, struct nvkm_object **pobject)
+{
+	struct nvkm_object *parent = oclass->parent;
+	union {
+		struct kepler_channel_gpfifo_a_v0 v0;
+	} *args = data;
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	int ret = -ENOSYS;
+
+	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+		nvif_ioctl(parent, "create channel gpfifo vers %d vm %llx "
+				   "ioffset %016llx ilength %08x engine %08x\n",
+			   args->v0.version, args->v0.vm, args->v0.ioffset,
+			   args->v0.ilength, args->v0.engines);
+		return gk104_fifo_gpfifo_new_(gk104_fifo_gpfifo, fifo,
+					      &args->v0.engines,
+					      &args->v0.chid,
+					       args->v0.vm,
+					       args->v0.ioffset,
+					       args->v0.ilength,
+					      oclass, pobject);
+
+	}
+
+	return ret;
 }
 
 const struct nvkm_fifo_chan_oclass
