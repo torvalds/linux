@@ -72,17 +72,47 @@ static void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable)
 	skl_ipc_set_large_config(&ctx->ipc, &msg, (u32 *)&mask);
 }
 
+static struct skl_dsp_loader_ops skl_get_loader_ops(void)
+{
+	struct skl_dsp_loader_ops loader_ops;
+
+	memset(&loader_ops, 0, sizeof(struct skl_dsp_loader_ops));
+
+	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
+	loader_ops.free_dma_buf = skl_free_dma_buf;
+
+	return loader_ops;
+};
+
+static const struct skl_dsp_ops dsp_ops[] = {
+	{
+		.id = 0x9d70,
+		.loader_ops = skl_get_loader_ops,
+		.init = skl_sst_dsp_init,
+		.cleanup = skl_sst_dsp_cleanup
+	},
+};
+
+static int skl_get_dsp_ops(int pci_id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dsp_ops); i++) {
+		if (dsp_ops[i].id == pci_id)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 int skl_init_dsp(struct skl *skl)
 {
 	void __iomem *mmio_base;
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	int irq = bus->irq;
 	struct skl_dsp_loader_ops loader_ops;
-	int ret;
-
-	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
-	loader_ops.free_dma_buf = skl_free_dma_buf;
+	int irq = bus->irq;
+	int ret, index;
 
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
@@ -95,8 +125,14 @@ int skl_init_dsp(struct skl *skl)
 		return -ENXIO;
 	}
 
-	ret = skl_sst_dsp_init(bus->dev, mmio_base, irq,
+	index  = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0)
+		return -EINVAL;
+
+	loader_ops = dsp_ops[index].loader_ops();
+	ret = dsp_ops[index].init(bus->dev, mmio_base, irq,
 			skl->fw_name, loader_ops, &skl->skl_sst);
+
 	if (ret < 0)
 		return ret;
 
@@ -106,18 +142,26 @@ int skl_init_dsp(struct skl *skl)
 	return ret;
 }
 
-void skl_free_dsp(struct skl *skl)
+int skl_free_dsp(struct skl *skl)
 {
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl_sst *ctx =  skl->skl_sst;
+	struct skl_sst *ctx = skl->skl_sst;
+	int index;
 
 	/* disable  ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 
-	skl_sst_dsp_cleanup(bus->dev, ctx);
+	index = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0)
+		return -EIO;
+
+	dsp_ops[index].cleanup(bus->dev, ctx);
+
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
+
+	return 0;
 }
 
 int skl_suspend_dsp(struct skl *skl)
