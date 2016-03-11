@@ -233,6 +233,7 @@ struct smi_cfg_info {
 #define DVBSKY_FE_SIT2          3
 	int fe_0;
 	int fe_1;
+	char *rc_map;
 };
 
 struct smi_rc {

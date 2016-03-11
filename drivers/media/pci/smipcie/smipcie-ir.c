@@ -203,10 +203,7 @@ int smi_ir_init(struct smi_dev *dev)
 	rc_dev->dev.parent = &dev->pci_dev->dev;
 
 	rc_dev->driver_type = RC_DRIVER_SCANCODE;
-	if (dev->info->type == SMI_TECHNOTREND_S2_4200)
-		rc_dev->map_name = RC_MAP_TT_1500;
-	else
-		rc_dev->map_name = RC_MAP_DVBSKY;
+	rc_dev->map_name = dev->info->rc_map;
 
 	ir->rc_dev = rc_dev;
 	ir->dev = dev;

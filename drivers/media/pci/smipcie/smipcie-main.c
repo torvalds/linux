@@ -1067,6 +1067,7 @@ static struct smi_cfg_info dvbsky_s950_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_NULL,
 	.fe_1 = DVBSKY_FE_M88DS3103,
+	.rc_map = RC_MAP_DVBSKY,
 };
 
 static struct smi_cfg_info dvbsky_s952_cfg = {
@@ -1076,6 +1077,7 @@ static struct smi_cfg_info dvbsky_s952_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_M88RS6000,
 	.fe_1 = DVBSKY_FE_M88RS6000,
+	.rc_map = RC_MAP_DVBSKY,
 };
 
 static struct smi_cfg_info dvbsky_t9580_cfg = {
@@ -1085,6 +1087,7 @@ static struct smi_cfg_info dvbsky_t9580_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_SIT2,
 	.fe_1 = DVBSKY_FE_M88DS3103,
+	.rc_map = RC_MAP_DVBSKY,
 };
 
 static struct smi_cfg_info technotrend_s2_4200_cfg = {
@@ -1094,6 +1097,7 @@ static struct smi_cfg_info technotrend_s2_4200_cfg = {
 	.ts_1 = SMI_TS_DMA_BOTH,
 	.fe_0 = DVBSKY_FE_M88RS6000,
 	.fe_1 = DVBSKY_FE_M88RS6000,
+	.rc_map = RC_MAP_TT_1500,
 };
 
 /* PCI IDs */
