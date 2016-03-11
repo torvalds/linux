@@ -113,6 +113,11 @@
 				reg = <0>;
 				spi-max-frequency = <10000000>; /* input clock */
 			};
+			slic@3 {
+				compatible = "maxim,ds26522";
+				reg = <3>;
+				spi-max-frequency = <2000000>; /* input clock */
+			};
 		};
 
 		i2c@118000 {
