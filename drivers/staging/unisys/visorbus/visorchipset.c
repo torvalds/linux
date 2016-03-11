@@ -359,8 +359,7 @@ static struct parser_context *
 parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
-	struct parser_context *rc = NULL;
-	struct parser_context *ctx = NULL;
+	struct parser_context *ctx;
 
 	if (retry)
 		*retry = false;
@@ -374,15 +373,13 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
 		if (retry)
 			*retry = true;
-		rc = NULL;
-		goto cleanup;
+		return NULL;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
 	if (!ctx) {
 		if (retry)
 			*retry = true;
-		rc = NULL;
-		goto cleanup;
+		return NULL;
 	}
 
 	ctx->allocbytes = allocbytes;
@@ -393,35 +390,27 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	if (local) {
 		void *p;
 
-		if (addr > virt_to_phys(high_memory - 1)) {
-			rc = NULL;
-			goto cleanup;
-		}
+		if (addr > virt_to_phys(high_memory - 1))
+			goto err_finish_ctx;
 		p = __va((unsigned long)(addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
 		void *mapping = memremap(addr, bytes, MEMREMAP_WB);
 
-		if (!mapping) {
-			rc = NULL;
-			goto cleanup;
-		}
+		if (!mapping)
+			goto err_finish_ctx;
 		memcpy(ctx->data, mapping, bytes);
 		memunmap(mapping);
 	}
 
 	ctx->byte_stream = true;
-	rc = ctx;
-cleanup:
-	if (rc) {
-		controlvm_payload_bytes_buffered += ctx->param_bytes;
-	} else {
-		if (ctx) {
-			parser_done(ctx);
-			ctx = NULL;
-		}
-	}
-	return rc;
+	controlvm_payload_bytes_buffered += ctx->param_bytes;
+
+	return ctx;
+
+err_finish_ctx:
+	parser_done(ctx);
+	return NULL;
 }
 
 static uuid_le
