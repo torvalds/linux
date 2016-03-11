@@ -296,14 +296,19 @@ void bio_reset(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_reset);
 
-static void bio_chain_endio(struct bio *bio)
+static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
 	if (!parent->bi_error)
 		parent->bi_error = bio->bi_error;
-	bio_endio(parent);
 	bio_put(bio);
+	return parent;
+}
+
+static void bio_chain_endio(struct bio *bio)
+{
+	bio_endio(__bio_chain_endio(bio));
 }
 
 /*
@@ -1753,12 +1758,7 @@ void bio_endio(struct bio *bio)
 		 * pointers also disables gcc's sibling call optimization.
 		 */
 		if (bio->bi_end_io == bio_chain_endio) {
-			struct bio *parent = bio->bi_private;
-
-			if (!parent->bi_error)
-				parent->bi_error = bio->bi_error;
-			bio_put(bio);
-			bio = parent;
+			bio = __bio_chain_endio(bio);
 		} else {
 			if (bio->bi_end_io)
 				bio->bi_end_io(bio);
