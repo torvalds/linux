@@ -181,7 +181,7 @@ static int skl_dsp_core_power_down(struct sst_dsp *ctx)
 			"Power down");
 }
 
-static int skl_dsp_enable_core(struct sst_dsp *ctx)
+int skl_dsp_enable_core(struct sst_dsp *ctx)
 {
 	int ret;
 
