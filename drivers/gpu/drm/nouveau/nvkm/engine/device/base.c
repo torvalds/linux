@@ -2167,27 +2167,29 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 
 	switch (index) {
 #define _(n,p,m) case NVKM_ENGINE_##n: if (p) return (m); break
-	_(BSP    , device->bsp    ,  device->bsp);
-	_(CE0    , device->ce[0]  ,  device->ce[0]);
-	_(CE1    , device->ce[1]  ,  device->ce[1]);
-	_(CE2    , device->ce[2]  ,  device->ce[2]);
-	_(CIPHER , device->cipher ,  device->cipher);
-	_(DISP   , device->disp   , &device->disp->engine);
-	_(DMAOBJ , device->dma    , &device->dma->engine);
-	_(FIFO   , device->fifo   , &device->fifo->engine);
-	_(GR     , device->gr     , &device->gr->engine);
-	_(IFB    , device->ifb    ,  device->ifb);
-	_(ME     , device->me     ,  device->me);
-	_(MPEG   , device->mpeg   ,  device->mpeg);
-	_(MSENC  , device->msenc  ,  device->msenc);
-	_(MSPDEC , device->mspdec ,  device->mspdec);
-	_(MSPPP  , device->msppp  ,  device->msppp);
-	_(MSVLD  , device->msvld  ,  device->msvld);
-	_(PM     , device->pm     , &device->pm->engine);
-	_(SEC    , device->sec    ,  device->sec);
-	_(SW     , device->sw     , &device->sw->engine);
-	_(VIC    , device->vic    ,  device->vic);
-	_(VP     , device->vp     ,  device->vp);
+	_(BSP    , device->bsp     ,  device->bsp);
+	_(CE0    , device->ce[0]   ,  device->ce[0]);
+	_(CE1    , device->ce[1]   ,  device->ce[1]);
+	_(CE2    , device->ce[2]   ,  device->ce[2]);
+	_(CIPHER , device->cipher  ,  device->cipher);
+	_(DISP   , device->disp    , &device->disp->engine);
+	_(DMAOBJ , device->dma     , &device->dma->engine);
+	_(FIFO   , device->fifo    , &device->fifo->engine);
+	_(GR     , device->gr      , &device->gr->engine);
+	_(IFB    , device->ifb     ,  device->ifb);
+	_(ME     , device->me      ,  device->me);
+	_(MPEG   , device->mpeg    ,  device->mpeg);
+	_(MSENC  , device->msenc   ,  device->msenc);
+	_(MSPDEC , device->mspdec  ,  device->mspdec);
+	_(MSPPP  , device->msppp   ,  device->msppp);
+	_(MSVLD  , device->msvld   ,  device->msvld);
+	_(NVENC0 , device->nvenc[0],  device->nvenc[0]);
+	_(NVENC1 , device->nvenc[1],  device->nvenc[1]);
+	_(PM     , device->pm      , &device->pm->engine);
+	_(SEC    , device->sec     ,  device->sec);
+	_(SW     , device->sw      , &device->sw->engine);
+	_(VIC    , device->vic     ,  device->vic);
+	_(VP     , device->vp      ,  device->vp);
 #undef _
 	default:
 		WARN_ON(1);
@@ -2616,6 +2618,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_ENGINE_MSPDEC  ,   mspdec);
 		_(NVKM_ENGINE_MSPPP   ,    msppp);
 		_(NVKM_ENGINE_MSVLD   ,    msvld);
+		_(NVKM_ENGINE_NVENC0  , nvenc[0]);
+		_(NVKM_ENGINE_NVENC1  , nvenc[1]);
 		_(NVKM_ENGINE_PM      ,       pm);
 		_(NVKM_ENGINE_SEC     ,      sec);
 		_(NVKM_ENGINE_SW      ,       sw);
