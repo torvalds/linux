@@ -67,6 +67,5 @@ static inline __sum16 csum_fold(__wsum csum)
 #define _HAVE_ARCH_IPV6_CSUM
 extern __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 			       const struct in6_addr *daddr,
-			       __u32 len, unsigned short proto,
-			       __wsum sum);
+			       __u32 len, __u8 proto, __wsum sum);
 #endif
