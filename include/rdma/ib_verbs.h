@@ -490,6 +490,7 @@ union rdma_protocol_stats {
 					| RDMA_CORE_CAP_OPA_MAD)
 
 struct ib_port_attr {
+	u64			subnet_prefix;
 	enum ib_port_state	state;
 	enum ib_mtu		max_mtu;
 	enum ib_mtu		active_mtu;

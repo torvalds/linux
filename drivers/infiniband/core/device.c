@@ -650,10 +650,23 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
+	union ib_gid gid;
+	int err;
+
 	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
 		return -EINVAL;
 
-	return device->query_port(device, port_num, port_attr);
+	memset(port_attr, 0, sizeof(*port_attr));
+	err = device->query_port(device, port_num, port_attr);
+	if (err || port_attr->subnet_prefix)
+		return err;
+
+	err = ib_query_gid(device, port_num, 0, &gid, NULL);
+	if (err)
+		return err;
+
+	port_attr->subnet_prefix = be64_to_cpu(gid.global.subnet_prefix);
+	return 0;
 }
 EXPORT_SYMBOL(ib_query_port);
 
