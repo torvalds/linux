@@ -320,10 +320,8 @@ static int wilc_wlan_txq_add_cfg_pkt(struct wilc_vif *vif, u8 *buffer,
 	}
 
 	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
-	if (!tqe) {
-		netdev_err(vif->ndev, "Failed to allocate memory\n");
+	if (!tqe)
 		return 0;
-	}
 
 	tqe->type = WILC_CFG_PKT;
 	tqe->buffer = buffer;
