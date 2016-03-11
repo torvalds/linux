@@ -1236,7 +1236,7 @@ int sync_node_pages(struct f2fs_sb_info *sbi, nid_t ino,
 	pgoff_t index, end;
 	struct pagevec pvec;
 	int step = ino ? 2 : 0;
-	int nwritten = 0, wrote = 0;
+	int nwritten = 0;
 
 	pagevec_init(&pvec, 0);
 
@@ -1326,8 +1326,6 @@ continue_unlock:
 
 			if (NODE_MAPPING(sbi)->a_ops->writepage(page, wbc))
 				unlock_page(page);
-			else
-				wrote++;
 
 			if (--wbc->nr_to_write == 0)
 				break;
@@ -1344,14 +1342,6 @@ continue_unlock:
 	if (step < 2) {
 		step++;
 		goto next_step;
-	}
-
-	if (wrote) {
-		if (ino)
-			f2fs_submit_merged_bio_cond(sbi, NULL, NULL,
-							ino, NODE, WRITE);
-		else
-			f2fs_submit_merged_bio(sbi, NODE, WRITE);
 	}
 	return nwritten;
 }
