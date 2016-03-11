@@ -599,7 +599,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	throttle = perf_event_overflow(event, &data, &regs);
 out:
 	if (throttle)
-		perf_ibs_disable_event(perf_ibs, hwc, *config);
+		perf_ibs_stop(event, 0);
 	else
 		perf_ibs_enable_event(perf_ibs, hwc, period >> 4);
 
