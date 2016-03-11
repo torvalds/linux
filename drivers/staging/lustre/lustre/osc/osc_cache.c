@@ -1905,13 +1905,12 @@ static int get_write_extents(struct osc_object *obj, struct list_head *rpclist)
 {
 	struct client_obd *cli = osc_cli(obj);
 	struct osc_extent *ext;
+	struct osc_extent *temp;
 	int page_count = 0;
 	unsigned int max_pages = cli->cl_max_pages_per_rpc;
 
 	LASSERT(osc_object_is_locked(obj));
-	while (!list_empty(&obj->oo_hp_exts)) {
-		ext = list_entry(obj->oo_hp_exts.next, struct osc_extent,
-				 oe_link);
+	list_for_each_entry_safe(ext, temp, &obj->oo_hp_exts, oe_link) {
 		LASSERT(ext->oe_state == OES_CACHE);
 		if (!try_to_add_extent_for_io(cli, ext, rpclist, &page_count,
 					      &max_pages))
@@ -2667,6 +2666,7 @@ int osc_cache_truncate_start(const struct lu_env *env, struct osc_io *oio,
 {
 	struct client_obd *cli = osc_cli(obj);
 	struct osc_extent *ext;
+	struct osc_extent *temp;
 	struct osc_extent *waiting = NULL;
 	pgoff_t index;
 	LIST_HEAD(list);
@@ -2726,10 +2726,9 @@ again:
 
 	osc_list_maint(cli, obj);
 
-	while (!list_empty(&list)) {
+	list_for_each_entry_safe(ext, temp, &list, oe_link) {
 		int rc;
 
-		ext = list_entry(list.next, struct osc_extent, oe_link);
 		list_del_init(&ext->oe_link);
 
 		/* extent may be in OES_ACTIVE state because inode mutex
