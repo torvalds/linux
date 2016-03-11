@@ -1556,6 +1556,7 @@ ksocknal_finalize_zcreq(ksock_conn_t *conn)
 {
 	ksock_peer_t *peer = conn->ksnc_peer;
 	ksock_tx_t *tx;
+	ksock_tx_t *temp;
 	ksock_tx_t *tmp;
 	LIST_HEAD(zlist);
 
@@ -1581,9 +1582,7 @@ ksocknal_finalize_zcreq(ksock_conn_t *conn)
 
 	spin_unlock(&peer->ksnp_lock);
 
-	while (!list_empty(&zlist)) {
-		tx = list_entry(zlist.next, ksock_tx_t, tx_zc_list);
-
+	list_for_each_entry_safe(tx, temp, &zlist, tx_zc_list) {
 		list_del(&tx->tx_zc_list);
 		ksocknal_tx_decref(tx);
 	}
@@ -2286,13 +2285,13 @@ ksocknal_free_buffers(void)
 	if (!list_empty(&ksocknal_data.ksnd_idle_noop_txs)) {
 		struct list_head zlist;
 		ksock_tx_t *tx;
+		ksock_tx_t *temp;
 
 		list_add(&zlist, &ksocknal_data.ksnd_idle_noop_txs);
 		list_del_init(&ksocknal_data.ksnd_idle_noop_txs);
 		spin_unlock(&ksocknal_data.ksnd_tx_lock);
 
-		while (!list_empty(&zlist)) {
-			tx = list_entry(zlist.next, ksock_tx_t, tx_list);
+		list_for_each_entry_safe(tx, temp, &zlist, tx_list) {
 			list_del(&tx->tx_list);
 			LIBCFS_FREE(tx, tx->tx_desc_size);
 		}
