@@ -282,26 +282,6 @@ static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
 }
 
 /**
- * amdgpu_fence_wait_next - wait for the next fence to signal
- *
- * @adev: amdgpu device pointer
- * @ring: ring index the fence is associated with
- *
- * Wait for the next fence on the requested ring to signal (all asics).
- * Returns 0 if the next fence has passed, error for all other cases.
- * Caller must hold ring lock.
- */
-int amdgpu_fence_wait_next(struct amdgpu_ring *ring)
-{
-	uint64_t seq = atomic64_read(&ring->fence_drv.last_seq) + 1ULL;
-
-	if (seq >= ring->fence_drv.sync_seq)
-		return -ENOENT;
-
-	return amdgpu_fence_ring_wait_seq(ring, seq);
-}
-
-/**
  * amdgpu_fence_wait_empty - wait for all fences to signal
  *
  * @adev: amdgpu device pointer

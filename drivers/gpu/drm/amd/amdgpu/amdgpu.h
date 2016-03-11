@@ -432,7 +432,6 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
-int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
