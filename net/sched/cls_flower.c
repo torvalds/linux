@@ -165,7 +165,7 @@ static void fl_destroy_filter(struct rcu_head *head)
 	kfree(f);
 }
 
-static void fl_hw_destroy_filter(struct tcf_proto *tp, u64 cookie)
+static void fl_hw_destroy_filter(struct tcf_proto *tp, unsigned long cookie)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_flower_offload offload = {0};
@@ -188,7 +188,7 @@ static void fl_hw_replace_filter(struct tcf_proto *tp,
 				 struct fl_flow_key *mask,
 				 struct fl_flow_key *key,
 				 struct tcf_exts *actions,
-				 u64 cookie, u32 flags)
+				 unsigned long cookie, u32 flags)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
 	struct tc_cls_flower_offload offload = {0};
@@ -219,7 +219,7 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 		return false;
 
 	list_for_each_entry_safe(f, next, &head->filters, list) {
-		fl_hw_destroy_filter(tp, (u64)f);
+		fl_hw_destroy_filter(tp, (unsigned long)f);
 		list_del_rcu(&f->list);
 		call_rcu(&f->rcu, fl_destroy_filter);
 	}
@@ -554,13 +554,13 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			     &mask.key,
 			     &fnew->key,
 			     &fnew->exts,
-			     (u64)fnew,
+			     (unsigned long)fnew,
 			     flags);
 
 	if (fold) {
 		rhashtable_remove_fast(&head->ht, &fold->ht_node,
 				       head->ht_params);
-		fl_hw_destroy_filter(tp, (u64)fold);
+		fl_hw_destroy_filter(tp, (unsigned long)fold);
 	}
 
 	*arg = (unsigned long) fnew;
@@ -588,7 +588,7 @@ static int fl_delete(struct tcf_proto *tp, unsigned long arg)
 	rhashtable_remove_fast(&head->ht, &f->ht_node,
 			       head->ht_params);
 	list_del_rcu(&f->list);
-	fl_hw_destroy_filter(tp, (u64)f);
+	fl_hw_destroy_filter(tp, (unsigned long)f);
 	tcf_unbind_filter(tp, &f->res);
 	call_rcu(&f->rcu, fl_destroy_filter);
 	return 0;
