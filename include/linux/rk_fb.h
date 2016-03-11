@@ -28,6 +28,8 @@
 #include "../../drivers/staging/android/sw_sync.h"
 #include <linux/file.h>
 #include <linux/kthread.h>
+#include <linux/pm_runtime.h>
+#include <linux/version.h>
 
 
 #define RK30_MAX_LCDC_SUPPORT	2

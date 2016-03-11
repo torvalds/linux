@@ -167,6 +167,9 @@ static int rk3368_lcdc_clk_enable(struct lcdc_device *lcdc_dev)
 		clk_prepare_enable(lcdc_dev->aclk);
 		if (lcdc_dev->pd)
 			clk_prepare_enable(lcdc_dev->pd);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_get_sync(lcdc_dev->dev);
+#endif
 		spin_lock(&lcdc_dev->reg_lock);
 		lcdc_dev->clk_on = 1;
 		spin_unlock(&lcdc_dev->reg_lock);
@@ -186,11 +189,14 @@ static int rk3368_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 		lcdc_dev->clk_on = 0;
 		spin_unlock(&lcdc_dev->reg_lock);
 		mdelay(25);
+		if (lcdc_dev->pd)
+			clk_disable_unprepare(lcdc_dev->pd);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		pm_runtime_put(lcdc_dev->dev);
+#endif
 		clk_disable_unprepare(lcdc_dev->dclk);
 		clk_disable_unprepare(lcdc_dev->hclk);
 		clk_disable_unprepare(lcdc_dev->aclk);
-		if (lcdc_dev->pd)
-			clk_disable_unprepare(lcdc_dev->pd);
 	}
 
 	return 0;
@@ -5008,6 +5014,10 @@ static int rk3368_lcdc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lcdc_dev);
 	lcdc_dev->dev = dev;
 	rk3368_lcdc_parse_dt(lcdc_dev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	/* enable power domain */
+	pm_runtime_enable(dev);
+#endif
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lcdc_dev->reg_phy_base = res->start;
 	lcdc_dev->len = resource_size(res);
@@ -5120,6 +5130,9 @@ static void rk3368_lcdc_shutdown(struct platform_device *pdev)
 		dev_drv->trsm_ops->disable();*/
 
 	rk3368_lcdc_clk_disable(lcdc_dev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	pm_runtime_disable(lcdc_dev->dev);
+#endif
 	rk_disp_pwr_disable(dev_drv);
 #else
 	rk3368_lcdc_early_suspend(&lcdc_dev->driver);
