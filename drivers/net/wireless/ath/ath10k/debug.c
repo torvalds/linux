@@ -2019,7 +2019,12 @@ static ssize_t ath10k_write_pktlog_filter(struct file *file,
 		goto out;
 	}
 
-	if (filter && (filter != ar->debug.pktlog_filter)) {
+	if (filter == ar->debug.pktlog_filter) {
+		ret = count;
+		goto out;
+	}
+
+	if (filter) {
 		ret = ath10k_wmi_pdev_pktlog_enable(ar, filter);
 		if (ret) {
 			ath10k_warn(ar, "failed to enable pktlog filter %x: %d\n",
