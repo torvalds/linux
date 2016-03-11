@@ -303,6 +303,9 @@ struct qed_hwfn {
 	bool				b_int_enabled;
 	bool				b_int_requested;
 
+	/* True if the driver requests for the link */
+	bool				b_drv_link_init;
+
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_hw_cid_data		*p_tx_cids;
