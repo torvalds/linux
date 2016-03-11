@@ -490,8 +490,9 @@ gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 			if (nvkm_sw_mthd(device->sw, chid, subc, mthd, data))
 				show &= ~0x00800000;
 		}
-		nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	}
+
+	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
 
 	if (show) {
 		nvkm_snprintbf(msg, sizeof(msg), gk104_fifo_pbdma_intr_0, show);
