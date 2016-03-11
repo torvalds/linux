@@ -270,10 +270,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct dm_odm_t *pDM_Odm,
 	}
 }
 
-void odm_Init_RSSIForDM23a(struct dm_odm_t *pDM_Odm)
-{
-}
-
 static void odm_Process_RSSIForDM(struct dm_odm_t *pDM_Odm,
 				  struct phy_info *pPhyInfo,
 				  struct odm_packet_info *pPktinfo)
