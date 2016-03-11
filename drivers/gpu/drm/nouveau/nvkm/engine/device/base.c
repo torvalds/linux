@@ -2185,6 +2185,7 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 	_(MSVLD  , device->msvld   ,  device->msvld);
 	_(NVENC0 , device->nvenc[0],  device->nvenc[0]);
 	_(NVENC1 , device->nvenc[1],  device->nvenc[1]);
+	_(NVDEC  , device->nvdec   ,  device->nvdec);
 	_(PM     , device->pm      , &device->pm->engine);
 	_(SEC    , device->sec     ,  device->sec);
 	_(SW     , device->sw      , &device->sw->engine);
@@ -2620,6 +2621,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_ENGINE_MSVLD   ,    msvld);
 		_(NVKM_ENGINE_NVENC0  , nvenc[0]);
 		_(NVKM_ENGINE_NVENC1  , nvenc[1]);
+		_(NVKM_ENGINE_NVDEC   ,    nvdec);
 		_(NVKM_ENGINE_PM      ,       pm);
 		_(NVKM_ENGINE_SEC     ,      sec);
 		_(NVKM_ENGINE_SW      ,       sw);

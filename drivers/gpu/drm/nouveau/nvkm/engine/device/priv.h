@@ -37,6 +37,7 @@
 #include <engine/msppp.h>
 #include <engine/msvld.h>
 #include <engine/nvenc.h>
+#include <engine/nvdec.h>
 #include <engine/pm.h>
 #include <engine/sec.h>
 #include <engine/sw.h>

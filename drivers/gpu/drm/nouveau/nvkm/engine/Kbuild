@@ -15,6 +15,7 @@ include $(src)/nvkm/engine/mspdec/Kbuild
 include $(src)/nvkm/engine/msppp/Kbuild
 include $(src)/nvkm/engine/msvld/Kbuild
 include $(src)/nvkm/engine/nvenc/Kbuild
+include $(src)/nvkm/engine/nvdec/Kbuild
 include $(src)/nvkm/engine/pm/Kbuild
 include $(src)/nvkm/engine/sec/Kbuild
 include $(src)/nvkm/engine/sw/Kbuild

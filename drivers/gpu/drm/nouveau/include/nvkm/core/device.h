@@ -51,6 +51,7 @@ enum nvkm_devidx {
 	NVKM_ENGINE_NVENC1,
 	NVKM_ENGINE_NVENC_LAST = NVKM_ENGINE_NVENC1,
 
+	NVKM_ENGINE_NVDEC,
 	NVKM_ENGINE_PM,
 	NVKM_ENGINE_SEC,
 	NVKM_ENGINE_SW,
@@ -147,6 +148,7 @@ struct nvkm_device {
 	struct nvkm_engine *msppp;
 	struct nvkm_engine *msvld;
 	struct nvkm_engine *nvenc[2];
+	struct nvkm_engine *nvdec;
 	struct nvkm_pm *pm;
 	struct nvkm_engine *sec;
 	struct nvkm_sw *sw;
@@ -215,6 +217,7 @@ struct nvkm_device_chip {
 	int (*msppp   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*msvld   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*nvenc[2])(struct nvkm_device *, int idx, struct nvkm_engine **);
+	int (*nvdec   )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*pm      )(struct nvkm_device *, int idx, struct nvkm_pm **);
 	int (*sec     )(struct nvkm_device *, int idx, struct nvkm_engine **);
 	int (*sw      )(struct nvkm_device *, int idx, struct nvkm_sw **);
