@@ -95,5 +95,9 @@ int mlx5_nic_vport_disable_roce(struct mlx5_core_dev *mdev);
 int mlx5_core_query_vport_counter(struct mlx5_core_dev *dev, u8 other_vport,
 				  int vf, u8 port_num, void *out,
 				  size_t out_sz);
+int mlx5_core_modify_hca_vport_context(struct mlx5_core_dev *dev,
+				       u8 other_vport, u8 port_num,
+				       int vf,
+				       struct mlx5_hca_vport_context *req);
 
 #endif /* __MLX5_VPORT_H__ */

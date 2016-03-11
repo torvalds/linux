@@ -407,6 +407,12 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 const char *mlx5_command_str(int command)
 {
 	switch (command) {
+	case MLX5_CMD_OP_QUERY_HCA_VPORT_CONTEXT:
+		return "QUERY_HCA_VPORT_CONTEXT";
+
+	case MLX5_CMD_OP_MODIFY_HCA_VPORT_CONTEXT:
+		return "MODIFY_HCA_VPORT_CONTEXT";
+
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
 		return "QUERY_HCA_CAP";
 
