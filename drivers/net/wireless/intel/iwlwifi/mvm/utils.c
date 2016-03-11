@@ -90,10 +90,16 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	 * the mutex, this ensures we don't try to send two
 	 * (or more) synchronous commands at a time.
 	 */
-	if (!(cmd->flags & CMD_ASYNC))
+	if (!(cmd->flags & CMD_ASYNC)) {
 		lockdep_assert_held(&mvm->mutex);
+		if (!(cmd->flags & CMD_SEND_IN_IDLE))
+			iwl_mvm_ref(mvm, IWL_MVM_REF_SENDING_CMD);
+	}
 
 	ret = iwl_trans_send_cmd(mvm->trans, cmd);
+
+	if (!(cmd->flags & (CMD_ASYNC | CMD_SEND_IN_IDLE)))
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SENDING_CMD);
 
 	/*
 	 * If the caller wants the SKB, then don't hide any problems, the

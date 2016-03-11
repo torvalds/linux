@@ -32,6 +32,7 @@
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/pm_runtime.h>
 #include <net/ip6_checksum.h>
 #include <net/tso.h>
 
@@ -1798,6 +1799,16 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       iwl_get_cmd_string(trans, cmd->id));
+
+	if (pm_runtime_suspended(&trans_pcie->pci_dev->dev)) {
+		ret = wait_event_timeout(trans_pcie->d0i3_waitq,
+				 pm_runtime_active(&trans_pcie->pci_dev->dev),
+				 msecs_to_jiffies(IWL_TRANS_IDLE_TIMEOUT));
+		if (!ret) {
+			IWL_ERR(trans, "Timeout exiting D0i3 before hcmd\n");
+			return -ETIMEDOUT;
+		}
+	}
 
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
