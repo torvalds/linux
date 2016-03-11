@@ -430,7 +430,18 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 		hwmon_device_unregister(ds->hwmon_dev);
 #endif
 
-	/* Disable configuration of the CPU and DSA ports */
+	/* Destroy network devices for physical switch ports. */
+	for (port = 0; port < DSA_MAX_PORTS; port++) {
+		if (!(ds->phys_port_mask & (1 << port)))
+			continue;
+
+		if (!ds->ports[port])
+			continue;
+
+		dsa_slave_destroy(ds->ports[port]);
+	}
+
+	/* Remove any fixed link PHYs */
 	for (port = 0; port < DSA_MAX_PORTS; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
@@ -446,17 +457,6 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 				fixed_phy_del(addr);
 			}
 		}
-	}
-
-	/* Destroy network devices for physical switch ports. */
-	for (port = 0; port < DSA_MAX_PORTS; port++) {
-		if (!(ds->phys_port_mask & (1 << port)))
-			continue;
-
-		if (!ds->ports[port])
-			continue;
-
-		dsa_slave_destroy(ds->ports[port]);
 	}
 
 	mdiobus_unregister(ds->slave_mii_bus);
