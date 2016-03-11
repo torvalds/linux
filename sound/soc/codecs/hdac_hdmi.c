@@ -1634,6 +1634,7 @@ static const struct dev_pm_ops hdac_hdmi_pm = {
 
 static const struct hda_device_id hdmi_list[] = {
 	HDA_CODEC_EXT_ENTRY(0x80862809, 0x100000, "Skylake HDMI", 0),
+	HDA_CODEC_EXT_ENTRY(0x8086280a, 0x100000, "Broxton HDMI", 0),
 	{}
 };
 
