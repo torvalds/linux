@@ -201,14 +201,16 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
  *
  * This is only used by of_gpiochip_add to request/set GPIO initial
  * configuration.
+ * It retures error if it fails otherwise 0 on success.
  */
-static void of_gpiochip_scan_gpios(struct gpio_chip *chip)
+static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {
 	struct gpio_desc *desc = NULL;
 	struct device_node *np;
 	const char *name;
 	enum gpio_lookup_flags lflags;
 	enum gpiod_flags dflags;
+	int ret;
 
 	for_each_child_of_node(chip->of_node, np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
@@ -218,9 +220,12 @@ static void of_gpiochip_scan_gpios(struct gpio_chip *chip)
 		if (IS_ERR(desc))
 			continue;
 
-		if (gpiod_hog(desc, name, lflags, dflags))
-			continue;
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret < 0)
+			return ret;
 	}
+
+	return 0;
 }
 
 /**
@@ -442,9 +447,7 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	of_node_get(chip->of_node);
 
-	of_gpiochip_scan_gpios(chip);
-
-	return 0;
+	return of_gpiochip_scan_gpios(chip);
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
