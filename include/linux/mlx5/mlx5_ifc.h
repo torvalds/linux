@@ -3696,6 +3696,12 @@ struct mlx5_ifc_query_hca_vport_pkey_in_bits {
 	u8         pkey_index[0x10];
 };
 
+enum {
+	MLX5_HCA_VPORT_SEL_PORT_GUID	= 1 << 0,
+	MLX5_HCA_VPORT_SEL_NODE_GUID	= 1 << 1,
+	MLX5_HCA_VPORT_SEL_STATE_POLICY	= 1 << 2,
+};
+
 struct mlx5_ifc_query_hca_vport_gid_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];

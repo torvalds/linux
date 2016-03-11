@@ -613,7 +613,10 @@ struct mlx5_pas {
 };
 
 enum port_state_policy {
-	MLX5_AAA_000
+	MLX5_POLICY_DOWN	= 0,
+	MLX5_POLICY_UP		= 1,
+	MLX5_POLICY_FOLLOW	= 2,
+	MLX5_POLICY_INVALID	= 0xffffffff
 };
 
 enum phy_port_state {
