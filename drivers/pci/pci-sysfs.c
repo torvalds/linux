@@ -1356,7 +1356,7 @@ error:
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 {
 	int retval;
-	int rom_size = 0;
+	int rom_size;
 	struct bin_attribute *attr;
 
 	if (!sysfs_initialized)
@@ -1373,12 +1373,8 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (retval)
 		goto err_config_file;
 
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
-		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
-		rom_size = 0x20000;
-
 	/* If the device has a ROM, try to expose it in sysfs. */
+	rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
 	if (rom_size) {
 		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
 		if (!attr) {
