@@ -531,7 +531,6 @@ lstcon_rpc_trans_interpreter(lstcon_rpc_trans_t *trans,
 			continue;
 
 		error = readent(trans->tas_opc, msg, ent);
-
 		if (error)
 			return error;
 	}
@@ -841,7 +840,6 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 
 		trq->tsr_ndest = 0;
 		trq->tsr_loop = nmax * test->tes_dist * test->tes_concur;
-
 	} else {
 		bulk = &(*crpc)->crp_rpc->crpc_bulk;
 

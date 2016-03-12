@@ -91,7 +91,6 @@ brw_client_init(sfw_test_instance_t *tsi)
 		 * but we have to keep it for compatibility
 		 */
 		len = npg * PAGE_CACHE_SIZE;
-
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
 
@@ -279,7 +278,6 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		flags = breq->blk_flags;
 		npg = breq->blk_npg;
 		len = npg * PAGE_CACHE_SIZE;
-
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
 

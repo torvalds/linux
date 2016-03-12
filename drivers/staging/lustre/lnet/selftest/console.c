@@ -977,7 +977,6 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 	if (!test) {
 		entp->u.tbe_batch.bae_ntest = bat->bat_ntest;
 		entp->u.tbe_batch.bae_state = bat->bat_state;
-
 	} else {
 		entp->u.tbe_test.tse_type = test->tes_type;
 		entp->u.tbe_test.tse_loop = test->tes_loop;
@@ -1423,7 +1422,6 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 		translist = &batch->bat_trans_list;
 		ndlist = &batch->bat_cli_list;
 		hdr = &batch->bat_hdr;
-
 	} else {
 		/* query specified test only */
 		rc = lstcon_test_find(batch, testidx, &test);
