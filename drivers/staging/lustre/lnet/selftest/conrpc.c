@@ -288,8 +288,8 @@ void
 lstcon_rpc_trans_abort(lstcon_rpc_trans_t *trans, int error)
 {
 	srpc_client_rpc_t *rpc;
-	lstcon_rpc_t      *crpc;
-	lstcon_node_t     *nd;
+	lstcon_rpc_t *crpc;
+	lstcon_node_t *nd;
 
 	list_for_each_entry(crpc, &trans->tas_rpcs_list, crp_link) {
 		rpc = crpc->crp_rpc;
@@ -388,7 +388,7 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 static int
 lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 {
-	lstcon_node_t *nd  = crpc->crp_node;
+	lstcon_node_t *nd = crpc->crp_node;
 	srpc_client_rpc_t *rpc = crpc->crp_rpc;
 	srpc_generic_reply_t *rep;
 
@@ -425,7 +425,7 @@ lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 void
 lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 {
-	lstcon_rpc_t  *crpc;
+	lstcon_rpc_t *crpc;
 	srpc_msg_t *rep;
 	int error;
 
@@ -654,9 +654,9 @@ int
 lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 		   lstcon_tsb_hdr_t *tsb, lstcon_rpc_t **crpc)
 {
-	lstcon_batch_t	   *batch;
+	lstcon_batch_t *batch;
 	srpc_batch_reqst_t *brq;
-	int		    rc;
+	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_BATCH, feats, 0, 0, crpc);
 	if (rc)
@@ -687,7 +687,7 @@ int
 lstcon_statrpc_prep(lstcon_node_t *nd, unsigned feats, lstcon_rpc_t **crpc)
 {
 	srpc_stat_reqst_t *srq;
-	int		   rc;
+	int rc;
 
 	rc = lstcon_rpc_prep(nd, SRPC_SERVICE_QUERY_STAT, feats, 0, 0, crpc);
 	if (rc)
@@ -811,14 +811,14 @@ int
 lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 		    lstcon_test_t *test, lstcon_rpc_t **crpc)
 {
-	lstcon_group_t    *sgrp = test->tes_src_grp;
-	lstcon_group_t    *dgrp = test->tes_dst_grp;
+	lstcon_group_t *sgrp = test->tes_src_grp;
+	lstcon_group_t *dgrp = test->tes_dst_grp;
 	srpc_test_reqst_t *trq;
-	srpc_bulk_t       *bulk;
-	int                i;
-	int		   npg = 0;
-	int		   nob = 0;
-	int		   rc  = 0;
+	srpc_bulk_t *bulk;
+	int i;
+	int npg = 0;
+	int nob = 0;
+	int rc  = 0;
 
 	if (transop == LST_TRANS_TSBCLIADD) {
 		npg = sfw_id_pages(test->tes_span);
@@ -847,7 +847,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 		bulk = &(*crpc)->crp_rpc->crpc_bulk;
 
 		for (i = 0; i < npg; i++) {
-			int	len;
+			int len;
 
 			LASSERT(nob > 0);
 
@@ -922,7 +922,7 @@ lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 			 lstcon_node_t *nd, srpc_msg_t *reply)
 {
 	srpc_mksn_reply_t *mksn_rep = &reply->msg_body.mksn_reply;
-	int		   status   = mksn_rep->mksn_status;
+	int status = mksn_rep->mksn_status;
 
 	if (!status &&
 	    (reply->msg_ses_feats & ~LST_FEATS_MASK)) {
@@ -968,12 +968,12 @@ void
 lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 		      lstcon_node_t *nd, lstcon_trans_stat_t *stat)
 {
-	srpc_rmsn_reply_t  *rmsn_rep;
+	srpc_rmsn_reply_t *rmsn_rep;
 	srpc_debug_reply_t *dbg_rep;
 	srpc_batch_reply_t *bat_rep;
-	srpc_test_reply_t  *test_rep;
-	srpc_stat_reply_t  *stat_rep;
-	int                rc = 0;
+	srpc_test_reply_t *test_rep;
+	srpc_stat_reply_t *stat_rep;
+	int rc = 0;
 
 	switch (trans->tas_opc) {
 	case LST_TRANS_SESNEW:

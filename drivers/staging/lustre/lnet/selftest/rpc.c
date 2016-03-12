@@ -451,7 +451,7 @@ static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 			 lnet_handle_md_t *mdh, srpc_event_t *ev)
 {
-	lnet_process_id_t any = {0};
+	lnet_process_id_t any = { 0 };
 
 	any.nid = LNET_NID_ANY;
 	any.pid = LNET_PID_ANY;
@@ -466,7 +466,7 @@ srpc_service_post_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
 	__must_hold(&scd->scd_lock)
 {
 	struct srpc_service *sv = scd->scd_svc;
-	struct srpc_msg *msg = &buf->buf_msg;
+	struct srpc_msg	*msg = &buf->buf_msg;
 	int rc;
 
 	LNetInvalidateHandle(&buf->buf_mdh);
@@ -842,7 +842,7 @@ srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 {
 	srpc_bulk_t *bk = &rpc->crpc_bulk;
 	srpc_event_t *ev = &rpc->crpc_bulkev;
-	__u64	*id = &rpc->crpc_reqstmsg.msg_body.reqst.bulkid;
+	__u64 *id = &rpc->crpc_reqstmsg.msg_body.reqst.bulkid;
 	int rc;
 	int opt;
 
@@ -902,7 +902,7 @@ static void
 srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 {
 	struct srpc_service_cd *scd = rpc->srpc_scd;
-	struct srpc_service *sv  = scd->scd_svc;
+	struct srpc_service *sv = scd->scd_svc;
 	srpc_buffer_t *buffer;
 
 	LASSERT(status || rpc->srpc_wi.swi_state == SWI_STATE_DONE);

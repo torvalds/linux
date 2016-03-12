@@ -170,7 +170,7 @@ ping_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 static int
 ping_server_handle(struct srpc_server_rpc *rpc)
 {
-	struct srpc_service *sv  = rpc->srpc_scd->scd_svc;
+	struct srpc_service *sv = rpc->srpc_scd->scd_svc;
 	srpc_msg_t *reqstmsg = &rpc->srpc_reqstbuf->buf_msg;
 	srpc_msg_t *replymsg = &rpc->srpc_replymsg;
 	srpc_ping_reqst_t *req = &reqstmsg->msg_body.ping_reqst;

@@ -115,9 +115,9 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 static int
 lst_debug_ioctl(lstio_debug_args_t *args)
 {
-	char   *name   = NULL;
-	int     client = 1;
-	int     rc;
+	char *name = NULL;
+	int client = 1;
+	int rc;
 
 	if (args->lstio_dbg_key != console_session.ses_key)
 		return -EACCES;
@@ -229,8 +229,8 @@ lst_group_add_ioctl(lstio_group_add_args_t *args)
 static int
 lst_group_del_ioctl(lstio_group_del_args_t *args)
 {
-	int     rc;
-	char   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -262,8 +262,8 @@ lst_group_del_ioctl(lstio_group_del_args_t *args)
 static int
 lst_group_update_ioctl(lstio_group_update_args_t *args)
 {
-	int     rc;
-	char   *name;
+	int rc;
+	char *name;
 
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
@@ -547,8 +547,8 @@ lst_batch_stop_ioctl(lstio_batch_stop_args_t *args)
 static int
 lst_batch_query_ioctl(lstio_batch_query_args_t *args)
 {
-	char   *name;
-	int     rc;
+	char *name;
+	int rc;
 
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
@@ -714,12 +714,12 @@ lst_stat_query_ioctl(lstio_stat_args_t *args)
 
 static int lst_test_add_ioctl(lstio_test_args_t *args)
 {
-	char		*batch_name;
-	char		*src_name = NULL;
-	char		*dst_name = NULL;
-	void		*param = NULL;
-	int		ret = 0;
-	int		rc = -ENOMEM;
+	char *batch_name;
+	char *src_name = NULL;
+	char *dst_name = NULL;
+	void *param = NULL;
+	int ret = 0;
+	int rc = -ENOMEM;
 
 	if (!args->lstio_tes_resultp ||
 	    !args->lstio_tes_retp ||
@@ -807,10 +807,10 @@ out:
 int
 lstcon_ioctl_entry(unsigned int cmd, struct libcfs_ioctl_hdr *hdr)
 {
-	char   *buf;
+	char *buf;
 	struct libcfs_ioctl_data *data;
-	int     opc;
-	int     rc;
+	int opc;
+	int rc;
 
 	if (cmd != IOC_LIBCFS_LNETST)
 		return -EINVAL;

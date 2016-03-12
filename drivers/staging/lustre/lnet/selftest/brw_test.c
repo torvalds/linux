@@ -51,8 +51,8 @@ MODULE_PARM_DESC(brw_inject_errors, "# data errors to inject randomly, zero by d
 static void
 brw_client_fini(sfw_test_instance_t *tsi)
 {
-	srpc_bulk_t     *bulk;
-	sfw_test_unit_t *tsu;
+	srpc_bulk_t *bulk;
+	sfw_test_unit_t	*tsu;
 
 	LASSERT(tsi->tsi_is_client);
 
@@ -69,19 +69,19 @@ brw_client_fini(sfw_test_instance_t *tsi)
 static int
 brw_client_init(sfw_test_instance_t *tsi)
 {
-	sfw_session_t	 *sn = tsi->tsi_batch->bat_session;
-	int		  flags;
-	int		  npg;
-	int		  len;
-	int		  opc;
-	srpc_bulk_t	 *bulk;
-	sfw_test_unit_t	 *tsu;
+	sfw_session_t *sn = tsi->tsi_batch->bat_session;
+	int flags;
+	int npg;
+	int len;
+	int opc;
+	srpc_bulk_t *bulk;
+	sfw_test_unit_t *tsu;
 
 	LASSERT(sn);
 	LASSERT(tsi->tsi_is_client);
 
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
-		test_bulk_req_t  *breq = &tsi->tsi_u.bulk_v0;
+		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
 
 		opc   = breq->blk_opc;
 		flags = breq->blk_flags;
@@ -155,7 +155,7 @@ static void
 brw_fill_page(struct page *pg, int pattern, __u64 magic)
 {
 	char *addr = page_address(pg);
-	int   i;
+	int i;
 
 	LASSERT(addr);
 
@@ -184,9 +184,9 @@ brw_fill_page(struct page *pg, int pattern, __u64 magic)
 static int
 brw_check_page(struct page *pg, int pattern, __u64 magic)
 {
-	char  *addr = page_address(pg);
-	__u64  data = 0; /* make compiler happy */
-	int    i;
+	char *addr = page_address(pg);
+	__u64 data = 0; /* make compiler happy */
+	int i;
 
 	LASSERT(addr);
 

@@ -71,7 +71,7 @@ lstcon_node_get(lstcon_node_t *nd)
 static int
 lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 {
-	lstcon_ndlink_t *ndl;
+	lstcon_ndlink_t	*ndl;
 	unsigned int idx = LNET_NIDADDR(id.nid) % LST_GLOBAL_HASHSIZE;
 
 	LASSERT(id.nid != LNET_NID_ANY);
@@ -403,7 +403,7 @@ lstcon_group_nodes_add(lstcon_group_t *grp,
 		       unsigned *featp, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
-	lstcon_ndlink_t *ndl;
+	lstcon_ndlink_t	*ndl;
 	lstcon_group_t *tmp;
 	lnet_process_id_t id;
 	int i;
@@ -935,7 +935,7 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 	struct list_head *srvlst;
 	lstcon_test_t *test = NULL;
 	lstcon_batch_t *bat;
-	lstcon_ndlink_t *ndl;
+	lstcon_ndlink_t	*ndl;
 	int rc;
 
 	rc = lstcon_batch_find(name, &bat);
@@ -1258,7 +1258,7 @@ static int
 lstcon_verify_group(const char *name, lstcon_group_t **grp)
 {
 	int rc;
-	lstcon_ndlink_t *ndl;
+	lstcon_ndlink_t	*ndl;
 
 	rc = lstcon_group_find(name, grp);
 	if (rc) {
@@ -1283,11 +1283,11 @@ lstcon_test_add(char *batch_name, int type, int loop,
 		void *param, int paramlen, int *retp,
 		struct list_head __user *result_up)
 {
-	lstcon_test_t	 *test	 = NULL;
-	int		 rc;
-	lstcon_group_t	 *src_grp = NULL;
-	lstcon_group_t	 *dst_grp = NULL;
-	lstcon_batch_t	 *batch = NULL;
+	lstcon_test_t *test = NULL;
+	int rc;
+	lstcon_group_t *src_grp = NULL;
+	lstcon_group_t *dst_grp = NULL;
+	lstcon_batch_t *batch = NULL;
 
 	/*
 	 * verify that a batch of the given name exists, and the groups
@@ -1535,7 +1535,7 @@ int
 lstcon_nodes_stat(int count, lnet_process_id_t __user *ids_up,
 		  int timeout, struct list_head __user *result_up)
 {
-	lstcon_ndlink_t *ndl;
+	lstcon_ndlink_t	*ndl;
 	lstcon_group_t *tmp;
 	lnet_process_id_t id;
 	int i;
@@ -1581,7 +1581,7 @@ lstcon_debug_ndlist(struct list_head *ndlist,
 		    int timeout, struct list_head __user *result_up)
 {
 	lstcon_rpc_trans_t *trans;
-	int		 rc;
+	int rc;
 
 	rc = lstcon_rpc_trans_ndlist(ndlist, translist, LST_TRANS_SESQRY,
 				     NULL, lstcon_sesrpc_condition, &trans);
@@ -1905,13 +1905,13 @@ lstcon_session_feats_check(unsigned feats)
 static int
 lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 {
-	srpc_msg_t *rep  = &rpc->srpc_replymsg;
-	srpc_msg_t *req  = &rpc->srpc_reqstbuf->buf_msg;
+	srpc_msg_t *rep	= &rpc->srpc_replymsg;
+	srpc_msg_t *req	= &rpc->srpc_reqstbuf->buf_msg;
 	srpc_join_reqst_t *jreq = &req->msg_body.join_reqst;
 	srpc_join_reply_t *jrep = &rep->msg_body.join_reply;
-	lstcon_group_t *grp  = NULL;
+	lstcon_group_t *grp = NULL;
 	lstcon_ndlink_t *ndl;
-	int rc   = 0;
+	int rc = 0;
 
 	sfw_unpack_message(req);
 
