@@ -50,6 +50,7 @@
 #include "hash.h"
 #include "originator.h"
 #include "packet.h"
+#include "sysfs.h"
 #include "translation-table.h"
 
 static const u8 batadv_announce_mac[4] = {0x43, 0x05, 0x43, 0x05};
@@ -407,6 +408,14 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 			   ethhdr->h_source, ethhdr->h_dest,
 			   BATADV_PRINT_VID(vid));
 		break;
+	case BATADV_CLAIM_TYPE_LOOPDETECT:
+		ether_addr_copy(ethhdr->h_source, mac);
+		batadv_dbg(BATADV_DBG_BLA, bat_priv,
+			   "bla_send_claim(): LOOPDETECT of %pM to %pM on vid %d\n",
+			   ethhdr->h_source, ethhdr->h_dest,
+			   BATADV_PRINT_VID(vid));
+
+		break;
 	}
 
 	if (vid & BATADV_VLAN_HAS_TAG)
@@ -424,6 +433,36 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, u8 *mac,
 out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
+}
+
+/**
+ * batadv_bla_loopdetect_report - worker for reporting the loop
+ * @work: work queue item
+ *
+ * Throws an uevent, as the loopdetect check function can't do that itself
+ * since the kernel may sleep while throwing uevents.
+ */
+static void batadv_bla_loopdetect_report(struct work_struct *work)
+{
+	struct batadv_bla_backbone_gw *backbone_gw;
+	struct batadv_priv *bat_priv;
+	char vid_str[6] = { '\0' };
+
+	backbone_gw = container_of(work, struct batadv_bla_backbone_gw,
+				   report_work);
+	bat_priv = backbone_gw->bat_priv;
+
+	batadv_info(bat_priv->soft_iface,
+		    "Possible loop on VLAN %d detected which can't be handled by BLA - please check your network setup!\n",
+		    BATADV_PRINT_VID(backbone_gw->vid));
+	snprintf(vid_str, sizeof(vid_str), "%d",
+		 BATADV_PRINT_VID(backbone_gw->vid));
+	vid_str[sizeof(vid_str) - 1] = 0;
+
+	batadv_throw_uevent(bat_priv, BATADV_UEV_BLA, BATADV_UEV_LOOPDETECT,
+			    vid_str);
+
+	batadv_backbone_gw_put(backbone_gw);
 }
 
 /**
@@ -464,6 +503,7 @@ batadv_bla_get_backbone_gw(struct batadv_priv *bat_priv, u8 *orig,
 	atomic_set(&entry->request_sent, 0);
 	atomic_set(&entry->wait_periods, 0);
 	ether_addr_copy(entry->orig, orig);
+	INIT_WORK(&entry->report_work, batadv_bla_loopdetect_report);
 
 	/* one for the hash, one for returning */
 	kref_init(&entry->refcount);
@@ -1060,6 +1100,10 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	if (vlan_depth > 1)
 		return 1;
 
+	/* Let the loopdetect frames on the mesh in any case. */
+	if (bla_dst->type == BATADV_CLAIM_TYPE_LOOPDETECT)
+		return 0;
+
 	/* check if it is a claim frame. */
 	ret = batadv_check_claim_group(bat_priv, primary_if, hw_src, hw_dst,
 				       ethhdr);
@@ -1265,6 +1309,26 @@ void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_bla_send_loopdetect - send a loopdetect frame
+ * @bat_priv: the bat priv with all the soft interface information
+ * @backbone_gw: the backbone gateway for which a loop should be detected
+ *
+ * To detect loops that the bridge loop avoidance can't handle, send a loop
+ * detection packet on the backbone. Unlike other BLA frames, this frame will
+ * be allowed on the mesh by other nodes. If it is received on the mesh, this
+ * indicates that there is a loop.
+ */
+static void
+batadv_bla_send_loopdetect(struct batadv_priv *bat_priv,
+			   struct batadv_bla_backbone_gw *backbone_gw)
+{
+	batadv_dbg(BATADV_DBG_BLA, bat_priv, "Send loopdetect frame for vid %d\n",
+		   backbone_gw->vid);
+	batadv_bla_send_claim(bat_priv, bat_priv->bla.loopdetect_addr,
+			      backbone_gw->vid, BATADV_CLAIM_TYPE_LOOPDETECT);
+}
+
+/**
  * batadv_bla_status_update - purge bla interfaces if necessary
  * @net_dev: the soft interface net device
  */
@@ -1301,6 +1365,7 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 	struct batadv_bla_backbone_gw *backbone_gw;
 	struct batadv_hashtable *hash;
 	struct batadv_hard_iface *primary_if;
+	bool send_loopdetect = false;
 	int i;
 
 	delayed_work = to_delayed_work(work);
@@ -1315,6 +1380,22 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto out;
+
+	if (atomic_dec_and_test(&bat_priv->bla.loopdetect_next)) {
+		/* set a new random mac address for the next bridge loop
+		 * detection frames. Set the locally administered bit to avoid
+		 * collisions with users mac addresses.
+		 */
+		random_ether_addr(bat_priv->bla.loopdetect_addr);
+		bat_priv->bla.loopdetect_addr[0] = 0xba;
+		bat_priv->bla.loopdetect_addr[1] = 0xbe;
+		bat_priv->bla.loopdetect_lasttime = jiffies;
+		atomic_set(&bat_priv->bla.loopdetect_next,
+			   BATADV_BLA_LOOPDETECT_PERIODS);
+
+		/* mark for sending loop detect on all VLANs */
+		send_loopdetect = true;
+	}
 
 	hash = bat_priv->bla.backbone_hash;
 	if (!hash)
@@ -1332,6 +1413,9 @@ static void batadv_bla_periodic_work(struct work_struct *work)
 			backbone_gw->lasttime = jiffies;
 
 			batadv_bla_send_announce(bat_priv, backbone_gw);
+			if (send_loopdetect)
+				batadv_bla_send_loopdetect(bat_priv,
+							   backbone_gw);
 
 			/* request_sent is only set after creation to avoid
 			 * problems when we are not yet known as backbone gw
@@ -1404,6 +1488,9 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 	for (i = 0; i < BATADV_DUPLIST_SIZE; i++)
 		bat_priv->bla.bcast_duplist[i].entrytime = entrytime;
 	bat_priv->bla.bcast_duplist_curr = 0;
+
+	atomic_set(&bat_priv->bla.loopdetect_next,
+		   BATADV_BLA_LOOPDETECT_PERIODS);
 
 	if (bat_priv->bla.claim_hash)
 		return 0;
@@ -1602,6 +1689,55 @@ void batadv_bla_free(struct batadv_priv *bat_priv)
 }
 
 /**
+ * batadv_bla_loopdetect_check - check and handle a detected loop
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the packet to check
+ * @primary_if: interface where the request came on
+ * @vid: the VLAN ID of the frame
+ *
+ * Checks if this packet is a loop detect frame which has been sent by us,
+ * throw an uevent and log the event if that is the case.
+ *
+ * Return: true if it is a loop detect frame which is to be dropped, false
+ * otherwise.
+ */
+static bool
+batadv_bla_loopdetect_check(struct batadv_priv *bat_priv, struct sk_buff *skb,
+			    struct batadv_hard_iface *primary_if,
+			    unsigned short vid)
+{
+	struct batadv_bla_backbone_gw *backbone_gw;
+	struct ethhdr *ethhdr;
+
+	ethhdr = eth_hdr(skb);
+
+	/* Only check for the MAC address and skip more checks here for
+	 * performance reasons - this function is on the hotpath, after all.
+	 */
+	if (!batadv_compare_eth(ethhdr->h_source,
+				bat_priv->bla.loopdetect_addr))
+		return false;
+
+	/* If the packet came too late, don't forward it on the mesh
+	 * but don't consider that as loop. It might be a coincidence.
+	 */
+	if (batadv_has_timed_out(bat_priv->bla.loopdetect_lasttime,
+				 BATADV_BLA_LOOPDETECT_TIMEOUT))
+		return true;
+
+	backbone_gw = batadv_bla_get_backbone_gw(bat_priv,
+						 primary_if->net_dev->dev_addr,
+						 vid, true);
+	if (unlikely(!backbone_gw))
+		return true;
+
+	queue_work(batadv_event_workqueue, &backbone_gw->report_work);
+	/* backbone_gw is unreferenced in the report work function function */
+
+	return true;
+}
+
+/**
  * batadv_bla_rx - check packets coming from the mesh.
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the frame to be checked
@@ -1633,6 +1769,9 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb,
 
 	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
 		goto allow;
+
+	if (batadv_bla_loopdetect_check(bat_priv, skb, primary_if, vid))
+		goto handled;
 
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */

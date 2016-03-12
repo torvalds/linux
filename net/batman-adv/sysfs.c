@@ -116,11 +116,13 @@ batadv_kobj_to_vlan(struct batadv_priv *bat_priv, struct kobject *obj)
 static char *batadv_uev_action_str[] = {
 	"add",
 	"del",
-	"change"
+	"change",
+	"loopdetect",
 };
 
 static char *batadv_uev_type_str[] = {
-	"gw"
+	"gw",
+	"bla",
 };
 
 /* Use this, if you have customized show and store functions for vlan attrs */

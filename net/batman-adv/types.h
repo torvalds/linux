@@ -657,6 +657,9 @@ struct batadv_priv_tt {
  * @num_requests: number of bla requests in flight
  * @claim_hash: hash table containing mesh nodes this host has claimed
  * @backbone_hash: hash table containing all detected backbone gateways
+ * @loopdetect_addr: MAC address used for own loopdetection frames
+ * @loopdetect_lasttime: time when the loopdetection frames were sent
+ * @loopdetect_next: how many periods to wait for the next loopdetect process
  * @bcast_duplist: recently received broadcast packets array (for broadcast
  *  duplicate suppression)
  * @bcast_duplist_curr: index of last broadcast packet added to bcast_duplist
@@ -668,6 +671,9 @@ struct batadv_priv_bla {
 	atomic_t num_requests;
 	struct batadv_hashtable *claim_hash;
 	struct batadv_hashtable *backbone_hash;
+	u8 loopdetect_addr[ETH_ALEN];
+	unsigned long loopdetect_lasttime;
+	atomic_t loopdetect_next;
 	struct batadv_bcast_duplist_entry bcast_duplist[BATADV_DUPLIST_SIZE];
 	int bcast_duplist_curr;
 	/* protects bcast_duplist & bcast_duplist_curr */
@@ -1012,6 +1018,7 @@ struct batadv_socket_packet {
  *  resolved
  * @crc: crc16 checksum over all claims
  * @crc_lock: lock protecting crc
+ * @report_work: work struct for reporting detected loops
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
  */
@@ -1025,6 +1032,7 @@ struct batadv_bla_backbone_gw {
 	atomic_t request_sent;
 	u16 crc;
 	spinlock_t crc_lock; /* protects crc */
+	struct work_struct report_work;
 	struct kref refcount;
 	struct rcu_head rcu;
 };
