@@ -854,7 +854,7 @@ void tsl2x7x_prox_calculate(int *data, int length,
 		tmp = data[i] - statP->mean;
 		sample_sum += tmp * tmp;
 	}
-	statP->stddev = int_sqrt((long)sample_sum)/length;
+	statP->stddev = int_sqrt((long)sample_sum) / length;
 }
 
 /**
@@ -1192,7 +1192,7 @@ static ssize_t tsl2x7x_luxtable_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int value[ARRAY_SIZE(chip->tsl2x7x_device_lux)*3 + 1];
+	int value[ARRAY_SIZE(chip->tsl2x7x_device_lux) * 3 + 1];
 	int n;
 
 	get_options(buf, ARRAY_SIZE(value), value);
