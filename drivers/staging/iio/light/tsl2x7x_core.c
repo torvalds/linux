@@ -1646,6 +1646,7 @@ static struct attribute *tsl2X7X_ALS_event_attrs[] = {
 	&dev_attr_in_intensity0_thresh_period.attr,
 	NULL,
 };
+
 static struct attribute *tsl2X7X_PRX_event_attrs[] = {
 	&dev_attr_in_proximity0_thresh_period.attr,
 	NULL,
