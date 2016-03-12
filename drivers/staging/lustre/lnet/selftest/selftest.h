@@ -415,7 +415,7 @@ typedef struct sfw_test_case {
 srpc_client_rpc_t *
 sfw_create_rpc(lnet_process_id_t peer, int service,
 	       unsigned features, int nbulkiov, int bulklen,
-	       void (*done) (srpc_client_rpc_t *), void *priv);
+	       void (*done)(srpc_client_rpc_t *), void *priv);
 int sfw_create_test_rpc(sfw_test_unit_t *tsu,
 			lnet_process_id_t peer, unsigned features,
 			int nblk, int blklen, srpc_client_rpc_t **rpc);

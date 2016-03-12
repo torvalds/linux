@@ -207,7 +207,7 @@ lstcon_group_alloc(char *name, lstcon_group_t **grpp)
 
 	grp->grp_ref = 1;
 	if (name) {
-		if (strlen(name) > sizeof(grp->grp_name)-1) {
+		if (strlen(name) > sizeof(grp->grp_name) - 1) {
 			LIBCFS_FREE(grp, offsetof(lstcon_group_t,
 				    grp_ndl_hash[LST_NODE_HASHSIZE]));
 			return -E2BIG;
@@ -525,7 +525,7 @@ lstcon_group_add(char *name)
 	lstcon_group_t *grp;
 	int rc;
 
-	rc = lstcon_group_find(name, &grp) ? 0: -EEXIST;
+	rc = lstcon_group_find(name, &grp) ? 0 : -EEXIST;
 	if (rc) {
 		/* find a group with same name */
 		lstcon_group_decref(grp);
@@ -1746,7 +1746,7 @@ lstcon_session_new(char *name, int key, unsigned feats,
 	console_session.ses_timeout = (timeout <= 0) ?
 				      LST_CONSOLE_TIMEOUT : timeout;
 
-	if (strlen(name) > sizeof(console_session.ses_name)-1)
+	if (strlen(name) > sizeof(console_session.ses_name) - 1)
 		return -E2BIG;
 	strncpy(console_session.ses_name, name,
 		sizeof(console_session.ses_name));

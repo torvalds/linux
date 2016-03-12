@@ -194,12 +194,12 @@ brw_check_page(struct page *pg, int pattern, __u64 magic)
 		return 0;
 
 	if (pattern == LST_BRW_CHECK_SIMPLE) {
-		data = *((__u64 *) addr);
+		data = *((__u64 *)addr);
 		if (data != magic)
 			goto bad_data;
 
 		addr += PAGE_CACHE_SIZE - BRW_MSIZE;
-		data = *((__u64 *) addr);
+		data = *((__u64 *)addr);
 		if (data != magic)
 			goto bad_data;
 
@@ -208,7 +208,7 @@ brw_check_page(struct page *pg, int pattern, __u64 magic)
 
 	if (pattern == LST_BRW_CHECK_FULL) {
 		for (i = 0; i < PAGE_CACHE_SIZE / BRW_MSIZE; i++) {
-			data = *(((__u64 *) addr) + i);
+			data = *(((__u64 *)addr) + i);
 			if (data != magic)
 				goto bad_data;
 		}

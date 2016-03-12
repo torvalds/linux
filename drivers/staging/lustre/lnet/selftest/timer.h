@@ -41,7 +41,7 @@
 struct stt_timer {
 	struct list_head stt_list;
 	time64_t         stt_expires;
-	void             (*stt_func) (void *);
+	void             (*stt_func)(void *);
 	void             *stt_data;
 };
 
