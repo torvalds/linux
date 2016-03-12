@@ -659,10 +659,11 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		} else if (nvec->tx && nvec->tx->pos < nvec->tx->size) {
 			to_send = nvec->tx->data[nvec->tx->pos++];
 		} else {
-			dev_err(nvec->dev, "tx buffer underflow on %p (%u > %u)\n",
+			dev_err(nvec->dev,
+				"tx buffer underflow on %p (%u > %u)\n",
 				nvec->tx,
-				(uint) (nvec->tx ? nvec->tx->pos : 0),
-				(uint) (nvec->tx ? nvec->tx->size : 0));
+				(uint)(nvec->tx ? nvec->tx->pos : 0),
+				(uint)(nvec->tx ? nvec->tx->size : 0));
 			nvec->state = 0;
 		}
 		break;
