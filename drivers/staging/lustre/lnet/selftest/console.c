@@ -733,7 +733,7 @@ lstcon_group_list(int index, int len, char __user *name_up)
 	list_for_each_entry(grp, &console_session.ses_grp_list, grp_link) {
 		if (!index--) {
 			return copy_to_user(name_up, grp->grp_name, len) ?
-			       -EFAULT : 0;
+					    -EFAULT : 0;
 		}
 	}
 

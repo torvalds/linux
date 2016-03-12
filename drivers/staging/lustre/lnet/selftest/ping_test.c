@@ -86,8 +86,8 @@ ping_client_fini(sfw_test_instance_t *tsi)
 }
 
 static int
-ping_client_prep_rpc(sfw_test_unit_t *tsu,
-		     lnet_process_id_t dest, srpc_client_rpc_t **rpc)
+ping_client_prep_rpc(sfw_test_unit_t *tsu, lnet_process_id_t dest,
+		     srpc_client_rpc_t **rpc)
 {
 	srpc_ping_reqst_t *req;
 	sfw_test_instance_t *tsi = tsu->tsu_instance;
