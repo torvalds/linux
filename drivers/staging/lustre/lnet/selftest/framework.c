@@ -149,7 +149,7 @@ sfw_register_test(srpc_service_t *service, sfw_test_client_ops_t *cliops)
 	if (!tsc)
 		return -ENOMEM;
 
-	tsc->tsc_cli_ops     = cliops;
+	tsc->tsc_cli_ops = cliops;
 	tsc->tsc_srv_service = service;
 
 	list_add_tail(&tsc->tsc_list, &sfw_data.fw_tests);
@@ -271,10 +271,10 @@ sfw_init_session(sfw_session_t *sn, lst_sid_t sid,
 	strlcpy(&sn->sn_name[0], name, sizeof(sn->sn_name));
 
 	sn->sn_timer_active = 0;
-	sn->sn_id           = sid;
-	sn->sn_features	    = features;
-	sn->sn_timeout      = session_timeout;
-	sn->sn_started      = cfs_time_current();
+	sn->sn_id = sid;
+	sn->sn_features = features;
+	sn->sn_timeout = session_timeout;
+	sn->sn_started = cfs_time_current();
 
 	timer->stt_data = sn;
 	timer->stt_func = sfw_session_expired;
@@ -350,9 +350,9 @@ sfw_bid2batch(lst_bid_t bid)
 	if (!bat)
 		return NULL;
 
-	bat->bat_error    = 0;
-	bat->bat_session  = sn;
-	bat->bat_id       = bid;
+	bat->bat_error = 0;
+	bat->bat_session = sn;
+	bat->bat_id = bid;
 	atomic_set(&bat->bat_nactive, 0);
 	INIT_LIST_HEAD(&bat->bat_tests);
 
@@ -386,9 +386,9 @@ sfw_get_stats(srpc_stat_reqst_t *request, srpc_stat_reply_t *reply)
 	 * send over the msecs since the session was started
 	 * with 32 bits to send, this is ~49 days
 	 */
-	cnt->running_ms	     = jiffies_to_msecs(jiffies - sn->sn_started);
-	cnt->brw_errors      = atomic_read(&sn->sn_brw_errors);
-	cnt->ping_errors     = atomic_read(&sn->sn_ping_errors);
+	cnt->running_ms = jiffies_to_msecs(jiffies - sn->sn_started);
+	cnt->brw_errors = atomic_read(&sn->sn_brw_errors);
+	cnt->ping_errors = atomic_read(&sn->sn_ping_errors);
 	cnt->zombie_sessions = atomic_read(&sfw_data.fw_nzombies);
 
 	cnt->active_batches = 0;
@@ -416,8 +416,8 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 	}
 
 	if (sn) {
-		reply->mksn_status  = 0;
-		reply->mksn_sid     = sn->sn_id;
+		reply->mksn_status = 0;
+		reply->mksn_sid = sn->sn_id;
 		reply->mksn_timeout = sn->sn_timeout;
 
 		if (sfw_sid_equal(request->mksn_sid, sn->sn_id)) {
@@ -466,8 +466,8 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 
 	spin_unlock(&sfw_data.fw_lock);
 
-	reply->mksn_status  = 0;
-	reply->mksn_sid     = sn->sn_id;
+	reply->mksn_status = 0;
+	reply->mksn_sid = sn->sn_id;
 	reply->mksn_timeout = sn->sn_timeout;
 	return 0;
 }
@@ -499,7 +499,7 @@ sfw_remove_session(srpc_rmsn_reqst_t *request, srpc_rmsn_reply_t *reply)
 	spin_unlock(&sfw_data.fw_lock);
 
 	reply->rmsn_status = 0;
-	reply->rmsn_sid    = LST_INVALID_SID;
+	reply->rmsn_sid = LST_INVALID_SID;
 	LASSERT(!sfw_data.fw_session);
 	return 0;
 }
@@ -511,12 +511,12 @@ sfw_debug_session(srpc_debug_reqst_t *request, srpc_debug_reply_t *reply)
 
 	if (!sn) {
 		reply->dbg_status = ESRCH;
-		reply->dbg_sid    = LST_INVALID_SID;
+		reply->dbg_sid = LST_INVALID_SID;
 		return 0;
 	}
 
-	reply->dbg_status  = 0;
-	reply->dbg_sid     = sn->sn_id;
+	reply->dbg_status = 0;
+	reply->dbg_sid = sn->sn_id;
 	reply->dbg_timeout = sn->sn_timeout;
 	if (strlcpy(reply->dbg_name, &sn->sn_name[0], sizeof(reply->dbg_name))
 	    >= sizeof(reply->dbg_name))
@@ -753,12 +753,12 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 	INIT_LIST_HEAD(&tsi->tsi_free_rpcs);
 	INIT_LIST_HEAD(&tsi->tsi_active_rpcs);
 
-	tsi->tsi_stopping      = 0;
-	tsi->tsi_batch         = tsb;
-	tsi->tsi_loop          = req->tsr_loop;
-	tsi->tsi_concur        = req->tsr_concur;
-	tsi->tsi_service       = req->tsr_service;
-	tsi->tsi_is_client     = !!(req->tsr_is_client);
+	tsi->tsi_stopping = 0;
+	tsi->tsi_batch = tsb;
+	tsi->tsi_loop = req->tsr_loop;
+	tsi->tsi_concur = req->tsr_concur;
+	tsi->tsi_service = req->tsr_service;
+	tsi->tsi_is_client = !!(req->tsr_is_client);
 	tsi->tsi_stoptsu_onerr = !!(req->tsr_stop_onerr);
 
 	rc = sfw_load_test(tsi);
@@ -806,7 +806,7 @@ sfw_add_test_instance(sfw_batch_t *tsb, struct srpc_server_rpc *rpc)
 			tsu->tsu_dest.nid = id.nid;
 			tsu->tsu_dest.pid = id.pid;
 			tsu->tsu_instance = tsi;
-			tsu->tsu_private  = NULL;
+			tsu->tsu_private = NULL;
 			list_add_tail(&tsu->tsu_list, &tsi->tsi_units);
 		}
 	}
@@ -1269,7 +1269,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 			CNETERR("Features of framework RPC don't match features of current session: %x/%x\n",
 				request->msg_ses_feats, sn->sn_features);
 			reply->msg_body.reply.status = EPROTO;
-			reply->msg_body.reply.sid    = sn->sn_id;
+			reply->msg_body.reply.sid = sn->sn_id;
 			goto out;
 		}
 
@@ -1652,7 +1652,7 @@ sfw_startup(void)
 
 	memset(&sfw_data, 0, sizeof(struct smoketest_framework));
 
-	sfw_data.fw_session     = NULL;
+	sfw_data.fw_session = NULL;
 	sfw_data.fw_active_srpc = NULL;
 	spin_lock_init(&sfw_data.fw_lock);
 	atomic_set(&sfw_data.fw_nzombies, 0);
@@ -1689,8 +1689,8 @@ sfw_startup(void)
 			break;
 
 		sv->sv_bulk_ready = NULL;
-		sv->sv_handler    = sfw_handle_server_rpc;
-		sv->sv_wi_total   = SFW_FRWK_WI_MAX;
+		sv->sv_handler = sfw_handle_server_rpc;
+		sv->sv_wi_total = SFW_FRWK_WI_MAX;
 		if (sv->sv_id == SRPC_SERVICE_TEST)
 			sv->sv_bulk_ready = sfw_bulk_ready;
 

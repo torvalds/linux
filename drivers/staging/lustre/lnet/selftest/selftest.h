@@ -472,9 +472,9 @@ static inline void
 swi_init_workitem(swi_workitem_t *swi, void *data,
 		  swi_action_t action, struct cfs_wi_sched *sched)
 {
-	swi->swi_sched  = sched;
+	swi->swi_sched = sched;
 	swi->swi_action = action;
-	swi->swi_state  = SWI_STATE_NEWBORN;
+	swi->swi_state = SWI_STATE_NEWBORN;
 	cfs_wi_init(&swi->swi_workitem, data, swi_wi_action);
 }
 
@@ -531,13 +531,13 @@ srpc_init_client_rpc(srpc_client_rpc_t *rpc, lnet_process_id_t peer,
 	spin_lock_init(&rpc->crpc_lock);
 	atomic_set(&rpc->crpc_refcount, 1); /* 1 ref for caller */
 
-	rpc->crpc_dest         = peer;
-	rpc->crpc_priv         = priv;
-	rpc->crpc_service      = service;
-	rpc->crpc_bulk.bk_len  = bulklen;
+	rpc->crpc_dest = peer;
+	rpc->crpc_priv = priv;
+	rpc->crpc_service = service;
+	rpc->crpc_bulk.bk_len = bulklen;
 	rpc->crpc_bulk.bk_niov = nbulkiov;
-	rpc->crpc_done         = rpc_done;
-	rpc->crpc_fini         = rpc_fini;
+	rpc->crpc_done = rpc_done;
+	rpc->crpc_fini = rpc_fini;
 	LNetInvalidateHandle(&rpc->crpc_reqstmdh);
 	LNetInvalidateHandle(&rpc->crpc_replymdh);
 	LNetInvalidateHandle(&rpc->crpc_bulk.bk_mdh);
@@ -547,9 +547,9 @@ srpc_init_client_rpc(srpc_client_rpc_t *rpc, lnet_process_id_t peer,
 	rpc->crpc_reqstev.ev_fired = 1;
 	rpc->crpc_replyev.ev_fired = 1;
 
-	rpc->crpc_reqstmsg.msg_magic   = SRPC_MSG_MAGIC;
+	rpc->crpc_reqstmsg.msg_magic = SRPC_MSG_MAGIC;
 	rpc->crpc_reqstmsg.msg_version = SRPC_MSG_VERSION;
-	rpc->crpc_reqstmsg.msg_type    = srpc_service2request(service);
+	rpc->crpc_reqstmsg.msg_type = srpc_service2request(service);
 }
 
 static inline const char *

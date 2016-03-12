@@ -96,8 +96,8 @@ srpc_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i, int nob)
 	LASSERT(i >= 0 && i < bk->bk_niov);
 
 	bk->bk_iovs[i].kiov_offset = 0;
-	bk->bk_iovs[i].kiov_page   = pg;
-	bk->bk_iovs[i].kiov_len    = nob;
+	bk->bk_iovs[i].kiov_page = pg;
+	bk->bk_iovs[i].kiov_len = nob;
 	return nob;
 }
 
@@ -136,9 +136,9 @@ srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len, int sink)
 	}
 
 	memset(bk, 0, offsetof(srpc_bulk_t, bk_iovs[bulk_npg]));
-	bk->bk_sink   = sink;
-	bk->bk_len    = bulk_len;
-	bk->bk_niov   = bulk_npg;
+	bk->bk_sink = sink;
+	bk->bk_len = bulk_len;
+	bk->bk_niov = bulk_npg;
 
 	for (i = 0; i < bulk_npg; i++) {
 		struct page *pg;
@@ -182,10 +182,10 @@ srpc_init_server_rpc(struct srpc_server_rpc *rpc,
 
 	rpc->srpc_ev.ev_fired = 1; /* no event expected now */
 
-	rpc->srpc_scd      = scd;
+	rpc->srpc_scd = scd;
 	rpc->srpc_reqstbuf = buffer;
-	rpc->srpc_peer     = buffer->buf_peer;
-	rpc->srpc_self     = buffer->buf_self;
+	rpc->srpc_peer = buffer->buf_peer;
+	rpc->srpc_self = buffer->buf_self;
 	LNetInvalidateHandle(&rpc->srpc_replymdh);
 }
 
@@ -372,10 +372,10 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 	}
 
 	md.threshold = 1;
-	md.user_ptr  = ev;
-	md.start     = buf;
-	md.length    = len;
-	md.options   = options;
+	md.user_ptr = ev;
+	md.start = buf;
+	md.length = len;
+	md.options = options;
 	md.eq_handle = srpc_data.rpc_lnet_eq;
 
 	rc = LNetMDAttach(meh, md, LNET_UNLINK, mdh);
@@ -401,12 +401,12 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 	int rc;
 	lnet_md_t md;
 
-	md.user_ptr  = ev;
-	md.start     = buf;
-	md.length    = len;
+	md.user_ptr = ev;
+	md.start = buf;
+	md.length = len;
 	md.eq_handle = srpc_data.rpc_lnet_eq;
 	md.threshold = options & LNET_MD_OP_GET ? 2 : 1;
-	md.options   = options & ~(LNET_MD_OP_PUT | LNET_MD_OP_GET);
+	md.options = options & ~(LNET_MD_OP_PUT | LNET_MD_OP_GET);
 
 	rc = LNetMDBind(md, LNET_UNLINK, mdh);
 	if (rc) {
@@ -798,8 +798,8 @@ srpc_send_request(srpc_client_rpc_t *rpc)
 	int rc;
 
 	ev->ev_fired = 0;
-	ev->ev_data  = rpc;
-	ev->ev_type  = SRPC_REQUEST_SENT;
+	ev->ev_data = rpc;
+	ev->ev_type = SRPC_REQUEST_SENT;
 
 	 rc = srpc_post_active_rdma(srpc_serv_portal(rpc->crpc_service),
 				    rpc->crpc_service, &rpc->crpc_reqstmsg,
@@ -821,8 +821,8 @@ srpc_prepare_reply(srpc_client_rpc_t *rpc)
 	int rc;
 
 	ev->ev_fired = 0;
-	ev->ev_data  = rpc;
-	ev->ev_type  = SRPC_REPLY_RCVD;
+	ev->ev_data = rpc;
+	ev->ev_type = SRPC_REPLY_RCVD;
 
 	*id = srpc_next_id();
 
@@ -855,8 +855,8 @@ srpc_prepare_bulk(srpc_client_rpc_t *rpc)
 	opt |= LNET_MD_KIOV;
 
 	ev->ev_fired = 0;
-	ev->ev_data  = rpc;
-	ev->ev_type  = SRPC_BULK_REQ_RCVD;
+	ev->ev_data = rpc;
+	ev->ev_type = SRPC_BULK_REQ_RCVD;
 
 	*id = srpc_next_id();
 
@@ -885,8 +885,8 @@ srpc_do_bulk(struct srpc_server_rpc *rpc)
 	opt |= LNET_MD_KIOV;
 
 	ev->ev_fired = 0;
-	ev->ev_data  = rpc;
-	ev->ev_type  = bk->bk_sink ? SRPC_BULK_GET_RPLD : SRPC_BULK_PUT_SENT;
+	ev->ev_data = rpc;
+	ev->ev_type = bk->bk_sink ? SRPC_BULK_GET_RPLD : SRPC_BULK_PUT_SENT;
 
 	rc = srpc_post_active_rdma(SRPC_RDMA_PORTAL, id,
 				   &bk->bk_iovs[0], bk->bk_niov, opt,
@@ -1104,8 +1104,8 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 		return;
 
 	INIT_LIST_HEAD(&timer->stt_list);
-	timer->stt_data    = rpc;
-	timer->stt_func    = srpc_client_rpc_expired;
+	timer->stt_data = rpc;
+	timer->stt_func = srpc_client_rpc_expired;
 	timer->stt_expires = ktime_get_real_seconds() + rpc->crpc_timeout;
 	stt_add_timer(timer);
 }
@@ -1341,7 +1341,7 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 	       swi_state2str(rpc->crpc_wi.swi_state), why);
 
 	rpc->crpc_aborted = 1;
-	rpc->crpc_status  = why;
+	rpc->crpc_status = why;
 	swi_schedule_workitem(&rpc->crpc_wi);
 }
 
@@ -1389,12 +1389,12 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 	spin_unlock(&scd->scd_lock);
 
 	ev->ev_fired = 0;
-	ev->ev_data  = rpc;
-	ev->ev_type  = SRPC_REPLY_SENT;
+	ev->ev_data = rpc;
+	ev->ev_type = SRPC_REPLY_SENT;
 
-	msg->msg_magic   = SRPC_MSG_MAGIC;
+	msg->msg_magic = SRPC_MSG_MAGIC;
 	msg->msg_version = SRPC_MSG_VERSION;
-	msg->msg_type    = srpc_service2reply(sv->sv_id);
+	msg->msg_type = srpc_service2reply(sv->sv_id);
 
 	rc = srpc_post_active_rdma(SRPC_RDMA_PORTAL, rpyid, msg,
 				   sizeof(*msg), LNET_MD_OP_PUT,
@@ -1464,7 +1464,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		spin_lock(&crpc->crpc_lock);
 
 		LASSERT(!rpcev->ev_fired);
-		rpcev->ev_fired  = 1;
+		rpcev->ev_fired = 1;
 		rpcev->ev_status = (ev->type == LNET_EVENT_UNLINK) ?
 						-EINTR : ev->status;
 		swi_schedule_workitem(&crpc->crpc_wi);
@@ -1582,13 +1582,13 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 		}
 	case SRPC_REPLY_SENT:
 		srpc = rpcev->ev_data;
-		scd  = srpc->srpc_scd;
+		scd = srpc->srpc_scd;
 
 		LASSERT(rpcev == &srpc->srpc_ev);
 
 		spin_lock(&scd->scd_lock);
 
-		rpcev->ev_fired  = 1;
+		rpcev->ev_fired = 1;
 		rpcev->ev_status = (ev->type == LNET_EVENT_UNLINK) ?
 				   -EINTR : ev->status;
 		swi_schedule_workitem(&srpc->srpc_wi);

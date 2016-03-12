@@ -111,7 +111,7 @@ ping_client_prep_rpc(sfw_test_unit_t *tsu,
 	spin_unlock(&lst_ping_data.pnd_lock);
 
 	ktime_get_real_ts64(&ts);
-	req->pnr_time_sec  = ts.tv_sec;
+	req->pnr_time_sec = ts.tv_sec;
 	req->pnr_time_usec = ts.tv_nsec / NSEC_PER_USEC;
 
 	return rc;
@@ -194,7 +194,7 @@ ping_server_handle(struct srpc_server_rpc *rpc)
 		return -EINVAL;
 	}
 
-	rep->pnr_seq   = req->pnr_seq;
+	rep->pnr_seq = req->pnr_seq;
 	rep->pnr_magic = LST_PING_TEST_MAGIC;
 
 	if (reqstmsg->msg_ses_feats & ~LST_FEATS_MASK) {
@@ -213,8 +213,8 @@ ping_server_handle(struct srpc_server_rpc *rpc)
 sfw_test_client_ops_t ping_test_client;
 void ping_init_test_client(void)
 {
-	ping_test_client.tso_init     = ping_client_init;
-	ping_test_client.tso_fini     = ping_client_fini;
+	ping_test_client.tso_init = ping_client_init;
+	ping_test_client.tso_fini = ping_client_fini;
 	ping_test_client.tso_prep_rpc = ping_client_prep_rpc;
 	ping_test_client.tso_done_rpc = ping_client_done_rpc;
 }
@@ -222,8 +222,8 @@ void ping_init_test_client(void)
 srpc_service_t ping_test_service;
 void ping_init_test_service(void)
 {
-	ping_test_service.sv_id       = SRPC_SERVICE_PING;
-	ping_test_service.sv_name     = "ping_test";
-	ping_test_service.sv_handler  = ping_server_handle;
+	ping_test_service.sv_id = SRPC_SERVICE_PING;
+	ping_test_service.sv_name = "ping_test";
+	ping_test_service.sv_handler = ping_server_handle;
 	ping_test_service.sv_wi_total = ping_srv_workitems;
 }

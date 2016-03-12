@@ -83,14 +83,14 @@ brw_client_init(sfw_test_instance_t *tsi)
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
 		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
 
-		opc   = breq->blk_opc;
+		opc = breq->blk_opc;
 		flags = breq->blk_flags;
-		npg   = breq->blk_npg;
+		npg = breq->blk_npg;
 		/*
 		 * NB: this is not going to work for variable page size,
 		 * but we have to keep it for compatibility
 		 */
-		len   = npg * PAGE_CACHE_SIZE;
+		len = npg * PAGE_CACHE_SIZE;
 
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
@@ -101,10 +101,10 @@ brw_client_init(sfw_test_instance_t *tsi)
 		 */
 		LASSERT(!(sn->sn_features & ~LST_FEATS_MASK));
 
-		opc   = breq->blk_opc;
+		opc = breq->blk_opc;
 		flags = breq->blk_flags;
-		len   = breq->blk_len;
-		npg   = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		len = breq->blk_len;
+		npg = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	}
 
 	if (npg > LNET_MAX_IOV || npg <= 0)
@@ -275,10 +275,10 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 	if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
 		test_bulk_req_t *breq = &tsi->tsi_u.bulk_v0;
 
-		opc   = breq->blk_opc;
+		opc = breq->blk_opc;
 		flags = breq->blk_flags;
-		npg   = breq->blk_npg;
-		len   = npg * PAGE_CACHE_SIZE;
+		npg = breq->blk_npg;
+		len = npg * PAGE_CACHE_SIZE;
 
 	} else {
 		test_bulk_req_v1_t *breq = &tsi->tsi_u.bulk_v1;
@@ -289,10 +289,10 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 		 */
 		LASSERT(!(sn->sn_features & ~LST_FEATS_MASK));
 
-		opc   = breq->blk_opc;
+		opc = breq->blk_opc;
 		flags = breq->blk_flags;
-		len   = breq->blk_len;
-		npg   = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		len = breq->blk_len;
+		npg = (len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	}
 
 	rc = sfw_create_test_rpc(tsu, dest, sn->sn_features, npg, len, &rpc);
@@ -307,8 +307,8 @@ brw_client_prep_rpc(sfw_test_unit_t *tsu,
 
 	req = &rpc->crpc_reqstmsg.msg_body.brw_reqst;
 	req->brw_flags = flags;
-	req->brw_rw    = opc;
-	req->brw_len   = len;
+	req->brw_rw = opc;
+	req->brw_len = len;
 
 	*rpcpp = rpc;
 	return 0;
@@ -493,8 +493,8 @@ brw_server_handle(struct srpc_server_rpc *rpc)
 sfw_test_client_ops_t brw_test_client;
 void brw_init_test_client(void)
 {
-	brw_test_client.tso_init     = brw_client_init;
-	brw_test_client.tso_fini     = brw_client_fini;
+	brw_test_client.tso_init = brw_client_init;
+	brw_test_client.tso_fini = brw_client_fini;
 	brw_test_client.tso_prep_rpc = brw_client_prep_rpc;
 	brw_test_client.tso_done_rpc = brw_client_done_rpc;
 };
@@ -502,9 +502,9 @@ void brw_init_test_client(void)
 srpc_service_t brw_test_service;
 void brw_init_test_service(void)
 {
-	brw_test_service.sv_id         = SRPC_SERVICE_BRW;
-	brw_test_service.sv_name       = "brw_test";
-	brw_test_service.sv_handler    = brw_server_handle;
+	brw_test_service.sv_id = SRPC_SERVICE_BRW;
+	brw_test_service.sv_name = "brw_test";
+	brw_test_service.sv_handler = brw_server_handle;
 	brw_test_service.sv_bulk_ready = brw_bulk_ready;
-	brw_test_service.sv_wi_total   = brw_srv_workitems;
+	brw_test_service.sv_wi_total = brw_srv_workitems;
 }

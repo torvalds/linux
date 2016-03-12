@@ -97,8 +97,8 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 
 	ndl->ndl_node = *ndpp;
 
-	ndl->ndl_node->nd_ref   = 1;
-	ndl->ndl_node->nd_id    = id;
+	ndl->ndl_node->nd_ref = 1;
+	ndl->ndl_node->nd_id = id;
 	ndl->ndl_node->nd_stamp = cfs_time_current();
 	ndl->ndl_node->nd_state = LST_NODE_UNKNOWN;
 	ndl->ndl_node->nd_timeout = 0;
@@ -179,7 +179,7 @@ lstcon_ndlink_find(struct list_head *hash,
 	INIT_LIST_HEAD(&ndl->ndl_link);
 	list_add_tail(&ndl->ndl_hlink, &hash[idx]);
 
-	return  0;
+	return 0;
 }
 
 static void
@@ -978,8 +978,8 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t __user *ent_up,
 		entp->u.tbe_batch.bae_state = bat->bat_state;
 
 	} else {
-		entp->u.tbe_test.tse_type   = test->tes_type;
-		entp->u.tbe_test.tse_loop   = test->tes_loop;
+		entp->u.tbe_test.tse_type = test->tes_type;
+		entp->u.tbe_test.tse_loop = test->tes_loop;
 		entp->u.tbe_test.tse_concur = test->tes_concur;
 	}
 
@@ -1196,7 +1196,7 @@ lstcon_test_nodes_add(lstcon_test_t *test, struct list_head __user *result_up)
 	LASSERT(test->tes_dst_grp);
 
 	transop = LST_TRANS_TSBSRVADD;
-	grp  = test->tes_dst_grp;
+	grp = test->tes_dst_grp;
 again:
 	rc = lstcon_rpc_trans_ndlist(&grp->grp_ndl_list,
 				     &test->tes_trans_list, transop,
@@ -1317,18 +1317,18 @@ lstcon_test_add(char *batch_name, int type, int loop,
 		goto out;
 	}
 
-	test->tes_hdr.tsb_id	= batch->bat_hdr.tsb_id;
-	test->tes_batch		= batch;
-	test->tes_type		= type;
-	test->tes_oneside	= 0; /* TODO */
-	test->tes_loop		= loop;
-	test->tes_concur	= concur;
-	test->tes_stop_onerr	= 1; /* TODO */
-	test->tes_span		= span;
-	test->tes_dist		= dist;
-	test->tes_cliidx	= 0; /* just used for creating RPC */
-	test->tes_src_grp	= src_grp;
-	test->tes_dst_grp	= dst_grp;
+	test->tes_hdr.tsb_id = batch->bat_hdr.tsb_id;
+	test->tes_batch	= batch;
+	test->tes_type = type;
+	test->tes_oneside = 0; /* TODO */
+	test->tes_loop = loop;
+	test->tes_concur = concur;
+	test->tes_stop_onerr = 1; /* TODO */
+	test->tes_span = span;
+	test->tes_dist = dist;
+	test->tes_cliidx = 0; /* just used for creating RPC */
+	test->tes_src_grp = src_grp;
+	test->tes_dst_grp = dst_grp;
 	INIT_LIST_HEAD(&test->tes_trans_list);
 
 	if (param) {
@@ -1420,8 +1420,8 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 
 	if (!testidx) {
 		translist = &batch->bat_trans_list;
-		ndlist    = &batch->bat_cli_list;
-		hdr       = &batch->bat_hdr;
+		ndlist = &batch->bat_cli_list;
+		hdr = &batch->bat_hdr;
 
 	} else {
 		/* query specified test only */
@@ -1432,8 +1432,8 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 		}
 
 		translist = &test->tes_trans_list;
-		ndlist    = &test->tes_src_grp->grp_ndl_list;
-		hdr       = &test->tes_hdr;
+		ndlist = &test->tes_src_grp->grp_ndl_list;
+		hdr = &test->tes_hdr;
 	}
 
 	transop = client ? LST_TRANS_TSBCLIQRY : LST_TRANS_TSBSRVQRY;
@@ -1689,7 +1689,7 @@ lstcon_nodes_debug(int timeout,
 int
 lstcon_session_match(lst_sid_t sid)
 {
-	return (console_session.ses_id.ses_nid   == sid.ses_nid &&
+	return (console_session.ses_id.ses_nid == sid.ses_nid &&
 		console_session.ses_id.ses_stamp == sid.ses_stamp) ?  1 : 0;
 }
 
@@ -1701,7 +1701,7 @@ lstcon_new_session_id(lst_sid_t *sid)
 	LASSERT(console_session.ses_state == LST_SESSION_NONE);
 
 	LNetGetId(1, &id);
-	sid->ses_nid   = id.nid;
+	sid->ses_nid = id.nid;
 	sid->ses_stamp = cfs_time_current();
 }
 
@@ -1839,9 +1839,9 @@ lstcon_session_end(void)
 	/* waiting for orphan rpcs to die */
 	lstcon_rpc_cleanup_wait();
 
-	console_session.ses_id    = LST_INVALID_SID;
+	console_session.ses_id = LST_INVALID_SID;
 	console_session.ses_state = LST_SESSION_NONE;
-	console_session.ses_key   = 0;
+	console_session.ses_key = 0;
 	console_session.ses_force = 0;
 	console_session.ses_feats_updated = 0;
 
@@ -1866,7 +1866,7 @@ lstcon_session_end(void)
 	LASSERT(list_empty(&console_session.ses_ndl_list));
 
 	console_session.ses_shutdown = 0;
-	console_session.ses_expired  = 0;
+	console_session.ses_expired = 0;
 
 	return rc;
 }
@@ -1965,7 +1965,7 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 		goto out;
 	}
 
-	ndl->ndl_node->nd_state   = LST_NODE_ACTIVE;
+	ndl->ndl_node->nd_state = LST_NODE_ACTIVE;
 	ndl->ndl_node->nd_timeout = console_session.ses_timeout;
 
 	if (!grp->grp_userland)
@@ -1974,7 +1974,7 @@ lstcon_acceptor_handle(struct srpc_server_rpc *rpc)
 	strlcpy(jrep->join_session, console_session.ses_name,
 		sizeof(jrep->join_session));
 	jrep->join_timeout = console_session.ses_timeout;
-	jrep->join_status  = 0;
+	jrep->join_status = 0;
 
 out:
 	rep->msg_ses_feats = console_session.ses_features;
@@ -1990,9 +1990,9 @@ static srpc_service_t lstcon_acceptor_service;
 static void lstcon_init_acceptor_service(void)
 {
 	/* initialize selftest console acceptor service table */
-	lstcon_acceptor_service.sv_name     = "join session";
-	lstcon_acceptor_service.sv_handler  = lstcon_acceptor_handle;
-	lstcon_acceptor_service.sv_id       = SRPC_SERVICE_JOIN;
+	lstcon_acceptor_service.sv_name = "join session";
+	lstcon_acceptor_service.sv_handler = lstcon_acceptor_handle;
+	lstcon_acceptor_service.sv_id = SRPC_SERVICE_JOIN;
 	lstcon_acceptor_service.sv_wi_total = SFW_FRWK_WI_MAX;
 }
 
@@ -2009,14 +2009,14 @@ lstcon_console_init(void)
 
 	memset(&console_session, 0, sizeof(struct lstcon_session));
 
-	console_session.ses_id		  = LST_INVALID_SID;
-	console_session.ses_state	  = LST_SESSION_NONE;
-	console_session.ses_timeout	  = 0;
-	console_session.ses_force	  = 0;
-	console_session.ses_expired	  = 0;
+	console_session.ses_id = LST_INVALID_SID;
+	console_session.ses_state = LST_SESSION_NONE;
+	console_session.ses_timeout = 0;
+	console_session.ses_force = 0;
+	console_session.ses_expired = 0;
 	console_session.ses_feats_updated = 0;
-	console_session.ses_features	  = LST_FEATS_MASK;
-	console_session.ses_laststamp	  = ktime_get_real_seconds();
+	console_session.ses_features = LST_FEATS_MASK;
+	console_session.ses_laststamp = ktime_get_real_seconds();
 
 	mutex_init(&console_session.ses_mutex);
 
