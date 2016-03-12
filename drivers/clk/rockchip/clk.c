@@ -359,11 +359,9 @@ err_free:
 void __init rockchip_clk_of_add_provider(struct device_node *np,
 				struct rockchip_clk_provider *ctx)
 {
-	if (np) {
-		if (of_clk_add_provider(np, of_clk_src_onecell_get,
-					&ctx->clk_data))
-			pr_err("%s: could not register clk provider\n", __func__);
-	}
+	if (of_clk_add_provider(np, of_clk_src_onecell_get,
+				&ctx->clk_data))
+		pr_err("%s: could not register clk provider\n", __func__);
 }
 
 struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx)
