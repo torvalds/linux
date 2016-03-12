@@ -130,7 +130,7 @@ enum rockchip_pll_type {
 }
 
 /**
- * struct rockchip_clk_provider: information about clock provider
+ * struct rockchip_clk_provider - information about clock provider
  * @reg_base: virtual address for the register base.
  * @clk_data: holds clock related data like clk* and number of clocks.
  * @cru_node: device-node of the clock-provider
@@ -161,10 +161,11 @@ struct rockchip_pll_rate_table {
 };
 
 /**
- * struct rockchip_pll_clock: information about pll clock
+ * struct rockchip_pll_clock - information about pll clock
  * @id: platform specific id of the clock.
  * @name: name of this pll clock.
- * @parent_name: name of the parent clock.
+ * @parent_names: name of the parent clock.
+ * @num_parents: number of parents
  * @flags: optional flags for basic clock.
  * @con_offset: offset of the register for configuring the PLL.
  * @mode_offset: offset of the register for configuring the PLL-mode.
@@ -232,7 +233,7 @@ struct rockchip_cpuclk_rate_table {
 };
 
 /**
- * struct rockchip_cpuclk_reg_data: describes register offsets and masks of the cpuclock
+ * struct rockchip_cpuclk_reg_data - describes register offsets and masks of the cpuclock
  * @core_reg:		register offset of the core settings register
  * @div_core_shift:	core divider offset used to divide the pll value
  * @div_core_mask:	core divider mask
