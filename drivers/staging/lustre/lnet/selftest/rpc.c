@@ -1427,9 +1427,16 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 	LASSERT(!in_interrupt());
 
 	if (ev->status) {
+		__u32 errors;
+
 		spin_lock(&srpc_data.rpc_glock);
-		srpc_data.rpc_counters.errors++;
+		if (ev->status != -ECANCELED) /* cancellation is not error */
+			srpc_data.rpc_counters.errors++;
+		errors = srpc_data.rpc_counters.errors;
 		spin_unlock(&srpc_data.rpc_glock);
+
+		CNETERR("LNet event status %d type %d, RPC errors %u\n",
+			ev->status, ev->type, errors);
 	}
 
 	rpcev->ev_lnet = ev->type;
