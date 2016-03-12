@@ -337,7 +337,7 @@ out:
  *
  * Get the current rptr from the hardware (VI+).
  */
-static uint32_t sdma_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t sdma_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	/* XXX check if swapping is necessary on BE */
 	return ring->adev->wb.wb[ring->rptr_offs] >> 2;
@@ -350,7 +350,7 @@ static uint32_t sdma_v3_0_ring_get_rptr(struct amdgpu_ring *ring)
  *
  * Get the current wptr from the hardware (VI+).
  */
-static uint32_t sdma_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t sdma_v3_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 wptr;
@@ -380,12 +380,12 @@ static void sdma_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		adev->wb.wb[ring->wptr_offs] = ring->wptr << 2;
-		WDOORBELL32(ring->doorbell_index, ring->wptr << 2);
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr) << 2;
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr) << 2);
 	} else {
 		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
 
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], ring->wptr << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], lower_32_bits(ring->wptr) << 2);
 	}
 }
 
@@ -417,7 +417,7 @@ static void sdma_v3_0_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 vmid = vm_id & 0xf;
 
 	/* IB packet must end on a 8 DW boundary */
-	sdma_v3_0_ring_insert_nop(ring, (10 - (ring->wptr & 7)) % 8);
+	sdma_v3_0_ring_insert_nop(ring, (10 - (lower_32_bits(ring->wptr) & 7)) % 8);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_INDIRECT) |
 			  SDMA_PKT_INDIRECT_HEADER_VMID(vmid));
@@ -660,7 +660,7 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i], ring->gpu_addr >> 40);
 
 		ring->wptr = 0;
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 
 		doorbell = RREG32(mmSDMA0_GFX_DOORBELL + sdma_offsets[i]);
 
@@ -1579,6 +1579,7 @@ static const struct amdgpu_ring_funcs sdma_v3_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
+	.support_64bit_ptrs = false,
 	.get_rptr = sdma_v3_0_ring_get_rptr,
 	.get_wptr = sdma_v3_0_ring_get_wptr,
 	.set_wptr = sdma_v3_0_ring_set_wptr,

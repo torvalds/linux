@@ -37,12 +37,12 @@ static void si_dma_set_buffer_funcs(struct amdgpu_device *adev);
 static void si_dma_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void si_dma_set_irq_funcs(struct amdgpu_device *adev);
 
-static uint32_t si_dma_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t si_dma_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs>>2];
 }
 
-static uint32_t si_dma_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t si_dma_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
@@ -55,7 +55,8 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	WREG32(DMA_RB_WPTR + sdma_offsets[me], (ring->wptr << 2) & 0x3fffc);
+	WREG32(DMA_RB_WPTR + sdma_offsets[me],
+	       (lower_32_bits(ring->wptr) << 2) & 0x3fffc);
 }
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
@@ -65,7 +66,7 @@ static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
 	 * Pad as necessary with NOPs.
 	 */
-	while ((ring->wptr & 7) != 5)
+	while ((lower_32_bits(ring->wptr) & 7) != 5)
 		amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0));
 	amdgpu_ring_write(ring, DMA_IB_PACKET(DMA_PACKET_INDIRECT_BUFFER, vm_id, 0));
 	amdgpu_ring_write(ring, (ib->gpu_addr & 0xFFFFFFE0));
@@ -184,7 +185,7 @@ static int si_dma_start(struct amdgpu_device *adev)
 		WREG32(DMA_CNTL + sdma_offsets[i], dma_cntl);
 
 		ring->wptr = 0;
-		WREG32(DMA_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
+		WREG32(DMA_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
 
 		ring->ready = true;
@@ -766,6 +767,7 @@ static const struct amdgpu_ring_funcs si_dma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
 	.nop = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0, 0),
+	.support_64bit_ptrs = false,
 	.get_rptr = si_dma_ring_get_rptr,
 	.get_wptr = si_dma_ring_get_wptr,
 	.set_wptr = si_dma_ring_set_wptr,

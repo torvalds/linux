@@ -4490,7 +4490,7 @@ static int gfx_v8_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(mmCP_RB0_CNTL, tmp | CP_RB0_CNTL__RB_RPTR_WR_ENA_MASK);
 	ring->wptr = 0;
-	WREG32(mmCP_RB0_WPTR, ring->wptr);
+	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 
 	/* set the wb address wether it's enabled or not */
 	rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
@@ -5204,7 +5204,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 
 		/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
 		ring->wptr = 0;
-		mqd->cp_hqd_pq_wptr = ring->wptr;
+		mqd->cp_hqd_pq_wptr = lower_32_bits(ring->wptr);
 		WREG32(mmCP_HQD_PQ_WPTR, mqd->cp_hqd_pq_wptr);
 		mqd->cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
 
@@ -6458,12 +6458,12 @@ static int gfx_v8_0_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static u32 gfx_v8_0_ring_get_rptr(struct amdgpu_ring *ring)
+static u64 gfx_v8_0_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->rptr_offs];
 }
 
-static u32 gfx_v8_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
+static u64 gfx_v8_0_ring_get_wptr_gfx(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 
@@ -6480,10 +6480,10 @@ static void gfx_v8_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		adev->wb.wb[ring->wptr_offs] = ring->wptr;
-		WDOORBELL32(ring->doorbell_index, ring->wptr);
+		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 	} else {
-		WREG32(mmCP_RB0_WPTR, ring->wptr);
+		WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 		(void)RREG32(mmCP_RB0_WPTR);
 	}
 }
@@ -6671,7 +6671,7 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 }
 
-static u32 gfx_v8_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
+static u64 gfx_v8_0_ring_get_wptr_compute(struct amdgpu_ring *ring)
 {
 	return ring->adev->wb.wb[ring->wptr_offs];
 }
@@ -6681,8 +6681,8 @@ static void gfx_v8_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	/* XXX check if swapping is necessary on BE */
-	adev->wb.wb[ring->wptr_offs] = ring->wptr;
-	WDOORBELL32(ring->doorbell_index, ring->wptr);
+	adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+	WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 }
 
 static void gfx_v8_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
@@ -7037,6 +7037,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v8_0_ring_set_wptr_gfx,
@@ -7069,6 +7070,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v8_0_ring_set_wptr_compute,
@@ -7097,6 +7099,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_kiq = {
 	.type = AMDGPU_RING_TYPE_KIQ,
 	.align_mask = 0xff,
 	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v8_0_ring_get_rptr,
 	.get_wptr = gfx_v8_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v8_0_ring_set_wptr_compute,

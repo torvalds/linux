@@ -158,7 +158,7 @@ out:
  *
  * Get the current rptr from the hardware (CIK+).
  */
-static uint32_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
+static uint64_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	u32 rptr;
 
@@ -174,7 +174,7 @@ static uint32_t cik_sdma_ring_get_rptr(struct amdgpu_ring *ring)
  *
  * Get the current wptr from the hardware (CIK+).
  */
-static uint32_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
+static uint64_t cik_sdma_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
@@ -194,7 +194,8 @@ static void cik_sdma_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], (ring->wptr << 2) & 0x3fffc);
+	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me],
+		       	(lower_32_bits(ring->wptr) << 2) & 0x3fffc);
 }
 
 static void cik_sdma_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
@@ -225,7 +226,7 @@ static void cik_sdma_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 extra_bits = vm_id & 0xf;
 
 	/* IB packet must end on a 8 DW boundary */
-	cik_sdma_ring_insert_nop(ring, (12 - (ring->wptr & 7)) % 8);
+	cik_sdma_ring_insert_nop(ring, (12 - (lower_32_bits(ring->wptr) & 7)) % 8);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_INDIRECT_BUFFER, 0, extra_bits));
 	amdgpu_ring_write(ring, ib->gpu_addr & 0xffffffe0); /* base must be 32 byte aligned */
@@ -432,7 +433,7 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		WREG32(mmSDMA0_GFX_RB_BASE_HI + sdma_offsets[i], ring->gpu_addr >> 40);
 
 		ring->wptr = 0;
-		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
+		WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 
 		/* enable DMA RB */
 		WREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i],
@@ -1209,6 +1210,7 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_SDMA,
 	.align_mask = 0xf,
 	.nop = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0),
+	.support_64bit_ptrs = false,
 	.get_rptr = cik_sdma_ring_get_rptr,
 	.get_wptr = cik_sdma_ring_get_wptr,
 	.set_wptr = cik_sdma_ring_set_wptr,

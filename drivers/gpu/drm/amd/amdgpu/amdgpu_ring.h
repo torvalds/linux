@@ -96,10 +96,11 @@ struct amdgpu_ring_funcs {
 	enum amdgpu_ring_type	type;
 	uint32_t		align_mask;
 	u32			nop;
+	bool			support_64bit_ptrs;
 
 	/* ring read/write ptr handling */
-	u32 (*get_rptr)(struct amdgpu_ring *ring);
-	u32 (*get_wptr)(struct amdgpu_ring *ring);
+	u64 (*get_rptr)(struct amdgpu_ring *ring);
+	u64 (*get_wptr)(struct amdgpu_ring *ring);
 	void (*set_wptr)(struct amdgpu_ring *ring);
 	/* validating and patching of IBs */
 	int (*parse_cs)(struct amdgpu_cs_parser *p, uint32_t ib_idx);
@@ -148,13 +149,14 @@ struct amdgpu_ring {
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
-	unsigned		wptr;
-	unsigned		wptr_old;
+	u64			wptr;
+	u64			wptr_old;
 	unsigned		ring_size;
 	unsigned		max_dw;
 	int			count_dw;
 	uint64_t		gpu_addr;
-	uint32_t		ptr_mask;
+	uint64_t		ptr_mask;
+	uint32_t		buf_mask;
 	bool			ready;
 	u32			idx;
 	u32			me;
