@@ -42,14 +42,12 @@ struct dim_ch_state_t {
 	u16 done_buffers; /* Number of completed buffers */
 };
 
-typedef int atomic_counter_t;
-
 struct int_ch_state {
 	/* changed only in interrupt context */
-	volatile atomic_counter_t request_counter;
+	volatile int request_counter;
 
 	/* changed only in task context */
-	volatile atomic_counter_t service_counter;
+	volatile int service_counter;
 
 	u8 idx1;
 	u8 idx2;
