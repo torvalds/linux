@@ -188,6 +188,7 @@ struct ofdpa {
 	DECLARE_HASHTABLE(neigh_tbl, 16);
 	spinlock_t neigh_tbl_lock;		/* for neigh tbl accesses */
 	u32 neigh_tbl_next_index;
+	unsigned long ageing_time;
 };
 
 struct ofdpa_port {
@@ -2105,7 +2106,7 @@ static void ofdpa_fdb_cleanup(unsigned long data)
 	struct ofdpa_port *ofdpa_port;
 	struct ofdpa_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;
-	unsigned long next_timer = jiffies + ofdpa->rocker->ageing_time;
+	unsigned long next_timer = jiffies + ofdpa->ageing_time;
 	unsigned long expires;
 	unsigned long lock_flags;
 	int flags = OFDPA_OP_FLAG_NOWAIT | OFDPA_OP_FLAG_REMOVE |
@@ -2492,6 +2493,8 @@ static int ofdpa_init(struct rocker *rocker)
 		    (unsigned long) ofdpa);
 	mod_timer(&ofdpa->fdb_cleanup_timer, jiffies);
 
+	ofdpa->ageing_time = BR_DEFAULT_AGEING_TIME;
+
 	return 0;
 }
 
@@ -2648,12 +2651,12 @@ ofdpa_port_attr_bridge_ageing_time_set(struct rocker_port *rocker_port,
 				       struct switchdev_trans *trans)
 {
 	struct ofdpa_port *ofdpa_port = rocker_port->wpriv;
-	struct rocker *rocker = rocker_port->rocker;
+	struct ofdpa *ofdpa = ofdpa_port->ofdpa;
 
 	if (!switchdev_trans_ph_prepare(trans)) {
 		ofdpa_port->ageing_time = clock_t_to_jiffies(ageing_time);
-		if (ofdpa_port->ageing_time < rocker->ageing_time)
-			rocker->ageing_time = ofdpa_port->ageing_time;
+		if (ofdpa_port->ageing_time < ofdpa->ageing_time)
+			ofdpa->ageing_time = ofdpa_port->ageing_time;
 		mod_timer(&ofdpa_port->ofdpa->fdb_cleanup_timer, jiffies);
 	}
 
