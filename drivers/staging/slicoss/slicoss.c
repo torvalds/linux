@@ -1855,6 +1855,11 @@ static void slic_xmit_build_request(struct adapter *adapter,
 	ihcmd->u.slic_buffers.totlen = skb->len;
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
 			PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(adapter->pcidev, phys_addr)) {
+		kfree_skb(skb);
+		dev_err(&adapter->pcidev->dev, "DMA mapping error\n");
+		return;
+	}
 	ihcmd->u.slic_buffers.bufs[0].paddrl = SLIC_GET_ADDR_LOW(phys_addr);
 	ihcmd->u.slic_buffers.bufs[0].paddrh = SLIC_GET_ADDR_HIGH(phys_addr);
 	ihcmd->u.slic_buffers.bufs[0].length = skb->len;
