@@ -58,9 +58,9 @@ static DECLARE_TASKLET(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup, 0);
 /* Maximum number of SKBs to try to free per xmit packet. */
 #define MAX_SKB_TO_FREE (MAX_OUT_QUEUE_DEPTH * 2)
 
-static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
+static inline int cvm_oct_adjust_skb_to_free(int skb_to_free, int fau)
 {
-	int32_t undo;
+	int undo;
 
 	undo = skb_to_free > 0 ? MAX_SKB_TO_FREE : skb_to_free +
 						   MAX_SKB_TO_FREE;
@@ -83,7 +83,7 @@ static void cvm_oct_kick_tx_poll_watchdog(void)
 
 static void cvm_oct_free_tx_skbs(struct net_device *dev)
 {
-	int32_t skb_to_free;
+	int skb_to_free;
 	int qos, queues_per_port;
 	int total_freed = 0;
 	int total_remaining = 0;
@@ -148,8 +148,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	enum {QUEUE_CORE, QUEUE_HW, QUEUE_DROP} queue_type;
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	struct sk_buff *to_free_list;
-	int32_t skb_to_free;
-	int32_t buffers_to_free;
+	int skb_to_free;
+	int buffers_to_free;
 	u32 total_to_clean;
 	unsigned long flags;
 #if REUSE_SKBUFFS_WITHOUT_FREE
