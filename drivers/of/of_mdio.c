@@ -412,7 +412,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 		if (strcmp(managed, "in-band-status") == 0) {
 			/* status is zeroed, namely its .link member */
 			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-			return IS_ERR(phy) ? PTR_ERR(phy) : 0;
+			return PTR_ERR_OR_ZERO(phy);
 		}
 	}
 
@@ -434,7 +434,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 			return -EPROBE_DEFER;
 
 		phy = fixed_phy_register(PHY_POLL, &status, link_gpio, np);
-		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
+		return PTR_ERR_OR_ZERO(phy);
 	}
 
 	/* Old binding */
@@ -446,7 +446,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.pause = be32_to_cpu(fixed_link_prop[3]);
 		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
 		phy = fixed_phy_register(PHY_POLL, &status, -1, np);
-		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
+		return PTR_ERR_OR_ZERO(phy);
 	}
 
 	return -ENODEV;
