@@ -170,20 +170,22 @@ stt_check_timers(unsigned long *last)
 static int
 stt_timer_main(void *arg)
 {
+	int rc = 0;
+
 	cfs_block_allsigs();
 
 	while (!stt_data.stt_shuttingdown) {
 		stt_check_timers(&stt_data.stt_prev_slot);
 
-		wait_event_timeout(stt_data.stt_waitq,
-				   stt_data.stt_shuttingdown,
-				   cfs_time_seconds(STTIMER_SLOTTIME));
+		rc = wait_event_timeout(stt_data.stt_waitq,
+					stt_data.stt_shuttingdown,
+					cfs_time_seconds(STTIMER_SLOTTIME));
 	}
 
 	spin_lock(&stt_data.stt_lock);
 	stt_data.stt_nthreads--;
 	spin_unlock(&stt_data.stt_lock);
-	return 0;
+	return rc;
 }
 
 static int
