@@ -245,7 +245,6 @@ struct rockchip_cpuclk_reg_data {
 	int		core_reg;
 	u8		div_core_shift;
 	u32		div_core_mask;
-	int		mux_core_reg;
 	u8		mux_core_alt;
 	u8		mux_core_main;
 	u8		mux_core_shift;
