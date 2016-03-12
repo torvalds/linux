@@ -220,7 +220,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 					priv->fau + qos * 4, MAX_SKB_TO_FREE);
 			}
 			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
-							priv->fau + qos * 4);
+								 priv->fau +
+								 qos * 4);
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 			goto skip_xmit;
 		}
@@ -402,7 +403,7 @@ dont_put_skbuff_in_hw:
 	}
 
 	skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
-						priv->fau + qos * 4);
+						 priv->fau + qos * 4);
 
 	/*
 	 * If we're sending faster than the receive can free them then
