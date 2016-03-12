@@ -463,7 +463,7 @@ srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 
 static int
 srpc_service_post_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
-	__must_hold(&scd->scd_lock)
+__must_hold(&scd->scd_lock)
 {
 	struct srpc_service *sv = scd->scd_svc;
 	struct srpc_msg	*msg = &buf->buf_msg;
@@ -698,7 +698,7 @@ srpc_finish_service(struct srpc_service *sv)
 /* called with sv->sv_lock held */
 static void
 srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
-	__must_hold(&scd->scd_lock)
+__must_hold(&scd->scd_lock)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {
 		if (srpc_service_post_buffer(scd, buf)) {
@@ -1104,8 +1104,8 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 		return;
 
 	INIT_LIST_HEAD(&timer->stt_list);
-	timer->stt_data = rpc;
-	timer->stt_func = srpc_client_rpc_expired;
+	timer->stt_data	= rpc;
+	timer->stt_func	= srpc_client_rpc_expired;
 	timer->stt_expires = ktime_get_real_seconds() + rpc->crpc_timeout;
 	stt_add_timer(timer);
 }
@@ -1333,7 +1333,7 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 	LASSERT(why);
 
 	if (rpc->crpc_aborted || /* already aborted */
-	    rpc->crpc_closed)    /* callback imminent */
+	    rpc->crpc_closed)	 /* callback imminent */
 		return;
 
 	CDEBUG(D_NET, "Aborting RPC: service %d, peer %s, state %s, why %d\n",

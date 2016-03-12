@@ -100,7 +100,7 @@ lst_session_info_ioctl(lstio_session_info_args_t *args)
 	    !args->lstio_ses_featp || /* address for output features */
 	    !args->lstio_ses_ndinfo || /* address for output ndinfo */
 	    !args->lstio_ses_namep || /* address for output name */
-	    args->lstio_ses_nmlen  <= 0 ||
+	    args->lstio_ses_nmlen <= 0 ||
 	    args->lstio_ses_nmlen > LST_NAME_SIZE)
 		return -EINVAL;
 
@@ -297,7 +297,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 		break;
 
 	case LST_GROUP_RMND:
-		if (args->lstio_grp_count  <= 0 ||
+		if (args->lstio_grp_count <= 0 ||
 		    !args->lstio_grp_idsp) {
 			rc = -EINVAL;
 			break;
@@ -368,7 +368,7 @@ lst_group_list_ioctl(lstio_group_list_args_t *args)
 	if (args->lstio_grp_key != console_session.ses_key)
 		return -EACCES;
 
-	if (args->lstio_grp_idx   < 0 ||
+	if (args->lstio_grp_idx < 0 ||
 	    !args->lstio_grp_namep ||
 	    args->lstio_grp_nmlen <= 0 ||
 	    args->lstio_grp_nmlen > LST_NAME_SIZE)
@@ -591,7 +591,7 @@ lst_batch_list_ioctl(lstio_batch_list_args_t *args)
 	if (args->lstio_bat_key != console_session.ses_key)
 		return -EACCES;
 
-	if (args->lstio_bat_idx   < 0 ||
+	if (args->lstio_bat_idx < 0 ||
 	    !args->lstio_bat_namep ||
 	    args->lstio_bat_nmlen <= 0 ||
 	    args->lstio_bat_nmlen > LST_NAME_SIZE)
@@ -755,7 +755,7 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 		goto out;
 
 	LIBCFS_ALLOC(dst_name, args->lstio_tes_dgrp_nmlen + 1);
-	 if (!dst_name)
+	if (!dst_name)
 		goto out;
 
 	if (args->lstio_tes_param) {

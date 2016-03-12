@@ -131,9 +131,9 @@ brw_client_init(sfw_test_instance_t *tsi)
 	return 0;
 }
 
-#define BRW_POISON      0xbeefbeefbeefbeefULL
-#define BRW_MAGIC       0xeeb0eeb1eeb2eeb3ULL
-#define BRW_MSIZE       sizeof(__u64)
+#define BRW_POISON	0xbeefbeefbeefbeefULL
+#define BRW_MAGIC	0xeeb0eeb1eeb2eeb3ULL
+#define BRW_MSIZE	sizeof(__u64)
 
 static int
 brw_inject_one_error(void)

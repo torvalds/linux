@@ -57,13 +57,13 @@
 						    (STTIMER_NSLOTS - 1))])
 
 static struct st_timer_data {
-	spinlock_t        stt_lock;
-	unsigned long     stt_prev_slot; /* start time of the slot processed
+	spinlock_t	  stt_lock;
+	unsigned long	  stt_prev_slot; /* start time of the slot processed
 					  * previously */
 	struct list_head  stt_hash[STTIMER_NSLOTS];
-	int               stt_shuttingdown;
+	int		  stt_shuttingdown;
 	wait_queue_head_t stt_waitq;
-	int               stt_nthreads;
+	int		  stt_nthreads;
 } stt_data;
 
 void

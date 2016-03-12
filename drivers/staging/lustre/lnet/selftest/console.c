@@ -49,9 +49,9 @@
 do {							\
 	if ((nd)->nd_state == LST_NODE_ACTIVE)		\
 		(p)->nle_nactive++;			\
-	else if ((nd)->nd_state == LST_NODE_BUSY)       \
+	else if ((nd)->nd_state == LST_NODE_BUSY)	\
 		(p)->nle_nbusy++;			\
-	else if ((nd)->nd_state == LST_NODE_DOWN)       \
+	else if ((nd)->nd_state == LST_NODE_DOWN)	\
 		(p)->nle_ndown++;			\
 	else						\
 		(p)->nle_nunknown++;			\
@@ -1690,7 +1690,7 @@ int
 lstcon_session_match(lst_sid_t sid)
 {
 	return (console_session.ses_id.ses_nid == sid.ses_nid &&
-		console_session.ses_id.ses_stamp == sid.ses_stamp) ?  1 : 0;
+		console_session.ses_id.ses_stamp == sid.ses_stamp) ? 1 : 0;
 }
 
 static void
@@ -1723,7 +1723,7 @@ lstcon_session_new(char *name, int key, unsigned feats,
 		rc = lstcon_session_end();
 
 		/* lstcon_session_end() only return local error */
-		if  (rc)
+		if (rc)
 			return rc;
 	}
 

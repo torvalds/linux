@@ -53,64 +53,64 @@ static int rpc_timeout = 64;
 module_param(rpc_timeout, int, 0644);
 MODULE_PARM_DESC(rpc_timeout, "rpc timeout in seconds (64 by default, 0 == never)");
 
-#define sfw_unpack_id(id)          \
-do {                               \
-	__swab64s(&(id).nid);	   \
-	__swab32s(&(id).pid);	   \
+#define sfw_unpack_id(id)		\
+do {					\
+	__swab64s(&(id).nid);		\
+	__swab32s(&(id).pid);		\
 } while (0)
 
-#define sfw_unpack_sid(sid)             \
-do {                                    \
-	__swab64s(&(sid).ses_nid);      \
-	__swab64s(&(sid).ses_stamp);    \
+#define sfw_unpack_sid(sid)		\
+do {					\
+	__swab64s(&(sid).ses_nid);	\
+	__swab64s(&(sid).ses_stamp);	\
 } while (0)
 
-#define sfw_unpack_fw_counters(fc)        \
-do {                                      \
-	__swab32s(&(fc).running_ms);      \
+#define sfw_unpack_fw_counters(fc)	  \
+do {					  \
+	__swab32s(&(fc).running_ms);	  \
 	__swab32s(&(fc).active_batches);  \
 	__swab32s(&(fc).zombie_sessions); \
-	__swab32s(&(fc).brw_errors);      \
-	__swab32s(&(fc).ping_errors);     \
+	__swab32s(&(fc).brw_errors);	  \
+	__swab32s(&(fc).ping_errors);	  \
 } while (0)
 
-#define sfw_unpack_rpc_counters(rc)     \
-do {                                    \
+#define sfw_unpack_rpc_counters(rc)	\
+do {					\
 	__swab32s(&(rc).errors);	\
-	__swab32s(&(rc).rpcs_sent);     \
-	__swab32s(&(rc).rpcs_rcvd);     \
-	__swab32s(&(rc).rpcs_dropped);  \
-	__swab32s(&(rc).rpcs_expired);  \
-	__swab64s(&(rc).bulk_get);      \
-	__swab64s(&(rc).bulk_put);      \
+	__swab32s(&(rc).rpcs_sent);	\
+	__swab32s(&(rc).rpcs_rcvd);	\
+	__swab32s(&(rc).rpcs_dropped);	\
+	__swab32s(&(rc).rpcs_expired);	\
+	__swab64s(&(rc).bulk_get);	\
+	__swab64s(&(rc).bulk_put);	\
 } while (0)
 
-#define sfw_unpack_lnet_counters(lc)    \
-do {                                    \
+#define sfw_unpack_lnet_counters(lc)	\
+do {					\
 	__swab32s(&(lc).errors);	\
-	__swab32s(&(lc).msgs_max);      \
-	__swab32s(&(lc).msgs_alloc);    \
-	__swab32s(&(lc).send_count);    \
-	__swab32s(&(lc).recv_count);    \
-	__swab32s(&(lc).drop_count);    \
-	__swab32s(&(lc).route_count);   \
-	__swab64s(&(lc).send_length);   \
-	__swab64s(&(lc).recv_length);   \
-	__swab64s(&(lc).drop_length);   \
-	__swab64s(&(lc).route_length);  \
+	__swab32s(&(lc).msgs_max);	\
+	__swab32s(&(lc).msgs_alloc);	\
+	__swab32s(&(lc).send_count);	\
+	__swab32s(&(lc).recv_count);	\
+	__swab32s(&(lc).drop_count);	\
+	__swab32s(&(lc).route_count);	\
+	__swab64s(&(lc).send_length);	\
+	__swab64s(&(lc).recv_length);	\
+	__swab64s(&(lc).drop_length);	\
+	__swab64s(&(lc).route_length);	\
 } while (0)
 
-#define sfw_test_active(t)      (atomic_read(&(t)->tsi_nactive))
-#define sfw_batch_active(b)     (atomic_read(&(b)->bat_nactive))
+#define sfw_test_active(t)	(atomic_read(&(t)->tsi_nactive))
+#define sfw_batch_active(b)	(atomic_read(&(b)->bat_nactive))
 
 static struct smoketest_framework {
 	struct list_head  fw_zombie_rpcs;     /* RPCs to be recycled */
 	struct list_head  fw_zombie_sessions; /* stopping sessions */
-	struct list_head  fw_tests;           /* registered test cases */
-	atomic_t          fw_nzombies;        /* # zombie sessions */
-	spinlock_t        fw_lock;            /* serialise */
-	sfw_session_t     *fw_session;        /* _the_ session */
-	int               fw_shuttingdown;    /* shutdown in progress */
+	struct list_head  fw_tests;	      /* registered test cases */
+	atomic_t	  fw_nzombies;	      /* # zombie sessions */
+	spinlock_t	  fw_lock;	      /* serialise */
+	sfw_session_t	  *fw_session;	      /* _the_ session */
+	int		  fw_shuttingdown;    /* shutdown in progress */
 	struct srpc_server_rpc *fw_active_srpc;/* running RPC */
 } sfw_data;
 
@@ -194,7 +194,7 @@ sfw_del_session_timer(void)
 
 static void
 sfw_deactivate_session(void)
-	__must_hold(&sfw_data.fw_lock)
+__must_hold(&sfw_data.fw_lock)
 {
 	sfw_session_t *sn = sfw_data.fw_session;
 	int nactive = 0;
@@ -1164,7 +1164,7 @@ sfw_add_test(struct srpc_server_rpc *rpc)
 		if (!(sn->sn_features & LST_FEAT_BULK_LEN)) {
 			len = npg * PAGE_CACHE_SIZE;
 
-		} else  {
+		} else {
 			len = sizeof(lnet_process_id_packed_t) *
 			      request->tsr_ndest;
 		}
@@ -1274,7 +1274,7 @@ sfw_handle_server_rpc(struct srpc_server_rpc *rpc)
 		}
 
 	} else if (request->msg_ses_feats & ~LST_FEATS_MASK) {
-		/*
+		/**
 		 * NB: at this point, old version will ignore features and
 		 * create new session anyway, so console should be able
 		 * to handle this

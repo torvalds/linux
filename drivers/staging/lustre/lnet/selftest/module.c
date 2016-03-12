@@ -40,7 +40,7 @@
 #include "console.h"
 
 enum {
-	LST_INIT_NONE = 0,
+	LST_INIT_NONE		= 0,
 	LST_INIT_WI_SERIAL,
 	LST_INIT_WI_TEST,
 	LST_INIT_RPC,

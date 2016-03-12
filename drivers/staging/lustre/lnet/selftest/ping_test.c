@@ -42,7 +42,7 @@
 
 #include "selftest.h"
 
-#define LST_PING_TEST_MAGIC     0xbabeface
+#define LST_PING_TEST_MAGIC	0xbabeface
 
 static int ping_srv_workitems = SFW_TEST_WI_MAX;
 module_param(ping_srv_workitems, int, 0644);
