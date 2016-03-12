@@ -98,7 +98,7 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	int rc;
 
 	mdiodev = mdio_device_create(mdio, addr);
-	if (!mdiodev || IS_ERR(mdiodev))
+	if (IS_ERR(mdiodev))
 		return 1;
 
 	/* Associate the OF node with the device structure so it
