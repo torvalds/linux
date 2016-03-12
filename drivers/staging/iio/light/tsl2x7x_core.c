@@ -413,7 +413,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	/* calculate ratio */
 	ratio = (ch1 << 15) / ch0;
 	/* convert to unscaled lux using the pointer to the table */
-	p = (struct tsl2x7x_lux *) chip->tsl2x7x_device_lux;
+	p = (struct tsl2x7x_lux *)chip->tsl2x7x_device_lux;
 	while (p->ratio != 0 && p->ratio < ratio)
 		p++;
 
@@ -624,7 +624,7 @@ static int tsl2x7x_als_calibrate(struct iio_dev *indio_dev)
 	dev_info(&chip->client->dev,
 		 "%s als_calibrate completed\n", chip->client->name);
 
-	return (int) gain_trim_val;
+	return (int)gain_trim_val;
 }
 
 static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
