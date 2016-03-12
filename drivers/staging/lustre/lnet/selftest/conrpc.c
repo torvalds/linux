@@ -463,8 +463,6 @@ lstcon_rpc_trans_stat(lstcon_rpc_trans_t *trans, lstcon_trans_stat_t *stat)
 	       lstcon_rpc_stat_failure(stat, 0),
 	       lstcon_rpc_stat_total(stat, 0),
 	       stat->trs_rpc_errno, stat->trs_fwk_errno);
-
-	return;
 }
 
 int
@@ -593,8 +591,6 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 	       lstcon_rpc_trans_name(trans->tas_opc), count);
 
 	LIBCFS_FREE(trans, sizeof(*trans));
-
-	return;
 }
 
 int
@@ -1084,8 +1080,6 @@ lstcon_rpc_stat_reply(lstcon_rpc_trans_t *trans, srpc_msg_t *msg,
 
 	if (!stat->trs_fwk_errno)
 		stat->trs_fwk_errno = rc;
-
-	return;
 }
 
 int

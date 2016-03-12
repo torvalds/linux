@@ -172,7 +172,6 @@ sfw_add_session_timer(void)
 	sn->sn_timer_active = 1;
 	timer->stt_expires = ktime_get_real_seconds() + sn->sn_timeout;
 	stt_add_timer(timer);
-	return;
 }
 
 static int
@@ -296,7 +295,6 @@ sfw_server_rpc_done(struct srpc_server_rpc *rpc)
 
 	if (rpc->srpc_bulk)
 		sfw_free_pages(rpc);
-	return;
 }
 
 static void
@@ -613,7 +611,6 @@ sfw_unload_test(struct sfw_test_instance *tsi)
 	 */
 	srpc_service_remove_buffers(tsc->tsc_srv_service,
 				    sfw_test_buffers(tsi));
-	return;
 }
 
 static void
@@ -648,7 +645,6 @@ sfw_destroy_test_instance(sfw_test_instance_t *tsi)
 clean:
 	sfw_unload_test(tsi);
 	LIBCFS_FREE(tsi, sizeof(*tsi));
-	return;
 }
 
 static void
@@ -667,7 +663,6 @@ sfw_destroy_batch(sfw_batch_t *tsb)
 	}
 
 	LIBCFS_FREE(tsb, sizeof(sfw_batch_t));
-	return;
 }
 
 void
@@ -687,7 +682,6 @@ sfw_destroy_session(sfw_session_t *sn)
 
 	LIBCFS_FREE(sn, sizeof(*sn));
 	atomic_dec(&sfw_data.fw_nzombies);
-	return;
 }
 
 static void
@@ -732,7 +726,6 @@ sfw_unpack_addtest_req(srpc_msg_t *msg)
 	}
 
 	LBUG();
-	return;
 }
 
 static int
@@ -870,7 +863,6 @@ sfw_test_unit_done(sfw_test_unit_t *tsu)
 	spin_unlock(&sfw_data.fw_lock);
 
 	sfw_destroy_session(sn);
-	return;
 }
 
 static void
@@ -905,7 +897,6 @@ sfw_test_rpc_done(srpc_client_rpc_t *rpc)
 	}
 
 	sfw_test_unit_done(tsu);
-	return;
 }
 
 int
@@ -1565,7 +1556,6 @@ sfw_unpack_message(srpc_msg_t *msg)
 	}
 
 	LBUG();
-	return;
 }
 
 void
@@ -1577,7 +1567,6 @@ sfw_abort_rpc(srpc_client_rpc_t *rpc)
 	spin_lock(&rpc->crpc_lock);
 	srpc_abort_rpc(rpc, -EINTR);
 	spin_unlock(&rpc->crpc_lock);
-	return;
 }
 
 void
@@ -1594,7 +1583,6 @@ sfw_post_rpc(srpc_client_rpc_t *rpc)
 	srpc_post_rpc(rpc);
 
 	spin_unlock(&rpc->crpc_lock);
-	return;
 }
 
 static srpc_service_t sfw_services[] = {
@@ -1798,6 +1786,4 @@ sfw_shutdown(void)
 		list_del(&tsc->tsc_list);
 		LIBCFS_FREE(tsc, sizeof(*tsc));
 	}
-
-	return;
 }

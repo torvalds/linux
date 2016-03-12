@@ -118,7 +118,6 @@ srpc_free_bulk(srpc_bulk_t *bk)
 	}
 
 	LIBCFS_FREE(bk, offsetof(srpc_bulk_t, bk_iovs[bk->bk_niov]));
-	return;
 }
 
 srpc_bulk_t *
@@ -960,7 +959,6 @@ srpc_server_rpc_done(struct srpc_server_rpc *rpc, int status)
 	}
 
 	spin_unlock(&scd->scd_lock);
-	return;
 }
 
 /* handles an incoming RPC */
@@ -1110,7 +1108,6 @@ srpc_add_client_rpc_timer(srpc_client_rpc_t *rpc)
 	timer->stt_func    = srpc_client_rpc_expired;
 	timer->stt_expires = ktime_get_real_seconds() + rpc->crpc_timeout;
 	stt_add_timer(timer);
-	return;
 }
 
 /*
@@ -1174,7 +1171,6 @@ srpc_client_rpc_done(srpc_client_rpc_t *rpc, int status)
 	spin_unlock(&rpc->crpc_lock);
 
 	(*rpc->crpc_done)(rpc);
-	return;
 }
 
 /* sends an outgoing RPC */
@@ -1347,7 +1343,6 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 	rpc->crpc_aborted = 1;
 	rpc->crpc_status  = why;
 	swi_schedule_workitem(&rpc->crpc_wi);
-	return;
 }
 
 /* called with rpc->crpc_lock held */
@@ -1363,7 +1358,6 @@ srpc_post_rpc(srpc_client_rpc_t *rpc)
 
 	srpc_add_client_rpc_timer(rpc);
 	swi_schedule_workitem(&rpc->crpc_wi);
-	return;
 }
 
 int
@@ -1689,6 +1683,4 @@ srpc_shutdown(void)
 	case SRPC_STATE_NI_INIT:
 		LNetNIFini();
 	}
-
-	return;
 }

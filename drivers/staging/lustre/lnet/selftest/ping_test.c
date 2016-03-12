@@ -165,7 +165,6 @@ ping_client_done_rpc(sfw_test_unit_t *tsu, srpc_client_rpc_t *rpc)
 	CDEBUG(D_NET, "%d reply in %u usec\n", reply->pnr_seq,
 	       (unsigned)((ts.tv_sec - reqst->pnr_time_sec) * 1000000 +
 			  (ts.tv_nsec / NSEC_PER_USEC - reqst->pnr_time_usec)));
-	return;
 }
 
 static int

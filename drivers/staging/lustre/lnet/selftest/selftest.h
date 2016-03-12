@@ -512,8 +512,6 @@ srpc_destroy_client_rpc(srpc_client_rpc_t *rpc)
 		LIBCFS_FREE(rpc, srpc_client_rpc_size(rpc));
 	else
 		(*rpc->crpc_fini) (rpc);
-
-	return;
 }
 
 static inline void
@@ -552,7 +550,6 @@ srpc_init_client_rpc(srpc_client_rpc_t *rpc, lnet_process_id_t peer,
 	rpc->crpc_reqstmsg.msg_magic   = SRPC_MSG_MAGIC;
 	rpc->crpc_reqstmsg.msg_version = SRPC_MSG_VERSION;
 	rpc->crpc_reqstmsg.msg_type    = srpc_service2request(service);
-	return;
 }
 
 static inline const char *
