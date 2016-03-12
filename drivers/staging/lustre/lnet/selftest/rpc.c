@@ -1332,8 +1332,8 @@ srpc_abort_rpc(srpc_client_rpc_t *rpc, int why)
 {
 	LASSERT(why);
 
-	if (rpc->crpc_aborted || /* already aborted */
-	    rpc->crpc_closed)	 /* callback imminent */
+	if (rpc->crpc_aborted ||	/* already aborted */
+	    rpc->crpc_closed)		/* callback imminent */
 		return;
 
 	CDEBUG(D_NET, "Aborting RPC: service %d, peer %s, state %s, why %d\n",
@@ -1401,7 +1401,7 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 				   rpc->srpc_peer, rpc->srpc_self,
 				   &rpc->srpc_replymdh, ev);
 	if (rc)
-		ev->ev_fired = 1;  /* no more event expected */
+		ev->ev_fired = 1; /* no more event expected */
 	return rc;
 }
 
@@ -1509,7 +1509,7 @@ srpc_lnet_ev_handler(lnet_event_t *ev)
 			scd->scd_buf_err = 0;
 		}
 
-		if (!scd->scd_buf_err && /* adding buffer is enabled */
+		if (!scd->scd_buf_err &&	/* adding buffer is enabled */
 		    !scd->scd_buf_adjust &&
 		    scd->scd_buf_nposted < scd->scd_buf_low) {
 			scd->scd_buf_adjust = max(scd->scd_buf_total / 2,

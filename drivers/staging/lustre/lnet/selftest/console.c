@@ -277,7 +277,7 @@ lstcon_group_find(const char *name, lstcon_group_t **grpp)
 		if (strncmp(grp->grp_name, name, LST_NAME_SIZE))
 			continue;
 
-		lstcon_group_addref(grp);  /* +1 ref for caller */
+		lstcon_group_addref(grp); /* +1 ref for caller */
 		*grpp = grp;
 		return 0;
 	}
@@ -1446,7 +1446,8 @@ lstcon_test_batch_query(char *name, int testidx, int client,
 
 	lstcon_rpc_trans_postwait(trans, timeout);
 
-	if (!testidx && /* query a batch, not a test */
+	/* query a batch, not a test */
+	if (!testidx &&
 	    !lstcon_rpc_stat_failure(lstcon_trans_stat(), 0) &&
 	    !lstcon_tsbqry_stat_run(lstcon_trans_stat(), 0)) {
 		/* all RPCs finished, and no active test */
