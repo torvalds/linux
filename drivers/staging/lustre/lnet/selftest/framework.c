@@ -406,7 +406,7 @@ sfw_make_session(srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply)
 {
 	sfw_session_t *sn = sfw_data.fw_session;
 	srpc_msg_t *msg = container_of(request, srpc_msg_t,
-					  msg_body.mksn_reqst);
+				       msg_body.mksn_reqst);
 	int cplen = 0;
 
 	if (request->mksn_sid.ses_nid == LNET_NID_ANY) {
@@ -1017,8 +1017,7 @@ sfw_run_batch(sfw_batch_t *tsb)
 			tsu->tsu_loop = tsi->tsi_loop;
 			wi = &tsu->tsu_worker;
 			swi_init_workitem(wi, tsu, sfw_run_test,
-					  lst_sched_test[\
-					  lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
+					  lst_sched_test[lnet_cpt_of_nid(tsu->tsu_dest.nid)]);
 			swi_schedule_workitem(wi);
 		}
 	}

@@ -235,8 +235,8 @@ lstcon_rpc_trans_name(int transop)
 }
 
 int
-lstcon_rpc_trans_prep(struct list_head *translist,
-		      int transop, lstcon_rpc_trans_t **transpp)
+lstcon_rpc_trans_prep(struct list_head *translist, int transop,
+		      lstcon_rpc_trans_t **transpp)
 {
 	lstcon_rpc_trans_t *trans;
 
@@ -547,8 +547,7 @@ lstcon_rpc_trans_destroy(lstcon_rpc_trans_t *trans)
 	lstcon_rpc_t *tmp;
 	int count = 0;
 
-	list_for_each_entry_safe(crpc, tmp, &trans->tas_rpcs_list,
-				 crp_link) {
+	list_for_each_entry_safe(crpc, tmp, &trans->tas_rpcs_list, crp_link) {
 		rpc = crpc->crp_rpc;
 
 		spin_lock(&rpc->crpc_lock);
@@ -668,8 +667,8 @@ lstcon_batrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	brq->bar_bid = tsb->tsb_id;
 	brq->bar_testidx = tsb->tsb_index;
 	brq->bar_opc = transop == LST_TRANS_TSBRUN ? SRPC_BATCH_OPC_RUN :
-			   (transop == LST_TRANS_TSBSTOP ? SRPC_BATCH_OPC_STOP :
-			    SRPC_BATCH_OPC_QUERY);
+		       (transop == LST_TRANS_TSBSTOP ? SRPC_BATCH_OPC_STOP :
+		       SRPC_BATCH_OPC_QUERY);
 
 	if (transop != LST_TRANS_TSBRUN &&
 	    transop != LST_TRANS_TSBSTOP)

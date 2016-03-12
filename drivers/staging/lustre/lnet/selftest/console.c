@@ -76,7 +76,8 @@ lstcon_node_find(lnet_process_id_t id, lstcon_node_t **ndpp, int create)
 
 	LASSERT(id.nid != LNET_NID_ANY);
 
-	list_for_each_entry(ndl, &console_session.ses_ndl_hash[idx], ndl_hlink) {
+	list_for_each_entry(ndl, &console_session.ses_ndl_hash[idx],
+			    ndl_hlink) {
 		if (ndl->ndl_node->nd_id.nid != id.nid ||
 		    ndl->ndl_node->nd_id.pid != id.pid)
 			continue;
@@ -316,7 +317,7 @@ lstcon_group_ndlink_move(lstcon_group_t *old,
 			 lstcon_group_t *new, lstcon_ndlink_t *ndl)
 {
 	unsigned int idx = LNET_NIDADDR(ndl->ndl_node->nd_id.nid) %
-			   LST_NODE_HASHSIZE;
+					LST_NODE_HASHSIZE;
 
 	list_del(&ndl->ndl_hlink);
 	list_del(&ndl->ndl_link);
@@ -918,7 +919,7 @@ lstcon_batch_list(int index, int len, char __user *name_up)
 	list_for_each_entry(bat, &console_session.ses_bat_list, bat_link) {
 		if (!index--) {
 			return copy_to_user(name_up, bat->bat_name, len) ?
-			       -EFAULT : 0;
+					    -EFAULT : 0;
 		}
 	}
 

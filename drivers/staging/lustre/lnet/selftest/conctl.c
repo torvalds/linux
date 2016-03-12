@@ -278,8 +278,7 @@ lst_group_update_ioctl(lstio_group_update_args_t *args)
 	if (!name)
 		return -ENOMEM;
 
-	if (copy_from_user(name,
-			   args->lstio_grp_namep,
+	if (copy_from_user(name, args->lstio_grp_namep,
 			   args->lstio_grp_nmlen)) {
 		LIBCFS_FREE(name, args->lstio_grp_nmlen + 1);
 		return -EFAULT;
@@ -375,8 +374,8 @@ lst_group_list_ioctl(lstio_group_list_args_t *args)
 		return -EINVAL;
 
 	return lstcon_group_list(args->lstio_grp_idx,
-			      args->lstio_grp_nmlen,
-			      args->lstio_grp_namep);
+				 args->lstio_grp_nmlen,
+				 args->lstio_grp_namep);
 }
 
 static int
@@ -743,7 +742,8 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 	/* have parameter, check if parameter length is valid */
 	if (args->lstio_tes_param &&
 	    (args->lstio_tes_param_len <= 0 ||
-	     args->lstio_tes_param_len > PAGE_CACHE_SIZE - sizeof(lstcon_test_t)))
+	     args->lstio_tes_param_len >
+	     PAGE_CACHE_SIZE - sizeof(lstcon_test_t)))
 		return -EINVAL;
 
 	LIBCFS_ALLOC(batch_name, args->lstio_tes_bat_nmlen + 1);
