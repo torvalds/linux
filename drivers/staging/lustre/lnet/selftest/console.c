@@ -1749,7 +1749,7 @@ lstcon_session_new(char *name, int key, unsigned feats,
 
 	if (strlen(name) > sizeof(console_session.ses_name) - 1)
 		return -E2BIG;
-	strncpy(console_session.ses_name, name,
+	strlcpy(console_session.ses_name, name,
 		sizeof(console_session.ses_name));
 
 	rc = lstcon_batch_add(LST_DEFAULT_BATCH);
