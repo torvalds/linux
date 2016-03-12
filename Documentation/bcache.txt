@@ -137,48 +137,60 @@ the backing devices to passthrough mode.
 HOWTO/COOKBOOK
 --------------
 
-A) Your bcache doesn't start.
-   Starting and starting a bcache with a missing caching device
+A) Starting a bcache with a missing caching device
 
-Registering the backing device doesn't help, it's already there, you just need
+If registering the backing device doesn't help, it's already there, you just need
 to force it to run without the cache:
-host:~# echo /dev/sdb1 > /sys/fs/bcache/register
-[  119.844831] bcache: register_bcache() error opening /dev/sdb1: device already registered
+	host:~# echo /dev/sdb1 > /sys/fs/bcache/register
+	[  119.844831] bcache: register_bcache() error opening /dev/sdb1: device already registered
 
-Next, you try to register your caching device if it's present. However if it's
-absent, or registration fails for some reason, you can still start your bcache
-without its cache, like so:
-host:/sys/block/sdb/sdb1/bcache# echo 1 > running
+Next, you try to register your caching device if it's present. However
+if it's absent, or registration fails for some reason, you can still
+start your bcache without its cache, like so:
+	host:/sys/block/sdb/sdb1/bcache# echo 1 > running
 
-
-B) Bcache not finding its cache and not starting
-
-This does not work:
-host:/sys/block/md5/bcache# echo 0226553a-37cf-41d5-b3ce-8b1e944543a8 > attach
-[ 1933.455082] bcache: bch_cached_dev_attach() Couldn't find uuid for md5 in set
-[ 1933.478179] bcache: __cached_dev_store() Can't attach 0226553a-37cf-41d5-b3ce-8b1e944543a8
-[ 1933.478179] : cache set not found
-
-In this case, the caching device was simply not registered at boot or
-disappeared and came back, and needs to be (re-)registered:
-host:/sys/block/md5/bcache# echo /dev/sdh2 > /sys/fs/bcache/register
+Note that this may cause data loss if you were running in writeback mode.
 
 
-C) Corrupt bcache caching device crashes the kernel on startup/boot
+B) Bcache does not find its cache
 
-You'll have to wipe the caching device, start the backing device without the
-cache, and you can re-attach the cleaned up caching device then. This does
-require booting with a kernel/rescue media where bcache is disabled
-since it will otherwise try to access your device and probably crash
-again before you have a chance to wipe it.
-(or if you plan ahead, compile a backup kernel with bcache disabled and keep it
-in your grub config for a rainy day)
-If bcache is not available in the kernel, a filesystem on the backing device is
-still available at an 8KiB offset. So either via a loopdev of the backing device
-created with --offset 8K or by temporarily increasing the start sector of the
-partition by 16 (512byte sectors).
+	host:/sys/block/md5/bcache# echo 0226553a-37cf-41d5-b3ce-8b1e944543a8 > attach
+	[ 1933.455082] bcache: bch_cached_dev_attach() Couldn't find uuid for md5 in set
+	[ 1933.478179] bcache: __cached_dev_store() Can't attach 0226553a-37cf-41d5-b3ce-8b1e944543a8
+	[ 1933.478179] : cache set not found
 
-This is how you wipe the caching device:
+In this case, the caching device was simply not registered at boot
+or disappeared and came back, and needs to be (re-)registered:
+	host:/sys/block/md5/bcache# echo /dev/sdh2 > /sys/fs/bcache/register
+
+
+C) Corrupt bcache crashes the kernel at device registration time:
+
+This should never happen.  If it does happen, then you have found a bug!
+Please report it to the bcache development list: linux-bcache@vger.kernel.org
+
+Be sure to provide as much information that you can including kernel dmesg
+output if available so that we may assist.
+
+
+D) Recovering data without bcache:
+
+If bcache is not available in the kernel, a filesystem on the backing
+device is still available at an 8KiB offset. So either via a loopdev
+of the backing device created with --offset 8K, or any value defined by
+--data-offset when you originally formatted bcache with `make-bcache`.
+
+For example:
+	losetup -o 8192 /dev/loop0 /dev/your_bcache_backing_dev
+
+This should present your unmodified backing device data in /dev/loop0
+
+If your cache is in writethrough mode, then you can safely discard the
+cache device without loosing data.
+
+
+E) Wiping a cache device
+
 host:~# wipefs -a /dev/sdh2
 16 bytes were erased at offset 0x1018 (bcache)
 they were: c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
@@ -205,56 +217,60 @@ host:/sys/block/md5/bcache# echo 5bc072a8-ab17-446d-9744-e247949913c1 > attach
 [  865.276616] bcache: bch_cached_dev_attach() Caching md5 as bcache0 on set 5bc072a8-ab17-446d-9744-e247949913c1
 
 
-D) Remove or replace a caching device
+F) Remove or replace a caching device
 
-host:/sys/block/sda/sda7/bcache# echo 1 > detach
-[  695.872542] bcache: cached_dev_detach_finish() Caching disabled for sda7
+	host:/sys/block/sda/sda7/bcache# echo 1 > detach
+	[  695.872542] bcache: cached_dev_detach_finish() Caching disabled for sda7
 
-host:~# wipefs -a /dev/nvme0n1p4
-wipefs: error: /dev/nvme0n1p4: probing initialization failed: Device or resource busy
-Ooops, it's disabled, but not unregistered, so it's still protected
+	host:~# wipefs -a /dev/nvme0n1p4
+	wipefs: error: /dev/nvme0n1p4: probing initialization failed: Device or resource busy
+	Ooops, it's disabled, but not unregistered, so it's still protected
 
 We need to go and unregister it:
-host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# ls -l cache0
-lrwxrwxrwx 1 root root 0 Feb 25 18:33 cache0 -> ../../../devices/pci0000:00/0000:00:1d.0/0000:70:00.0/nvme/nvme0/nvme0n1/nvme0n1p4/bcache/
-host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# echo 1 > stop
-kernel: [  917.041908] bcache: cache_set_free() Cache set b7ba27a1-2398-4649-8ae3-0959f57ba128 unregistered
+	host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# ls -l cache0
+	lrwxrwxrwx 1 root root 0 Feb 25 18:33 cache0 -> ../../../devices/pci0000:00/0000:00:1d.0/0000:70:00.0/nvme/nvme0/nvme0n1/nvme0n1p4/bcache/
+	host:/sys/fs/bcache/b7ba27a1-2398-4649-8ae3-0959f57ba128# echo 1 > stop
+	kernel: [  917.041908] bcache: cache_set_free() Cache set b7ba27a1-2398-4649-8ae3-0959f57ba128 unregistered
 
 Now we can wipe it:
-host:~# wipefs -a /dev/nvme0n1p4
-/dev/nvme0n1p4: 16 bytes were erased at offset 0x00001018 (bcache): c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
+	host:~# wipefs -a /dev/nvme0n1p4
+	/dev/nvme0n1p4: 16 bytes were erased at offset 0x00001018 (bcache): c6 85 73 f6 4e 1a 45 ca 82 65 f5 7f 48 ba 6d 81
 
 
-E) dmcrypt and bcache
+G) dm-crypt and bcache
 
-First setup bcache unencrypted and then install dmcrypt on top of /dev/bcache<N>
-This will work faster than if you dmcrypt both the backing and caching
-devices and then install bcache on top.
+First setup bcache unencrypted and then install dmcrypt on top of
+/dev/bcache<N> This will work faster than if you dmcrypt both the backing
+and caching devices and then install bcache on top. [benchmarks?]
 
 
-F) Stop/free a registered bcache to wipe and/or recreate it
-(or maybe you need to free up all bcache references so that you can have fdisk
-run and re-register a changed partition table, which won't work if there are any
-active backing or caching devices left on it)
+H) Stop/free a registered bcache to wipe and/or recreate it
+
+Suppose that you need to free up all bcache references so that you can
+fdisk run and re-register a changed partition table, which won't work
+if there are any active backing or caching devices left on it:
 
 1) Is it present in /dev/bcache* ? (there are times where it won't be)
+
 If so, it's easy:
-host:/sys/block/bcache0/bcache# echo 1 > stop
+	host:/sys/block/bcache0/bcache# echo 1 > stop
 
 2) But if your backing device is gone, this won't work:
-host:/sys/block/bcache0# cd bcache
-bash: cd: bcache: No such file or directory
+	host:/sys/block/bcache0# cd bcache
+	bash: cd: bcache: No such file or directory
 
 In this case, you may have to unregister the dmcrypt block device that
 references this bcache to free it up:
-host:~# dmsetup remove oldds1
-bcache: bcache_device_free() bcache0 stopped
-bcache: cache_set_free() Cache set 5bc072a8-ab17-446d-9744-e247949913c1 unregistered
+	host:~# dmsetup remove oldds1
+	bcache: bcache_device_free() bcache0 stopped
+	bcache: cache_set_free() Cache set 5bc072a8-ab17-446d-9744-e247949913c1 unregistered
 
-This causes the backing bcache to be removed from /sys/fs/bcache and then it can
-be reused
+This causes the backing bcache to be removed from /sys/fs/bcache and
+then it can be reused.  This would be true of any block device stacking
+where bcache is a lower device.
 
 3) In other cases, you can also look in /sys/fs/bcache/:
+
 host:/sys/fs/bcache# ls -l */{cache?,bdev?}
 lrwxrwxrwx 1 root root 0 Mar  5 09:39 0226553a-37cf-41d5-b3ce-8b1e944543a8/bdev1 -> ../../../devices/virtual/block/dm-1/bcache/
 lrwxrwxrwx 1 root root 0 Mar  5 09:39 0226553a-37cf-41d5-b3ce-8b1e944543a8/cache0 -> ../../../devices/virtual/block/dm-4/bcache/
@@ -262,9 +278,10 @@ lrwxrwxrwx 1 root root 0 Mar  5 09:39 5bc072a8-ab17-446d-9744-e247949913c1/cache
 
 The device names will show which UUID is relevant, cd in that directory
 and stop the cache:
-host:/sys/fs/bcache/5bc072a8-ab17-446d-9744-e247949913c1# echo 1 > stop
-this will free up bcache references and let you reuse the partition for other
-purposes.
+	host:/sys/fs/bcache/5bc072a8-ab17-446d-9744-e247949913c1# echo 1 > stop
+
+This will free up bcache references and let you reuse the partition for
+other purposes.
 
 
 
@@ -274,6 +291,22 @@ TROUBLESHOOTING PERFORMANCE
 Bcache has a bunch of config options and tunables. The defaults are intended to
 be reasonable for typical desktop and server workloads, but they're not what you
 want for getting the best possible numbers when benchmarking.
+
+ - Backing device alignment
+
+   The default metadata size in bcache is 8k.  If your backing device is
+   RAID based, then be sure to align this by a multiple of your stride
+   width using `make-bcache --data-offset`. If you intend to expand your
+   disk array in the future, then multiply a series of primes by your
+   raid stripe size to get the disk multiples that you would like.
+
+   For example:  If you have a 64k stripe size, then the following offset
+   would provide alignment for many common RAID5 data spindle counts:
+	64k * 2*2*2*3*3*5*7 bytes = 161280k
+
+   That space is wasted, but for only 157.5MB you can grow your RAID 5
+   volume to the following data-spindle counts without re-aligning:
+	3,4,5,6,7,8,9,10,12,14,15,18,20,21 ...
 
  - Bad write performance
 
@@ -382,7 +415,7 @@ sequential_merge
   against all new requests to determine which new requests are sequential
   continuations of previous requests for the purpose of determining sequential
   cutoff. This is necessary if the sequential cutoff value is greater than the
-  maximum acceptable sequential size for any single request. 
+  maximum acceptable sequential size for any single request.
 
 state
   The backing device can be in one of four different states:
@@ -469,7 +502,7 @@ bucket_size
   Size of buckets
 
 cache<0..n>
-  Symlink to each of the cache devices comprising this cache set. 
+  Symlink to each of the cache devices comprising this cache set.
 
 cache_available_percent
   Percentage of cache device which doesn't contain dirty data, and could
