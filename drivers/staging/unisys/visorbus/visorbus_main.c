@@ -1275,24 +1275,24 @@ struct channel_size_info {
 int
 visorbus_init(void)
 {
-	int rc = 0;
+	int err;
 
-	POSTCODE_LINUX_3(DRIVER_ENTRY_PC, rc, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX_3(DRIVER_ENTRY_PC, 0, POSTCODE_SEVERITY_INFO);
 	bus_device_info_init(&clientbus_driverinfo,
 			     "clientbus", "visorbus",
 			     VERSION, NULL);
 
-	rc = create_bus_type();
-	if (rc < 0) {
+	err = create_bus_type();
+	if (err < 0) {
 		POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, DIAG_SEVERITY_ERR);
-		goto away;
+		goto error;
 	}
 
 	periodic_dev_workqueue = create_singlethread_workqueue("visorbus_dev");
 	if (!periodic_dev_workqueue) {
 		POSTCODE_LINUX_2(CREATE_WORKQUEUE_PC, DIAG_SEVERITY_ERR);
-		rc = -ENOMEM;
-		goto away;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	/* This enables us to receive notifications when devices appear for
@@ -1302,13 +1302,11 @@ visorbus_init(void)
 				     &chipset_responders,
 				     &chipset_driverinfo);
 
-	rc = 0;
+	return 0;
 
-away:
-	if (rc)
-		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
-				 POSTCODE_SEVERITY_ERR);
-	return rc;
+error:
+	POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, err, POSTCODE_SEVERITY_ERR);
+	return err;
 }
 
 void
