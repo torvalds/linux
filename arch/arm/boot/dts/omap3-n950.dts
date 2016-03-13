@@ -171,3 +171,17 @@
 			 MATRIX_KEY(0x07, 0x07, KEY_R)
 			 >;
 };
+
+&lis302 {
+	st,axis-x = <(-2)>; /* LIS3_INV_DEV_Y */
+	st,axis-y = <(-1)>; /* LIS3_INV_DEV_X */
+	st,axis-z = <(-3)>; /* LIS3_INV_DEV_Z */
+
+	st,min-limit-x = <(-32)>;
+	st,min-limit-y = <3>;
+	st,min-limit-z = <3>;
+
+	st,max-limit-x = <(-3)>;
+	st,max-limit-y = <32>;
+	st,max-limit-z = <32>;
+};
