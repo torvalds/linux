@@ -292,7 +292,7 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(DTS_MEASUREMENT_NOTIFICATION, iwl_mvm_temp_notif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, DTS_MEASUREMENT_NOTIF_WIDE,
-		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_LOCKED),
+		       iwl_mvm_temp_notif, RX_HANDLER_ASYNC_UNLOCKED),
 	RX_HANDLER_GRP(PHY_OPS_GROUP, CT_KILL_NOTIFICATION,
 		       iwl_mvm_ct_kill_notif, RX_HANDLER_SYNC),
 
