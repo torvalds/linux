@@ -1484,6 +1484,8 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	/* update rx_status according to the notification's metadata */
 	memset(&rx_status, 0, sizeof(rx_status));
 	rx_status.mactime = le64_to_cpu(sb->tsf);
+	/* TSF as indicated by the firmware  is at INA time */
+	rx_status.flag |= RX_FLAG_MACTIME_PLCP_START;
 	rx_status.device_timestamp = le32_to_cpu(sb->system_time);
 	rx_status.band =
 		(sb->phy_flags & cpu_to_le16(RX_RES_PHY_FLAGS_BAND_24)) ?

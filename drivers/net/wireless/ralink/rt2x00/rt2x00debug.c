@@ -478,7 +478,7 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 {								\
 	struct rt2x00debug_intf *intf = file->private_data;	\
 	const struct rt2x00debug *debug = intf->debug;		\
-	char line[16];						\
+	char line[17];						\
 	size_t size;						\
 	unsigned int index = intf->offset_##__name;		\
 	__type value;						\
@@ -494,7 +494,8 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 								\
 	if (copy_from_user(line, buf, length))			\
 		return -EFAULT;					\
-								\
+	line[16] = 0;						\
+						\
 	size = strlen(line);					\
 	value = simple_strtoul(line, NULL, 0);			\
 								\

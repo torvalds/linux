@@ -45,6 +45,7 @@
 #define  APS_FSMCO_ENABLE_POWERDOWN	BIT(4)
 #define  APS_FSMCO_MAC_ENABLE		BIT(8)
 #define  APS_FSMCO_MAC_OFF		BIT(9)
+#define  APS_FSMCO_SW_LPS		BIT(10)
 #define  APS_FSMCO_HW_SUSPEND		BIT(11)
 #define  APS_FSMCO_PCIE			BIT(12)
 #define  APS_FSMCO_HW_POWERDOWN		BIT(15)
@@ -213,6 +214,7 @@
 #define  SYS_CFG_PCIRSTB		BIT(4)
 #define  SYS_CFG_V15_VLD		BIT(5)
 #define  SYS_CFG_TRP_B15V_EN		BIT(7)
+#define  SYS_CFG_SW_OFFLOAD_EN		BIT(7)	/* For chips with IOL support */
 #define  SYS_CFG_SIC_IDLE		BIT(8)
 #define  SYS_CFG_BD_MAC2		BIT(9)
 #define  SYS_CFG_BD_MAC1		BIT(10)
@@ -340,6 +342,11 @@
 #define REG_BB_ACCEESS_CTRL		0x01e8
 #define REG_BB_ACCESS_DATA		0x01ec
 
+#define REG_HMBOX_EXT0_8723B		0x01f0
+#define REG_HMBOX_EXT1_8723B		0x01f4
+#define REG_HMBOX_EXT2_8723B		0x01f8
+#define REG_HMBOX_EXT3_8723B		0x01fc
+
 /* 0x0200 ~ 0x027F	TXDMA Configuration */
 #define REG_RQPN			0x0200
 #define  RQPN_HI_PQ_SHIFT		0
@@ -352,6 +359,8 @@
 #define REG_TXDMA_OFFSET_CHK		0x020c
 #define REG_TXDMA_STATUS		0x0210
 #define REG_RQPN_NPQ			0x0214
+#define  RQPN_NPQ_SHIFT			0
+#define  RQPN_EPQ_SHIFT			16
 
 /* 0x0280 ~ 0x02FF	RXDMA Configuration */
 #define REG_RXDMA_AGG_PG_TH		0x0280
@@ -453,6 +462,8 @@
 #define REG_NEED_CPU_HANDLE		0x04e0
 #define REG_PKT_LOSE_RPT		0x04e1
 #define REG_PTCL_ERR_STATUS		0x04e2
+#define REG_TX_REPORT_CTRL		0x04ec
+#define REG_TX_REPORT_TIME		0x04f0
 #define REG_DUMMY			0x04fc
 
 /* 0x0500 ~ 0x05FF	EDCA Configuration */
@@ -559,13 +570,25 @@
 						 (Rx beacon, probe rsp) */
 #define  RCR_ACCEPT_CRC32		BIT(8)  /* Accept CRC32 error packet */
 #define  RCR_ACCEPT_ICV			BIT(9)  /* Accept ICV error packet */
-#define  RCR_ACCEPT_DATA_FRAME		BIT(11)
-#define  RCR_ACCEPT_CTRL_FRAME		BIT(12)
-#define  RCR_ACCEPT_MGMT_FRAME		BIT(13)
+#define  RCR_ACCEPT_DATA_FRAME		BIT(11) /* Accept all data pkt or use
+						   REG_RXFLTMAP2 */
+#define  RCR_ACCEPT_CTRL_FRAME		BIT(12) /* Accept all control pkt or use
+						   REG_RXFLTMAP1 */
+#define  RCR_ACCEPT_MGMT_FRAME		BIT(13) /* Accept all mgmt pkt or use
+						   REG_RXFLTMAP0 */
 #define  RCR_HTC_LOC_CTRL		BIT(14) /* MFC<--HTC=1 MFC-->HTC=0 */
+#define  RCR_UC_DATA_PKT_INT_ENABLE	BIT(16) /* Enable unicast data packet
+						   interrupt */
+#define  RCR_BM_DATA_PKT_INT_ENABLE	BIT(17) /* Enable broadcast data packet
+						   interrupt */
+#define  RCR_TIM_PARSER_ENABLE		BIT(18) /* Enable RX beacon TIM parser*/
 #define  RCR_MFBEN			BIT(22)
-#define  RCR_LSIGEN			BIT(23)
+#define  RCR_LSIG_ENABLE		BIT(23) /* Enable LSIG TXOP Protection
+						   function. Search KEYCAM for
+						   each rx packet to check if
+						   LSIGEN bit is set. */
 #define  RCR_MULTI_BSSID_ENABLE		BIT(24) /* Enable Multiple BssId */
+#define  RCR_FORCE_ACK			BIT(26)
 #define  RCR_ACCEPT_BA_SSN		BIT(27) /* Accept BA SSN */
 #define  RCR_APPEND_PHYSTAT		BIT(28)
 #define  RCR_APPEND_ICV			BIT(29)
@@ -632,9 +655,20 @@
 #define REG_LPNAV_CTRL			0x0694
 #define REG_WKFMCAM_CMD			0x0698
 #define REG_WKFMCAM_RWD			0x069c
-#define REG_RXFLTMAP0			0x06a0
-#define REG_RXFLTMAP1			0x06a2
-#define REG_RXFLTMAP2			0x06a4
+
+/*
+ * RX Filters: each bit corresponds to the numerical value of the subtype.
+ * If it is set the subtype frame type is passed. The filter is only used when
+ * the RCR_ACCEPT_DATA_FRAME, RCR_ACCEPT_CTRL_FRAME, RCR_ACCEPT_MGMT_FRAME bit
+ * in the RCR are low.
+ *
+ * Example: Beacon subtype is binary 1000 which is decimal 8 so we have to set
+ * bit 8 (0x100) in REG_RXFLTMAP0 to enable reception.
+ */
+#define REG_RXFLTMAP0			0x06a0	/* Management frames */
+#define REG_RXFLTMAP1			0x06a2	/* Control frames */
+#define REG_RXFLTMAP2			0x06a4	/* Data frames */
+
 #define REG_BCN_PSR_RPT			0x06a8
 #define REG_CALB32K_CTRL		0x06ac
 #define REG_PKT_MON_CTRL		0x06b4
@@ -742,6 +776,10 @@
 #define REG_FPGA1_RF_MODE		0x0900
 
 #define REG_FPGA1_TX_INFO		0x090c
+#define REG_DPDT_CTRL			0x092c	/* 8723BU */
+#define REG_RFE_CTRL_ANTA_SRC		0x0930	/* 8723BU */
+#define REG_RFE_PATH_SELECT		0x0940	/* 8723BU */
+#define REG_RFE_BUFFER			0x0944	/* 8723BU */
 
 #define REG_CCK0_SYSTEM			0x0a00
 #define  CCK0_SIDEBAND			BIT(4)
@@ -769,6 +807,9 @@
 #define REG_OFDM0_XB_RX_IQ_IMBALANCE	0x0c1c
 
 #define REG_OFDM0_ENERGY_CCA_THRES	0x0c4c
+
+#define REG_OFDM0_RX_D_SYNC_PATH	0x0c40
+#define  OFDM0_SYNC_PATH_NOTCH_FILTER	BIT(1)
 
 #define REG_OFDM0_XA_AGC_CORE1		0x0c50
 #define REG_OFDM0_XA_AGC_CORE2		0x0c54

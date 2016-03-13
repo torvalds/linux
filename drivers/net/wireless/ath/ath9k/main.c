@@ -978,7 +978,7 @@ static void ath9k_update_bssid_mask(struct ath_softc *sc,
 		if (ctx->nvifs_assigned != 1)
 			continue;
 
-		if (!avp->vif->p2p || !iter_data->has_hw_macaddr)
+		if (!iter_data->has_hw_macaddr)
 			continue;
 
 		ether_addr_copy(common->curbssid, avp->bssid);
@@ -1254,6 +1254,9 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	ath_dbg(common, CONFIG, "Attach a VIF of type: %d\n", vif->type);
 	sc->cur_chan->nvifs++;
+
+	if (vif->type == NL80211_IFTYPE_STATION && ath9k_is_chanctx_enabled())
+		vif->driver_flags |= IEEE80211_VIF_GET_NOA_UPDATE;
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);

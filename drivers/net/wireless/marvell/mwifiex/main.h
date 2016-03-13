@@ -223,6 +223,11 @@ struct mwifiex_dbg {
 	u16 last_cmd_resp_index;
 	u16 last_event[DBG_CMD_NUM];
 	u16 last_event_index;
+	u32 last_mp_wr_bitmap[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_wr_ports[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_wr_len[MWIFIEX_DBG_SDIO_MP_NUM];
+	u32 last_mp_curr_wr_port[MWIFIEX_DBG_SDIO_MP_NUM];
+	u8 last_sdio_mp_index;
 };
 
 enum MWIFIEX_HARDWARE_STATUS {

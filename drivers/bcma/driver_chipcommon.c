@@ -115,6 +115,33 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 	return 0;
 }
 
+static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+
+	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
+	case BCMA_CC_FLASHT_STSER:
+	case BCMA_CC_FLASHT_ATSER:
+		bcma_debug(bus, "Found serial flash\n");
+		bcma_sflash_init(cc);
+		break;
+	case BCMA_CC_FLASHT_PARA:
+		bcma_debug(bus, "Found parallel flash\n");
+		bcma_pflash_init(cc);
+		break;
+	default:
+		bcma_err(bus, "Flash type not supported\n");
+	}
+
+	if (cc->core->id.rev == 38 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
+		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
+			bcma_debug(bus, "Found NAND flash\n");
+			bcma_nflash_init(cc);
+		}
+	}
+}
+
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -135,6 +162,9 @@ void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 
 	if (IS_BUILTIN(CONFIG_BCM47XX) && bus->hosttype == BCMA_HOSTTYPE_SOC)
 		bcma_chipco_serial_init(cc);
+
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
+		bcma_core_chipcommon_flash_detect(cc);
 
 	cc->early_setup_done = true;
 }

@@ -1033,7 +1033,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		}
 	}
 
-	if (usniffer_req && !*usniffer_images) {
+	if (!fw_has_capa(capa, IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED) &&
+	    usniffer_req && !*usniffer_images) {
 		IWL_ERR(drv,
 			"user selected to work with usniffer but usniffer image isn't available in ucode package\n");
 		return -EINVAL;
@@ -1718,3 +1719,7 @@ MODULE_PARM_DESC(fw_monitor,
 module_param_named(d0i3_timeout, iwlwifi_mod_params.d0i3_entry_delay,
 		   uint, S_IRUGO);
 MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
+
+module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
+		   S_IRUGO);
+MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities");

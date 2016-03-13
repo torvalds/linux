@@ -597,6 +597,7 @@ struct rtl8xxxu_priv {
 	struct rtl8723au_idx ht20_max_power_offset[3];
 	u32 chip_cut:4;
 	u32 rom_rev:4;
+	u32 is_multi_func:1;
 	u32 has_wifi:1;
 	u32 has_bluetooth:1;
 	u32 enable_bluetooth:1;
@@ -652,7 +653,6 @@ struct rtl8xxxu_priv {
 	u32 bb_recovery_backup[RTL8XXXU_BB_REGS];
 	u32 rtlchip;
 	u8 pi_enabled:1;
-	u8 iqk_initialized:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
 };
 

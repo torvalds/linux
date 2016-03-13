@@ -35,62 +35,58 @@
 #include <linux/export.h>
 #include <net/cfg80211.h>
 
+u8 channel5g[CHANNEL_MAX_NUMBER_5G] = {
+	36, 38, 40, 42, 44, 46, 48,		/* Band 1 */
+	52, 54, 56, 58, 60, 62, 64,		/* Band 2 */
+	100, 102, 104, 106, 108, 110, 112,	/* Band 3 */
+	116, 118, 120, 122, 124, 126, 128,	/* Band 3 */
+	132, 134, 136, 138, 140, 142, 144,	/* Band 3 */
+	149, 151, 153, 155, 157, 159, 161,	/* Band 4 */
+	165, 167, 169, 171, 173, 175, 177	/* Band 4 */
+};
+EXPORT_SYMBOL(channel5g);
+
+u8 channel5g_80m[CHANNEL_MAX_NUMBER_5G_80M] = {
+	42, 58, 106, 122, 138, 155, 171
+};
+EXPORT_SYMBOL(channel5g_80m);
+
 void rtl_addr_delay(u32 addr)
 {
 	if (addr == 0xfe)
-		mdelay(50);
+		msleep(50);
 	else if (addr == 0xfd)
-		mdelay(5);
+		msleep(5);
 	else if (addr == 0xfc)
-		mdelay(1);
+		msleep(1);
 	else if (addr == 0xfb)
-		udelay(50);
+		usleep_range(50, 100);
 	else if (addr == 0xfa)
-		udelay(5);
+		usleep_range(5, 10);
 	else if (addr == 0xf9)
-		udelay(1);
+		usleep_range(1, 2);
 }
 EXPORT_SYMBOL(rtl_addr_delay);
 
 void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 		     u32 mask, u32 data)
 {
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
+	if (addr >= 0xf9 && addr <= 0xfe) {
+		rtl_addr_delay(addr);
 	} else {
 		rtl_set_rfreg(hw, rfpath, addr, mask, data);
-		udelay(1);
+		usleep_range(1, 2);
 	}
 }
 EXPORT_SYMBOL(rtl_rfreg_delay);
 
 void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 {
-	if (addr == 0xfe) {
-		mdelay(50);
-	} else if (addr == 0xfd) {
-		mdelay(5);
-	} else if (addr == 0xfc) {
-		mdelay(1);
-	} else if (addr == 0xfb) {
-		udelay(50);
-	} else if (addr == 0xfa) {
-		udelay(5);
-	} else if (addr == 0xf9) {
-		udelay(1);
+	if (addr >= 0xf9 && addr <= 0xfe) {
+		rtl_addr_delay(addr);
 	} else {
 		rtl_set_bbreg(hw, addr, MASKDWORD, data);
-		udelay(1);
+		usleep_range(1, 2);
 	}
 }
 EXPORT_SYMBOL(rtl_bb_delay);

@@ -676,7 +676,7 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		}
 		break;
 
-		case MWIFIEX_BSS_ROLE_STA:
+	case MWIFIEX_BSS_ROLE_STA:
 		if (priv->media_connected) {
 			mwifiex_dbg(adapter, ERROR,
 				    "cannot change wiphy params when connected");

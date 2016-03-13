@@ -73,12 +73,12 @@ TRACE_EVENT(iwlwifi_dev_rx,
 	TP_ARGS(dev, trans, pkt, len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__field(u8, cmd)
+		__field(u16, cmd)
 		__dynamic_array(u8, rxbuf, iwl_rx_trace_len(trans, pkt, len))
 	),
 	TP_fast_assign(
 		DEV_ASSIGN;
-		__entry->cmd = pkt->hdr.cmd;
+		__entry->cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
 		memcpy(__get_dynamic_array(rxbuf), pkt,
 		       iwl_rx_trace_len(trans, pkt, len));
 	),

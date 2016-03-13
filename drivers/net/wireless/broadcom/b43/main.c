@@ -4375,12 +4375,10 @@ redo:
 	/* Synchronize and free the interrupt handlers. Unlock to avoid deadlocks. */
 	orig_dev = dev;
 	mutex_unlock(&wl->mutex);
-	if (b43_bus_host_is_sdio(dev->dev)) {
+	if (b43_bus_host_is_sdio(dev->dev))
 		b43_sdio_free_irq(dev);
-	} else {
-		synchronize_irq(dev->dev->irq);
+	else
 		free_irq(dev->dev->irq, dev);
-	}
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev)

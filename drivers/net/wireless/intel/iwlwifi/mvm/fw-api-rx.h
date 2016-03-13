@@ -391,4 +391,56 @@ struct iwl_rss_config_cmd {
 	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
 } __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
 
+#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
+#define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
+#define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
+
+/**
+ * struct iwl_rxq_sync_cmd - RXQ notification trigger
+ *
+ * @flags: flags of the notification. bit 0:3 are the sender queue
+ * @rxq_mask: rx queues to send the notification on
+ * @count: number of bytes in payload, should be DWORD aligned
+ * @payload: data to send to rx queues
+ */
+struct iwl_rxq_sync_cmd {
+	__le32 flags;
+	__le32 rxq_mask;
+	__le32 count;
+	u8 payload[];
+} __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_rxq_sync_notification - Notification triggered by RXQ
+ * sync command
+ *
+ * @count: number of bytes in payload
+ * @payload: data to send to rx queues
+ */
+struct iwl_rxq_sync_notification {
+	__le32 count;
+	u8 payload[];
+} __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
+
+/**
+* Internal message identifier
+*
+* @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+*/
+enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_NOTIF_DEL_BA,
+};
+
+/**
+* struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+* in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+*
+* @type: value from &iwl_mvm_rxq_notif_type
+* @data: payload
+*/
+struct iwl_mvm_internal_rxq_notif {
+	u32 type;
+	u8 data[];
+} __packed;
+
 #endif /* __fw_api_rx_h__ */

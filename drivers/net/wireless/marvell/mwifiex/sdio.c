@@ -1355,6 +1355,9 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 				 card->mpa_rx.start_port;
 		}
 
+		if (card->mpa_rx.pkt_cnt == 1)
+			mport = adapter->ioport + port;
+
 		if (mwifiex_read_data_sync(adapter, card->mpa_rx.buf,
 					   card->mpa_rx.buf_len, mport, 1))
 			goto error;
@@ -1684,6 +1687,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 	s32 f_precopy_cur_buf = 0;
 	s32 f_postcopy_cur_buf = 0;
 	u32 mport;
+	int index;
 
 	if (!card->mpa_tx.enabled ||
 	    (card->has_control_mask && (port == CTRL_PORT)) ||
@@ -1785,8 +1789,20 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				 card->mpa_tx.start_port;
 		}
 
+		if (card->mpa_tx.pkt_cnt == 1)
+			mport = adapter->ioport + port;
+
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
+
+		/* Save the last multi port tx aggreagation info to debug log */
+		index = adapter->dbg.last_sdio_mp_index;
+		index = (index + 1) % MWIFIEX_DBG_SDIO_MP_NUM;
+		adapter->dbg.last_sdio_mp_index = index;
+		adapter->dbg.last_mp_wr_ports[index] = mport;
+		adapter->dbg.last_mp_wr_bitmap[index] = card->mp_wr_bitmap;
+		adapter->dbg.last_mp_wr_len[index] = card->mpa_tx.buf_len;
+		adapter->dbg.last_mp_curr_wr_port[index] = card->curr_wr_port;
 
 		MP_TX_AGGR_BUF_RESET(card);
 	}
