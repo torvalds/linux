@@ -16,6 +16,28 @@
 / {
 	model = "Nokia N950";
 	compatible = "nokia,omap3-n950", "ti,omap36xx", "ti,omap3";
+
+	keys {
+		compatible = "gpio-keys";
+
+		keypad_slide {
+			label = "Keypad Slide";
+			gpios = <&gpio4 13 GPIO_ACTIVE_LOW>; /* 109 */
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_KEYPAD_SLIDE>;
+			wakeup-source;
+			pinctrl-names = "default";
+			pinctrl-0 = <&keypad_slide_pins>;
+		};
+	};
+};
+
+&omap3_pmx_core {
+	keypad_slide_pins: pinmux_debug_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x212a, PIN_INPUT | MUX_MODE4)       /* cam_d10.gpio_109 */
+		>;
+	};
 };
 
 &omap3_pmx_core {
