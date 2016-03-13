@@ -2691,7 +2691,7 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 		}
 
 		if ((log_blk < ms_start_idx[seg_no]) ||
-				(log_blk >= ms_start_idx[seg_no+1])) {
+				(log_blk >= ms_start_idx[seg_no + 1])) {
 			if (!(chip->card_wp & MS_CARD)) {
 				retval = ms_erase_block(chip, phy_blk);
 				if (retval != STATUS_SUCCESS)
@@ -3836,7 +3836,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	start_page = (u8)(start_sector & ms_card->page_off);
 
 	for (seg_no = 0; seg_no < ARRAY_SIZE(ms_start_idx) - 1; seg_no++) {
-		if (log_blk < ms_start_idx[seg_no+1])
+		if (log_blk < ms_start_idx[seg_no + 1])
 			break;
 	}
 
@@ -4264,7 +4264,7 @@ int mg_set_leaf_id(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	memset(buf1, 0, 32);
 	rtsx_stor_get_xfer_buf(buf2, min_t(int, 12, scsi_bufflen(srb)), srb);
 	for (i = 0; i < 8; i++)
-		buf1[8+i] = buf2[4+i];
+		buf1[8 + i] = buf2[4 + i];
 
 	retval = ms_write_bytes(chip, PRO_WRITE_SHORT_DATA, 32, WAIT_INT,
 				buf1, 32);
@@ -4399,10 +4399,10 @@ int mg_chg(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	rtsx_stor_get_xfer_buf(buf, bufflen, srb);
 
 	for (i = 0; i < 8; i++)
-		buf[i] = buf[4+i];
+		buf[i] = buf[4 + i];
 
 	for (i = 0; i < 24; i++)
-		buf[8+i] = 0;
+		buf[8 + i] = 0;
 
 	retval = ms_write_bytes(chip, PRO_WRITE_SHORT_DATA,
 				32, WAIT_INT, buf, 32);
@@ -4511,10 +4511,10 @@ int mg_rsp(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	rtsx_stor_get_xfer_buf(buf, bufflen, srb);
 
 	for (i = 0; i < 8; i++)
-		buf[i] = buf[4+i];
+		buf[i] = buf[4 + i];
 
 	for (i = 0; i < 24; i++)
-		buf[8+i] = 0;
+		buf[8 + i] = 0;
 
 	retval = ms_write_bytes(chip, PRO_WRITE_SHORT_DATA, 32, WAIT_INT,
 				buf, 32);
