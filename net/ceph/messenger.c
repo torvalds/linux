@@ -235,18 +235,12 @@ static struct workqueue_struct *ceph_msgr_wq;
 static int ceph_msgr_slab_init(void)
 {
 	BUG_ON(ceph_msg_cache);
-	ceph_msg_cache = kmem_cache_create("ceph_msg",
-					sizeof (struct ceph_msg),
-					__alignof__(struct ceph_msg), 0, NULL);
-
+	ceph_msg_cache = KMEM_CACHE(ceph_msg, 0);
 	if (!ceph_msg_cache)
 		return -ENOMEM;
 
 	BUG_ON(ceph_msg_data_cache);
-	ceph_msg_data_cache = kmem_cache_create("ceph_msg_data",
-					sizeof (struct ceph_msg_data),
-					__alignof__(struct ceph_msg_data),
-					0, NULL);
+	ceph_msg_data_cache = KMEM_CACHE(ceph_msg_data, 0);
 	if (ceph_msg_data_cache)
 		return 0;
 
