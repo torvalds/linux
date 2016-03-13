@@ -42,6 +42,18 @@
  */
 
 /*
+ * with AGGRESSIVE_CHECK allocator runs consistency checks over
+ * structures. these checks slow things down a lot
+ */
+#define AGGRESSIVE_CHECK__
+
+/*
+ * with DOUBLE_CHECK defined mballoc creates persistent in-core
+ * bitmaps, maintains and uses them to check for double allocations
+ */
+#define DOUBLE_CHECK__
+
+/*
  * Define EXT4FS_DEBUG to produce debug messages
  */
 #undef EXT4FS_DEBUG
