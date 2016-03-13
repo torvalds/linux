@@ -1312,8 +1312,6 @@ static int sh_eth_dev_init(struct net_device *ndev, bool start)
 	if (start) {
 		/* Setting the Rx mode will start the Rx process. */
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
-
-		netif_start_queue(ndev);
 	}
 
 	return ret;
@@ -2261,6 +2259,8 @@ static int sh_eth_open(struct net_device *ndev)
 	if (ret)
 		goto out_free_irq;
 
+	netif_start_queue(ndev);
+
 	mdp->is_opened = 1;
 
 	return ret;
@@ -2304,6 +2304,8 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 
 	/* device init */
 	sh_eth_dev_init(ndev, true);
+
+	netif_start_queue(ndev);
 }
 
 /* Packet transmit function */
