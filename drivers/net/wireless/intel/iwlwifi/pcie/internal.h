@@ -37,6 +37,7 @@
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
+#include <linux/cpu.h>
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
@@ -426,6 +427,7 @@ struct iwl_trans_pcie {
 	u32 hw_init_mask;
 	u32 fh_mask;
 	u32 hw_mask;
+	cpumask_t affinity_mask[IWL_MAX_RX_HW_QUEUES];
 };
 
 static inline struct iwl_trans_pcie *

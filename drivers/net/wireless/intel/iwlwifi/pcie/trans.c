@@ -1573,6 +1573,30 @@ msi:
 	}
 }
 
+static void iwl_pcie_irq_set_affinity(struct iwl_trans *trans)
+{
+	int iter_rx_q, i, ret, cpu, offset;
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	i = trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS ? 0 : 1;
+	iter_rx_q = trans_pcie->trans->num_rx_queues - 1 + i;
+	offset = 1 + i;
+	for (; i < iter_rx_q ; i++) {
+		/*
+		 * Get the cpu prior to the place to search
+		 * (i.e. return will be > i - 1).
+		 */
+		cpu = cpumask_next(i - offset, cpu_online_mask);
+		cpumask_set_cpu(cpu, &trans_pcie->affinity_mask[i]);
+		ret = irq_set_affinity_hint(trans_pcie->msix_entries[i].vector,
+					    &trans_pcie->affinity_mask[i]);
+		if (ret)
+			IWL_ERR(trans_pcie->trans,
+				"Failed to set affinity mask for IRQ %d\n",
+				i);
+	}
+}
+
 static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 				      struct iwl_trans_pcie *trans_pcie)
 {
@@ -1601,6 +1625,7 @@ static int iwl_pcie_init_msix_handler(struct pci_dev *pdev,
 			return ret;
 		}
 	}
+	iwl_pcie_irq_set_affinity(trans_pcie->trans);
 
 	return 0;
 }
@@ -1760,9 +1785,14 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	iwl_pcie_rx_free(trans);
 
 	if (trans_pcie->msix_enabled) {
-		for (i = 0; i < trans_pcie->alloc_vecs; i++)
+		for (i = 0; i < trans_pcie->alloc_vecs; i++) {
+			irq_set_affinity_hint(
+				trans_pcie->msix_entries[i].vector,
+				NULL);
+
 			free_irq(trans_pcie->msix_entries[i].vector,
 				 &trans_pcie->msix_entries[i]);
+		}
 
 		pci_disable_msix(trans_pcie->pci_dev);
 		trans_pcie->msix_enabled = false;
