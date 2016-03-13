@@ -6,6 +6,7 @@ kallsyms
 kallsyms.exe
 pnmtologo
 unifdef
+unifdef.exe
 ihex2fw
 recordmcount
 docproc

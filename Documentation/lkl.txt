@@ -1,6 +1,6 @@
 
 Introduction
-------------
+============
 
 LKL (Linux Kernel Library) is aiming to allow reusing the Linux kernel code as
 extensively as possible with minimal effort and reduced maintenance overhead.
@@ -20,13 +20,13 @@ defined by the application or a host library (tools/lkl/lib).
 
 
 Supported hosts
----------------
+===============
 
 The supported hosts for now are POSIX and Windows userspace applications.
 
 
 Building LKL, the host library and LKL based tools
---------------------------------------------------
+==================================================
 
     $ make tools/lkl
 
@@ -103,37 +103,34 @@ To build on Windows, certain GNU tools need to be installed. These tools can com
 from several different projects, such as cygwin, unxutils, gnu-win32 or busybox-w32. 
 Below is one minimal/modular set-up based on msys2.
 
-Common build dependencies:
-MSYS2 (provides GNU bash and many other utilities)
-https://sourceforge.net/projects/msys2/
-Extra utilities from MSYS2/pacman: 
-bc, base-devel 
+### Common build dependencies:
+* [MSYS2](https://sourceforge.net/projects/msys2/) (provides GNU bash and many other utilities)
+* Extra utilities from MSYS2/pacman: bc, base-devel 
 
-General considerations:
-No spaces in pathnames (source, prefix, destination,...)! 
-Make sure that all utilities are in the PATH.  
-Win64 (and MinGW 64-bit crt) is LLP64, which causes conflicts in size of "long" in the 
-Linux source. Cygwin (and msys2) are LP64, like linux. Linux (and lkl) can (currently) not 
+### General considerations:
+* No spaces in pathnames (source, prefix, destination,...)! 
+* Make sure that all utilities are in the PATH.  
+* Win64 (and MinGW 64-bit crt) is LLP64, which causes conflicts in size of "long" in the 
+Linux source. Linux (and lkl) can (currently) not 
 be built on LLP64.
+* Cygwin (and msys2) are LP64, like linux. 
 
-For MSYS2 (and Cygwin):
-Msys2 will install a gcc tool chain as part of the base-devel bundle.
-Binutils need to be re-built with patches for weak symbols as described above.
-Using the msys2 shell, cd to the lkl sources. 
-and run:
+### For MSYS2 (and Cygwin):
+Msys2 will install a gcc tool chain as part of the base-devel bundle. Binutils (2.26) is already 
+patched for NT weak externals. Using the msys2 shell, cd to the lkl sources and run:
 
     $ make tools/lkl
 
-For MinGW:
-Install mingw-w64-i686-toolchain via pacman, mingw-w64-i686-binutils need to be re-built with the 
-weak symbols patches. Start a MinGW Win32 shell (64-bit will not work, see above)
+### For MinGW:
+Install mingw-w64-i686-toolchain via pacman, mingw-w64-i686-binutils (2.26) is already patched
+for NT weak externals. Start a MinGW Win32 shell (64-bit will not work, see above)
 and run:
 
     $ make tools/lkl
 
 
 LKL hijack library
-------------------
+==================
 
 LKL hijack library (liblkl-hijack.so) is used to replace system calls used by an
 application on the fly so that the application can use LKL instead of the kernel
@@ -200,7 +197,7 @@ are the list of those variable for your environment.
 ```
 
 FAQ
----
+===
 
 Q: How is LKL different from UML?
 
