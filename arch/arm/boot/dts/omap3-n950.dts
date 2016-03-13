@@ -88,6 +88,13 @@
 	compatible = "nokia,n950-modem";
 };
 
+&twl {
+	twl_audio: audio {
+		compatible = "ti,twl4030-audio";
+		ti,enable-vibra = <1>;
+	};
+};
+
 &twl_keypad {
 	linux,keymap = < MATRIX_KEY(0x00, 0x00, KEY_BACKSLASH)
 			 MATRIX_KEY(0x01, 0x00, KEY_LEFTSHIFT)
