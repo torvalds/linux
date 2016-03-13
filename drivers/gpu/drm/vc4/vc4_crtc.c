@@ -88,7 +88,7 @@ static const struct {
 } crtc_regs[] = {
 	CRTC_REG(PV_CONTROL),
 	CRTC_REG(PV_V_CONTROL),
-	CRTC_REG(PV_VSYNCD),
+	CRTC_REG(PV_VSYNCD_EVEN),
 	CRTC_REG(PV_HORZA),
 	CRTC_REG(PV_HORZB),
 	CRTC_REG(PV_VERTA),
@@ -188,6 +188,8 @@ static int vc4_get_clock_select(struct drm_crtc *crtc)
 
 static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
@@ -217,6 +219,16 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 				 PV_HORZB_HFP) |
 		   VC4_SET_FIELD(mode->hdisplay, PV_HORZB_HACTIVE));
 
+	CRTC_WRITE(PV_VERTA,
+		   VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+				 PV_VERTA_VBP) |
+		   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+				 PV_VERTA_VSYNC));
+	CRTC_WRITE(PV_VERTB,
+		   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+				 PV_VERTB_VFP) |
+		   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
 			   VC4_SET_FIELD(mode->vtotal - mode->vsync_end - 1,
@@ -245,6 +257,10 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		   VC4_SET_FIELD(clock_select, PV_CONTROL_CLK_SELECT) |
 		   PV_CONTROL_FIFO_CLR |
 		   PV_CONTROL_EN);
+
+	HVS_WRITE(SCALER_DISPBKGNDX(vc4_crtc->channel),
+		  SCALER_DISPBKGND_AUTOHS |
+		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
@@ -527,6 +543,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	/* Make sure all other async modesetes have landed. */
 	ret = down_interruptible(&vc4->async_modeset);
 	if (ret) {
+		drm_framebuffer_unreference(fb);
 		kfree(flip_state);
 		return ret;
 	}

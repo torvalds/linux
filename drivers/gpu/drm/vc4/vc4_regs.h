@@ -187,7 +187,7 @@
 # define PV_VCONTROL_CONTINUOUS			BIT(1)
 # define PV_VCONTROL_VIDEN			BIT(0)
 
-#define PV_VSYNCD				0x08
+#define PV_VSYNCD_EVEN				0x08
 
 #define PV_HORZA				0x0c
 # define PV_HORZA_HBP_MASK			VC4_MASK(31, 16)
@@ -350,6 +350,17 @@
 # define SCALER_DISPCTRLX_HEIGHT_SHIFT		0
 
 #define SCALER_DISPBKGND0                       0x00000044
+# define SCALER_DISPBKGND_AUTOHS		BIT(31)
+# define SCALER_DISPBKGND_INTERLACE		BIT(30)
+# define SCALER_DISPBKGND_GAMMA			BIT(29)
+# define SCALER_DISPBKGND_TESTMODE_MASK		VC4_MASK(28, 25)
+# define SCALER_DISPBKGND_TESTMODE_SHIFT	25
+/* Enables filling the scaler line with the RGB value in the low 24
+ * bits before compositing.  Costs cycles, so should be skipped if
+ * opaque display planes will cover everything.
+ */
+# define SCALER_DISPBKGND_FILL			BIT(24)
+
 #define SCALER_DISPSTAT0                        0x00000048
 #define SCALER_DISPBASE0                        0x0000004c
 # define SCALER_DISPSTATX_MODE_MASK		VC4_MASK(31, 30)
@@ -362,6 +373,9 @@
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
 #define SCALER_DISPCTRL1                        0x00000050
 #define SCALER_DISPBKGND1                       0x00000054
+#define SCALER_DISPBKGNDX(x)			(SCALER_DISPBKGND0 +        \
+						 (x) * (SCALER_DISPBKGND1 - \
+							SCALER_DISPBKGND0))
 #define SCALER_DISPSTAT1                        0x00000058
 #define SCALER_DISPSTATX(x)			(SCALER_DISPSTAT0 +        \
 						 (x) * (SCALER_DISPSTAT1 - \
@@ -456,6 +470,8 @@
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
 #define VC4_HD_M_CTL				0x00c
+# define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
+# define VC4_HD_M_RAM_STANDBY			(3 << 4)
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
