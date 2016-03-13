@@ -418,9 +418,9 @@ static void _nbu2ss_ep_dma_abort(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep)
 {
 	struct fc_regs	*preg = udc->p_regs;
 
-	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum-1].EP_DCR1, DCR1_EPn_REQEN);
+	_nbu2ss_bitclr(&preg->EP_DCR[ep->epnum - 1].EP_DCR1, DCR1_EPn_REQEN);
 	mdelay(DMA_DISABLE_TIME);	/* DCR1_EPn_REQEN Clear */
-	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum-1].EP_DMA_CTRL, EPn_DMA_EN);
+	_nbu2ss_bitclr(&preg->EP_REGS[ep->epnum - 1].EP_DMA_CTRL, EPn_DMA_EN);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -909,7 +909,7 @@ static int _nbu2ss_epn_out_pio(
 		/* Copy of every four bytes */
 		for (i = 0; i < iWordLength; i++) {
 			pBuf32->dw =
-			_nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_READ);
+			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 			pBuf32++;
 		}
 		result = iWordLength * sizeof(u32);
@@ -919,7 +919,7 @@ static int _nbu2ss_epn_out_pio(
 	if (data > 0) {
 		/*---------------------------------------------------------*/
 		/* Copy of fraction byte */
-		Temp32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_READ);
+		Temp32.dw = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_READ);
 		for (i = 0 ; i < data ; i++)
 			pBuf32->byte.DATA[i] = Temp32.byte.DATA[i];
 		result += data;
@@ -1128,7 +1128,7 @@ static int _nbu2ss_epn_in_pio(
 		if (iWordLength > 0) {
 			for (i = 0; i < iWordLength; i++) {
 				_nbu2ss_writel(
-					&preg->EP_REGS[ep->epnum-1].EP_WRITE
+					&preg->EP_REGS[ep->epnum - 1].EP_WRITE
 					, pBuf32->dw
 				);
 
@@ -1290,7 +1290,7 @@ static void _nbu2ss_restert_transfer(struct nbu2ss_ep *ep)
 
 	if (ep->epnum > 0) {
 		length = _nbu2ss_readl(
-			&ep->udc->p_regs->EP_REGS[ep->epnum-1].EP_LEN_DCNT);
+			&ep->udc->p_regs->EP_REGS[ep->epnum - 1].EP_LEN_DCNT);
 
 		length &= EPn_LDATA;
 		if (length < ep->ep.maxpacket)
@@ -1463,7 +1463,7 @@ static int _nbu2ss_get_ep_stall(struct nbu2ss_udc *udc, u8 ep_adrs)
 		bit_data = EP0_STL;
 
 	} else {
-		data = _nbu2ss_readl(&preg->EP_REGS[epnum-1].EP_CONTROL);
+		data = _nbu2ss_readl(&preg->EP_REGS[epnum - 1].EP_CONTROL);
 		if ((data & EPn_EN) == 0)
 			return -1;
 
@@ -1558,7 +1558,7 @@ static void _nbu2ss_epn_set_stall(
 			; limit_cnt++) {
 
 			regdata = _nbu2ss_readl(
-				&preg->EP_REGS[ep->epnum-1].EP_STATUS);
+				&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
 			if ((regdata & EPn_IN_DATA) == 0)
 				break;
@@ -1983,7 +1983,7 @@ static inline void _nbu2ss_epn_in_int(
 		if (req->zero && ((req->req.actual % ep->ep.maxpacket) == 0)) {
 
 			status =
-			_nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_STATUS);
+			_nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_STATUS);
 
 			if ((status & EPn_IN_FULL) == 0) {
 				/*-----------------------------------------*/
@@ -2894,7 +2894,7 @@ static int nbu2ss_ep_fifo_status(struct usb_ep *_ep)
 		data = _nbu2ss_readl(&preg->EP0_LENGTH) & EP0_LDATA;
 
 	} else {
-		data = _nbu2ss_readl(&preg->EP_REGS[ep->epnum-1].EP_LEN_DCNT)
+		data = _nbu2ss_readl(&preg->EP_REGS[ep->epnum - 1].EP_LEN_DCNT)
 			& EPn_LDATA;
 	}
 
