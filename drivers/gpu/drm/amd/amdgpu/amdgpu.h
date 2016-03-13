@@ -393,6 +393,8 @@ struct amdgpu_fence_driver {
 	unsigned			irq_type;
 	struct timer_list		fallback_timer;
 	wait_queue_head_t		fence_queue;
+	unsigned			num_fences_mask;
+	struct fence			**fences;
 };
 
 /* some special values for the owner field */
