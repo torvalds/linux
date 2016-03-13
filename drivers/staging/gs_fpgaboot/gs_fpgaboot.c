@@ -221,7 +221,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	pr_info("device init done\n");
 
 	for (i = 0; i < size; i += bus_bytes)
-		xl_shift_bytes_out(bus_bytes, bitdata+i);
+		xl_shift_bytes_out(bus_bytes, bitdata + i);
 
 	pr_info("program done\n");
 
