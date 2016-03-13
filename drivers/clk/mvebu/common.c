@@ -199,8 +199,6 @@ struct clk_gating_ctrl {
 	u32 saved_reg;
 };
 
-#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
-
 static struct clk_gating_ctrl *ctrl;
 
 static struct clk *clk_gating_get_src(
