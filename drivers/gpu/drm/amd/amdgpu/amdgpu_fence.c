@@ -228,57 +228,6 @@ static void amdgpu_fence_fallback(unsigned long arg)
 }
 
 /**
- * amdgpu_fence_seq_signaled - check if a fence sequence number has signaled
- *
- * @ring: ring the fence is associated with
- * @seq: sequence number
- *
- * Check if the last signaled fence sequnce number is >= the requested
- * sequence number (all asics).
- * Returns true if the fence has signaled (current fence value
- * is >= requested value) or false if it has not (current fence
- * value is < the requested value.  Helper function for
- * amdgpu_fence_signaled().
- */
-static bool amdgpu_fence_seq_signaled(struct amdgpu_ring *ring, u64 seq)
-{
-	if (atomic64_read(&ring->fence_drv.last_seq) >= seq)
-		return true;
-
-	/* poll new last sequence at least once */
-	amdgpu_fence_process(ring);
-	if (atomic64_read(&ring->fence_drv.last_seq) >= seq)
-		return true;
-
-	return false;
-}
-
-/*
- * amdgpu_ring_wait_seq - wait for seq of the specific ring to signal
- * @ring: ring to wait on for the seq number
- * @seq: seq number wait for
- *
- * return value:
- * 0: seq signaled, and gpu not hang
- * -EINVAL: some paramter is not valid
- */
-static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
-{
-	BUG_ON(!ring);
-	if (seq > ring->fence_drv.sync_seq)
-		return -EINVAL;
-
-	if (atomic64_read(&ring->fence_drv.last_seq) >= seq)
-		return 0;
-
-	amdgpu_fence_schedule_fallback(ring);
-	wait_event(ring->fence_drv.fence_queue,
-		   amdgpu_fence_seq_signaled(ring, seq));
-
-	return 0;
-}
-
-/**
  * amdgpu_fence_wait_empty - wait for all fences to signal
  *
  * @adev: amdgpu device pointer
@@ -286,16 +235,28 @@ static int amdgpu_fence_ring_wait_seq(struct amdgpu_ring *ring, uint64_t seq)
  *
  * Wait for all fences on the requested ring to signal (all asics).
  * Returns 0 if the fences have passed, error for all other cases.
- * Caller must hold ring lock.
  */
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring)
 {
-	uint64_t seq = ring->fence_drv.sync_seq;
+	uint64_t seq = ACCESS_ONCE(ring->fence_drv.sync_seq);
+	struct fence *fence, **ptr;
+	int r;
 
 	if (!seq)
 		return 0;
 
-	return amdgpu_fence_ring_wait_seq(ring, seq);
+	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
+	rcu_read_lock();
+	fence = rcu_dereference(*ptr);
+	if (!fence || !fence_get_rcu(fence)) {
+		rcu_read_unlock();
+		return 0;
+	}
+	rcu_read_unlock();
+
+	r = fence_wait(fence, false);
+	fence_put(fence);
+	return r;
 }
 
 /**
