@@ -960,6 +960,12 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			return 0;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+			/*
+			 * Update spte before increasing tlbs_dirty to make
+			 * sure no tlb flush is lost after spte is zapped; see
+			 * the comments in kvm_flush_remote_tlbs().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
@@ -975,6 +981,11 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
+			/*
+			 * The same as above where we are doing
+			 * prefetch_invalid_gpte().
+			 */
+			smp_wmb();
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
