@@ -1321,6 +1321,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	 * after this call.
 	 */
 	iwl_pcie_reset_ict(trans);
+	iwl_enable_interrupts(trans);
 
 	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
