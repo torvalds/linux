@@ -454,15 +454,14 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 	return ret;
 }
 
-static int dsa_slave_bridge_port_leave(struct net_device *dev)
+static void dsa_slave_bridge_port_leave(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	int ret = -EOPNOTSUPP;
 
 
 	if (ds->drv->port_bridge_leave)
-		ret = ds->drv->port_bridge_leave(ds, p->port);
+		ds->drv->port_bridge_leave(ds, p->port);
 
 	p->bridge_dev = NULL;
 
@@ -470,8 +469,6 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
 	dsa_slave_stp_update(dev, BR_STATE_FORWARDING);
-
-	return ret;
 }
 
 static int dsa_slave_port_attr_get(struct net_device *dev,
@@ -1156,7 +1153,7 @@ static int dsa_slave_master_changed(struct net_device *dev)
 	    !strcmp(master->rtnl_link_ops->kind, "bridge"))
 		err = dsa_slave_bridge_port_join(dev, master);
 	else if (dsa_port_is_bridged(p))
-		err = dsa_slave_bridge_port_leave(dev);
+		dsa_slave_bridge_port_leave(dev);
 
 	return err;
 }

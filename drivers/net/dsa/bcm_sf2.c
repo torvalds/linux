@@ -516,7 +516,7 @@ static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
+static void bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	struct net_device *bridge = priv->port_sts[port].bridge_dev;
@@ -543,8 +543,6 @@ static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 	core_writel(priv, p_ctl, CORE_PORT_VLAN_CTL_PORT(port));
 	priv->port_sts[port].vlan_ctl_mask = p_ctl;
 	priv->port_sts[port].bridge_dev = NULL;
-
-	return 0;
 }
 
 static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,

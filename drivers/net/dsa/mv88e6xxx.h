@@ -488,7 +488,7 @@ int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 		      struct phy_device *phydev, struct ethtool_eee *e);
 int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port,
 			       struct net_device *bridge);
-int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
+void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port);
 int mv88e6xxx_port_stp_update(struct dsa_switch *ds, int port, u8 state);
 int mv88e6xxx_port_vlan_filtering(struct dsa_switch *ds, int port,
 				  bool vlan_filtering);
