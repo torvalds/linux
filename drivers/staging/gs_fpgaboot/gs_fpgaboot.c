@@ -93,7 +93,6 @@ static int readlength_bitstream(char *bitdata, int *lendata, int *offset)
 	return 0;
 }
 
-
 /*
  * read first 13 bytes to check bitstream magic number
  */
@@ -331,7 +330,6 @@ err_out1:
 	kfree(fimage);
 
 	return -1;
-
 }
 
 static int __init gs_fpgaboot_init(void)
