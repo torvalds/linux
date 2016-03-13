@@ -136,7 +136,6 @@ struct visor_device {
 	struct periodic_work *periodic_work;
 	bool being_removed;
 	bool responded_to_device_create;
-	struct kobject kobjdevmajorminor; /* visorbus<x>/dev<y>/devmajorminor/*/
 	struct {
 		int major, minor;
 		void *attr;	/* private use by devmajorminor_attr.c you can
@@ -174,8 +173,6 @@ int visorbus_write_channel(struct visor_device *dev,
 			   unsigned long nbytes);
 int visorbus_clear_channel(struct visor_device *dev,
 			   unsigned long offset, u8 ch, unsigned long nbytes);
-int visorbus_registerdevnode(struct visor_device *dev,
-			     const char *name, int major, int minor);
 void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 #endif
