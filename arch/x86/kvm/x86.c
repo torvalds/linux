@@ -6596,8 +6596,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
-	/* We should set ->mode before check ->requests,
-	 * see the comment in make_all_cpus_request.
+	/*
+	 * We should set ->mode before check ->requests,
+	 * Please see the comment in kvm_make_all_cpus_request.
+	 * This also orders the write to mode from any reads
+	 * to the page tables done while the VCPU is running.
+	 * Please see the comment in kvm_flush_remote_tlbs.
 	 */
 	smp_mb__after_srcu_read_unlock();
 
