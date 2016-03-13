@@ -752,36 +752,28 @@ dev_stop_periodic_work(struct visor_device *dev)
 static int
 visordriver_probe_device(struct device *xdev)
 {
-	int rc;
+	int res;
 	struct visor_driver *drv;
 	struct visor_device *dev;
 
 	drv = to_visor_driver(xdev->driver);
 	dev = to_visor_device(xdev);
+
+	if (!drv->probe)
+		return -ENODEV;
+
 	down(&dev->visordriver_callback_lock);
 	dev->being_removed = false;
-	/*
-	 * ensure that the dev->being_removed flag is cleared before
-	 * we start the probe
-	 */
-	wmb();
-	get_device(&dev->device);
-	if (!drv->probe) {
-		up(&dev->visordriver_callback_lock);
-		rc = -ENODEV;
-		goto away;
-	}
-	rc = drv->probe(dev);
-	if (rc < 0)
-		goto away;
 
-	fix_vbus_dev_info(dev);
+	res = drv->probe(dev);
+	if (res >= 0) {
+		/* success: reference kept via unmatched get_device() */
+		get_device(&dev->device);
+		fix_vbus_dev_info(dev);
+	}
+
 	up(&dev->visordriver_callback_lock);
-	rc = 0;
-away:
-	if (rc != 0)
-		put_device(&dev->device);
-	return rc;
+	return res;
 }
 
 /** This is called when device_unregister() is called for each child device
