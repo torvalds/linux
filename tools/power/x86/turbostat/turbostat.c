@@ -1532,7 +1532,7 @@ dump_nhm_cst_cfg(void)
 		(msr & NHM_C3_AUTO_DEMOTE) ? "demote-C3, " : "",
 		(msr & NHM_C1_AUTO_DEMOTE) ? "demote-C1, " : "",
 		(msr & (1 << 15)) ? "" : "UN",
-		(unsigned int)msr & 7,
+		(unsigned int)msr & 0xF,
 		pkg_cstate_limit_strings[pkg_cstate_limit]);
 	return;
 }
