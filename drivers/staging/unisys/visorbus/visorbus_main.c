@@ -182,7 +182,6 @@ static int
 visorbus_match(struct device *xdev, struct device_driver *xdrv)
 {
 	uuid_le channel_type;
-	int rc = 0;
 	int i;
 	struct visor_device *dev;
 	struct visor_driver *drv;
@@ -190,26 +189,23 @@ visorbus_match(struct device *xdev, struct device_driver *xdrv)
 	dev = to_visor_device(xdev);
 	drv = to_visor_driver(xdrv);
 	channel_type = visorchannel_get_uuid(dev->visorchannel);
-	if (visorbus_forcematch) {
-		rc = 1;
-		goto away;
-	}
-	if (visorbus_forcenomatch)
-		goto away;
 
+	if (visorbus_forcematch)
+		return 1;
+	if (visorbus_forcenomatch)
+		return 0;
 	if (!drv->channel_types)
-		goto away;
+		return 0;
+
 	for (i = 0;
 	     (uuid_le_cmp(drv->channel_types[i].guid, NULL_UUID_LE) != 0) ||
 	     (drv->channel_types[i].name);
 	     i++)
 		if (uuid_le_cmp(drv->channel_types[i].guid,
-				channel_type) == 0) {
-			rc = i + 1;
-			goto away;
-		}
-away:
-	return rc;
+				channel_type) == 0)
+			return i + 1;
+
+	return 0;
 }
 
 /** This is called when device_unregister() is called for the bus device
