@@ -4028,9 +4028,9 @@ static void pin_power_callback(struct hda_codec *codec,
 			       struct hda_jack_callback *jack,
 			       bool on)
 {
-	if (jack && jack->tbl->nid)
+	if (jack && jack->nid)
 		sync_power_state_change(codec,
-					set_pin_power_jack(codec, jack->tbl->nid, on));
+					set_pin_power_jack(codec, jack->nid, on));
 }
 
 /* callback only doing power up -- called at first */

@@ -467,3 +467,59 @@ uint32_t ext4_validate_encryption_key_size(uint32_t mode, uint32_t size)
 		return size;
 	return 0;
 }
+
+/*
+ * Validate dentries for encrypted directories to make sure we aren't
+ * potentially caching stale data after a key has been added or
+ * removed.
+ */
+static int ext4_d_revalidate(struct dentry *dentry, unsigned int flags)
+{
+	struct inode *dir = d_inode(dentry->d_parent);
+	struct ext4_crypt_info *ci = EXT4_I(dir)->i_crypt_info;
+	int dir_has_key, cached_with_key;
+
+	if (!ext4_encrypted_inode(dir))
+		return 0;
+
+	if (ci && ci->ci_keyring_key &&
+	    (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
+					  (1 << KEY_FLAG_REVOKED) |
+					  (1 << KEY_FLAG_DEAD))))
+		ci = NULL;
+
+	/* this should eventually be an flag in d_flags */
+	cached_with_key = dentry->d_fsdata != NULL;
+	dir_has_key = (ci != NULL);
+
+	/*
+	 * If the dentry was cached without the key, and it is a
+	 * negative dentry, it might be a valid name.  We can't check
+	 * if the key has since been made available due to locking
+	 * reasons, so we fail the validation so ext4_lookup() can do
+	 * this check.
+	 *
+	 * We also fail the validation if the dentry was created with
+	 * the key present, but we no longer have the key, or vice versa.
+	 */
+	if ((!cached_with_key && d_is_negative(dentry)) ||
+	    (!cached_with_key && dir_has_key) ||
+	    (cached_with_key && !dir_has_key)) {
+#if 0				/* Revalidation debug */
+		char buf[80];
+		char *cp = simple_dname(dentry, buf, sizeof(buf));
+
+		if (IS_ERR(cp))
+			cp = (char *) "???";
+		pr_err("revalidate: %s %p %d %d %d\n", cp, dentry->d_fsdata,
+		       cached_with_key, d_is_negative(dentry),
+		       dir_has_key);
+#endif
+		return 0;
+	}
+	return 1;
+}
+
+const struct dentry_operations ext4_encrypted_d_ops = {
+	.d_revalidate = ext4_d_revalidate,
+};

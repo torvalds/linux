@@ -306,7 +306,7 @@ static int mv_cesa_dev_dma_init(struct mv_cesa_dev *cesa)
 		return -ENOMEM;
 
 	dma->padding_pool = dmam_pool_create("cesa_padding", dev, 72, 1, 0);
-	if (!dma->cache_pool)
+	if (!dma->padding_pool)
 		return -ENOMEM;
 
 	cesa->dma = dma;

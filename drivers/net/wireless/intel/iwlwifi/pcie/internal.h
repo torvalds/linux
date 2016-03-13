@@ -490,6 +490,15 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
+static inline void iwl_enable_fw_load_int(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	IWL_DEBUG_ISR(trans, "Enabling FW load interrupt\n");
+	trans_pcie->inta_mask = CSR_INT_BIT_FH_TX;
+	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
+}
+
 static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);

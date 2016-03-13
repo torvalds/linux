@@ -98,6 +98,7 @@
 		sun_top_ctrl: syscon@404000 {
 			compatible = "brcm,bcm7125-sun-top-ctrl", "syscon";
 			reg = <0x404000 0x60c>;
+			little-endian;
 		};
 
 		reboot {

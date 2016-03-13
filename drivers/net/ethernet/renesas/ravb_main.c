@@ -1139,7 +1139,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 	if (netif_running(ndev)) {
 		netif_device_detach(ndev);
 		/* Stop PTP Clock driver */
-		ravb_ptp_stop(ndev);
+		if (priv->chip_id == RCAR_GEN2)
+			ravb_ptp_stop(ndev);
 		/* Wait for DMA stopping */
 		error = ravb_stop_dma(ndev);
 		if (error) {
@@ -1170,7 +1171,8 @@ static int ravb_set_ringparam(struct net_device *ndev,
 		ravb_emac_init(ndev);
 
 		/* Initialise PTP Clock driver */
-		ravb_ptp_init(ndev, priv->pdev);
+		if (priv->chip_id == RCAR_GEN2)
+			ravb_ptp_init(ndev, priv->pdev);
 
 		netif_device_attach(ndev);
 	}
@@ -1298,7 +1300,8 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	netif_tx_stop_all_queues(ndev);
 
 	/* Stop PTP Clock driver */
-	ravb_ptp_stop(ndev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_stop(ndev);
 
 	/* Wait for DMA stopping */
 	ravb_stop_dma(ndev);
@@ -1311,7 +1314,8 @@ static void ravb_tx_timeout_work(struct work_struct *work)
 	ravb_emac_init(ndev);
 
 	/* Initialise PTP Clock driver */
-	ravb_ptp_init(ndev, priv->pdev);
+	if (priv->chip_id == RCAR_GEN2)
+		ravb_ptp_init(ndev, priv->pdev);
 
 	netif_tx_start_all_queues(ndev);
 }
@@ -1718,7 +1722,6 @@ static int ravb_set_gti(struct net_device *ndev)
 static int ravb_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct ravb_private *priv;
 	enum ravb_chip_id chip_id;
 	struct net_device *ndev;
@@ -1750,8 +1753,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ndev->base_addr = res->start;
 	ndev->dma = -1;
 
-	match = of_match_device(of_match_ptr(ravb_match_table), &pdev->dev);
-	chip_id = (enum ravb_chip_id)match->data;
+	chip_id = (enum ravb_chip_id)of_device_get_match_data(&pdev->dev);
 
 	if (chip_id == RCAR_GEN3)
 		irq = platform_get_irq_byname(pdev, "ch22");
@@ -1813,10 +1815,6 @@ static int ravb_probe(struct platform_device *pdev)
 		ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_OPC) |
 			   CCC_OPC_CONFIG | CCC_GAC | CCC_CSEL_HPB, CCC);
 	}
-
-	/* Set CSEL value */
-	ravb_write(ndev, (ravb_read(ndev, CCC) & ~CCC_CSEL) | CCC_CSEL_HPB,
-		   CCC);
 
 	/* Set GTI value */
 	error = ravb_set_gti(ndev);

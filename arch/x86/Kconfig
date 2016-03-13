@@ -475,6 +475,7 @@ config X86_UV
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
+	depends on EFI
 	depends on X86_X2APIC
 	depends on PCI
 	---help---
@@ -777,8 +778,8 @@ config HPET_TIMER
 	  HPET is the next generation timer replacing legacy 8254s.
 	  The HPET provides a stable time base on SMP
 	  systems, unlike the TSC, but it is more expensive to access,
-	  as it is off-chip.  You can find the HPET spec at
-	  <http://www.intel.com/hardwaredesign/hpetspec_1.pdf>.
+	  as it is off-chip.  The interface used is documented
+	  in the HPET spec, revision 1.
 
 	  You can safely choose Y here.  However, HPET will only be
 	  activated if the platform and the BIOS support this feature.

@@ -943,6 +943,36 @@ struct qla_tgt_sess {
 	qlt_plogi_ack_t *plogi_link[QLT_PLOGI_LINK_MAX];
 };
 
+typedef enum {
+	/*
+	 * BIT_0 - Atio Arrival / schedule to work
+	 * BIT_1 - qlt_do_work
+	 * BIT_2 - qlt_do work failed
+	 * BIT_3 - xfer rdy/tcm_qla2xxx_write_pending
+	 * BIT_4 - read respond/tcm_qla2xx_queue_data_in
+	 * BIT_5 - status respond / tcm_qla2xx_queue_status
+	 * BIT_6 - tcm request to abort/Term exchange.
+	 *	pre_xmit_response->qlt_send_term_exchange
+	 * BIT_7 - SRR received (qlt_handle_srr->qlt_xmit_response)
+	 * BIT_8 - SRR received (qlt_handle_srr->qlt_rdy_to_xfer)
+	 * BIT_9 - SRR received (qla_handle_srr->qlt_send_term_exchange)
+	 * BIT_10 - Data in - hanlde_data->tcm_qla2xxx_handle_data
+
+	 * BIT_12 - good completion - qlt_ctio_do_completion -->free_cmd
+	 * BIT_13 - Bad completion -
+	 *	qlt_ctio_do_completion --> qlt_term_ctio_exchange
+	 * BIT_14 - Back end data received/sent.
+	 * BIT_15 - SRR prepare ctio
+	 * BIT_16 - complete free
+	 * BIT_17 - flush - qlt_abort_cmd_on_host_reset
+	 * BIT_18 - completion w/abort status
+	 * BIT_19 - completion w/unknown status
+	 * BIT_20 - tcm_qla2xxx_free_cmd
+	 */
+	CMD_FLAG_DATA_WORK = BIT_11,
+	CMD_FLAG_DATA_WORK_FREE = BIT_21,
+} cmd_flags_t;
+
 struct qla_tgt_cmd {
 	struct se_cmd se_cmd;
 	struct qla_tgt_sess *sess;
@@ -952,6 +982,7 @@ struct qla_tgt_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 
+	spinlock_t cmd_lock;
 	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
@@ -986,30 +1017,8 @@ struct qla_tgt_cmd {
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
-	/* BIT_0 - Atio Arrival / schedule to work
-	 * BIT_1 - qlt_do_work
-	 * BIT_2 - qlt_do work failed
-	 * BIT_3 - xfer rdy/tcm_qla2xxx_write_pending
-	 * BIT_4 - read respond/tcm_qla2xx_queue_data_in
-	 * BIT_5 - status respond / tcm_qla2xx_queue_status
-	 * BIT_6 - tcm request to abort/Term exchange.
-	 *	pre_xmit_response->qlt_send_term_exchange
-	 * BIT_7 - SRR received (qlt_handle_srr->qlt_xmit_response)
-	 * BIT_8 - SRR received (qlt_handle_srr->qlt_rdy_to_xfer)
-	 * BIT_9 - SRR received (qla_handle_srr->qlt_send_term_exchange)
-	 * BIT_10 - Data in - hanlde_data->tcm_qla2xxx_handle_data
-	 * BIT_11 - Data actually going to TCM : tcm_qla2xx_handle_data_work
-	 * BIT_12 - good completion - qlt_ctio_do_completion -->free_cmd
-	 * BIT_13 - Bad completion -
-	 *	qlt_ctio_do_completion --> qlt_term_ctio_exchange
-	 * BIT_14 - Back end data received/sent.
-	 * BIT_15 - SRR prepare ctio
-	 * BIT_16 - complete free
-	 * BIT_17 - flush - qlt_abort_cmd_on_host_reset
-	 * BIT_18 - completion w/abort status
-	 * BIT_19 - completion w/unknown status
-	 */
-	uint32_t cmd_flags;
+
+	cmd_flags_t cmd_flags;
 };
 
 struct qla_tgt_sess_work_param {
@@ -1148,7 +1157,7 @@ static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
-extern void qlt_abort_cmd(struct qla_tgt_cmd *);
+extern int qlt_abort_cmd(struct qla_tgt_cmd *);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);

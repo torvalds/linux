@@ -195,6 +195,30 @@ void __delete_from_page_cache(struct page *page, void *shadow,
 	else
 		cleancache_invalidate_page(mapping, page);
 
+	VM_BUG_ON_PAGE(page_mapped(page), page);
+	if (!IS_ENABLED(CONFIG_DEBUG_VM) && unlikely(page_mapped(page))) {
+		int mapcount;
+
+		pr_alert("BUG: Bad page cache in process %s  pfn:%05lx\n",
+			 current->comm, page_to_pfn(page));
+		dump_page(page, "still mapped when deleted");
+		dump_stack();
+		add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+
+		mapcount = page_mapcount(page);
+		if (mapping_exiting(mapping) &&
+		    page_count(page) >= mapcount + 2) {
+			/*
+			 * All vmas have already been torn down, so it's
+			 * a good bet that actually the page is unmapped,
+			 * and we'd prefer not to leak it: if we're wrong,
+			 * some other bad page check should catch it later.
+			 */
+			page_mapcount_reset(page);
+			atomic_sub(mapcount, &page->_count);
+		}
+	}
+
 	page_cache_tree_delete(mapping, page, shadow);
 
 	page->mapping = NULL;
@@ -205,7 +229,6 @@ void __delete_from_page_cache(struct page *page, void *shadow,
 		__dec_zone_page_state(page, NR_FILE_PAGES);
 	if (PageSwapBacked(page))
 		__dec_zone_page_state(page, NR_SHMEM);
-	VM_BUG_ON_PAGE(page_mapped(page), page);
 
 	/*
 	 * At this point page must be either written or cleaned by truncate.
@@ -446,7 +469,8 @@ int filemap_write_and_wait(struct address_space *mapping)
 {
 	int err = 0;
 
-	if (mapping->nrpages) {
+	if ((!dax_mapping(mapping) && mapping->nrpages) ||
+	    (dax_mapping(mapping) && mapping->nrexceptional)) {
 		err = filemap_fdatawrite(mapping);
 		/*
 		 * Even if the above returned error, the pages may be
@@ -482,13 +506,8 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 {
 	int err = 0;
 
-	if (dax_mapping(mapping) && mapping->nrexceptional) {
-		err = dax_writeback_mapping_range(mapping, lstart, lend);
-		if (err)
-			return err;
-	}
-
-	if (mapping->nrpages) {
+	if ((!dax_mapping(mapping) && mapping->nrpages) ||
+	    (dax_mapping(mapping) && mapping->nrexceptional)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
 						 WB_SYNC_ALL);
 		/* See comment of filemap_write_and_wait() */
@@ -1890,6 +1909,7 @@ EXPORT_SYMBOL(generic_file_read_iter);
  * page_cache_read - adds requested page to the page cache if not already there
  * @file:	file to read
  * @offset:	page index
+ * @gfp_mask:	memory allocation flags
  *
  * This adds the requested page to the page cache if it isn't already there,
  * and schedules an I/O to read in its contents from disk.

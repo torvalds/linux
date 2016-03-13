@@ -281,6 +281,10 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
 extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 			    pmd_t *pmdp);
 
+#define __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
+extern void pmdp_huge_split_prepare(struct vm_area_struct *vma,
+				    unsigned long address, pmd_t *pmdp);
+
 #define pmd_move_must_withdraw pmd_move_must_withdraw
 struct spinlock;
 static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,

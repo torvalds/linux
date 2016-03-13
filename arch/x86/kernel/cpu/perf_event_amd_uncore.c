@@ -323,6 +323,8 @@ static int amd_uncore_cpu_up_prepare(unsigned int cpu)
 	return 0;
 
 fail:
+	if (amd_uncore_nb)
+		*per_cpu_ptr(amd_uncore_nb, cpu) = NULL;
 	kfree(uncore_nb);
 	return -ENOMEM;
 }

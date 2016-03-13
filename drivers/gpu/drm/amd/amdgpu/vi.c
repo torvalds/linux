@@ -1092,8 +1092,7 @@ static int vi_common_early_init(void *handle)
 	case CHIP_STONEY:
 		adev->has_uvd = true;
 		adev->cg_flags = 0;
-		/* Disable UVD pg */
-		adev->pg_flags = /* AMDGPU_PG_SUPPORT_UVD | */AMDGPU_PG_SUPPORT_VCE;
+		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	default:

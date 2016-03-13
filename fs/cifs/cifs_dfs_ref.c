@@ -175,7 +175,7 @@ char *cifs_compose_mount_options(const char *sb_mountdata,
 	 * string to the length of the original string to allow for worst case.
 	 */
 	md_len = strlen(sb_mountdata) + INET6_ADDRSTRLEN;
-	mountdata = kzalloc(md_len + 1, GFP_KERNEL);
+	mountdata = kzalloc(md_len + sizeof("ip=") + 1, GFP_KERNEL);
 	if (mountdata == NULL) {
 		rc = -ENOMEM;
 		goto compose_mount_options_err;

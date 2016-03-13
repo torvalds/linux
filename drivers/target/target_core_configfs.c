@@ -898,7 +898,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 	da->unmap_zeroes_data = flag;
 	pr_debug("dev[%p]: SE Device Thin Provisioning LBPRZ bit: %d\n",
 		 da->da_dev, flag);
-	return 0;
+	return count;
 }
 
 /*

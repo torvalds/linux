@@ -3326,7 +3326,6 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->get_config = intel_ddi_get_config;
 
 	intel_dig_port->port = port;
-	dev_priv->dig_port_map[port] = intel_encoder;
 	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
 					  (DDI_BUF_PORT_REVERSAL |
 					   DDI_A_4_LANES);

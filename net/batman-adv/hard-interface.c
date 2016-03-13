@@ -76,6 +76,28 @@ out:
 }
 
 /**
+ * batadv_mutual_parents - check if two devices are each others parent
+ * @dev1: 1st net_device
+ * @dev2: 2nd net_device
+ *
+ * veth devices come in pairs and each is the parent of the other!
+ *
+ * Return: true if the devices are each others parent, otherwise false
+ */
+static bool batadv_mutual_parents(const struct net_device *dev1,
+				  const struct net_device *dev2)
+{
+	int dev1_parent_iflink = dev_get_iflink(dev1);
+	int dev2_parent_iflink = dev_get_iflink(dev2);
+
+	if (!dev1_parent_iflink || !dev2_parent_iflink)
+		return false;
+
+	return (dev1_parent_iflink == dev2->ifindex) &&
+	       (dev2_parent_iflink == dev1->ifindex);
+}
+
+/**
  * batadv_is_on_batman_iface - check if a device is a batman iface descendant
  * @net_dev: the device to check
  *
@@ -106,6 +128,9 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	parent_dev = __dev_get_by_index(&init_net, dev_get_iflink(net_dev));
 	/* if we got a NULL parent_dev there is something broken.. */
 	if (WARN(!parent_dev, "Cannot find parent device"))
+		return false;
+
+	if (batadv_mutual_parents(net_dev, parent_dev))
 		return false;
 
 	ret = batadv_is_on_batman_iface(parent_dev);

@@ -65,8 +65,6 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	 */
 	state->allow_modeset = true;
 
-	state->num_connector = ACCESS_ONCE(dev->mode_config.num_connector);
-
 	state->crtcs = kcalloc(dev->mode_config.num_crtc,
 			       sizeof(*state->crtcs), GFP_KERNEL);
 	if (!state->crtcs)
@@ -82,16 +80,6 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	state->plane_states = kcalloc(dev->mode_config.num_total_plane,
 				      sizeof(*state->plane_states), GFP_KERNEL);
 	if (!state->plane_states)
-		goto fail;
-	state->connectors = kcalloc(state->num_connector,
-				    sizeof(*state->connectors),
-				    GFP_KERNEL);
-	if (!state->connectors)
-		goto fail;
-	state->connector_states = kcalloc(state->num_connector,
-					  sizeof(*state->connector_states),
-					  GFP_KERNEL);
-	if (!state->connector_states)
 		goto fail;
 
 	state->dev = dev;
@@ -823,19 +811,27 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 
 	index = drm_connector_index(connector);
 
-	/*
-	 * Construction of atomic state updates can race with a connector
-	 * hot-add which might overflow. In this case flip the table and just
-	 * restart the entire ioctl - no one is fast enough to livelock a cpu
-	 * with physical hotplug events anyway.
-	 *
-	 * Note that we only grab the indexes once we have the right lock to
-	 * prevent hotplug/unplugging of connectors. So removal is no problem,
-	 * at most the array is a bit too large.
-	 */
 	if (index >= state->num_connector) {
-		DRM_DEBUG_ATOMIC("Hot-added connector would overflow state array, restarting\n");
-		return ERR_PTR(-EAGAIN);
+		struct drm_connector **c;
+		struct drm_connector_state **cs;
+		int alloc = max(index + 1, config->num_connector);
+
+		c = krealloc(state->connectors, alloc * sizeof(*state->connectors), GFP_KERNEL);
+		if (!c)
+			return ERR_PTR(-ENOMEM);
+
+		state->connectors = c;
+		memset(&state->connectors[state->num_connector], 0,
+		       sizeof(*state->connectors) * (alloc - state->num_connector));
+
+		cs = krealloc(state->connector_states, alloc * sizeof(*state->connector_states), GFP_KERNEL);
+		if (!cs)
+			return ERR_PTR(-ENOMEM);
+
+		state->connector_states = cs;
+		memset(&state->connector_states[state->num_connector], 0,
+		       sizeof(*state->connector_states) * (alloc - state->num_connector));
+		state->num_connector = alloc;
 	}
 
 	if (state->connector_states[index])

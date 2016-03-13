@@ -224,6 +224,7 @@ config PHY_MT65XX_USB3
 
 config PHY_HI6220_USB
 	tristate "hi6220 USB PHY support"
+	depends on (ARCH_HISI && ARM64) || COMPILE_TEST
 	select GENERIC_PHY
 	select MFD_SYSCON
 	help

@@ -931,8 +931,10 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     cb->nlh->nlmsg_seq,
 						     RTM_NEWNEIGH,
 						     NLM_F_MULTI, rd);
-				if (err < 0)
+				if (err < 0) {
+					cb->args[1] = err;
 					goto out;
+				}
 skip:
 				++idx;
 			}
@@ -1306,8 +1308,10 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		gbp = (struct vxlanhdr_gbp *)vxh;
 		md->gbp = ntohs(gbp->policy_id);
 
-		if (tun_dst)
+		if (tun_dst) {
 			tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
+			tun_dst->u.tun_info.options_len = sizeof(*md);
+		}
 
 		if (gbp->dont_learn)
 			md->gbp |= VXLAN_GBP_DONT_LEARN;
@@ -2171,9 +2175,11 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	}
 
-	if (vxlan->flags & VXLAN_F_COLLECT_METADATA &&
-	    info && info->mode & IP_TUNNEL_INFO_TX) {
-		vxlan_xmit_one(skb, dev, NULL, false);
+	if (vxlan->flags & VXLAN_F_COLLECT_METADATA) {
+		if (info && info->mode & IP_TUNNEL_INFO_TX)
+			vxlan_xmit_one(skb, dev, NULL, false);
+		else
+			kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
@@ -2367,27 +2373,41 @@ static void vxlan_set_multicast_list(struct net_device *dev)
 {
 }
 
+static int __vxlan_change_mtu(struct net_device *dev,
+			      struct net_device *lowerdev,
+			      struct vxlan_rdst *dst, int new_mtu, bool strict)
+{
+	int max_mtu = IP_MAX_MTU;
+
+	if (lowerdev)
+		max_mtu = lowerdev->mtu;
+
+	if (dst->remote_ip.sa.sa_family == AF_INET6)
+		max_mtu -= VXLAN6_HEADROOM;
+	else
+		max_mtu -= VXLAN_HEADROOM;
+
+	if (new_mtu < 68)
+		return -EINVAL;
+
+	if (new_mtu > max_mtu) {
+		if (strict)
+			return -EINVAL;
+
+		new_mtu = max_mtu;
+	}
+
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 static int vxlan_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_rdst *dst = &vxlan->default_dst;
-	struct net_device *lowerdev;
-	int max_mtu;
-
-	lowerdev = __dev_get_by_index(vxlan->net, dst->remote_ifindex);
-	if (lowerdev == NULL)
-		return eth_change_mtu(dev, new_mtu);
-
-	if (dst->remote_ip.sa.sa_family == AF_INET6)
-		max_mtu = lowerdev->mtu - VXLAN6_HEADROOM;
-	else
-		max_mtu = lowerdev->mtu - VXLAN_HEADROOM;
-
-	if (new_mtu < 68 || new_mtu > max_mtu)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
+	struct net_device *lowerdev = __dev_get_by_index(vxlan->net,
+							 dst->remote_ifindex);
+	return __vxlan_change_mtu(dev, lowerdev, dst, new_mtu, true);
 }
 
 static int egress_ipv4_tun_info(struct net_device *dev, struct sk_buff *skb,
@@ -2523,6 +2543,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_STAG_TX;
 	netif_keep_dst(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 
 	INIT_LIST_HEAD(&vxlan->next);
@@ -2765,6 +2786,7 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	int err;
 	bool use_ipv6 = false;
 	__be16 default_port = vxlan->cfg.dst_port;
+	struct net_device *lowerdev = NULL;
 
 	vxlan->net = src_net;
 
@@ -2785,9 +2807,7 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	}
 
 	if (conf->remote_ifindex) {
-		struct net_device *lowerdev
-			 = __dev_get_by_index(src_net, conf->remote_ifindex);
-
+		lowerdev = __dev_get_by_index(src_net, conf->remote_ifindex);
 		dst->remote_ifindex = conf->remote_ifindex;
 
 		if (!lowerdev) {
@@ -2809,6 +2829,12 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 			dev->mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 
 		needed_headroom = lowerdev->hard_header_len;
+	}
+
+	if (conf->mtu) {
+		err = __vxlan_change_mtu(dev, lowerdev, dst, conf->mtu, false);
+		if (err)
+			return err;
 	}
 
 	if (use_ipv6 || conf->flags & VXLAN_F_COLLECT_METADATA)

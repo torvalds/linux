@@ -592,14 +592,14 @@ static void __init imr_fixup_memmap(struct imr_device *idev)
 	end = (unsigned long)__end_rodata - 1;
 
 	/*
-	 * Setup a locked IMR around the physical extent of the kernel
+	 * Setup an unlocked IMR around the physical extent of the kernel
 	 * from the beginning of the .text secton to the end of the
 	 * .rodata section as one physically contiguous block.
 	 *
 	 * We don't round up @size since it is already PAGE_SIZE aligned.
 	 * See vmlinux.lds.S for details.
 	 */
-	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, true);
+	ret = imr_add_range(base, size, IMR_CPU, IMR_CPU, false);
 	if (ret < 0) {
 		pr_err("unable to setup IMR for kernel: %zu KiB (%lx - %lx)\n",
 			size / 1024, start, end);

@@ -2630,8 +2630,10 @@ static int __init hugetlb_init(void)
 			hugetlb_add_hstate(HUGETLB_PAGE_ORDER);
 	}
 	default_hstate_idx = hstate_index(size_to_hstate(default_hstate_size));
-	if (default_hstate_max_huge_pages)
-		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+	if (default_hstate_max_huge_pages) {
+		if (!default_hstate.max_huge_pages)
+			default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+	}
 
 	hugetlb_init_hstates();
 	gather_bootmem_prealloc();
@@ -2749,7 +2751,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 	int ret;
 
 	if (!hugepages_supported())
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	table->data = &tmp;
 	table->maxlen = sizeof(unsigned long);
@@ -2790,7 +2792,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 	int ret;
 
 	if (!hugepages_supported())
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	tmp = h->nr_overcommit_huge_pages;
 
@@ -3500,7 +3502,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * COW. Warn that such a situation has occurred as it may not be obvious
 	 */
 	if (is_vma_resv_set(vma, HPAGE_RESV_UNMAPPED)) {
-		pr_warning("PID %d killed due to inadequate hugepage pool\n",
+		pr_warn_ratelimited("PID %d killed due to inadequate hugepage pool\n",
 			   current->pid);
 		return ret;
 	}

@@ -23,6 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
@@ -68,6 +69,7 @@ static const struct host1x_info host1x01_info = {
 	.nb_bases	= 8,
 	.init		= host1x01_init,
 	.sync_offset	= 0x3000,
+	.dma_mask	= DMA_BIT_MASK(32),
 };
 
 static const struct host1x_info host1x02_info = {
@@ -77,6 +79,7 @@ static const struct host1x_info host1x02_info = {
 	.nb_bases = 12,
 	.init = host1x02_init,
 	.sync_offset = 0x3000,
+	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct host1x_info host1x04_info = {
@@ -86,6 +89,7 @@ static const struct host1x_info host1x04_info = {
 	.nb_bases = 64,
 	.init = host1x04_init,
 	.sync_offset = 0x2100,
+	.dma_mask = DMA_BIT_MASK(34),
 };
 
 static const struct host1x_info host1x05_info = {
@@ -95,6 +99,7 @@ static const struct host1x_info host1x05_info = {
 	.nb_bases = 64,
 	.init = host1x05_init,
 	.sync_offset = 0x2100,
+	.dma_mask = DMA_BIT_MASK(34),
 };
 
 static struct of_device_id host1x_of_match[] = {
@@ -147,6 +152,8 @@ static int host1x_probe(struct platform_device *pdev)
 	host->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
+
+	dma_set_mask_and_coherent(host->dev, host->info->dma_mask);
 
 	if (host->info->init) {
 		err = host->info->init(host);

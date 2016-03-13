@@ -1360,7 +1360,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	sdhci_runtime_pm_get(host);
 
 	/* Firstly check card presence */
-	present = sdhci_do_get_cd(host);
+	present = mmc->ops->get_cd(mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -2849,6 +2849,8 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+	host->mmc_host_ops = sdhci_ops;
+	mmc->ops = &host->mmc_host_ops;
 
 	return host;
 }
@@ -3037,7 +3039,6 @@ int sdhci_add_host(struct sdhci_host *host)
 	/*
 	 * Set host parameters.
 	 */
-	mmc->ops = &sdhci_ops;
 	max_clk = host->max_clk;
 
 	if (host->ops->get_min_clock)

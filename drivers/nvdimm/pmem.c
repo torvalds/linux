@@ -41,7 +41,7 @@ struct pmem_device {
 	phys_addr_t		phys_addr;
 	/* when non-zero this device is hosting a 'pfn' instance */
 	phys_addr_t		data_offset;
-	unsigned long		pfn_flags;
+	u64			pfn_flags;
 	void __pmem		*virt_addr;
 	size_t			size;
 	struct badblocks	bb;

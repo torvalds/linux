@@ -661,6 +661,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
 
+	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+
 	dst = tnl_params->daddr;
 	if (dst == 0) {
 		/* NBMA tunnel */
@@ -758,7 +760,6 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 				tunnel->err_time + IPTUNNEL_ERR_TIMEO)) {
 			tunnel->err_count--;
 
-			memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 			dst_link_failure(skb);
 		} else
 			tunnel->err_count = 0;
@@ -943,16 +944,30 @@ done:
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_ioctl);
 
-int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
+int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
+	int max_mtu = 0xFFF8 - dev->hard_header_len - t_hlen;
 
-	if (new_mtu < 68 ||
-	    new_mtu > 0xFFF8 - dev->hard_header_len - t_hlen)
+	if (new_mtu < 68)
 		return -EINVAL;
+
+	if (new_mtu > max_mtu) {
+		if (strict)
+			return -EINVAL;
+
+		new_mtu = max_mtu;
+	}
+
 	dev->mtu = new_mtu;
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__ip_tunnel_change_mtu);
+
+int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
+{
+	return __ip_tunnel_change_mtu(dev, new_mtu, true);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_change_mtu);
 

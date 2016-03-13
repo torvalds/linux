@@ -663,7 +663,7 @@ static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
 	return -1;
 }
 
-static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned short opcode)
+static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & MM_POOL32A_FUNC) == MM_RDHWR) {
 		int rd = (opcode & MM_RS) >> 16;
@@ -690,15 +690,15 @@ static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
-	siginfo_t info;
+	siginfo_t info = {
+		.si_signo = SIGFPE,
+		.si_code = FPE_INTOVF,
+		.si_addr = (void __user *)regs->cp0_epc,
+	};
 
 	prev_state = exception_enter();
 	die_if_kernel("Integer overflow", regs);
 
-	info.si_code = FPE_INTOVF;
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_addr = (void __user *) regs->cp0_epc;
 	force_sig_info(SIGFPE, &info, current);
 	exception_exit(prev_state);
 }
@@ -874,7 +874,7 @@ out:
 void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	const char *str)
 {
-	siginfo_t info;
+	siginfo_t info = { 0 };
 	char b[40];
 
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
@@ -903,7 +903,6 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		else
 			info.si_code = FPE_INTOVF;
 		info.si_signo = SIGFPE;
-		info.si_errno = 0;
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
@@ -1119,11 +1118,12 @@ no_r2_instr:
 	if (get_isa16_mode(regs->cp0_epc)) {
 		unsigned short mmop[2] = { 0 };
 
-		if (unlikely(get_user(mmop[0], epc) < 0))
+		if (unlikely(get_user(mmop[0], (u16 __user *)epc + 0) < 0))
 			status = SIGSEGV;
-		if (unlikely(get_user(mmop[1], epc) < 0))
+		if (unlikely(get_user(mmop[1], (u16 __user *)epc + 1) < 0))
 			status = SIGSEGV;
-		opcode = (mmop[0] << 16) | mmop[1];
+		opcode = mmop[0];
+		opcode = (opcode << 16) | mmop[1];
 
 		if (status < 0)
 			status = simulate_rdhwr_mm(regs, opcode);
@@ -1369,26 +1369,12 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		if (unlikely(compute_return_epc(regs) < 0))
 			break;
 
-		if (get_isa16_mode(regs->cp0_epc)) {
-			unsigned short mmop[2] = { 0 };
-
-			if (unlikely(get_user(mmop[0], epc) < 0))
-				status = SIGSEGV;
-			if (unlikely(get_user(mmop[1], epc) < 0))
-				status = SIGSEGV;
-			opcode = (mmop[0] << 16) | mmop[1];
-
-			if (status < 0)
-				status = simulate_rdhwr_mm(regs, opcode);
-		} else {
+		if (!get_isa16_mode(regs->cp0_epc)) {
 			if (unlikely(get_user(opcode, epc) < 0))
 				status = SIGSEGV;
 
 			if (!cpu_has_llsc && status < 0)
 				status = simulate_llsc(regs, opcode);
-
-			if (status < 0)
-				status = simulate_rdhwr_normal(regs, opcode);
 		}
 
 		if (status < 0)

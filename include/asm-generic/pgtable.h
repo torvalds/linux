@@ -239,6 +239,14 @@ extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 			    pmd_t *pmdp);
 #endif
 
+#ifndef __HAVE_ARCH_PMDP_HUGE_SPLIT_PREPARE
+static inline void pmdp_huge_split_prepare(struct vm_area_struct *vma,
+					   unsigned long address, pmd_t *pmdp)
+{
+
+}
+#endif
+
 #ifndef __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t pte_a, pte_t pte_b)
 {

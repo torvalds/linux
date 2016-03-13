@@ -160,9 +160,11 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		}
 
 		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
-			if (next - addr != HPAGE_PMD_SIZE)
+			if (next - addr != HPAGE_PMD_SIZE) {
 				split_huge_pmd(vma, pmd, addr);
-			else {
+				if (pmd_none(*pmd))
+					continue;
+			} else {
 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
 						newprot, prot_numa);
 

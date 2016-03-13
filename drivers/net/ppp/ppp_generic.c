@@ -443,9 +443,14 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 			 * network traffic (demand mode).
 			 */
 			struct ppp *ppp = PF_TO_PPP(pf);
+
+			ppp_recv_lock(ppp);
 			if (ppp->n_channels == 0 &&
-			    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
+			    (ppp->flags & SC_LOOP_TRAFFIC) == 0) {
+				ppp_recv_unlock(ppp);
 				break;
+			}
+			ppp_recv_unlock(ppp);
 		}
 		ret = -EAGAIN;
 		if (file->f_flags & O_NONBLOCK)
@@ -532,9 +537,12 @@ static unsigned int ppp_poll(struct file *file, poll_table *wait)
 	else if (pf->kind == INTERFACE) {
 		/* see comment in ppp_read */
 		struct ppp *ppp = PF_TO_PPP(pf);
+
+		ppp_recv_lock(ppp);
 		if (ppp->n_channels == 0 &&
 		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
 			mask |= POLLIN | POLLRDNORM;
+		ppp_recv_unlock(ppp);
 	}
 
 	return mask;
@@ -2808,6 +2816,7 @@ static struct ppp *ppp_create_interface(struct net *net, int unit,
 
 out2:
 	mutex_unlock(&pn->all_ppp_mutex);
+	rtnl_unlock();
 	free_netdev(dev);
 out1:
 	*retp = ret;

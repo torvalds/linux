@@ -1289,13 +1289,10 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 		goto out;
 	}
 
-	if (cmplt_hdr_data & CMPLT_HDR_ERR_RCRD_XFRD_MSK) {
-		if (!(cmplt_hdr_data & CMPLT_HDR_CMD_CMPLT_MSK) ||
-		    !(cmplt_hdr_data & CMPLT_HDR_RSPNS_XFRD_MSK))
-			ts->stat = SAS_DATA_OVERRUN;
-		else
-			slot_err_v1_hw(hisi_hba, task, slot);
+	if (cmplt_hdr_data & CMPLT_HDR_ERR_RCRD_XFRD_MSK &&
+		!(cmplt_hdr_data & CMPLT_HDR_RSPNS_XFRD_MSK)) {
 
+		slot_err_v1_hw(hisi_hba, task, slot);
 		goto out;
 	}
 

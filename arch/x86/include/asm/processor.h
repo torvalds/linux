@@ -766,7 +766,7 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
  * Return saved PC of a blocked thread.
  * What is this good for? it will be always the scheduler or ret_from_fork.
  */
-#define thread_saved_pc(t)	(*(unsigned long *)((t)->thread.sp - 8))
+#define thread_saved_pc(t)	READ_ONCE_NOCHECK(*(unsigned long *)((t)->thread.sp - 8))
 
 #define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);

@@ -2380,7 +2380,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    sizeof(u32),
 						    &tx_ring->tx_status_pa,
 						    GFP_KERNEL);
-	if (!tx_ring->tx_status_pa) {
+	if (!tx_ring->tx_status) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot alloc memory for Tx status block\n");
 		return -ENOMEM;

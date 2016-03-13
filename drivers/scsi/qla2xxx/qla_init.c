@@ -2204,7 +2204,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	/* Clear outstanding commands array. */
 	for (que = 0; que < ha->max_req_queues; que++) {
 		req = ha->req_q_map[que];
-		if (!req)
+		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
 		req->out_ptr = (void *)(req->ring + req->length);
 		*req->out_ptr = 0;
@@ -2221,7 +2221,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 
 	for (que = 0; que < ha->max_rsp_queues; que++) {
 		rsp = ha->rsp_q_map[que];
-		if (!rsp)
+		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
 		rsp->in_ptr = (void *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
@@ -4981,7 +4981,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 
 	for (i = 1; i < ha->max_rsp_queues; i++) {
 		rsp = ha->rsp_q_map[i];
-		if (rsp) {
+		if (rsp && test_bit(i, ha->rsp_qid_map)) {
 			rsp->options &= ~BIT_0;
 			ret = qla25xx_init_rsp_que(base_vha, rsp);
 			if (ret != QLA_SUCCESS)
@@ -4996,8 +4996,8 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 	}
 	for (i = 1; i < ha->max_req_queues; i++) {
 		req = ha->req_q_map[i];
-		if (req) {
-		/* Clear outstanding commands array. */
+		if (req && test_bit(i, ha->req_qid_map)) {
+			/* Clear outstanding commands array. */
 			req->options &= ~BIT_0;
 			ret = qla25xx_init_req_que(base_vha, req);
 			if (ret != QLA_SUCCESS)
