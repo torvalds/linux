@@ -3913,6 +3913,16 @@ regulator_register(const struct regulator_desc *regulator_desc,
 			goto clean;
 	}
 
+	if ((config->ena_gpio || config->ena_gpio_initialized) &&
+	    gpio_is_valid(config->ena_gpio)) {
+		ret = regulator_ena_gpio_request(rdev, config);
+		if (ret != 0) {
+			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
+				 config->ena_gpio, ret);
+			goto clean;
+		}
+	}
+
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
 	rdev->dev.parent = dev;
@@ -3921,20 +3931,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {
 		put_device(&rdev->dev);
-		goto clean;
+		goto wash;
 	}
 
 	dev_set_drvdata(&rdev->dev, rdev);
-
-	if ((config->ena_gpio || config->ena_gpio_initialized) &&
-	    gpio_is_valid(config->ena_gpio)) {
-		ret = regulator_ena_gpio_request(rdev, config);
-		if (ret != 0) {
-			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
-				 config->ena_gpio, ret);
-			goto wash;
-		}
-	}
 
 	/* set regulator constraints */
 	if (init_data)
@@ -3974,13 +3974,13 @@ unset_supplies:
 
 scrub:
 	regulator_ena_gpio_free(rdev);
-
-wash:
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
 	rdev = ERR_PTR(ret);
 	goto out;
 
+wash:
+	regulator_ena_gpio_free(rdev);
 clean:
 	kfree(rdev);
 	rdev = ERR_PTR(ret);
