@@ -78,6 +78,15 @@ config REGULATOR_ACT8865
 	  This driver controls a active-semi act8865 voltage output
 	  regulator via I2C bus.
 
+config REGULATOR_ACT8945A
+	tristate "Active-semi ACT8945A voltage regulator"
+	depends on MFD_ACT8945A
+	help
+	  This driver controls a active-semi ACT8945A voltage regulator
+	  via I2C bus. The ACT8945A features three step-down DC/DC converters
+	  and four low-dropout linear regulators, along with a ActivePath
+	  battery charger.
+
 config REGULATOR_AD5398
 	tristate "Analog Devices AD5398/AD5821 regulators"
 	depends on I2C
