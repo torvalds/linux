@@ -201,7 +201,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 #endif /* DEBUG_FPGA */
 	if (!xl_supported_prog_bus_width(bus_bytes)) {
 		pr_err("unsupported program bus width %d\n",
-				bus_bytes);
+		       bus_bytes);
 		return -1;
 	}
 
@@ -277,7 +277,7 @@ static int gs_set_download_method(struct fpgaimage *fimage)
 static int init_driver(void)
 {
 	firmware_pdev = platform_device_register_simple("fpgaboot", -1,
-							 NULL, 0);
+							NULL, 0);
 	return PTR_ERR_OR_ZERO(firmware_pdev);
 }
 
