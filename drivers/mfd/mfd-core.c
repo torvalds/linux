@@ -107,7 +107,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 
 			strlcpy(ids[0].id, match->pnpid, sizeof(ids[0].id));
 			list_for_each_entry(child, &parent->children, node) {
-				if (acpi_match_device_ids(child, ids)) {
+				if (!acpi_match_device_ids(child, ids)) {
 					adev = child;
 					break;
 				}
