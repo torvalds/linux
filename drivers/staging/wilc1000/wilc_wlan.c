@@ -621,13 +621,12 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 
 			if ((reg & 0x1) == 0) {
 				break;
-			} else {
-				counter++;
-				if (counter > 200) {
-					counter = 0;
-					ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_TX_CTRL, 0);
-					break;
-				}
+			}
+			counter++;
+			if (counter > 200) {
+				counter = 0;
+				ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_TX_CTRL, 0);
+				break;
 			}
 		} while (!wilc->quit);
 
@@ -653,9 +652,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if ((reg >> 2) & 0x1) {
 					entries = ((reg >> 3) & 0x3f);
 					break;
-				} else {
-					release_bus(wilc, RELEASE_ALLOW_SLEEP);
 				}
+				release_bus(wilc, RELEASE_ALLOW_SLEEP);
 			} while (--timeout);
 			if (timeout <= 0) {
 				ret = wilc->hif_func->hif_write_reg(wilc, WILC_HOST_VMM_CTL, 0x0);
@@ -674,9 +672,8 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 				if (!ret)
 					break;
 				break;
-			} else {
-				break;
 			}
+			break;
 		} while (1);
 
 		if (!ret)
