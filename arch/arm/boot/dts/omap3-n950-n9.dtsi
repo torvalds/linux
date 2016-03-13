@@ -39,9 +39,27 @@
 		enable-active-high;
 		regulator-boot-off;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		heartbeat {
+			label = "debug::sleep";
+			gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;  /* gpio92 */
+			linux,default-trigger = "default-on";
+			pinctrl-names = "default";
+			pinctrl-0 = <&debug_leds>;
+		};
+	};
 };
 
 &omap3_pmx_core {
+	debug_leds: pinmux_debug_led_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2108, PIN_OUTPUT | MUX_MODE4)       /* dss_data22.gpio_92 */
+		>;
+	};
+
 	mmc2_pins: pinmux_mmc2_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0) /* sdmmc2_clk */
