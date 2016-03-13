@@ -98,6 +98,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_PCM512x_SPI if SPI_MASTER
 	select SND_SOC_RT286 if I2C
 	select SND_SOC_RT298 if I2C
+	select SND_SOC_RT5514 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5640 if I2C
@@ -501,6 +502,7 @@ config SND_SOC_ICS43432
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
         tristate
@@ -590,6 +592,7 @@ config SND_SOC_PCM512x_SPI
 
 config SND_SOC_RL6231
 	tristate
+	default y if SND_SOC_RT5514=y
 	default y if SND_SOC_RT5616=y
 	default y if SND_SOC_RT5640=y
 	default y if SND_SOC_RT5645=y
@@ -597,6 +600,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5659=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
+	default m if SND_SOC_RT5514=m
 	default m if SND_SOC_RT5616=m
 	default m if SND_SOC_RT5640=m
 	default m if SND_SOC_RT5645=m
@@ -620,8 +624,11 @@ config SND_SOC_RT298
 	tristate
 	depends on I2C
 
-config SND_SOC_RT5616
+config SND_SOC_RT5514
 	tristate
+
+config SND_SOC_RT5616
+	tristate "Realtek RT5616 CODEC"
 
 config SND_SOC_RT5631
 	tristate "Realtek ALC5631/RT5631 CODEC"
