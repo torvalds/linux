@@ -1300,6 +1300,7 @@ boards := $(sort $(notdir $(boards)))
 board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
 board-dirs := $(sort $(notdir $(board-dirs:/=)))
 
+PHONY += help
 help:
 	@echo  'Cleaning targets:'
 	@echo  '  clean		  - Remove most generated files but keep the config and'
@@ -1470,6 +1471,7 @@ $(clean-dirs):
 clean:	rm-dirs := $(MODVERDIR)
 clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers
 
+PHONY += help
 help:
 	@echo  '  Building external modules.'
 	@echo  '  Syntax: make -C path/to/kernel/src M=$$PWD target'
