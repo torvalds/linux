@@ -2438,7 +2438,7 @@ static int atmci_configure_dma(struct atmel_mci *host)
 		struct mci_platform_data *pdata = host->pdev->dev.platform_data;
 		dma_cap_mask_t mask;
 
-		if (!pdata->dma_filter)
+		if (!pdata || !pdata->dma_filter)
 			return -ENODEV;
 
 		dma_cap_zero(mask);
