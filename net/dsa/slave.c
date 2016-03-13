@@ -448,8 +448,8 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 
 	p->bridge_dev = br;
 
-	if (ds->drv->port_join_bridge)
-		ret = ds->drv->port_join_bridge(ds, p->port, br);
+	if (ds->drv->port_bridge_join)
+		ret = ds->drv->port_bridge_join(ds, p->port, br);
 
 	return ret;
 }
@@ -461,8 +461,8 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 	int ret = -EOPNOTSUPP;
 
 
-	if (ds->drv->port_leave_bridge)
-		ret = ds->drv->port_leave_bridge(ds, p->port);
+	if (ds->drv->port_bridge_leave)
+		ret = ds->drv->port_bridge_leave(ds, p->port);
 
 	p->bridge_dev = NULL;
 

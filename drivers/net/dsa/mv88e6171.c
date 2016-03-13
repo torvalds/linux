@@ -103,8 +103,8 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 #endif
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
-	.port_join_bridge	= mv88e6xxx_port_bridge_join,
-	.port_leave_bridge	= mv88e6xxx_port_bridge_leave,
+	.port_bridge_join	= mv88e6xxx_port_bridge_join,
+	.port_bridge_leave	= mv88e6xxx_port_bridge_leave,
 	.port_stp_update        = mv88e6xxx_port_stp_update,
 	.port_vlan_filtering	= mv88e6xxx_port_vlan_filtering,
 	.port_vlan_prepare	= mv88e6xxx_port_vlan_prepare,
