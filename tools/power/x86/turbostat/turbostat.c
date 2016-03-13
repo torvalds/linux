@@ -3103,7 +3103,7 @@ void process_cpuid()
 
 	eax = ebx = ecx = edx = 0;
 
-	__get_cpuid(0, &max_level, &ebx, &ecx, &edx);
+	__cpuid(0, max_level, ebx, ecx, edx);
 
 	if (ebx == 0x756e6547 && edx == 0x49656e69 && ecx == 0x6c65746e)
 		genuine_intel = 1;
@@ -3112,7 +3112,7 @@ void process_cpuid()
 		fprintf(outf, "CPUID(0): %.4s%.4s%.4s ",
 			(char *)&ebx, (char *)&edx, (char *)&ecx);
 
-	__get_cpuid(1, &fms, &ebx, &ecx, &edx);
+	__cpuid(1, fms, ebx, ecx, edx);
 	family = (fms >> 8) & 0xf;
 	model = (fms >> 4) & 0xf;
 	stepping = fms & 0xf;
@@ -3143,7 +3143,7 @@ void process_cpuid()
 	 * This check is valid for both Intel and AMD.
 	 */
 	ebx = ecx = edx = 0;
-	__get_cpuid(0x80000000, &max_extended_level, &ebx, &ecx, &edx);
+	__cpuid(0x80000000, max_extended_level, ebx, ecx, edx);
 
 	if (max_extended_level >= 0x80000007) {
 
@@ -3151,7 +3151,7 @@ void process_cpuid()
 		 * Non-Stop TSC is advertised by CPUID.EAX=0x80000007: EDX.bit8
 		 * this check is valid for both Intel and AMD
 		 */
-		__get_cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
+		__cpuid(0x80000007, eax, ebx, ecx, edx);
 		has_invariant_tsc = edx & (1 << 8);
 	}
 
@@ -3160,7 +3160,7 @@ void process_cpuid()
 	 * this check is valid for both Intel and AMD
 	 */
 
-	__get_cpuid(0x6, &eax, &ebx, &ecx, &edx);
+	__cpuid(0x6, eax, ebx, ecx, edx);
 	has_aperf = ecx & (1 << 0);
 	do_dts = eax & (1 << 0);
 	do_ptm = eax & (1 << 6);
@@ -3209,7 +3209,7 @@ void process_cpuid()
 		 * CPUID 15H TSC/Crystal ratio, possibly Crystal Hz
 		 */
 		eax_crystal = ebx_tsc = crystal_hz = edx = 0;
-		__get_cpuid(0x15, &eax_crystal, &ebx_tsc, &crystal_hz, &edx);
+		__cpuid(0x15, eax_crystal, ebx_tsc, crystal_hz, edx);
 
 		if (ebx_tsc != 0) {
 
@@ -3243,7 +3243,7 @@ void process_cpuid()
 		 */
 		base_mhz = max_mhz = bus_mhz = edx = 0;
 
-		__get_cpuid(0x16, &base_mhz, &max_mhz, &bus_mhz, &edx);
+		__cpuid(0x16, base_mhz, max_mhz, bus_mhz, edx);
 		if (debug)
 			fprintf(outf, "CPUID(0x16): base_mhz: %d max_mhz: %d bus_mhz: %d\n",
 				base_mhz, max_mhz, bus_mhz);
