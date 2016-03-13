@@ -775,7 +775,7 @@ EXPORT_SYMBOL_GPL(visorbus_disable_channel_interrupts);
 static int
 create_visor_device(struct visor_device *dev)
 {
-	int rc;
+	int err;
 	u32 chipset_bus_no = dev->chipset_bus_no;
 	u32 chipset_dev_no = dev->chipset_dev_no;
 
@@ -797,8 +797,8 @@ create_visor_device(struct visor_device *dev)
 	if (!dev->periodic_work) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
 				 DIAG_SEVERITY_ERR);
-		rc = -EINVAL;
-		goto away;
+		err = -EINVAL;
+		goto err_put;
 	}
 
 	/* bus_id must be a unique name with respect to this bus TYPE
@@ -824,19 +824,19 @@ create_visor_device(struct visor_device *dev)
 	 *  claim the device.  The device will be linked onto
 	 *  bus_type.klist_devices regardless (use bus_for_each_dev).
 	 */
-	rc = device_add(&dev->device);
-	if (rc < 0) {
+	err = device_add(&dev->device);
+	if (err < 0) {
 		POSTCODE_LINUX_3(DEVICE_ADD_PC, chipset_bus_no,
 				 DIAG_SEVERITY_ERR);
-		goto away;
+		goto err_put;
 	}
 
 	list_add_tail(&dev->list_all, &list_all_device_instances);
-	return 0;
+	return 0; /* success: reference kept via unmatched get_device() */
 
-away:
+err_put:
 	put_device(&dev->device);
-	return rc;
+	return err;
 }
 
 static void
