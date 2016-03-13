@@ -270,6 +270,14 @@ config REGULATOR_HI6421
 	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
 	  of them come with support to either ECO (idle) or sleep mode.
 
+config REGULATOR_HI655X
+	tristate "Hisilicon HI655X PMIC regulators support"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on MFD_HI655X_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators of the
+	  Hisilicon Hi655x PMIC device.
+
 config REGULATOR_ISL9305
 	tristate "Intersil ISL9305 regulator"
 	depends on I2C
