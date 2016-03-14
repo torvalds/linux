@@ -458,7 +458,7 @@ mctrl_gpio_init(port, idx):
 
 mctrl_gpio_free(dev, gpios):
 	This will free the requested gpios in mctrl_gpio_init().
-	As devm_* function are used, there's generally no need to call
+	As devm_* functions are used, there's generally no need to call
 	this function.
 
 mctrl_gpio_to_gpiod(gpios, gidx)
