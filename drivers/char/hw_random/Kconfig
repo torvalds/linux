@@ -309,7 +309,8 @@ config HW_RANDOM_POWERNV
 
 config HW_RANDOM_EXYNOS
 	tristate "EXYNOS HW random number generator support"
-	depends on ARCH_EXYNOS
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	depends on HAS_IOMEM
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
