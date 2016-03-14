@@ -558,7 +558,6 @@ powerdown_on_error:
 	return ret;
 }
 
-/* fixme, confirm ordering in this function */
 static int ade7754_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);

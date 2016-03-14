@@ -476,7 +476,6 @@ static int ade7759_probe(struct spi_device *spi)
 	return iio_device_register(indio_dev);
 }
 
-/* fixme, confirm ordering in this function */
 static int ade7759_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
