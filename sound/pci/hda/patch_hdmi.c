@@ -2836,8 +2836,12 @@ static int nvhdmi_chmap_cea_alloc_validate_get_type(struct hdac_chmap *chmap,
 	if (cap->ca_index == 0x00 && channels == 2)
 		return SNDRV_CTL_TLVT_CHMAP_FIXED;
 
-	return chmap->ops.chmap_cea_alloc_validate_get_type(
-				chmap, cap, channels);
+	/* If the speaker allocation matches the channel count, it is OK. */
+	if (cap->channels != channels)
+		return -1;
+
+	/* all channels are remappable freely */
+	return SNDRV_CTL_TLVT_CHMAP_VAR;
 }
 
 static int nvhdmi_chmap_validate(struct hdac_chmap *chmap,
