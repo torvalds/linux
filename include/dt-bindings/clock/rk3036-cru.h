@@ -54,6 +54,7 @@
 #define SCLK_PVTM_VIDEO		125
 #define SCLK_MAC		151
 #define SCLK_MACREF		152
+#define SCLK_MACPLL		153
 #define SCLK_SFC		160
 
 /* aclk gates */
