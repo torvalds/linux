@@ -5273,6 +5273,9 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
 		mask |= BIT(intel_display_port_power_domain(intel_encoder));
 	}
 
+	if (crtc_state->shared_dpll)
+		mask |= BIT(POWER_DOMAIN_PLLS);
+
 	return mask;
 }
 
@@ -15703,9 +15706,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("%s hw state readout: crtc_mask 0x%08x, on %i\n",
 			      pll->name, pll->config.crtc_mask, pll->on);
-
-		if (pll->config.crtc_mask)
-			intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
 	}
 
 	for_each_intel_encoder(dev, encoder) {

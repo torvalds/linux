@@ -135,8 +135,6 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	}
 	WARN_ON(pll->on);
 
-	intel_display_power_get(dev_priv, POWER_DOMAIN_PLLS);
-
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
 	pll->funcs.enable(dev_priv, pll);
 	pll->on = true;
@@ -173,8 +171,6 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
 	pll->funcs.disable(dev_priv, pll);
 	pll->on = false;
-
-	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 }
 
 static struct intel_shared_dpll *
