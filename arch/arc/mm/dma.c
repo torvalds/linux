@@ -24,15 +24,20 @@
 static void *arc_dma_alloc(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp, struct dma_attrs *attrs)
 {
-	void *paddr, *kvaddr;
+	unsigned long order = get_order(size);
+	struct page *page;
+	phys_addr_t paddr;
+	void *kvaddr;
 
-	/* This is linear addr (0x8000_0000 based) */
-	paddr = alloc_pages_exact(size, gfp);
-	if (!paddr)
+	page = alloc_pages(gfp, order);
+	if (!page)
 		return NULL;
 
-	/* This is bus address, platform dependent */
-	*dma_handle = (dma_addr_t)paddr;
+	/* This is linear addr (0x8000_0000 based) */
+	paddr = page_to_phys(page);
+
+	/* For now bus address is exactly same as paddr */
+	*dma_handle = paddr;
 
 	/*
 	 * IOC relies on all data (even coherent DMA data) being in cache
@@ -51,8 +56,10 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
 	kvaddr = ioremap_nocache((unsigned long)paddr, size);
-	if (kvaddr == NULL)
+	if (kvaddr == NULL) {
+		__free_pages(page, order);
 		return NULL;
+	}
 
 	/*
 	 * Evict any existing L1 and/or L2 lines for the backing page
@@ -72,11 +79,13 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
+	struct page *page = virt_to_page(dma_handle);
+
 	if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs) &&
 	    !(is_isa_arcv2() && ioc_exists))
 		iounmap((void __force __iomem *)vaddr);
 
-	free_pages_exact((void *)dma_handle, size);
+	__free_pages(page, get_order(size));
 }
 
 /*
