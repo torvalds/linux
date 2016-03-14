@@ -655,7 +655,7 @@ static int ethtool_get_link_ksettings(struct net_device *dev,
 	    != link_ksettings.base.link_mode_masks_nwords) {
 		/* wrong link mode nbits requested */
 		memset(&link_ksettings, 0, sizeof(link_ksettings));
-		/* keep cmd field reset to 0 */
+		link_ksettings.base.cmd = ETHTOOL_GLINKSETTINGS;
 		/* send back number of words required as negative val */
 		compiletime_assert(__ETHTOOL_LINK_MODE_MASK_NU32 <= S8_MAX,
 				   "need too many bits for link modes!");
