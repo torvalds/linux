@@ -40,6 +40,20 @@ config MVMDIO
 
 	  This driver is used by the MV643XX_ETH and MVNETA drivers.
 
+config MVNETA_BM
+	tristate "Marvell Armada 38x/XP network interface BM support"
+	depends on MVNETA
+	select HWBM
+	---help---
+	  This driver supports auxiliary block of the network
+	  interface units in the Marvell ARMADA XP and ARMADA 38x SoC
+	  family, which is called buffer manager.
+
+	  This driver, when enabled, strictly cooperates with mvneta
+	  driver and is common for all network ports of the devices,
+	  even for Armada 370 SoC, which doesn't support hardware
+	  buffer management.
+
 config MVNETA
 	tristate "Marvell Armada 370/38x/XP network interface support"
 	depends on PLAT_ORION
