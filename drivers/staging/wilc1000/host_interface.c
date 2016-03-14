@@ -1611,7 +1611,7 @@ static int Handle_Key(struct wilc_vif *vif,
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 		}
-		up(&hif_drv->sem_test_key_block);
+		complete(&hif_drv->comp_test_key_block);
 		break;
 
 	case WPA_RX_GTK:
@@ -1645,7 +1645,7 @@ static int Handle_Key(struct wilc_vif *vif,
 						      wilc_get_vif_idx(vif));
 
 			kfree(pu8keybuf);
-			up(&hif_drv->sem_test_key_block);
+			complete(&hif_drv->comp_test_key_block);
 		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
 			pu8keybuf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
 			if (pu8keybuf == NULL) {
@@ -1674,7 +1674,7 @@ static int Handle_Key(struct wilc_vif *vif,
 						      wilc_get_vif_idx(vif));
 
 			kfree(pu8keybuf);
-			up(&hif_drv->sem_test_key_block);
+			complete(&hif_drv->comp_test_key_block);
 		}
 _WPARxGtk_end_case_:
 		kfree(pstrHostIFkeyAttr->attr.wpa.key);
@@ -1712,7 +1712,7 @@ _WPARxGtk_end_case_:
 						      strWIDList, 2,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
-			up(&hif_drv->sem_test_key_block);
+			complete(&hif_drv->comp_test_key_block);
 		} else if (pstrHostIFkeyAttr->action & ADDKEY) {
 			pu8keybuf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
 			if (!pu8keybuf) {
@@ -1735,7 +1735,7 @@ _WPARxGtk_end_case_:
 						      &wid, 1,
 						      wilc_get_vif_idx(vif));
 			kfree(pu8keybuf);
-			up(&hif_drv->sem_test_key_block);
+			complete(&hif_drv->comp_test_key_block);
 		}
 
 _WPAPtk_end_case_:
@@ -2731,7 +2731,7 @@ int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Request to remove WEP key\n");
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2759,7 +2759,7 @@ int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "Default key index\n");
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2792,7 +2792,7 @@ int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 	result = wilc_mq_send(&hif_msg_q, &msg, sizeof(struct host_if_msg));
 	if (result)
 		netdev_err(vif->ndev, "STA - WEP Key\n");
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2828,7 +2828,7 @@ int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 
 	if (result)
 		netdev_err(vif->ndev, "AP - WEP Key\n");
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2884,7 +2884,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 	if (result)
 		netdev_err(vif->ndev, "PTK Key\n");
 
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -2952,7 +2952,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	if (result)
 		netdev_err(vif->ndev, "RX GTK\n");
 
-	down(&hif_drv->sem_test_key_block);
+	wait_for_completion(&hif_drv->comp_test_key_block);
 
 	return result;
 }
@@ -3405,7 +3405,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 		sema_init(&hif_sema_deinit, 1);
 	}
 
-	sema_init(&hif_drv->sem_test_key_block, 0);
+	init_completion(&hif_drv->comp_test_key_block);
 	init_completion(&hif_drv->comp_test_disconn_block);
 	init_completion(&hif_drv->comp_get_rssi);
 	init_completion(&hif_drv->comp_inactive_time);
