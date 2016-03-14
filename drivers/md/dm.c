@@ -1210,9 +1210,9 @@ static void dm_requeue_original_request(struct mapped_device *md,
 {
 	int rw = rq_data_dir(rq);
 
+	rq_end_stats(md, rq);
 	dm_unprep_request(rq);
 
-	rq_end_stats(md, rq);
 	if (!rq->q->mq_ops)
 		old_requeue_request(rq);
 	else {
