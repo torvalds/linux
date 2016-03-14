@@ -1535,6 +1535,7 @@ static const struct dev_pm_ops mma8452_pm_ops = {
 };
 
 static const struct i2c_device_id mma8452_id[] = {
+	{ "mma8451", mma8451 },
 	{ "mma8452", mma8452 },
 	{ "mma8453", mma8453 },
 	{ "mma8652", mma8652 },
