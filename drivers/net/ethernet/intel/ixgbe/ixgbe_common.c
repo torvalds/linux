@@ -3557,7 +3557,7 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 	if (buf_len == 0)
 		return 0;
 
-	if (length < (buf_len + hdr_size)) {
+	if (length < round_up(buf_len, 4) + hdr_size) {
 		hw_dbg(hw, "Buffer not large enough for reply message.\n");
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
