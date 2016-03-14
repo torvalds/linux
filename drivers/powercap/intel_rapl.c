@@ -1540,7 +1540,7 @@ static int __init rapl_init(void)
 
 	id = x86_match_cpu(rapl_ids);
 	if (!id) {
-		pr_err("driver does not support CPU family %d model %d\n",
+		pr_info("driver does not support CPU family %d model %d\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
 
 		return -ENODEV;
