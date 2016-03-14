@@ -478,6 +478,50 @@
 		status = "disabled";
 	};
 
+	pwm0: pwm@ff420000 {
+		compatible = "rockchip,rk3399-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff420000 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pin>;
+		clocks = <&cru PCLK_RKPWM_PMU>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm1: pwm@ff420010 {
+		compatible = "rockchip,rk3399-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff420010 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm1_pin>;
+		clocks = <&cru PCLK_RKPWM_PMU>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm2: pwm@ff420020 {
+		compatible = "rockchip,rk3399-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff420020 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm2_pin>;
+		clocks = <&cru PCLK_RKPWM_PMU>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
+	pwm3: pwm@ff420030 {
+		compatible = "rockchip,rk3399-pwm", "rockchip,rk3288-pwm";
+		reg = <0x0 0xff420030 0x0 0x10>;
+		#pwm-cells = <3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm3a_pin>;
+		clocks = <&cru PCLK_RKPWM_PMU>;
+		clock-names = "pwm";
+		status = "disabled";
+	};
+
 	pmucru: pmu-clock-controller@ff750000 {
 		compatible = "rockchip,rk3399-pmucru";
 		reg = <0x0 0xff750000 0x0 0x1000>;
@@ -1130,6 +1174,27 @@
 			vop1_pwm_pin: vop1-pwm-pin {
 				rockchip,pins =
 					<4 18 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
+		pwm2 {
+			pwm2_pin: pwm2-pin {
+				rockchip,pins =
+					<1 19 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm3a {
+			pwm3a_pin: pwm3a-pin {
+				rockchip,pins =
+					<0 6 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pwm3b {
+			pwm3b_pin: pwm3b-pin {
+				rockchip,pins =
+					<1 14 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};
