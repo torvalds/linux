@@ -455,15 +455,15 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 
 	if (soffset) {
 		/* make sure object fit at this offset */
-		eoffset = soffset + size;
+		eoffset = soffset + size - 1;
 		if (soffset >= eoffset) {
 			r = -EINVAL;
 			goto error_unreserve;
 		}
 
 		last_pfn = eoffset / RADEON_GPU_PAGE_SIZE;
-		if (last_pfn > rdev->vm_manager.max_pfn) {
-			dev_err(rdev->dev, "va above limit (0x%08X > 0x%08X)\n",
+		if (last_pfn >= rdev->vm_manager.max_pfn) {
+			dev_err(rdev->dev, "va above limit (0x%08X >= 0x%08X)\n",
 				last_pfn, rdev->vm_manager.max_pfn);
 			r = -EINVAL;
 			goto error_unreserve;
@@ -478,7 +478,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	eoffset /= RADEON_GPU_PAGE_SIZE;
 	if (soffset || eoffset) {
 		struct interval_tree_node *it;
-		it = interval_tree_iter_first(&vm->va, soffset, eoffset - 1);
+		it = interval_tree_iter_first(&vm->va, soffset, eoffset);
 		if (it && it != &bo_va->it) {
 			struct radeon_bo_va *tmp;
 			tmp = container_of(it, struct radeon_bo_va, it);
@@ -518,7 +518,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	if (soffset || eoffset) {
 		spin_lock(&vm->status_lock);
 		bo_va->it.start = soffset;
-		bo_va->it.last = eoffset - 1;
+		bo_va->it.last = eoffset;
 		list_add(&bo_va->vm_status, &vm->cleared);
 		spin_unlock(&vm->status_lock);
 		interval_tree_insert(&bo_va->it, &vm->va);
@@ -888,7 +888,7 @@ static void radeon_vm_fence_pts(struct radeon_vm *vm,
 	unsigned i;
 
 	start >>= radeon_vm_block_size;
-	end >>= radeon_vm_block_size;
+	end = (end - 1) >> radeon_vm_block_size;
 
 	for (i = start; i <= end; ++i)
 		radeon_bo_fence(vm->page_tables[i].bo, fence, true);

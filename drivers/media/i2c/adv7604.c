@@ -1960,10 +1960,9 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	}
 
 	/* tx 5v detect */
-	tx_5v = io_read(sd, 0x70) & info->cable_det_mask;
+	tx_5v = irq_reg_0x70 & info->cable_det_mask;
 	if (tx_5v) {
 		v4l2_dbg(1, debug, sd, "%s: tx_5v: 0x%x\n", __func__, tx_5v);
-		io_write(sd, 0x71, tx_5v);
 		adv76xx_s_detect_tx_5v_ctrl(sd);
 		if (handled)
 			*handled = true;

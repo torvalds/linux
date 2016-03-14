@@ -969,10 +969,13 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 
 		NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", name);
 
+		mutex_lock(&drm->dev->mode_config.mutex);
 		if (plugged)
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
 		else
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+		mutex_unlock(&drm->dev->mode_config.mutex);
+
 		drm_helper_hpd_irq_event(connector->dev);
 	}
 

@@ -86,7 +86,7 @@ int aic_common_set_priority(int priority, unsigned *val)
 	    priority > AT91_AIC_IRQ_MAX_PRIORITY)
 		return -EINVAL;
 
-	*val &= AT91_AIC_PRIOR;
+	*val &= ~AT91_AIC_PRIOR;
 	*val |= priority;
 
 	return 0;

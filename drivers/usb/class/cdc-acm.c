@@ -1841,6 +1841,11 @@ static const struct usb_device_id acm_ids[] = {
 	},
 #endif
 
+	/*Samsung phone in firmware update mode */
+	{ USB_DEVICE(0x04e8, 0x685d),
+	.driver_info = IGNORE_DEVICE,
+	},
+
 	/* Exclude Infineon Flash Loader utility */
 	{ USB_DEVICE(0x058b, 0x0041),
 	.driver_info = IGNORE_DEVICE,

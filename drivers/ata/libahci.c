@@ -1142,8 +1142,7 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 
 	/* mark esata ports */
 	tmp = readl(port_mmio + PORT_CMD);
-	if ((tmp & PORT_CMD_HPCP) ||
-	    ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS)))
+	if ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS))
 		ap->pflags |= ATA_PFLAG_EXTERNAL;
 }
 

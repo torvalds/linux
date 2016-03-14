@@ -626,9 +626,9 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	 * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
 	 */
 	if (!mmc_host_is_spi(card->host) &&
-		(card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
-		 card->sd_bus_speed == UHS_DDR50_BUS_SPEED ||
-		 card->sd_bus_speed == UHS_SDR104_BUS_SPEED)) {
+		(card->host->ios.timing == MMC_TIMING_UHS_SDR50 ||
+		 card->host->ios.timing == MMC_TIMING_UHS_DDR50 ||
+		 card->host->ios.timing == MMC_TIMING_UHS_SDR104)) {
 		err = mmc_execute_tuning(card);
 
 		/*
@@ -638,7 +638,7 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 		 * difference between v3.00 and 3.01 spec means that CMD19
 		 * tuning is also available for DDR50 mode.
 		 */
-		if (err && card->sd_bus_speed == UHS_DDR50_BUS_SPEED) {
+		if (err && card->host->ios.timing == MMC_TIMING_UHS_DDR50) {
 			pr_warn("%s: ddr50 tuning failed\n",
 				mmc_hostname(card->host));
 			err = 0;

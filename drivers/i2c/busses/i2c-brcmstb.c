@@ -562,8 +562,7 @@ static int brcmstb_i2c_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->bsc_regmap = devm_kzalloc(&pdev->dev, sizeof(struct bsc_regs *),
-				       GFP_KERNEL);
+	dev->bsc_regmap = devm_kzalloc(&pdev->dev, sizeof(*dev->bsc_regmap), GFP_KERNEL);
 	if (!dev->bsc_regmap)
 		return -ENOMEM;
 

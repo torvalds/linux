@@ -267,6 +267,7 @@ ENTRY(entry_INT80_compat)
 	 * Interrupts are off on entry.
 	 */
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
+	ASM_CLAC			/* Do this early to minimize exposure */
 	SWAPGS
 
 	/*
