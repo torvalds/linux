@@ -133,6 +133,13 @@ hardware.
 
 	Locking: none.
 
+  unthrottle(port)
+	Notify the serial driver that characters can now be sent to the serial
+	port without fear of overrunning the input buffers of the line
+	disciplines.
+
+	Locking: none.
+
   send_xchar(port,ch)
 	Transmit a high priority character, even if the port is stopped.
 	This is used to implement XON/XOFF flow control and tcflow().  If
