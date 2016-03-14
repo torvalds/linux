@@ -314,7 +314,6 @@ static int __init acpi_processor_driver_init(void)
 	if (result < 0)
 		return result;
 
-	acpi_processor_syscore_init();
 	register_hotcpu_notifier(&acpi_cpu_notifier);
 	acpi_thermal_cpufreq_init();
 	acpi_processor_ppc_init();
@@ -330,7 +329,6 @@ static void __exit acpi_processor_driver_exit(void)
 	acpi_processor_ppc_exit();
 	acpi_thermal_cpufreq_exit();
 	unregister_hotcpu_notifier(&acpi_cpu_notifier);
-	acpi_processor_syscore_exit();
 	driver_unregister(&acpi_processor_driver);
 }
 
