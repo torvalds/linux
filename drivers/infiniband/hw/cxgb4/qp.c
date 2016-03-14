@@ -1697,6 +1697,8 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.max_ird = 0;
 	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
+	init_completion(&qhp->sq_drained);
+	init_completion(&qhp->rq_drained);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
 	atomic_set(&qhp->refcnt, 1);
@@ -1887,4 +1889,18 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
 	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;
+}
+
+void c4iw_drain_sq(struct ib_qp *ibqp)
+{
+	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
+
+	wait_for_completion(&qp->sq_drained);
+}
+
+void c4iw_drain_rq(struct ib_qp *ibqp)
+{
+	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
+
+	wait_for_completion(&qp->rq_drained);
 }
