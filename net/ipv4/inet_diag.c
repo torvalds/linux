@@ -879,6 +879,7 @@ next_normal:
 		}
 
 		spin_unlock_bh(lock);
+		cond_resched();
 	}
 
 done:
