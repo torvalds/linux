@@ -3600,7 +3600,7 @@ s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 	fw_cmd.hdr.cmd = FW_CEM_CMD_DRIVER_INFO;
 	fw_cmd.hdr.buf_len = FW_CEM_CMD_DRIVER_INFO_LEN;
 	fw_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
-	fw_cmd.port_num = (u8)hw->bus.func;
+	fw_cmd.port_num = hw->bus.func;
 	fw_cmd.ver_maj = maj;
 	fw_cmd.ver_min = min;
 	fw_cmd.ver_build = build;

@@ -862,7 +862,7 @@ static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 		fw_cmd.hdr.cmd = FW_DISABLE_RXEN_CMD;
 		fw_cmd.hdr.buf_len = FW_DISABLE_RXEN_LEN;
 		fw_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
-		fw_cmd.port_number = (u8)hw->bus.lan_id;
+		fw_cmd.port_number = hw->bus.lan_id;
 
 		status = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
 					sizeof(struct ixgbe_hic_disable_rxen),

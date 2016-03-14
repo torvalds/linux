@@ -3122,8 +3122,8 @@ struct ixgbe_bus_info {
 	enum ixgbe_bus_width width;
 	enum ixgbe_bus_type type;
 
-	u16 func;
-	u16 lan_id;
+	u8 func;
+	u8 lan_id;
 };
 
 /* Flow control parameters */
