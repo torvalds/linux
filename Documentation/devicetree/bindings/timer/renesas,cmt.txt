@@ -14,32 +14,26 @@ Required Properties:
   - compatible: must contain one or more of the following:
     - "renesas,cmt-32-r8a7740" for the r8a7740 32-bit CMT
 		(CMT0)
-    - "renesas,cmt-32-sh7372" for the sh7372 32-bit CMT
-		(CMT0)
     - "renesas,cmt-32-sh73a0" for the sh73a0 32-bit CMT
 		(CMT0)
     - "renesas,cmt-32" for all 32-bit CMT without fast clock support
-		(CMT0 on sh7372, sh73a0 and r8a7740)
+		(CMT0 on sh73a0 and r8a7740)
 		This is a fallback for the above renesas,cmt-32-* entries.
 
     - "renesas,cmt-32-fast-r8a7740" for the r8a7740 32-bit CMT with fast
 		clock support (CMT[234])
-    - "renesas,cmt-32-fast-sh7372" for the sh7372 32-bit CMT with fast
-		clock support (CMT[234])
     - "renesas,cmt-32-fast-sh73a0" for the sh73A0 32-bit CMT with fast
 		clock support (CMT[234])
     - "renesas,cmt-32-fast" for all 32-bit CMT with fast clock support
-		(CMT[234] on sh7372, sh73a0 and r8a7740)
+		(CMT[234] on sh73a0 and r8a7740)
 		This is a fallback for the above renesas,cmt-32-fast-* entries.
 
-    - "renesas,cmt-48-sh7372" for the sh7372 48-bit CMT
-		(CMT1)
     - "renesas,cmt-48-sh73a0" for the sh73A0 48-bit CMT
 		(CMT1)
     - "renesas,cmt-48-r8a7740" for the r8a7740 48-bit CMT
 		(CMT1)
     - "renesas,cmt-48" for all non-second generation 48-bit CMT
-		(CMT1 on sh7372, sh73a0 and r8a7740)
+		(CMT1 on sh73a0 and r8a7740)
 		This is a fallback for the above renesas,cmt-48-* entries.
 
     - "renesas,cmt-48-r8a73a4" for the r8a73a4 48-bit CMT
