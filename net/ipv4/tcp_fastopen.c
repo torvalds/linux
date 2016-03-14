@@ -140,6 +140,14 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 		return;
 
 	skb_dst_drop(skb);
+	/* segs_in has been initialized to 1 in tcp_create_openreq_child().
+	 * Hence, reset segs_in to 0 before calling tcp_segs_in()
+	 * to avoid double counting.  Also, tcp_segs_in() expects
+	 * skb->len to include the tcp_hdrlen.  Hence, it should
+	 * be called before __skb_pull().
+	 */
+	tp->segs_in = 0;
+	tcp_segs_in(tp, skb);
 	__skb_pull(skb, tcp_hdrlen(skb));
 	skb_set_owner_r(skb, sk);
 

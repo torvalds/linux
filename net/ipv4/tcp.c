@@ -2715,6 +2715,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_notsent_bytes = max(0, notsent_bytes);
 
 	info->tcpi_min_rtt = tcp_min_rtt(tp);
+	info->tcpi_data_segs_in = tp->data_segs_in;
+	info->tcpi_data_segs_out = tp->data_segs_out;
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
