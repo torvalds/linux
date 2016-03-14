@@ -1256,8 +1256,10 @@ int __init register_tracer(struct tracer *type)
 	if (!type->flags) {
 		/*allocate a dummy tracer_flags*/
 		type->flags = kmalloc(sizeof(*type->flags), GFP_KERNEL);
-		if (!type->flags)
-			return -ENOMEM;
+		if (!type->flags) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		type->flags->val = 0;
 		type->flags->opts = dummy_tracer_opt;
 	} else
