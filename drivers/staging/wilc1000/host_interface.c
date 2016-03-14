@@ -232,7 +232,7 @@ static struct task_struct *hif_thread_handler;
 static struct message_queue hif_msg_q;
 static struct semaphore hif_sema_thread;
 static struct semaphore hif_sema_driver;
-static struct semaphore hif_sema_wait_response;
+static struct completion hif_wait_response;
 static struct semaphore hif_sema_deinit;
 static struct timer_list periodic_rssi;
 
@@ -430,7 +430,7 @@ static s32 handle_get_mac_address(struct wilc_vif *vif,
 		netdev_err(vif->ndev, "Failed to get mac address\n");
 		result = -EFAULT;
 	}
-	up(&hif_sema_wait_response);
+	complete(&hif_wait_response);
 
 	return result;
 }
@@ -1938,7 +1938,7 @@ static s32 Handle_GetStatistics(struct wilc_vif *vif,
 		wilc_enable_tcp_ack_filter(false);
 
 	if (pstrStatistics != &vif->wilc->dummy_statistics)
-		up(&hif_sema_wait_response);
+		complete(&hif_wait_response);
 	return 0;
 }
 
@@ -2172,7 +2172,7 @@ static void Handle_DelAllSta(struct wilc_vif *vif,
 ERRORHANDLER:
 	kfree(wid.val);
 
-	up(&hif_sema_wait_response);
+	complete(&hif_wait_response);
 }
 
 static void Handle_DelStation(struct wilc_vif *vif,
@@ -2485,7 +2485,7 @@ static void handle_get_tx_pwr(struct wilc_vif *vif, u8 *tx_pwr)
 	if (ret)
 		netdev_err(vif->ndev, "Failed to get TX PWR\n");
 
-	up(&hif_sema_wait_response);
+	complete(&hif_wait_response);
 }
 
 static int hostIFthread(void *pvArg)
@@ -3007,7 +3007,7 @@ int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 		return -EFAULT;
 	}
 
-	down(&hif_sema_wait_response);
+	wait_for_completion(&hif_wait_response);
 	return result;
 }
 
@@ -3272,7 +3272,7 @@ int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 	}
 
 	if (stats != &vif->wilc->dummy_statistics)
-		down(&hif_sema_wait_response);
+		wait_for_completion(&hif_wait_response);
 	return result;
 }
 
@@ -3382,7 +3382,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	scan_while_connected = false;
 
-	sema_init(&hif_sema_wait_response, 0);
+	init_completion(&hif_wait_response);
 
 	hif_drv  = kzalloc(sizeof(struct host_if_drv), GFP_KERNEL);
 	if (!hif_drv) {
@@ -3888,7 +3888,7 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	if (result)
 		netdev_err(vif->ndev, "wilc_mq_send fail\n");
 
-	down(&hif_sema_wait_response);
+	wait_for_completion(&hif_wait_response);
 
 	return result;
 }
@@ -4221,7 +4221,7 @@ int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 	if (ret)
 		netdev_err(vif->ndev, "Failed to get TX PWR\n");
 
-	down(&hif_sema_wait_response);
+	wait_for_completion(&hif_wait_response);
 	*tx_power = msg.body.tx_power.tx_pwr;
 
 	return ret;
