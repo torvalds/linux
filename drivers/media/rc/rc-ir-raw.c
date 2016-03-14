@@ -59,7 +59,9 @@ static int ir_raw_event_thread(void *data)
 
 		mutex_lock(&ir_raw_handler_lock);
 		list_for_each_entry(handler, &ir_raw_handler_list, list)
-			handler->decode(raw->dev, ev);
+			if (raw->dev->enabled_protocols & handler->protocols ||
+			    !handler->protocols)
+				handler->decode(raw->dev, ev);
 		raw->prev_ev = ev;
 		mutex_unlock(&ir_raw_handler_lock);
 	}
@@ -246,6 +248,14 @@ static int change_protocol(struct rc_dev *dev, u64 *rc_type)
 	return 0;
 }
 
+static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
+{
+	mutex_lock(&dev->lock);
+	dev->enabled_protocols &= ~protocols;
+	dev->enabled_wakeup_protocols &= ~protocols;
+	mutex_unlock(&dev->lock);
+}
+
 /*
  * Used to (un)register raw event clients
  */
@@ -337,33 +347,16 @@ EXPORT_SYMBOL(ir_raw_handler_register);
 void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
 	struct ir_raw_event_ctrl *raw;
+	u64 protocols = ir_raw_handler->protocols;
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
-	if (ir_raw_handler->raw_unregister)
-		list_for_each_entry(raw, &ir_raw_client_list, list)
+	list_for_each_entry(raw, &ir_raw_client_list, list) {
+		ir_raw_disable_protocols(raw->dev, protocols);
+		if (ir_raw_handler->raw_unregister)
 			ir_raw_handler->raw_unregister(raw->dev);
-	available_protocols &= ~ir_raw_handler->protocols;
+	}
+	available_protocols &= ~protocols;
 	mutex_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
-
-void ir_raw_init(void)
-{
-	/* Load the decoder modules */
-
-	load_nec_decode();
-	load_rc5_decode();
-	load_rc6_decode();
-	load_jvc_decode();
-	load_sony_decode();
-	load_sanyo_decode();
-	load_sharp_decode();
-	load_mce_kbd_decode();
-	load_lirc_codec();
-	load_xmp_decode();
-
-	/* If needed, we may later add some init code. In this case,
-	   it is needed to change the CONFIG_MODULE test at rc-core.h
-	 */
-}

@@ -8,10 +8,13 @@
 #include <asm/pci_insn.h>
 
 /* I/O Map */
-#define ZPCI_IOMAP_MAX_ENTRIES		0x7fff
-#define ZPCI_IOMAP_ADDR_BASE		0x8000000000000000ULL
-#define ZPCI_IOMAP_ADDR_IDX_MASK	0x7fff000000000000ULL
-#define ZPCI_IOMAP_ADDR_OFF_MASK	0x0000ffffffffffffULL
+#define ZPCI_IOMAP_SHIFT		48
+#define ZPCI_IOMAP_ADDR_BASE		0x8000000000000000UL
+#define ZPCI_IOMAP_ADDR_OFF_MASK	((1UL << ZPCI_IOMAP_SHIFT) - 1)
+#define ZPCI_IOMAP_MAX_ENTRIES							\
+	((ULONG_MAX - ZPCI_IOMAP_ADDR_BASE + 1) / (1UL << ZPCI_IOMAP_SHIFT))
+#define ZPCI_IOMAP_ADDR_IDX_MASK						\
+	(~ZPCI_IOMAP_ADDR_OFF_MASK - ZPCI_IOMAP_ADDR_BASE)
 
 struct zpci_iomap_entry {
 	u32 fh;
@@ -21,8 +24,9 @@ struct zpci_iomap_entry {
 
 extern struct zpci_iomap_entry *zpci_iomap_start;
 
+#define ZPCI_ADDR(idx) (ZPCI_IOMAP_ADDR_BASE | ((u64) idx << ZPCI_IOMAP_SHIFT))
 #define ZPCI_IDX(addr)								\
-	(((__force u64) addr & ZPCI_IOMAP_ADDR_IDX_MASK) >> 48)
+	(((__force u64) addr & ZPCI_IOMAP_ADDR_IDX_MASK) >> ZPCI_IOMAP_SHIFT)
 #define ZPCI_OFFSET(addr)							\
 	((__force u64) addr & ZPCI_IOMAP_ADDR_OFF_MASK)
 

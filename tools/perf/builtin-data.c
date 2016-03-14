@@ -2,7 +2,7 @@
 #include "builtin.h"
 #include "perf.h"
 #include "debug.h"
-#include "parse-options.h"
+#include <subcmd/parse-options.h>
 #include "data-convert-bt.h"
 
 typedef int (*data_cmd_fn_t)(int argc, const char **argv, const char *prefix);

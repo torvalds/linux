@@ -41,7 +41,7 @@
 
 #include "bttvp.h"
 #include <media/v4l2-common.h>
-#include <media/tvaudio.h>
+#include <media/i2c/tvaudio.h>
 #include "bttv-audio-hook.h"
 
 /* fwd decl */
@@ -3808,7 +3808,7 @@ static void bttv_tea575x_set_direction(struct snd_tea575x *tea, bool output)
 		gpio_inout(mask, (1 << gpio.clk) | (1 << gpio.wren));
 }
 
-static struct snd_tea575x_ops bttv_tea_ops = {
+static const struct snd_tea575x_ops bttv_tea_ops = {
 	.set_pins = bttv_tea575x_set_pins,
 	.get_pins = bttv_tea575x_get_pins,
 	.set_direction = bttv_tea575x_set_direction,

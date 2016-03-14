@@ -1224,6 +1224,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_link = (char *)oi->i_data;
 		} else {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &exofs_aops;
 		}
 	} else {

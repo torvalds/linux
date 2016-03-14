@@ -228,7 +228,7 @@ static int ovl_check_whiteouts(struct dentry *dir, struct ovl_readdir_data *rdd)
 				dput(dentry);
 			}
 		}
-		mutex_unlock(&dir->d_inode->i_mutex);
+		inode_unlock(dir->d_inode);
 	}
 	revert_creds(old_cred);
 	put_cred(override_cred);
@@ -399,7 +399,7 @@ static loff_t ovl_dir_llseek(struct file *file, loff_t offset, int origin)
 	loff_t res;
 	struct ovl_dir_file *od = file->private_data;
 
-	mutex_lock(&file_inode(file)->i_mutex);
+	inode_lock(file_inode(file));
 	if (!file->f_pos)
 		ovl_dir_reset(file);
 
@@ -429,7 +429,7 @@ static loff_t ovl_dir_llseek(struct file *file, loff_t offset, int origin)
 		res = offset;
 	}
 out_unlock:
-	mutex_unlock(&file_inode(file)->i_mutex);
+	inode_unlock(file_inode(file));
 
 	return res;
 }
@@ -454,10 +454,10 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 			ovl_path_upper(dentry, &upperpath);
 			realfile = ovl_path_open(&upperpath, O_RDONLY);
 			smp_mb__before_spinlock();
-			mutex_lock(&inode->i_mutex);
+			inode_lock(inode);
 			if (!od->upperfile) {
 				if (IS_ERR(realfile)) {
-					mutex_unlock(&inode->i_mutex);
+					inode_unlock(inode);
 					return PTR_ERR(realfile);
 				}
 				od->upperfile = realfile;
@@ -467,7 +467,7 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 					fput(realfile);
 				realfile = od->upperfile;
 			}
-			mutex_unlock(&inode->i_mutex);
+			inode_unlock(inode);
 		}
 	}
 
@@ -479,9 +479,9 @@ static int ovl_dir_release(struct inode *inode, struct file *file)
 	struct ovl_dir_file *od = file->private_data;
 
 	if (od->cache) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		ovl_cache_put(od, file->f_path.dentry);
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	}
 	fput(od->realfile);
 	if (od->upperfile)
@@ -557,7 +557,7 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 {
 	struct ovl_cache_entry *p;
 
-	mutex_lock_nested(&upper->d_inode->i_mutex, I_MUTEX_CHILD);
+	inode_lock_nested(upper->d_inode, I_MUTEX_CHILD);
 	list_for_each_entry(p, list, l_node) {
 		struct dentry *dentry;
 
@@ -571,8 +571,9 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 			       (int) PTR_ERR(dentry));
 			continue;
 		}
-		ovl_cleanup(upper->d_inode, dentry);
+		if (dentry->d_inode)
+			ovl_cleanup(upper->d_inode, dentry);
 		dput(dentry);
 	}
-	mutex_unlock(&upper->d_inode->i_mutex);
+	inode_unlock(upper->d_inode);
 }

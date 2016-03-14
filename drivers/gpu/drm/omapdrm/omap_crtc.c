@@ -524,7 +524,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	omap_crtc->mgr = omap_dss_get_overlay_manager(channel);
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
-					&omap_crtc_funcs);
+					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
 		kfree(omap_crtc);
 		return NULL;

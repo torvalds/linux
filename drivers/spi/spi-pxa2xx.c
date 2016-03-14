@@ -1567,9 +1567,6 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (!is_quark_x1000_ssp(drv_data))
 		pxa2xx_spi_write(drv_data, SSPSP, 0);
 
-	if (is_lpss_ssp(drv_data))
-		lpss_ssp_setup(drv_data);
-
 	if (is_lpss_ssp(drv_data)) {
 		lpss_ssp_setup(drv_data);
 		config = lpss_get_config(drv_data);

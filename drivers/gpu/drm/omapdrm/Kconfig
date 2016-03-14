@@ -1,9 +1,8 @@
-
 config DRM_OMAP
 	tristate "OMAP DRM"
 	depends on DRM
 	depends on ARCH_OMAP2PLUS || ARCH_MULTIPLATFORM
-	depends on OMAP2_DSS
+	select OMAP2_DSS
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
@@ -14,13 +13,18 @@ config DRM_OMAP
 	help
 	  DRM display driver for OMAP2/3/4 based boards.
 
+if DRM_OMAP
+
 config DRM_OMAP_NUM_CRTCS
 	int "Number of CRTCs"
 	range 1 10
 	default 1  if ARCH_OMAP2 || ARCH_OMAP3
 	default 2  if ARCH_OMAP4
-	depends on DRM_OMAP
 	help
 	  Select the number of video overlays which can be used as framebuffers.
 	  The remaining overlays are reserved for video.
 
+source "drivers/gpu/drm/omapdrm/dss/Kconfig"
+source "drivers/gpu/drm/omapdrm/displays/Kconfig"
+
+endif

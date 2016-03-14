@@ -3531,12 +3531,14 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
+	rtnl_lock();
 	if (learned && removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
 					 lw->rocker_port->dev, &info.info);
 	else if (learned && !removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD,
 					 lw->rocker_port->dev, &info.info);
+	rtnl_unlock();
 
 	rocker_port_kfree(lw->trans, work);
 }
@@ -4998,7 +5000,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	dev->netdev_ops = &rocker_port_netdev_ops;
 	dev->ethtool_ops = &rocker_port_ethtool_ops;
 	dev->switchdev_ops = &rocker_port_switchdev_ops;
-	netif_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
+	netif_tx_napi_add(dev, &rocker_port->napi_tx, rocker_port_poll_tx,
 		       NAPI_POLL_WEIGHT);
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx,
 		       NAPI_POLL_WEIGHT);

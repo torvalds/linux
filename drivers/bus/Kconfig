@@ -131,6 +131,14 @@ config SUNXI_RSB
 	  with various RSB based devices, such as AXP223, AXP8XX PMICs,
 	  and AC100/AC200 ICs.
 
+config UNIPHIER_SYSTEM_BUS
+	tristate "UniPhier System Bus driver"
+	depends on ARCH_UNIPHIER && OF
+	default y
+	help
+	  Support for UniPhier System Bus, a simple external bus.  This is
+	  needed to use on-board devices connected to UniPhier SoCs.
+
 config VEXPRESS_CONFIG
 	bool "Versatile Express configuration bus"
 	default y if ARCH_VEXPRESS

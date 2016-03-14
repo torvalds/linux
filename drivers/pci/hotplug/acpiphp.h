@@ -181,7 +181,7 @@ struct acpiphp_attention_info
 /* function prototypes */
 
 /* acpiphp_core.c */
-int acpiphp_register_attention(struct acpiphp_attention_info*info);
+int acpiphp_register_attention(struct acpiphp_attention_info *info);
 int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
 int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot, unsigned int sun);
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);

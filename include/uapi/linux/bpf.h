@@ -269,8 +269,31 @@ enum bpf_func_id {
 	 * Return: 0 on success
 	 */
 	BPF_FUNC_perf_event_output,
+	BPF_FUNC_skb_load_bytes,
 	__BPF_FUNC_MAX_ID,
 };
+
+/* All flags used by eBPF helper functions, placed here. */
+
+/* BPF_FUNC_skb_store_bytes flags. */
+#define BPF_F_RECOMPUTE_CSUM		(1ULL << 0)
+
+/* BPF_FUNC_l3_csum_replace and BPF_FUNC_l4_csum_replace flags.
+ * First 4 bits are for passing the header field size.
+ */
+#define BPF_F_HDR_FIELD_MASK		0xfULL
+
+/* BPF_FUNC_l4_csum_replace flags. */
+#define BPF_F_PSEUDO_HDR		(1ULL << 4)
+
+/* BPF_FUNC_clone_redirect and BPF_FUNC_redirect flags. */
+#define BPF_F_INGRESS			(1ULL << 0)
+
+/* BPF_FUNC_skb_set_tunnel_key and BPF_FUNC_skb_get_tunnel_key flags. */
+#define BPF_F_TUNINFO_IPV6		(1ULL << 0)
+
+/* BPF_FUNC_skb_set_tunnel_key flags. */
+#define BPF_F_ZERO_CSUM_TX		(1ULL << 1)
 
 /* user accessible mirror of in-kernel sk_buff.
  * new fields can only be added to the end of this structure
@@ -295,7 +318,12 @@ struct __sk_buff {
 
 struct bpf_tunnel_key {
 	__u32 tunnel_id;
-	__u32 remote_ipv4;
+	union {
+		__u32 remote_ipv4;
+		__u32 remote_ipv6[4];
+	};
+	__u8 tunnel_tos;
+	__u8 tunnel_ttl;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */

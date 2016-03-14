@@ -66,7 +66,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	}
 
 	if (unlikely(!bip))
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	memset(bip, 0, sizeof(*bip));
 
@@ -89,7 +89,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 	return bip;
 err:
 	mempool_free(bip, bs->bio_integrity_pool);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(bio_integrity_alloc);
 
@@ -298,10 +298,10 @@ int bio_integrity_prep(struct bio *bio)
 
 	/* Allocate bio integrity payload and integrity vectors */
 	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
-	if (unlikely(bip == NULL)) {
+	if (IS_ERR(bip)) {
 		printk(KERN_ERR "could not allocate data integrity bioset\n");
 		kfree(buf);
-		return -EIO;
+		return PTR_ERR(bip);
 	}
 
 	bip->bip_flags |= BIP_BLOCK_INTEGRITY;
@@ -465,9 +465,8 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 	BUG_ON(bip_src == NULL);
 
 	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
-
-	if (bip == NULL)
-		return -EIO;
+	if (IS_ERR(bip))
+		return PTR_ERR(bip);
 
 	memcpy(bip->bip_vec, bip_src->bip_vec,
 	       bip_src->bip_vcnt * sizeof(struct bio_vec));

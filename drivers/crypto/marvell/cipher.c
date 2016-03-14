@@ -401,7 +401,15 @@ static int mv_cesa_ablkcipher_req_init(struct ablkcipher_request *req,
 		return -EINVAL;
 
 	creq->src_nents = sg_nents_for_len(req->src, req->nbytes);
+	if (creq->src_nents < 0) {
+		dev_err(cesa_dev->dev, "Invalid number of src SG");
+		return creq->src_nents;
+	}
 	creq->dst_nents = sg_nents_for_len(req->dst, req->nbytes);
+	if (creq->dst_nents < 0) {
+		dev_err(cesa_dev->dev, "Invalid number of dst SG");
+		return creq->dst_nents;
+	}
 
 	mv_cesa_update_op_cfg(tmpl, CESA_SA_DESC_CFG_OP_CRYPT_ONLY,
 			      CESA_SA_DESC_CFG_OP_MSK);

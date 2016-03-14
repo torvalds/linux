@@ -41,8 +41,8 @@
  40 -> Plextor ConvertX PX-TV100U               (em2861)        [093b:a005]
  41 -> Kworld 350 U DVB-T                       (em2870)        [eb1a:e350]
  42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357,eb1a:e359]
- 43 -> Terratec Cinergy T XS                    (em2870)        [0ccd:0043]
- 44 -> Terratec Cinergy T XS (MT2060)           (em2870)
+ 43 -> Terratec Cinergy T XS                    (em2870)
+ 44 -> Terratec Cinergy T XS (MT2060)           (em2870)        [0ccd:0043]
  45 -> Pinnacle PCTV DVB-T                      (em2870)
  46 -> Compro, VideoMate U3                     (em2870)        [185b:2870]
  47 -> KWorld DVB-T 305U                        (em2880)        [eb1a:e305]

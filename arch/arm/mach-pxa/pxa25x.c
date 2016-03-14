@@ -30,9 +30,9 @@
 #include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/reset.h>
-#include <mach/pm.h>
+#include "pm.h"
 #include <mach/dma.h>
 #include <mach/smemc.h>
 

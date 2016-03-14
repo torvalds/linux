@@ -3013,8 +3013,8 @@ struct afex_stats {
 };
 
 #define BCM_5710_FW_MAJOR_VERSION			7
-#define BCM_5710_FW_MINOR_VERSION			12
-#define BCM_5710_FW_REVISION_VERSION		30
+#define BCM_5710_FW_MINOR_VERSION			13
+#define BCM_5710_FW_REVISION_VERSION		1
 #define BCM_5710_FW_ENGINEERING_VERSION		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -3583,7 +3583,7 @@ enum classify_rule {
 	CLASSIFY_RULE_OPCODE_MAC,
 	CLASSIFY_RULE_OPCODE_VLAN,
 	CLASSIFY_RULE_OPCODE_PAIR,
-	CLASSIFY_RULE_OPCODE_VXLAN,
+	CLASSIFY_RULE_OPCODE_IMAC_VNI,
 	MAX_CLASSIFY_RULE
 };
 
@@ -3826,6 +3826,17 @@ struct eth_classify_header {
 	__le32 echo;
 };
 
+/*
+ * Command for adding/removing a Inner-MAC/VNI classification rule
+ */
+struct eth_classify_imac_vni_cmd {
+	struct eth_classify_cmd_header header;
+	__le32 vni;
+	__le16 imac_lsb;
+	__le16 imac_mid;
+	__le16 imac_msb;
+	__le16 reserved1;
+};
 
 /*
  * Command for adding/removing a MAC classification rule
@@ -3869,14 +3880,6 @@ struct eth_classify_vlan_cmd {
 /*
  * Command for adding/removing a VXLAN classification rule
  */
-struct eth_classify_vxlan_cmd {
-	struct eth_classify_cmd_header header;
-	__le32 vni;
-	__le16 inner_mac_lsb;
-	__le16 inner_mac_mid;
-	__le16 inner_mac_msb;
-	__le16 reserved1;
-};
 
 /*
  * union for eth classification rule
@@ -3885,7 +3888,7 @@ union eth_classify_rule_cmd {
 	struct eth_classify_mac_cmd mac;
 	struct eth_classify_vlan_cmd vlan;
 	struct eth_classify_pair_cmd pair;
-	struct eth_classify_vxlan_cmd vxlan;
+	struct eth_classify_imac_vni_cmd imac_vni;
 };
 
 /*
@@ -4893,9 +4896,9 @@ struct c2s_pri_trans_table_entry {
  * cfc delete event data
  */
 struct cfc_del_event_data {
-	u32 cid;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 cid;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 
@@ -5111,15 +5114,9 @@ struct vf_pf_channel_zone_trigger {
  * zone that triggers the in-bound interrupt
  */
 struct trigger_vf_zone {
-#if defined(__BIG_ENDIAN)
-	u16 reserved1;
-	u8 reserved0;
-	struct vf_pf_channel_zone_trigger vf_pf_channel;
-#elif defined(__LITTLE_ENDIAN)
 	struct vf_pf_channel_zone_trigger vf_pf_channel;
 	u8 reserved0;
 	u16 reserved1;
-#endif
 	u32 reserved2;
 };
 
@@ -5204,9 +5201,9 @@ struct e2_integ_data {
  * set mac event data
  */
 struct eth_event_data {
-	u32 echo;
-	u32 reserved0;
-	u32 reserved1;
+	__le32 echo;
+	__le32 reserved0;
+	__le32 reserved1;
 };
 
 
@@ -5216,9 +5213,9 @@ struct eth_event_data {
 struct vf_pf_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 msg_addr_lo;
-	u32 msg_addr_hi;
+	__le16 reserved1;
+	__le32 msg_addr_lo;
+	__le32 msg_addr_hi;
 };
 
 /*
@@ -5227,9 +5224,9 @@ struct vf_pf_event_data {
 struct vf_flr_event_data {
 	u8 vf_id;
 	u8 reserved0;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*
@@ -5238,9 +5235,9 @@ struct vf_flr_event_data {
 struct malicious_vf_event_data {
 	u8 vf_id;
 	u8 err_id;
-	u16 reserved1;
-	u32 reserved2;
-	u32 reserved3;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
 };
 
 /*
@@ -5623,6 +5620,14 @@ enum igu_mode {
 	MAX_IGU_MODE
 };
 
+/*
+ * Inner Headers Classification Type
+ */
+enum inner_clss_type {
+	INNER_CLSS_DISABLED,
+	INNER_CLSS_USE_VLAN,
+	INNER_CLSS_USE_VNI,
+	MAX_INNER_CLSS_TYPE};
 
 /*
  * IP versions
@@ -5951,14 +5956,6 @@ enum ts_offset_cmd {
 	TS_OFFSET_INC,
 	TS_OFFSET_DEC,
 	MAX_TS_OFFSET_CMD
-};
-
-/* Tunnel Mode */
-enum tunnel_mode {
-	TUNN_MODE_NONE,
-	TUNN_MODE_VXLAN,
-	TUNN_MODE_GRE,
-	MAX_TUNNEL_MODE
 };
 
  /* zone A per-queue data */

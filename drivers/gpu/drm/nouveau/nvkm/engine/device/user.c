@@ -31,6 +31,7 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
+#include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
 struct nvkm_udevice {
@@ -48,10 +49,10 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	union {
 		struct nv_device_info_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "device info size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(object, "device info vers %d\n", args->v0.version);
 	} else
 		return ret;
@@ -123,13 +124,16 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 static int
 nvkm_udevice_time(struct nvkm_udevice *udev, void *data, u32 size)
 {
+	struct nvkm_object *object = &udev->object;
 	struct nvkm_device *device = udev->device;
 	union {
 		struct nv_device_time_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	nvif_ioctl(object, "device time size %d\n", size);
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+		nvif_ioctl(object, "device time vers %d\n", args->v0.version);
 		args->v0.time = nvkm_timer_read(device->timer);
 	}
 
@@ -140,6 +144,7 @@ static int
 nvkm_udevice_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	struct nvkm_udevice *udev = nvkm_udevice(object);
+	nvif_ioctl(object, "device mthd %08x\n", mthd);
 	switch (mthd) {
 	case NV_DEVICE_V0_INFO:
 		return nvkm_udevice_info(udev, data, size);
@@ -331,10 +336,10 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct nvkm_object *parent = &client->object;
 	const struct nvkm_object_func *func;
 	struct nvkm_udevice *udev;
-	int ret;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(parent, "create device size %d\n", size);
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create device v%d device %016llx\n",
 			   args->v0.version, args->v0.device);
 	} else

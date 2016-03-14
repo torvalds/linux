@@ -32,7 +32,7 @@ static int perf_evsel__test_field(struct perf_evsel *evsel, const char *name,
 	return ret;
 }
 
-int test__perf_evsel__tp_sched_test(void)
+int test__perf_evsel__tp_sched_test(int subtest __maybe_unused)
 {
 	struct perf_evsel *evsel = perf_evsel__newtp("sched", "sched_switch");
 	int ret = 0;

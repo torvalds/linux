@@ -106,7 +106,7 @@ static uint16_t ceph_fscache_inode_get_aux(const void *cookie_netfs_data,
 
 	memset(&aux, 0, sizeof(aux));
 	aux.mtime = inode->i_mtime;
-	aux.size = inode->i_size;
+	aux.size = i_size_read(inode);
 
 	memcpy(buffer, &aux, sizeof(aux));
 
@@ -117,9 +117,7 @@ static void ceph_fscache_inode_get_attr(const void *cookie_netfs_data,
 					uint64_t *size)
 {
 	const struct ceph_inode_info* ci = cookie_netfs_data;
-	const struct inode* inode = &ci->vfs_inode;
-
-	*size = inode->i_size;
+	*size = i_size_read(&ci->vfs_inode);
 }
 
 static enum fscache_checkaux ceph_fscache_inode_check_aux(
@@ -134,7 +132,7 @@ static enum fscache_checkaux ceph_fscache_inode_check_aux(
 
 	memset(&aux, 0, sizeof(aux));
 	aux.mtime = inode->i_mtime;
-	aux.size = inode->i_size;
+	aux.size = i_size_read(inode);
 
 	if (memcmp(data, &aux, sizeof(aux)) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -197,7 +195,7 @@ void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
 		return;
 
 	/* Avoid multiple racing open requests */
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	if (ci->fscache)
 		goto done;
@@ -207,7 +205,7 @@ void ceph_fscache_register_inode_cookie(struct ceph_fs_client* fsc,
 					     ci, true);
 	fscache_check_consistency(ci->fscache);
 done:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 }
 

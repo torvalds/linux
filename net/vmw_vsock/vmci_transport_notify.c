@@ -661,7 +661,7 @@ static void vmci_transport_notify_pkt_process_negotiate(struct sock *sk)
 }
 
 /* Socket control packet based operations. */
-struct vmci_transport_notify_ops vmci_transport_notify_pkt_ops = {
+const struct vmci_transport_notify_ops vmci_transport_notify_pkt_ops = {
 	vmci_transport_notify_pkt_socket_init,
 	vmci_transport_notify_pkt_socket_destruct,
 	vmci_transport_notify_pkt_poll_in,

@@ -495,7 +495,7 @@ MODULE_DEVICE_TABLE(i2c, max14577_i2c_id);
 #ifdef CONFIG_PM_SLEEP
 static int max14577_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -516,7 +516,7 @@ static int max14577_suspend(struct device *dev)
 
 static int max14577_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))

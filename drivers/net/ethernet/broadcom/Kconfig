@@ -151,8 +151,11 @@ config BNX2X_VXLAN
 
 config BGMAC
 	tristate "BCMA bus GBit core support"
-	depends on BCMA_HOST_SOC && HAS_DMA && (BCM47XX || ARCH_BCM_5301X)
+	depends on BCMA && BCMA_HOST_SOC
+	depends on HAS_DMA
+	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
 	select PHYLIB
+	select FIXED_PHY
 	---help---
 	  This driver supports GBit MAC and BCM4706 GBit MAC cores on BCMA bus.
 	  They can be found on BCM47xx SoCs and provide gigabit ethernet.

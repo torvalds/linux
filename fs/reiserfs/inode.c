@@ -1361,6 +1361,7 @@ static void init_inode(struct inode *inode, struct treepath *path)
 		inode->i_fop = &reiserfs_dir_operations;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &reiserfs_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &reiserfs_address_space_operations;
 	} else {
 		inode->i_blocks = 0;

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  *
  *   This file is part of Portals
  *   http://sourceforge.net/projects/sandiaportals/

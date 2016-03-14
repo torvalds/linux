@@ -1704,7 +1704,7 @@ error_4:
 error_3:
 	bq2415x_power_supply_exit(bq);
 error_2:
-	if (bq && bq->notify_node)
+	if (bq)
 		of_node_put(bq->notify_node);
 	kfree(name);
 error_1:
@@ -1724,9 +1724,7 @@ static int bq2415x_remove(struct i2c_client *client)
 	if (bq->nb.notifier_call)
 		power_supply_unreg_notifier(&bq->nb);
 
-	if (bq->notify_node)
-		of_node_put(bq->notify_node);
-
+	of_node_put(bq->notify_node);
 	bq2415x_sysfs_exit(bq);
 	bq2415x_power_supply_exit(bq);
 

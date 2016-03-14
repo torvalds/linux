@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include <mach/pm.h>
+#include "pm.h"
 
 struct pxa_cpu_pm_fns *pxa_cpu_pm_fns;
 static unsigned long *sleep_save;

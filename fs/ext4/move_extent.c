@@ -265,11 +265,12 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	ext4_lblk_t orig_blk_offset, donor_blk_offset;
 	unsigned long blocksize = orig_inode->i_sb->s_blocksize;
 	unsigned int tmp_data_size, data_size, replaced_size;
-	int err2, jblocks, retries = 0;
+	int i, err2, jblocks, retries = 0;
 	int replaced_count = 0;
 	int from = data_offset_in_page << orig_inode->i_blkbits;
 	int blocks_per_page = PAGE_CACHE_SIZE >> orig_inode->i_blkbits;
 	struct super_block *sb = orig_inode->i_sb;
+	struct buffer_head *bh = NULL;
 
 	/*
 	 * It needs twice the amount of ordinary journal buffers because
@@ -380,8 +381,17 @@ data_copy:
 	}
 	/* Perform all necessary steps similar write_begin()/write_end()
 	 * but keeping in mind that i_size will not change */
-	*err = __block_write_begin(pagep[0], from, replaced_size,
-				   ext4_get_block);
+	if (!page_has_buffers(pagep[0]))
+		create_empty_buffers(pagep[0], 1 << orig_inode->i_blkbits, 0);
+	bh = page_buffers(pagep[0]);
+	for (i = 0; i < data_offset_in_page; i++)
+		bh = bh->b_this_page;
+	for (i = 0; i < block_len_in_page; i++) {
+		*err = ext4_get_block(orig_inode, orig_blk_offset + i, bh, 0);
+		if (*err < 0)
+			break;
+		bh = bh->b_this_page;
+	}
 	if (!*err)
 		*err = block_commit_write(pagep[0], from, from + replaced_size);
 

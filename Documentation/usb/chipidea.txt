@@ -7,8 +7,8 @@ with 2 Freescale i.MX6Q sabre SD boards.
 ---------------------------------------
 Select CONFIG_USB_OTG_FSM, rebuild kernel Image and modules.
 If you want to check some internal variables for otg fsm,
-select CONFIG_USB_CHIPIDEA_DEBUG, there are 2 files which
-can show otg fsm variables and some controller registers value:
+mount debugfs, there are 2 files which can show otg fsm
+variables and some controller registers value:
 cat /sys/kernel/debug/ci_hdrc.0/otg
 cat /sys/kernel/debug/ci_hdrc.0/registers
 

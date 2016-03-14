@@ -335,6 +335,14 @@ tcp_keepalive_intvl - INTEGER
 	after probes started. Default value: 75sec i.e. connection
 	will be aborted after ~11 minutes of retries.
 
+tcp_l3mdev_accept - BOOLEAN
+	Enables child sockets to inherit the L3 master device index.
+	Enabling this option allows a "global" listen socket to work
+	across L3 master domains (e.g., VRFs) with connected sockets
+	derived from the listen socket to be bound to the L3 domain in
+	which the packets originated. Only valid when the kernel was
+	compiled with CONFIG_NET_L3_MASTER_DEV.
+
 tcp_low_latency - BOOLEAN
 	If set, the TCP stack makes decisions that prefer lower
 	latency as opposed to higher throughput.  By default, this
@@ -586,7 +594,7 @@ tcp_fastopen - INTEGER
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
-	will be retransmitted. Should not be higher than 255. Default value
+	will be retransmitted. Should not be higher than 127. Default value
 	is 6, which corresponds to 63seconds till the last retransmission
 	with the current initial RTO of 1second. With this the final timeout
 	for an active TCP connection attempt will happen after 127seconds.
@@ -1723,6 +1731,25 @@ addip_enable - BOOLEAN
 
 	Default: 0
 
+pf_enable - INTEGER
+	Enable or disable pf (pf is short for potentially failed) state. A value
+	of pf_retrans > path_max_retrans also disables pf state. That is, one of
+	both pf_enable and pf_retrans > path_max_retrans can disable pf state.
+	Since pf_retrans and path_max_retrans can be changed by userspace
+	application, sometimes user expects to disable pf state by the value of
+	pf_retrans > path_max_retrans, but occasionally the value of pf_retrans
+	or path_max_retrans is changed by the user application, this pf state is
+	enabled. As such, it is necessary to add this to dynamically enable
+	and disable pf state. See:
+	https://datatracker.ietf.org/doc/draft-ietf-tsvwg-sctp-failover for
+	details.
+
+	1: Enable pf.
+
+	0: Disable pf.
+
+	Default: 1
+
 addip_noauth_enable - BOOLEAN
 	Dynamic Address Reconfiguration (ADD-IP) requires the use of
 	authentication to protect the operations of adding or removing new
@@ -1799,7 +1826,9 @@ pf_retrans - INTEGER
 	having to reduce path_max_retrans to a very low value.  See:
 	http://www.ietf.org/id/draft-nishida-tsvwg-sctp-failover-05.txt
 	for details.  Note also that a value of pf_retrans > path_max_retrans
-	disables this feature
+	disables this feature. Since both pf_retrans and path_max_retrans can
+	be changed by userspace application, a variable pf_enable is used to
+	disable pf state.
 
 	Default: 0
 

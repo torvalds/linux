@@ -58,7 +58,7 @@ static long long bp_count(int fd)
 #define EXECUTIONS 10000
 #define THRESHOLD  100
 
-int test__bp_signal_overflow(void)
+int test__bp_signal_overflow(int subtest __maybe_unused)
 {
 	struct perf_event_attr pe;
 	struct sigaction sa;

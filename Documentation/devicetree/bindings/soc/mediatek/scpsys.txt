@@ -21,6 +21,18 @@ Required properties:
 		      These are the clocks which hardware needs to be enabled
 		      before enabling certain power domains.
 
+Optional properties:
+- vdec-supply: Power supply for the vdec power domain
+- venc-supply: Power supply for the venc power domain
+- isp-supply: Power supply for the isp power domain
+- mm-supply: Power supply for the mm power domain
+- venc_lt-supply: Power supply for the venc_lt power domain
+- audio-supply: Power supply for the audio power domain
+- usb-supply: Power supply for the usb power domain
+- mfg_async-supply: Power supply for the mfg_async power domain
+- mfg_2d-supply: Power supply for the mfg_2d power domain
+- mfg-supply: Power supply for the mfg power domain
+
 Example:
 
 	scpsys: scpsys@10006000 {

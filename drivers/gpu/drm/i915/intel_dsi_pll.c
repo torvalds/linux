@@ -561,7 +561,7 @@ void intel_enable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_enable_dsi_pll(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_enable_dsi_pll(encoder);
@@ -571,7 +571,7 @@ void intel_disable_dsi_pll(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_disable_dsi_pll(encoder);
 	else if (IS_BROXTON(dev))
 		bxt_disable_dsi_pll(encoder);
@@ -599,6 +599,6 @@ void intel_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 
 	if (IS_BROXTON(dev))
 		bxt_dsi_reset_clocks(encoder, port);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
 		vlv_dsi_reset_clocks(encoder, port);
 }

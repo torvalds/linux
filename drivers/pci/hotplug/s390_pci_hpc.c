@@ -201,11 +201,10 @@ error:
 
 void zpci_exit_slot(struct zpci_dev *zdev)
 {
-	struct list_head *tmp, *n;
-	struct slot *slot;
+	struct slot *slot, *next;
 
-	list_for_each_safe(tmp, n, &s390_hotplug_slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &s390_hotplug_slot_list,
+				 slot_list) {
 		if (slot->zdev != zdev)
 			continue;
 		list_del(&slot->slot_list);

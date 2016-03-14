@@ -56,10 +56,10 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 		return 0;
 	low = task_stack_page(tsk);
 	high = (struct stack_frame *) task_pt_regs(tsk);
-	sf = (struct stack_frame *) (tsk->thread.ksp & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) tsk->thread.ksp;
 	if (sf <= low || sf > high)
 		return 0;
-	sf = (struct stack_frame *) (sf->back_chain & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) sf->back_chain;
 	if (sf <= low || sf > high)
 		return 0;
 	return sf->gprs[8];
@@ -154,7 +154,7 @@ int copy_thread(unsigned long clone_flags, unsigned long new_stackp,
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
 		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
 				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr = PSW_ADDR_AMODE |
+		frame->childregs.psw.addr =
 				(unsigned long) kernel_thread_starter;
 		frame->childregs.gprs[9] = new_stackp; /* function */
 		frame->childregs.gprs[10] = arg;
@@ -220,14 +220,14 @@ unsigned long get_wchan(struct task_struct *p)
 		return 0;
 	low = task_stack_page(p);
 	high = (struct stack_frame *) task_pt_regs(p);
-	sf = (struct stack_frame *) (p->thread.ksp & PSW_ADDR_INSN);
+	sf = (struct stack_frame *) p->thread.ksp;
 	if (sf <= low || sf > high)
 		return 0;
 	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *) (sf->back_chain & PSW_ADDR_INSN);
+		sf = (struct stack_frame *) sf->back_chain;
 		if (sf <= low || sf > high)
 			return 0;
-		return_address = sf->gprs[8] & PSW_ADDR_INSN;
+		return_address = sf->gprs[8];
 		if (!in_sched_functions(return_address))
 			return return_address;
 	}

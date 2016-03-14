@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +73,7 @@ ACPI_FILE acpi_os_open_file(const char *path, u8 modes)
 	if (modes & ACPI_FILE_WRITING) {
 		modes_str[i++] = 'w';
 	}
+
 	if (modes & ACPI_FILE_BINARY) {
 		modes_str[i++] = 'b';
 	}
@@ -101,6 +102,7 @@ ACPI_FILE acpi_os_open_file(const char *path, u8 modes)
 
 void acpi_os_close_file(ACPI_FILE file)
 {
+
 	fclose(file);
 }
 
@@ -202,6 +204,7 @@ acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from)
 	if (from == ACPI_FILE_BEGIN) {
 		ret = fseek(file, offset, SEEK_SET);
 	}
+
 	if (from == ACPI_FILE_END) {
 		ret = fseek(file, offset, SEEK_END);
 	}

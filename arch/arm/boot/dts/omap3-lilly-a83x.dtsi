@@ -327,7 +327,7 @@
 		ti,pressure-max = /bits/ 16 <255>;
 		ti,swap-xy;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

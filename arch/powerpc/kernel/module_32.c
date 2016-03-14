@@ -188,8 +188,8 @@ static uint32_t do_plt_call(void *location,
 
 	pr_debug("Doing plt for call to 0x%x at 0x%x\n", val, (unsigned int)location);
 	/* Init, or core PLT? */
-	if (location >= mod->module_core
-	    && location < mod->module_core + mod->core_size)
+	if (location >= mod->core_layout.base
+	    && location < mod->core_layout.base + mod->core_layout.size)
 		entry = (void *)sechdrs[mod->arch.core_plt_section].sh_addr;
 	else
 		entry = (void *)sechdrs[mod->arch.init_plt_section].sh_addr;
@@ -296,7 +296,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	}
 #ifdef CONFIG_DYNAMIC_FTRACE
 	module->arch.tramp =
-		do_plt_call(module->module_core,
+		do_plt_call(module->core_layout.base,
 			    (unsigned long)ftrace_caller,
 			    sechdrs, module);
 #endif

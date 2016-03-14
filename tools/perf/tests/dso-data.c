@@ -110,7 +110,7 @@ static int dso__data_fd(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
-int test__dso_data(void)
+int test__dso_data(int subtest __maybe_unused)
 {
 	struct machine machine;
 	struct dso *dso;
@@ -245,7 +245,7 @@ static int set_fd_limit(int n)
 	return setrlimit(RLIMIT_NOFILE, &rlim);
 }
 
-int test__dso_data_cache(void)
+int test__dso_data_cache(int subtest __maybe_unused)
 {
 	struct machine machine;
 	long nr_end, nr = open_files_cnt();
@@ -302,7 +302,7 @@ int test__dso_data_cache(void)
 	return 0;
 }
 
-int test__dso_data_reopen(void)
+int test__dso_data_reopen(int subtest __maybe_unused)
 {
 	struct machine machine;
 	long nr_end, nr = open_files_cnt();

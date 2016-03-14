@@ -209,16 +209,13 @@ end:
 int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 {
 	struct amdtp_stream *master, *slave;
-	atomic_t *slave_substreams;
+	unsigned int slave_substreams;
 	enum cip_flags sync_mode;
 	unsigned int curr_rate;
 	int err = 0;
 
-	mutex_lock(&efw->mutex);
-
 	/* Need no substreams */
-	if ((atomic_read(&efw->playback_substreams) == 0) &&
-	    (atomic_read(&efw->capture_substreams)  == 0))
+	if (efw->playback_substreams == 0 && efw->capture_substreams  == 0)
 		goto end;
 
 	err = get_sync_mode(efw, &sync_mode);
@@ -227,11 +224,11 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 	if (sync_mode == CIP_SYNC_TO_DEVICE) {
 		master = &efw->tx_stream;
 		slave  = &efw->rx_stream;
-		slave_substreams  = &efw->playback_substreams;
+		slave_substreams  = efw->playback_substreams;
 	} else {
 		master = &efw->rx_stream;
 		slave  = &efw->tx_stream;
-		slave_substreams = &efw->capture_substreams;
+		slave_substreams = efw->capture_substreams;
 	}
 
 	/*
@@ -277,7 +274,7 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 	}
 
 	/* start slave if needed */
-	if (atomic_read(slave_substreams) > 0 && !amdtp_stream_running(slave)) {
+	if (slave_substreams > 0 && !amdtp_stream_running(slave)) {
 		err = start_stream(efw, slave, rate);
 		if (err < 0) {
 			dev_err(&efw->unit->device,
@@ -286,37 +283,32 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 		}
 	}
 end:
-	mutex_unlock(&efw->mutex);
 	return err;
 }
 
 void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 {
 	struct amdtp_stream *master, *slave;
-	atomic_t *master_substreams, *slave_substreams;
+	unsigned int master_substreams, slave_substreams;
 
 	if (efw->master == &efw->rx_stream) {
 		slave  = &efw->tx_stream;
 		master = &efw->rx_stream;
-		slave_substreams  = &efw->capture_substreams;
-		master_substreams = &efw->playback_substreams;
+		slave_substreams  = efw->capture_substreams;
+		master_substreams = efw->playback_substreams;
 	} else {
 		slave  = &efw->rx_stream;
 		master = &efw->tx_stream;
-		slave_substreams  = &efw->playback_substreams;
-		master_substreams = &efw->capture_substreams;
+		slave_substreams  = efw->playback_substreams;
+		master_substreams = efw->capture_substreams;
 	}
 
-	mutex_lock(&efw->mutex);
-
-	if (atomic_read(slave_substreams) == 0) {
+	if (slave_substreams == 0) {
 		stop_stream(efw, slave);
 
-		if (atomic_read(master_substreams) == 0)
+		if (master_substreams == 0)
 			stop_stream(efw, master);
 	}
-
-	mutex_unlock(&efw->mutex);
 }
 
 void snd_efw_stream_update_duplex(struct snd_efw *efw)

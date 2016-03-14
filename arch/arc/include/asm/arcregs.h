@@ -10,7 +10,8 @@
 #define _ASM_ARC_ARCREGS_H
 
 /* Build Configuration Registers */
-#define ARC_REG_DCCMBASE_BCR	0x61	/* DCCM Base Addr */
+#define ARC_REG_AUX_DCCM	0x18	/* DCCM Base Addr ARCv2 */
+#define ARC_REG_DCCM_BASE_BUILD	0x61	/* DCCM Base Addr ARCompact */
 #define ARC_REG_CRC_BCR		0x62
 #define ARC_REG_VECBASE_BCR	0x68
 #define ARC_REG_PERIBASE_BCR	0x69
@@ -18,10 +19,10 @@
 #define ARC_REG_DPFP_BCR	0x6C	/* ARCompact: Dbl Precision FPU */
 #define ARC_REG_FP_V2_BCR	0xc8	/* ARCv2 FPU */
 #define ARC_REG_SLC_BCR		0xce
-#define ARC_REG_DCCM_BCR	0x74	/* DCCM Present + SZ */
+#define ARC_REG_DCCM_BUILD	0x74	/* DCCM size (common) */
 #define ARC_REG_TIMERS_BCR	0x75
 #define ARC_REG_AP_BCR		0x76
-#define ARC_REG_ICCM_BCR	0x78
+#define ARC_REG_ICCM_BUILD	0x78	/* ICCM size (common) */
 #define ARC_REG_XY_MEM_BCR	0x79
 #define ARC_REG_MAC_BCR		0x7a
 #define ARC_REG_MUL_BCR		0x7b
@@ -36,6 +37,7 @@
 #define ARC_REG_IRQ_BCR		0xF3
 #define ARC_REG_SMART_BCR	0xFF
 #define ARC_REG_CLUSTER_BCR	0xcf
+#define ARC_REG_AUX_ICCM	0x208	/* ICCM Base Addr (ARCv2) */
 
 /* status32 Bits Positions */
 #define STATUS_AE_BIT		5	/* Exception active */
@@ -246,7 +248,7 @@ struct bcr_perip {
 #endif
 };
 
-struct bcr_iccm {
+struct bcr_iccm_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int base:16, pad:5, sz:3, ver:8;
 #else
@@ -254,21 +256,27 @@ struct bcr_iccm {
 #endif
 };
 
-/* DCCM Base Address Register: ARC_REG_DCCMBASE_BCR */
-struct bcr_dccm_base {
+struct bcr_iccm_arcv2 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int addr:24, ver:8;
+	unsigned int pad:8, sz11:4, sz01:4, sz10:4, sz00:4, ver:8;
 #else
-	unsigned int ver:8, addr:24;
+	unsigned int ver:8, sz00:4, sz10:4, sz01:4, sz11:4, pad:8;
 #endif
 };
 
-/* DCCM RAM Configuration Register: ARC_REG_DCCM_BCR */
-struct bcr_dccm {
+struct bcr_dccm_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int res:21, sz:3, ver:8;
 #else
 	unsigned int ver:8, sz:3, res:21;
+#endif
+};
+
+struct bcr_dccm_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad2:12, cyc:3, pad1:1, sz1:4, sz0:4, ver:8;
+#else
+	unsigned int ver:8, sz0:4, sz1:4, pad1:1, cyc:3, pad2:12;
 #endif
 };
 
@@ -315,9 +323,9 @@ struct bcr_bpu_arcv2 {
 
 struct bcr_generic {
 #ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int pad:24, ver:8;
+	unsigned int info:24, ver:8;
 #else
-	unsigned int ver:8, pad:24;
+	unsigned int ver:8, info:24;
 #endif
 };
 
@@ -349,14 +357,13 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa isa;
-	struct bcr_timer timers;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
 		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, pad1:3,
 			     fpu_sp:1, fpu_dp:1, pad2:6,
 			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
-			     pad4:8;
+			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
 	} extn;
 	struct bcr_mpy extn_mpy;
 	struct bcr_extn_xymem extn_xymem;

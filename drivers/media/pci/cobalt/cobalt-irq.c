@@ -18,7 +18,7 @@
  *  SOFTWARE.
  */
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 
 #include "cobalt-driver.h"
 #include "cobalt-irq.h"
@@ -134,7 +134,7 @@ done:
 		skip = true;
 		s->skip_first_frames--;
 	}
-	v4l2_get_timestamp(&cb->vb.timestamp);
+	cb->vb.vb2_buf.timestamp = ktime_get_ns();
 	/* TODO: the sequence number should be read from the FPGA so we
 	   also know about dropped frames. */
 	cb->vb.sequence = s->sequence++;

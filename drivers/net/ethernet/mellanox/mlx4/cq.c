@@ -318,7 +318,9 @@ int mlx4_cq_alloc(struct mlx4_dev *dev, int nent,
 	if (timestamp_en)
 		cq_context->flags  |= cpu_to_be32(1 << 19);
 
-	cq_context->logsize_usrpage = cpu_to_be32((ilog2(nent) << 24) | uar->index);
+	cq_context->logsize_usrpage =
+		cpu_to_be32((ilog2(nent) << 24) |
+			    mlx4_to_hw_uar_index(dev, uar->index));
 	cq_context->comp_eqn	    = priv->eq_table.eq[MLX4_CQ_TO_EQ_VECTOR(vector)].eqn;
 	cq_context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
 

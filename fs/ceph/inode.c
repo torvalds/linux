@@ -396,6 +396,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+	ci->i_pool_ns_len = 0;
 
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
@@ -548,7 +549,7 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 	if (ceph_seq_cmp(truncate_seq, ci->i_truncate_seq) > 0 ||
 	    (truncate_seq == ci->i_truncate_seq && size > inode->i_size)) {
 		dout("size %lld -> %llu\n", inode->i_size, size);
-		inode->i_size = size;
+		i_size_write(inode, size);
 		inode->i_blocks = (size + (1<<9) - 1) >> 9;
 		ci->i_reported_size = size;
 		if (truncate_seq != ci->i_truncate_seq) {
@@ -756,6 +757,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		if (ci->i_layout.fl_pg_pool != info->layout.fl_pg_pool)
 			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
 		ci->i_layout = info->layout;
+		ci->i_pool_ns_len = iinfo->pool_ns_len;
 
 		queue_trunc = ceph_fill_file_size(inode, issued,
 					le32_to_cpu(info->truncate_seq),
@@ -808,7 +810,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 			spin_unlock(&ci->i_ceph_lock);
 
 			err = -EINVAL;
-			if (WARN_ON(symlen != inode->i_size))
+			if (WARN_ON(symlen != i_size_read(inode)))
 				goto out;
 
 			err = -ENOMEM;
@@ -1549,7 +1551,7 @@ int ceph_inode_set_size(struct inode *inode, loff_t size)
 
 	spin_lock(&ci->i_ceph_lock);
 	dout("set_size %p %llu -> %llu\n", inode, inode->i_size, size);
-	inode->i_size = size;
+	i_size_write(inode, size);
 	inode->i_blocks = (size + (1 << 9) - 1) >> 9;
 
 	/* tell the MDS if we are approaching max_size */
@@ -1756,7 +1758,7 @@ retry:
  */
 static const struct inode_operations ceph_symlink_iops = {
 	.readlink = generic_readlink,
-	.follow_link = simple_follow_link,
+	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
 	.setxattr = ceph_setxattr,
@@ -1911,7 +1913,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		     inode->i_size, attr->ia_size);
 		if ((issued & CEPH_CAP_FILE_EXCL) &&
 		    attr->ia_size > inode->i_size) {
-			inode->i_size = attr->ia_size;
+			i_size_write(inode, attr->ia_size);
 			inode->i_blocks =
 				(attr->ia_size + (1 << 9) - 1) >> 9;
 			inode->i_ctime = attr->ia_ctime;

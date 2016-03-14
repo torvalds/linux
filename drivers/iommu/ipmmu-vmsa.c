@@ -277,8 +277,8 @@ static void ipmmu_tlb_flush_all(void *cookie)
 	ipmmu_tlb_invalidate(domain);
 }
 
-static void ipmmu_tlb_add_flush(unsigned long iova, size_t size, bool leaf,
-				void *cookie)
+static void ipmmu_tlb_add_flush(unsigned long iova, size_t size,
+				size_t granule, bool leaf, void *cookie)
 {
 	/* The hardware doesn't support selective TLB flush. */
 }

@@ -1,8 +1,9 @@
 Micrel KSZ9021/KSZ9031 Gigabit Ethernet PHY
 
-Some boards require special tuning values, particularly when it comes to
-clock delays. You can specify clock delay values by adding
-micrel-specific properties to an Ethernet OF device node.
+Some boards require special tuning values, particularly when it comes
+to clock delays. You can specify clock delay values in the PHY OF
+device node. Deprecated, but still supported, these properties can
+also be added to an Ethernet OF device node.
 
 Note that these settings are applied after any phy-specific fixup from
 phy_fixup_list (see phy_init_hw() from drivers/net/phy/phy_device.c),
@@ -57,16 +58,6 @@ KSZ9031:
 
 Examples:
 
-	/* Attach to an Ethernet device with autodetected PHY */
-	&enet {
-		rxc-skew-ps = <3000>;
-		rxdv-skew-ps = <0>;
-		txc-skew-ps = <3000>;
-		txen-skew-ps = <0>;
-		status = "okay";
-	};
-
-	/* Attach to an explicitly-specified PHY */
 	mdio {
 		phy0: ethernet-phy@0 {
 			rxc-skew-ps = <3000>;

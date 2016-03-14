@@ -62,15 +62,6 @@ static void adf_service_add(struct service_hndl *service)
 	mutex_unlock(&service_lock);
 }
 
-/**
- * adf_service_register() - Register acceleration service in the accel framework
- * @service:    Pointer to the service
- *
- * Function adds the acceleration service to the acceleration framework.
- * To be used by QAT device specific drivers.
- *
- * Return: 0 on success, error code otherwise.
- */
 int adf_service_register(struct service_hndl *service)
 {
 	service->init_status = 0;
@@ -78,7 +69,6 @@ int adf_service_register(struct service_hndl *service)
 	adf_service_add(service);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(adf_service_register);
 
 static void adf_service_remove(struct service_hndl *service)
 {
@@ -87,15 +77,6 @@ static void adf_service_remove(struct service_hndl *service)
 	mutex_unlock(&service_lock);
 }
 
-/**
- * adf_service_unregister() - Unregister acceleration service from the framework
- * @service:    Pointer to the service
- *
- * Function remove the acceleration service from the acceleration framework.
- * To be used by QAT device specific drivers.
- *
- * Return: 0 on success, error code otherwise.
- */
 int adf_service_unregister(struct service_hndl *service)
 {
 	if (service->init_status || service->start_status) {
@@ -105,7 +86,6 @@ int adf_service_unregister(struct service_hndl *service)
 	adf_service_remove(service);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(adf_service_unregister);
 
 /**
  * adf_dev_init() - Init data structures and services for the given accel device
@@ -366,6 +346,7 @@ void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	hw_data->disable_iov(accel_dev);
 	adf_cleanup_etr_data(accel_dev);
+	adf_dev_restore(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_dev_shutdown);
 

@@ -156,7 +156,6 @@ static int gemini_rtc_remove(struct platform_device *pdev)
 	struct gemini_rtc *rtc = platform_get_drvdata(pdev);
 
 	rtc_device_unregister(rtc->rtc_dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

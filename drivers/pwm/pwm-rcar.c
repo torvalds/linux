@@ -81,7 +81,7 @@ static int rcar_pwm_get_clock_division(struct rcar_pwm_chip *rp, int period_ns)
 		max = (unsigned long long)NSEC_PER_SEC * RCAR_PWM_MAX_CYCLE *
 			(1 << div);
 		do_div(max, clk_rate);
-		if (period_ns < max)
+		if (period_ns <= max)
 			break;
 	}
 

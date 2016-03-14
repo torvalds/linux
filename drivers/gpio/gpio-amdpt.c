@@ -31,22 +31,20 @@ struct pt_gpio_chip {
 	spinlock_t               lock;
 };
 
-#define to_pt_gpio(c)	container_of(c, struct pt_gpio_chip, gc)
-
 static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 using_pins;
 
-	dev_dbg(gc->dev, "pt_gpio_request offset=%x\n", offset);
+	dev_dbg(gc->parent, "pt_gpio_request offset=%x\n", offset);
 
 	spin_lock_irqsave(&pt_gpio->lock, flags);
 
 	using_pins = readl(pt_gpio->reg_base + PT_SYNC_REG);
 	if (using_pins & BIT(offset)) {
-		dev_warn(gc->dev, "PT GPIO pin %x reconfigured\n",
-			offset);
+		dev_warn(gc->parent, "PT GPIO pin %x reconfigured\n",
+			 offset);
 		spin_unlock_irqrestore(&pt_gpio->lock, flags);
 		return -EINVAL;
 	}
@@ -60,7 +58,7 @@ static int pt_gpio_request(struct gpio_chip *gc, unsigned offset)
 
 static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 using_pins;
 
@@ -72,16 +70,16 @@ static void pt_gpio_free(struct gpio_chip *gc, unsigned offset)
 
 	spin_unlock_irqrestore(&pt_gpio->lock, flags);
 
-	dev_dbg(gc->dev, "pt_gpio_free offset=%x\n", offset);
+	dev_dbg(gc->parent, "pt_gpio_free offset=%x\n", offset);
 }
 
 static void pt_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
-	dev_dbg(gc->dev, "pt_gpio_set_value offset=%x, value=%x\n",
+	dev_dbg(gc->parent, "pt_gpio_set_value offset=%x, value=%x\n",
 		offset, value);
 
 	spin_lock_irqsave(&pt_gpio->lock, flags);
@@ -97,7 +95,7 @@ static void pt_gpio_set_value(struct gpio_chip *gc, unsigned offset, int value)
 
 static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
@@ -116,7 +114,7 @@ static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 	data >>= offset;
 	data &= 1;
 
-	dev_dbg(gc->dev, "pt_gpio_get_value offset=%x, value=%x\n",
+	dev_dbg(gc->parent, "pt_gpio_get_value offset=%x, value=%x\n",
 		offset, data);
 
 	return data;
@@ -124,11 +122,11 @@ static int pt_gpio_get_value(struct gpio_chip *gc, unsigned offset)
 
 static int pt_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
-	dev_dbg(gc->dev, "pt_gpio_dirction_input offset=%x\n", offset);
+	dev_dbg(gc->parent, "pt_gpio_dirction_input offset=%x\n", offset);
 
 	spin_lock_irqsave(&pt_gpio->lock, flags);
 
@@ -144,11 +142,11 @@ static int pt_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 static int pt_gpio_direction_output(struct gpio_chip *gc,
 					unsigned offset, int value)
 {
-	struct pt_gpio_chip *pt_gpio = to_pt_gpio(gc);
+	struct pt_gpio_chip *pt_gpio = gpiochip_get_data(gc);
 	unsigned long flags;
 	u32 data;
 
-	dev_dbg(gc->dev, "pt_gpio_direction_output offset=%x, value=%x\n",
+	dev_dbg(gc->parent, "pt_gpio_direction_output offset=%x, value=%x\n",
 		offset, value);
 
 	spin_lock_irqsave(&pt_gpio->lock, flags);
@@ -202,7 +200,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 
 	pt_gpio->gc.label            = pdev->name;
 	pt_gpio->gc.owner            = THIS_MODULE;
-	pt_gpio->gc.dev              = dev;
+	pt_gpio->gc.parent              = dev;
 	pt_gpio->gc.request          = pt_gpio_request;
 	pt_gpio->gc.free             = pt_gpio_free;
 	pt_gpio->gc.direction_input  = pt_gpio_direction_input;
@@ -214,7 +212,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 #if defined(CONFIG_OF_GPIO)
 	pt_gpio->gc.of_node          = pdev->dev.of_node;
 #endif
-	ret = gpiochip_add(&pt_gpio->gc);
+	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register GPIO lib\n");
 		return ret;

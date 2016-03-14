@@ -73,8 +73,8 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child);
 
-#define device_for_each_child_node(dev, child) \
-	for (child = device_get_next_child_node(dev, NULL); child; \
+#define device_for_each_child_node(dev, child)				\
+	for (child = device_get_next_child_node(dev, NULL); child;	\
 	     child = device_get_next_child_node(dev, child))
 
 void fwnode_handle_put(struct fwnode_handle *fwnode);
@@ -144,23 +144,99 @@ static inline int fwnode_property_read_u64(struct fwnode_handle *fwnode,
 /**
  * struct property_entry - "Built-in" device property representation.
  * @name: Name of the property.
- * @type: Type of the property.
- * @nval: Number of items of type @type making up the value.
- * @value: Value of the property (an array of @nval items of type @type).
+ * @length: Length of data making up the value.
+ * @is_array: True when the property is an array.
+ * @is_string: True when property is a string.
+ * @pointer: Pointer to the property (an array of items of the given type).
+ * @value: Value of the property (when it is a single item of the given type).
  */
 struct property_entry {
 	const char *name;
-	enum dev_prop_type type;
-	size_t nval;
+	size_t length;
+	bool is_array;
+	bool is_string;
 	union {
-		void *raw_data;
-		u8 *u8_data;
-		u16 *u16_data;
-		u32 *u32_data;
-		u64 *u64_data;
-		const char **str;
-	} value;
+		union {
+			void *raw_data;
+			u8 *u8_data;
+			u16 *u16_data;
+			u32 *u32_data;
+			u64 *u64_data;
+			const char **str;
+		} pointer;
+		union {
+			unsigned long long raw_data;
+			u8 u8_data;
+			u16 u16_data;
+			u32 u32_data;
+			u64 u64_data;
+			const char *str;
+		} value;
+	};
 };
+
+/*
+ * Note: the below four initializers for the anonymous union are carefully
+ * crafted to avoid gcc-4.4.4's problems with initialization of anon unions
+ * and structs.
+ */
+
+#define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _val_)	\
+{								\
+	.name = _name_,						\
+	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
+	.is_array = true,					\
+	.is_string = false,					\
+	{ .pointer = { _type_##_data = _val_ } },		\
+}
+
+#define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u8, _val_)
+#define PROPERTY_ENTRY_U16_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u16, _val_)
+#define PROPERTY_ENTRY_U32_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u32, _val_)
+#define PROPERTY_ENTRY_U64_ARRAY(_name_, _val_)			\
+	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u64, _val_)
+
+#define PROPERTY_ENTRY_STRING_ARRAY(_name_, _val_)		\
+{								\
+	.name = _name_,						\
+	.length = ARRAY_SIZE(_val_) * sizeof(const char *),	\
+	.is_array = true,					\
+	.is_string = true,					\
+	{ .pointer = { .str = _val_ } },			\
+}
+
+#define PROPERTY_ENTRY_INTEGER(_name_, _type_, _val_)	\
+{							\
+	.name = _name_,					\
+	.length = sizeof(_type_),			\
+	.is_string = false,				\
+	{ .value = { ._type_##_data = _val_ } },	\
+}
+
+#define PROPERTY_ENTRY_U8(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u8, _val_)
+#define PROPERTY_ENTRY_U16(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u16, _val_)
+#define PROPERTY_ENTRY_U32(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u32, _val_)
+#define PROPERTY_ENTRY_U64(_name_, _val_)		\
+	PROPERTY_ENTRY_INTEGER(_name_, u64, _val_)
+
+#define PROPERTY_ENTRY_STRING(_name_, _val_)		\
+{							\
+	.name = _name_,					\
+	.length = sizeof(_val_),			\
+	.is_string = true,				\
+	{ .value = { .str = _val_ } },			\
+}
+
+#define PROPERTY_ENTRY_BOOL(_name_)		\
+{						\
+	.name = _name_,				\
+}
 
 /**
  * struct property_set - Collection of "built-in" device properties.
@@ -172,7 +248,8 @@ struct property_set {
 	struct property_entry *properties;
 };
 
-void device_add_property_set(struct device *dev, struct property_set *pset);
+int device_add_property_set(struct device *dev, const struct property_set *pset);
+void device_remove_property_set(struct device *dev);
 
 bool device_dma_supported(struct device *dev);
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,20 +43,10 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include "acnamesp.h"
 #include "acinterp.h"
-#include "acparser.h"
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exdebug")
-
-static union acpi_operand_object *acpi_gbl_trace_method_object = NULL;
-
-/* Local prototypes */
-
-#ifdef ACPI_DEBUG_OUTPUT
-static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type);
-#endif
 
 #ifndef ACPI_NO_ERROR_MESSAGES
 /*******************************************************************************
@@ -80,7 +70,6 @@ static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type);
  * enabled if necessary.
  *
  ******************************************************************************/
-
 void
 acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			u32 level, u32 index)
@@ -99,20 +88,40 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		return_VOID;
 	}
 
-	/*
-	 * We will emit the current timer value (in microseconds) with each
-	 * debug output. Only need the lower 26 bits. This allows for 67
-	 * million microseconds or 67 seconds before rollover.
-	 */
-	timer = ((u32)acpi_os_get_timer() / 10);	/* (100 nanoseconds to microseconds) */
-	timer &= 0x03FFFFFF;
+	/* Null string or newline -- don't emit the line header */
+
+	if (source_desc &&
+	    (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
+	    (source_desc->common.type == ACPI_TYPE_STRING)) {
+		if ((source_desc->string.length == 0) ||
+		    ((source_desc->string.length == 1) &&
+		     (*source_desc->string.pointer == '\n'))) {
+			acpi_os_printf("\n");
+			return_VOID;
+		}
+	}
 
 	/*
 	 * Print line header as long as we are not in the middle of an
 	 * object display
 	 */
 	if (!((level > 0) && index == 0)) {
-		acpi_os_printf("[ACPI Debug %.8u] %*s", timer, level, " ");
+		if (acpi_gbl_display_debug_timer) {
+			/*
+			 * We will emit the current timer value (in microseconds) with each
+			 * debug output. Only need the lower 26 bits. This allows for 67
+			 * million microseconds or 67 seconds before rollover.
+			 *
+			 * Convert 100 nanosecond units to microseconds
+			 */
+			timer = ((u32)acpi_os_get_timer() / 10);
+			timer &= 0x03FFFFFF;
+
+			acpi_os_printf("[ACPI Debug T=0x%8.8X] %*s", timer,
+				       level, " ");
+		} else {
+			acpi_os_printf("[ACPI Debug] %*s", level, " ");
+		}
 	}
 
 	/* Display the index for package output only */
@@ -127,8 +136,15 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) {
-		acpi_os_printf("%s ",
-			       acpi_ut_get_object_type_name(source_desc));
+
+		/* No object type prefix needed for integers and strings */
+
+		if ((source_desc->common.type != ACPI_TYPE_INTEGER) &&
+		    (source_desc->common.type != ACPI_TYPE_STRING)) {
+			acpi_os_printf("%s ",
+				       acpi_ut_get_object_type_name
+				       (source_desc));
+		}
 
 		if (!acpi_ut_valid_internal_object(source_desc)) {
 			acpi_os_printf("%p, Invalid Internal Object!\n",
@@ -137,7 +153,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		}
 	} else if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) ==
 		   ACPI_DESC_TYPE_NAMED) {
-		acpi_os_printf("%s: %p\n",
+		acpi_os_printf("%s (Node %p)\n",
 			       acpi_ut_get_type_name(((struct
 						       acpi_namespace_node *)
 						      source_desc)->type),
@@ -175,14 +191,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_STRING:
 
-		acpi_os_printf("[0x%.2X] \"%s\"\n",
-			       source_desc->string.length,
-			       source_desc->string.pointer);
+		acpi_os_printf("\"%s\"\n", source_desc->string.pointer);
 		break;
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Contains 0x%.2X Elements]\n",
+		acpi_os_printf("(Contains 0x%.2X Elements):\n",
 			       source_desc->package.count);
 
 		/* Output the entire contents of the package */
@@ -261,11 +275,14 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 			if (ACPI_GET_DESCRIPTOR_TYPE
 			    (source_desc->reference.object) ==
 			    ACPI_DESC_TYPE_NAMED) {
-				acpi_ex_do_debug_object(((struct
-							  acpi_namespace_node *)
+
+				/* Reference object is a namespace node */
+
+				acpi_ex_do_debug_object(ACPI_CAST_PTR
+							(union
+							 acpi_operand_object,
 							 source_desc->reference.
-							 object)->object,
-							level + 4, 0);
+							 object), level + 4, 0);
 			} else {
 				object_desc = source_desc->reference.object;
 				value = source_desc->reference.value;
@@ -293,9 +310,14 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 				case ACPI_TYPE_PACKAGE:
 
 					acpi_os_printf("Package[%u] = ", value);
-					acpi_ex_do_debug_object(*source_desc->
-								reference.where,
-								level + 4, 0);
+					if (!(*source_desc->reference.where)) {
+						acpi_os_printf
+						    ("[Uninitialized Package Element]\n");
+					} else {
+						acpi_ex_do_debug_object
+						    (*source_desc->reference.
+						     where, level + 4, 0);
+					}
 					break;
 
 				default:
@@ -311,7 +333,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	default:
 
-		acpi_os_printf("%p\n", source_desc);
+		acpi_os_printf("(Descriptor %p)\n", source_desc);
 		break;
 	}
 
@@ -319,316 +341,3 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 	return_VOID;
 }
 #endif
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_interpreter_trace_enabled
- *
- * PARAMETERS:  name                - Whether method name should be matched,
- *                                    this should be checked before starting
- *                                    the tracer
- *
- * RETURN:      TRUE if interpreter trace is enabled.
- *
- * DESCRIPTION: Check whether interpreter trace is enabled
- *
- ******************************************************************************/
-
-static u8 acpi_ex_interpreter_trace_enabled(char *name)
-{
-
-	/* Check if tracing is enabled */
-
-	if (!(acpi_gbl_trace_flags & ACPI_TRACE_ENABLED)) {
-		return (FALSE);
-	}
-
-	/*
-	 * Check if tracing is filtered:
-	 *
-	 * 1. If the tracer is started, acpi_gbl_trace_method_object should have
-	 *    been filled by the trace starter
-	 * 2. If the tracer is not started, acpi_gbl_trace_method_name should be
-	 *    matched if it is specified
-	 * 3. If the tracer is oneshot style, acpi_gbl_trace_method_name should
-	 *    not be cleared by the trace stopper during the first match
-	 */
-	if (acpi_gbl_trace_method_object) {
-		return (TRUE);
-	}
-	if (name &&
-	    (acpi_gbl_trace_method_name &&
-	     strcmp(acpi_gbl_trace_method_name, name))) {
-		return (FALSE);
-	}
-	if ((acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT) &&
-	    !acpi_gbl_trace_method_name) {
-		return (FALSE);
-	}
-
-	return (TRUE);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_get_trace_event_name
- *
- * PARAMETERS:  type            - Trace event type
- *
- * RETURN:      Trace event name.
- *
- * DESCRIPTION: Used to obtain the full trace event name.
- *
- ******************************************************************************/
-
-#ifdef ACPI_DEBUG_OUTPUT
-
-static const char *acpi_ex_get_trace_event_name(acpi_trace_event_type type)
-{
-	switch (type) {
-	case ACPI_TRACE_AML_METHOD:
-
-		return "Method";
-
-	case ACPI_TRACE_AML_OPCODE:
-
-		return "Opcode";
-
-	case ACPI_TRACE_AML_REGION:
-
-		return "Region";
-
-	default:
-
-		return "";
-	}
-}
-
-#endif
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_trace_point
- *
- * PARAMETERS:  type                - Trace event type
- *              begin               - TRUE if before execution
- *              aml                 - Executed AML address
- *              pathname            - Object path
- *
- * RETURN:      None
- *
- * DESCRIPTION: Internal interpreter execution trace.
- *
- ******************************************************************************/
-
-void
-acpi_ex_trace_point(acpi_trace_event_type type,
-		    u8 begin, u8 *aml, char *pathname)
-{
-
-	ACPI_FUNCTION_NAME(ex_trace_point);
-
-	if (pathname) {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "%s %s [0x%p:%s] execution.\n",
-				  acpi_ex_get_trace_event_name(type),
-				  begin ? "Begin" : "End", aml, pathname));
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_TRACE_POINT,
-				  "%s %s [0x%p] execution.\n",
-				  acpi_ex_get_trace_event_name(type),
-				  begin ? "Begin" : "End", aml));
-	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_start_trace_method
- *
- * PARAMETERS:  method_node         - Node of the method
- *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
- *                                    a method.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Start control method execution trace
- *
- ******************************************************************************/
-
-void
-acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
-			   union acpi_operand_object *obj_desc,
-			   struct acpi_walk_state *walk_state)
-{
-	acpi_status status;
-	char *pathname = NULL;
-	u8 enabled = FALSE;
-
-	ACPI_FUNCTION_NAME(ex_start_trace_method);
-
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit;
-	}
-
-	enabled = acpi_ex_interpreter_trace_enabled(pathname);
-	if (enabled && !acpi_gbl_trace_method_object) {
-		acpi_gbl_trace_method_object = obj_desc;
-		acpi_gbl_original_dbg_level = acpi_dbg_level;
-		acpi_gbl_original_dbg_layer = acpi_dbg_layer;
-		acpi_dbg_level = ACPI_TRACE_LEVEL_ALL;
-		acpi_dbg_layer = ACPI_TRACE_LAYER_ALL;
-
-		if (acpi_gbl_trace_dbg_level) {
-			acpi_dbg_level = acpi_gbl_trace_dbg_level;
-		}
-		if (acpi_gbl_trace_dbg_layer) {
-			acpi_dbg_layer = acpi_gbl_trace_dbg_layer;
-		}
-	}
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-exit:
-	if (enabled) {
-		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, TRUE,
-				 obj_desc ? obj_desc->method.aml_start : NULL,
-				 pathname);
-	}
-	if (pathname) {
-		ACPI_FREE(pathname);
-	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_stop_trace_method
- *
- * PARAMETERS:  method_node         - Node of the method
- *              obj_desc            - The method object
- *              walk_state          - current state, NULL if not yet executing
- *                                    a method.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Stop control method execution trace
- *
- ******************************************************************************/
-
-void
-acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
-			  union acpi_operand_object *obj_desc,
-			  struct acpi_walk_state *walk_state)
-{
-	acpi_status status;
-	char *pathname = NULL;
-	u8 enabled;
-
-	ACPI_FUNCTION_NAME(ex_stop_trace_method);
-
-	if (method_node) {
-		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit_path;
-	}
-
-	enabled = acpi_ex_interpreter_trace_enabled(NULL);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-	if (enabled) {
-		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, FALSE,
-				 obj_desc ? obj_desc->method.aml_start : NULL,
-				 pathname);
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit_path;
-	}
-
-	/* Check whether the tracer should be stopped */
-
-	if (acpi_gbl_trace_method_object == obj_desc) {
-
-		/* Disable further tracing if type is one-shot */
-
-		if (acpi_gbl_trace_flags & ACPI_TRACE_ONESHOT) {
-			acpi_gbl_trace_method_name = NULL;
-		}
-
-		acpi_dbg_level = acpi_gbl_original_dbg_level;
-		acpi_dbg_layer = acpi_gbl_original_dbg_layer;
-		acpi_gbl_trace_method_object = NULL;
-	}
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-exit_path:
-	if (pathname) {
-		ACPI_FREE(pathname);
-	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_start_trace_opcode
- *
- * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
- *                                    a method.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Start opcode execution trace
- *
- ******************************************************************************/
-
-void
-acpi_ex_start_trace_opcode(union acpi_parse_object *op,
-			   struct acpi_walk_state *walk_state)
-{
-
-	ACPI_FUNCTION_NAME(ex_start_trace_opcode);
-
-	if (acpi_ex_interpreter_trace_enabled(NULL) &&
-	    (acpi_gbl_trace_flags & ACPI_TRACE_OPCODE)) {
-		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, TRUE,
-				 op->common.aml, op->common.aml_op_name);
-	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ex_stop_trace_opcode
- *
- * PARAMETERS:  op                  - The parser opcode object
- *              walk_state          - current state, NULL if not yet executing
- *                                    a method.
- *
- * RETURN:      None
- *
- * DESCRIPTION: Stop opcode execution trace
- *
- ******************************************************************************/
-
-void
-acpi_ex_stop_trace_opcode(union acpi_parse_object *op,
-			  struct acpi_walk_state *walk_state)
-{
-
-	ACPI_FUNCTION_NAME(ex_stop_trace_opcode);
-
-	if (acpi_ex_interpreter_trace_enabled(NULL) &&
-	    (acpi_gbl_trace_flags & ACPI_TRACE_OPCODE)) {
-		ACPI_TRACE_POINT(ACPI_TRACE_AML_OPCODE, FALSE,
-				 op->common.aml, op->common.aml_op_name);
-	}
-}

@@ -24,7 +24,7 @@
 &omap4_pmx_wkup {
 	twl6030_wkup_pins: pinmux_twl6030_wkup_pins {
 		pinctrl-single,pins = <
-			0x14 (PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
+			OMAP4_IOPAD(0x054, PIN_OUTPUT | MUX_MODE2)		/* fref_clk0_out.sys_drm_msecure */
 		>;
 	};
 };
@@ -32,7 +32,7 @@
 &omap4_pmx_core {
 	twl6030_pins: pinmux_twl6030_pins {
 		pinctrl-single,pins = <
-			0x15e (WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
+			OMAP4_IOPAD(0x19e, WAKEUP_EN | PIN_INPUT_PULLUP | MUX_MODE0)	/* sys_nirq1.sys_nirq1 */
 		>;
 	};
 };

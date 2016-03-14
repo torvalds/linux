@@ -2214,7 +2214,7 @@ static const unsigned int lcd1_data9_mux[] = {
 	LCD1_D8_MARK,
 };
 static const unsigned int lcd1_data12_pins[] = {
-	/* D[0:12] */
+	/* D[0:11] */
 	4, 3, 2, 1, 0, 91, 92, 23,
 	93, 94, 21, 201,
 };

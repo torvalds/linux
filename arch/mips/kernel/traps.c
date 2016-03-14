@@ -663,7 +663,7 @@ static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
 	return -1;
 }
 
-static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned short opcode)
+static int simulate_rdhwr_mm(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & MM_POOL32A_FUNC) == MM_RDHWR) {
 		int rd = (opcode & MM_RS) >> 16;
@@ -690,15 +690,15 @@ static int simulate_sync(struct pt_regs *regs, unsigned int opcode)
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	enum ctx_state prev_state;
-	siginfo_t info;
+	siginfo_t info = {
+		.si_signo = SIGFPE,
+		.si_code = FPE_INTOVF,
+		.si_addr = (void __user *)regs->cp0_epc,
+	};
 
 	prev_state = exception_enter();
 	die_if_kernel("Integer overflow", regs);
 
-	info.si_code = FPE_INTOVF;
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_addr = (void __user *) regs->cp0_epc;
 	force_sig_info(SIGFPE, &info, current);
 	exception_exit(prev_state);
 }
@@ -874,7 +874,7 @@ out:
 void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 	const char *str)
 {
-	siginfo_t info;
+	siginfo_t info = { 0 };
 	char b[40];
 
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
@@ -903,7 +903,6 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		else
 			info.si_code = FPE_INTOVF;
 		info.si_signo = SIGFPE;
-		info.si_errno = 0;
 		info.si_addr = (void __user *) regs->cp0_epc;
 		force_sig_info(SIGFPE, &info, current);
 		break;
@@ -1119,11 +1118,12 @@ no_r2_instr:
 	if (get_isa16_mode(regs->cp0_epc)) {
 		unsigned short mmop[2] = { 0 };
 
-		if (unlikely(get_user(mmop[0], epc) < 0))
+		if (unlikely(get_user(mmop[0], (u16 __user *)epc + 0) < 0))
 			status = SIGSEGV;
-		if (unlikely(get_user(mmop[1], epc) < 0))
+		if (unlikely(get_user(mmop[1], (u16 __user *)epc + 1) < 0))
 			status = SIGSEGV;
-		opcode = (mmop[0] << 16) | mmop[1];
+		opcode = mmop[0];
+		opcode = (opcode << 16) | mmop[1];
 
 		if (status < 0)
 			status = simulate_rdhwr_mm(regs, opcode);
@@ -1369,26 +1369,12 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		if (unlikely(compute_return_epc(regs) < 0))
 			break;
 
-		if (get_isa16_mode(regs->cp0_epc)) {
-			unsigned short mmop[2] = { 0 };
-
-			if (unlikely(get_user(mmop[0], epc) < 0))
-				status = SIGSEGV;
-			if (unlikely(get_user(mmop[1], epc) < 0))
-				status = SIGSEGV;
-			opcode = (mmop[0] << 16) | mmop[1];
-
-			if (status < 0)
-				status = simulate_rdhwr_mm(regs, opcode);
-		} else {
+		if (!get_isa16_mode(regs->cp0_epc)) {
 			if (unlikely(get_user(opcode, epc) < 0))
 				status = SIGSEGV;
 
 			if (!cpu_has_llsc && status < 0)
 				status = simulate_llsc(regs, opcode);
-
-			if (status < 0)
-				status = simulate_rdhwr_normal(regs, opcode);
 		}
 
 		if (status < 0)
@@ -2250,7 +2236,7 @@ void __init trap_init(void)
 	 * Only some CPUs have the watch exceptions.
 	 */
 	if (cpu_has_watch)
-		set_except_vector(23, handle_watch);
+		set_except_vector(EXCCODE_WATCH, handle_watch);
 
 	/*
 	 * Initialise interrupt handlers
@@ -2277,27 +2263,27 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(0, using_rollback_handler() ? rollback_handle_int
-						      : handle_int);
-	set_except_vector(1, handle_tlbm);
-	set_except_vector(2, handle_tlbl);
-	set_except_vector(3, handle_tlbs);
+	set_except_vector(EXCCODE_INT, using_rollback_handler() ?
+					rollback_handle_int : handle_int);
+	set_except_vector(EXCCODE_MOD, handle_tlbm);
+	set_except_vector(EXCCODE_TLBL, handle_tlbl);
+	set_except_vector(EXCCODE_TLBS, handle_tlbs);
 
-	set_except_vector(4, handle_adel);
-	set_except_vector(5, handle_ades);
+	set_except_vector(EXCCODE_ADEL, handle_adel);
+	set_except_vector(EXCCODE_ADES, handle_ades);
 
-	set_except_vector(6, handle_ibe);
-	set_except_vector(7, handle_dbe);
+	set_except_vector(EXCCODE_IBE, handle_ibe);
+	set_except_vector(EXCCODE_DBE, handle_dbe);
 
-	set_except_vector(8, handle_sys);
-	set_except_vector(9, handle_bp);
-	set_except_vector(10, rdhwr_noopt ? handle_ri :
+	set_except_vector(EXCCODE_SYS, handle_sys);
+	set_except_vector(EXCCODE_BP, handle_bp);
+	set_except_vector(EXCCODE_RI, rdhwr_noopt ? handle_ri :
 			  (cpu_has_vtag_icache ?
 			   handle_ri_rdhwr_vivt : handle_ri_rdhwr));
-	set_except_vector(11, handle_cpu);
-	set_except_vector(12, handle_ov);
-	set_except_vector(13, handle_tr);
-	set_except_vector(14, handle_msa_fpe);
+	set_except_vector(EXCCODE_CPU, handle_cpu);
+	set_except_vector(EXCCODE_OV, handle_ov);
+	set_except_vector(EXCCODE_TR, handle_tr);
+	set_except_vector(EXCCODE_MSAFPE, handle_msa_fpe);
 
 	if (current_cpu_type() == CPU_R6000 ||
 	    current_cpu_type() == CPU_R6000A) {
@@ -2318,25 +2304,25 @@ void __init trap_init(void)
 		board_nmi_handler_setup();
 
 	if (cpu_has_fpu && !cpu_has_nofpuex)
-		set_except_vector(15, handle_fpe);
+		set_except_vector(EXCCODE_FPE, handle_fpe);
 
-	set_except_vector(16, handle_ftlb);
+	set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
 
 	if (cpu_has_rixiex) {
-		set_except_vector(19, tlb_do_page_fault_0);
-		set_except_vector(20, tlb_do_page_fault_0);
+		set_except_vector(EXCCODE_TLBRI, tlb_do_page_fault_0);
+		set_except_vector(EXCCODE_TLBXI, tlb_do_page_fault_0);
 	}
 
-	set_except_vector(21, handle_msa);
-	set_except_vector(22, handle_mdmx);
+	set_except_vector(EXCCODE_MSADIS, handle_msa);
+	set_except_vector(EXCCODE_MDMX, handle_mdmx);
 
 	if (cpu_has_mcheck)
-		set_except_vector(24, handle_mcheck);
+		set_except_vector(EXCCODE_MCHECK, handle_mcheck);
 
 	if (cpu_has_mipsmt)
-		set_except_vector(25, handle_mt);
+		set_except_vector(EXCCODE_THREAD, handle_mt);
 
-	set_except_vector(26, handle_dsp);
+	set_except_vector(EXCCODE_DSPDIS, handle_dsp);
 
 	if (board_cache_error_setup)
 		board_cache_error_setup();

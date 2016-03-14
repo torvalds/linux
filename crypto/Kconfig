@@ -472,11 +472,13 @@ config CRYPTO_CRCT10DIF_PCLMUL
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
 	select CRYPTO_GF128MUL
+	select CRYPTO_HASH
 	help
 	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
+	select CRYPTO_HASH
 	help
 	  Poly1305 authenticator algorithm, RFC7539.
 

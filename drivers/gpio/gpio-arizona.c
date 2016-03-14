@@ -28,14 +28,9 @@ struct arizona_gpio {
 	struct gpio_chip gpio_chip;
 };
 
-static inline struct arizona_gpio *to_arizona_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct arizona_gpio, gpio_chip);
-}
-
 static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	return regmap_update_bits(arizona->regmap, ARIZONA_GPIO1_CTRL + offset,
@@ -44,7 +39,7 @@ static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 	unsigned int val;
 	int ret;
@@ -62,7 +57,7 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int arizona_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	if (value)
@@ -74,7 +69,7 @@ static int arizona_gpio_direction_out(struct gpio_chip *chip,
 
 static void arizona_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct arizona_gpio *arizona_gpio = to_arizona_gpio(chip);
+	struct arizona_gpio *arizona_gpio = gpiochip_get_data(chip);
 	struct arizona *arizona = arizona_gpio->arizona;
 
 	if (value)
@@ -108,7 +103,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 
 	arizona_gpio->arizona = arizona;
 	arizona_gpio->gpio_chip = template_chip;
-	arizona_gpio->gpio_chip.dev = &pdev->dev;
+	arizona_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
 	arizona_gpio->gpio_chip.of_node = arizona->dev->of_node;
 #endif
@@ -122,6 +117,10 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	case WM1814:
 		arizona_gpio->gpio_chip.ngpio = 5;
 		break;
+	case WM1831:
+	case CS47L24:
+		arizona_gpio->gpio_chip.ngpio = 2;
+		break;
 	default:
 		dev_err(&pdev->dev, "Unknown chip variant %d\n",
 			arizona->type);
@@ -133,7 +132,7 @@ static int arizona_gpio_probe(struct platform_device *pdev)
 	else
 		arizona_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&arizona_gpio->gpio_chip);
+	ret = gpiochip_add_data(&arizona_gpio->gpio_chip, arizona_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
 			ret);

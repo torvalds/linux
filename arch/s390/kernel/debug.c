@@ -1470,7 +1470,7 @@ debug_dflt_header_fn(debug_info_t * id, struct debug_view *view,
 		except_str = "*";
 	else
 		except_str = "-";
-	caller = ((unsigned long) entry->caller) & PSW_ADDR_INSN;
+	caller = (unsigned long) entry->caller;
 	rc += sprintf(out_buf, "%02i %011lld:%06lu %1u %1s %02i %p  ",
 		      area, (long long)time_spec.tv_sec,
 		      time_spec.tv_nsec / 1000, level, except_str,

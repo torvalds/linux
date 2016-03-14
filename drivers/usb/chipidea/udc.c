@@ -26,7 +26,6 @@
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
-#include "debug.h"
 #include "otg.h"
 #include "otg_fsm.h"
 
@@ -349,14 +348,13 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 	if (node == NULL)
 		return -ENOMEM;
 
-	node->ptr = dma_pool_alloc(hwep->td_pool, GFP_ATOMIC,
+	node->ptr = dma_pool_zalloc(hwep->td_pool, GFP_ATOMIC,
 				   &node->dma);
 	if (node->ptr == NULL) {
 		kfree(node);
 		return -ENOMEM;
 	}
 
-	memset(node->ptr, 0, sizeof(struct ci_hw_td));
 	node->ptr->token = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
 	node->ptr->token &= cpu_to_le32(TD_TOTAL_BYTES);
 	node->ptr->token |= cpu_to_le32(TD_STATUS_ACTIVE);
@@ -404,9 +402,9 @@ static inline u8 _usb_addr(struct ci_hw_ep *ep)
 }
 
 /**
- * _hardware_queue: configures a request at hardware level
- * @gadget: gadget
+ * _hardware_enqueue: configures a request at hardware level
  * @hwep:   endpoint
+ * @hwreq:  request
  *
  * This function returns an error code
  */
@@ -435,19 +433,28 @@ static int _hardware_enqueue(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq)
 	if (hwreq->req.dma % PAGE_SIZE)
 		pages--;
 
-	if (rest == 0)
-		add_td_to_list(hwep, hwreq, 0);
+	if (rest == 0) {
+		ret = add_td_to_list(hwep, hwreq, 0);
+		if (ret < 0)
+			goto done;
+	}
 
 	while (rest > 0) {
 		unsigned count = min(hwreq->req.length - hwreq->req.actual,
 					(unsigned)(pages * CI_HDRC_PAGE_SIZE));
-		add_td_to_list(hwep, hwreq, count);
+		ret = add_td_to_list(hwep, hwreq, count);
+		if (ret < 0)
+			goto done;
+
 		rest -= count;
 	}
 
 	if (hwreq->req.zero && hwreq->req.length && hwep->dir == TX
-	    && (hwreq->req.length % hwep->ep.maxpacket == 0))
-		add_td_to_list(hwep, hwreq, 0);
+	    && (hwreq->req.length % hwep->ep.maxpacket == 0)) {
+		ret = add_td_to_list(hwep, hwreq, 0);
+		if (ret < 0)
+			goto done;
+	}
 
 	firstnode = list_first_entry(&hwreq->tds, struct td_node, td);
 
@@ -788,8 +795,12 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 
 /**
  * _ep_queue: queues (submits) an I/O request to an endpoint
+ * @ep:        endpoint
+ * @req:       request
+ * @gfp_flags: GFP flags (not used)
  *
  * Caller must hold lock
+ * This function returns an error code
  */
 static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 		    gfp_t __maybe_unused gfp_flags)

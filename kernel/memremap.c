@@ -10,8 +10,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
+#include <linux/radix-tree.h>
+#include <linux/memremap.h>
 #include <linux/device.h>
 #include <linux/types.h>
+#include <linux/pfn_t.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/memory_hotplug.h>
@@ -26,10 +29,10 @@ __weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 
 static void *try_ram_remap(resource_size_t offset, size_t size)
 {
-	struct page *page = pfn_to_page(offset >> PAGE_SHIFT);
+	unsigned long pfn = PHYS_PFN(offset);
 
 	/* In the simple case just return the existing linear address */
-	if (!PageHighMem(page))
+	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
 		return __va(offset);
 	return NULL; /* fallback to ioremap_cache */
 }
@@ -111,7 +114,7 @@ EXPORT_SYMBOL(memunmap);
 
 static void devm_memremap_release(struct device *dev, void *res)
 {
-	memunmap(res);
+	memunmap(*(void **)res);
 }
 
 static int devm_memremap_match(struct device *dev, void *res, void *match_data)
@@ -133,8 +136,10 @@ void *devm_memremap(struct device *dev, resource_size_t offset,
 	if (addr) {
 		*ptr = addr;
 		devres_add(dev, ptr);
-	} else
+	} else {
 		devres_free(ptr);
+		return ERR_PTR(-ENXIO);
+	}
 
 	return addr;
 }
@@ -147,25 +152,134 @@ void devm_memunmap(struct device *dev, void *addr)
 }
 EXPORT_SYMBOL(devm_memunmap);
 
+pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags)
+{
+	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
+}
+EXPORT_SYMBOL(phys_to_pfn_t);
+
 #ifdef CONFIG_ZONE_DEVICE
+static DEFINE_MUTEX(pgmap_lock);
+static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+#define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+#define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
+
 struct page_map {
 	struct resource res;
+	struct percpu_ref *ref;
+	struct dev_pagemap pgmap;
+	struct vmem_altmap altmap;
 };
 
-static void devm_memremap_pages_release(struct device *dev, void *res)
+void get_zone_device_page(struct page *page)
 {
-	struct page_map *page_map = res;
+	percpu_ref_get(page->pgmap->ref);
+}
+EXPORT_SYMBOL(get_zone_device_page);
 
-	/* pages are dead and unused, undo the arch mapping */
-	arch_remove_memory(page_map->res.start, resource_size(&page_map->res));
+void put_zone_device_page(struct page *page)
+{
+	put_dev_pagemap(page->pgmap);
+}
+EXPORT_SYMBOL(put_zone_device_page);
+
+static void pgmap_radix_release(struct resource *res)
+{
+	resource_size_t key, align_start, align_size, align_end;
+
+	align_start = res->start & ~(SECTION_SIZE - 1);
+	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+	align_end = align_start + align_size - 1;
+
+	mutex_lock(&pgmap_lock);
+	for (key = res->start; key <= res->end; key += SECTION_SIZE)
+		radix_tree_delete(&pgmap_radix, key >> PA_SECTION_SHIFT);
+	mutex_unlock(&pgmap_lock);
 }
 
-void *devm_memremap_pages(struct device *dev, struct resource *res)
+static unsigned long pfn_first(struct page_map *page_map)
 {
-	int is_ram = region_intersects(res->start, resource_size(res),
-			"System RAM");
+	struct dev_pagemap *pgmap = &page_map->pgmap;
+	const struct resource *res = &page_map->res;
+	struct vmem_altmap *altmap = pgmap->altmap;
+	unsigned long pfn;
+
+	pfn = res->start >> PAGE_SHIFT;
+	if (altmap)
+		pfn += vmem_altmap_offset(altmap);
+	return pfn;
+}
+
+static unsigned long pfn_end(struct page_map *page_map)
+{
+	const struct resource *res = &page_map->res;
+
+	return (res->start + resource_size(res)) >> PAGE_SHIFT;
+}
+
+#define for_each_device_pfn(pfn, map) \
+	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn++)
+
+static void devm_memremap_pages_release(struct device *dev, void *data)
+{
+	struct page_map *page_map = data;
+	struct resource *res = &page_map->res;
+	resource_size_t align_start, align_size;
+	struct dev_pagemap *pgmap = &page_map->pgmap;
+
+	if (percpu_ref_tryget_live(pgmap->ref)) {
+		dev_WARN(dev, "%s: page mapping is still live!\n", __func__);
+		percpu_ref_put(pgmap->ref);
+	}
+
+	/* pages are dead and unused, undo the arch mapping */
+	align_start = res->start & ~(SECTION_SIZE - 1);
+	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+	arch_remove_memory(align_start, align_size);
+	pgmap_radix_release(res);
+	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+			"%s: failed to free all reserved pages\n", __func__);
+}
+
+/* assumes rcu_read_lock() held at entry */
+struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+{
 	struct page_map *page_map;
-	int error, nid;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	page_map = radix_tree_lookup(&pgmap_radix, phys >> PA_SECTION_SHIFT);
+	return page_map ? &page_map->pgmap : NULL;
+}
+
+/**
+ * devm_memremap_pages - remap and provide memmap backing for the given resource
+ * @dev: hosting device for @res
+ * @res: "host memory" address range
+ * @ref: a live per-cpu reference count
+ * @altmap: optional descriptor for allocating the memmap from @res
+ *
+ * Notes:
+ * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+ *    (or devm release event).
+ *
+ * 2/ @res is expected to be a host memory range that could feasibly be
+ *    treated as a "System RAM" range, i.e. not a device mmio range, but
+ *    this is not enforced.
+ */
+void *devm_memremap_pages(struct device *dev, struct resource *res,
+		struct percpu_ref *ref, struct vmem_altmap *altmap)
+{
+	resource_size_t key, align_start, align_size, align_end;
+	struct dev_pagemap *pgmap;
+	struct page_map *page_map;
+	int error, nid, is_ram;
+	unsigned long pfn;
+
+	align_start = res->start & ~(SECTION_SIZE - 1);
+	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+		- align_start;
+	is_ram = region_intersects(align_start, align_size, "System RAM");
 
 	if (is_ram == REGION_MIXED) {
 		WARN_ONCE(1, "%s attempted on mixed region %pr\n",
@@ -176,25 +290,124 @@ void *devm_memremap_pages(struct device *dev, struct resource *res)
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
 
+	if (altmap && !IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)) {
+		dev_err(dev, "%s: altmap requires CONFIG_SPARSEMEM_VMEMMAP=y\n",
+				__func__);
+		return ERR_PTR(-ENXIO);
+	}
+
+	if (!ref)
+		return ERR_PTR(-EINVAL);
+
 	page_map = devres_alloc_node(devm_memremap_pages_release,
 			sizeof(*page_map), GFP_KERNEL, dev_to_node(dev));
 	if (!page_map)
 		return ERR_PTR(-ENOMEM);
+	pgmap = &page_map->pgmap;
 
 	memcpy(&page_map->res, res, sizeof(*res));
+
+	pgmap->dev = dev;
+	if (altmap) {
+		memcpy(&page_map->altmap, altmap, sizeof(*altmap));
+		pgmap->altmap = &page_map->altmap;
+	}
+	pgmap->ref = ref;
+	pgmap->res = &page_map->res;
+
+	mutex_lock(&pgmap_lock);
+	error = 0;
+	align_end = align_start + align_size - 1;
+	for (key = align_start; key <= align_end; key += SECTION_SIZE) {
+		struct dev_pagemap *dup;
+
+		rcu_read_lock();
+		dup = find_dev_pagemap(key);
+		rcu_read_unlock();
+		if (dup) {
+			dev_err(dev, "%s: %pr collides with mapping for %s\n",
+					__func__, res, dev_name(dup->dev));
+			error = -EBUSY;
+			break;
+		}
+		error = radix_tree_insert(&pgmap_radix, key >> PA_SECTION_SHIFT,
+				page_map);
+		if (error) {
+			dev_err(dev, "%s: failed: %d\n", __func__, error);
+			break;
+		}
+	}
+	mutex_unlock(&pgmap_lock);
+	if (error)
+		goto err_radix;
 
 	nid = dev_to_node(dev);
 	if (nid < 0)
 		nid = numa_mem_id();
 
-	error = arch_add_memory(nid, res->start, resource_size(res), true);
-	if (error) {
-		devres_free(page_map);
-		return ERR_PTR(error);
-	}
+	error = arch_add_memory(nid, align_start, align_size, true);
+	if (error)
+		goto err_add_memory;
 
+	for_each_device_pfn(pfn, page_map) {
+		struct page *page = pfn_to_page(pfn);
+
+		/*
+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+		 * freed or placed on a driver-private list.  Seed the
+		 * storage with LIST_POISON* values.
+		 */
+		list_del(&page->lru);
+		page->pgmap = pgmap;
+	}
 	devres_add(dev, page_map);
 	return __va(res->start);
+
+ err_add_memory:
+ err_radix:
+	pgmap_radix_release(res);
+	devres_free(page_map);
+	return ERR_PTR(error);
 }
 EXPORT_SYMBOL(devm_memremap_pages);
+
+unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
+{
+	/* number of pfns from base where pfn_to_page() is valid */
+	return altmap->reserve + altmap->free;
+}
+
+void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
+{
+	altmap->alloc -= nr_pfns;
+}
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+{
+	/*
+	 * 'memmap_start' is the virtual address for the first "struct
+	 * page" in this range of the vmemmap array.  In the case of
+	 * CONFIG_SPARSE_VMEMMAP a page_to_pfn conversion is simple
+	 * pointer arithmetic, so we can perform this to_vmem_altmap()
+	 * conversion without concern for the initialization state of
+	 * the struct page fields.
+	 */
+	struct page *page = (struct page *) memmap_start;
+	struct dev_pagemap *pgmap;
+
+	/*
+	 * Uncoditionally retrieve a dev_pagemap associated with the
+	 * given physical address, this is only for use in the
+	 * arch_{add|remove}_memory() for setting up and tearing down
+	 * the memmap.
+	 */
+	rcu_read_lock();
+	pgmap = find_dev_pagemap(__pfn_to_phys(page_to_pfn(page)));
+	rcu_read_unlock();
+
+	return pgmap ? pgmap->altmap : NULL;
+}
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 #endif /* CONFIG_ZONE_DEVICE */

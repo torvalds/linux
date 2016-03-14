@@ -646,6 +646,7 @@ void of_changeset_init(struct of_changeset *ocs)
 	memset(ocs, 0, sizeof(*ocs));
 	INIT_LIST_HEAD(&ocs->entries);
 }
+EXPORT_SYMBOL_GPL(of_changeset_init);
 
 /**
  * of_changeset_destroy - Destroy a changeset
@@ -662,20 +663,9 @@ void of_changeset_destroy(struct of_changeset *ocs)
 	list_for_each_entry_safe_reverse(ce, cen, &ocs->entries, node)
 		__of_changeset_entry_destroy(ce);
 }
+EXPORT_SYMBOL_GPL(of_changeset_destroy);
 
-/**
- * of_changeset_apply - Applies a changeset
- *
- * @ocs:	changeset pointer
- *
- * Applies a changeset to the live tree.
- * Any side-effects of live tree state changes are applied here on
- * sucess, like creation/destruction of devices and side-effects
- * like creation of sysfs properties and directories.
- * Returns 0 on success, a negative error value in case of an error.
- * On error the partially applied effects are reverted.
- */
-int of_changeset_apply(struct of_changeset *ocs)
+int __of_changeset_apply(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret;
@@ -704,17 +694,30 @@ int of_changeset_apply(struct of_changeset *ocs)
 }
 
 /**
- * of_changeset_revert - Reverts an applied changeset
+ * of_changeset_apply - Applies a changeset
  *
  * @ocs:	changeset pointer
  *
- * Reverts a changeset returning the state of the tree to what it
- * was before the application.
- * Any side-effects like creation/destruction of devices and
- * removal of sysfs properties and directories are applied.
+ * Applies a changeset to the live tree.
+ * Any side-effects of live tree state changes are applied here on
+ * success, like creation/destruction of devices and side-effects
+ * like creation of sysfs properties and directories.
  * Returns 0 on success, a negative error value in case of an error.
+ * On error the partially applied effects are reverted.
  */
-int of_changeset_revert(struct of_changeset *ocs)
+int of_changeset_apply(struct of_changeset *ocs)
+{
+	int ret;
+
+	mutex_lock(&of_mutex);
+	ret = __of_changeset_apply(ocs);
+	mutex_unlock(&of_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_changeset_apply);
+
+int __of_changeset_revert(struct of_changeset *ocs)
 {
 	struct of_changeset_entry *ce;
 	int ret;
@@ -740,6 +743,29 @@ int of_changeset_revert(struct of_changeset *ocs)
 
 	return 0;
 }
+
+/**
+ * of_changeset_revert - Reverts an applied changeset
+ *
+ * @ocs:	changeset pointer
+ *
+ * Reverts a changeset returning the state of the tree to what it
+ * was before the application.
+ * Any side-effects like creation/destruction of devices and
+ * removal of sysfs properties and directories are applied.
+ * Returns 0 on success, a negative error value in case of an error.
+ */
+int of_changeset_revert(struct of_changeset *ocs)
+{
+	int ret;
+
+	mutex_lock(&of_mutex);
+	ret = __of_changeset_revert(ocs);
+	mutex_unlock(&of_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_changeset_revert);
 
 /**
  * of_changeset_action - Perform a changeset action
@@ -779,3 +805,4 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 	list_add_tail(&ce->node, &ocs->entries);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(of_changeset_action);

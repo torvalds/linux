@@ -14,6 +14,7 @@ config PCI_DRA7XX
 config PCI_MVEBU
 	bool "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE
+	depends on ARM
 	depends on OF
 
 config PCIE_DW
@@ -49,8 +50,7 @@ config PCI_RCAR_GEN2
 
 config PCI_RCAR_GEN2_PCIE
 	bool "Renesas R-Car PCIe controller"
-	depends on ARM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
 	help
 	  Say Y here if you want PCIe controller support on R-Car Gen2 SoCs.
 
@@ -119,13 +119,11 @@ config PCI_VERSATILE
 	depends on ARCH_VERSATILE
 
 config PCIE_IPROC
-	tristate "Broadcom iProc PCIe controller"
-	depends on OF && (ARM || ARM64)
-	default n
+	tristate
 	help
 	  This enables the iProc PCIe core controller support for Broadcom's
-	  iProc family of SoCs. An appropriate bus interface driver also needs
-	  to be enabled
+	  iProc family of SoCs. An appropriate bus interface driver needs
+	  to be enabled to select this.
 
 config PCIE_IPROC_PLATFORM
 	tristate "Broadcom iProc PCIe platform bus driver"
@@ -148,6 +146,16 @@ config PCIE_IPROC_BCMA
 	  Say Y here if you want to use the Broadcom iProc PCIe controller
 	  through the BCMA bus interface
 
+config PCIE_IPROC_MSI
+	bool "Broadcom iProc PCIe MSI support"
+	depends on PCIE_IPROC_PLATFORM || PCIE_IPROC_BCMA
+	depends on PCI_MSI
+	select PCI_MSI_IRQ_DOMAIN
+	default ARCH_BCM_IPROC
+	help
+	  Say Y here if you want to enable MSI support for Broadcom's iProc
+	  PCIe controller
+
 config PCIE_ALTERA
 	bool "Altera PCIe controller"
 	depends on ARM || NIOS2
@@ -167,10 +175,21 @@ config PCIE_ALTERA_MSI
 
 config PCI_HISI
 	depends on OF && ARM64
-	bool "HiSilicon SoC HIP05 PCIe controller"
+	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
 	select PCIEPORTBUS
 	select PCIE_DW
 	help
-	  Say Y here if you want PCIe controller support on HiSilicon HIP05 SoC
+	  Say Y here if you want PCIe controller support on HiSilicon
+	  Hip05 and Hip06 SoCs
+
+config PCIE_QCOM
+	bool "Qualcomm PCIe controller"
+	depends on ARCH_QCOM && OF
+	select PCIE_DW
+	select PCIEPORTBUS
+	help
+	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
+	  PCIe controller uses the Designware core plus Qualcomm-specific
+	  hardware wrappers.
 
 endmenu

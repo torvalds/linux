@@ -497,9 +497,9 @@ batadv_find_router(struct batadv_priv *bat_priv,
 		/* alternative candidate should be good enough to be
 		 * considered
 		 */
-		if (!bao->bat_neigh_is_equiv_or_better(cand_router,
-						       cand->if_outgoing,
-						       router, recv_if))
+		if (!bao->bat_neigh_is_similar_or_better(cand_router,
+							 cand->if_outgoing,
+							 router, recv_if))
 			goto next;
 
 		/* don't use the same router twice */

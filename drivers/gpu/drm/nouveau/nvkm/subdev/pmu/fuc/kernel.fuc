@@ -225,17 +225,11 @@ intr:
 		nv_iowr(NV_PPWR_SUBINTR, $r9)
 
 	intr_skip_subintr:
-	and $r9 $r8 NV_PPWR_INTR_PAUSE
-	bra z #intr_skip_pause
-		and $r10 0xffbf
-
-	intr_skip_pause:
-	and $r9 $r8 NV_PPWR_INTR_USER0
-	bra z #intr_skip_user0
-		and $r10 0xffbf
-
-	intr_skip_user0:
+	mov $r9 (NV_PPWR_INTR_USER0 | NV_PPWR_INTR_USER1 | NV_PPWR_INTR_PAUSE)
+	not b32 $r9
+	and $r8 $r9
 	nv_iowr(NV_PPWR_INTR_ACK, $r8)
+
 	pop $r8
 	mov $flags $r8
 	pop $r15

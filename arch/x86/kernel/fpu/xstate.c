@@ -52,6 +52,7 @@ void fpu__xstate_clear_all_cpu_caps(void)
 	setup_clear_cpu_cap(X86_FEATURE_AVX512ER);
 	setup_clear_cpu_cap(X86_FEATURE_AVX512CD);
 	setup_clear_cpu_cap(X86_FEATURE_MPX);
+	setup_clear_cpu_cap(X86_FEATURE_XGETBV1);
 }
 
 /*
@@ -297,7 +298,7 @@ static void __init setup_xstate_comp(void)
  */
 static void __init setup_init_fpu_buf(void)
 {
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 
 	WARN_ON_FPU(!on_boot_cpu);
 	on_boot_cpu = 0;
@@ -608,7 +609,7 @@ static void fpu__init_disable_system_xstate(void)
 void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
-	static int on_boot_cpu = 1;
+	static int on_boot_cpu __initdata = 1;
 	int err;
 
 	WARN_ON_FPU(!on_boot_cpu);
@@ -632,8 +633,7 @@ void __init fpu__init_system_xstate(void)
 		BUG();
 	}
 
-	/* Support only the state known to the OS: */
-	xfeatures_mask = xfeatures_mask & XCNTXT_MASK;
+	xfeatures_mask &= fpu__get_supported_xfeatures_mask();
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();

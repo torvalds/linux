@@ -82,13 +82,13 @@ config DRM_TTM
 
 config DRM_GEM_CMA_HELPER
 	bool
-	depends on DRM && HAVE_DMA_ATTRS
+	depends on DRM
 	help
 	  Choose this if you need the GEM CMA helper functions
 
 config DRM_KMS_CMA_HELPER
 	bool
-	depends on DRM && HAVE_DMA_ATTRS
+	depends on DRM
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_FB_HELPER
 	select FB_SYS_FILLRECT
@@ -160,6 +160,7 @@ config DRM_AMDGPU
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+source "drivers/gpu/drm/amd/powerplay/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
@@ -266,3 +267,5 @@ source "drivers/gpu/drm/amd/amdkfd/Kconfig"
 source "drivers/gpu/drm/imx/Kconfig"
 
 source "drivers/gpu/drm/vc4/Kconfig"
+
+source "drivers/gpu/drm/etnaviv/Kconfig"

@@ -145,10 +145,10 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 	int ext_sigcount, i;
 	struct extended_signature *ext_sig;
 
-	fam   = __x86_family(sig);
+	fam   = x86_family(sig);
 	model = x86_model(sig);
 
-	fam_ucode   = __x86_family(mc_header->sig);
+	fam_ucode   = x86_family(mc_header->sig);
 	model_ucode = x86_model(mc_header->sig);
 
 	if (fam == fam_ucode && model == model_ucode)
@@ -163,7 +163,7 @@ matching_model_microcode(struct microcode_header_intel *mc_header,
 	ext_sigcount = ext_header->count;
 
 	for (i = 0; i < ext_sigcount; i++) {
-		fam_ucode   = __x86_family(ext_sig->sig);
+		fam_ucode   = x86_family(ext_sig->sig);
 		model_ucode = x86_model(ext_sig->sig);
 
 		if (fam == fam_ucode && model == model_ucode)
@@ -365,7 +365,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 	csig.sig = eax;
 
-	family = __x86_family(csig.sig);
+	family = x86_family(csig.sig);
 	model  = x86_model(csig.sig);
 
 	if ((model >= 5) || (family > 6)) {
@@ -521,16 +521,12 @@ static bool __init load_builtin_intel_microcode(struct cpio_data *cp)
 {
 #ifdef CONFIG_X86_64
 	unsigned int eax = 0x00000001, ebx, ecx = 0, edx;
-	unsigned int family, model, stepping;
 	char name[30];
 
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 
-	family   = __x86_family(eax);
-	model    = x86_model(eax);
-	stepping = eax & 0xf;
-
-	sprintf(name, "intel-ucode/%02x-%02x-%02x", family, model, stepping);
+	sprintf(name, "intel-ucode/%02x-%02x-%02x",
+		      x86_family(eax), x86_model(eax), x86_stepping(eax));
 
 	return get_builtin_firmware(cp, name);
 #else

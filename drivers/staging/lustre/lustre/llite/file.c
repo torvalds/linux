@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -2082,17 +2082,17 @@ putgl:
 	/* update time if requested */
 	rc = 0;
 	if (llss->ia2.ia_valid != 0) {
-		mutex_lock(&llss->inode1->i_mutex);
+		inode_lock(llss->inode1);
 		rc = ll_setattr(file1->f_path.dentry, &llss->ia2);
-		mutex_unlock(&llss->inode1->i_mutex);
+		inode_unlock(llss->inode1);
 	}
 
 	if (llss->ia1.ia_valid != 0) {
 		int rc1;
 
-		mutex_lock(&llss->inode2->i_mutex);
+		inode_lock(llss->inode2);
 		rc1 = ll_setattr(file2->f_path.dentry, &llss->ia1);
-		mutex_unlock(&llss->inode2->i_mutex);
+		inode_unlock(llss->inode2);
 		if (rc == 0)
 			rc = rc1;
 	}
@@ -2179,13 +2179,13 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 			 ATTR_MTIME | ATTR_MTIME_SET |
 			 ATTR_ATIME | ATTR_ATIME_SET;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	rc = ll_setattr_raw(file->f_path.dentry, attr, true);
 	if (rc == -ENODATA)
 		rc = 0;
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	kfree(attr);
 free_hss:
@@ -2609,7 +2609,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_FSYNC, 1);
 
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/* catch async errors that were recorded back when async writeback
 	 * failed for pages in this mapping. */
@@ -2641,7 +2641,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 			fd->fd_write_failed = false;
 	}
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return rc;
 }
 
@@ -3139,7 +3139,7 @@ struct file_operations ll_file_operations_noflock = {
 	.lock	   = ll_file_noflock
 };
 
-struct inode_operations ll_file_inode_operations = {
+const struct inode_operations ll_file_inode_operations = {
 	.setattr	= ll_setattr,
 	.getattr	= ll_getattr,
 	.permission	= ll_inode_permission,

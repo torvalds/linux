@@ -23,7 +23,7 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/pci.h>
+#include "pci.h"
 #include <asm/mach/time.h>
 #include <mach/time.h>
 

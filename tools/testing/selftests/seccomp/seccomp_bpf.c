@@ -1246,11 +1246,24 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
 
+/* Use PTRACE_GETREGS and PTRACE_SETREGS when available. This is useful for
+ * architectures without HAVE_ARCH_TRACEHOOK (e.g. User-mode Linux).
+ */
+#if defined(__x86_64__) || defined(__i386__)
+#define HAVE_GETREGS
+#endif
+
 /* Architecture-specific syscall fetching routine. */
 int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 {
-	struct iovec iov;
 	ARCH_REGS regs;
+#ifdef HAVE_GETREGS
+	EXPECT_EQ(0, ptrace(PTRACE_GETREGS, tracee, 0, &regs)) {
+		TH_LOG("PTRACE_GETREGS failed");
+		return -1;
+	}
+#else
+	struct iovec iov;
 
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
@@ -1258,6 +1271,7 @@ int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 		TH_LOG("PTRACE_GETREGSET failed");
 		return -1;
 	}
+#endif
 
 	return regs.SYSCALL_NUM;
 }
@@ -1266,13 +1280,16 @@ int get_syscall(struct __test_metadata *_metadata, pid_t tracee)
 void change_syscall(struct __test_metadata *_metadata,
 		    pid_t tracee, int syscall)
 {
-	struct iovec iov;
 	int ret;
 	ARCH_REGS regs;
-
+#ifdef HAVE_GETREGS
+	ret = ptrace(PTRACE_GETREGS, tracee, 0, &regs);
+#else
+	struct iovec iov;
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_GETREGSET, tracee, NT_PRSTATUS, &iov);
+#endif
 	EXPECT_EQ(0, ret);
 
 #if defined(__x86_64__) || defined(__i386__) || defined(__powerpc__) || \
@@ -1312,9 +1329,13 @@ void change_syscall(struct __test_metadata *_metadata,
 	if (syscall == -1)
 		regs.SYSCALL_RET = 1;
 
+#ifdef HAVE_GETREGS
+	ret = ptrace(PTRACE_SETREGS, tracee, 0, &regs);
+#else
 	iov.iov_base = &regs;
 	iov.iov_len = sizeof(regs);
 	ret = ptrace(PTRACE_SETREGSET, tracee, NT_PRSTATUS, &iov);
+#endif
 	EXPECT_EQ(0, ret);
 }
 

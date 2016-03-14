@@ -171,7 +171,8 @@ struct ib_srq *mlx4_ib_create_srq(struct ib_pd *pd,
 		if (err)
 			goto err_mtt;
 
-		srq->wrid = kmalloc(srq->msrq.max * sizeof (u64), GFP_KERNEL);
+		srq->wrid = kmalloc_array(srq->msrq.max, sizeof(u64),
+					GFP_KERNEL | __GFP_NOWARN);
 		if (!srq->wrid) {
 			srq->wrid = __vmalloc(srq->msrq.max * sizeof(u64),
 					      GFP_KERNEL, PAGE_KERNEL);

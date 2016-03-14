@@ -1288,7 +1288,7 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 
 	msi->irq = err;
 
-	err = request_irq(msi->irq, tegra_pcie_msi_irq, 0,
+	err = request_irq(msi->irq, tegra_pcie_msi_irq, IRQF_NO_THREAD,
 			  tegra_msi_irq_chip.name, pcie);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ: %d\n", err);

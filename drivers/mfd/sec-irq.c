@@ -407,6 +407,11 @@ static const struct regmap_irq_chip s2mps14_irq_chip = {
 	S2MPS1X_IRQ_CHIP_COMMON_DATA,
 };
 
+static const struct regmap_irq_chip s2mps15_irq_chip = {
+	.name = "s2mps15",
+	S2MPS1X_IRQ_CHIP_COMMON_DATA,
+};
+
 static const struct regmap_irq_chip s2mpu02_irq_chip = {
 	.name = "s2mpu02",
 	.irqs = s2mpu02_irqs,
@@ -465,6 +470,9 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		break;
 	case S2MPS14X:
 		sec_irq_chip = &s2mps14_irq_chip;
+		break;
+	case S2MPS15X:
+		sec_irq_chip = &s2mps15_irq_chip;
 		break;
 	case S2MPU02:
 		sec_irq_chip = &s2mpu02_irq_chip;

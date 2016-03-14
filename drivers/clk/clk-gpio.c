@@ -264,8 +264,8 @@ static struct clk *of_clk_gpio_gate_delayed_register_get(const char *name,
 		const char * const *parent_names, u8 num_parents,
 		unsigned gpio, bool active_low)
 {
-	return clk_register_gpio_gate(NULL, name, parent_names[0],
-			gpio, active_low, 0);
+	return clk_register_gpio_gate(NULL, name, parent_names ?
+			parent_names[0] : NULL, gpio, active_low, 0);
 }
 
 static struct clk *of_clk_gpio_mux_delayed_register_get(const char *name,
@@ -287,18 +287,26 @@ static void __init of_gpio_clk_setup(struct device_node *node,
 	const char **parent_names;
 	int i, num_parents;
 
+	num_parents = of_clk_get_parent_count(node);
+	if (num_parents < 0)
+		num_parents = 0;
+
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return;
 
-	num_parents = of_clk_get_parent_count(node);
+	if (num_parents) {
+		parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
+		if (!parent_names) {
+			kfree(data);
+			return;
+		}
 
-	parent_names = kcalloc(num_parents, sizeof(char *), GFP_KERNEL);
-	if (!parent_names)
-		return;
-
-	for (i = 0; i < num_parents; i++)
-		parent_names[i] = of_clk_get_parent_name(node, i);
+		for (i = 0; i < num_parents; i++)
+			parent_names[i] = of_clk_get_parent_name(node, i);
+	} else {
+		parent_names = NULL;
+	}
 
 	data->num_parents = num_parents;
 	data->parent_names = parent_names;

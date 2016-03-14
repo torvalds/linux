@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
 #include "hns_enet.h"
 
 #define HNS_PHY_PAGE_MDIX	0
@@ -72,24 +71,22 @@ static void hns_get_mdix_mode(struct net_device *net_dev,
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct phy_device *phy_dev = priv->phy;
 
-	if (!phy_dev || !phy_dev->bus) {
+	if (!phy_dev || !phy_dev->mdio.bus) {
 		cmd->eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
 		cmd->eth_tp_mdix = ETH_TP_MDI_INVALID;
 		return;
 	}
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_MDIX);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_MDIX);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSC_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSC_REG);
 	mdix_ctrl = hnae_get_field(retval, PHY_MDIX_CTRL_M, PHY_MDIX_CTRL_S);
 
-	retval = mdiobus_read(phy_dev->bus, phy_dev->addr, HNS_PHY_CSS_REG);
+	retval = phy_read(phy_dev, HNS_PHY_CSS_REG);
 	mdix = hnae_get_bit(retval, PHY_MDIX_STATUS_B);
 	is_resolved = hnae_get_bit(retval, PHY_SPEED_DUP_RESOLVE_B);
 
-	(void)mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_PHY_PAGE_REG,
-			    HNS_PHY_PAGE_COPPER);
+	phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 
 	switch (mdix_ctrl) {
 	case 0x0:
@@ -254,53 +251,36 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 
 	if (en) {
 		/* speed : 1000M */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    HNS_PHY_PAGE_REG, 2);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    21, 0x1046);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 2);
+		phy_write(phy_dev, 21, 0x1046);
 		/* Force Master */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    9, 0x1F00);
+		phy_write(phy_dev, 9, 0x1F00);
 		/* Soft-reset */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
+		phy_write(phy_dev, 0, 0x9140);
 		/* If autoneg disabled,two soft-reset operations */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    0, 0x9140);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
+		phy_write(phy_dev, 0, 0x9140);
+		phy_write(phy_dev, 22, 0xFA);
 
 		/* Default is 0x0400 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x418);
+		phy_write(phy_dev, 1, 0x418);
 
 		/* Force 1000M Link, Default is 0x0200 */
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x20C);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
+		phy_write(phy_dev, 7, 0x20C);
+		phy_write(phy_dev, 22, 0);
 
 		/* Enable MAC loop-back */
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val |= PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	} else {
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0xFA);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    1, 0x400);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    7, 0x200);
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    22, 0);
+		phy_write(phy_dev, 22, 0xFA);
+		phy_write(phy_dev, 1, 0x400);
+		phy_write(phy_dev, 7, 0x200);
+		phy_write(phy_dev, 22, 0);
 
-		val = (u16)mdiobus_read(phy_dev->bus, phy_dev->addr,
-					COPPER_CONTROL_REG);
+		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val &= ~PHY_LOOP_BACK;
-		(void)mdiobus_write(phy_dev->bus, phy_dev->addr,
-				    COPPER_CONTROL_REG, val);
+		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	}
 	return 0;
 }
@@ -315,8 +295,10 @@ static int __lb_setup(struct net_device *ndev,
 
 	switch (loop) {
 	case MAC_INTERNALLOOP_PHY:
-		if ((phy_dev) && (!phy_dev->is_c45))
+		if ((phy_dev) && (!phy_dev->is_c45)) {
 			ret = hns_nic_config_phy_loopback(phy_dev, 0x1);
+			ret |= h->dev->ops->set_loopback(h, loop, 0x1);
+		}
 		break;
 	case MAC_INTERNALLOOP_MAC:
 		if ((h->dev->ops->set_loopback) &&
@@ -396,6 +378,7 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 			       struct sk_buff *skb)
 {
 	struct net_device *ndev;
+	struct hns_nic_priv *priv;
 	struct hnae_ring *ring;
 	struct netdev_queue *dev_queue;
 	struct sk_buff *new_skb;
@@ -405,8 +388,17 @@ static void __lb_other_process(struct hns_nic_ring_data *ring_data,
 	char buff[33]; /* 32B data and the last character '\0' */
 
 	if (!ring_data) { /* Just for doing create frame*/
+		ndev = skb->dev;
+		priv = netdev_priv(ndev);
+
 		frame_size = skb->len;
 		memset(skb->data, 0xFF, frame_size);
+		if ((!AE_IS_VER1(priv->enet_ver)) &&
+		    (priv->ae_handle->port_type == HNAE_PORT_SERVICE)) {
+			memcpy(skb->data, ndev->dev_addr, 6);
+			skb->data[5] += 0x1f;
+		}
+
 		frame_size &= ~1ul;
 		memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
 		memset(&skb->data[frame_size / 2 + 10], 0xBE,
@@ -506,6 +498,7 @@ static int __lb_run_test(struct net_device *ndev,
 
 	/* place data into test skb */
 	(void)skb_put(skb, size);
+	skb->dev = ndev;
 	__lb_other_process(NULL, skb);
 	skb->queue_mapping = NIC_LB_TEST_RING_ID;
 
@@ -667,6 +660,7 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
 	drvinfo->bus_info[ETHTOOL_BUSINFO_LEN - 1] = '\0';
 
 	strncpy(drvinfo->fw_version, "N/A", ETHTOOL_FWVERS_LEN);
+	drvinfo->eedump_len = 0;
 }
 
 /**
@@ -1018,16 +1012,9 @@ int hns_phy_led_set(struct net_device *netdev, int value)
 	struct hns_nic_priv *priv = netdev_priv(netdev);
 	struct phy_device *phy_dev = priv->phy;
 
-	if (!phy_dev->bus) {
-		netdev_err(netdev, "phy_dev->bus is null!\n");
-		return -EINVAL;
-	}
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr, HNS_LED_FC_REG,
-			       value);
-	retval = mdiobus_write(phy_dev->bus, phy_dev->addr,
-			       HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
+	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_LED);
+	retval = phy_write(phy_dev, HNS_LED_FC_REG, value);
+	retval = phy_write(phy_dev, HNS_PHY_PAGE_REG, HNS_PHY_PAGE_COPPER);
 	if (retval) {
 		netdev_err(netdev, "mdiobus_write fail !\n");
 		return retval;
@@ -1052,19 +1039,15 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 	if (phy_dev)
 		switch (state) {
 		case ETHTOOL_ID_ACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			priv->phy_led_val = (u16)mdiobus_read(phy_dev->bus,
-							      phy_dev->addr,
-							      HNS_LED_FC_REG);
+			priv->phy_led_val = phy_read(phy_dev, HNS_LED_FC_REG);
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			return 2;
@@ -1079,20 +1062,18 @@ int hns_set_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
 				return ret;
 			break;
 		case ETHTOOL_ID_INACTIVE:
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_LED);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_LED);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_LED_FC_REG, priv->phy_led_val);
+			ret = phy_write(phy_dev, HNS_LED_FC_REG,
+					priv->phy_led_val);
 			if (ret)
 				return ret;
 
-			ret = mdiobus_write(phy_dev->bus, phy_dev->addr,
-					    HNS_PHY_PAGE_REG,
-					    HNS_PHY_PAGE_COPPER);
+			ret = phy_write(phy_dev, HNS_PHY_PAGE_REG,
+					HNS_PHY_PAGE_COPPER);
 			if (ret)
 				return ret;
 			break;
@@ -1187,6 +1168,95 @@ static int hns_nic_nway_reset(struct net_device *netdev)
 	return ret;
 }
 
+static u32
+hns_get_rss_key_size(struct net_device *netdev)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+	u32 ret;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+	ret = ops->get_rss_key_size(priv->ae_handle);
+
+	return ret;
+}
+
+static u32
+hns_get_rss_indir_size(struct net_device *netdev)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+	u32 ret;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+	ret = ops->get_rss_indir_size(priv->ae_handle);
+
+	return ret;
+}
+
+static int
+hns_get_rss(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+	int ret;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+
+	if (!indir)
+		return 0;
+
+	ret = ops->get_rss(priv->ae_handle, indir, key, hfunc);
+
+	return 0;
+}
+
+static int
+hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
+	    const u8 hfunc)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_ae_ops *ops;
+	int ret;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		netdev_err(netdev,
+			   "RSS feature is not supported on this hardware\n");
+		return -EOPNOTSUPP;
+	}
+
+	ops = priv->ae_handle->dev->ops;
+
+	/* currently hfunc can only be Toeplitz hash */
+	if (key ||
+	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+		return -EOPNOTSUPP;
+	if (!indir)
+		return 0;
+
+	ret = ops->set_rss(priv->ae_handle, indir, key, hfunc);
+
+	return 0;
+}
+
 static struct ethtool_ops hns_ethtool_ops = {
 	.get_drvinfo = hns_nic_get_drvinfo,
 	.get_link  = hns_nic_get_link,
@@ -1206,6 +1276,10 @@ static struct ethtool_ops hns_ethtool_ops = {
 	.get_regs_len = hns_get_regs_len,
 	.get_regs = hns_get_regs,
 	.nway_reset = hns_nic_nway_reset,
+	.get_rxfh_key_size = hns_get_rss_key_size,
+	.get_rxfh_indir_size = hns_get_rss_indir_size,
+	.get_rxfh = hns_get_rss,
+	.set_rxfh = hns_set_rss,
 };
 
 void hns_ethtool_set_ops(struct net_device *ndev)

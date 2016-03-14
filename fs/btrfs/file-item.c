@@ -202,7 +202,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	}
 
 	if (bio->bi_iter.bi_size > PAGE_CACHE_SIZE * 8)
-		path->reada = 2;
+		path->reada = READA_FORWARD;
 
 	WARN_ON(bio->bi_vcnt <= 0);
 
@@ -328,7 +328,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 
 	if (search_commit) {
 		path->skip_locking = 1;
-		path->reada = 2;
+		path->reada = READA_FORWARD;
 		path->search_commit_root = 1;
 	}
 

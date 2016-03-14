@@ -39,7 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
 
-#include <media/adv7604.h>
+#include <media/i2c/adv7604.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -905,7 +905,7 @@ static int find_and_set_predefined_video_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; predef_vid_timings[i].timings.bt.width; i++) {
 		if (!v4l2_match_dv_timings(timings, &predef_vid_timings[i].timings,
-					is_digital_input(sd) ? 250000 : 1000000))
+				is_digital_input(sd) ? 250000 : 1000000, false))
 			continue;
 		io_write(sd, 0x00, predef_vid_timings[i].vid_std); /* video std */
 		io_write(sd, 0x01, (predef_vid_timings[i].v_freq << 4) +
@@ -1479,7 +1479,7 @@ static void adv76xx_fill_optional_dv_timings_fields(struct v4l2_subdev *sd,
 
 	for (i = 0; adv76xx_timings[i].bt.width; i++) {
 		if (v4l2_match_dv_timings(timings, &adv76xx_timings[i],
-					is_digital_input(sd) ? 250000 : 1000000)) {
+				is_digital_input(sd) ? 250000 : 1000000, false)) {
 			*timings = adv76xx_timings[i];
 			break;
 		}
@@ -1644,7 +1644,7 @@ static int adv76xx_s_dv_timings(struct v4l2_subdev *sd,
 	if (!timings)
 		return -EINVAL;
 
-	if (v4l2_match_dv_timings(&state->timings, timings, 0)) {
+	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
 		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
 		return 0;
 	}
@@ -1960,10 +1960,9 @@ static int adv76xx_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 	}
 
 	/* tx 5v detect */
-	tx_5v = io_read(sd, 0x70) & info->cable_det_mask;
+	tx_5v = irq_reg_0x70 & info->cable_det_mask;
 	if (tx_5v) {
 		v4l2_dbg(1, debug, sd, "%s: tx_5v: 0x%x\n", __func__, tx_5v);
-		io_write(sd, 0x71, tx_5v);
 		adv76xx_s_detect_tx_5v_ctrl(sd);
 		if (handled)
 			*handled = true;
@@ -3208,8 +3207,8 @@ static int adv76xx_probe(struct i2c_client *client,
 		state->pads[i].flags = MEDIA_PAD_FL_SINK;
 	state->pads[state->source_pad].flags = MEDIA_PAD_FL_SOURCE;
 
-	err = media_entity_init(&sd->entity, state->source_pad + 1,
-				state->pads, 0);
+	err = media_entity_pads_init(&sd->entity, state->source_pad + 1,
+				state->pads);
 	if (err)
 		goto err_work_queues;
 

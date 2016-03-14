@@ -44,13 +44,17 @@ static struct {
 		.source = test_llvm__bpf_test_kbuild_prog,
 		.desc = "Test kbuild searching",
 	},
+	[LLVM_TESTCASE_BPF_PROLOGUE] = {
+		.source = test_llvm__bpf_test_prologue_prog,
+		.desc = "Compile source for BPF prologue generation test",
+	},
 };
 
 
 int
 test_llvm__fetch_bpf_obj(void **p_obj_buf,
 			 size_t *p_obj_buf_sz,
-			 enum test_llvm__testcase index,
+			 enum test_llvm__testcase idx,
 			 bool force)
 {
 	const char *source;
@@ -59,11 +63,11 @@ test_llvm__fetch_bpf_obj(void **p_obj_buf,
 	char *tmpl_new = NULL, *clang_opt_new = NULL;
 	int err, old_verbose, ret = TEST_FAIL;
 
-	if (index >= __LLVM_TESTCASE_MAX)
+	if (idx >= __LLVM_TESTCASE_MAX)
 		return TEST_FAIL;
 
-	source = bpf_source_table[index].source;
-	desc = bpf_source_table[index].desc;
+	source = bpf_source_table[idx].source;
+	desc = bpf_source_table[idx].desc;
 
 	perf_config(perf_config_cb, NULL);
 
@@ -127,44 +131,39 @@ out:
 	return ret;
 }
 
-int test__llvm(void)
+int test__llvm(int subtest)
 {
-	enum test_llvm__testcase i;
+	int ret;
+	void *obj_buf = NULL;
+	size_t obj_buf_sz = 0;
 
-	for (i = 0; i < __LLVM_TESTCASE_MAX; i++) {
-		int ret;
-		void *obj_buf = NULL;
-		size_t obj_buf_sz = 0;
+	if ((subtest < 0) || (subtest >= __LLVM_TESTCASE_MAX))
+		return TEST_FAIL;
 
-		ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
-					       i, false);
+	ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
+				       subtest, false);
 
-		if (ret == TEST_OK) {
-			ret = test__bpf_parsing(obj_buf, obj_buf_sz);
-			if (ret != TEST_OK)
-				pr_debug("Failed to parse test case '%s'\n",
-					 bpf_source_table[i].desc);
-		}
-		free(obj_buf);
-
-		switch (ret) {
-		case TEST_SKIP:
-			return TEST_SKIP;
-		case TEST_OK:
-			break;
-		default:
-			/*
-			 * Test 0 is the basic LLVM test. If test 0
-			 * fail, the basic LLVM support not functional
-			 * so the whole test should fail. If other test
-			 * case fail, it can be fixed by adjusting
-			 * config so don't report error.
-			 */
-			if (i == 0)
-				return TEST_FAIL;
-			else
-				return TEST_SKIP;
+	if (ret == TEST_OK) {
+		ret = test__bpf_parsing(obj_buf, obj_buf_sz);
+		if (ret != TEST_OK) {
+			pr_debug("Failed to parse test case '%s'\n",
+				 bpf_source_table[subtest].desc);
 		}
 	}
-	return TEST_OK;
+	free(obj_buf);
+
+	return ret;
+}
+
+int test__llvm_subtest_get_nr(void)
+{
+	return __LLVM_TESTCASE_MAX;
+}
+
+const char *test__llvm_subtest_get_desc(int subtest)
+{
+	if ((subtest < 0) || (subtest >= __LLVM_TESTCASE_MAX))
+		return NULL;
+
+	return bpf_source_table[subtest].desc;
 }

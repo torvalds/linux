@@ -364,7 +364,7 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 	read_lock_irqsave(&cm.device_lock, flags);
 	list_for_each_entry(cm_dev, &cm.device_list, list) {
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
-					ndev, &p, NULL)) {
+					path->gid_type, ndev, &p, NULL)) {
 			port = cm_dev->port[p-1];
 			break;
 		}
@@ -782,11 +782,11 @@ static void cm_enter_timewait(struct cm_id_private *cm_id_priv)
 	wait_time = cm_convert_to_ms(cm_id_priv->av.timeout);
 
 	/* Check if the device started its remove_one */
-	spin_lock_irq(&cm.lock);
+	spin_lock_irqsave(&cm.lock, flags);
 	if (!cm_dev->going_down)
 		queue_delayed_work(cm.wq, &cm_id_priv->timewait_info->work.work,
 				   msecs_to_jiffies(wait_time));
-	spin_unlock_irq(&cm.lock);
+	spin_unlock_irqrestore(&cm.lock, flags);
 
 	cm_id_priv->timewait_info = NULL;
 }
@@ -1600,6 +1600,8 @@ static int cm_req_handler(struct cm_work *work)
 	struct ib_cm_id *cm_id;
 	struct cm_id_private *cm_id_priv, *listen_cm_id_priv;
 	struct cm_req_msg *req_msg;
+	union ib_gid gid;
+	struct ib_gid_attr gid_attr;
 	int ret;
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
@@ -1639,11 +1641,31 @@ static int cm_req_handler(struct cm_work *work)
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 
 	memcpy(work->path[0].dmac, cm_id_priv->av.ah_attr.dmac, ETH_ALEN);
-	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
+	work->path[0].hop_limit = cm_id_priv->av.ah_attr.grh.hop_limit;
+	ret = ib_get_cached_gid(work->port->cm_dev->ib_device,
+				work->port->port_num,
+				cm_id_priv->av.ah_attr.grh.sgid_index,
+				&gid, &gid_attr);
+	if (!ret) {
+		if (gid_attr.ndev) {
+			work->path[0].ifindex = gid_attr.ndev->ifindex;
+			work->path[0].net = dev_net(gid_attr.ndev);
+			dev_put(gid_attr.ndev);
+		}
+		work->path[0].gid_type = gid_attr.gid_type;
+		ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
+	}
 	if (ret) {
-		ib_get_cached_gid(work->port->cm_dev->ib_device,
-				  work->port->port_num, 0, &work->path[0].sgid,
-				  NULL);
+		int err = ib_get_cached_gid(work->port->cm_dev->ib_device,
+					    work->port->port_num, 0,
+					    &work->path[0].sgid,
+					    &gid_attr);
+		if (!err && gid_attr.ndev) {
+			work->path[0].ifindex = gid_attr.ndev->ifindex;
+			work->path[0].net = dev_net(gid_attr.ndev);
+			dev_put(gid_attr.ndev);
+		}
+		work->path[0].gid_type = gid_attr.gid_type;
 		ib_send_cm_rej(cm_id, IB_CM_REJ_INVALID_GID,
 			       &work->path[0].sgid, sizeof work->path[0].sgid,
 			       NULL, 0);
@@ -3482,6 +3504,7 @@ int ib_cm_notify(struct ib_cm_id *cm_id, enum ib_event_type event)
 EXPORT_SYMBOL(ib_cm_notify);
 
 static void cm_recv_handler(struct ib_mad_agent *mad_agent,
+			    struct ib_mad_send_buf *send_buf,
 			    struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct cm_port *port = mad_agent->context;
@@ -3731,16 +3754,6 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
-static void cm_get_ack_delay(struct cm_device *cm_dev)
-{
-	struct ib_device_attr attr;
-
-	if (ib_query_device(cm_dev->ib_device, &attr))
-		cm_dev->ack_delay = 0; /* acks will rely on packet life time */
-	else
-		cm_dev->ack_delay = attr.local_ca_ack_delay;
-}
-
 static ssize_t cm_show_counter(struct kobject *obj, struct attribute *attr,
 			       char *buf)
 {
@@ -3852,7 +3865,7 @@ static void cm_add_one(struct ib_device *ib_device)
 		return;
 
 	cm_dev->ib_device = ib_device;
-	cm_get_ack_delay(cm_dev);
+	cm_dev->ack_delay = ib_device->attrs.local_ca_ack_delay;
 	cm_dev->going_down = 0;
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,

@@ -101,7 +101,8 @@ config IR_SHARP_DECODER
 
 	---help---
 	   Enable this option if you have an infrared remote control which
-	   uses the Sharp protocol, and you need software decoding support.
+	   uses the Sharp protocol (Sharp, Denon), and you need software
+	   decoding support.
 
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"

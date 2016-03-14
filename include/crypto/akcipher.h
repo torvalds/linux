@@ -21,9 +21,9 @@
  * @src:	Source data
  * @dst:	Destination data
  * @src_len:	Size of the input buffer
- * @dst_len:	Size of the output buffer. It needs to be at leaset
+ * @dst_len:	Size of the output buffer. It needs to be at least
  *		as big as the expected result depending	on the operation
- *		After operation it will be updated with the acctual size of the
+ *		After operation it will be updated with the actual size of the
  *		result.
  *		In case of error where the dst sgl size was insufficient,
  *		it will be updated to the size required for the operation.
@@ -59,7 +59,7 @@ struct crypto_akcipher {
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
  *		operation
- * @encrypt:	Function performs an encrytp operation as defined by public key
+ * @encrypt:	Function performs an encrypt operation as defined by public key
  *		algorithm. In case of error, where the dst_len was insufficient,
  *		the req->dst_len will be updated to the size required for the
  *		operation
@@ -73,7 +73,7 @@ struct crypto_akcipher {
  * @set_priv_key: Function invokes the algorithm specific set private key
  *		function, which knows how to decode and interpret
  *		the BER encoded private key
- * @max_size:	Function returns dest buffer size reqired for a given key.
+ * @max_size:	Function returns dest buffer size required for a given key.
  * @init:	Initialize the cryptographic transformation object.
  *		This function is used to initialize the cryptographic
  *		transformation object. This function is called only once at
@@ -232,7 +232,7 @@ static inline void akcipher_request_set_callback(struct akcipher_request *req,
 }
 
 /**
- * akcipher_request_set_crypt() -- Sets reqest parameters
+ * akcipher_request_set_crypt() -- Sets request parameters
  *
  * Sets parameters required by crypto operation
  *

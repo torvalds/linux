@@ -37,7 +37,7 @@
 #include <linux/videodev2.h>
 
 #include <media/media-entity.h>
-#include <media/ov2659.h>
+#include <media/i2c/ov2659.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -1249,7 +1249,7 @@ static int ov2659_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static struct v4l2_ctrl_ops ov2659_ctrl_ops = {
+static const struct v4l2_ctrl_ops ov2659_ctrl_ops = {
 	.s_ctrl = ov2659_s_ctrl,
 };
 
@@ -1445,8 +1445,8 @@ static int ov2659_probe(struct i2c_client *client,
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	ov2659->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
-	ret = media_entity_init(&sd->entity, 1, &ov2659->pad, 0);
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &ov2659->pad);
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&ov2659->ctrls);
 		return ret;

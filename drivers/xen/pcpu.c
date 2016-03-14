@@ -78,7 +78,7 @@ static int xen_pcpu_down(uint32_t cpu_id)
 		.u.cpu_ol.cpuid		= cpu_id,
 	};
 
-	return HYPERVISOR_dom0_op(&op);
+	return HYPERVISOR_platform_op(&op);
 }
 
 static int xen_pcpu_up(uint32_t cpu_id)
@@ -89,7 +89,7 @@ static int xen_pcpu_up(uint32_t cpu_id)
 		.u.cpu_ol.cpuid		= cpu_id,
 	};
 
-	return HYPERVISOR_dom0_op(&op);
+	return HYPERVISOR_platform_op(&op);
 }
 
 static ssize_t show_online(struct device *dev,
@@ -277,7 +277,7 @@ static int sync_pcpu(uint32_t cpu, uint32_t *max_cpu)
 		.u.pcpu_info.xen_cpuid = cpu,
 	};
 
-	ret = HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
 	if (ret)
 		return ret;
 
@@ -364,7 +364,7 @@ int xen_pcpu_id(uint32_t acpi_id)
 	op.cmd = XENPF_get_cpuinfo;
 	while (cpu_id <= max_id) {
 		op.u.pcpu_info.xen_cpuid = cpu_id;
-		if (HYPERVISOR_dom0_op(&op)) {
+		if (HYPERVISOR_platform_op(&op)) {
 			cpu_id++;
 			continue;
 		}

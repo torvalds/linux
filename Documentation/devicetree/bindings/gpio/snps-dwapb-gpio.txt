@@ -24,7 +24,7 @@ controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt.  Shall be set to 2.  The first cell defines the interrupt number,
   the second encodes the triger flags encoded as described in
-  Documentation/devicetree/bindings/interrupts.txt
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - interrupt-parent : The parent interrupt controller.
 - interrupts : The interrupt to the parent controller raised when GPIOs
   generate the interrupts.

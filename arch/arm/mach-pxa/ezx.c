@@ -29,12 +29,12 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/hardware.h>
 #include <linux/platform_data/keypad-pxa27x.h>
-#include <linux/platform_data/camera-pxa.h>
+#include <linux/platform_data/media/camera-pxa.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -50,7 +50,7 @@
 #define GPIO19_GEN1_CAM_RST		19
 #define GPIO28_GEN2_CAM_RST		28
 
-static struct pwm_lookup ezx_pwm_lookup[] = {
+static struct pwm_lookup ezx_pwm_lookup[] __maybe_unused = {
 	PWM_LOOKUP("pxa27x-pwm.0", 0, "pwm-backlight.0", NULL, 78700,
 		   PWM_POLARITY_NORMAL),
 };
@@ -83,7 +83,7 @@ static struct pxafb_mode_info mode_ezx_old = {
 	.sync			= 0,
 };
 
-static struct pxafb_mach_info ezx_fb_info_1 = {
+static struct pxafb_mach_info ezx_fb_info_1 __maybe_unused = {
 	.modes		= &mode_ezx_old,
 	.num_modes	= 1,
 	.lcd_conn	= LCD_COLOR_TFT_16BPP,
@@ -104,17 +104,17 @@ static struct pxafb_mode_info mode_72r89803y01 = {
 	.sync			= 0,
 };
 
-static struct pxafb_mach_info ezx_fb_info_2 = {
+static struct pxafb_mach_info ezx_fb_info_2 __maybe_unused = {
 	.modes		= &mode_72r89803y01,
 	.num_modes	= 1,
 	.lcd_conn	= LCD_COLOR_TFT_18BPP,
 };
 
-static struct platform_device *ezx_devices[] __initdata = {
+static struct platform_device *ezx_devices[] __initdata __maybe_unused = {
 	&ezx_backlight_device,
 };
 
-static unsigned long ezx_pin_config[] __initdata = {
+static unsigned long ezx_pin_config[] __initdata __maybe_unused = {
 	/* PWM backlight */
 	GPIO16_PWM0_OUT,
 

@@ -143,15 +143,18 @@ dcb_outp_parse(struct nvkm_bios *bios, u8 idx, u8 *ver, u8 *len,
 			switch (outp->type) {
 			case DCB_OUTPUT_DP:
 				switch (conf & 0x00e00000) {
-				case 0x00000000:
+				case 0x00000000: /* 1.62 */
 					outp->dpconf.link_bw = 0x06;
 					break;
-				case 0x00200000:
+				case 0x00200000: /* 2.7 */
 					outp->dpconf.link_bw = 0x0a;
 					break;
-				case 0x00400000:
-				default:
+				case 0x00400000: /* 5.4 */
 					outp->dpconf.link_bw = 0x14;
+					break;
+				case 0x00600000: /* 8.1 */
+				default:
+					outp->dpconf.link_bw = 0x1e;
 					break;
 				}
 

@@ -9,7 +9,7 @@ config DVB_USB_V2
 	  <file:Documentation/dvb/README.dvb-usb>.
 
 	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
-	  <http://www.linuxtv.org/wiki/index.php/DVB_USB>
+	  <https://linuxtv.org/wiki/index.php/DVB_USB>
 
 	  Say Y if you own a USB DVB device.
 

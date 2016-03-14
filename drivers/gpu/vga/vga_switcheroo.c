@@ -36,6 +36,7 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -63,7 +64,7 @@
  * for the inactive GPU.) Also, muxes are often used to cut power to the
  * discrete GPU while it is not used.
  *
- * DRM drivers register GPUs with vga_switcheroo, these are heretoforth called
+ * DRM drivers register GPUs with vga_switcheroo, these are henceforth called
  * clients. The mux is called the handler. Muxless machines also register a
  * handler to control the power state of the discrete GPU, its ->switchto
  * callback is a no-op for obvious reasons. The discrete GPU is often equipped
@@ -918,17 +919,17 @@ int vga_switcheroo_init_domain_pm_ops(struct device *dev,
 		domain->ops.runtime_suspend = vga_switcheroo_runtime_suspend;
 		domain->ops.runtime_resume = vga_switcheroo_runtime_resume;
 
-		dev->pm_domain = domain;
+		dev_pm_domain_set(dev, domain);
 		return 0;
 	}
-	dev->pm_domain = NULL;
+	dev_pm_domain_set(dev, NULL);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vga_switcheroo_init_domain_pm_ops);
 
 void vga_switcheroo_fini_domain_pm_ops(struct device *dev)
 {
-	dev->pm_domain = NULL;
+	dev_pm_domain_set(dev, NULL);
 }
 EXPORT_SYMBOL(vga_switcheroo_fini_domain_pm_ops);
 
@@ -989,10 +990,10 @@ vga_switcheroo_init_domain_pm_optimus_hdmi_audio(struct device *dev,
 		domain->ops.runtime_resume =
 			vga_switcheroo_runtime_resume_hdmi_audio;
 
-		dev->pm_domain = domain;
+		dev_pm_domain_set(dev, domain);
 		return 0;
 	}
-	dev->pm_domain = NULL;
+	dev_pm_domain_set(dev, NULL);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vga_switcheroo_init_domain_pm_optimus_hdmi_audio);

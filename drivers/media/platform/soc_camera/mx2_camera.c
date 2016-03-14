@@ -35,11 +35,11 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 
 #include <linux/videodev2.h>
 
-#include <linux/platform_data/camera-mx2.h>
+#include <linux/platform_data/media/camera-mx2.h>
 
 #include <asm/dma.h>
 
@@ -469,20 +469,14 @@ static void mx2_camera_clock_stop(struct soc_camera_host *ici)
  *  Videobuf operations
  */
 static int mx2_videobuf_setup(struct vb2_queue *vq,
-			const void *parg,
 			unsigned int *count, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 
 	dev_dbg(icd->parent, "count=%d, size=%d\n", *count, sizes[0]);
-
-	/* TODO: support for VIDIOC_CREATE_BUFS not ready */
-	if (fmt != NULL)
-		return -ENOTTY;
 
 	alloc_ctxs[0] = pcdev->alloc_ctx;
 
@@ -1351,7 +1345,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 				vb2_get_plane_payload(vb, 0));
 
 		list_del_init(&buf->internal.queue);
-		v4l2_get_timestamp(&vbuf->timestamp);
+		vb->timestamp = ktime_get_ns();
 		vbuf->sequence = pcdev->frame_count;
 		if (err)
 			vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);

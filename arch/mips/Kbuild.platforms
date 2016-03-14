@@ -21,6 +21,7 @@ platforms += mti-malta
 platforms += mti-sead3
 platforms += netlogic
 platforms += paravirt
+platforms += pic32
 platforms += pistachio
 platforms += pmcs-msp71xx
 platforms += pnx833x

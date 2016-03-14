@@ -6,7 +6,8 @@
 /*
  * Everything needed for IOPart-GuestPart communication is define in
  * this file.  Note: Everything is OS-independent because this file is
- * used by Windows, Linux and possible EFI drivers.  */
+ * used by Windows, Linux and possible EFI drivers.
+ */
 
 /*
  * Communication flow between the IOPart and GuestPart uses the channel headers
@@ -66,21 +67,15 @@
  * IO Partition is defined below.
  */
 
-/*
- * Defines and enums.
- */
-
+/* Defines and enums. */
 #define MINNUM(a, b) (((a) < (b)) ? (a) : (b))
 #define MAXNUM(a, b) (((a) > (b)) ? (a) : (b))
 
-/* these define the two queues per data channel between iopart and
- * ioguestparts
- */
-#define IOCHAN_TO_IOPART 0 /* used by ioguestpart to 'insert' signals to
-			    * iopart */
-
-#define IOCHAN_FROM_IOPART 1 /* used by ioguestpart to 'remove' signals from
-			      * iopart - same queue as previous queue */
+/* define the two queues per data channel between iopart and ioguestparts */
+/* used by ioguestpart to 'insert' signals to iopart */
+#define IOCHAN_TO_IOPART 0
+/* used by ioguestpart to 'remove' signals from iopart, same previous queue */
+#define IOCHAN_FROM_IOPART 1
 
 /* size of cdb - i.e., scsi cmnd */
 #define MAX_CMND_SIZE 16
@@ -92,26 +87,29 @@
 /* various types of network packets that can be sent in cmdrsp */
 enum net_types {
 	NET_RCV_POST = 0,	/* submit buffer to hold receiving
-				 * incoming packet */
+				 * incoming packet
+				 */
 	/* virtnic -> uisnic */
 	NET_RCV,		/* incoming packet received */
 	/* uisnic -> virtpci */
-	NET_XMIT,		/* for outgoing net packets      */
+	NET_XMIT,		/* for outgoing net packets */
 	/* virtnic -> uisnic */
 	NET_XMIT_DONE,		/* outgoing packet xmitted */
 	/* uisnic -> virtpci */
 	NET_RCV_ENBDIS,		/* enable/disable packet reception */
 	/* virtnic -> uisnic */
-	NET_RCV_ENBDIS_ACK,	/* acknowledge enable/disable packet
-				 * reception */
+	NET_RCV_ENBDIS_ACK,	/* acknowledge enable/disable packet */
+				/* reception */
 	/* uisnic -> virtnic */
 	NET_RCV_PROMISC,	/* enable/disable promiscuous mode */
 	/* virtnic -> uisnic */
 	NET_CONNECT_STATUS,	/* indicate the loss or restoration of a network
-				 * connection */
+				 * connection
+				 */
 	/* uisnic -> virtnic */
 	NET_MACADDR,		/* indicates the client has requested to update
-				 * its MAC addr */
+				 * its MAC addr
+				 */
 	NET_MACADDR_ACK,	/* MAC address */
 
 };
@@ -170,51 +168,43 @@ struct vhba_wwnn {
 } __packed;
 
 /* WARNING: Values stired in this structure must contain maximum counts (not
- * maximum values). */
-struct vhba_config_max {	/* 20 bytes */
-	u32 max_channel;	/* maximum channel for devices attached to this
-				 * bus */
-	u32 max_id;		/* maximum SCSI ID for devices attached to this
-				 * bus */
-	u32 max_lun;		/* maximum SCSI LUN for devices attached to this
-				 * bus */
-	u32 cmd_per_lun;	/* maximum number of outstanding commands per
-				 * lun that are allowed at one time */
-	u32 max_io_size;	/* maximum io size for devices attached to this
-				 * bus */
+ * maximum values).
+ */
+struct vhba_config_max {/* 20 bytes */
+	u32 max_channel;/* maximum channel for devices attached to this bus */
+	u32 max_id;	/* maximum SCSI ID for devices attached to bus */
+	u32 max_lun;	/* maximum SCSI LUN for devices attached to bus */
+	u32 cmd_per_lun;/* maximum number of outstanding commands per LUN */
+	u32 max_io_size;/* maximum io size for devices attached to this bus */
 	/* max io size is often determined by the resource of the hba. e.g */
 	/* max scatter gather list length * page size / sector size */
 } __packed;
 
 struct uiscmdrsp_scsi {
-	u64 handle;		/* the handle to the cmd that was received -
-				 * send it back as is in the rsp packet.  */
+	u64 handle;		/* the handle to the cmd that was received */
+				/* send it back as is in the rsp packet.  */
 	u8 cmnd[MAX_CMND_SIZE];	/* the cdb for the command */
 	u32 bufflen;		/* length of data to be transferred out or in */
-	u16 guest_phys_entries;	/* Number of entries in scatter-gather (sg)
-				 * list */
+	u16 guest_phys_entries;	/* Number of entries in scatter-gather list */
 	struct guest_phys_info gpi_list[MAX_PHYS_INFO];	/* physical address
 							 * information for each
-							 * fragment */
+							 * fragment
+							 */
 	enum dma_data_direction  data_dir; /* direction of the data, if any */
-	struct uisscsi_dest vdest;	/* identifies the virtual hba, id,
-					 * channel, lun to which cmd was sent */
+	struct uisscsi_dest vdest;	/* identifies the virtual hba, id, */
+					/* channel, lun to which cmd was sent */
 
-	    /* the following fields are needed to queue the rsp back to cmd
-	     * originator */
-	int linuxstat;		/* the original Linux status - for use by linux
-				 * vdisk code */
+	/* Needed to queue the rsp back to cmd originator */
+	int linuxstat;		/* original Linux status used by linux vdisk */
 	u8 scsistat;		/* the scsi status */
-	u8 addlstat;		/* non-scsi status - covers cases like timeout
-				 * needed by windows guests */
+	u8 addlstat;		/* non-scsi status */
 #define ADDL_SEL_TIMEOUT	4
 
 	/* the following fields are need to determine the result of command */
 	 u8 sensebuf[MAX_SENSE_SIZE];	/* sense info in case cmd failed; */
 	/* it holds the sense_data struct; */
 	/* see that struct for details. */
-	void *vdisk; /* contains pointer to the vdisk so that we can clean up
-		      * when the IO completes. */
+	void *vdisk; /* pointer to the vdisk to clean up when IO completes. */
 	int no_disk_result;
 	/* used to return no disk inquiry result
 	 * when no_disk_result is set to 1,
@@ -258,15 +248,15 @@ struct uiscmdrsp_scsi {
  */
 #define NO_DISK_INQUIRY_RESULT_LEN 36
 
-#define MIN_INQUIRY_RESULT_LEN 5 /* we need at least 5 bytes minimum for inquiry
-				  * result */
+#define MIN_INQUIRY_RESULT_LEN 5 /* 5 bytes minimum for inquiry result */
 
 /* SCSI device version for no disk inquiry result */
 #define SCSI_SPC2_VER 4		/* indicates SCSI SPC2 (SPC3 is 5) */
 
 /* Windows and Linux want different things for a non-existent lun. So, we'll let
  * caller pass in the peripheral qualifier and type.
- * NOTE:[4] SCSI returns (n-4); so we return length-1-4 or length-5. */
+ * NOTE:[4] SCSI returns (n-4); so we return length-1-4 or length-5.
+ */
 
 #define SET_NO_DISK_INQUIRY_RESULT(buf, len, lun, lun0notpresent, notpresent) \
 	do {								\
@@ -305,9 +295,7 @@ struct uiscmdrsp_scsi {
 		}							\
 	} while (0)
 
-/*
- * Struct & Defines to support sense information.
- */
+/* Struct & Defines to support sense information. */
 
 /* The following struct is returned in sensebuf field in uiscmdrsp_scsi.  It is
  * initialized in exactly the manner that is recommended in Windows (hence the
@@ -342,13 +330,11 @@ struct sense_data {
 struct net_pkt_xmt {
 	int len;	/* full length of data in the packet */
 	int num_frags;	/* number of fragments in frags containing data */
-	struct phys_info frags[MAX_PHYS_INFO];	/* physical page information for
-						 * each fragment */
+	struct phys_info frags[MAX_PHYS_INFO];	/* physical page information */
 	char ethhdr[ETH_HEADER_SIZE];	/* the ethernet header  */
 	struct {
-		    /* these are needed for csum at uisnic end */
-		u8 valid;	/* 1 = rest of this struct is valid - else
-				 * ignore */
+		/* these are needed for csum at uisnic end */
+		u8 valid;	/* 1 = struct is valid - else ignore */
 		u8 hrawoffv;	/* 1 = hwrafoff is valid */
 		u8 nhrawoffv;	/* 1 = nhwrafoff is valid */
 		u16 protocol;	/* specifies packet protocol */
@@ -380,16 +366,18 @@ struct net_pkt_xmtdone {
  */
 #define RCVPOST_BUF_SIZE 4032
 #define MAX_NET_RCV_CHAIN \
-	((ETH_MAX_MTU+ETH_HEADER_SIZE + RCVPOST_BUF_SIZE-1) / RCVPOST_BUF_SIZE)
+	((ETH_MAX_MTU + ETH_HEADER_SIZE + RCVPOST_BUF_SIZE - 1) \
+	/ RCVPOST_BUF_SIZE)
 
 struct net_pkt_rcvpost {
 	    /* rcv buf size must be large enough to include ethernet data len +
 	     * ethernet header len - we are choosing 2K because it is guaranteed
-	     * to be describable */
-	    struct phys_info frag;	/* physical page information for the
-					 * single fragment 2K rcv buf */
-	    u64 unique_num;		/* This is used to make sure that
-					 * receive posts are returned to  */
+	     * to be describable
+	     */
+	    struct phys_info frag;	/* physical page information for the */
+					/* single fragment 2K rcv buf */
+	    u64 unique_num;
+	    /* unique_num ensure that receive posts are returned to */
 	    /* the Adapter which we sent them originally. */
 } __packed;
 
@@ -399,8 +387,7 @@ struct net_pkt_rcv {
 	u32 rcv_done_len;	/* length of received data */
 	u8 numrcvbufs;		/* number of receive buffers that contain the */
 	/* incoming data; guest end MUST chain these together. */
-	void *rcvbuf[MAX_NET_RCV_CHAIN];	/* the list of receive buffers
-						 * that must be chained; */
+	void *rcvbuf[MAX_NET_RCV_CHAIN];	/* list of chained rcvbufs */
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
 	u64 unique_num;
@@ -469,18 +456,17 @@ struct uiscmdrsp_scsitaskmgmt {
 #define TASK_MGMT_FAILED  0
 } __packed;
 
-/* The following is used by uissd to send disk add/remove notifications to
- * Guest */
+/* Used by uissd to send disk add/remove notifications to Guest */
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
 	u8 add;			/* 0-remove, 1-add */
-	void *v_hba;		/* Pointer to vhba_info for channel info to
-				 * route msg */
+	void *v_hba;		/* channel info to route msg */
 	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 } __packed;
 
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
- * to the IOVM. */
+ * to the IOVM.
+ */
 struct uiscmdrsp_vdiskmgmt {
 	enum vdisk_mgmt_types vdisktype;
 
@@ -533,8 +519,8 @@ struct uiscmdrsp {
 		struct uiscmdrsp_disknotify disknotify;
 		struct uiscmdrsp_vdiskmgmt vdiskmgmt;
 	};
-	void *private_data;	/* used to send the response when the cmd is
-				 * done (scsi & scsittaskmgmt). */
+	void *private_data;	/* send the response when the cmd is */
+				/* done (scsi & scsittaskmgmt). */
 	struct uiscmdrsp *next;	/* General Purpose Queue Link */
 	struct uiscmdrsp *activeQ_next;	/* Used to track active commands */
 	struct uiscmdrsp *activeQ_prev;	/* Used to track active commands */
@@ -564,15 +550,11 @@ struct spar_io_channel_protocol {
 	} __packed;
 
 #define MAX_CLIENTSTRING_LEN 1024
-	 u8 client_string[MAX_CLIENTSTRING_LEN];/* NULL terminated - so holds
-						 * max - 1 bytes */
+	/* client_string is NULL termimated so holds max -1 bytes */
+	 u8 client_string[MAX_CLIENTSTRING_LEN];
 } __packed;
 
-
-/*
- * INLINE functions for initializing and accessing I/O data channels
- */
-
+/* INLINE functions for initializing and accessing I/O data channels */
 #define SIZEOF_PROTOCOL (COVER(sizeof(struct spar_io_channel_protocol), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
 
@@ -584,8 +566,7 @@ struct spar_io_channel_protocol {
  * pfn-off-size entires.
  */
 
-/* we deal with 4K page sizes when we it comes to passing page information
- * between */
+/* use 4K page sizes when we it comes to passing page information between */
 /* Guest and IOPartition. */
 #define PI_PAGE_SIZE  0x1000
 #define PI_PAGE_MASK  0x0FFF
@@ -594,18 +575,8 @@ struct spar_io_channel_protocol {
  * room)
  */
 static inline  u16
-add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
-					 * to add entries */
-		     u16 inp_off,	/* input - specifies the off to be used
-					 * to add entries */
-		     u32 inp_len,	/* input - specifies the len to be used
-					 * to add entries */
-		     u16 index,		/* input - index in array at which new
-					 * entries are added */
-		     u16 max_pi_arr_entries,	/* input - specifies the maximum
-						 * entries pi_arr can hold */
-		     struct phys_info pi_arr[]) /* input & output - array to
-						  * which entries are added */
+add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
+		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
 {
 	u32 len;
 	u16 i, firstlen;

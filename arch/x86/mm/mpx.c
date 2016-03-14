@@ -123,7 +123,7 @@ static int get_reg_offset(struct insn *insn, struct pt_regs *regs,
 		break;
 	}
 
-	if (regno > nr_registers) {
+	if (regno >= nr_registers) {
 		WARN_ONCE(1, "decoded an instruction with an invalid register");
 		return -EINVAL;
 	}

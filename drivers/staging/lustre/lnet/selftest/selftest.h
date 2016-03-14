@@ -182,7 +182,7 @@ typedef struct swi_workitem {
 } swi_workitem_t;
 
 /* server-side state of a RPC */
-typedef struct srpc_server_rpc {
+struct srpc_server_rpc {
 	/* chain on srpc_service::*_rpcq */
 	struct list_head       srpc_list;
 	struct srpc_service_cd *srpc_scd;
@@ -198,7 +198,7 @@ typedef struct srpc_server_rpc {
 	unsigned int           srpc_aborted; /* being given up */
 	int                    srpc_status;
 	void                   (*srpc_done)(struct srpc_server_rpc *);
-} srpc_server_rpc_t;
+};
 
 /* client-side state of a RPC */
 typedef struct srpc_client_rpc {
@@ -318,8 +318,8 @@ typedef struct srpc_service {
 	 * - sv_handler: process incoming RPC request
 	 * - sv_bulk_ready: notify bulk data
 	 */
-	int                     (*sv_handler) (srpc_server_rpc_t *);
-	int                     (*sv_bulk_ready) (srpc_server_rpc_t *, int);
+	int (*sv_handler)(struct srpc_server_rpc *);
+	int (*sv_bulk_ready)(struct srpc_server_rpc *, int);
 } srpc_service_t;
 
 typedef struct {
@@ -423,9 +423,9 @@ void sfw_abort_rpc(srpc_client_rpc_t *rpc);
 void sfw_post_rpc(srpc_client_rpc_t *rpc);
 void sfw_client_rpc_done(srpc_client_rpc_t *rpc);
 void sfw_unpack_message(srpc_msg_t *msg);
-void sfw_free_pages(srpc_server_rpc_t *rpc);
+void sfw_free_pages(struct srpc_server_rpc *rpc);
 void sfw_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i);
-int sfw_alloc_pages(srpc_server_rpc_t *rpc, int cpt, int npages, int len,
+int sfw_alloc_pages(struct srpc_server_rpc *rpc, int cpt, int npages, int len,
 		    int sink);
 int sfw_make_session (srpc_mksn_reqst_t *request, srpc_mksn_reply_t *reply);
 
@@ -440,7 +440,7 @@ void srpc_free_bulk(srpc_bulk_t *bk);
 srpc_bulk_t *srpc_alloc_bulk(int cpt, unsigned bulk_npg, unsigned bulk_len,
 			     int sink);
 int srpc_send_rpc(swi_workitem_t *wi);
-int srpc_send_reply(srpc_server_rpc_t *rpc);
+int srpc_send_reply(struct srpc_server_rpc *rpc);
 int srpc_add_service(srpc_service_t *sv);
 int srpc_remove_service(srpc_service_t *sv);
 void srpc_shutdown_service(srpc_service_t *sv);
@@ -585,7 +585,7 @@ swi_state2str (int state)
 do {									\
 	int __I = 2;							\
 	while (!(cond)) {						\
-		CDEBUG(IS_PO2(++__I) ? D_WARNING : D_NET,		\
+		CDEBUG(is_power_of_2(++__I) ? D_WARNING : D_NET,	\
 		       fmt, ## __VA_ARGS__);				\
 		spin_unlock(&(lock));					\
 									\

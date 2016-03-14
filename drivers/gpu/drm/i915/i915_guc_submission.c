@@ -27,7 +27,7 @@
 #include "intel_guc.h"
 
 /**
- * DOC: GuC Client
+ * DOC: GuC-based command submission
  *
  * i915_guc_client:
  * We use the term client to avoid confusion with contexts. A i915_guc_client is
@@ -86,7 +86,6 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 		return -EINVAL;
 
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	spin_lock(&dev_priv->guc.host2guc_lock);
 
 	dev_priv->guc.action_count += 1;
 	dev_priv->guc.action_cmd = data[0];
@@ -119,7 +118,6 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 	}
 	dev_priv->guc.action_status = status;
 
-	spin_unlock(&dev_priv->guc.host2guc_lock);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;
@@ -161,9 +159,9 @@ static int host2guc_sample_forcewake(struct intel_guc *guc,
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
 	/* WaRsDisableCoarsePowerGating:skl,bxt */
 	if (!intel_enable_rc6(dev_priv->dev) ||
-	    (IS_BROXTON(dev) && (INTEL_REVID(dev) < BXT_REVID_B0)) ||
-	    (IS_SKL_GT3(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)) ||
-	    (IS_SKL_GT4(dev) && (INTEL_REVID(dev) <= SKL_REVID_E0)))
+	    IS_BXT_REVID(dev, 0, BXT_REVID_A1) ||
+	    (IS_SKL_GT3(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)) ||
+	    (IS_SKL_GT4(dev) && IS_SKL_REVID(dev, 0, SKL_REVID_E0)))
 		data[1] = 0;
 	else
 		/* bit 0 and 1 are for Render and Media domain separately */
@@ -258,7 +256,7 @@ static void guc_disable_doorbell(struct intel_guc *guc,
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	struct guc_doorbell_info *doorbell;
 	void *base;
-	int drbreg = GEN8_DRBREGL(client->doorbell_id);
+	i915_reg_t drbreg = GEN8_DRBREGL(client->doorbell_id);
 	int value;
 
 	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
@@ -292,15 +290,11 @@ static uint32_t select_doorbell_cacheline(struct intel_guc *guc)
 	const uint32_t cacheline_size = cache_line_size();
 	uint32_t offset;
 
-	spin_lock(&guc->host2guc_lock);
-
 	/* Doorbell uses a single cache line within a page */
 	offset = offset_in_page(guc->db_cacheline);
 
 	/* Moving to next cache line to reduce contention */
 	guc->db_cacheline += cacheline_size;
-
-	spin_unlock(&guc->host2guc_lock);
 
 	DRM_DEBUG_DRIVER("selected doorbell cacheline 0x%x, next 0x%x, linesize %u\n",
 			offset, guc->db_cacheline, cacheline_size);
@@ -322,13 +316,11 @@ static uint16_t assign_doorbell(struct intel_guc *guc, uint32_t priority)
 	const uint16_t end = start + half;
 	uint16_t id;
 
-	spin_lock(&guc->host2guc_lock);
 	id = find_next_zero_bit(guc->doorbell_bitmap, end, start);
 	if (id == end)
 		id = GUC_INVALID_DOORBELL_ID;
 	else
 		bitmap_set(guc->doorbell_bitmap, id, 1);
-	spin_unlock(&guc->host2guc_lock);
 
 	DRM_DEBUG_DRIVER("assigned %s priority doorbell id 0x%x\n",
 			hi_pri ? "high" : "normal", id);
@@ -338,9 +330,7 @@ static uint16_t assign_doorbell(struct intel_guc *guc, uint32_t priority)
 
 static void release_doorbell(struct intel_guc *guc, uint16_t id)
 {
-	spin_lock(&guc->host2guc_lock);
 	bitmap_clear(guc->doorbell_bitmap, id, 1);
-	spin_unlock(&guc->host2guc_lock);
 }
 
 /*
@@ -487,16 +477,13 @@ static int guc_get_workqueue_space(struct i915_guc_client *gc, u32 *offset)
 	struct guc_process_desc *desc;
 	void *base;
 	u32 size = sizeof(struct guc_wq_item);
-	int ret = 0, timeout_counter = 200;
+	int ret = -ETIMEDOUT, timeout_counter = 200;
 
 	base = kmap_atomic(i915_gem_object_get_page(gc->client_obj, 0));
 	desc = base + gc->proc_desc_offset;
 
 	while (timeout_counter-- > 0) {
-		ret = wait_for_atomic(CIRC_SPACE(gc->wq_tail, desc->head,
-				gc->wq_size) >= size, 1);
-
-		if (!ret) {
+		if (CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size) >= size) {
 			*offset = gc->wq_tail;
 
 			/* advance the tail for next workqueue item */
@@ -505,7 +492,11 @@ static int guc_get_workqueue_space(struct i915_guc_client *gc, u32 *offset)
 
 			/* this will break the loop */
 			timeout_counter = 0;
+			ret = 0;
 		}
+
+		if (timeout_counter)
+			usleep_range(1000, 2000);
 	};
 
 	kunmap_atomic(base);
@@ -577,7 +568,7 @@ static void lr_context_update(struct drm_i915_gem_request *rq)
 	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
 	WARN_ON(!i915_gem_obj_is_pinned(rb_obj));
 
-	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
 	reg_state = kmap_atomic(page);
 
 	reg_state[CTX_RING_BUFFER_START+1] = i915_gem_obj_ggtt_offset(rb_obj);
@@ -588,8 +579,7 @@ static void lr_context_update(struct drm_i915_gem_request *rq)
 /**
  * i915_guc_submit() - Submit commands through GuC
  * @client:	the guc client where commands will go through
- * @ctx:	LRC where commands come from
- * @ring:	HW engine that will excute the commands
+ * @rq:		request associated with the commands
  *
  * Return:	0 if succeed
  */
@@ -598,14 +588,11 @@ int i915_guc_submit(struct i915_guc_client *client,
 {
 	struct intel_guc *guc = client->guc;
 	enum intel_ring_id ring_id = rq->ring->id;
-	unsigned long flags;
 	int q_ret, b_ret;
 
 	/* Need this because of the deferred pin ctx and ring */
 	/* Shall we move this right after ring is pinned? */
 	lr_context_update(rq);
-
-	spin_lock_irqsave(&client->wq_lock, flags);
 
 	q_ret = guc_add_workqueue_item(client, rq);
 	if (q_ret == 0)
@@ -621,12 +608,8 @@ int i915_guc_submit(struct i915_guc_client *client,
 	} else {
 		client->retcode = 0;
 	}
-	spin_unlock_irqrestore(&client->wq_lock, flags);
-
-	spin_lock(&guc->host2guc_lock);
 	guc->submissions[ring_id] += 1;
 	guc->last_seqno[ring_id] = rq->seqno;
-	spin_unlock(&guc->host2guc_lock);
 
 	return q_ret;
 }
@@ -678,7 +661,7 @@ static struct drm_i915_gem_object *gem_allocate_guc_obj(struct drm_device *dev,
 /**
  * gem_release_guc_obj() - Release gem object allocated for GuC usage
  * @obj:	gem obj to be released
-  */
+ */
 static void gem_release_guc_obj(struct drm_i915_gem_object *obj)
 {
 	if (!obj)
@@ -731,7 +714,8 @@ static void guc_client_free(struct drm_device *dev,
  * 		The kernel client to replace ExecList submission is created with
  * 		NORMAL priority. Priority of a client for scheduler can be HIGH,
  * 		while a preemption context can use CRITICAL.
- * @ctx		the context to own the client (we use the default render context)
+ * @ctx:	the context that owns the client (we use the default render
+ * 		context)
  *
  * Return:	An i915_guc_client object if success.
  */
@@ -768,7 +752,6 @@ static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 	client->client_obj = obj;
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
-	spin_lock_init(&client->wq_lock);
 
 	client->doorbell_offset = select_doorbell_cacheline(guc);
 
@@ -870,8 +853,6 @@ int i915_guc_submission_init(struct drm_device *dev)
 	guc->ctx_pool_obj = gem_allocate_guc_obj(dev_priv->dev, gemsize);
 	if (!guc->ctx_pool_obj)
 		return -ENOMEM;
-
-	spin_lock_init(&dev_priv->guc.host2guc_lock);
 
 	ida_init(&guc->ctx_ids);
 

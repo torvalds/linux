@@ -661,6 +661,7 @@ static const struct team_mode lb_mode = {
 	.priv_size	= sizeof(struct lb_priv),
 	.port_priv_size	= sizeof(struct lb_port_priv),
 	.ops		= &lb_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_HASH,
 };
 
 static int __init lb_init_module(void)

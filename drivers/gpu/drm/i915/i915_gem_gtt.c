@@ -24,6 +24,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/stop_machine.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -104,9 +105,11 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
 	bool has_aliasing_ppgtt;
 	bool has_full_ppgtt;
+	bool has_full_48bit_ppgtt;
 
 	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
 	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+	has_full_48bit_ppgtt = IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9;
 
 	if (intel_vgpu_active(dev))
 		has_full_ppgtt = false; /* emulation is too hard */
@@ -125,6 +128,9 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 	if (enable_ppgtt == 2 && has_full_ppgtt)
 		return 2;
 
+	if (enable_ppgtt == 3 && has_full_48bit_ppgtt)
+		return 3;
+
 #ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
 	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
@@ -134,14 +140,13 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 #endif
 
 	/* Early VLV doesn't have this */
-	if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev) &&
-	    dev->pdev->revision < 0xb) {
+	if (IS_VALLEYVIEW(dev) && dev->pdev->revision < 0xb) {
 		DRM_DEBUG_DRIVER("disabling PPGTT on pre-B3 step VLV\n");
 		return 0;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 8 && i915.enable_execlists)
-		return 2;
+		return has_full_48bit_ppgtt ? 3 : 2;
 	else
 		return has_aliasing_ppgtt ? 1 : 0;
 }
@@ -661,10 +666,10 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_UDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_UDW(ring, entry));
 	intel_ring_emit(ring, upper_32_bits(addr));
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit(ring, GEN8_RING_PDP_LDW(ring, entry));
+	intel_ring_emit_reg(ring, GEN8_RING_PDP_LDW(ring, entry));
 	intel_ring_emit(ring, lower_32_bits(addr));
 	intel_ring_advance(ring);
 
@@ -764,10 +769,10 @@ static void gen8_ppgtt_clear_range(struct i915_address_space *vm,
 		gen8_ppgtt_clear_pte_range(vm, &ppgtt->pdp, start, length,
 					   scratch_pte);
 	} else {
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		struct i915_page_directory_pointer *pdp;
 
-		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, pml4e) {
 			gen8_ppgtt_clear_pte_range(vm, pdp, start, length,
 						   scratch_pte);
 		}
@@ -833,10 +838,10 @@ static void gen8_ppgtt_insert_entries(struct i915_address_space *vm,
 					      cache_level);
 	} else {
 		struct i915_page_directory_pointer *pdp;
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		uint64_t length = (uint64_t)pages->orig_nents << PAGE_SHIFT;
 
-		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, &ppgtt->pml4, start, length, pml4e) {
 			gen8_ppgtt_insert_pte_entries(vm, pdp, &sg_iter,
 						      start, cache_level);
 		}
@@ -904,14 +909,13 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 	enum vgt_g2v_type msg;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int offset = vgtif_reg(pdp0_lo);
 	int i;
 
 	if (USES_FULL_48BIT_PPGTT(dev)) {
 		u64 daddr = px_dma(&ppgtt->pml4);
 
-		I915_WRITE(offset, lower_32_bits(daddr));
-		I915_WRITE(offset + 4, upper_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].lo), lower_32_bits(daddr));
+		I915_WRITE(vgtif_reg(pdp[0].hi), upper_32_bits(daddr));
 
 		msg = (create ? VGT_G2V_PPGTT_L4_PAGE_TABLE_CREATE :
 				VGT_G2V_PPGTT_L4_PAGE_TABLE_DESTROY);
@@ -919,10 +923,8 @@ static int gen8_ppgtt_notify_vgt(struct i915_hw_ppgtt *ppgtt, bool create)
 		for (i = 0; i < GEN8_LEGACY_PDPES; i++) {
 			u64 daddr = i915_page_dir_dma_addr(ppgtt, i);
 
-			I915_WRITE(offset, lower_32_bits(daddr));
-			I915_WRITE(offset + 4, upper_32_bits(daddr));
-
-			offset += 8;
+			I915_WRITE(vgtif_reg(pdp[i].lo), lower_32_bits(daddr));
+			I915_WRITE(vgtif_reg(pdp[i].hi), upper_32_bits(daddr));
 		}
 
 		msg = (create ? VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE :
@@ -1017,10 +1019,9 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_table *pt;
-	uint64_t temp;
 	uint32_t pde;
 
-	gen8_for_each_pde(pt, pd, start, length, temp, pde) {
+	gen8_for_each_pde(pt, pd, start, length, pde) {
 		/* Don't reallocate page tables */
 		if (test_bit(pde, pd->used_pdes)) {
 			/* Scratch is never allocated this way */
@@ -1079,13 +1080,12 @@ gen8_ppgtt_alloc_page_directories(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_directory *pd;
-	uint64_t temp;
 	uint32_t pdpe;
 	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
 
 	WARN_ON(!bitmap_empty(new_pds, pdpes));
 
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		if (test_bit(pdpe, pdp->used_pdpes))
 			continue;
 
@@ -1133,12 +1133,11 @@ gen8_ppgtt_alloc_page_dirpointers(struct i915_address_space *vm,
 {
 	struct drm_device *dev = vm->dev;
 	struct i915_page_directory_pointer *pdp;
-	uint64_t temp;
 	uint32_t pml4e;
 
 	WARN_ON(!bitmap_empty(new_pdps, GEN8_PML4ES_PER_PML4));
 
-	gen8_for_each_pml4e(pdp, pml4, start, length, temp, pml4e) {
+	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		if (!test_bit(pml4e, pml4->used_pml4es)) {
 			pdp = alloc_pdp(dev);
 			if (IS_ERR(pdp))
@@ -1222,7 +1221,6 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	struct i915_page_directory *pd;
 	const uint64_t orig_start = start;
 	const uint64_t orig_length = length;
-	uint64_t temp;
 	uint32_t pdpe;
 	uint32_t pdpes = I915_PDPES_PER_PDP(dev);
 	int ret;
@@ -1249,7 +1247,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 	}
 
 	/* For every page directory referenced, allocate page tables */
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		ret = gen8_ppgtt_alloc_pagetabs(vm, pd, start, length,
 						new_page_tables + pdpe * BITS_TO_LONGS(I915_PDES));
 		if (ret)
@@ -1261,7 +1259,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 
 	/* Allocations have completed successfully, so set the bitmaps, and do
 	 * the mappings. */
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		gen8_pde_t *const page_directory = kmap_px(pd);
 		struct i915_page_table *pt;
 		uint64_t pd_len = length;
@@ -1271,7 +1269,7 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 		/* Every pd should be allocated, we just did that above. */
 		WARN_ON(!pd);
 
-		gen8_for_each_pde(pt, pd, pd_start, pd_len, temp, pde) {
+		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
 			/* Same reasoning as pd */
 			WARN_ON(!pt);
 			WARN_ON(!pd_len);
@@ -1308,6 +1306,8 @@ static int gen8_alloc_va_range_3lvl(struct i915_address_space *vm,
 
 err_out:
 	while (pdpe--) {
+		unsigned long temp;
+
 		for_each_set_bit(temp, new_page_tables + pdpe *
 				BITS_TO_LONGS(I915_PDES), I915_PDES)
 			free_pt(dev, pdp->page_directory[pdpe]->page_table[temp]);
@@ -1330,7 +1330,7 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 	struct i915_hw_ppgtt *ppgtt =
 			container_of(vm, struct i915_hw_ppgtt, base);
 	struct i915_page_directory_pointer *pdp;
-	uint64_t temp, pml4e;
+	uint64_t pml4e;
 	int ret = 0;
 
 	/* Do the pml4 allocations first, so we don't need to track the newly
@@ -1349,7 +1349,7 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 	     "The allocation has spanned more than 512GB. "
 	     "It is highly likely this is incorrect.");
 
-	gen8_for_each_pml4e(pdp, pml4, start, length, temp, pml4e) {
+	gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 		WARN_ON(!pdp);
 
 		ret = gen8_alloc_va_range_3lvl(vm, pdp, start, length);
@@ -1389,10 +1389,9 @@ static void gen8_dump_pdp(struct i915_page_directory_pointer *pdp,
 			  struct seq_file *m)
 {
 	struct i915_page_directory *pd;
-	uint64_t temp;
 	uint32_t pdpe;
 
-	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
+	gen8_for_each_pdpe(pd, pdp, start, length, pdpe) {
 		struct i915_page_table *pt;
 		uint64_t pd_len = length;
 		uint64_t pd_start = start;
@@ -1402,7 +1401,7 @@ static void gen8_dump_pdp(struct i915_page_directory_pointer *pdp,
 			continue;
 
 		seq_printf(m, "\tPDPE #%d\n", pdpe);
-		gen8_for_each_pde(pt, pd, pd_start, pd_len, temp, pde) {
+		gen8_for_each_pde(pt, pd, pd_start, pd_len, pde) {
 			uint32_t  pte;
 			gen8_pte_t *pt_vaddr;
 
@@ -1452,11 +1451,11 @@ static void gen8_dump_ppgtt(struct i915_hw_ppgtt *ppgtt, struct seq_file *m)
 	if (!USES_FULL_48BIT_PPGTT(vm->dev)) {
 		gen8_dump_pdp(&ppgtt->pdp, start, length, scratch_pte, m);
 	} else {
-		uint64_t templ4, pml4e;
+		uint64_t pml4e;
 		struct i915_pml4 *pml4 = &ppgtt->pml4;
 		struct i915_page_directory_pointer *pdp;
 
-		gen8_for_each_pml4e(pdp, pml4, start, length, templ4, pml4e) {
+		gen8_for_each_pml4e(pdp, pml4, start, length, pml4e) {
 			if (!test_bit(pml4e, pml4->used_pml4es))
 				continue;
 
@@ -1662,9 +1661,9 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1699,9 +1698,9 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		return ret;
 
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit(ring, RING_PP_DIR_DCLV(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
 	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit(ring, RING_PP_DIR_BASE(ring));
+	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
 	intel_ring_emit(ring, get_pd_offset(ppgtt));
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -2352,6 +2351,9 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	int i = 0;
 	struct sg_page_iter sg_iter;
 	dma_addr_t addr = 0; /* shut up gcc */
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_dma_address(sg_iter.sg) +
@@ -2378,6 +2380,34 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
+}
+
+struct insert_entries {
+	struct i915_address_space *vm;
+	struct sg_table *st;
+	uint64_t start;
+	enum i915_cache_level level;
+	u32 flags;
+};
+
+static int gen8_ggtt_insert_entries__cb(void *_arg)
+{
+	struct insert_entries *arg = _arg;
+	gen8_ggtt_insert_entries(arg->vm, arg->st,
+				 arg->start, arg->level, arg->flags);
+	return 0;
+}
+
+static void gen8_ggtt_insert_entries__BKL(struct i915_address_space *vm,
+					  struct sg_table *st,
+					  uint64_t start,
+					  enum i915_cache_level level,
+					  u32 flags)
+{
+	struct insert_entries arg = { vm, st, start, level, flags };
+	stop_machine(gen8_ggtt_insert_entries__cb, &arg, NULL);
 }
 
 /*
@@ -2398,6 +2428,9 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	int i = 0;
 	struct sg_page_iter sg_iter;
 	dma_addr_t addr = 0;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
 		addr = sg_page_iter_dma_address(&sg_iter);
@@ -2422,6 +2455,8 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 */
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void gen8_ggtt_clear_range(struct i915_address_space *vm,
@@ -2436,6 +2471,9 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 		(gen8_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	if (WARN(num_entries > max_entries,
 		 "First entry = %d; Num entries = %d (max=%d)\n",
@@ -2448,6 +2486,8 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 	for (i = 0; i < num_entries; i++)
 		gen8_set_pte(&gtt_base[i], scratch_pte);
 	readl(gtt_base);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
@@ -2462,6 +2502,9 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 		(gen6_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	if (WARN(num_entries > max_entries,
 		 "First entry = %d; Num entries = %d (max=%d)\n",
@@ -2474,6 +2517,8 @@ static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 	for (i = 0; i < num_entries; i++)
 		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static void i915_ggtt_insert_entries(struct i915_address_space *vm,
@@ -2481,10 +2526,16 @@ static void i915_ggtt_insert_entries(struct i915_address_space *vm,
 				     uint64_t start,
 				     enum i915_cache_level cache_level, u32 unused)
 {
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
 
 	intel_gtt_insert_sg_entries(pages, start >> PAGE_SHIFT, flags);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 
 }
 
@@ -2493,9 +2544,16 @@ static void i915_ggtt_clear_range(struct i915_address_space *vm,
 				  uint64_t length,
 				  bool unused)
 {
+	struct drm_i915_private *dev_priv = vm->dev->dev_private;
 	unsigned first_entry = start >> PAGE_SHIFT;
 	unsigned num_entries = length >> PAGE_SHIFT;
+	int rpm_atomic_seq;
+
+	rpm_atomic_seq = assert_rpm_atomic_begin(dev_priv);
+
 	intel_gtt_clear_range(first_entry, num_entries);
+
+	assert_rpm_atomic_end(dev_priv, rpm_atomic_seq);
 }
 
 static int ggtt_bind_vma(struct i915_vma *vma,
@@ -2996,6 +3054,9 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	dev_priv->gtt.base.bind_vma = ggtt_bind_vma;
 	dev_priv->gtt.base.unbind_vma = ggtt_unbind_vma;
 
+	if (IS_CHERRYVIEW(dev_priv))
+		dev_priv->gtt.base.insert_entries = gen8_ggtt_insert_entries__BKL;
+
 	return ret;
 }
 
@@ -3303,7 +3364,7 @@ static struct sg_table *
 intel_rotate_fb_obj_pages(struct i915_ggtt_view *ggtt_view,
 			  struct drm_i915_gem_object *obj)
 {
-	struct intel_rotation_info *rot_info = &ggtt_view->rotation_info;
+	struct intel_rotation_info *rot_info = &ggtt_view->params.rotation_info;
 	unsigned int size_pages = rot_info->size >> PAGE_SHIFT;
 	unsigned int size_pages_uv;
 	struct sg_page_iter sg_iter;
@@ -3535,7 +3596,7 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 	if (view->type == I915_GGTT_VIEW_NORMAL) {
 		return obj->base.size;
 	} else if (view->type == I915_GGTT_VIEW_ROTATED) {
-		return view->rotation_info.size;
+		return view->params.rotation_info.size;
 	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
 		return view->params.partial.size << PAGE_SHIFT;
 	} else {

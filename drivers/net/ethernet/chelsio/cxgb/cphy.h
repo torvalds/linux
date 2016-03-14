@@ -137,7 +137,7 @@ static inline int simple_mdio_write(struct cphy *cphy, int reg,
 
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, struct net_device *dev,
-			     int phy_addr, struct cphy_ops *phy_ops,
+			     int phy_addr, const struct cphy_ops *phy_ops,
 			     const struct mdio_ops *mdio_ops)
 {
 	struct adapter *adapter = netdev_priv(dev);

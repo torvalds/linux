@@ -89,7 +89,7 @@ static int rb532_gpio_get(struct gpio_chip *chip, unsigned offset)
 	struct rb532_gpio_chip	*gpch;
 
 	gpch = container_of(chip, struct rb532_gpio_chip, chip);
-	return rb532_get_bit(offset, gpch->regbase + GPIOD);
+	return !!rb532_get_bit(offset, gpch->regbase + GPIOD);
 }
 
 /*

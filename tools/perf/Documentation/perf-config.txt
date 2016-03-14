@@ -1,0 +1,103 @@
+perf-config(1)
+==============
+
+NAME
+----
+perf-config - Get and set variables in a configuration file.
+
+SYNOPSIS
+--------
+[verse]
+'perf config' -l | --list
+
+DESCRIPTION
+-----------
+You can manage variables in a configuration file with this command.
+
+OPTIONS
+-------
+
+-l::
+--list::
+	Show current config variables, name and value, for all sections.
+
+CONFIGURATION FILE
+------------------
+
+The perf configuration file contains many variables to change various
+aspects of each of its tools, including output, disk usage, etc.
+The '$HOME/.perfconfig' file is used to store a per-user configuration.
+The file '$(sysconfdir)/perfconfig' can be used to
+store a system-wide default configuration.
+
+Syntax
+~~~~~~
+
+The file consist of sections. A section starts with its name
+surrounded by square brackets and continues till the next section
+begins. Each variable must be in a section, and have the form
+'name = value', for example:
+
+	[section]
+		name1 = value1
+		name2 = value2
+
+Section names are case sensitive and can contain any characters except
+newline (double quote `"` and backslash have to be escaped as `\"` and `\\`,
+respectively). Section headers can't span multiple lines.
+
+Example
+~~~~~~~
+
+Given a $HOME/.perfconfig like this:
+
+#
+# This is the config file, and
+# a '#' and ';' character indicates a comment
+#
+
+	[colors]
+		# Color variables
+		top = red, default
+		medium = green, default
+		normal = lightgray, default
+		selected = white, lightgray
+		code = blue, default
+		addr = magenta, default
+		root = white, blue
+
+	[tui]
+		# Defaults if linked with libslang
+		report = on
+		annotate = on
+		top = on
+
+	[buildid]
+		# Default, disable using /dev/null
+		dir = ~/.debug
+
+	[annotate]
+		# Defaults
+		hide_src_code = false
+		use_offset = true
+		jump_arrows = true
+		show_nr_jumps = false
+
+	[help]
+		# Format can be man, info, web or html
+		format = man
+		autocorrect = 0
+
+	[ui]
+		show-headers = true
+
+	[call-graph]
+		# fp (framepointer), dwarf
+		record-mode = fp
+		print-type = graph
+		order = caller
+		sort-key = function
+
+SEE ALSO
+--------
+linkperf:perf[1]

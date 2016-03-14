@@ -61,6 +61,7 @@ struct iss_resizer_device {
 struct iss_device;
 
 int omap4iss_resizer_init(struct iss_device *iss);
+int omap4iss_resizer_create_links(struct iss_device *iss);
 void omap4iss_resizer_cleanup(struct iss_device *iss);
 int omap4iss_resizer_register_entities(struct iss_resizer_device *resizer,
 				       struct v4l2_device *vdev);

@@ -431,9 +431,6 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 	char *xattr_name;
 	int res;
 
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
 	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
 		GFP_KERNEL);
 	if (!xattr_name)
@@ -588,9 +585,6 @@ ssize_t hfsplus_getxattr(struct dentry *dentry, const char *name,
 {
 	int res;
 	char *xattr_name;
-
-	if (!strcmp(name, ""))
-		return -EINVAL;
 
 	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN + 1,
 			     GFP_KERNEL);
@@ -853,9 +847,6 @@ static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
 				struct dentry *dentry, const char *name,
 				void *buffer, size_t size)
 {
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
 	/*
 	 * Don't allow retrieving properly prefixed attributes
 	 * by prepending them with "osx."
@@ -876,9 +867,6 @@ static int hfsplus_osx_setxattr(const struct xattr_handler *handler,
 				struct dentry *dentry, const char *name,
 				const void *buffer, size_t size, int flags)
 {
-	if (!strcmp(name, ""))
-		return -EINVAL;
-
 	/*
 	 * Don't allow setting properly prefixed attributes
 	 * by prepending them with "osx."

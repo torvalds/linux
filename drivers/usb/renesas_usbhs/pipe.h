@@ -46,7 +46,6 @@ struct usbhs_pipe {
 struct usbhs_pipe_info {
 	struct usbhs_pipe *pipe;
 	int size;	/* array size of "pipe" */
-	int bufnmb_last;	/* FIXME : driver needs good allocator */
 
 	int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map);
 };

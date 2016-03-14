@@ -16,10 +16,13 @@
 	blsp1_uart1_default: blsp1_uart1_default {
 		pinmux {
 			function = "blsp_uart1";
-			pins = "gpio0", "gpio1";
+			//	TX, RX, CTS_N, RTS_N
+			pins = "gpio0", "gpio1",
+			       "gpio2", "gpio3";
 		};
 		pinconf {
-			pins = "gpio0", "gpio1";
+			pins = "gpio0", "gpio1",
+			       "gpio2", "gpio3";
 			drive-strength = <16>;
 			bias-disable;
 		};
@@ -28,10 +31,12 @@
 	blsp1_uart1_sleep: blsp1_uart1_sleep {
 		pinmux {
 			function = "gpio";
-			pins = "gpio0", "gpio1";
+			pins = "gpio0", "gpio1",
+			       "gpio2", "gpio3";
 		};
 		pinconf {
-			pins = "gpio0", "gpio1";
+			pins = "gpio0", "gpio1",
+			       "gpio2", "gpio3";
 			drive-strength = <2>;
 			bias-pull-down;
 		};
@@ -272,7 +277,7 @@
 		};
 		pinconf {
 			pins = "gpio6", "gpio7";
-			drive-strength = <2>;
+			drive-strength = <16>;
 			bias-disable = <0>;
 		};
 	};
@@ -296,7 +301,7 @@
 		};
 		pinconf {
 			pins = "gpio14", "gpio15";
-			drive-strength = <2>;
+			drive-strength = <16>;
 			bias-disable = <0>;
 		};
 	};
@@ -320,7 +325,7 @@
 		};
 		pinconf {
 			pins = "gpio22", "gpio23";
-			drive-strength = <2>;
+			drive-strength = <16>;
 			bias-disable = <0>;
 		};
 	};

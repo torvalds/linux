@@ -1023,7 +1023,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 		return -ENOMEM;
 	}
 
-	selected_rates = kmalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
+	selected_rates = kzalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
 			__func__);
@@ -1032,7 +1032,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	}
 
 	memset(skb->data, 0, sizeof(struct rsi_auto_rate));
-	memset(selected_rates, 0, 2 * RSI_TBL_SZ);
 
 	auto_rate = (struct rsi_auto_rate *)skb->data;
 
@@ -1227,7 +1226,7 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(BLOCK_HW_QUEUE);
 
-	if (block_event == true) {
+	if (block_event) {
 		rsi_dbg(INFO_ZONE, "blocking the data qs\n");
 		mgmt_frame->desc_word[4] = cpu_to_le16(0xf);
 	} else {

@@ -179,7 +179,8 @@ static int __init init_inodecache(void)
 	udf_inode_cachep = kmem_cache_create("udf_inode_cache",
 					     sizeof(struct udf_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT |
-						 SLAB_MEM_SPREAD),
+						 SLAB_MEM_SPREAD |
+						 SLAB_ACCOUNT),
 					     init_once);
 	if (!udf_inode_cachep)
 		return -ENOMEM;
@@ -278,17 +279,12 @@ static void udf_sb_free_bitmap(struct udf_bitmap *bitmap)
 {
 	int i;
 	int nr_groups = bitmap->s_nr_groups;
-	int size = sizeof(struct udf_bitmap) + (sizeof(struct buffer_head *) *
-						nr_groups);
 
 	for (i = 0; i < nr_groups; i++)
 		if (bitmap->s_block_bitmap[i])
 			brelse(bitmap->s_block_bitmap[i]);
 
-	if (size <= PAGE_SIZE)
-		kfree(bitmap);
-	else
-		vfree(bitmap);
+	kvfree(bitmap);
 }
 
 static void udf_free_partition(struct udf_part_map *map)
@@ -1586,6 +1582,13 @@ static void udf_load_logicalvolint(struct super_block *sb, struct kernel_extent_
 }
 
 /*
+ * Maximum number of Terminating Descriptor redirections. The chosen number is
+ * arbitrary - just that we hopefully don't limit any real use of rewritten
+ * inode on write-once media but avoid looping for too long on corrupted media.
+ */
+#define UDF_MAX_TD_NESTING 64
+
+/*
  * Process a main/reserve volume descriptor sequence.
  *   @block		First block of first extent of the sequence.
  *   @lastblock		Lastblock of first extent of the sequence.
@@ -1609,6 +1612,7 @@ static noinline int udf_process_sequence(
 	uint16_t ident;
 	long next_s = 0, next_e = 0;
 	int ret;
+	unsigned int indirections = 0;
 
 	memset(vds, 0, sizeof(struct udf_vds_record) * VDS_POS_LENGTH);
 
@@ -1679,6 +1683,12 @@ static noinline int udf_process_sequence(
 			}
 			break;
 		case TAG_IDENT_TD: /* ISO 13346 3/10.9 */
+			if (++indirections > UDF_MAX_TD_NESTING) {
+				udf_err(sb, "too many TDs (max %u supported)\n", UDF_MAX_TD_NESTING);
+				brelse(bh);
+				return -EIO;
+			}
+
 			vds[VDS_POS_TERMINATING_DESC].block = block;
 			if (next_e) {
 				block = next_s;

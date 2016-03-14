@@ -115,6 +115,11 @@ enum {
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 };
 
+enum {
+	MLX5_ATOMIC_OPS_CMP_SWAP	= 1 << 0,
+	MLX5_ATOMIC_OPS_FETCH_ADD	= 1 << 1,
+};
+
 enum mlx5_page_fault_resume_flags {
 	MLX5_PAGE_FAULT_RESUME_REQUESTOR = 1 << 0,
 	MLX5_PAGE_FAULT_RESUME_WRITE	 = 1 << 1,
@@ -303,7 +308,7 @@ struct mlx5_eq {
 	u32			cons_index;
 	struct mlx5_buf		buf;
 	int			size;
-	u8			irqn;
+	unsigned int		irqn;
 	u8			eqn;
 	int			nent;
 	u64			mask;
@@ -341,9 +346,11 @@ struct mlx5_core_mr {
 };
 
 enum mlx5_res_type {
-	MLX5_RES_QP,
-	MLX5_RES_SRQ,
-	MLX5_RES_XSRQ,
+	MLX5_RES_QP	= MLX5_EVENT_QUEUE_TYPE_QP,
+	MLX5_RES_RQ	= MLX5_EVENT_QUEUE_TYPE_RQ,
+	MLX5_RES_SQ	= MLX5_EVENT_QUEUE_TYPE_SQ,
+	MLX5_RES_SRQ	= 3,
+	MLX5_RES_XSRQ	= 4,
 };
 
 struct mlx5_core_rsc_common {
@@ -426,10 +433,22 @@ struct mlx5_mr_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_vf_context {
+	int	enabled;
+};
+
+struct mlx5_core_sriov {
+	struct mlx5_vf_context	*vfs_ctx;
+	int			num_vfs;
+	int			enabled_vfs;
+};
+
 struct mlx5_irq_info {
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
 };
+
+struct mlx5_eswitch;
 
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
@@ -447,6 +466,7 @@ struct mlx5_priv {
 	int			fw_pages;
 	atomic_t		reg_pages;
 	struct list_head	free_list;
+	int			vfs_pages;
 
 	struct mlx5_core_health health;
 
@@ -485,6 +505,12 @@ struct mlx5_priv {
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
+
+	struct mlx5_eswitch     *eswitch;
+	struct mlx5_core_sriov	sriov;
+	unsigned long		pci_dev_data;
+	struct mlx5_flow_root_namespace *root_ns;
+	struct mlx5_flow_root_namespace *fdb_root_ns;
 };
 
 enum mlx5_device_state {
@@ -632,13 +658,6 @@ extern struct workqueue_struct *mlx5_core_wq;
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
 	.struct_size_bytes   = sizeof((struct ib_unpacked_ ## header *)0)->field
 
-struct ib_field {
-	size_t struct_offset_bytes;
-	size_t struct_size_bytes;
-	int    offset_bits;
-	int    size_bits;
-};
-
 static inline struct mlx5_core_dev *pci2mlx5_core_dev(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
@@ -739,6 +758,8 @@ void mlx5_pagealloc_init(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_cleanup(struct mlx5_core_dev *dev);
 int mlx5_pagealloc_start(struct mlx5_core_dev *dev);
 void mlx5_pagealloc_stop(struct mlx5_core_dev *dev);
+int mlx5_sriov_init(struct mlx5_core_dev *dev);
+int mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 void mlx5_core_req_pages_handler(struct mlx5_core_dev *dev, u16 func_id,
 				 s32 npages);
 int mlx5_satisfy_startup_pages(struct mlx5_core_dev *dev, int boot);
@@ -762,7 +783,8 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
 int mlx5_stop_eqs(struct mlx5_core_dev *dev);
-int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn, int *irqn);
+int mlx5_vector2eqn(struct mlx5_core_dev *dev, int vector, int *eqn,
+		    unsigned int *irqn);
 int mlx5_core_attach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 int mlx5_core_detach_mcg(struct mlx5_core_dev *dev, union ib_gid *mgid, u32 qpn);
 
@@ -883,6 +905,15 @@ struct mlx5_profile {
 		int	limit;
 	} mr_cache[MAX_MR_CACHE_ENTRIES];
 };
+
+enum {
+	MLX5_PCI_DEV_IS_VF		= 1 << 0,
+};
+
+static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
+{
+	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
+}
 
 static inline int mlx5_get_gid_table_len(u16 param)
 {

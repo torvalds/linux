@@ -17,6 +17,8 @@
  * @MCDI_STATE_RUNNING_SYNC: There is a synchronous MCDI request pending.
  *	Only the thread that moved into this state is allowed to move out of it.
  * @MCDI_STATE_RUNNING_ASYNC: There is an asynchronous MCDI request pending.
+ * @MCDI_STATE_PROXY_WAIT: An MCDI request has completed with a response that
+ *	indicates we must wait for a proxy try again message.
  * @MCDI_STATE_COMPLETED: An MCDI request has completed, but the owning thread
  *	has not yet consumed the result. For all other threads, equivalent to
  *	%MCDI_STATE_RUNNING.
@@ -25,6 +27,7 @@ enum efx_mcdi_state {
 	MCDI_STATE_QUIESCENT,
 	MCDI_STATE_RUNNING_SYNC,
 	MCDI_STATE_RUNNING_ASYNC,
+	MCDI_STATE_PROXY_WAIT,
 	MCDI_STATE_COMPLETED,
 };
 
@@ -60,6 +63,9 @@ enum efx_mcdi_mode {
  * @async_timer: Timer for asynchronous request timeout
  * @logging_buffer: buffer that may be used to build MCDI tracing messages
  * @logging_enabled: whether to trace MCDI
+ * @proxy_rx_handle: Most recently received proxy authorisation handle
+ * @proxy_rx_status: Status of most recent proxy authorisation
+ * @proxy_rx_wq: Wait queue for updates to proxy_rx_handle
  */
 struct efx_mcdi_iface {
 	struct efx_nic *efx;
@@ -71,6 +77,7 @@ struct efx_mcdi_iface {
 	unsigned int credits;
 	unsigned int seqno;
 	int resprc;
+	int resprc_raw;
 	size_t resp_hdr_len;
 	size_t resp_data_len;
 	spinlock_t async_lock;
@@ -80,6 +87,9 @@ struct efx_mcdi_iface {
 	char *logging_buffer;
 	bool logging_enabled;
 #endif
+	unsigned int proxy_rx_handle;
+	int proxy_rx_status;
+	wait_queue_head_t proxy_rx_wq;
 };
 
 struct efx_mcdi_mon {

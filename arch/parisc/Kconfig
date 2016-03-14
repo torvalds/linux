@@ -29,6 +29,7 @@ config PARISC
 	select TTY # Needed for pdc_cons.c
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_ARCH_AUDITSYSCALL
+	select ARCH_NO_COHERENT_DMA_MMAP
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -78,9 +79,6 @@ config TIME_LOW_RES
 	bool
 	depends on SMP
 	default y
-
-config HAVE_LATENCYTOP_SUPPORT
-        def_bool y
 
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM

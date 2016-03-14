@@ -221,6 +221,18 @@ MODULE_PARM_DESC(ql2xmdenable,
 		"0 - MiniDump disabled. "
 		"1 (Default) - MiniDump enabled.");
 
+int ql2xexlogins = 0;
+module_param(ql2xexlogins, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xexlogins,
+		 "Number of extended Logins. "
+		 "0 (Default)- Disabled.");
+
+int ql2xexchoffld = 0;
+module_param(ql2xexchoffld, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(ql2xexchoffld,
+		 "Number of exchanges to offload. "
+		 "0 (Default)- Disabled.");
+
 /*
  * SCSI host template entry points
  */
@@ -397,6 +409,9 @@ static void qla2x00_free_queues(struct qla_hw_data *ha)
 	int cnt;
 
 	for (cnt = 0; cnt < ha->max_req_queues; cnt++) {
+		if (!test_bit(cnt, ha->req_qid_map))
+			continue;
+
 		req = ha->req_q_map[cnt];
 		qla2x00_free_req_que(ha, req);
 	}
@@ -404,6 +419,9 @@ static void qla2x00_free_queues(struct qla_hw_data *ha)
 	ha->req_q_map = NULL;
 
 	for (cnt = 0; cnt < ha->max_rsp_queues; cnt++) {
+		if (!test_bit(cnt, ha->rsp_qid_map))
+			continue;
+
 		rsp = ha->rsp_q_map[cnt];
 		qla2x00_free_rsp_que(ha, rsp);
 	}
@@ -2324,6 +2342,9 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->tgt.enable_class_2 = ql2xenableclass2;
 	INIT_LIST_HEAD(&ha->tgt.q_full_list);
 	spin_lock_init(&ha->tgt.q_full_lock);
+	spin_lock_init(&ha->tgt.sess_lock);
+	spin_lock_init(&ha->tgt.atio_lock);
+
 
 	/* Clear our data area */
 	ha->bars = bars;
@@ -2468,7 +2489,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_83XX;
-		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		rsp_length = RESPONSE_ENTRY_CNT_83XX;
 		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
@@ -2498,8 +2519,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->portnum = PCI_FUNC(ha->pdev->devfn);
 		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
-		req_length = REQUEST_ENTRY_CNT_24XX;
-		rsp_length = RESPONSE_ENTRY_CNT_2300;
+		req_length = REQUEST_ENTRY_CNT_83XX;
+		rsp_length = RESPONSE_ENTRY_CNT_83XX;
 		ha->tgt.atio_q_length = ATIO_ENTRY_CNT_24XX;
 		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
 		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
@@ -3128,6 +3149,14 @@ qla2x00_remove_one(struct pci_dev *pdev)
 
 	base_vha->flags.online = 0;
 
+	/* free DMA memory */
+	if (ha->exlogin_buf)
+		qla2x00_free_exlogin_buffer(ha);
+
+	/* free DMA memory */
+	if (ha->exchoffld_buf)
+		qla2x00_free_exchoffld_buffer(ha);
+
 	qla2x00_destroy_deferred_work(ha);
 
 	qlt_remove_target(ha, base_vha);
@@ -3587,6 +3616,140 @@ fail:
 	return -ENOMEM;
 }
 
+int
+qla2x00_set_exlogins_buffer(scsi_qla_host_t *vha)
+{
+	int rval;
+	uint16_t	size, max_cnt, temp;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Return if we don't need to alloacate any extended logins */
+	if (!ql2xexlogins)
+		return QLA_SUCCESS;
+
+	ql_log(ql_log_info, vha, 0xd021, "EXLOGIN count: %d.\n", ql2xexlogins);
+	max_cnt = 0;
+	rval = qla_get_exlogin_status(vha, &size, &max_cnt);
+	if (rval != QLA_SUCCESS) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd029,
+		    "Failed to get exlogin status.\n");
+		return rval;
+	}
+
+	temp = (ql2xexlogins > max_cnt) ? max_cnt : ql2xexlogins;
+	ha->exlogin_size = (size * temp);
+	ql_log(ql_log_info, vha, 0xd024,
+		"EXLOGIN: max_logins=%d, portdb=0x%x, total=%d.\n",
+		max_cnt, size, temp);
+
+	ql_log(ql_log_info, vha, 0xd025, "EXLOGIN: requested size=0x%x\n",
+		ha->exlogin_size);
+
+	/* Get consistent memory for extended logins */
+	ha->exlogin_buf = dma_alloc_coherent(&ha->pdev->dev,
+	    ha->exlogin_size, &ha->exlogin_buf_dma, GFP_KERNEL);
+	if (!ha->exlogin_buf) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd02a,
+		    "Failed to allocate memory for exlogin_buf_dma.\n");
+		return -ENOMEM;
+	}
+
+	/* Now configure the dma buffer */
+	rval = qla_set_exlogin_mem_cfg(vha, ha->exlogin_buf_dma);
+	if (rval) {
+		ql_log(ql_log_fatal, vha, 0x00cf,
+		    "Setup extended login buffer  ****FAILED****.\n");
+		qla2x00_free_exlogin_buffer(ha);
+	}
+
+	return rval;
+}
+
+/*
+* qla2x00_free_exlogin_buffer
+*
+* Input:
+*	ha = adapter block pointer
+*/
+void
+qla2x00_free_exlogin_buffer(struct qla_hw_data *ha)
+{
+	if (ha->exlogin_buf) {
+		dma_free_coherent(&ha->pdev->dev, ha->exlogin_size,
+		    ha->exlogin_buf, ha->exlogin_buf_dma);
+		ha->exlogin_buf = NULL;
+		ha->exlogin_size = 0;
+	}
+}
+
+int
+qla2x00_set_exchoffld_buffer(scsi_qla_host_t *vha)
+{
+	int rval;
+	uint16_t	size, max_cnt, temp;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Return if we don't need to alloacate any extended logins */
+	if (!ql2xexchoffld)
+		return QLA_SUCCESS;
+
+	ql_log(ql_log_info, vha, 0xd014,
+	    "Exchange offload count: %d.\n", ql2xexlogins);
+
+	max_cnt = 0;
+	rval = qla_get_exchoffld_status(vha, &size, &max_cnt);
+	if (rval != QLA_SUCCESS) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd012,
+		    "Failed to get exlogin status.\n");
+		return rval;
+	}
+
+	temp = (ql2xexchoffld > max_cnt) ? max_cnt : ql2xexchoffld;
+	ha->exchoffld_size = (size * temp);
+	ql_log(ql_log_info, vha, 0xd016,
+		"Exchange offload: max_count=%d, buffers=0x%x, total=%d.\n",
+		max_cnt, size, temp);
+
+	ql_log(ql_log_info, vha, 0xd017,
+	    "Exchange Buffers requested size = 0x%x\n", ha->exchoffld_size);
+
+	/* Get consistent memory for extended logins */
+	ha->exchoffld_buf = dma_alloc_coherent(&ha->pdev->dev,
+	    ha->exchoffld_size, &ha->exchoffld_buf_dma, GFP_KERNEL);
+	if (!ha->exchoffld_buf) {
+		ql_log_pci(ql_log_fatal, ha->pdev, 0xd013,
+		    "Failed to allocate memory for exchoffld_buf_dma.\n");
+		return -ENOMEM;
+	}
+
+	/* Now configure the dma buffer */
+	rval = qla_set_exchoffld_mem_cfg(vha, ha->exchoffld_buf_dma);
+	if (rval) {
+		ql_log(ql_log_fatal, vha, 0xd02e,
+		    "Setup exchange offload buffer ****FAILED****.\n");
+		qla2x00_free_exchoffld_buffer(ha);
+	}
+
+	return rval;
+}
+
+/*
+* qla2x00_free_exchoffld_buffer
+*
+* Input:
+*	ha = adapter block pointer
+*/
+void
+qla2x00_free_exchoffld_buffer(struct qla_hw_data *ha)
+{
+	if (ha->exchoffld_buf) {
+		dma_free_coherent(&ha->pdev->dev, ha->exchoffld_size,
+		    ha->exchoffld_buf, ha->exchoffld_buf_dma);
+		ha->exchoffld_buf = NULL;
+		ha->exchoffld_size = 0;
+	}
+}
+
 /*
 * qla2x00_free_fw_dump
 *	Frees fw dump stuff.
@@ -3766,6 +3929,8 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->list);
 	INIT_LIST_HEAD(&vha->qla_cmd_list);
 	INIT_LIST_HEAD(&vha->qla_sess_op_cmd_list);
+	INIT_LIST_HEAD(&vha->logo_list);
+	INIT_LIST_HEAD(&vha->plogi_ack_list);
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
@@ -5843,6 +6008,3 @@ MODULE_FIRMWARE(FW_FILE_ISP2300);
 MODULE_FIRMWARE(FW_FILE_ISP2322);
 MODULE_FIRMWARE(FW_FILE_ISP24XX);
 MODULE_FIRMWARE(FW_FILE_ISP25XX);
-MODULE_FIRMWARE(FW_FILE_ISP2031);
-MODULE_FIRMWARE(FW_FILE_ISP8031);
-MODULE_FIRMWARE(FW_FILE_ISP27XX);

@@ -188,7 +188,11 @@ _interrupt_redirect_table:
 	jsr	@_interrupt_entry		/* NMI */
 	jmp	@_system_call			/* TRAPA #0 (System call) */
 	.long	0
+#if defined(CONFIG_KGDB)
+	jmp	@_kgdb_trap
+#else
 	.long	0
+#endif
 	jmp	@_trace_break			/* TRAPA #3 (breakpoint) */
 	.rept	INTERRUPTS-12
 	jsr	@_interrupt_entry
@@ -242,6 +246,7 @@ _system_call:
 	/* save top of frame */
 	mov.l	sp,er0
 	jsr	@set_esp0
+	andc	#0x3f,ccr
 	mov.l	sp,er2
 	and.w	#0xe000,r2
 	mov.l	@(TI_FLAGS:16,er2),er2
@@ -404,6 +409,20 @@ _nmi:
 	mov.l	er0, @(4,sp)
 	mov.l	@sp+, er0
 	jmp	@_interrupt_entry
+
+#if defined(CONFIG_KGDB)
+_kgdb_trap:
+	subs	#4,sp
+	SAVE_ALL
+	mov.l	sp,er0
+	add.l	#LRET,er0
+	mov.l	er0,@(LSP,sp)
+	jsr	@set_esp0
+	mov.l	sp,er0
+	subs	#4,er0
+	jsr	@h8300_kgdb_trap
+	jmp	@ret_from_exception
+#endif
 
 	.section	.bss
 _sw_ksp:

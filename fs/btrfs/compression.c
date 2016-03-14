@@ -637,11 +637,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	faili = nr_pages - 1;
 	cb->nr_pages = nr_pages;
 
-	/* In the parent-locked case, we only locked the range we are
-	 * interested in.  In all other cases, we can opportunistically
-	 * cache decompressed data that goes beyond the requested range. */
-	if (!(bio_flags & EXTENT_BIO_PARENT_LOCKED))
-		add_ra_bio_pages(inode, em_start + em_len, cb);
+	add_ra_bio_pages(inode, em_start + em_len, cb);
 
 	/* include any pages we added in add_ra-bio_pages */
 	uncompressed_len = bio->bi_vcnt * PAGE_CACHE_SIZE;

@@ -563,6 +563,28 @@ config NFT_COMPAT
 	  x_tables match/target extensions over the nf_tables
 	  framework.
 
+if NF_TABLES_NETDEV
+
+config NF_DUP_NETDEV
+	tristate "Netfilter packet duplication support"
+	help
+	  This option enables the generic packet duplication infrastructure
+	  for Netfilter.
+
+config NFT_DUP_NETDEV
+	tristate "Netfilter nf_tables netdev packet duplication support"
+	select NF_DUP_NETDEV
+	help
+	  This option enables packet duplication for the "netdev" family.
+
+config NFT_FWD_NETDEV
+	tristate "Netfilter nf_tables netdev packet forwarding support"
+	select NF_DUP_NETDEV
+	help
+	  This option enables packet forwarding for the "netdev" family.
+
+endif # NF_TABLES_NETDEV
+
 endif # NF_TABLES
 
 config NETFILTER_XTABLES
@@ -869,7 +891,7 @@ config NETFILTER_XT_TARGET_TEE
 	depends on IPV6 || IPV6=n
 	depends on !NF_CONNTRACK || NF_CONNTRACK
 	select NF_DUP_IPV4
-	select NF_DUP_IPV6 if IP6_NF_IPTABLES != n
+	select NF_DUP_IPV6 if IPV6
 	---help---
 	This option adds a "TEE" target with which a packet can be cloned and
 	this clone be rerouted to another nexthop.

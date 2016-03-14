@@ -101,7 +101,7 @@ static int vsp1_create_links(struct vsp1_device *vsp1, struct vsp1_entity *sink)
 			if (!(entity->pads[pad].flags & MEDIA_PAD_FL_SINK))
 				continue;
 
-			ret = media_entity_create_link(&source->subdev.entity,
+			ret = media_create_pad_link(&source->subdev.entity,
 						       source->source_pad,
 						       entity, pad, flags);
 			if (ret < 0)
@@ -127,6 +127,7 @@ static void vsp1_destroy_entities(struct vsp1_device *vsp1)
 
 	v4l2_device_unregister(&vsp1->v4l2_dev);
 	media_device_unregister(&vsp1->media_dev);
+	media_device_cleanup(&vsp1->media_dev);
 }
 
 static int vsp1_create_entities(struct vsp1_device *vsp1)
@@ -141,12 +142,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	strlcpy(mdev->model, "VSP1", sizeof(mdev->model));
 	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
 		 dev_name(mdev->dev));
-	ret = media_device_register(mdev);
-	if (ret < 0) {
-		dev_err(vsp1->dev, "media device registration failed (%d)\n",
-			ret);
-		return ret;
-	}
+	media_device_init(mdev);
 
 	vdev->mdev = mdev;
 	ret = v4l2_device_register(vsp1->dev, vdev);
@@ -250,25 +246,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&wpf->entity.list_dev, &vsp1->entities);
 	}
 
-	/* Create links. */
-	list_for_each_entry(entity, &vsp1->entities, list_dev) {
-		if (entity->type == VSP1_ENTITY_LIF ||
-		    entity->type == VSP1_ENTITY_RPF)
-			continue;
-
-		ret = vsp1_create_links(vsp1, entity);
-		if (ret < 0)
-			goto done;
-	}
-
-	if (vsp1->pdata.features & VSP1_HAS_LIF) {
-		ret = media_entity_create_link(
-			&vsp1->wpf[0]->entity.subdev.entity, RWPF_PAD_SOURCE,
-			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
-		if (ret < 0)
-			return ret;
-	}
-
 	/* Register all subdevs. */
 	list_for_each_entry(entity, &vsp1->entities, list_dev) {
 		ret = v4l2_device_register_subdev(&vsp1->v4l2_dev,
@@ -277,7 +254,39 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 			goto done;
 	}
 
+	/* Create links. */
+	list_for_each_entry(entity, &vsp1->entities, list_dev) {
+		if (entity->type == VSP1_ENTITY_WPF) {
+			ret = vsp1_wpf_create_links(vsp1, entity);
+			if (ret < 0)
+				goto done;
+		} else if (entity->type == VSP1_ENTITY_RPF) {
+			ret = vsp1_rpf_create_links(vsp1, entity);
+			if (ret < 0)
+				goto done;
+		}
+
+		if (entity->type != VSP1_ENTITY_LIF &&
+		    entity->type != VSP1_ENTITY_RPF) {
+			ret = vsp1_create_links(vsp1, entity);
+			if (ret < 0)
+				goto done;
+		}
+	}
+
+	if (vsp1->pdata.features & VSP1_HAS_LIF) {
+		ret = media_create_pad_link(
+			&vsp1->wpf[0]->entity.subdev.entity, RWPF_PAD_SOURCE,
+			&vsp1->lif->entity.subdev.entity, LIF_PAD_SINK, 0);
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+	if (ret < 0)
+		goto done;
+
+	ret = media_device_register(mdev);
 
 done:
 	if (ret < 0)

@@ -4127,7 +4127,9 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 				     struct inode *inode,
 				     struct btrfs_path *path,
 				     struct list_head *logged_list,
-				     struct btrfs_log_ctx *ctx)
+				     struct btrfs_log_ctx *ctx,
+				     const u64 start,
+				     const u64 end)
 {
 	struct extent_map *em, *n;
 	struct list_head extents;
@@ -4166,7 +4168,13 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 	}
 
 	list_sort(NULL, &extents, extent_cmp);
-
+	/*
+	 * Collect any new ordered extents within the range. This is to
+	 * prevent logging file extent items without waiting for the disk
+	 * location they point to being written. We do this only to deal
+	 * with races against concurrent lockless direct IO writes.
+	 */
+	btrfs_get_logged_extents(inode, logged_list, start, end);
 process:
 	while (!list_empty(&extents)) {
 		em = list_entry(extents.next, struct extent_map, list);
@@ -4701,7 +4709,7 @@ log_extents:
 			goto out_unlock;
 		}
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path,
-						&logged_list, ctx);
+						&logged_list, ctx, start, end);
 		if (ret) {
 			err = ret;
 			goto out_unlock;

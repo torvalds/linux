@@ -16,6 +16,7 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/pvclock_gtod.h>
+#include <linux/timekeeper_internal.h>
 
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
@@ -32,85 +33,11 @@
 #define TIMER_SLOP	100000
 #define NS_PER_TICK	(1000000000LL / HZ)
 
-/* runstate info updated by Xen */
-static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate);
-
 /* snapshots of runstate info */
 static DEFINE_PER_CPU(struct vcpu_runstate_info, xen_runstate_snapshot);
 
 /* unused ns of stolen time */
 static DEFINE_PER_CPU(u64, xen_residual_stolen);
-
-/* return an consistent snapshot of 64-bit time/counter value */
-static u64 get64(const u64 *p)
-{
-	u64 ret;
-
-	if (BITS_PER_LONG < 64) {
-		u32 *p32 = (u32 *)p;
-		u32 h, l;
-
-		/*
-		 * Read high then low, and then make sure high is
-		 * still the same; this will only loop if low wraps
-		 * and carries into high.
-		 * XXX some clean way to make this endian-proof?
-		 */
-		do {
-			h = p32[1];
-			barrier();
-			l = p32[0];
-			barrier();
-		} while (p32[1] != h);
-
-		ret = (((u64)h) << 32) | l;
-	} else
-		ret = *p;
-
-	return ret;
-}
-
-/*
- * Runstate accounting
- */
-static void get_runstate_snapshot(struct vcpu_runstate_info *res)
-{
-	u64 state_time;
-	struct vcpu_runstate_info *state;
-
-	BUG_ON(preemptible());
-
-	state = this_cpu_ptr(&xen_runstate);
-
-	/*
-	 * The runstate info is always updated by the hypervisor on
-	 * the current CPU, so there's no need to use anything
-	 * stronger than a compiler barrier when fetching it.
-	 */
-	do {
-		state_time = get64(&state->state_entry_time);
-		barrier();
-		*res = *state;
-		barrier();
-	} while (get64(&state->state_entry_time) != state_time);
-}
-
-/* return true when a vcpu could run but has no real cpu to run on */
-bool xen_vcpu_stolen(int vcpu)
-{
-	return per_cpu(xen_runstate, vcpu).state == RUNSTATE_runnable;
-}
-
-void xen_setup_runstate_info(int cpu)
-{
-	struct vcpu_register_runstate_memory_area area;
-
-	area.addr.v = &per_cpu(xen_runstate, cpu);
-
-	if (HYPERVISOR_vcpu_op(VCPUOP_register_runstate_memory_area,
-			       cpu, &area))
-		BUG();
-}
 
 static void do_stolen_accounting(void)
 {
@@ -119,7 +46,7 @@ static void do_stolen_accounting(void)
 	s64 runnable, offline, stolen;
 	cputime_t ticks;
 
-	get_runstate_snapshot(&state);
+	xen_get_runstate_snapshot(&state);
 
 	WARN_ON(state.state != RUNSTATE_running);
 
@@ -194,26 +121,46 @@ static int xen_pvclock_gtod_notify(struct notifier_block *nb,
 				   unsigned long was_set, void *priv)
 {
 	/* Protected by the calling core code serialization */
-	static struct timespec next_sync;
+	static struct timespec64 next_sync;
 
 	struct xen_platform_op op;
-	struct timespec now;
+	struct timespec64 now;
+	struct timekeeper *tk = priv;
+	static bool settime64_supported = true;
+	int ret;
 
-	now = __current_kernel_time();
+	now.tv_sec = tk->xtime_sec;
+	now.tv_nsec = (long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
 
 	/*
 	 * We only take the expensive HV call when the clock was set
 	 * or when the 11 minutes RTC synchronization time elapsed.
 	 */
-	if (!was_set && timespec_compare(&now, &next_sync) < 0)
+	if (!was_set && timespec64_compare(&now, &next_sync) < 0)
 		return NOTIFY_OK;
 
-	op.cmd = XENPF_settime;
-	op.u.settime.secs = now.tv_sec;
-	op.u.settime.nsecs = now.tv_nsec;
-	op.u.settime.system_time = xen_clocksource_read();
+again:
+	if (settime64_supported) {
+		op.cmd = XENPF_settime64;
+		op.u.settime64.mbz = 0;
+		op.u.settime64.secs = now.tv_sec;
+		op.u.settime64.nsecs = now.tv_nsec;
+		op.u.settime64.system_time = xen_clocksource_read();
+	} else {
+		op.cmd = XENPF_settime32;
+		op.u.settime32.secs = now.tv_sec;
+		op.u.settime32.nsecs = now.tv_nsec;
+		op.u.settime32.system_time = xen_clocksource_read();
+	}
 
-	(void)HYPERVISOR_dom0_op(&op);
+	ret = HYPERVISOR_platform_op(&op);
+
+	if (ret == -ENOSYS && settime64_supported) {
+		settime64_supported = false;
+		goto again;
+	}
+	if (ret < 0)
+		return NOTIFY_BAD;
 
 	/*
 	 * Move the next drift compensation time 11 minutes

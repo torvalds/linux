@@ -113,7 +113,7 @@ static struct syscore_ops s3c64xx_irq_syscore_ops = {
 static __init int s3c64xx_syscore_init(void)
 {
 	/* Appropriate drivers (pinctrl, uart) handle this when using DT. */
-	if (of_have_populated_dt())
+	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 
 	register_syscore_ops(&s3c64xx_irq_syscore_ops);

@@ -89,13 +89,6 @@ _GLOBAL(power7_powersave_common)
 	std	r0,_LINK(r1)
 	std	r0,_NIP(r1)
 
-#ifndef CONFIG_SMP
-	/* Make sure FPU, VSX etc... are flushed as we may lose
-	 * state when going to nap mode
-	 */
-	bl	discard_lazy_cpu_state
-#endif /* CONFIG_SMP */
-
 	/* Hard disable interrupts */
 	mfmsr	r9
 	rldicl	r9,r9,48,1

@@ -270,9 +270,15 @@ jme_reset_mac_processor(struct jme_adapter *jme)
 }
 
 static inline void
-jme_clear_pm(struct jme_adapter *jme)
+jme_clear_pm_enable_wol(struct jme_adapter *jme)
 {
 	jwrite32(jme, JME_PMCS, PMCS_STMASK | jme->reg_pmcs);
+}
+
+static inline void
+jme_clear_pm_disable_wol(struct jme_adapter *jme)
+{
+	jwrite32(jme, JME_PMCS, PMCS_STMASK);
 }
 
 static int
@@ -1853,7 +1859,7 @@ jme_open(struct net_device *netdev)
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int rc;
 
-	jme_clear_pm(jme);
+	jme_clear_pm_disable_wol(jme);
 	JME_NAPI_ENABLE(jme);
 
 	tasklet_init(&jme->linkch_task, jme_link_change_tasklet,
@@ -1925,11 +1931,11 @@ jme_wait_link(struct jme_adapter *jme)
 static void
 jme_powersave_phy(struct jme_adapter *jme)
 {
-	if (jme->reg_pmcs) {
+	if (jme->reg_pmcs && device_may_wakeup(&jme->pdev->dev)) {
 		jme_set_100m_half(jme);
 		if (jme->reg_pmcs & (PMCS_LFEN | PMCS_LREN))
 			jme_wait_link(jme);
-		jme_clear_pm(jme);
+		jme_clear_pm_enable_wol(jme);
 	} else {
 		jme_phy_off(jme);
 	}
@@ -2646,9 +2652,6 @@ jme_set_wol(struct net_device *netdev,
 	if (wol->wolopts & WAKE_MAGIC)
 		jme->reg_pmcs |= PMCS_MFEN;
 
-	jwrite32(jme, JME_PMCS, jme->reg_pmcs);
-	device_set_wakeup_enable(&jme->pdev->dev, !!(jme->reg_pmcs));
-
 	return 0;
 }
 
@@ -2753,7 +2756,7 @@ static netdev_features_t
 jme_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	if (netdev->mtu > 1900)
-		features &= ~(NETIF_F_ALL_TSO | NETIF_F_ALL_CSUM);
+		features &= ~(NETIF_F_ALL_TSO | NETIF_F_CSUM_MASK);
 	return features;
 }
 
@@ -3172,8 +3175,8 @@ jme_init_one(struct pci_dev *pdev,
 	jme->mii_if.mdio_read = jme_mdio_read;
 	jme->mii_if.mdio_write = jme_mdio_write;
 
-	jme_clear_pm(jme);
-	device_set_wakeup_enable(&pdev->dev, true);
+	jme_clear_pm_disable_wol(jme);
+	device_init_wakeup(&pdev->dev, true);
 
 	jme_set_phyfifo_5level(jme);
 	jme->pcirev = pdev->revision;
@@ -3304,7 +3307,7 @@ jme_resume(struct device *dev)
 	if (!netif_running(netdev))
 		return 0;
 
-	jme_clear_pm(jme);
+	jme_clear_pm_disable_wol(jme);
 	jme_phy_on(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
 		jme_set_settings(netdev, &jme->old_ecmd);
@@ -3312,12 +3315,13 @@ jme_resume(struct device *dev)
 		jme_reset_phy_processor(jme);
 	jme_phy_calibration(jme);
 	jme_phy_setEA(jme);
-	jme_start_irq(jme);
 	netif_device_attach(netdev);
 
 	atomic_inc(&jme->link_changing);
 
 	jme_reset_link(jme);
+
+	jme_start_irq(jme);
 
 	return 0;
 }

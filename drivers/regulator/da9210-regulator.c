@@ -46,7 +46,7 @@ static int da9210_set_current_limit(struct regulator_dev *rdev, int min_uA,
 				    int max_uA);
 static int da9210_get_current_limit(struct regulator_dev *rdev);
 
-static struct regulator_ops da9210_buck_ops = {
+static const struct regulator_ops da9210_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,

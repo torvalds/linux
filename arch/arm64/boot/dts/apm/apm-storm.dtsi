@@ -25,6 +25,7 @@
 			reg = <0x0 0x000>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_0>;
 		};
 		cpu@001 {
 			device_type = "cpu";
@@ -32,6 +33,7 @@
 			reg = <0x0 0x001>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_0>;
 		};
 		cpu@100 {
 			device_type = "cpu";
@@ -39,6 +41,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_1>;
 		};
 		cpu@101 {
 			device_type = "cpu";
@@ -46,6 +49,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_1>;
 		};
 		cpu@200 {
 			device_type = "cpu";
@@ -53,6 +57,7 @@
 			reg = <0x0 0x200>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_2>;
 		};
 		cpu@201 {
 			device_type = "cpu";
@@ -60,6 +65,7 @@
 			reg = <0x0 0x201>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_2>;
 		};
 		cpu@300 {
 			device_type = "cpu";
@@ -67,6 +73,7 @@
 			reg = <0x0 0x300>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_3>;
 		};
 		cpu@301 {
 			device_type = "cpu";
@@ -74,6 +81,19 @@
 			reg = <0x0 0x301>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
+			next-level-cache = <&xgene_L2_3>;
+		};
+		xgene_L2_0: l2-cache-0 {
+			compatible = "cache";
+		};
+		xgene_L2_1: l2-cache-1 {
+			compatible = "cache";
+		};
+		xgene_L2_2: l2-cache-2 {
+			compatible = "cache";
+		};
+		xgene_L2_3: l2-cache-3 {
+			compatible = "cache";
 		};
 	};
 
@@ -148,6 +168,35 @@
 				clock-mult = <1>;
 				clock-div = <2>;
 				clock-output-names = "socplldiv2";
+			};
+
+			ahbclk: ahbclk@17000000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x17000000 0x0 0x2000>;
+				reg-names = "div-reg";
+				divider-offset = <0x164>;
+				divider-width = <0x5>;
+				divider-shift = <0x0>;
+				clock-output-names = "ahbclk";
+			};
+
+			sdioclk: sdioclk@1f2ac000 {
+				compatible = "apm,xgene-device-clock";
+				#clock-cells = <1>;
+				clocks = <&socplldiv2 0>;
+				reg = <0x0 0x1f2ac000 0x0 0x1000
+					0x0 0x17000000 0x0 0x2000>;
+				reg-names = "csr-reg", "div-reg";
+				csr-offset = <0x0>;
+				csr-mask = <0x2>;
+				enable-offset = <0x8>;
+				enable-mask = <0x2>;
+				divider-offset = <0x178>;
+				divider-width = <0x8>;
+				divider-shift = <0x0>;
+				clock-output-names = "sdioclk";
 			};
 
 			qmlclk: qmlclk {
@@ -686,6 +735,50 @@
 			interrupts = <0x0 0x4f 0x4>;
 		};
 
+		mmc0: mmc@1c000000 {
+			compatible = "arasan,sdhci-4.9a";
+			reg = <0x0 0x1c000000 0x0 0x100>;
+			interrupts = <0x0 0x49 0x4>;
+			dma-coherent;
+			no-1-8-v;
+			clock-names = "clk_xin", "clk_ahb";
+			clocks = <&sdioclk 0>, <&ahbclk 0>;
+		};
+
+		gfcgpio: gpio0@1701c000 {
+			compatible = "apm,xgene-gpio";
+			reg = <0x0 0x1701c000 0x0 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
+		dwgpio: gpio@1c024000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x1c024000 0x0 0x1000>;
+			reg-io-width = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+			};
+		};
+
+		i2c0: i2c@10512000 {
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0x0 0x10512000 0x0 0x1000>;
+			interrupts = <0 0x44 0x4>;
+			#clock-cells = <1>;
+			clocks = <&ahbclk 0>;
+			bus_num = <0>;
+		};
+
 		phy1: phy@1f21a000 {
 			compatible = "apm,xgene-phy";
 			reg = <0x0 0x1f21a000 0x0 0x100>;
@@ -760,7 +853,26 @@
 			phy-names = "sata-phy";
 		};
 
-		sbgpio: sbgpio@17001000{
+		/* Do not change dwusb name, coded for backward compatibility */
+		usb0: dwusb@19000000 {
+			status = "disabled";
+			compatible = "snps,dwc3";
+			reg =  <0x0 0x19000000 0x0 0x100000>;
+			interrupts = <0x0 0x89 0x4>;
+			dma-coherent;
+			dr_mode = "host";
+		};
+
+		usb1: dwusb@19800000 {
+			status = "disabled";
+			compatible = "snps,dwc3";
+			reg =  <0x0 0x19800000 0x0 0x100000>;
+			interrupts = <0x0 0x8a 0x4>;
+			dma-coherent;
+			dr_mode = "host";
+		};
+
+		sbgpio: gpio@17001000{
 			compatible = "apm,xgene-gpio-sb";
 			reg = <0x0 0x17001000 0x0 0x400>;
 			#gpio-cells = <2>;

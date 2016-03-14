@@ -17,10 +17,10 @@ RAM, where you have to create an ordinary filesystem on top. Ramdisks
 cannot swap and you do not have the possibility to resize them. 
 
 Since tmpfs lives completely in the page cache and on swap, all tmpfs
-pages currently in memory will show up as cached. It will not show up
-as shared or something like that. Further on you can check the actual
-RAM+swap use of a tmpfs instance with df(1) and du(1).
-
+pages will be shown as "Shmem" in /proc/meminfo and "Shared" in
+free(1). Notice that these counters also include shared memory
+(shmem, see ipcs(1)). The most reliable way to get the count is
+using df(1) and du(1).
 
 tmpfs has the following uses:
 

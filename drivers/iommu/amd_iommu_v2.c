@@ -432,7 +432,7 @@ static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
 	unbind_pasid(pasid_state);
 }
 
-static struct mmu_notifier_ops iommu_mn = {
+static const struct mmu_notifier_ops iommu_mn = {
 	.release		= mn_release,
 	.clear_flush_young      = mn_clear_flush_young,
 	.invalidate_page        = mn_invalidate_page,
@@ -513,43 +513,39 @@ static bool access_error(struct vm_area_struct *vma, struct fault *fault)
 static void do_fault(struct work_struct *work)
 {
 	struct fault *fault = container_of(work, struct fault, work);
-	struct mm_struct *mm;
 	struct vm_area_struct *vma;
+	int ret = VM_FAULT_ERROR;
+	unsigned int flags = 0;
+	struct mm_struct *mm;
 	u64 address;
-	int ret, write;
-
-	write = !!(fault->flags & PPR_FAULT_WRITE);
 
 	mm = fault->state->mm;
 	address = fault->address;
 
+	if (fault->flags & PPR_FAULT_USER)
+		flags |= FAULT_FLAG_USER;
+	if (fault->flags & PPR_FAULT_WRITE)
+		flags |= FAULT_FLAG_WRITE;
+
 	down_read(&mm->mmap_sem);
 	vma = find_extend_vma(mm, address);
-	if (!vma || address < vma->vm_start) {
+	if (!vma || address < vma->vm_start)
 		/* failed to get a vma in the right range */
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
 		goto out;
-	}
 
 	/* Check if we have the right permissions on the vma */
-	if (access_error(vma, fault)) {
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
+	if (access_error(vma, fault))
 		goto out;
-	}
 
-	ret = handle_mm_fault(mm, vma, address, write);
-	if (ret & VM_FAULT_ERROR) {
-		/* failed to service fault */
-		up_read(&mm->mmap_sem);
-		handle_fault_error(fault);
-		goto out;
-	}
-
-	up_read(&mm->mmap_sem);
+	ret = handle_mm_fault(mm, vma, address, flags);
 
 out:
+	up_read(&mm->mmap_sem);
+
+	if (ret & VM_FAULT_ERROR)
+		/* failed to service fault */
+		handle_fault_error(fault);
+
 	finish_pri_tag(fault->dev_state, fault->state, fault->tag);
 
 	put_pasid_state(fault->state);

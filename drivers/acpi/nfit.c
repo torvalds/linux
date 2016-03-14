@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
+#include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/acpi.h>
 #include <linux/sort.h>
@@ -468,36 +469,15 @@ static void nfit_mem_find_spa_bdw(struct acpi_nfit_desc *acpi_desc,
 	nfit_mem->bdw = NULL;
 }
 
-static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
+static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem, struct acpi_nfit_system_address *spa)
 {
 	u16 dcr = __to_nfit_memdev(nfit_mem)->region_index;
 	struct nfit_memdev *nfit_memdev;
 	struct nfit_flush *nfit_flush;
-	struct nfit_dcr *nfit_dcr;
 	struct nfit_bdw *nfit_bdw;
 	struct nfit_idt *nfit_idt;
 	u16 idt_idx, range_index;
-
-	list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
-		if (nfit_dcr->dcr->region_index != dcr)
-			continue;
-		nfit_mem->dcr = nfit_dcr->dcr;
-		break;
-	}
-
-	if (!nfit_mem->dcr) {
-		dev_dbg(acpi_desc->dev, "SPA %d missing:%s%s\n",
-				spa->range_index, __to_nfit_memdev(nfit_mem)
-				? "" : " MEMDEV", nfit_mem->dcr ? "" : " DCR");
-		return -ENODEV;
-	}
-
-	/*
-	 * We've found enough to create an nvdimm, optionally
-	 * find an associated BDW
-	 */
-	list_add(&nfit_mem->list, &acpi_desc->dimms);
 
 	list_for_each_entry(nfit_bdw, &acpi_desc->bdws, list) {
 		if (nfit_bdw->bdw->region_index != dcr)
@@ -507,12 +487,12 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	if (!nfit_mem->bdw)
-		return 0;
+		return;
 
 	nfit_mem_find_spa_bdw(acpi_desc, nfit_mem);
 
 	if (!nfit_mem->spa_bdw)
-		return 0;
+		return;
 
 	range_index = nfit_mem->spa_bdw->range_index;
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
@@ -537,8 +517,6 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 		}
 		break;
 	}
-
-	return 0;
 }
 
 static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
@@ -547,7 +525,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	struct nfit_mem *nfit_mem, *found;
 	struct nfit_memdev *nfit_memdev;
 	int type = nfit_spa_type(spa);
-	u16 dcr;
 
 	switch (type) {
 	case NFIT_SPA_DCR:
@@ -558,14 +535,18 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
-		int rc;
+		struct nfit_dcr *nfit_dcr;
+		u32 device_handle;
+		u16 dcr;
 
 		if (nfit_memdev->memdev->range_index != spa->range_index)
 			continue;
 		found = NULL;
 		dcr = nfit_memdev->memdev->region_index;
+		device_handle = nfit_memdev->memdev->device_handle;
 		list_for_each_entry(nfit_mem, &acpi_desc->dimms, list)
-			if (__to_nfit_memdev(nfit_mem)->region_index == dcr) {
+			if (__to_nfit_memdev(nfit_mem)->device_handle
+					== device_handle) {
 				found = nfit_mem;
 				break;
 			}
@@ -578,6 +559,31 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			if (!nfit_mem)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&nfit_mem->list);
+			list_add(&nfit_mem->list, &acpi_desc->dimms);
+		}
+
+		list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
+			if (nfit_dcr->dcr->region_index != dcr)
+				continue;
+			/*
+			 * Record the control region for the dimm.  For
+			 * the ACPI 6.1 case, where there are separate
+			 * control regions for the pmem vs blk
+			 * interfaces, be sure to record the extended
+			 * blk details.
+			 */
+			if (!nfit_mem->dcr)
+				nfit_mem->dcr = nfit_dcr->dcr;
+			else if (nfit_mem->dcr->windows == 0
+					&& nfit_dcr->dcr->windows)
+				nfit_mem->dcr = nfit_dcr->dcr;
+			break;
+		}
+
+		if (dcr && !nfit_mem->dcr) {
+			dev_err(acpi_desc->dev, "SPA %d missing DCR %d\n",
+					spa->range_index, dcr);
+			return -ENODEV;
 		}
 
 		if (type == NFIT_SPA_DCR) {
@@ -594,6 +600,7 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 				nfit_mem->idt_dcr = nfit_idt->idt;
 				break;
 			}
+			nfit_mem_init_bdw(acpi_desc, nfit_mem, spa);
 		} else {
 			/*
 			 * A single dimm may belong to multiple SPA-PM
@@ -602,13 +609,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			 */
 			nfit_mem->memdev_pmem = nfit_memdev->memdev;
 		}
-
-		if (found)
-			continue;
-
-		rc = nfit_mem_add(acpi_desc, nfit_mem, spa);
-		if (rc)
-			return rc;
 	}
 
 	return 0;
@@ -1473,6 +1473,209 @@ static void acpi_nfit_blk_region_disable(struct nvdimm_bus *nvdimm_bus,
 	/* devm will free nfit_blk */
 }
 
+static int ars_get_cap(struct nvdimm_bus_descriptor *nd_desc,
+		struct nd_cmd_ars_cap *cmd, u64 addr, u64 length)
+{
+	cmd->address = addr;
+	cmd->length = length;
+
+	return nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_CAP, cmd,
+			sizeof(*cmd));
+}
+
+static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
+		struct nd_cmd_ars_start *cmd, u64 addr, u64 length)
+{
+	int rc;
+
+	cmd->address = addr;
+	cmd->length = length;
+	cmd->type = ND_ARS_PERSISTENT;
+
+	while (1) {
+		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_START, cmd,
+				sizeof(*cmd));
+		if (rc)
+			return rc;
+		switch (cmd->status) {
+		case 0:
+			return 0;
+		case 1:
+			/* ARS unsupported, but we should never get here */
+			return 0;
+		case 6:
+			/* ARS is in progress */
+			msleep(1000);
+			break;
+		default:
+			return -ENXIO;
+		}
+	}
+}
+
+static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
+		struct nd_cmd_ars_status *cmd, u32 size)
+{
+	int rc;
+
+	while (1) {
+		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_STATUS, cmd,
+			size);
+		if (rc || cmd->status & 0xffff)
+			return -ENXIO;
+
+		/* Check extended status (Upper two bytes) */
+		switch (cmd->status >> 16) {
+		case 0:
+			return 0;
+		case 1:
+			/* ARS is in progress */
+			msleep(1000);
+			break;
+		case 2:
+			/* No ARS performed for the current boot */
+			return 0;
+		case 3:
+			/* TODO: error list overflow support */
+		default:
+			return -ENXIO;
+		}
+	}
+}
+
+static int ars_status_process_records(struct nvdimm_bus *nvdimm_bus,
+		struct nd_cmd_ars_status *ars_status, u64 start)
+{
+	int rc;
+	u32 i;
+
+	/*
+	 * The address field returned by ars_status should be either
+	 * less than or equal to the address we last started ARS for.
+	 * The (start, length) returned by ars_status should also have
+	 * non-zero overlap with the range we started ARS for.
+	 * If this is not the case, bail.
+	 */
+	if (ars_status->address > start ||
+			(ars_status->address + ars_status->length < start))
+		return -ENXIO;
+
+	for (i = 0; i < ars_status->num_records; i++) {
+		rc = nvdimm_bus_add_poison(nvdimm_bus,
+				ars_status->records[i].err_address,
+				ars_status->records[i].length);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
+		struct nd_region_desc *ndr_desc)
+{
+	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
+	struct nvdimm_bus *nvdimm_bus = acpi_desc->nvdimm_bus;
+	struct nd_cmd_ars_status *ars_status = NULL;
+	struct nd_cmd_ars_start *ars_start = NULL;
+	struct nd_cmd_ars_cap *ars_cap = NULL;
+	u64 start, len, cur, remaining;
+	u32 ars_status_size;
+	int rc;
+
+	ars_cap = kzalloc(sizeof(*ars_cap), GFP_KERNEL);
+	if (!ars_cap)
+		return -ENOMEM;
+
+	start = ndr_desc->res->start;
+	len = ndr_desc->res->end - ndr_desc->res->start + 1;
+
+	/*
+	 * If ARS is unimplemented, unsupported, or if the 'Persistent Memory
+	 * Scrub' flag in extended status is not set, skip this but continue
+	 * initialization
+	 */
+	rc = ars_get_cap(nd_desc, ars_cap, start, len);
+	if (rc == -ENOTTY) {
+		dev_dbg(acpi_desc->dev,
+			"Address Range Scrub is not implemented, won't create an error list\n");
+		rc = 0;
+		goto out;
+	}
+	if (rc)
+		goto out;
+
+	if ((ars_cap->status & 0xffff) ||
+		!(ars_cap->status >> 16 & ND_ARS_PERSISTENT)) {
+		dev_warn(acpi_desc->dev,
+			"ARS unsupported (status: 0x%x), won't create an error list\n",
+			ars_cap->status);
+		goto out;
+	}
+
+	/*
+	 * Check if a full-range ARS has been run. If so, use those results
+	 * without having to start a new ARS.
+	 */
+	ars_status_size = ars_cap->max_ars_out;
+	ars_status = kzalloc(ars_status_size, GFP_KERNEL);
+	if (!ars_status) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = ars_get_status(nd_desc, ars_status, ars_status_size);
+	if (rc)
+		goto out;
+
+	if (ars_status->address <= start &&
+		(ars_status->address + ars_status->length >= start + len)) {
+		rc = ars_status_process_records(nvdimm_bus, ars_status, start);
+		goto out;
+	}
+
+	/*
+	 * ARS_STATUS can overflow if the number of poison entries found is
+	 * greater than the maximum buffer size (ars_cap->max_ars_out)
+	 * To detect overflow, check if the length field of ars_status
+	 * is less than the length we supplied. If so, process the
+	 * error entries we got, adjust the start point, and start again
+	 */
+	ars_start = kzalloc(sizeof(*ars_start), GFP_KERNEL);
+	if (!ars_start)
+		return -ENOMEM;
+
+	cur = start;
+	remaining = len;
+	do {
+		u64 done, end;
+
+		rc = ars_do_start(nd_desc, ars_start, cur, remaining);
+		if (rc)
+			goto out;
+
+		rc = ars_get_status(nd_desc, ars_status, ars_status_size);
+		if (rc)
+			goto out;
+
+		rc = ars_status_process_records(nvdimm_bus, ars_status, cur);
+		if (rc)
+			goto out;
+
+		end = min(cur + remaining,
+			ars_status->address + ars_status->length);
+		done = end - cur;
+		cur += done;
+		remaining -= done;
+	} while (remaining);
+
+ out:
+	kfree(ars_cap);
+	kfree(ars_start);
+	kfree(ars_status);
+	return rc;
+}
+
 static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 		struct nd_mapping *nd_mapping, struct nd_region_desc *ndr_desc,
 		struct acpi_nfit_memory_map *memdev,
@@ -1585,6 +1788,13 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 
 	nvdimm_bus = acpi_desc->nvdimm_bus;
 	if (nfit_spa_type(spa) == NFIT_SPA_PM) {
+		rc = acpi_nfit_find_poison(acpi_desc, ndr_desc);
+		if (rc) {
+			dev_err(acpi_desc->dev,
+				"error while performing ARS to find poison: %d\n",
+				rc);
+			return rc;
+		}
 		if (!nvdimm_pmem_region_create(nvdimm_bus, ndr_desc))
 			return -ENOMEM;
 	} else if (nfit_spa_type(spa) == NFIT_SPA_VOLATILE) {

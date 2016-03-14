@@ -192,8 +192,6 @@ static const struct drm_encoder_funcs nv04_tv_funcs = {
 
 static const struct drm_encoder_helper_funcs nv04_tv_helper_funcs = {
 	.dpms = nv04_tv_dpms,
-	.save = drm_i2c_encoder_save,
-	.restore = drm_i2c_encoder_restore,
 	.mode_fixup = drm_i2c_encoder_mode_fixup,
 	.prepare = nv04_tv_prepare,
 	.commit = nv04_tv_commit,
@@ -225,8 +223,12 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	/* Initialize the common members */
 	encoder = to_drm_encoder(nv_encoder);
 
-	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC);
+	drm_encoder_init(dev, encoder, &nv04_tv_funcs, DRM_MODE_ENCODER_TVDAC,
+			 NULL);
 	drm_encoder_helper_add(encoder, &nv04_tv_helper_funcs);
+
+	nv_encoder->enc_save = drm_i2c_encoder_save;
+	nv_encoder->enc_restore = drm_i2c_encoder_restore;
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;

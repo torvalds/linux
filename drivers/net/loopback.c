@@ -175,7 +175,7 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_UFO
 		| NETIF_F_HW_CSUM
 		| NETIF_F_RXCSUM
-		| NETIF_F_SCTP_CSUM
+		| NETIF_F_SCTP_CRC
 		| NETIF_F_HIGHDMA
 		| NETIF_F_LLTX
 		| NETIF_F_NETNS_LOCAL

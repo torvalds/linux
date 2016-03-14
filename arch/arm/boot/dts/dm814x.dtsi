@@ -5,7 +5,7 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/omap.h>
+#include <dt-bindings/pinctrl/dm814x.h>
 
 #include "skeleton.dtsi"
 
@@ -21,6 +21,10 @@
 		serial2 = &uart3;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		usb0 = &usb0;
+		usb1 = &usb1;
+		phy0 = &usb0_phy;
+		phy1 = &usb1_phy;
 	};
 
 	cpus {
@@ -57,9 +61,118 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
+		usb: usb@47400000 {
+			compatible = "ti,am33xx-usb";
+			reg = <0x47400000 0x1000>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ti,hwmods = "usb_otg_hs";
+
+			usb0_phy: usb-phy@47401300 {
+				compatible = "ti,am335x-usb-phy";
+				reg = <0x47401300 0x100>;
+				reg-names = "phy";
+				ti,ctrl_mod = <&usb_ctrl_mod>;
+			};
+
+			usb0: usb@47401000 {
+				compatible = "ti,musb-am33xx";
+				reg = <0x47401400 0x400
+				       0x47401000 0x200>;
+				reg-names = "mc", "control";
+
+				interrupts = <18>;
+				interrupt-names = "mc";
+				dr_mode = "otg";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+				phys = <&usb0_phy>;
+
+				dmas = <&cppi41dma  0 0 &cppi41dma  1 0
+					&cppi41dma  2 0 &cppi41dma  3 0
+					&cppi41dma  4 0 &cppi41dma  5 0
+					&cppi41dma  6 0 &cppi41dma  7 0
+					&cppi41dma  8 0 &cppi41dma  9 0
+					&cppi41dma 10 0 &cppi41dma 11 0
+					&cppi41dma 12 0 &cppi41dma 13 0
+					&cppi41dma 14 0 &cppi41dma  0 1
+					&cppi41dma  1 1 &cppi41dma  2 1
+					&cppi41dma  3 1 &cppi41dma  4 1
+					&cppi41dma  5 1 &cppi41dma  6 1
+					&cppi41dma  7 1 &cppi41dma  8 1
+					&cppi41dma  9 1 &cppi41dma 10 1
+					&cppi41dma 11 1 &cppi41dma 12 1
+					&cppi41dma 13 1 &cppi41dma 14 1>;
+				dma-names =
+					"rx1", "rx2", "rx3", "rx4", "rx5", "rx6", "rx7",
+					"rx8", "rx9", "rx10", "rx11", "rx12", "rx13",
+					"rx14", "rx15",
+					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
+					"tx14", "tx15";
+			};
+
+			usb1: usb@47401800 {
+				compatible = "ti,musb-am33xx";
+				reg = <0x47401c00 0x400
+					0x47401800 0x200>;
+				reg-names = "mc", "control";
+				interrupts = <19>;
+				interrupt-names = "mc";
+				dr_mode = "otg";
+				mentor,multipoint = <1>;
+				mentor,num-eps = <16>;
+				mentor,ram-bits = <12>;
+				mentor,power = <500>;
+				phys = <&usb1_phy>;
+
+				dmas = <&cppi41dma 15 0 &cppi41dma 16 0
+					&cppi41dma 17 0 &cppi41dma 18 0
+					&cppi41dma 19 0 &cppi41dma 20 0
+					&cppi41dma 21 0 &cppi41dma 22 0
+					&cppi41dma 23 0 &cppi41dma 24 0
+					&cppi41dma 25 0 &cppi41dma 26 0
+					&cppi41dma 27 0 &cppi41dma 28 0
+					&cppi41dma 29 0 &cppi41dma 15 1
+					&cppi41dma 16 1 &cppi41dma 17 1
+					&cppi41dma 18 1 &cppi41dma 19 1
+					&cppi41dma 20 1 &cppi41dma 21 1
+					&cppi41dma 22 1 &cppi41dma 23 1
+					&cppi41dma 24 1 &cppi41dma 25 1
+					&cppi41dma 26 1 &cppi41dma 27 1
+					&cppi41dma 28 1 &cppi41dma 29 1>;
+				dma-names =
+					"rx1", "rx2", "rx3", "rx4", "rx5", "rx6", "rx7",
+					"rx8", "rx9", "rx10", "rx11", "rx12", "rx13",
+					"rx14", "rx15",
+					"tx1", "tx2", "tx3", "tx4", "tx5", "tx6", "tx7",
+					"tx8", "tx9", "tx10", "tx11", "tx12", "tx13",
+					"tx14", "tx15";
+			};
+
+			cppi41dma: dma-controller@47402000 {
+				compatible = "ti,am3359-cppi41";
+				reg =  <0x47400000 0x1000
+					0x47402000 0x1000
+					0x47403000 0x1000
+					0x47404000 0x4000>;
+				reg-names = "glue", "controller", "scheduler", "queuemgr";
+				interrupts = <17>;
+				interrupt-names = "glue";
+				#dma-cells = <2>;
+				#dma-channels = <30>;
+				#dma-requests = <256>;
+			};
+		};
+
 		/*
-		 * See TRM "Table 1-317. L4LS Instance Summary", just deduct
-		 * 0x1000 from the 1-317 addresses to get the device address
+		 * See TRM "Table 1-317. L4LS Instance Summary" for hints.
+		 * It shows the module target agent registers though, so the
+		 * actual device is typically 0x1000 before the target agent
+		 * except in cases where the module is larger than 0x1000.
 		 */
 		l4ls: l4ls@48000000 {
 			compatible = "ti,dm814-l4ls", "simple-bus";
@@ -124,8 +237,8 @@
 				interrupts = <65>;
 				ti,spi-num-cs = <4>;
 				ti,hwmods = "mcspi1";
-				dmas = <&edma 16 &edma 17
-					&edma 18 &edma 19>;
+				dmas = <&edma 16 0 &edma 17 0
+					&edma 18 0 &edma 19 0>;
 				dma-names = "tx0", "rx0", "tx1", "rx1";
 			};
 
@@ -143,7 +256,7 @@
 				reg = <0x20000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <72>;
-				dmas = <&edma 26 &edma 27>;
+				dmas = <&edma 26 0 &edma 27 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -153,7 +266,7 @@
 				reg = <0x22000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <73>;
-				dmas = <&edma 28 &edma 29>;
+				dmas = <&edma 28 0 &edma 29 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -163,7 +276,7 @@
 				reg = <0x24000 0x2000>;
 				clock-frequency = <48000000>;
 				interrupts = <74>;
-				dmas = <&edma 30 &edma 31>;
+				dmas = <&edma 30 0 &edma 31 0>;
 				dma-names = "tx", "rx";
 			};
 
@@ -181,12 +294,34 @@
 				ti,hwmods = "timer3";
 			};
 
+			mmc1: mmc@60000 {
+				compatible = "ti,omap4-hsmmc";
+				ti,hwmods = "mmc1";
+				dmas = <&edma 24 0
+					&edma 25 0>;
+				dma-names = "tx", "rx";
+				interrupts = <64>;
+				interrupt-parent = <&intc>;
+				reg = <0x60000 0x1000>;
+			};
+
+			mmc2: mmc@1d8000 {
+				compatible = "ti,omap4-hsmmc";
+				ti,hwmods = "mmc2";
+				dmas = <&edma 2 0
+					&edma 3 0>;
+				dma-names = "tx", "rx";
+				interrupts = <28>;
+				interrupt-parent = <&intc>;
+				reg = <0x1d8000 0x1000>;
+			};
+
 			control: control@140000 {
 				compatible = "ti,dm814-scm", "simple-bus";
-				reg = <0x140000 0x16d000>;
+				reg = <0x140000 0x20000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 0x160000 0x16d000>;
+				ranges = <0 0x140000 0x20000>;
 
 				scm_conf: scm_conf@0 {
 					compatible = "syscon";
@@ -203,19 +338,52 @@
 					};
 				};
 
+				usb_ctrl_mod: control@620 {
+					compatible = "ti,am335x-usb-ctrl-module";
+					reg = <0x620 0x10
+						0x648 0x4>;
+					reg-names = "phy_ctrl", "wakeup";
+				};
+
+				edma_xbar: dma-router@f90 {
+					compatible = "ti,am335x-edma-crossbar";
+					reg = <0xf90 0x40>;
+					#dma-cells = <3>;
+					dma-requests = <32>;
+					dma-masters = <&edma>;
+				};
+
+				/*
+				 * Note that silicon revision 2.1 and older
+				 * require input enabled (bit 18 set) for all
+				 * 3.3V I/Os to avoid cumulative hardware damage.
+				 * For more info, see errata advisory 2.1.87.
+				 * We leave bit 18 out of function-mask and rely
+				 * on the bootloader for it.
+				 */
 				pincntl: pinmux@800 {
 					compatible = "pinctrl-single";
-					reg = <0x800 0xc38>;
+					reg = <0x800 0x438>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					pinctrl-single,register-width = <32>;
-					pinctrl-single,function-mask = <0x300ff>;
+					pinctrl-single,function-mask = <0x307ff>;
+				};
+
+				usb1_phy: usb-phy@1b00 {
+					compatible = "ti,am335x-usb-phy";
+					reg = <0x1b00 0x100>;
+					reg-names = "phy";
+					ti,ctrl_mod = <&usb_ctrl_mod>;
 				};
 			};
 
 			prcm: prcm@180000 {
 				compatible = "ti,dm814-prcm", "simple-bus";
-				reg = <0x180000 0x4000>;
+				reg = <0x180000 0x2000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x180000 0x2000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
@@ -226,9 +394,13 @@
 				};
 			};
 
+			/* See TRM PLL_SUBSYS_BASE and "PLLSS Registers" */
 			pllss: pllss@1c5000 {
 				compatible = "ti,dm814-pllss", "simple-bus";
-				reg = <0x1c5000 0x2000>;
+				reg = <0x1c5000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1c5000 0x1000>;
 
 				pllss_clocks: clocks {
 					#address-cells = <1>;
@@ -254,13 +426,62 @@
 			reg = <0x48200000 0x1000>;
 		};
 
+		/* Board must configure evtmux with edma_xbar for EDMA */
+		mmc3: mmc@47810000 {
+			compatible = "ti,omap4-hsmmc";
+			ti,hwmods = "mmc3";
+			interrupts = <29>;
+			interrupt-parent = <&intc>;
+			reg = <0x47810000 0x1000>;
+		};
+
 		edma: edma@49000000 {
-			compatible = "ti,edma3";
-			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
-			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x40>;
+			compatible = "ti,edma3-tpcc";
+			ti,hwmods = "tpcc";
+			reg =	<0x49000000 0x10000>;
+			reg-names = "edma3_cc";
 			interrupts = <12 13 14>;
-			#dma-cells = <1>;
+			interrupt-names = "edma3_ccint", "emda3_mperr",
+					  "edma3_ccerrint";
+			dma-requests = <64>;
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+				   <&edma_tptc2 3>, <&edma_tptc3 0>;
+
+			ti,edma-memcpy-channels = <20 21>;
+		};
+
+		edma_tptc0: tptc@49800000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc0";
+			reg =	<0x49800000 0x100000>;
+			interrupts = <112>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc1: tptc@49900000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc1";
+			reg =	<0x49900000 0x100000>;
+			interrupts = <113>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc2: tptc@49a00000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc2";
+			reg =	<0x49a00000 0x100000>;
+			interrupts = <114>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc3: tptc@49b00000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc3";
+			reg =	<0x49b00000 0x100000>;
+			interrupts = <115>;
+			interrupt-names = "edma3_tcerrint";
 		};
 
 		/* See TRM "Table 1-318. L4HS Instance Summary" */

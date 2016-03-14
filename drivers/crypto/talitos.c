@@ -1216,6 +1216,7 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	bool is_sec1 = has_ftr_sec1(priv);
 	int max_len = is_sec1 ? TALITOS1_MAX_DATA_LEN : TALITOS2_MAX_DATA_LEN;
+	void *err;
 
 	if (cryptlen + authsize > max_len) {
 		dev_err(dev, "length exceeds h/w max limit\n");
@@ -1228,14 +1229,29 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 	if (!dst || dst == src) {
 		src_nents = sg_nents_for_len(src,
 					     assoclen + cryptlen + authsize);
+		if (src_nents < 0) {
+			dev_err(dev, "Invalid number of src SG.\n");
+			err = ERR_PTR(-EINVAL);
+			goto error_sg;
+		}
 		src_nents = (src_nents == 1) ? 0 : src_nents;
 		dst_nents = dst ? src_nents : 0;
 	} else { /* dst && dst != src*/
 		src_nents = sg_nents_for_len(src, assoclen + cryptlen +
 						 (encrypt ? 0 : authsize));
+		if (src_nents < 0) {
+			dev_err(dev, "Invalid number of src SG.\n");
+			err = ERR_PTR(-EINVAL);
+			goto error_sg;
+		}
 		src_nents = (src_nents == 1) ? 0 : src_nents;
 		dst_nents = sg_nents_for_len(dst, assoclen + cryptlen +
 						 (encrypt ? authsize : 0));
+		if (dst_nents < 0) {
+			dev_err(dev, "Invalid number of dst SG.\n");
+			err = ERR_PTR(-EINVAL);
+			goto error_sg;
+		}
 		dst_nents = (dst_nents == 1) ? 0 : dst_nents;
 	}
 
@@ -1260,11 +1276,9 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 
 	edesc = kmalloc(alloc_len, GFP_DMA | flags);
 	if (!edesc) {
-		if (iv_dma)
-			dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
-
 		dev_err(dev, "could not allocate edescriptor\n");
-		return ERR_PTR(-ENOMEM);
+		err = ERR_PTR(-ENOMEM);
+		goto error_sg;
 	}
 
 	edesc->src_nents = src_nents;
@@ -1277,6 +1291,10 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 						     DMA_BIDIRECTIONAL);
 
 	return edesc;
+error_sg:
+	if (iv_dma)
+		dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
+	return err;
 }
 
 static struct talitos_edesc *aead_edesc_alloc(struct aead_request *areq, u8 *iv,
@@ -1830,11 +1848,16 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 	unsigned int nbytes_to_hash;
 	unsigned int to_hash_later;
 	unsigned int nsg;
+	int nents;
 
 	if (!req_ctx->last && (nbytes + req_ctx->nbuf <= blocksize)) {
 		/* Buffer up to one whole block */
-		sg_copy_to_buffer(areq->src,
-				  sg_nents_for_len(areq->src, nbytes),
+		nents = sg_nents_for_len(areq->src, nbytes);
+		if (nents < 0) {
+			dev_err(ctx->dev, "Invalid number of src SG.\n");
+			return nents;
+		}
+		sg_copy_to_buffer(areq->src, nents,
 				  req_ctx->buf + req_ctx->nbuf, nbytes);
 		req_ctx->nbuf += nbytes;
 		return 0;
@@ -1867,7 +1890,11 @@ static int ahash_process_req(struct ahash_request *areq, unsigned int nbytes)
 		req_ctx->psrc = areq->src;
 
 	if (to_hash_later) {
-		int nents = sg_nents_for_len(areq->src, nbytes);
+		nents = sg_nents_for_len(areq->src, nbytes);
+		if (nents < 0) {
+			dev_err(ctx->dev, "Invalid number of src SG.\n");
+			return nents;
+		}
 		sg_pcopy_to_buffer(areq->src, nents,
 				      req_ctx->bufnext,
 				      to_hash_later,
@@ -2297,6 +2324,22 @@ static struct talitos_alg_template driver_algs[] = {
 	/* ABLKCIPHER algorithms. */
 	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
 		.alg.crypto = {
+			.cra_name = "ecb(aes)",
+			.cra_driver_name = "ecb-aes-talitos",
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_ASYNC,
+			.cra_ablkcipher = {
+				.min_keysize = AES_MIN_KEY_SIZE,
+				.max_keysize = AES_MAX_KEY_SIZE,
+				.ivsize = AES_BLOCK_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_AESU,
+	},
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "cbc-aes-talitos",
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -2311,6 +2354,73 @@ static struct talitos_alg_template driver_algs[] = {
 		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
 				     DESC_HDR_SEL0_AESU |
 				     DESC_HDR_MODE0_AESU_CBC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
+			.cra_name = "ctr(aes)",
+			.cra_driver_name = "ctr-aes-talitos",
+			.cra_blocksize = AES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_ASYNC,
+			.cra_ablkcipher = {
+				.min_keysize = AES_MIN_KEY_SIZE,
+				.max_keysize = AES_MAX_KEY_SIZE,
+				.ivsize = AES_BLOCK_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_AESU |
+				     DESC_HDR_MODE0_AESU_CTR,
+	},
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
+			.cra_name = "ecb(des)",
+			.cra_driver_name = "ecb-des-talitos",
+			.cra_blocksize = DES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_ASYNC,
+			.cra_ablkcipher = {
+				.min_keysize = DES_KEY_SIZE,
+				.max_keysize = DES_KEY_SIZE,
+				.ivsize = DES_BLOCK_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_DEU,
+	},
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
+			.cra_name = "cbc(des)",
+			.cra_driver_name = "cbc-des-talitos",
+			.cra_blocksize = DES_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_ASYNC,
+			.cra_ablkcipher = {
+				.min_keysize = DES_KEY_SIZE,
+				.max_keysize = DES_KEY_SIZE,
+				.ivsize = DES_BLOCK_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_DEU |
+				     DESC_HDR_MODE0_DEU_CBC,
+	},
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
+			.cra_name = "ecb(des3_ede)",
+			.cra_driver_name = "ecb-3des-talitos",
+			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
+			.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER |
+				     CRYPTO_ALG_ASYNC,
+			.cra_ablkcipher = {
+				.min_keysize = DES3_EDE_KEY_SIZE,
+				.max_keysize = DES3_EDE_KEY_SIZE,
+				.ivsize = DES3_EDE_BLOCK_SIZE,
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_DEU |
+				     DESC_HDR_MODE0_DEU_3DES,
 	},
 	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
 		.alg.crypto = {

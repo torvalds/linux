@@ -166,6 +166,10 @@ out:
 	return r;
 }
 
+void __attribute__((weak)) kvm_arch_irq_routing_update(struct kvm *kvm)
+{
+}
+
 int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *ue,
 			unsigned nr,
@@ -219,9 +223,10 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	old = kvm->irq_routing;
 	rcu_assign_pointer(kvm->irq_routing, new);
 	kvm_irq_routing_update(kvm);
+	kvm_arch_irq_routing_update(kvm);
 	mutex_unlock(&kvm->irq_lock);
 
-	kvm_arch_irq_routing_update(kvm);
+	kvm_arch_post_irq_routing_update(kvm);
 
 	synchronize_srcu_expedited(&kvm->irq_srcu);
 

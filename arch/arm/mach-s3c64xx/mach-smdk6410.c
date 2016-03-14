@@ -52,6 +52,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include <asm/irq.h>
@@ -289,7 +290,6 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
 	&s3c_device_rtc,
-	&s3c_device_ts,
 	&s3c_device_wdt,
 };
 
@@ -668,7 +668,7 @@ static void __init smdk6410_machine_init(void)
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -707,7 +707,7 @@ static void __init smdk6410_machine_init(void)
 MACHINE_START(SMDK6410, "SMDK6410")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,

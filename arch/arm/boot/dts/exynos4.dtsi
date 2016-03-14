@@ -158,6 +158,20 @@
 		interrupt-parent = <&gic>;
 	};
 
+	poweroff: syscon-poweroff {
+		compatible = "syscon-poweroff";
+		regmap = <&pmu_system_controller>;
+		offset = <0x330C>; /* PS_HOLD_CONTROL */
+		mask = <0x5200>; /* reset value */
+	};
+
+	reboot: syscon-reboot {
+		compatible = "syscon-reboot";
+		regmap = <&pmu_system_controller>;
+		offset = <0x0400>; /* SWRESET */
+		mask = <0x1>;
+	};
+
 	dsi_0: dsi@11C80000 {
 		compatible = "samsung,exynos4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
@@ -713,6 +727,15 @@
 		iommus = <&sysmmu_jpeg>;
 	};
 
+	rotator: rotator@12810000 {
+		compatible = "samsung,exynos4210-rotator";
+		reg = <0x12810000 0x64>;
+		interrupts = <0 83 0>;
+		clocks = <&clock CLK_ROTATOR>;
+		clock-names = "rotator";
+		iommus = <&sysmmu_rotator>;
+	};
+
 	hdmi: hdmi@12D00000 {
 		compatible = "samsung,exynos4210-hdmi";
 		reg = <0x12D00000 0x70000>;
@@ -940,7 +963,6 @@
 		interrupts = <5 0>;
 		clock-names = "sysmmu", "master";
 		clocks = <&clock CLK_SMMU_ROTATOR>, <&clock CLK_ROTATOR>;
-		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
 	};
 
@@ -953,5 +975,13 @@
 		clocks = <&clock CLK_SMMU_FIMD0>, <&clock CLK_FIMD0>;
 		power-domains = <&pd_lcd0>;
 		#iommu-cells = <0>;
+	};
+
+	prng: rng@10830400 {
+		compatible = "samsung,exynos4-rng";
+		reg = <0x10830400 0x200>;
+		clocks = <&clock CLK_SSS>;
+		clock-names = "secss";
+		status = "disabled";
 	};
 };

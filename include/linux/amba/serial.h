@@ -65,6 +65,24 @@
 #define ST_UART011_ABCR		0x100	/* Autobaud control register. */
 #define ST_UART011_ABIMSC	0x15C	/* Autobaud interrupt mask/clear register. */
 
+/*
+ * ZTE UART register offsets.  This UART has a radically different address
+ * allocation from the ARM and ST variants, so we list all registers here.
+ * We assume unlisted registers do not exist.
+ */
+#define ZX_UART011_DR		0x04
+#define ZX_UART011_FR		0x14
+#define ZX_UART011_IBRD		0x24
+#define ZX_UART011_FBRD		0x28
+#define ZX_UART011_LCRH		0x30
+#define ZX_UART011_CR		0x34
+#define ZX_UART011_IFLS		0x38
+#define ZX_UART011_IMSC		0x40
+#define ZX_UART011_RIS		0x44
+#define ZX_UART011_MIS		0x48
+#define ZX_UART011_ICR		0x4c
+#define ZX_UART011_DMACR	0x50
+
 #define UART011_DR_OE		(1 << 11)
 #define UART011_DR_BE		(1 << 10)
 #define UART011_DR_PE		(1 << 9)

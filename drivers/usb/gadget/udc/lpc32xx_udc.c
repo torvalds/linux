@@ -28,41 +28,28 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
-#include <linux/proc_fs.h>
 #include <linux/clk.h>
-#include <linux/usb/ch9.h>
-#include <linux/usb/gadget.h>
-#include <linux/i2c.h>
-#include <linux/kthread.h>
-#include <linux/freezer.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-#include <linux/workqueue.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/proc_fs.h>
+#include <linux/slab.h>
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/isp1301.h>
 
-#include <asm/byteorder.h>
-#include <mach/hardware.h>
-#include <linux/io.h>
-#include <asm/irq.h>
-
-#include <mach/platform.h>
-#include <mach/irqs.h>
-#include <mach/board.h>
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #endif
+
+#include <mach/hardware.h>
+#include <mach/platform.h>
 
 /*
  * USB device configuration structure

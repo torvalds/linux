@@ -133,7 +133,6 @@
 struct s3c64xx_spi_dma_data {
 	struct dma_chan *ch;
 	enum dma_transfer_direction direction;
-	unsigned int dmach;
 };
 
 /**
@@ -325,7 +324,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 
 		/* Acquire DMA channels */
 		sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				   (void *)(long)sdd->rx_dma.dmach, dev, "rx");
+				   sdd->cntrlr_info->dma_rx, dev, "rx");
 		if (!sdd->rx_dma.ch) {
 			dev_err(dev, "Failed to get RX DMA channel\n");
 			ret = -EBUSY;
@@ -334,7 +333,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 		spi->dma_rx = sdd->rx_dma.ch;
 
 		sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
-				   (void *)(long)sdd->tx_dma.dmach, dev, "tx");
+				   sdd->cntrlr_info->dma_tx, dev, "tx");
 		if (!sdd->tx_dma.ch) {
 			dev_err(dev, "Failed to get TX DMA channel\n");
 			ret = -EBUSY;
@@ -1028,7 +1027,6 @@ static inline struct s3c64xx_spi_port_config *s3c64xx_spi_get_port_config(
 static int s3c64xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res;
-	struct resource	*res;
 	struct s3c64xx_spi_driver_data *sdd;
 	struct s3c64xx_spi_info *sci = dev_get_platdata(&pdev->dev);
 	struct spi_master *master;
@@ -1087,20 +1085,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 
 	sdd->cur_bpw = 8;
 
-	if (!sdd->pdev->dev.of_node) {
-		res = platform_get_resource(pdev, IORESOURCE_DMA,  0);
-		if (!res) {
-			dev_warn(&pdev->dev, "Unable to get SPI tx dma resource. Switching to poll mode\n");
-			sdd->port_conf->quirks = S3C64XX_SPI_QUIRK_POLL;
-		} else
-			sdd->tx_dma.dmach = res->start;
-
-		res = platform_get_resource(pdev, IORESOURCE_DMA,  1);
-		if (!res) {
-			dev_warn(&pdev->dev, "Unable to get SPI rx dma resource. Switching to poll mode\n");
-			sdd->port_conf->quirks = S3C64XX_SPI_QUIRK_POLL;
-		} else
-			sdd->rx_dma.dmach = res->start;
+	if (!sdd->pdev->dev.of_node && (!sci->dma_tx || !sci->dma_rx)) {
+		dev_warn(&pdev->dev, "Unable to get SPI tx/rx DMA data. Switching to poll mode\n");
+		sdd->port_conf->quirks = S3C64XX_SPI_QUIRK_POLL;
 	}
 
 	sdd->tx_dma.direction = DMA_MEM_TO_DEV;
@@ -1197,9 +1184,9 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Samsung SoC SPI Driver loaded for Bus SPI-%d with %d Slaves attached\n",
 					sdd->port_id, master->num_chipselect);
-	dev_dbg(&pdev->dev, "\tIOmem=[%pR]\tFIFO %dbytes\tDMA=[Rx-%d, Tx-%d]\n",
+	dev_dbg(&pdev->dev, "\tIOmem=[%pR]\tFIFO %dbytes\tDMA=[Rx-%p, Tx-%p]\n",
 					mem_res, (FIFO_LVL_MASK(sdd) >> 1) + 1,
-					sdd->rx_dma.dmach, sdd->tx_dma.dmach);
+					sci->dma_rx, sci->dma_tx);
 
 	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
@@ -1370,12 +1357,6 @@ static const struct platform_device_id s3c64xx_spi_driver_ids[] = {
 	}, {
 		.name		= "s3c6410-spi",
 		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
-	}, {
-		.name		= "s5pv210-spi",
-		.driver_data	= (kernel_ulong_t)&s5pv210_spi_port_config,
-	}, {
-		.name		= "exynos4210-spi",
-		.driver_data	= (kernel_ulong_t)&exynos4_spi_port_config,
 	},
 	{ },
 };

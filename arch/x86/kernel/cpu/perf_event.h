@@ -14,17 +14,7 @@
 
 #include <linux/perf_event.h>
 
-#if 0
-#undef wrmsrl
-#define wrmsrl(msr, val) 						\
-do {									\
-	unsigned int _msr = (msr);					\
-	u64 _val = (val);						\
-	trace_printk("wrmsrl(%x, %Lx)\n", (unsigned int)(_msr),		\
-			(unsigned long long)(_val));			\
-	native_write_msr((_msr), (u32)(_val), (u32)(_val >> 32));	\
-} while (0)
-#endif
+/* To enable MSR tracing please use the generic trace points. */
 
 /*
  *          |   NHM/WSM    |      SNB     |
@@ -318,6 +308,10 @@ struct cpu_hw_events {
 #define INTEL_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 
+/* Constraint on specific umask bit only + event */
+#define INTEL_UBIT_EVENT_CONSTRAINT(c, n)	\
+	EVENT_CONSTRAINT(c, n, ARCH_PERFMON_EVENTSEL_EVENT|(c))
+
 /* Like UEVENT_CONSTRAINT, but match flags too */
 #define INTEL_FLAGS_UEVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK|X86_ALL_EVENT_FLAGS)
@@ -589,7 +583,8 @@ struct x86_pmu {
 			bts_active	:1,
 			pebs		:1,
 			pebs_active	:1,
-			pebs_broken	:1;
+			pebs_broken	:1,
+			pebs_prec_dist	:1;
 	int		pebs_record_size;
 	void		(*drain_pebs)(struct pt_regs *regs);
 	struct event_constraint *pebs_constraints;
@@ -906,6 +901,8 @@ void intel_pmu_lbr_init_snb(void);
 void intel_pmu_lbr_init_hsw(void);
 
 void intel_pmu_lbr_init_skl(void);
+
+void intel_pmu_lbr_init_knl(void);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 

@@ -268,6 +268,7 @@ struct radeon_clock {
 	uint32_t current_dispclk;
 	uint32_t dp_extclk;
 	uint32_t max_pixel_clock;
+	uint32_t vco_freq;
 };
 
 /*
@@ -1889,7 +1890,7 @@ struct radeon_asic {
 		void (*pad_ib)(struct radeon_ib *ib);
 	} vm;
 	/* ring specific callbacks */
-	struct radeon_asic_ring *ring[RADEON_NUM_RINGS];
+	const struct radeon_asic_ring *ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
 		int (*set)(struct radeon_device *rdev);

@@ -500,8 +500,10 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 	while (cnt && !last) {
 		buf = priv->rx_buf[priv->rx_head];
 		skb = build_skb(buf, priv->rx_buf_size);
-		if (unlikely(!skb))
+		if (unlikely(!skb)) {
 			net_dbg_ratelimited("build_skb failed\n");
+			goto refill;
+		}
 
 		dma_unmap_single(&ndev->dev, priv->rx_phys[priv->rx_head],
 				 RX_BUF_SIZE, DMA_FROM_DEVICE);
@@ -528,6 +530,7 @@ static int hip04_rx_poll(struct napi_struct *napi, int budget)
 			rx++;
 		}
 
+refill:
 		buf = netdev_alloc_frag(priv->rx_buf_size);
 		if (!buf)
 			goto done;

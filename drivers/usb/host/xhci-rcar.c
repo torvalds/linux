@@ -14,10 +14,17 @@
 #include <linux/usb/phy.h>
 
 #include "xhci.h"
+#include "xhci-plat.h"
 #include "xhci-rcar.h"
 
-#define FIRMWARE_NAME		"r8a779x_usb3_v1.dlmem"
-MODULE_FIRMWARE(FIRMWARE_NAME);
+/*
+* - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
+*   performance degradation. So, this driver continues to use the V1 if R-Car
+*   Gen2.
+* - The V1 firmware is impossible to use on R-Car Gen3.
+*/
+MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V1);
+MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V2);
 
 /*** Register Offset ***/
 #define RCAR_USB3_INT_ENA	0x224	/* Interrupt Enable */
@@ -56,6 +63,19 @@ MODULE_FIRMWARE(FIRMWARE_NAME);
 #define RCAR_USB3_RX_POL_VAL	BIT(21)
 #define RCAR_USB3_TX_POL_VAL	BIT(4)
 
+static void xhci_rcar_start_gen2(struct usb_hcd *hcd)
+{
+	/* LCLK Select */
+	writel(RCAR_USB3_LCLK_ENA_VAL, hcd->regs + RCAR_USB3_LCLK);
+	/* USB3.0 Configuration */
+	writel(RCAR_USB3_CONF1_VAL, hcd->regs + RCAR_USB3_CONF1);
+	writel(RCAR_USB3_CONF2_VAL, hcd->regs + RCAR_USB3_CONF2);
+	writel(RCAR_USB3_CONF3_VAL, hcd->regs + RCAR_USB3_CONF3);
+	/* USB3.0 Polarity */
+	writel(RCAR_USB3_RX_POL_VAL, hcd->regs + RCAR_USB3_RX_POL);
+	writel(RCAR_USB3_TX_POL_VAL, hcd->regs + RCAR_USB3_TX_POL);
+}
+
 void xhci_rcar_start(struct usb_hcd *hcd)
 {
 	u32 temp;
@@ -65,27 +85,23 @@ void xhci_rcar_start(struct usb_hcd *hcd)
 		temp = readl(hcd->regs + RCAR_USB3_INT_ENA);
 		temp |= RCAR_USB3_INT_ENA_VAL;
 		writel(temp, hcd->regs + RCAR_USB3_INT_ENA);
-		/* LCLK Select */
-		writel(RCAR_USB3_LCLK_ENA_VAL, hcd->regs + RCAR_USB3_LCLK);
-		/* USB3.0 Configuration */
-		writel(RCAR_USB3_CONF1_VAL, hcd->regs + RCAR_USB3_CONF1);
-		writel(RCAR_USB3_CONF2_VAL, hcd->regs + RCAR_USB3_CONF2);
-		writel(RCAR_USB3_CONF3_VAL, hcd->regs + RCAR_USB3_CONF3);
-		/* USB3.0 Polarity */
-		writel(RCAR_USB3_RX_POL_VAL, hcd->regs + RCAR_USB3_RX_POL);
-		writel(RCAR_USB3_TX_POL_VAL, hcd->regs + RCAR_USB3_TX_POL);
+		if (xhci_plat_type_is(hcd, XHCI_PLAT_TYPE_RENESAS_RCAR_GEN2))
+			xhci_rcar_start_gen2(hcd);
 	}
 }
 
-static int xhci_rcar_download_firmware(struct device *dev, void __iomem *regs)
+static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 {
+	struct device *dev = hcd->self.controller;
+	void __iomem *regs = hcd->regs;
+	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
 	const struct firmware *fw;
 	int retval, index, j, time;
 	int timeout = 10000;
 	u32 data, val, temp;
 
 	/* request R-Car USB3.0 firmware */
-	retval = request_firmware(&fw, FIRMWARE_NAME, dev);
+	retval = request_firmware(&fw, priv->firmware_name, dev);
 	if (retval)
 		return retval;
 
@@ -144,5 +160,5 @@ int xhci_rcar_init_quirk(struct usb_hcd *hcd)
 	if (!hcd->regs)
 		return 0;
 
-	return xhci_rcar_download_firmware(hcd->self.controller, hcd->regs);
+	return xhci_rcar_download_firmware(hcd);
 }

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,9 +189,9 @@ acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state)
 
 	/* Attach object to the Node */
 
-	status =
-	    acpi_ns_attach_object((struct acpi_namespace_node *)walk_state->
-				  operands[0], obj_desc, ACPI_TYPE_EVENT);
+	status = acpi_ns_attach_object((struct acpi_namespace_node *)
+				       walk_state->operands[0], obj_desc,
+				       ACPI_TYPE_EVENT);
 
 cleanup:
 	/*
@@ -326,9 +326,10 @@ acpi_ex_create_region(u8 * aml_start,
 	 * Remember location in AML stream of address & length
 	 * operands since they need to be evaluated at run time.
 	 */
-	region_obj2 = obj_desc->common.next_object;
+	region_obj2 = acpi_ns_get_secondary_object(obj_desc);
 	region_obj2->extra.aml_start = aml_start;
 	region_obj2->extra.aml_length = aml_length;
+	region_obj2->extra.method_REG = NULL;
 	if (walk_state->scope_info) {
 		region_obj2->extra.scope_node =
 		    walk_state->scope_info->scope.node;
@@ -342,6 +343,10 @@ acpi_ex_create_region(u8 * aml_start,
 	obj_desc->region.address = 0;
 	obj_desc->region.length = 0;
 	obj_desc->region.node = node;
+	obj_desc->region.handler = NULL;
+	obj_desc->common.flags &=
+	    ~(AOPOBJ_SETUP_COMPLETE | AOPOBJ_REG_CONNECTED |
+	      AOPOBJ_OBJECT_INITIALIZED);
 
 	/* Install the new region object in the parent Node */
 
@@ -492,10 +497,9 @@ acpi_ex_create_method(u8 * aml_start,
 	 * Disassemble the method flags. Split off the arg_count, Serialized
 	 * flag, and sync_level for efficiency.
 	 */
-	method_flags = (u8) operand[1]->integer.value;
-
-	obj_desc->method.param_count =
-	    (u8) (method_flags & AML_METHOD_ARG_COUNT);
+	method_flags = (u8)operand[1]->integer.value;
+	obj_desc->method.param_count = (u8)
+	    (method_flags & AML_METHOD_ARG_COUNT);
 
 	/*
 	 * Get the sync_level. If method is serialized, a mutex will be

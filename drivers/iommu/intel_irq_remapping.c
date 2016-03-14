@@ -629,7 +629,7 @@ static void iommu_disable_irq_remapping(struct intel_iommu *iommu)
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
-	sts = dmar_readq(iommu->reg + DMAR_GSTS_REG);
+	sts = readl(iommu->reg + DMAR_GSTS_REG);
 	if (!(sts & DMA_GSTS_IRES))
 		goto end;
 
@@ -753,7 +753,7 @@ static inline void set_irq_posting_cap(void)
 		 * should have X86_FEATURE_CX16 support, this has been confirmed
 		 * with Intel hardware guys.
 		 */
-		if ( cpu_has_cx16 )
+		if (boot_cpu_has(X86_FEATURE_CX16))
 			intel_irq_remap_ops.capability |= 1 << IRQ_POSTING_CAP;
 
 		for_each_iommu(iommu, drhd)

@@ -406,8 +406,8 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	}
 
-	p->vm_bos = amdgpu_vm_get_bos(p->adev, &fpriv->vm,
-				      &p->validated);
+	INIT_LIST_HEAD(&duplicates);
+	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
 
 	if (p->uf.bo)
 		list_add(&p->uf_entry.tv.head, &p->validated);
@@ -415,20 +415,23 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 	if (need_mmap_lock)
 		down_read(&current->mm->mmap_sem);
 
-	INIT_LIST_HEAD(&duplicates);
 	r = ttm_eu_reserve_buffers(&p->ticket, &p->validated, true, &duplicates);
 	if (unlikely(r != 0))
 		goto error_reserve;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
+	amdgpu_vm_get_pt_bos(&fpriv->vm, &duplicates);
+
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
 	if (r)
 		goto error_validate;
 
-	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &duplicates);
+	r = amdgpu_cs_list_validate(p->adev, &fpriv->vm, &p->validated);
 
 error_validate:
-	if (r)
+	if (r) {
+		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
+	}
 
 error_reserve:
 	if (need_mmap_lock)
@@ -472,9 +475,12 @@ static int cmp_size_smaller_first(void *priv, struct list_head *a,
  **/
 static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
 {
+	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
 
 	if (!error) {
+		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
+
 		/* Sort the buffer list from the smallest to largest buffer,
 		 * which affects the order of buffers in the LRU list.
 		 * This assures that the smallest buffers are added first
@@ -501,7 +507,6 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 
-	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);

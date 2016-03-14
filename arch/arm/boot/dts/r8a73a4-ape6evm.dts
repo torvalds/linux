@@ -23,7 +23,7 @@
 
 	chosen {
 		bootargs = "ignore_loglevel root=/dev/nfs ip=dhcp rw";
-		stdout-path = &scifa0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory@40000000 {
@@ -110,7 +110,7 @@
 			gpios = <&pfc 324 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_0>;
 			label = "S16";
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		menu-key {

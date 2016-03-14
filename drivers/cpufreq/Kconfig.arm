@@ -6,6 +6,8 @@
 config ARM_BIG_LITTLE_CPUFREQ
 	tristate "Generic ARM big LITTLE CPUfreq driver"
 	depends on (ARM_CPU_TOPOLOGY || ARM64) && HAVE_CLK
+	# if CPU_THERMAL is on and THERMAL=m, ARM_BIT_LITTLE_CPUFREQ cannot be =y
+	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
 	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
@@ -82,10 +84,10 @@ config ARM_KIRKWOOD_CPUFREQ
 	  SoCs.
 
 config ARM_MT8173_CPUFREQ
-	bool "Mediatek MT8173 CPUFreq support"
+	tristate "Mediatek MT8173 CPUFreq support"
 	depends on ARCH_MEDIATEK && REGULATOR
 	depends on ARM64 || (ARM_CPU_TOPOLOGY && COMPILE_TEST)
-	depends on !CPU_THERMAL || THERMAL=y
+	depends on !CPU_THERMAL || THERMAL
 	select PM_OPP
 	help
 	  This adds the CPUFreq driver support for Mediatek MT8173 SoC.
@@ -216,6 +218,16 @@ config ARM_SPEAR_CPUFREQ
 	default y
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
+
+config ARM_STI_CPUFREQ
+	tristate "STi CPUFreq support"
+	depends on SOC_STIH407
+	help
+	  This driver uses the generic OPP framework to match the running
+	  platform with a predefined set of suitable values.  If not provided
+	  we will fall-back so safe-values contained in Device Tree.  Enable
+	  this config option if you wish to add CPUFreq support for STi based
+	  SoCs.
 
 config ARM_TEGRA20_CPUFREQ
 	bool "Tegra20 CPUFreq support"

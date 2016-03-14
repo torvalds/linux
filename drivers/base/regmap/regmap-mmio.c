@@ -61,6 +61,33 @@ static int regmap_mmio_regbits_check(size_t reg_bits)
 	}
 }
 
+static int regmap_mmio_get_min_stride(size_t val_bits)
+{
+	int min_stride;
+
+	switch (val_bits) {
+	case 8:
+		/* The core treats 0 as 1 */
+		min_stride = 0;
+		return 0;
+	case 16:
+		min_stride = 2;
+		break;
+	case 32:
+		min_stride = 4;
+		break;
+#ifdef CONFIG_64BIT
+	case 64:
+		min_stride = 8;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
+	return min_stride;
+}
+
 static inline void regmap_mmio_count_check(size_t count, u32 offset)
 {
 	BUG_ON(count <= offset);
@@ -231,26 +258,9 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
 	if (config->pad_bits)
 		return ERR_PTR(-EINVAL);
 
-	switch (config->val_bits) {
-	case 8:
-		/* The core treats 0 as 1 */
-		min_stride = 0;
-		break;
-	case 16:
-		min_stride = 2;
-		break;
-	case 32:
-		min_stride = 4;
-		break;
-#ifdef CONFIG_64BIT
-	case 64:
-		min_stride = 8;
-		break;
-#endif
-		break;
-	default:
-		return ERR_PTR(-EINVAL);
-	}
+	min_stride = regmap_mmio_get_min_stride(config->val_bits);
+	if (min_stride < 0)
+		return ERR_PTR(min_stride);
 
 	if (config->reg_stride < min_stride)
 		return ERR_PTR(-EINVAL);

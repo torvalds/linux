@@ -88,6 +88,7 @@ struct spdif_mixer_control {
  * @rxclk: rx clock sources for capture
  * @coreclk: core clock for register access via DMA
  * @sysclk: system clock for rx clock rate measurement
+ * @spbaclk: SPBA clock (optional, depending on SoC design)
  * @dma_params_tx: DMA parameters for transmit channel
  * @dma_params_rx: DMA parameters for receive channel
  */
@@ -106,6 +107,7 @@ struct fsl_spdif_priv {
 	struct clk *rxclk;
 	struct clk *coreclk;
 	struct clk *sysclk;
+	struct clk *spbaclk;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	/* regcache for SRPC */
@@ -474,6 +476,14 @@ static int fsl_spdif_startup(struct snd_pcm_substream *substream,
 			return ret;
 		}
 
+		if (!IS_ERR(spdif_priv->spbaclk)) {
+			ret = clk_prepare_enable(spdif_priv->spbaclk);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to enable spba clock\n");
+				goto err_spbaclk;
+			}
+		}
+
 		ret = spdif_softreset(spdif_priv);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to soft reset\n");
@@ -515,6 +525,9 @@ disable_txclk:
 	for (i--; i >= 0; i--)
 		clk_disable_unprepare(spdif_priv->txclk[i]);
 err:
+	if (!IS_ERR(spdif_priv->spbaclk))
+		clk_disable_unprepare(spdif_priv->spbaclk);
+err_spbaclk:
 	clk_disable_unprepare(spdif_priv->coreclk);
 
 	return ret;
@@ -548,6 +561,8 @@ static void fsl_spdif_shutdown(struct snd_pcm_substream *substream,
 		spdif_intr_status_clear(spdif_priv);
 		regmap_update_bits(regmap, REG_SPDIF_SCR,
 				SCR_LOW_POWER, SCR_LOW_POWER);
+		if (!IS_ERR(spdif_priv->spbaclk))
+			clk_disable_unprepare(spdif_priv->spbaclk);
 		clk_disable_unprepare(spdif_priv->coreclk);
 	}
 }
@@ -1006,12 +1021,14 @@ static const struct snd_soc_component_driver fsl_spdif_component = {
 
 /* FSL SPDIF REGMAP */
 static const struct reg_default fsl_spdif_reg_defaults[] = {
-	{0x0,  0x00000400},
-	{0x4,  0x00000000},
-	{0xc,  0x00000000},
-	{0x34, 0x00000000},
-	{0x38, 0x00000000},
-	{0x50, 0x00020f00},
+	{REG_SPDIF_SCR,    0x00000400},
+	{REG_SPDIF_SRCD,   0x00000000},
+	{REG_SPDIF_SIE,	   0x00000000},
+	{REG_SPDIF_STL,	   0x00000000},
+	{REG_SPDIF_STR,	   0x00000000},
+	{REG_SPDIF_STCSCH, 0x00000000},
+	{REG_SPDIF_STCSCL, 0x00000000},
+	{REG_SPDIF_STC,	   0x00020f00},
 };
 
 static bool fsl_spdif_readable_reg(struct device *dev, unsigned int reg)
@@ -1049,8 +1066,6 @@ static bool fsl_spdif_volatile_reg(struct device *dev, unsigned int reg)
 	case REG_SPDIF_SRCSL:
 	case REG_SPDIF_SRU:
 	case REG_SPDIF_SRQ:
-	case REG_SPDIF_STL:
-	case REG_SPDIF_STR:
 	case REG_SPDIF_SRFM:
 		return true;
 	default:
@@ -1260,6 +1275,10 @@ static int fsl_spdif_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no core clock in devicetree\n");
 		return PTR_ERR(spdif_priv->coreclk);
 	}
+
+	spdif_priv->spbaclk = devm_clk_get(&pdev->dev, "spba");
+	if (IS_ERR(spdif_priv->spbaclk))
+		dev_warn(&pdev->dev, "no spba clock in devicetree\n");
 
 	/* Select clock source for rx/tx clock */
 	spdif_priv->rxclk = devm_clk_get(&pdev->dev, "rxtx1");

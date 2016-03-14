@@ -56,7 +56,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		framebuffer@0 {
+		simplefb_lcd: framebuffer@0 {
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";

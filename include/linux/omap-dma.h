@@ -267,6 +267,9 @@ struct omap_dma_reg {
 	u8	type;
 };
 
+#define SDMA_FILTER_PARAM(hw_req)	((int[]) { (hw_req) })
+struct dma_slave_map;
+
 /* System DMA platform data structure */
 struct omap_system_dma_plat_info {
 	const struct omap_dma_reg *reg_map;
@@ -278,6 +281,9 @@ struct omap_system_dma_plat_info {
 	void (*clear_dma)(int lch);
 	void (*dma_write)(u32 val, int reg, int lch);
 	u32 (*dma_read)(int reg, int lch);
+
+	const struct dma_slave_map *slave_map;
+	int slavecnt;
 };
 
 #ifdef CONFIG_ARCH_OMAP2PLUS

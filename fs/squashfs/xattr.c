@@ -58,7 +58,7 @@ ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 		struct squashfs_xattr_entry entry;
 		struct squashfs_xattr_val val;
 		const struct xattr_handler *handler;
-		int name_size, prefix_size = 0;
+		int name_size;
 
 		err = squashfs_read_metadata(sb, &entry, &start, &offset,
 							sizeof(entry));
@@ -67,15 +67,16 @@ ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 
 		name_size = le16_to_cpu(entry.size);
 		handler = squashfs_xattr_handler(le16_to_cpu(entry.type));
-		if (handler)
-			prefix_size = handler->list(handler, d, buffer, rest,
-						    NULL, name_size);
-		if (prefix_size) {
+		if (handler && (!handler->list || handler->list(d))) {
+			const char *prefix = handler->prefix ?: handler->name;
+			size_t prefix_size = strlen(prefix);
+
 			if (buffer) {
 				if (prefix_size + name_size + 1 > rest) {
 					err = -ERANGE;
 					goto failed;
 				}
+				memcpy(buffer, prefix, prefix_size);
 				buffer += prefix_size;
 			}
 			err = squashfs_read_metadata(sb, buffer, &start,
@@ -212,25 +213,10 @@ failed:
 }
 
 
-static size_t squashfs_xattr_handler_list(const struct xattr_handler *handler,
-					  struct dentry *d, char *list,
-					  size_t list_size, const char *name,
-					  size_t name_len)
-{
-	int len = strlen(handler->prefix);
-
-	if (list && len <= list_size)
-		memcpy(list, handler->prefix, len);
-	return len;
-}
-
 static int squashfs_xattr_handler_get(const struct xattr_handler *handler,
 				      struct dentry *d, const char *name,
 				      void *buffer, size_t size)
 {
-	if (name[0] == '\0')
-		return  -EINVAL;
-
 	return squashfs_xattr_get(d_inode(d), handler->flags, name,
 		buffer, size);
 }
@@ -241,22 +227,15 @@ static int squashfs_xattr_handler_get(const struct xattr_handler *handler,
 static const struct xattr_handler squashfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.flags	= SQUASHFS_XATTR_USER,
-	.list	= squashfs_xattr_handler_list,
 	.get	= squashfs_xattr_handler_get
 };
 
 /*
  * Trusted namespace support
  */
-static size_t squashfs_trusted_xattr_handler_list(const struct xattr_handler *handler,
-						  struct dentry *d, char *list,
-						  size_t list_size, const char *name,
-						  size_t name_len)
+static bool squashfs_trusted_xattr_handler_list(struct dentry *d)
 {
-	if (!capable(CAP_SYS_ADMIN))
-		return 0;
-	return squashfs_xattr_handler_list(handler, d, list, list_size, name,
-					   name_len);
+	return capable(CAP_SYS_ADMIN);
 }
 
 static const struct xattr_handler squashfs_xattr_trusted_handler = {
@@ -272,7 +251,6 @@ static const struct xattr_handler squashfs_xattr_trusted_handler = {
 static const struct xattr_handler squashfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.flags	= SQUASHFS_XATTR_SECURITY,
-	.list	= squashfs_xattr_handler_list,
 	.get	= squashfs_xattr_handler_get
 };
 

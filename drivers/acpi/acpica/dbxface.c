@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,46 +85,21 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 	acpi_gbl_method_executing = TRUE;
 	status = AE_CTRL_TRUE;
+
 	while (status == AE_CTRL_TRUE) {
-		if (acpi_gbl_debugger_configuration == DEBUGGER_MULTI_THREADED) {
 
-			/* Handshake with the front-end that gets user command lines */
+		/* Notify the completion of the command */
 
-			acpi_os_release_mutex(acpi_gbl_db_command_complete);
+		status = acpi_os_notify_command_complete();
+		if (ACPI_FAILURE(status)) {
+			goto error_exit;
+		}
 
-			status =
-			    acpi_os_acquire_mutex(acpi_gbl_db_command_ready,
-						  ACPI_WAIT_FOREVER);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
-		} else {
-			/* Single threaded, we must get a command line ourselves */
+		/* Wait the readiness of the command */
 
-			/* Force output to console until a command is entered */
-
-			acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
-
-			/* Different prompt if method is executing */
-
-			if (!acpi_gbl_method_executing) {
-				acpi_os_printf("%1c ",
-					       ACPI_DEBUGGER_COMMAND_PROMPT);
-			} else {
-				acpi_os_printf("%1c ",
-					       ACPI_DEBUGGER_EXECUTE_PROMPT);
-			}
-
-			/* Get the user input line */
-
-			status = acpi_os_get_line(acpi_gbl_db_line_buf,
-						  ACPI_DB_LINE_BUFFER_SIZE,
-						  NULL);
-			if (ACPI_FAILURE(status)) {
-				ACPI_EXCEPTION((AE_INFO, status,
-						"While parsing command line"));
-				return (status);
-			}
+		status = acpi_os_wait_command_ready();
+		if (ACPI_FAILURE(status)) {
+			goto error_exit;
 		}
 
 		status =
@@ -134,7 +109,42 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 	/* acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE); */
 
+error_exit:
+	if (ACPI_FAILURE(status) && status != AE_CTRL_TERMINATE) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"While parsing/handling command line"));
+	}
 	return (status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_signal_break_point
+ *
+ * PARAMETERS:  walk_state      - Current walk
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Called for AML_BREAK_POINT_OP
+ *
+ ******************************************************************************/
+
+void acpi_db_signal_break_point(struct acpi_walk_state *walk_state)
+{
+
+#ifndef ACPI_APPLICATION
+	if (acpi_gbl_db_thread_id != acpi_os_get_thread_id()) {
+		return;
+	}
+#endif
+
+	/*
+	 * Set the single-step flag. This will cause the debugger (if present)
+	 * to break to the console within the AML debugger at the start of the
+	 * next AML instruction.
+	 */
+	acpi_gbl_cm_single_step = TRUE;
+	acpi_os_printf("**break** Executed AML BreakPoint opcode\n");
 }
 
 /*******************************************************************************
@@ -420,15 +430,7 @@ acpi_status acpi_initialize_debugger(void)
 
 		/* These were created with one unit, grab it */
 
-		status = acpi_os_acquire_mutex(acpi_gbl_db_command_complete,
-					       ACPI_WAIT_FOREVER);
-		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not get debugger mutex\n");
-			return_ACPI_STATUS(status);
-		}
-
-		status = acpi_os_acquire_mutex(acpi_gbl_db_command_ready,
-					       ACPI_WAIT_FOREVER);
+		status = acpi_os_initialize_command_signals();
 		if (ACPI_FAILURE(status)) {
 			acpi_os_printf("Could not get debugger mutex\n");
 			return_ACPI_STATUS(status);
@@ -473,13 +475,14 @@ void acpi_terminate_debugger(void)
 	acpi_gbl_db_terminate_loop = TRUE;
 
 	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
-		acpi_os_release_mutex(acpi_gbl_db_command_ready);
 
 		/* Wait the AML Debugger threads */
 
 		while (!acpi_gbl_db_threads_terminated) {
 			acpi_os_sleep(100);
 		}
+
+		acpi_os_terminate_command_signals();
 	}
 
 	if (acpi_gbl_db_buffer) {

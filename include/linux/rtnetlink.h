@@ -84,6 +84,11 @@ void net_inc_ingress_queue(void);
 void net_dec_ingress_queue(void);
 #endif
 
+#ifdef CONFIG_NET_EGRESS
+void net_inc_egress_queue(void);
+void net_dec_egress_queue(void);
+#endif
+
 extern void rtnetlink_init(void);
 extern void __rtnl_unlock(void);
 

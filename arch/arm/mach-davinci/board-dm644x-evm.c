@@ -26,7 +26,7 @@
 #include <linux/v4l2-dv-timings.h>
 #include <linux/export.h>
 
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

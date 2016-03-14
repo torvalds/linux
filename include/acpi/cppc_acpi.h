@@ -133,6 +133,5 @@ extern int acpi_get_psd_map(struct cpudata **);
 /* Methods to interact with the PCC mailbox controller. */
 extern struct mbox_chan *
 	pcc_mbox_request_channel(struct mbox_client *, unsigned int);
-extern int mbox_send_message(struct mbox_chan *chan, void *mssg);
 
 #endif /* _CPPC_ACPI_H*/

@@ -31,7 +31,14 @@
 
 #include <media/videobuf2-v4l2.h>
 
-#include "videobuf2-internal.h"
+static int debug;
+module_param(debug, int, 0644);
+
+#define dprintk(level, fmt, arg...)					      \
+	do {								      \
+		if (debug >= level)					      \
+			pr_info("vb2-v4l2: %s: " fmt, __func__, ## arg); \
+	} while (0)
 
 /* Flags that are set by the vb2 core */
 #define V4L2_BUFFER_MASK_FLAGS	(V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | \
@@ -52,7 +59,7 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 		return 0;
 
 	/* Is memory for copying plane information present? */
-	if (NULL == b->m.planes) {
+	if (b->m.planes == NULL) {
 		dprintk(1, "multi-planar buffer passed but "
 			   "planes array not provided\n");
 		return -EINVAL;
@@ -107,7 +114,7 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	return 0;
 }
 
-static int __set_timestamp(struct vb2_buffer *vb, const void *pb)
+static void __copy_timestamp(struct vb2_buffer *vb, const void *pb)
 {
 	const struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -118,14 +125,12 @@ static int __set_timestamp(struct vb2_buffer *vb, const void *pb)
 		 * For output buffers copy the timestamp if needed,
 		 * and the timecode field and flag if needed.
 		 */
-		if ((q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
-				V4L2_BUF_FLAG_TIMESTAMP_COPY)
-			vbuf->timestamp = b->timestamp;
+		if (q->copy_timestamp)
+			vb->timestamp = timeval_to_ns(&b->timestamp);
 		vbuf->flags |= b->flags & V4L2_BUF_FLAG_TIMECODE;
 		if (b->flags & V4L2_BUF_FLAG_TIMECODE)
 			vbuf->timecode = b->timecode;
 	}
-	return 0;
 };
 
 static void vb2_warn_zero_bytesused(struct vb2_buffer *vb)
@@ -176,7 +181,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b,
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
-static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
+static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 {
 	struct v4l2_buffer *b = pb;
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -191,7 +196,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 
 	b->flags = vbuf->flags;
 	b->field = vbuf->field;
-	b->timestamp = vbuf->timestamp;
+	b->timestamp = ns_to_timeval(vb->timestamp);
 	b->timecode = vbuf->timecode;
 	b->sequence = vbuf->sequence;
 	b->reserved2 = 0;
@@ -238,8 +243,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	 */
 	b->flags &= ~V4L2_BUFFER_MASK_FLAGS;
 	b->flags |= q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK;
-	if ((q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) !=
-	    V4L2_BUF_FLAG_TIMESTAMP_COPY) {
+	if (!q->copy_timestamp) {
 		/*
 		 * For non-COPY timestamps, drop timestamp source bits
 		 * and obtain the timestamp source from the queue.
@@ -272,7 +276,10 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	if (vb2_buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
-	return 0;
+	if (!q->is_output &&
+		b->flags & V4L2_BUF_FLAG_DONE &&
+		b->flags & V4L2_BUF_FLAG_LAST)
+		q->last_buffer_dequeued = true;
 }
 
 /**
@@ -308,8 +315,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 					"for an output buffer\n");
 		return -EINVAL;
 	}
-	vbuf->timestamp.tv_sec = 0;
-	vbuf->timestamp.tv_usec = 0;
+	vb->timestamp = 0;
 	vbuf->sequence = 0;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
@@ -404,8 +410,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 
 	/* Zero flags that the vb2 core handles */
 	vbuf->flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
-	if ((vb->vb2_queue->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) !=
-	    V4L2_BUF_FLAG_TIMESTAMP_COPY || !V4L2_TYPE_IS_OUTPUT(b->type)) {
+	if (!vb->vb2_queue->copy_timestamp || !V4L2_TYPE_IS_OUTPUT(b->type)) {
 		/*
 		 * Non-COPY timestamps and non-OUTPUT queues will get
 		 * their timestamp and timestamp source flags from the
@@ -434,7 +439,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 static const struct vb2_buf_ops v4l2_buf_ops = {
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
-	.set_timestamp		= __set_timestamp,
+	.copy_timestamp		= __copy_timestamp,
 };
 
 /**
@@ -466,8 +471,9 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	}
 	vb = q->bufs[b->index];
 	ret = __verify_planes_array(vb, b);
-
-	return ret ? ret : vb2_core_querybuf(q, b->index, b);
+	if (!ret)
+		vb2_core_querybuf(q, b->index, b);
+	return ret;
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
@@ -525,14 +531,52 @@ EXPORT_SYMBOL_GPL(vb2_prepare_buf);
  */
 int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 {
-	int ret = vb2_verify_memory_type(q, create->memory,
-			create->format.type);
+	unsigned requested_planes = 1;
+	unsigned requested_sizes[VIDEO_MAX_PLANES];
+	struct v4l2_format *f = &create->format;
+	int ret = vb2_verify_memory_type(q, create->memory, f->type);
+	unsigned i;
 
 	create->index = q->num_buffers;
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
+
+	switch (f->type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
+		requested_planes = f->fmt.pix_mp.num_planes;
+		if (requested_planes == 0 ||
+		    requested_planes > VIDEO_MAX_PLANES)
+			return -EINVAL;
+		for (i = 0; i < requested_planes; i++)
+			requested_sizes[i] =
+				f->fmt.pix_mp.plane_fmt[i].sizeimage;
+		break;
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		requested_sizes[0] = f->fmt.pix.sizeimage;
+		break;
+	case V4L2_BUF_TYPE_VBI_CAPTURE:
+	case V4L2_BUF_TYPE_VBI_OUTPUT:
+		requested_sizes[0] = f->fmt.vbi.samples_per_line *
+			(f->fmt.vbi.count[0] + f->fmt.vbi.count[1]);
+		break;
+	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
+	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
+		requested_sizes[0] = f->fmt.sliced.io_size;
+		break;
+	case V4L2_BUF_TYPE_SDR_CAPTURE:
+	case V4L2_BUF_TYPE_SDR_OUTPUT:
+		requested_sizes[0] = f->fmt.sdr.buffersize;
+		break;
+	default:
+		return -EINVAL;
+	}
+	for (i = 0; i < requested_planes; i++)
+		if (requested_sizes[i] == 0)
+			return -EINVAL;
 	return ret ? ret : vb2_core_create_bufs(q, create->memory,
-		&create->count, &create->format);
+		&create->count, requested_planes, requested_sizes);
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
 
@@ -581,11 +625,7 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b,
 		return -EINVAL;
 	}
 
-	ret = vb2_core_dqbuf(q, b, nonblocking);
-
-	if (!ret && !q->is_output &&
-			b->flags & V4L2_BUF_FLAG_LAST)
-		q->last_buffer_dequeued = true;
+	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
 
 	return ret;
 }
@@ -723,13 +763,12 @@ int vb2_queue_init(struct vb2_queue *q)
 	q->buf_ops = &v4l2_buf_ops;
 	q->is_multiplanar = V4L2_TYPE_IS_MULTIPLANAR(q->type);
 	q->is_output = V4L2_TYPE_IS_OUTPUT(q->type);
+	q->copy_timestamp = (q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK)
+			== V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	return vb2_core_queue_init(q);
 }
 EXPORT_SYMBOL_GPL(vb2_queue_init);
-
-static int __vb2_init_fileio(struct vb2_queue *q, int read);
-static int __vb2_cleanup_fileio(struct vb2_queue *q);
 
 /**
  * vb2_queue_release() - stop streaming, release the queue and free memory
@@ -741,7 +780,6 @@ static int __vb2_cleanup_fileio(struct vb2_queue *q);
  */
 void vb2_queue_release(struct vb2_queue *q)
 {
-	__vb2_cleanup_fileio(q);
 	vb2_core_queue_release(q);
 }
 EXPORT_SYMBOL_GPL(vb2_queue_release);
@@ -769,9 +807,7 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
 	unsigned long req_events = poll_requested_events(wait);
-	struct vb2_buffer *vb = NULL;
 	unsigned int res = 0;
-	unsigned long flags;
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
@@ -782,610 +818,17 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 			poll_wait(file, &fh->wait, wait);
 	}
 
-	if (!q->is_output && !(req_events & (POLLIN | POLLRDNORM)))
-		return res;
-	if (q->is_output && !(req_events & (POLLOUT | POLLWRNORM)))
-		return res;
-
-	/*
-	 * Start file I/O emulator only if streaming API has not been used yet.
-	 */
-	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
-		if (!q->is_output && (q->io_modes & VB2_READ) &&
-				(req_events & (POLLIN | POLLRDNORM))) {
-			if (__vb2_init_fileio(q, 1))
-				return res | POLLERR;
-		}
-		if (q->is_output && (q->io_modes & VB2_WRITE) &&
-				(req_events & (POLLOUT | POLLWRNORM))) {
-			if (__vb2_init_fileio(q, 0))
-				return res | POLLERR;
-			/*
-			 * Write to OUTPUT queue can be done immediately.
-			 */
-			return res | POLLOUT | POLLWRNORM;
-		}
-	}
-
-	/*
-	 * There is nothing to wait for if the queue isn't streaming, or if the
-	 * error flag is set.
-	 */
-	if (!vb2_is_streaming(q) || q->error)
-		return res | POLLERR;
 	/*
 	 * For compatibility with vb1: if QBUF hasn't been called yet, then
 	 * return POLLERR as well. This only affects capture queues, output
 	 * queues will always initialize waiting_for_buffers to false.
 	 */
-	if (q->waiting_for_buffers)
-		return res | POLLERR;
+	if (q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
+		return POLLERR;
 
-	/*
-	 * For output streams you can write as long as there are fewer buffers
-	 * queued than there are buffers available.
-	 */
-	if (q->is_output && q->queued_count < q->num_buffers)
-		return res | POLLOUT | POLLWRNORM;
-
-	if (list_empty(&q->done_list)) {
-		/*
-		 * If the last buffer was dequeued from a capture queue,
-		 * return immediately. DQBUF will return -EPIPE.
-		 */
-		if (q->last_buffer_dequeued)
-			return res | POLLIN | POLLRDNORM;
-
-		poll_wait(file, &q->done_wq, wait);
-	}
-
-	/*
-	 * Take first buffer available for dequeuing.
-	 */
-	spin_lock_irqsave(&q->done_lock, flags);
-	if (!list_empty(&q->done_list))
-		vb = list_first_entry(&q->done_list, struct vb2_buffer,
-					done_entry);
-	spin_unlock_irqrestore(&q->done_lock, flags);
-
-	if (vb && (vb->state == VB2_BUF_STATE_DONE
-			|| vb->state == VB2_BUF_STATE_ERROR)) {
-		return (q->is_output) ?
-				res | POLLOUT | POLLWRNORM :
-				res | POLLIN | POLLRDNORM;
-	}
-	return res;
+	return res | vb2_core_poll(q, file, wait);
 }
 EXPORT_SYMBOL_GPL(vb2_poll);
-
-/**
- * struct vb2_fileio_buf - buffer context used by file io emulator
- *
- * vb2 provides a compatibility layer and emulator of file io (read and
- * write) calls on top of streaming API. This structure is used for
- * tracking context related to the buffers.
- */
-struct vb2_fileio_buf {
-	void *vaddr;
-	unsigned int size;
-	unsigned int pos;
-	unsigned int queued:1;
-};
-
-/**
- * struct vb2_fileio_data - queue context used by file io emulator
- *
- * @cur_index:	the index of the buffer currently being read from or
- *		written to. If equal to q->num_buffers then a new buffer
- *		must be dequeued.
- * @initial_index: in the read() case all buffers are queued up immediately
- *		in __vb2_init_fileio() and __vb2_perform_fileio() just cycles
- *		buffers. However, in the write() case no buffers are initially
- *		queued, instead whenever a buffer is full it is queued up by
- *		__vb2_perform_fileio(). Only once all available buffers have
- *		been queued up will __vb2_perform_fileio() start to dequeue
- *		buffers. This means that initially __vb2_perform_fileio()
- *		needs to know what buffer index to use when it is queuing up
- *		the buffers for the first time. That initial index is stored
- *		in this field. Once it is equal to q->num_buffers all
- *		available buffers have been queued and __vb2_perform_fileio()
- *		should start the normal dequeue/queue cycle.
- *
- * vb2 provides a compatibility layer and emulator of file io (read and
- * write) calls on top of streaming API. For proper operation it required
- * this structure to save the driver state between each call of the read
- * or write function.
- */
-struct vb2_fileio_data {
-	struct v4l2_requestbuffers req;
-	struct v4l2_plane p;
-	struct v4l2_buffer b;
-	struct vb2_fileio_buf bufs[VB2_MAX_FRAME];
-	unsigned int cur_index;
-	unsigned int initial_index;
-	unsigned int q_count;
-	unsigned int dq_count;
-	unsigned read_once:1;
-	unsigned write_immediately:1;
-};
-
-/**
- * __vb2_init_fileio() - initialize file io emulator
- * @q:		videobuf2 queue
- * @read:	mode selector (1 means read, 0 means write)
- */
-static int __vb2_init_fileio(struct vb2_queue *q, int read)
-{
-	struct vb2_fileio_data *fileio;
-	int i, ret;
-	unsigned int count = 0;
-
-	/*
-	 * Sanity check
-	 */
-	if (WARN_ON((read && !(q->io_modes & VB2_READ)) ||
-		    (!read && !(q->io_modes & VB2_WRITE))))
-		return -EINVAL;
-
-	/*
-	 * Check if device supports mapping buffers to kernel virtual space.
-	 */
-	if (!q->mem_ops->vaddr)
-		return -EBUSY;
-
-	/*
-	 * Check if streaming api has not been already activated.
-	 */
-	if (q->streaming || q->num_buffers > 0)
-		return -EBUSY;
-
-	/*
-	 * Start with count 1, driver can increase it in queue_setup()
-	 */
-	count = 1;
-
-	dprintk(3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
-		(read) ? "read" : "write", count, q->fileio_read_once,
-		q->fileio_write_immediately);
-
-	fileio = kzalloc(sizeof(struct vb2_fileio_data), GFP_KERNEL);
-	if (fileio == NULL)
-		return -ENOMEM;
-
-	fileio->read_once = q->fileio_read_once;
-	fileio->write_immediately = q->fileio_write_immediately;
-
-	/*
-	 * Request buffers and use MMAP type to force driver
-	 * to allocate buffers by itself.
-	 */
-	fileio->req.count = count;
-	fileio->req.memory = VB2_MEMORY_MMAP;
-	fileio->req.type = q->type;
-	q->fileio = fileio;
-	ret = vb2_core_reqbufs(q, fileio->req.memory, &fileio->req.count);
-	if (ret)
-		goto err_kfree;
-
-	/*
-	 * Check if plane_count is correct
-	 * (multiplane buffers are not supported).
-	 */
-	if (q->bufs[0]->num_planes != 1) {
-		ret = -EBUSY;
-		goto err_reqbufs;
-	}
-
-	/*
-	 * Get kernel address of each buffer.
-	 */
-	for (i = 0; i < q->num_buffers; i++) {
-		fileio->bufs[i].vaddr = vb2_plane_vaddr(q->bufs[i], 0);
-		if (fileio->bufs[i].vaddr == NULL) {
-			ret = -EINVAL;
-			goto err_reqbufs;
-		}
-		fileio->bufs[i].size = vb2_plane_size(q->bufs[i], 0);
-	}
-
-	/*
-	 * Read mode requires pre queuing of all buffers.
-	 */
-	if (read) {
-		bool is_multiplanar = q->is_multiplanar;
-
-		/*
-		 * Queue all buffers.
-		 */
-		for (i = 0; i < q->num_buffers; i++) {
-			struct v4l2_buffer *b = &fileio->b;
-
-			memset(b, 0, sizeof(*b));
-			b->type = q->type;
-			if (is_multiplanar) {
-				memset(&fileio->p, 0, sizeof(fileio->p));
-				b->m.planes = &fileio->p;
-				b->length = 1;
-			}
-			b->memory = q->memory;
-			b->index = i;
-			ret = vb2_internal_qbuf(q, b);
-			if (ret)
-				goto err_reqbufs;
-			fileio->bufs[i].queued = 1;
-		}
-		/*
-		 * All buffers have been queued, so mark that by setting
-		 * initial_index to q->num_buffers
-		 */
-		fileio->initial_index = q->num_buffers;
-		fileio->cur_index = q->num_buffers;
-	}
-
-	/*
-	 * Start streaming.
-	 */
-	ret = vb2_core_streamon(q, q->type);
-	if (ret)
-		goto err_reqbufs;
-
-	return ret;
-
-err_reqbufs:
-	fileio->req.count = 0;
-	vb2_core_reqbufs(q, fileio->req.memory, &fileio->req.count);
-
-err_kfree:
-	q->fileio = NULL;
-	kfree(fileio);
-	return ret;
-}
-
-/**
- * __vb2_cleanup_fileio() - free resourced used by file io emulator
- * @q:		videobuf2 queue
- */
-static int __vb2_cleanup_fileio(struct vb2_queue *q)
-{
-	struct vb2_fileio_data *fileio = q->fileio;
-
-	if (fileio) {
-		vb2_core_streamoff(q, q->type);
-		q->fileio = NULL;
-		fileio->req.count = 0;
-		vb2_reqbufs(q, &fileio->req);
-		kfree(fileio);
-		dprintk(3, "file io emulator closed\n");
-	}
-	return 0;
-}
-
-/**
- * __vb2_perform_fileio() - perform a single file io (read or write) operation
- * @q:		videobuf2 queue
- * @data:	pointed to target userspace buffer
- * @count:	number of bytes to read or write
- * @ppos:	file handle position tracking pointer
- * @nonblock:	mode selector (1 means blocking calls, 0 means nonblocking)
- * @read:	access mode selector (1 means read, 0 means write)
- */
-static size_t __vb2_perform_fileio(struct vb2_queue *q, char __user *data, size_t count,
-		loff_t *ppos, int nonblock, int read)
-{
-	struct vb2_fileio_data *fileio;
-	struct vb2_fileio_buf *buf;
-	bool is_multiplanar = q->is_multiplanar;
-	/*
-	 * When using write() to write data to an output video node the vb2 core
-	 * should set timestamps if V4L2_BUF_FLAG_TIMESTAMP_COPY is set. Nobody
-	 * else is able to provide this information with the write() operation.
-	 */
-	bool set_timestamp = !read &&
-		(q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
-		V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	int ret, index;
-
-	dprintk(3, "mode %s, offset %ld, count %zd, %sblocking\n",
-		read ? "read" : "write", (long)*ppos, count,
-		nonblock ? "non" : "");
-
-	if (!data)
-		return -EINVAL;
-
-	/*
-	 * Initialize emulator on first call.
-	 */
-	if (!vb2_fileio_is_active(q)) {
-		ret = __vb2_init_fileio(q, read);
-		dprintk(3, "vb2_init_fileio result: %d\n", ret);
-		if (ret)
-			return ret;
-	}
-	fileio = q->fileio;
-
-	/*
-	 * Check if we need to dequeue the buffer.
-	 */
-	index = fileio->cur_index;
-	if (index >= q->num_buffers) {
-		/*
-		 * Call vb2_dqbuf to get buffer back.
-		 */
-		memset(&fileio->b, 0, sizeof(fileio->b));
-		fileio->b.type = q->type;
-		fileio->b.memory = q->memory;
-		if (is_multiplanar) {
-			memset(&fileio->p, 0, sizeof(fileio->p));
-			fileio->b.m.planes = &fileio->p;
-			fileio->b.length = 1;
-		}
-		ret = vb2_internal_dqbuf(q, &fileio->b, nonblock);
-		dprintk(5, "vb2_dqbuf result: %d\n", ret);
-		if (ret)
-			return ret;
-		fileio->dq_count += 1;
-
-		fileio->cur_index = index = fileio->b.index;
-		buf = &fileio->bufs[index];
-
-		/*
-		 * Get number of bytes filled by the driver
-		 */
-		buf->pos = 0;
-		buf->queued = 0;
-		buf->size = read ? vb2_get_plane_payload(q->bufs[index], 0)
-				 : vb2_plane_size(q->bufs[index], 0);
-		/* Compensate for data_offset on read in the multiplanar case. */
-		if (is_multiplanar && read &&
-		    fileio->b.m.planes[0].data_offset < buf->size) {
-			buf->pos = fileio->b.m.planes[0].data_offset;
-			buf->size -= buf->pos;
-		}
-	} else {
-		buf = &fileio->bufs[index];
-	}
-
-	/*
-	 * Limit count on last few bytes of the buffer.
-	 */
-	if (buf->pos + count > buf->size) {
-		count = buf->size - buf->pos;
-		dprintk(5, "reducing read count: %zd\n", count);
-	}
-
-	/*
-	 * Transfer data to userspace.
-	 */
-	dprintk(3, "copying %zd bytes - buffer %d, offset %u\n",
-		count, index, buf->pos);
-	if (read)
-		ret = copy_to_user(data, buf->vaddr + buf->pos, count);
-	else
-		ret = copy_from_user(buf->vaddr + buf->pos, data, count);
-	if (ret) {
-		dprintk(3, "error copying data\n");
-		return -EFAULT;
-	}
-
-	/*
-	 * Update counters.
-	 */
-	buf->pos += count;
-	*ppos += count;
-
-	/*
-	 * Queue next buffer if required.
-	 */
-	if (buf->pos == buf->size || (!read && fileio->write_immediately)) {
-		/*
-		 * Check if this is the last buffer to read.
-		 */
-		if (read && fileio->read_once && fileio->dq_count == 1) {
-			dprintk(3, "read limit reached\n");
-			return __vb2_cleanup_fileio(q);
-		}
-
-		/*
-		 * Call vb2_qbuf and give buffer to the driver.
-		 */
-		memset(&fileio->b, 0, sizeof(fileio->b));
-		fileio->b.type = q->type;
-		fileio->b.memory = q->memory;
-		fileio->b.index = index;
-		fileio->b.bytesused = buf->pos;
-		if (is_multiplanar) {
-			memset(&fileio->p, 0, sizeof(fileio->p));
-			fileio->p.bytesused = buf->pos;
-			fileio->b.m.planes = &fileio->p;
-			fileio->b.length = 1;
-		}
-		if (set_timestamp)
-			v4l2_get_timestamp(&fileio->b.timestamp);
-		ret = vb2_internal_qbuf(q, &fileio->b);
-		dprintk(5, "vb2_dbuf result: %d\n", ret);
-		if (ret)
-			return ret;
-
-		/*
-		 * Buffer has been queued, update the status
-		 */
-		buf->pos = 0;
-		buf->queued = 1;
-		buf->size = vb2_plane_size(q->bufs[index], 0);
-		fileio->q_count += 1;
-		/*
-		 * If we are queuing up buffers for the first time, then
-		 * increase initial_index by one.
-		 */
-		if (fileio->initial_index < q->num_buffers)
-			fileio->initial_index++;
-		/*
-		 * The next buffer to use is either a buffer that's going to be
-		 * queued for the first time (initial_index < q->num_buffers)
-		 * or it is equal to q->num_buffers, meaning that the next
-		 * time we need to dequeue a buffer since we've now queued up
-		 * all the 'first time' buffers.
-		 */
-		fileio->cur_index = fileio->initial_index;
-	}
-
-	/*
-	 * Return proper number of bytes processed.
-	 */
-	if (ret == 0)
-		ret = count;
-	return ret;
-}
-
-size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
-		loff_t *ppos, int nonblocking)
-{
-	return __vb2_perform_fileio(q, data, count, ppos, nonblocking, 1);
-}
-EXPORT_SYMBOL_GPL(vb2_read);
-
-size_t vb2_write(struct vb2_queue *q, const char __user *data, size_t count,
-		loff_t *ppos, int nonblocking)
-{
-	return __vb2_perform_fileio(q, (char __user *) data, count,
-							ppos, nonblocking, 0);
-}
-EXPORT_SYMBOL_GPL(vb2_write);
-
-struct vb2_threadio_data {
-	struct task_struct *thread;
-	vb2_thread_fnc fnc;
-	void *priv;
-	bool stop;
-};
-
-static int vb2_thread(void *data)
-{
-	struct vb2_queue *q = data;
-	struct vb2_threadio_data *threadio = q->threadio;
-	struct vb2_fileio_data *fileio = q->fileio;
-	bool set_timestamp = false;
-	int prequeue = 0;
-	int index = 0;
-	int ret = 0;
-
-	if (q->is_output) {
-		prequeue = q->num_buffers;
-		set_timestamp =
-			(q->timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MASK) ==
-			V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	}
-
-	set_freezable();
-
-	for (;;) {
-		struct vb2_buffer *vb;
-
-		/*
-		 * Call vb2_dqbuf to get buffer back.
-		 */
-		memset(&fileio->b, 0, sizeof(fileio->b));
-		fileio->b.type = q->type;
-		fileio->b.memory = q->memory;
-		if (prequeue) {
-			fileio->b.index = index++;
-			prequeue--;
-		} else {
-			call_void_qop(q, wait_finish, q);
-			if (!threadio->stop)
-				ret = vb2_internal_dqbuf(q, &fileio->b, 0);
-			call_void_qop(q, wait_prepare, q);
-			dprintk(5, "file io: vb2_dqbuf result: %d\n", ret);
-		}
-		if (ret || threadio->stop)
-			break;
-		try_to_freeze();
-
-		vb = q->bufs[fileio->b.index];
-		if (!(fileio->b.flags & V4L2_BUF_FLAG_ERROR))
-			if (threadio->fnc(vb, threadio->priv))
-				break;
-		call_void_qop(q, wait_finish, q);
-		if (set_timestamp)
-			v4l2_get_timestamp(&fileio->b.timestamp);
-		if (!threadio->stop)
-			ret = vb2_internal_qbuf(q, &fileio->b);
-		call_void_qop(q, wait_prepare, q);
-		if (ret || threadio->stop)
-			break;
-	}
-
-	/* Hmm, linux becomes *very* unhappy without this ... */
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-	}
-	return 0;
-}
-
-/*
- * This function should not be used for anything else but the videobuf2-dvb
- * support. If you think you have another good use-case for this, then please
- * contact the linux-media mailinglist first.
- */
-int vb2_thread_start(struct vb2_queue *q, vb2_thread_fnc fnc, void *priv,
-		     const char *thread_name)
-{
-	struct vb2_threadio_data *threadio;
-	int ret = 0;
-
-	if (q->threadio)
-		return -EBUSY;
-	if (vb2_is_busy(q))
-		return -EBUSY;
-	if (WARN_ON(q->fileio))
-		return -EBUSY;
-
-	threadio = kzalloc(sizeof(*threadio), GFP_KERNEL);
-	if (threadio == NULL)
-		return -ENOMEM;
-	threadio->fnc = fnc;
-	threadio->priv = priv;
-
-	ret = __vb2_init_fileio(q, !q->is_output);
-	dprintk(3, "file io: vb2_init_fileio result: %d\n", ret);
-	if (ret)
-		goto nomem;
-	q->threadio = threadio;
-	threadio->thread = kthread_run(vb2_thread, q, "vb2-%s", thread_name);
-	if (IS_ERR(threadio->thread)) {
-		ret = PTR_ERR(threadio->thread);
-		threadio->thread = NULL;
-		goto nothread;
-	}
-	return 0;
-
-nothread:
-	__vb2_cleanup_fileio(q);
-nomem:
-	kfree(threadio);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(vb2_thread_start);
-
-int vb2_thread_stop(struct vb2_queue *q)
-{
-	struct vb2_threadio_data *threadio = q->threadio;
-	int err;
-
-	if (threadio == NULL)
-		return 0;
-	threadio->stop = true;
-	/* Wake up all pending sleeps in the thread */
-	vb2_queue_error(q);
-	err = kthread_stop(threadio->thread);
-	__vb2_cleanup_fileio(q);
-	threadio->thread = NULL;
-	kfree(threadio);
-	q->threadio = NULL;
-	return err;
-}
-EXPORT_SYMBOL_GPL(vb2_thread_stop);
 
 /*
  * The following functions are not part of the vb2 core API, but are helper
@@ -1440,8 +883,8 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 		return res;
 	if (vb2_queue_is_busy(vdev, file))
 		return -EBUSY;
-	res = vb2_core_create_bufs(vdev->queue, p->memory, &p->count,
-			&p->format);
+
+	res = vb2_create_bufs(vdev->queue, p);
 	if (res == 0)
 		vdev->queue->owner = file->private_data;
 	return res;

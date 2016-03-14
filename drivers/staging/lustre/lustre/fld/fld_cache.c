@@ -121,8 +121,8 @@ void fld_cache_fini(struct fld_cache *cache)
 /**
  * delete given node from list.
  */
-void fld_cache_entry_delete(struct fld_cache *cache,
-			    struct fld_cache_entry *node)
+static void fld_cache_entry_delete(struct fld_cache *cache,
+				   struct fld_cache_entry *node)
 {
 	list_del(&node->fce_list);
 	list_del(&node->fce_lru);
@@ -227,7 +227,6 @@ static int fld_cache_shrink(struct fld_cache *cache)
 
 	while (cache->fci_cache_count + cache->fci_threshold >
 	       cache->fci_cache_size && curr != &cache->fci_lru) {
-
 		flde = list_entry(curr, struct fld_cache_entry, fce_lru);
 		curr = curr->prev;
 		fld_cache_entry_delete(cache, flde);
@@ -377,8 +376,8 @@ struct fld_cache_entry
  * This function handles all cases of merging and breaking up of
  * ranges.
  */
-int fld_cache_insert_nolock(struct fld_cache *cache,
-			    struct fld_cache_entry *f_new)
+static int fld_cache_insert_nolock(struct fld_cache *cache,
+				   struct fld_cache_entry *f_new)
 {
 	struct fld_cache_entry *f_curr;
 	struct fld_cache_entry *n;
@@ -444,36 +443,10 @@ int fld_cache_insert(struct fld_cache *cache,
 	return rc;
 }
 
-void fld_cache_delete_nolock(struct fld_cache *cache,
-		      const struct lu_seq_range *range)
-{
-	struct fld_cache_entry *flde;
-	struct fld_cache_entry *tmp;
-	struct list_head *head;
-
-	head = &cache->fci_entries_head;
-	list_for_each_entry_safe(flde, tmp, head, fce_list) {
-		/* add list if next is end of list */
-		if (range->lsr_start == flde->fce_range.lsr_start ||
-		   (range->lsr_end == flde->fce_range.lsr_end &&
-		    range->lsr_flags == flde->fce_range.lsr_flags)) {
-			fld_cache_entry_delete(cache, flde);
-			break;
-		}
-	}
-}
-
 /**
  * Delete FLD entry in FLD cache.
  *
  */
-void fld_cache_delete(struct fld_cache *cache,
-		      const struct lu_seq_range *range)
-{
-	write_lock(&cache->fci_lock);
-	fld_cache_delete_nolock(cache, range);
-	write_unlock(&cache->fci_lock);
-}
 
 struct fld_cache_entry
 *fld_cache_entry_lookup_nolock(struct fld_cache *cache,

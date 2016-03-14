@@ -58,6 +58,7 @@ struct ib_client_data {
 	bool		  going_down;
 };
 
+struct workqueue_struct *ib_comp_wq;
 struct workqueue_struct *ib_wq;
 EXPORT_SYMBOL_GPL(ib_wq);
 
@@ -325,6 +326,7 @@ int ib_register_device(struct ib_device *device,
 {
 	int ret;
 	struct ib_client *client;
+	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 
 	mutex_lock(&device_mutex);
 
@@ -349,6 +351,14 @@ int ib_register_device(struct ib_device *device,
 	ret = ib_cache_setup_one(device);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't set up InfiniBand P_Key/GID cache\n");
+		goto out;
+	}
+
+	memset(&device->attrs, 0, sizeof(device->attrs));
+	ret = device->query_device(device, &device->attrs, &uhw);
+	if (ret) {
+		printk(KERN_WARNING "Couldn't query the device attributes\n");
+		ib_cache_cleanup_one(device);
 		goto out;
 	}
 
@@ -628,25 +638,6 @@ void ib_dispatch_event(struct ib_event *event)
 EXPORT_SYMBOL(ib_dispatch_event);
 
 /**
- * ib_query_device - Query IB device attributes
- * @device:Device to query
- * @device_attr:Device attributes
- *
- * ib_query_device() returns the attributes of a device through the
- * @device_attr pointer.
- */
-int ib_query_device(struct ib_device *device,
-		    struct ib_device_attr *device_attr)
-{
-	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
-
-	memset(device_attr, 0, sizeof(*device_attr));
-
-	return device->query_device(device, device_attr, &uhw);
-}
-EXPORT_SYMBOL(ib_query_device);
-
-/**
  * ib_query_port - Query IB port attributes
  * @device:Device to query
  * @port_num:Port number to query
@@ -825,25 +816,30 @@ EXPORT_SYMBOL(ib_modify_port);
  *   a specified GID value occurs.
  * @device: The device to query.
  * @gid: The GID value to search for.
+ * @gid_type: Type of GID.
  * @ndev: The ndev related to the GID to search for.
  * @port_num: The port number of the device where the GID value was found.
  * @index: The index into the GID table where the GID was found.  This
  *   parameter may be NULL.
  */
 int ib_find_gid(struct ib_device *device, union ib_gid *gid,
-		struct net_device *ndev, u8 *port_num, u16 *index)
+		enum ib_gid_type gid_type, struct net_device *ndev,
+		u8 *port_num, u16 *index)
 {
 	union ib_gid tmp_gid;
 	int ret, port, i;
 
 	for (port = rdma_start_port(device); port <= rdma_end_port(device); ++port) {
 		if (rdma_cap_roce_gid_table(device, port)) {
-			if (!ib_find_cached_gid_by_port(device, gid, port,
+			if (!ib_find_cached_gid_by_port(device, gid, gid_type, port,
 							ndev, index)) {
 				*port_num = port;
 				return 0;
 			}
 		}
+
+		if (gid_type != IB_GID_TYPE_IB)
+			continue;
 
 		for (i = 0; i < device->port_immutable[port].gid_tbl_len; ++i) {
 			ret = ib_query_gid(device, port, i, &tmp_gid, NULL);
@@ -954,10 +950,18 @@ static int __init ib_core_init(void)
 	if (!ib_wq)
 		return -ENOMEM;
 
+	ib_comp_wq = alloc_workqueue("ib-comp-wq",
+			WQ_UNBOUND | WQ_HIGHPRI | WQ_MEM_RECLAIM,
+			WQ_UNBOUND_MAX_ACTIVE);
+	if (!ib_comp_wq) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
 	ret = class_register(&ib_class);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't create InfiniBand device class\n");
-		goto err;
+		goto err_comp;
 	}
 
 	ret = ibnl_init();
@@ -972,7 +976,8 @@ static int __init ib_core_init(void)
 
 err_sysfs:
 	class_unregister(&ib_class);
-
+err_comp:
+	destroy_workqueue(ib_comp_wq);
 err:
 	destroy_workqueue(ib_wq);
 	return ret;
@@ -983,6 +988,7 @@ static void __exit ib_core_cleanup(void)
 	ib_cache_cleanup();
 	ibnl_cleanup();
 	class_unregister(&ib_class);
+	destroy_workqueue(ib_comp_wq);
 	/* Make sure that any pending umem accounting work is done. */
 	destroy_workqueue(ib_wq);
 }

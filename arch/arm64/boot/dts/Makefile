@@ -9,8 +9,11 @@ dts-dirs += freescale
 dts-dirs += hisilicon
 dts-dirs += marvell
 dts-dirs += mediatek
+dts-dirs += nvidia
 dts-dirs += qcom
+dts-dirs += renesas
 dts-dirs += rockchip
+dts-dirs += socionext
 dts-dirs += sprd
 dts-dirs += xilinx
 

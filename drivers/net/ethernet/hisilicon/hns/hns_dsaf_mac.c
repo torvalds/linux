@@ -283,7 +283,7 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 }
 
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
-		      u32 port_num, char *addr, u8 en)
+		      u32 port_num, char *addr, bool enable)
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
@@ -295,7 +295,7 @@ int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		mac_entry.in_port_num = mac_cb->mac_id;
 		mac_entry.port_num = port_num;
 
-		if (en == DISABLE)
+		if (!enable)
 			ret = hns_dsaf_del_mac_mc_port(dsaf_dev, &mac_entry);
 		else
 			ret = hns_dsaf_add_mac_mc_port(dsaf_dev, &mac_entry);
@@ -368,7 +368,7 @@ static void hns_mac_param_get(struct mac_params *param,
  *retuen 0 - success , negative --fail
  */
 static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
-				     u32 port_num, u16 vlan_id, u8 en)
+				     u32 port_num, u16 vlan_id, bool enable)
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
@@ -386,7 +386,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 		mac_entry.in_port_num = mac_cb->mac_id;
 		mac_entry.port_num = port_num;
 
-		if (en == DISABLE)
+		if (!enable)
 			ret = hns_dsaf_del_mac_mc_port(dsaf_dev, &mac_entry);
 		else
 			ret = hns_dsaf_add_mac_mc_port(dsaf_dev, &mac_entry);
@@ -403,7 +403,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
  *@en:enable
  *retuen 0 - success , negative --fail
  */
-int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, u8 en)
+int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
@@ -427,7 +427,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, u8 en)
 			return ret;
 		mac_entry.port_num = port_num;
 
-		if (en == DISABLE)
+		if (!enable)
 			ret = hns_dsaf_del_mac_mc_port(dsaf_dev, &mac_entry);
 		else
 			ret = hns_dsaf_add_mac_mc_port(dsaf_dev, &mac_entry);
@@ -648,7 +648,7 @@ static int hns_mac_init_ex(struct hns_mac_cb *mac_cb)
 
 	hns_mac_adjust_link(mac_cb, mac_cb->speed, !mac_cb->half_duplex);
 
-	ret = hns_mac_port_config_bc_en(mac_cb, mac_cb->mac_id, 0, ENABLE);
+	ret = hns_mac_port_config_bc_en(mac_cb, mac_cb->mac_id, 0, true);
 	if (ret)
 		goto free_mac_drv;
 

@@ -31,7 +31,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-of.h>
 #include <media/media-device.h>
-#include <media/exynos-fimc.h>
+#include <media/drv-intf/exynos-fimc.h>
 
 #include "media-dev.h"
 #include "fimc-core.h"
@@ -88,8 +88,7 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 				break;
 		}
 
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 
@@ -187,32 +186,20 @@ error:
 }
 
 /**
- * __fimc_pipeline_open - update the pipeline information, enable power
- *                        of all pipeline subdevs and the sensor clock
- * @me: media entity to start graph walk with
- * @prepare: true to walk the current pipeline and acquire all subdevs
+ * __fimc_pipeline_enable - enable power of all pipeline subdevs
+ *			    and the sensor clock
+ * @ep: video pipeline structure
+ * @fmd: fimc media device
  *
  * Called with the graph mutex held.
  */
-static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
-				struct media_entity *me, bool prepare)
+static int __fimc_pipeline_enable(struct exynos_media_pipeline *ep,
+				  struct fimc_md *fmd)
 {
-	struct fimc_md *fmd = entity_to_fimc_mdev(me);
 	struct fimc_pipeline *p = to_fimc_pipeline(ep);
-	struct v4l2_subdev *sd;
 	int ret;
 
-	if (WARN_ON(p == NULL || me == NULL))
-		return -EINVAL;
-
-	if (prepare)
-		fimc_pipeline_prepare(p, me);
-
-	sd = p->subdevs[IDX_SENSOR];
-	if (sd == NULL)
-		return -EINVAL;
-
-	/* Disable PXLASYNC clock if this pipeline includes FIMC-IS */
+	/* Enable PXLASYNC clock if this pipeline includes FIMC-IS */
 	if (!IS_ERR(fmd->wbclk[CLK_IDX_WB_B]) && p->subdevs[IDX_IS_ISP]) {
 		ret = clk_prepare_enable(fmd->wbclk[CLK_IDX_WB_B]);
 		if (ret < 0)
@@ -227,6 +214,40 @@ static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
 		clk_disable_unprepare(fmd->wbclk[CLK_IDX_WB_B]);
 
 	return ret;
+}
+
+/**
+ * __fimc_pipeline_open - update the pipeline information, enable power
+ *                        of all pipeline subdevs and the sensor clock
+ * @me: media entity to start graph walk with
+ * @prepare: true to walk the current pipeline and acquire all subdevs
+ *
+ * Called with the graph mutex held.
+ */
+static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
+				struct media_entity *me, bool prepare)
+{
+	struct fimc_md *fmd = entity_to_fimc_mdev(me);
+	struct fimc_pipeline *p = to_fimc_pipeline(ep);
+	struct v4l2_subdev *sd;
+
+	if (WARN_ON(p == NULL || me == NULL))
+		return -EINVAL;
+
+	if (prepare)
+		fimc_pipeline_prepare(p, me);
+
+	sd = p->subdevs[IDX_SENSOR];
+	if (sd == NULL) {
+		pr_warn("%s(): No sensor subdev\n", __func__);
+		/*
+		 * Pipeline open cannot fail so as to make it possible
+		 * for the user space to configure the pipeline.
+		 */
+		return 0;
+	}
+
+	return __fimc_pipeline_enable(ep, fmd);
 }
 
 /**
@@ -270,10 +291,43 @@ static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
 		{ IDX_CSIS, IDX_FLITE, IDX_FIMC, IDX_SENSOR, IDX_IS_ISP },
 	};
 	struct fimc_pipeline *p = to_fimc_pipeline(ep);
+	struct fimc_md *fmd = entity_to_fimc_mdev(&p->subdevs[IDX_CSIS]->entity);
+	enum fimc_subdev_index sd_id;
 	int i, ret = 0;
 
-	if (p->subdevs[IDX_SENSOR] == NULL)
-		return -ENODEV;
+	if (p->subdevs[IDX_SENSOR] == NULL) {
+		if (!fmd->user_subdev_api) {
+			/*
+			 * Sensor must be already discovered if we
+			 * aren't in the user_subdev_api mode
+			 */
+			return -ENODEV;
+		}
+
+		/* Get pipeline sink entity */
+		if (p->subdevs[IDX_FIMC])
+			sd_id = IDX_FIMC;
+		else if (p->subdevs[IDX_IS_ISP])
+			sd_id = IDX_IS_ISP;
+		else if (p->subdevs[IDX_FLITE])
+			sd_id = IDX_FLITE;
+		else
+			return -ENODEV;
+
+		/*
+		 * Sensor could have been linked between open and STREAMON -
+		 * check if this is the case.
+		 */
+		fimc_pipeline_prepare(p, &p->subdevs[sd_id]->entity);
+
+		if (p->subdevs[IDX_SENSOR] == NULL)
+			return -ENODEV;
+
+		ret = __fimc_pipeline_enable(ep, fmd);
+		if (ret < 0)
+			return ret;
+
+	}
 
 	for (i = 0; i < IDX_MAX; i++) {
 		unsigned int idx = seq[on][i];
@@ -283,8 +337,10 @@ static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
 		if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 			goto error;
 	}
+
 	return 0;
 error:
+	fimc_pipeline_s_power(p, !on);
 	for (; i >= 0; i--) {
 		unsigned int idx = seq[on][i];
 		v4l2_subdev_call(p->subdevs[idx], video, s_stream, !on);
@@ -729,7 +785,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 		flags = ((1 << i) & link_mask) ? MEDIA_LNK_FL_ENABLED : 0;
 
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
-		ret = media_entity_create_link(source, pad, sink,
+		ret = media_create_pad_link(source, pad, sink,
 					      FIMC_SD_PAD_SINK_CAM, flags);
 		if (ret)
 			return ret;
@@ -749,7 +805,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 			continue;
 
 		sink = &fmd->fimc_lite[i]->subdev.entity;
-		ret = media_entity_create_link(source, pad, sink,
+		ret = media_create_pad_link(source, pad, sink,
 					       FLITE_SD_PAD_SINK, 0);
 		if (ret)
 			return ret;
@@ -781,13 +837,13 @@ static int __fimc_md_create_flite_source_links(struct fimc_md *fmd)
 		source = &fimc->subdev.entity;
 		sink = &fimc->ve.vdev.entity;
 		/* FIMC-LITE's subdev and video node */
-		ret = media_entity_create_link(source, FLITE_SD_PAD_SOURCE_DMA,
+		ret = media_create_pad_link(source, FLITE_SD_PAD_SOURCE_DMA,
 					       sink, 0, 0);
 		if (ret)
 			break;
 		/* Link from FIMC-LITE to IS-ISP subdev */
 		sink = &fmd->fimc_is->isp.subdev.entity;
-		ret = media_entity_create_link(source, FLITE_SD_PAD_SOURCE_ISP,
+		ret = media_create_pad_link(source, FLITE_SD_PAD_SOURCE_ISP,
 					       sink, 0, 0);
 		if (ret)
 			break;
@@ -811,7 +867,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 
 		/* Link from FIMC-IS-ISP subdev to FIMC */
 		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
-		ret = media_entity_create_link(source, FIMC_ISP_SD_PAD_SRC_FIFO,
+		ret = media_create_pad_link(source, FIMC_ISP_SD_PAD_SRC_FIFO,
 					       sink, FIMC_SD_PAD_SINK_FIFO, 0);
 		if (ret)
 			return ret;
@@ -824,7 +880,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 	if (sink->num_pads == 0)
 		return 0;
 
-	return media_entity_create_link(source, FIMC_ISP_SD_PAD_SRC_DMA,
+	return media_create_pad_link(source, FIMC_ISP_SD_PAD_SRC_DMA,
 					sink, 0, 0);
 }
 
@@ -873,7 +929,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 				return -EINVAL;
 
 			pad = sensor->entity.num_pads - 1;
-			ret = media_entity_create_link(&sensor->entity, pad,
+			ret = media_create_pad_link(&sensor->entity, pad,
 					      &csis->entity, CSIS_PAD_SINK,
 					      MEDIA_LNK_FL_IMMUTABLE |
 					      MEDIA_LNK_FL_ENABLED);
@@ -927,7 +983,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 		source = &fmd->fimc[i]->vid_cap.subdev.entity;
 		sink = &fmd->fimc[i]->vid_cap.ve.vdev.entity;
 
-		ret = media_entity_create_link(source, FIMC_SD_PAD_SOURCE,
+		ret = media_create_pad_link(source, FIMC_SD_PAD_SOURCE,
 					      sink, 0, flags);
 		if (ret)
 			break;
@@ -1046,11 +1102,11 @@ static int __fimc_md_modify_pipeline(struct media_entity *entity, bool enable)
 	return ret;
 }
 
-/* Locking: called with entity->parent->graph_mutex mutex held. */
-static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
+/* Locking: called with entity->graph_obj.mdev->graph_mutex mutex held. */
+static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
+				      struct media_entity_graph *graph)
 {
 	struct media_entity *entity_err = entity;
-	struct media_entity_graph graph;
 	int ret;
 
 	/*
@@ -1059,10 +1115,10 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
 	 * through active links. This is needed as we cannot power on/off the
 	 * subdevs in random order.
 	 */
-	media_entity_graph_walk_start(&graph, entity);
+	media_entity_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
-		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
+	while ((entity = media_entity_graph_walk_next(graph))) {
+		if (!is_media_entity_v4l2_io(entity))
 			continue;
 
 		ret  = __fimc_md_modify_pipeline(entity, enable);
@@ -1072,11 +1128,12 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
 	}
 
 	return 0;
- err:
-	media_entity_graph_walk_start(&graph, entity_err);
 
-	while ((entity_err = media_entity_graph_walk_next(&graph))) {
-		if (media_entity_type(entity_err) != MEDIA_ENT_T_DEVNODE)
+err:
+	media_entity_graph_walk_start(graph, entity_err);
+
+	while ((entity_err = media_entity_graph_walk_next(graph))) {
+		if (!is_media_entity_v4l2_io(entity_err))
 			continue;
 
 		__fimc_md_modify_pipeline(entity_err, !enable);
@@ -1091,21 +1148,29 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable)
 static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 				unsigned int notification)
 {
+	struct media_entity_graph *graph =
+		&container_of(link->graph_obj.mdev, struct fimc_md,
+			      media_dev)->link_setup_graph;
 	struct media_entity *sink = link->sink->entity;
 	int ret = 0;
 
 	/* Before link disconnection */
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
+		ret = media_entity_graph_walk_init(graph,
+						   link->graph_obj.mdev);
+		if (ret)
+			return ret;
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
-			ret = __fimc_md_modify_pipelines(sink, false);
+			ret = __fimc_md_modify_pipelines(sink, false, graph);
 #if 0
 		else
 			/* TODO: Link state change validation */
 #endif
 	/* After link activation */
-	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH &&
-		   (link->flags & MEDIA_LNK_FL_ENABLED)) {
-		ret = __fimc_md_modify_pipelines(sink, true);
+	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH) {
+		if (link->flags & MEDIA_LNK_FL_ENABLED)
+			ret = __fimc_md_modify_pipelines(sink, true, graph);
+		media_entity_graph_walk_cleanup(graph);
 	}
 
 	return ret ? -EPIPE : 0;
@@ -1314,7 +1379,10 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	ret = v4l2_device_register_subdev_nodes(&fmd->v4l2_dev);
 unlock:
 	mutex_unlock(&fmd->media_dev.graph_mutex);
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	return media_device_register(&fmd->media_dev);
 }
 
 static int fimc_md_probe(struct platform_device *pdev)
@@ -1345,16 +1413,12 @@ static int fimc_md_probe(struct platform_device *pdev)
 	fmd->use_isp = fimc_md_is_isp_available(dev->of_node);
 	fmd->user_subdev_api = true;
 
+	media_device_init(&fmd->media_dev);
+
 	ret = v4l2_device_register(dev, &fmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
 		return ret;
-	}
-
-	ret = media_device_register(&fmd->media_dev);
-	if (ret < 0) {
-		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
-		goto err_v4l2_dev;
 	}
 
 	ret = fimc_md_get_clocks(fmd);
@@ -1425,8 +1489,7 @@ err_clk:
 err_m_ent:
 	fimc_md_unregister_entities(fmd);
 err_md:
-	media_device_unregister(&fmd->media_dev);
-err_v4l2_dev:
+	media_device_cleanup(&fmd->media_dev);
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	return ret;
 }
@@ -1446,6 +1509,7 @@ static int fimc_md_remove(struct platform_device *pdev)
 	fimc_md_unregister_entities(fmd);
 	fimc_md_pipelines_free(fmd);
 	media_device_unregister(&fmd->media_dev);
+	media_device_cleanup(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
 
 	return 0;

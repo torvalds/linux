@@ -28,12 +28,10 @@ struct device;
 extern int edac_op_state;
 extern int edac_err_assert;
 extern atomic_t edac_handlers;
-extern struct bus_type edac_subsys;
 
 extern int edac_handler_set(void);
 extern void edac_atomic_assert_error(void);
 extern struct bus_type *edac_get_sysfs_subsys(void);
-extern void edac_put_sysfs_subsys(void);
 
 enum {
 	EDAC_REPORTING_ENABLED,
@@ -237,8 +235,10 @@ enum mem_type {
 #define MEM_FLAG_FB_DDR2        BIT(MEM_FB_DDR2)
 #define MEM_FLAG_RDDR2          BIT(MEM_RDDR2)
 #define MEM_FLAG_XDR            BIT(MEM_XDR)
-#define MEM_FLAG_DDR3		 BIT(MEM_DDR3)
-#define MEM_FLAG_RDDR3		 BIT(MEM_RDDR3)
+#define MEM_FLAG_DDR3           BIT(MEM_DDR3)
+#define MEM_FLAG_RDDR3          BIT(MEM_RDDR3)
+#define MEM_FLAG_DDR4           BIT(MEM_DDR4)
+#define MEM_FLAG_RDDR4          BIT(MEM_RDDR4)
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode

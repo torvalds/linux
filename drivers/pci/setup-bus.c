@@ -442,7 +442,7 @@ static void __assign_resources_sorted(struct list_head *head,
 					break;
 				}
 			}
-               }
+		}
 
 	}
 

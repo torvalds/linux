@@ -27,17 +27,26 @@ Usage:
     keyctl print keyid
 
     options:
-       keyhandle= ascii hex value of sealing key default 0x40000000 (SRK)
-       keyauth=	  ascii hex auth for sealing key default 0x00...i
-		  (40 ascii zeros)
-       blobauth=  ascii hex auth for sealed data default 0x00...
-		  (40 ascii zeros)
-       blobauth=  ascii hex auth for sealed data default 0x00...
-		  (40 ascii zeros)
-       pcrinfo=	  ascii hex of PCR_INFO or PCR_INFO_LONG (no default)
-       pcrlock=	  pcr number to be extended to "lock" blob
-       migratable= 0|1 indicating permission to reseal to new PCR values,
-                   default 1 (resealing allowed)
+       keyhandle=    ascii hex value of sealing key default 0x40000000 (SRK)
+       keyauth=	     ascii hex auth for sealing key default 0x00...i
+                     (40 ascii zeros)
+       blobauth=     ascii hex auth for sealed data default 0x00...
+                     (40 ascii zeros)
+       blobauth=     ascii hex auth for sealed data default 0x00...
+                     (40 ascii zeros)
+       pcrinfo=	     ascii hex of PCR_INFO or PCR_INFO_LONG (no default)
+       pcrlock=	     pcr number to be extended to "lock" blob
+       migratable=   0|1 indicating permission to reseal to new PCR values,
+                     default 1 (resealing allowed)
+       hash=         hash algorithm name as a string. For TPM 1.x the only
+                     allowed value is sha1. For TPM 2.x the allowed values
+                     are sha1, sha256, sha384, sha512 and sm3-256.
+       policydigest= digest for the authorization policy. must be calculated
+                     with the same hash algorithm as specified by the 'hash='
+                     option.
+       policyhandle= handle to an authorization policy session that defines the
+                     same policy and with the same hash algorithm as was used to
+                     seal the key.
 
 "keyctl print" returns an ascii hex copy of the sealed key, which is in standard
 TPM_STORED_DATA format.  The key length for new keys are always in bytes.

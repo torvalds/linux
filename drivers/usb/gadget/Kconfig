@@ -127,6 +127,12 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	   a module parameter as well.
 	   If unsure, say 2.
 
+config U_SERIAL_CONSOLE
+	bool "Serial gadget console support"
+	depends on USB_G_SERIAL
+	help
+	   It supports the serial gadget can be used as a console.
+
 source "drivers/usb/gadget/udc/Kconfig"
 
 #
@@ -197,6 +203,9 @@ config USB_F_HID
 	tristate
 
 config USB_F_PRINTER
+	tristate
+
+config USB_F_TCM
 	tristate
 
 choice
@@ -450,6 +459,20 @@ config USB_CONFIGFS_F_PRINTER
 
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
+
+config USB_CONFIGFS_F_TCM
+	bool "USB Gadget Target Fabric"
+	depends on TARGET_CORE
+	depends on USB_CONFIGFS
+	select USB_LIBCOMPOSITE
+	select USB_F_TCM
+	help
+	  This fabric is a USB gadget component. Two USB protocols are
+	  supported that is BBB or BOT (Bulk Only Transport) and UAS
+	  (USB Attached SCSI). BOT is advertised on alternative
+	  interface 0 (primary) and UAS is on alternative interface 1.
+	  Both protocols can work on USB2.0 and USB3.0.
+	  UAS utilizes the USB 3.0 feature called streams support.
 
 source "drivers/usb/gadget/legacy/Kconfig"
 

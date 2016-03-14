@@ -17,6 +17,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/badblocks.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -27,13 +28,6 @@
 #include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
-
-/* Bad block numbers are stored sorted in a single page.
- * 64bits is used for each block or extent.
- * 54 bits are sector number, 9 bits are extent size,
- * 1 bit is an 'acknowledged' flag.
- */
-#define MD_MAX_BADBLOCKS	(PAGE_SIZE/8)
 
 /*
  * MD's 'extended' device
@@ -117,22 +111,7 @@ struct md_rdev {
 	struct kernfs_node *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
 
-	struct badblocks {
-		int	count;		/* count of bad blocks */
-		int	unacked_exist;	/* there probably are unacknowledged
-					 * bad blocks.  This is only cleared
-					 * when a read discovers none
-					 */
-		int	shift;		/* shift from sectors to block size
-					 * a -ve shift means badblocks are
-					 * disabled.*/
-		u64	*page;		/* badblock list */
-		int	changed;
-		seqlock_t lock;
-
-		sector_t sector;
-		sector_t size;		/* in sectors */
-	} badblocks;
+	struct badblocks badblocks;
 };
 enum flag_bits {
 	Faulty,			/* device is known to have a fault */
@@ -183,24 +162,14 @@ enum flag_bits {
 				 * Usually, this device should be faster
 				 * than other devices in the array
 				 */
+	ClusterRemove,
 };
 
-#define BB_LEN_MASK	(0x00000000000001FFULL)
-#define BB_OFFSET_MASK	(0x7FFFFFFFFFFFFE00ULL)
-#define BB_ACK_MASK	(0x8000000000000000ULL)
-#define BB_MAX_LEN	512
-#define BB_OFFSET(x)	(((x) & BB_OFFSET_MASK) >> 9)
-#define BB_LEN(x)	(((x) & BB_LEN_MASK) + 1)
-#define BB_ACK(x)	(!!((x) & BB_ACK_MASK))
-#define BB_MAKE(a, l, ack) (((a)<<9) | ((l)-1) | ((u64)(!!(ack)) << 63))
-
-extern int md_is_badblock(struct badblocks *bb, sector_t s, int sectors,
-			  sector_t *first_bad, int *bad_sectors);
 static inline int is_badblock(struct md_rdev *rdev, sector_t s, int sectors,
 			      sector_t *first_bad, int *bad_sectors)
 {
 	if (unlikely(rdev->badblocks.count)) {
-		int rv = md_is_badblock(&rdev->badblocks, rdev->data_offset + s,
+		int rv = badblocks_check(&rdev->badblocks, rdev->data_offset + s,
 					sectors,
 					first_bad, bad_sectors);
 		if (rv)
@@ -213,8 +182,6 @@ extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 			      int is_new);
 extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				int is_new);
-extern void md_ack_all_badblocks(struct badblocks *bb);
-
 struct md_cluster_info;
 
 struct mddev {
@@ -234,6 +201,9 @@ struct mddev {
 				 */
 #define MD_JOURNAL_CLEAN 5	/* A raid with journal is already clean */
 #define MD_HAS_JOURNAL	6	/* The raid array has journal feature set */
+#define MD_RELOAD_SB	7	/* Reload the superblock because another node
+				 * updated it.
+				 */
 
 	int				suspended;
 	atomic_t			active_io;
@@ -242,8 +212,6 @@ struct mddev {
 						       * are happening, so run/
 						       * takeover/stop are not safe
 						       */
-	int				ready; /* See when safe to pass
-						* IO requests down */
 	struct gendisk			*gendisk;
 
 	struct kobject			kobj;
@@ -260,7 +228,7 @@ struct mddev {
 							 * managed externally */
 	char				metadata_type[17]; /* externally set*/
 	int				chunk_sectors;
-	time_t				ctime, utime;
+	time64_t			ctime, utime;
 	int				level, layout;
 	char				clevel[16];
 	int				raid_disks;
@@ -464,6 +432,7 @@ struct mddev {
 	struct work_struct event_work;	/* used by dm to report failure event */
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
+	unsigned int			good_device_nr;	/* good device num within cluster raid */
 };
 
 static inline int __must_check mddev_lock(struct mddev *mddev)
@@ -657,7 +626,7 @@ extern void md_wait_for_blocked_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern void md_set_array_sectors(struct mddev *mddev, sector_t array_sectors);
 extern int md_check_no_bitmap(struct mddev *mddev);
 extern int md_integrity_register(struct mddev *mddev);
-extern void md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev);
+extern int md_integrity_add_rdev(struct md_rdev *rdev, struct mddev *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 
 extern void mddev_init(struct mddev *mddev);

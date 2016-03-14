@@ -31,6 +31,7 @@
 	};
 
 	aliases {
+		leds0 = &leds0;
 		uart0 = &uart0;
 	};
 
@@ -81,6 +82,14 @@
 			regmap = <&timer>;
 			offset = <0x28>;
 			mask = <0x1>;
+		};
+
+		leds0: led-controller@10000800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,bcm6328-leds";
+			reg = <0x10000800 0x24>;
+			status = "disabled";
 		};
 	};
 };

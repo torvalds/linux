@@ -1317,7 +1317,7 @@ int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (err)
 		return err;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	/* Synchronize the inode unless this is a 'datasync()' call. */
 	if (!datasync || (inode->i_state & I_DIRTY_DATASYNC)) {
@@ -1332,7 +1332,7 @@ int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	err = ubifs_sync_wbufs_by_inode(c, inode);
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return err;
 }
 
@@ -1608,7 +1608,7 @@ const struct inode_operations ubifs_file_inode_operations = {
 
 const struct inode_operations ubifs_symlink_inode_operations = {
 	.readlink    = generic_readlink,
-	.follow_link = simple_follow_link,
+	.get_link    = simple_get_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 	.setxattr    = ubifs_setxattr,

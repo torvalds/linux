@@ -2025,7 +2025,6 @@ boot_device_fail:
 static int stfsm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct mtd_part_parser_data ppdata;
 	struct flash_info *info;
 	struct resource *res;
 	struct stfsm *fsm;
@@ -2035,7 +2034,6 @@ static int stfsm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No DT found\n");
 		return -EINVAL;
 	}
-	ppdata.of_node = np;
 
 	fsm = devm_kzalloc(&pdev->dev, sizeof(*fsm), GFP_KERNEL);
 	if (!fsm)
@@ -2106,6 +2104,7 @@ static int stfsm_probe(struct platform_device *pdev)
 
 	fsm->mtd.name		= info->name;
 	fsm->mtd.dev.parent	= &pdev->dev;
+	mtd_set_of_node(&fsm->mtd, np);
 	fsm->mtd.type		= MTD_NORFLASH;
 	fsm->mtd.writesize	= 4;
 	fsm->mtd.writebufsize	= fsm->mtd.writesize;
@@ -2124,7 +2123,7 @@ static int stfsm_probe(struct platform_device *pdev)
 		(long long)fsm->mtd.size, (long long)(fsm->mtd.size >> 20),
 		fsm->mtd.erasesize, (fsm->mtd.erasesize >> 10));
 
-	return mtd_device_parse_register(&fsm->mtd, NULL, &ppdata, NULL, 0);
+	return mtd_device_register(&fsm->mtd, NULL, 0);
 }
 
 static int stfsm_remove(struct platform_device *pdev)

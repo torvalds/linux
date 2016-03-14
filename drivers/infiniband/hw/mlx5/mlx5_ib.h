@@ -42,6 +42,7 @@
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/srq.h>
 #include <linux/types.h>
+#include <linux/mlx5/transobj.h>
 
 #define mlx5_ib_dbg(dev, format, arg...)				\
 pr_debug("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
@@ -55,6 +56,11 @@ pr_err("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
 pr_warn("%s:%s:%d:(pid %d): " format, (dev)->ib_dev.name, __func__,	\
 	__LINE__, current->pid, ##arg)
 
+#define field_avail(type, fld, sz) (offsetof(type, fld) +		\
+				    sizeof(((type *)0)->fld) <= (sz))
+#define MLX5_IB_DEFAULT_UIDX 0xffffff
+#define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
+
 enum {
 	MLX5_IB_MMAP_CMD_SHIFT	= 8,
 	MLX5_IB_MMAP_CMD_MASK	= 0xff,
@@ -62,7 +68,9 @@ enum {
 
 enum mlx5_ib_mmap_cmd {
 	MLX5_IB_MMAP_REGULAR_PAGE		= 0,
-	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES	= 1, /* always last */
+	MLX5_IB_MMAP_GET_CONTIGUOUS_PAGES	= 1,
+	/* 5 is chosen in order to be compatible with old versions of libmlx5 */
+	MLX5_IB_MMAP_CORE_CLOCK			= 5,
 };
 
 enum {
@@ -85,6 +93,15 @@ enum mlx5_ib_mad_ifc_flags {
 	MLX5_MAD_IFC_NET_VIEW		= 4,
 };
 
+enum {
+	MLX5_CROSS_CHANNEL_UUAR         = 0,
+};
+
+enum {
+	MLX5_CQE_VERSION_V0,
+	MLX5_CQE_VERSION_V1,
+};
+
 struct mlx5_ib_ucontext {
 	struct ib_ucontext	ibucontext;
 	struct list_head	db_page_list;
@@ -93,6 +110,9 @@ struct mlx5_ib_ucontext {
 	 */
 	struct mutex		db_page_mutex;
 	struct mlx5_uuar_info	uuari;
+	u8			cqe_version;
+	/* Transport Domain number */
+	u32			tdn;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -103,6 +123,36 @@ static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibuconte
 struct mlx5_ib_pd {
 	struct ib_pd		ibpd;
 	u32			pdn;
+};
+
+#define MLX5_IB_FLOW_MCAST_PRIO		(MLX5_BY_PASS_NUM_PRIOS - 1)
+#define MLX5_IB_FLOW_LAST_PRIO		(MLX5_IB_FLOW_MCAST_PRIO - 1)
+#if (MLX5_IB_FLOW_LAST_PRIO <= 0)
+#error "Invalid number of bypass priorities"
+#endif
+#define MLX5_IB_FLOW_LEFTOVERS_PRIO	(MLX5_IB_FLOW_MCAST_PRIO + 1)
+
+#define MLX5_IB_NUM_FLOW_FT		(MLX5_IB_FLOW_LEFTOVERS_PRIO + 1)
+struct mlx5_ib_flow_prio {
+	struct mlx5_flow_table		*flow_table;
+	unsigned int			refcount;
+};
+
+struct mlx5_ib_flow_handler {
+	struct list_head		list;
+	struct ib_flow			ibflow;
+	unsigned int			prio;
+	struct mlx5_flow_rule	*rule;
+};
+
+struct mlx5_ib_flow_db {
+	struct mlx5_ib_flow_prio	prios[MLX5_IB_NUM_FLOW_FT];
+	/* Protect flow steering bypass flow tables
+	 * when add/del flow rules.
+	 * only single add/removal of flow steering rule could be done
+	 * simultaneously.
+	 */
+	struct mutex			lock;
 };
 
 /* Use macros here so that don't have to duplicate
@@ -171,35 +221,70 @@ struct mlx5_ib_pfault {
 	struct mlx5_pagefault	mpfault;
 };
 
+struct mlx5_ib_ubuffer {
+	struct ib_umem	       *umem;
+	int			buf_size;
+	u64			buf_addr;
+};
+
+struct mlx5_ib_qp_base {
+	struct mlx5_ib_qp	*container_mibqp;
+	struct mlx5_core_qp	mqp;
+	struct mlx5_ib_ubuffer	ubuffer;
+};
+
+struct mlx5_ib_qp_trans {
+	struct mlx5_ib_qp_base	base;
+	u16			xrcdn;
+	u8			alt_port;
+	u8			atomic_rd_en;
+	u8			resp_depth;
+};
+
+struct mlx5_ib_rq {
+	struct mlx5_ib_qp_base base;
+	struct mlx5_ib_wq	*rq;
+	struct mlx5_ib_ubuffer	ubuffer;
+	struct mlx5_db		*doorbell;
+	u32			tirn;
+	u8			state;
+};
+
+struct mlx5_ib_sq {
+	struct mlx5_ib_qp_base base;
+	struct mlx5_ib_wq	*sq;
+	struct mlx5_ib_ubuffer  ubuffer;
+	struct mlx5_db		*doorbell;
+	u32			tisn;
+	u8			state;
+};
+
+struct mlx5_ib_raw_packet_qp {
+	struct mlx5_ib_sq sq;
+	struct mlx5_ib_rq rq;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
-	struct mlx5_core_qp	mqp;
+	union {
+		struct mlx5_ib_qp_trans trans_qp;
+		struct mlx5_ib_raw_packet_qp raw_packet_qp;
+	};
 	struct mlx5_buf		buf;
 
 	struct mlx5_db		db;
 	struct mlx5_ib_wq	rq;
 
-	u32			doorbell_qpn;
 	u8			sq_signal_bits;
 	u8			fm_cache;
-	int			sq_max_wqes_per_wr;
-	int			sq_spare_wqes;
 	struct mlx5_ib_wq	sq;
-
-	struct ib_umem	       *umem;
-	int			buf_size;
 
 	/* serialize qp state modifications
 	 */
 	struct mutex		mutex;
-	u16			xrcdn;
 	u32			flags;
 	u8			port;
-	u8			alt_port;
-	u8			atomic_rd_en;
-	u8			resp_depth;
 	u8			state;
-	int			mlx_type;
 	int			wq_sig;
 	int			scat_cqe;
 	int			max_inline_data;
@@ -242,6 +327,9 @@ struct mlx5_ib_cq_buf {
 enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_BLOCK_MULTICAST_LOOPBACK     = 1 << 0,
 	MLX5_IB_QP_SIGNATURE_HANDLING           = 1 << 1,
+	MLX5_IB_QP_CROSS_CHANNEL		= 1 << 2,
+	MLX5_IB_QP_MANAGED_SEND			= 1 << 3,
+	MLX5_IB_QP_MANAGED_RECV			= 1 << 4,
 };
 
 struct mlx5_umr_wr {
@@ -284,6 +372,7 @@ struct mlx5_ib_cq {
 	struct mlx5_ib_cq_buf  *resize_buf;
 	struct ib_umem	       *resize_umem;
 	int			cqe_size;
+	u32			create_flags;
 };
 
 struct mlx5_ib_srq {
@@ -407,9 +496,19 @@ struct mlx5_ib_resources {
 	struct ib_srq	*s1;
 };
 
+struct mlx5_roce {
+	/* Protect mlx5_ib_get_netdev from invoking dev_hold() with a NULL
+	 * netdev pointer
+	 */
+	rwlock_t		netdev_lock;
+	struct net_device	*netdev;
+	struct notifier_block	nb;
+};
+
 struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	struct mlx5_core_dev		*mdev;
+	struct mlx5_roce		roce;
 	MLX5_DECLARE_DOORBELL_LOCK(uar_lock);
 	int				num_ports;
 	/* serialize update of capability mask
@@ -431,6 +530,7 @@ struct mlx5_ib_dev {
 	 */
 	struct srcu_struct      mr_srcu;
 #endif
+	struct mlx5_ib_flow_db	flow_db;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
@@ -455,7 +555,7 @@ static inline struct mlx5_ib_cq *to_mcq(struct ib_cq *ibcq)
 
 static inline struct mlx5_ib_qp *to_mibqp(struct mlx5_core_qp *mqp)
 {
-	return container_of(mqp, struct mlx5_ib_qp, mqp);
+	return container_of(mqp, struct mlx5_ib_qp_base, mqp)->container_mibqp;
 }
 
 static inline struct mlx5_ib_mr *to_mibmr(struct mlx5_core_mr *mmr)
@@ -507,8 +607,6 @@ void mlx5_ib_free_srq_wqe(struct mlx5_ib_srq *srq, int wqe_index);
 int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad);
-struct ib_ah *create_ib_ah(struct ib_ah_attr *ah_attr,
-			   struct mlx5_ib_ah *ah);
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr);
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr);
 int mlx5_ib_destroy_ah(struct ib_ah *ah);
@@ -535,7 +633,8 @@ int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr);
 void *mlx5_get_send_wqe(struct mlx5_ib_qp *qp, int n);
 int mlx5_ib_read_user_wqe(struct mlx5_ib_qp *qp, int send, int wqe_index,
-			  void *buffer, u32 length);
+			  void *buffer, u32 length,
+			  struct mlx5_ib_qp_base *base);
 struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,
@@ -637,6 +736,9 @@ static inline void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp)  {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
+__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
+			       int index);
+
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;
@@ -662,4 +764,28 @@ static inline int is_qp1(enum ib_qp_type qp_type)
 #define MLX5_MAX_UMR_SHIFT 16
 #define MLX5_MAX_UMR_PAGES (1 << MLX5_MAX_UMR_SHIFT)
 
+static inline u32 check_cq_create_flags(u32 flags)
+{
+	/*
+	 * It returns non-zero value for unsupported CQ
+	 * create flags, otherwise it returns zero.
+	 */
+	return (flags & ~(IB_CQ_FLAGS_IGNORE_OVERRUN |
+			  IB_CQ_FLAGS_TIMESTAMP_COMPLETION));
+}
+
+static inline int verify_assign_uidx(u8 cqe_version, u32 cmd_uidx,
+				     u32 *user_index)
+{
+	if (cqe_version) {
+		if ((cmd_uidx == MLX5_IB_DEFAULT_UIDX) ||
+		    (cmd_uidx & ~MLX5_USER_ASSIGNED_UIDX_MASK))
+			return -EINVAL;
+		*user_index = cmd_uidx;
+	} else {
+		*user_index = MLX5_IB_DEFAULT_UIDX;
+	}
+
+	return 0;
+}
 #endif /* MLX5_IB_H */

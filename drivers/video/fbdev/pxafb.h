@@ -167,6 +167,8 @@ struct pxafb_info {
 
 	void (*lcd_power)(int, struct fb_var_screeninfo *);
 	void (*backlight_power)(int);
+
+	struct pxafb_mach_info	*inf;
 };
 
 #define TO_INF(ptr,member) container_of(ptr,struct pxafb_info,member)

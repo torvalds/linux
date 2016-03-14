@@ -275,6 +275,7 @@ struct nfs4_layoutcommit_args {
 	size_t layoutupdate_len;
 	struct page *layoutupdate_page;
 	struct page **layoutupdate_pages;
+	__be32 *start_p;
 };
 
 struct nfs4_layoutcommit_res {
@@ -1375,6 +1376,7 @@ enum {
 	NFS_IOHDR_ERROR = 0,
 	NFS_IOHDR_EOF,
 	NFS_IOHDR_REDO,
+	NFS_IOHDR_STAT,
 };
 
 struct nfs_pgio_header {
@@ -1420,11 +1422,12 @@ struct nfs_mds_commit_info {
 	struct list_head	list;
 };
 
+struct nfs_commit_info;
 struct nfs_commit_data;
 struct nfs_inode;
 struct nfs_commit_completion_ops {
-	void (*error_cleanup) (struct nfs_inode *nfsi);
 	void (*completion) (struct nfs_commit_data *data);
+	void (*resched_write) (struct nfs_commit_info *, struct nfs_page *);
 };
 
 struct nfs_commit_info {
@@ -1454,12 +1457,14 @@ struct nfs_commit_data {
 	const struct rpc_call_ops *mds_ops;
 	const struct nfs_commit_completion_ops *completion_ops;
 	int (*commit_done_cb) (struct rpc_task *task, struct nfs_commit_data *data);
+	unsigned long		flags;
 };
 
 struct nfs_pgio_completion_ops {
 	void	(*error_cleanup)(struct list_head *head);
 	void	(*init_hdr)(struct nfs_pgio_header *hdr);
 	void	(*completion)(struct nfs_pgio_header *hdr);
+	void	(*reschedule_io)(struct nfs_pgio_header *hdr);
 };
 
 struct nfs_unlinkdata {

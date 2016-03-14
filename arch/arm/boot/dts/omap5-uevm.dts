@@ -40,8 +40,8 @@
 &omap5_pmx_core {
 	i2c5_pins: pinmux_i2c5_pins {
 		pinctrl-single,pins = <
-			0x186 (PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
-			0x188 (PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
+			OMAP5_IOPAD(0x1c6, PIN_INPUT | MUX_MODE0)		/* i2c5_scl */
+			OMAP5_IOPAD(0x1c8, PIN_INPUT | MUX_MODE0)		/* i2c5_sda */
 		>;
 	};
 };

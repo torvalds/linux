@@ -31,26 +31,22 @@
 
 /* ------------------------------------------------------------------ */
 
-static int vbi_queue_setup(struct vb2_queue *vq, const void *parg,
+static int vbi_queue_setup(struct vb2_queue *vq,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct em28xx *dev = vb2_get_drv_priv(vq);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
-	unsigned long size;
+	unsigned long size = v4l2->vbi_width * v4l2->vbi_height * 2;
 
-	if (fmt)
-		size = fmt->fmt.pix.sizeimage;
-	else
-		size = v4l2->vbi_width * v4l2->vbi_height * 2;
-
-	if (0 == *nbuffers)
-		*nbuffers = 32;
 	if (*nbuffers < 2)
 		*nbuffers = 2;
-	if (*nbuffers > 32)
-		*nbuffers = 32;
+
+	if (*nplanes) {
+		if (sizes[0] < size)
+			return -EINVAL;
+		size = sizes[0];
+	}
 
 	*nplanes = 1;
 	sizes[0] = size;

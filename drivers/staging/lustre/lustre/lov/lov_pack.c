@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -258,22 +258,9 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 	int rc;
 
 	if (lsm_op_find(le32_to_cpu(*(__u32 *)lmm)) == NULL) {
-		char *buffer;
-		int sz;
-
 		CERROR("bad disk LOV MAGIC: 0x%08X; dumping LMM (size=%d):\n",
 		       le32_to_cpu(*(__u32 *)lmm), lmm_bytes);
-		sz = lmm_bytes * 2 + 1;
-		buffer = libcfs_kvzalloc(sz, GFP_NOFS);
-		if (buffer != NULL) {
-			int i;
-
-			for (i = 0; i < lmm_bytes; i++)
-				sprintf(buffer+2*i, "%.2X", ((char *)lmm)[i]);
-			buffer[sz - 1] = '\0';
-			CERROR("%s\n", buffer);
-			kvfree(buffer);
-		}
+		CERROR("%*phN\n", lmm_bytes, lmm);
 		return -EINVAL;
 	}
 	rc = lsm_op_find(le32_to_cpu(*(__u32 *)lmm))->lsm_lmm_verify(lmm,

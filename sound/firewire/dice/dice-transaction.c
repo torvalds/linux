@@ -9,7 +9,7 @@
 
 #include "dice.h"
 
-#define NOTIFICATION_TIMEOUT_MS	100
+#define NOTIFICATION_TIMEOUT_MS	(2 * MSEC_PER_SEC)
 
 static u64 get_subaddr(struct snd_dice *dice, enum snd_dice_addr_type type,
 		       u64 offset)
@@ -65,16 +65,15 @@ static unsigned int get_clock_info(struct snd_dice *dice, __be32 *info)
 static int set_clock_info(struct snd_dice *dice,
 			  unsigned int rate, unsigned int source)
 {
-	unsigned int retries = 3;
 	unsigned int i;
 	__be32 info;
 	u32 mask;
 	u32 clock;
 	int err;
-retry:
+
 	err = get_clock_info(dice, &info);
 	if (err < 0)
-		goto end;
+		return err;
 
 	clock = be32_to_cpu(info);
 	if (source != UINT_MAX) {
@@ -87,10 +86,8 @@ retry:
 			if (snd_dice_rates[i] == rate)
 				break;
 		}
-		if (i == ARRAY_SIZE(snd_dice_rates)) {
-			err = -EINVAL;
-			goto end;
-		}
+		if (i == ARRAY_SIZE(snd_dice_rates))
+			return -EINVAL;
 
 		mask = CLOCK_RATE_MASK;
 		clock &= ~mask;
@@ -104,25 +101,13 @@ retry:
 	err = snd_dice_transaction_write_global(dice, GLOBAL_CLOCK_SELECT,
 						&info, 4);
 	if (err < 0)
-		goto end;
+		return err;
 
-	/* Timeout means it's invalid request, probably bus reset occurred. */
 	if (wait_for_completion_timeout(&dice->clock_accepted,
-			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0) {
-		if (retries-- == 0) {
-			err = -ETIMEDOUT;
-			goto end;
-		}
+			msecs_to_jiffies(NOTIFICATION_TIMEOUT_MS)) == 0)
+		return -ETIMEDOUT;
 
-		err = snd_dice_transaction_reinit(dice);
-		if (err < 0)
-			goto end;
-
-		msleep(500);	/* arbitrary */
-		goto retry;
-	}
-end:
-	return err;
+	return 0;
 }
 
 int snd_dice_transaction_get_clock_source(struct snd_dice *dice,
@@ -331,39 +316,60 @@ int snd_dice_transaction_reinit(struct snd_dice *dice)
 	return register_notification_address(dice, false);
 }
 
-int snd_dice_transaction_init(struct snd_dice *dice)
+static int get_subaddrs(struct snd_dice *dice)
 {
-	struct fw_address_handler *handler = &dice->notification_handler;
+	static const int min_values[10] = {
+		10, 0x64 / 4,
+		10, 0x18 / 4,
+		10, 0x18 / 4,
+		0, 0,
+		0, 0,
+	};
 	__be32 *pointers;
+	__be32 version;
+	u32 data;
+	unsigned int i;
 	int err;
 
-	/* Use the same way which dice_interface_check() does. */
-	pointers = kmalloc(sizeof(__be32) * 10, GFP_KERNEL);
+	pointers = kmalloc_array(ARRAY_SIZE(min_values), sizeof(__be32),
+				 GFP_KERNEL);
 	if (pointers == NULL)
 		return -ENOMEM;
 
-	/* Get offsets for sub-addresses */
+	/*
+	 * Check that the sub address spaces exist and are located inside the
+	 * private address space.  The minimum values are chosen so that all
+	 * minimally required registers are included.
+	 */
 	err = snd_fw_transaction(dice->unit, TCODE_READ_BLOCK_REQUEST,
-				 DICE_PRIVATE_SPACE,
-				 pointers, sizeof(__be32) * 10, 0);
+				 DICE_PRIVATE_SPACE, pointers,
+				 sizeof(__be32) * ARRAY_SIZE(min_values), 0);
 	if (err < 0)
 		goto end;
 
-	/* Allocation callback in address space over host controller */
-	handler->length = 4;
-	handler->address_callback = dice_notification;
-	handler->callback_data = dice;
-	err = fw_core_add_address_handler(handler, &fw_high_memory_region);
-	if (err < 0) {
-		handler->callback_data = NULL;
-		goto end;
+	for (i = 0; i < ARRAY_SIZE(min_values); ++i) {
+		data = be32_to_cpu(pointers[i]);
+		if (data < min_values[i] || data >= 0x40000) {
+			err = -ENODEV;
+			goto end;
+		}
 	}
 
-	/* Register the address space */
-	err = register_notification_address(dice, true);
-	if (err < 0) {
-		fw_core_remove_address_handler(handler);
-		handler->callback_data = NULL;
+	/*
+	 * Check that the implemented DICE driver specification major version
+	 * number matches.
+	 */
+	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
+				 DICE_PRIVATE_SPACE +
+				 be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
+				 &version, sizeof(version), 0);
+	if (err < 0)
+		goto end;
+
+	if ((version & cpu_to_be32(0xff000000)) != cpu_to_be32(0x01000000)) {
+		dev_err(&dice->unit->device,
+			"unknown DICE version: 0x%08x\n", be32_to_cpu(version));
+		err = -ENODEV;
 		goto end;
 	}
 
@@ -378,5 +384,34 @@ int snd_dice_transaction_init(struct snd_dice *dice)
 		dice->clock_caps = 1;
 end:
 	kfree(pointers);
+	return err;
+}
+
+int snd_dice_transaction_init(struct snd_dice *dice)
+{
+	struct fw_address_handler *handler = &dice->notification_handler;
+	int err;
+
+	err = get_subaddrs(dice);
+	if (err < 0)
+		return err;
+
+	/* Allocation callback in address space over host controller */
+	handler->length = 4;
+	handler->address_callback = dice_notification;
+	handler->callback_data = dice;
+	err = fw_core_add_address_handler(handler, &fw_high_memory_region);
+	if (err < 0) {
+		handler->callback_data = NULL;
+		return err;
+	}
+
+	/* Register the address space */
+	err = register_notification_address(dice, true);
+	if (err < 0) {
+		fw_core_remove_address_handler(handler);
+		handler->callback_data = NULL;
+	}
+
 	return err;
 }

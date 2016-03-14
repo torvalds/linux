@@ -168,6 +168,20 @@ struct mlx4_port_config {
 
 static atomic_t pf_loading = ATOMIC_INIT(0);
 
+static inline void mlx4_set_num_reserved_uars(struct mlx4_dev *dev,
+					      struct mlx4_dev_cap *dev_cap)
+{
+	/* The reserved_uars is calculated by system page size unit.
+	 * Therefore, adjustment is added when the uar page size is less
+	 * than the system page size
+	 */
+	dev->caps.reserved_uars	=
+		max_t(int,
+		      mlx4_get_num_reserved_uar(dev),
+		      dev_cap->reserved_uars /
+			(1 << (PAGE_SHIFT - dev->uar_page_shift)));
+}
+
 int mlx4_check_port_params(struct mlx4_dev *dev,
 			   enum mlx4_port_type *port_type)
 {
@@ -386,8 +400,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_mtts      = dev_cap->reserved_mtts;
 	dev->caps.reserved_mrws	     = dev_cap->reserved_mrws;
 
-	/* The first 128 UARs are used for EQ doorbells */
-	dev->caps.reserved_uars	     = max_t(int, 128, dev_cap->reserved_uars);
 	dev->caps.reserved_pds	     = dev_cap->reserved_pds;
 	dev->caps.reserved_xrcds     = (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) ?
 					dev_cap->reserved_xrcds : 0;
@@ -404,6 +416,15 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
 	dev->caps.max_rss_tbl_sz     = dev_cap->max_rss_tbl_sz;
+
+	/* Save uar page shift */
+	if (!mlx4_is_slave(dev)) {
+		/* Virtual PCI function needs to determine UAR page size from
+		 * firmware. Only master PCI function can set the uar page size
+		 */
+		dev->uar_page_shift = DEFAULT_UAR_PAGE_SHIFT;
+		mlx4_set_num_reserved_uars(dev, dev_cap);
+	}
 
 	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_PHV_EN) {
 		struct mlx4_init_hca_param hca_param;
@@ -815,15 +836,24 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENODEV;
 	}
 
-	/* slave gets uar page size from QUERY_HCA fw command */
-	dev->caps.uar_page_size = 1 << (hca_param.uar_page_sz + 12);
+	/* Set uar_page_shift for VF */
+	dev->uar_page_shift = hca_param.uar_page_sz + 12;
 
-	/* TODO: relax this assumption */
-	if (dev->caps.uar_page_size != PAGE_SIZE) {
-		mlx4_err(dev, "UAR size:%d != kernel PAGE_SIZE of %ld\n",
-			 dev->caps.uar_page_size, PAGE_SIZE);
-		return -ENODEV;
+	/* Make sure the master uar page size is valid */
+	if (dev->uar_page_shift > PAGE_SHIFT) {
+		mlx4_err(dev,
+			 "Invalid configuration: uar page size is larger than system page size\n");
+		return  -ENODEV;
 	}
+
+	/* Set reserved_uars based on the uar_page_shift */
+	mlx4_set_num_reserved_uars(dev, &dev_cap);
+
+	/* Although uar page size in FW differs from system page size,
+	 * upper software layers (mlx4_ib, mlx4_en and part of mlx4_core)
+	 * still works with assumption that uar page size == system page size
+	 */
+	dev->caps.uar_page_size = PAGE_SIZE;
 
 	memset(&func_cap, 0, sizeof(func_cap));
 	err = mlx4_QUERY_FUNC_CAP(dev, 0, &func_cap);
@@ -1221,6 +1251,84 @@ err_set_port:
 	return err ? err : count;
 }
 
+/* bond for multi-function device */
+#define MAX_MF_BOND_ALLOWED_SLAVES 63
+static int mlx4_mf_bond(struct mlx4_dev *dev)
+{
+	int err = 0;
+	int nvfs;
+	struct mlx4_slaves_pport slaves_port1;
+	struct mlx4_slaves_pport slaves_port2;
+	DECLARE_BITMAP(slaves_port_1_2, MLX4_MFUNC_MAX);
+
+	slaves_port1 = mlx4_phys_to_slaves_pport(dev, 1);
+	slaves_port2 = mlx4_phys_to_slaves_pport(dev, 2);
+	bitmap_and(slaves_port_1_2,
+		   slaves_port1.slaves, slaves_port2.slaves,
+		   dev->persist->num_vfs + 1);
+
+	/* only single port vfs are allowed */
+	if (bitmap_weight(slaves_port_1_2, dev->persist->num_vfs + 1) > 1) {
+		mlx4_warn(dev, "HA mode unsupported for dual ported VFs\n");
+		return -EINVAL;
+	}
+
+	/* number of virtual functions is number of total functions minus one
+	 * physical function for each port.
+	 */
+	nvfs = bitmap_weight(slaves_port1.slaves, dev->persist->num_vfs + 1) +
+		bitmap_weight(slaves_port2.slaves, dev->persist->num_vfs + 1) - 2;
+
+	/* limit on maximum allowed VFs */
+	if (nvfs > MAX_MF_BOND_ALLOWED_SLAVES) {
+		mlx4_warn(dev, "HA mode is not supported for %d VFs (max %d are allowed)\n",
+			  nvfs, MAX_MF_BOND_ALLOWED_SLAVES);
+		return -EINVAL;
+	}
+
+	if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		mlx4_warn(dev, "HA mode unsupported for NON DMFS steering\n");
+		return -EINVAL;
+	}
+
+	err = mlx4_bond_mac_table(dev);
+	if (err)
+		return err;
+	err = mlx4_bond_vlan_table(dev);
+	if (err)
+		goto err1;
+	err = mlx4_bond_fs_rules(dev);
+	if (err)
+		goto err2;
+
+	return 0;
+err2:
+	(void)mlx4_unbond_vlan_table(dev);
+err1:
+	(void)mlx4_unbond_mac_table(dev);
+	return err;
+}
+
+static int mlx4_mf_unbond(struct mlx4_dev *dev)
+{
+	int ret, ret1;
+
+	ret = mlx4_unbond_fs_rules(dev);
+	if (ret)
+		mlx4_warn(dev, "multifunction unbond for flow rules failedi (%d)\n", ret);
+	ret1 = mlx4_unbond_mac_table(dev);
+	if (ret1) {
+		mlx4_warn(dev, "multifunction unbond for MAC table failed (%d)\n", ret1);
+		ret = ret1;
+	}
+	ret1 = mlx4_unbond_vlan_table(dev);
+	if (ret1) {
+		mlx4_warn(dev, "multifunction unbond for VLAN table failed (%d)\n", ret1);
+		ret = ret1;
+	}
+	return ret;
+}
+
 int mlx4_bond(struct mlx4_dev *dev)
 {
 	int ret = 0;
@@ -1228,16 +1336,23 @@ int mlx4_bond(struct mlx4_dev *dev)
 
 	mutex_lock(&priv->bond_mutex);
 
-	if (!mlx4_is_bonded(dev))
+	if (!mlx4_is_bonded(dev)) {
 		ret = mlx4_do_bond(dev, true);
-	else
-		ret = 0;
+		if (ret)
+			mlx4_err(dev, "Failed to bond device: %d\n", ret);
+		if (!ret && mlx4_is_master(dev)) {
+			ret = mlx4_mf_bond(dev);
+			if (ret) {
+				mlx4_err(dev, "bond for multifunction failed\n");
+				mlx4_do_bond(dev, false);
+			}
+		}
+	}
 
 	mutex_unlock(&priv->bond_mutex);
-	if (ret)
-		mlx4_err(dev, "Failed to bond device: %d\n", ret);
-	else
+	if (!ret)
 		mlx4_dbg(dev, "Device is bonded\n");
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mlx4_bond);
@@ -1249,14 +1364,24 @@ int mlx4_unbond(struct mlx4_dev *dev)
 
 	mutex_lock(&priv->bond_mutex);
 
-	if (mlx4_is_bonded(dev))
+	if (mlx4_is_bonded(dev)) {
+		int ret2 = 0;
+
 		ret = mlx4_do_bond(dev, false);
+		if (ret)
+			mlx4_err(dev, "Failed to unbond device: %d\n", ret);
+		if (mlx4_is_master(dev))
+			ret2 = mlx4_mf_unbond(dev);
+		if (ret2) {
+			mlx4_warn(dev, "Failed to unbond device for multifunction (%d)\n", ret2);
+			ret = ret2;
+		}
+	}
 
 	mutex_unlock(&priv->bond_mutex);
-	if (ret)
-		mlx4_err(dev, "Failed to unbond device: %d\n", ret);
-	else
+	if (!ret)
 		mlx4_dbg(dev, "Device is unbonded\n");
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mlx4_unbond);
@@ -2092,8 +2217,12 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 
 		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
 
-		init_hca.log_uar_sz = ilog2(dev->caps.num_uars);
-		init_hca.uar_page_sz = PAGE_SHIFT - 12;
+		/* Always set UAR page size 4KB, set log_uar_sz accordingly */
+		init_hca.log_uar_sz = ilog2(dev->caps.num_uars) +
+				      PAGE_SHIFT -
+				      DEFAULT_UAR_PAGE_SHIFT;
+		init_hca.uar_page_sz = DEFAULT_UAR_PAGE_SHIFT - 12;
+
 		init_hca.mw_enabled = 0;
 		if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 		    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN)

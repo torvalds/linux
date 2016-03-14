@@ -224,7 +224,7 @@ static u8 ioat_dca_get_tag(struct dca_provider *dca,
 	return tag;
 }
 
-static struct dca_ops ioat_dca_ops = {
+static const struct dca_ops ioat_dca_ops = {
 	.add_requester		= ioat_dca_add_requester,
 	.remove_requester	= ioat_dca_remove_requester,
 	.get_tag		= ioat_dca_get_tag,

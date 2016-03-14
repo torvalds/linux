@@ -68,7 +68,7 @@ struct pci_platform_pm_ops {
 	bool (*need_resume)(struct pci_dev *dev);
 };
 
-int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
+int pci_set_platform_pm(const struct pci_platform_pm_ops *ops);
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
 void pci_power_up(struct pci_dev *dev);
 void pci_disable_enabled_device(struct pci_dev *dev);
@@ -144,10 +144,8 @@ extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
 void pci_no_msi(void);
-void pci_msi_init_pci_dev(struct pci_dev *dev);
 #else
 static inline void pci_no_msi(void) { }
-static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
 static inline void pci_msi_set_enable(struct pci_dev *dev, int enable)

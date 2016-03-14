@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -282,8 +282,8 @@ acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer)
 
 		/* Divide the digit into the correct position */
 
-		(void)acpi_ut_short_divide((dividend - (u64)this_digit),
-					   base, &quotient, NULL);
+		(void)acpi_ut_short_divide((dividend - (u64)this_digit), base,
+					   &quotient, NULL);
 
 		if (return_value > quotient) {
 			if (to_integer_op) {

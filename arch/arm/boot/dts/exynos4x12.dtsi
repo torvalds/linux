@@ -116,7 +116,6 @@
 		clocks = <&clock CLK_SCLK_FIMG2D>, <&clock CLK_G2D>;
 		clock-names = "sclk_fimg2d", "fimg2d";
 		iommus = <&sysmmu_g2d>;
-		status = "disabled";
 	};
 
 	camera {
@@ -337,6 +336,10 @@
 
 &jpeg_codec {
 	compatible = "samsung,exynos4212-jpeg";
+};
+
+&rotator {
+	compatible = "samsung,exynos4212-rotator";
 };
 
 &mixer {

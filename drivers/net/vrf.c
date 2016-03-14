@@ -46,17 +46,7 @@
 #define vrf_master_get_rcu(dev) \
 	((struct net_device *)rcu_dereference(dev->rx_handler_data))
 
-struct slave {
-	struct list_head        list;
-	struct net_device       *dev;
-};
-
-struct slave_queue {
-	struct list_head        all_slaves;
-};
-
 struct net_vrf {
-	struct slave_queue      queue;
 	struct rtable           *rth;
 	struct rt6_info		*rt6;
 	u32                     tb_id;
@@ -114,20 +104,23 @@ static struct dst_ops vrf_dst_ops = {
 #if IS_ENABLED(CONFIG_IPV6)
 static bool check_ipv6_frame(const struct sk_buff *skb)
 {
-	const struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->data;
-	size_t hlen = sizeof(*ipv6h);
+	const struct ipv6hdr *ipv6h;
+	struct ipv6hdr _ipv6h;
 	bool rc = true;
 
-	if (skb->len < hlen)
+	ipv6h = skb_header_pointer(skb, 0, sizeof(_ipv6h), &_ipv6h);
+	if (!ipv6h)
 		goto out;
 
 	if (ipv6h->nexthdr == NEXTHDR_ICMP) {
 		const struct icmp6hdr *icmph;
+		struct icmp6hdr _icmph;
 
-		if (skb->len < hlen + sizeof(*icmph))
+		icmph = skb_header_pointer(skb, sizeof(_ipv6h),
+					   sizeof(_icmph), &_icmph);
+		if (!icmph)
 			goto out;
 
-		icmph = (struct icmp6hdr *)(skb->data + sizeof(*ipv6h));
 		switch (icmph->icmp6_type) {
 		case NDISC_ROUTER_SOLICITATION:
 		case NDISC_ROUTER_ADVERTISEMENT:
@@ -621,42 +614,9 @@ static void cycle_netdev(struct net_device *dev)
 	}
 }
 
-static struct slave *__vrf_find_slave_dev(struct slave_queue *queue,
-					  struct net_device *dev)
-{
-	struct list_head *head = &queue->all_slaves;
-	struct slave *slave;
-
-	list_for_each_entry(slave, head, list) {
-		if (slave->dev == dev)
-			return slave;
-	}
-
-	return NULL;
-}
-
-/* inverse of __vrf_insert_slave */
-static void __vrf_remove_slave(struct slave_queue *queue, struct slave *slave)
-{
-	list_del(&slave->list);
-}
-
-static void __vrf_insert_slave(struct slave_queue *queue, struct slave *slave)
-{
-	list_add(&slave->list, &queue->all_slaves);
-}
-
 static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct slave *slave = kzalloc(sizeof(*slave), GFP_KERNEL);
-	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	int ret = -ENOMEM;
-
-	if (!slave)
-		goto out_fail;
-
-	slave->dev = port_dev;
+	int ret;
 
 	/* register the packet handler for slave ports */
 	ret = netdev_rx_handler_register(port_dev, vrf_handle_frame, dev);
@@ -667,12 +627,11 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 		goto out_fail;
 	}
 
-	ret = netdev_master_upper_dev_link(port_dev, dev);
+	ret = netdev_master_upper_dev_link(port_dev, dev, NULL, NULL);
 	if (ret < 0)
 		goto out_unregister;
 
 	port_dev->priv_flags |= IFF_L3MDEV_SLAVE;
-	__vrf_insert_slave(queue, slave);
 	cycle_netdev(port_dev);
 
 	return 0;
@@ -680,7 +639,6 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 out_unregister:
 	netdev_rx_handler_unregister(port_dev);
 out_fail:
-	kfree(slave);
 	return ret;
 }
 
@@ -695,22 +653,12 @@ static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev)
 /* inverse of do_vrf_add_slave */
 static int do_vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 {
-	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	struct slave *slave;
-
 	netdev_upper_dev_unlink(port_dev, dev);
 	port_dev->priv_flags &= ~IFF_L3MDEV_SLAVE;
 
 	netdev_rx_handler_unregister(port_dev);
 
 	cycle_netdev(port_dev);
-
-	slave = __vrf_find_slave_dev(queue, port_dev);
-	if (slave)
-		__vrf_remove_slave(queue, slave);
-
-	kfree(slave);
 
 	return 0;
 }
@@ -723,15 +671,14 @@ static int vrf_del_slave(struct net_device *dev, struct net_device *port_dev)
 static void vrf_dev_uninit(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-	struct slave_queue *queue = &vrf->queue;
-	struct list_head *head = &queue->all_slaves;
-	struct slave *slave, *next;
+	struct net_device *port_dev;
+	struct list_head *iter;
 
 	vrf_rtable_destroy(vrf);
 	vrf_rt6_destroy(vrf);
 
-	list_for_each_entry_safe(slave, next, head, list)
-		vrf_del_slave(dev, slave->dev);
+	netdev_for_each_lower_dev(dev, port_dev, iter)
+		vrf_del_slave(dev, port_dev);
 
 	free_percpu(dev->dstats);
 	dev->dstats = NULL;
@@ -740,8 +687,6 @@ static void vrf_dev_uninit(struct net_device *dev)
 static int vrf_dev_init(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
-
-	INIT_LIST_HEAD(&vrf->queue.all_slaves);
 
 	dev->dstats = netdev_alloc_pcpu_stats(struct pcpu_dstats);
 	if (!dev->dstats)

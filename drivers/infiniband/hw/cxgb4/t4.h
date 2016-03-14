@@ -699,4 +699,11 @@ static inline void t4_set_cq_in_error(struct t4_cq *cq)
 
 struct t4_dev_status_page {
 	u8 db_off;
+	u8 pad1;
+	u16 pad2;
+	u32 pad3;
+	u64 qp_start;
+	u64 qp_size;
+	u64 cq_start;
+	u64 cq_size;
 };

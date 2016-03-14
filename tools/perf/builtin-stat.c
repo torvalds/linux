@@ -45,7 +45,7 @@
 #include "builtin.h"
 #include "util/cgroup.h"
 #include "util/util.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/pmu.h"
 #include "util/event.h"
@@ -59,6 +59,9 @@
 #include "util/thread.h"
 #include "util/thread_map.h"
 #include "util/counts.h"
+#include "util/session.h"
+#include "util/tool.h"
+#include "asm/bug.h"
 
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -126,6 +129,21 @@ static bool			append_file;
 static const char		*output_name;
 static int			output_fd;
 
+struct perf_stat {
+	bool			 record;
+	struct perf_data_file	 file;
+	struct perf_session	*session;
+	u64			 bytes_written;
+	struct perf_tool	 tool;
+	bool			 maps_allocated;
+	struct cpu_map		*cpus;
+	struct thread_map	*threads;
+	enum aggr_mode		 aggr_mode;
+};
+
+static struct perf_stat		perf_stat;
+#define STAT_RECORD		perf_stat.record
+
 static volatile int done = 0;
 
 static struct perf_stat_config stat_config = {
@@ -161,14 +179,42 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 
 	attr->inherit = !no_inherit;
 
-	if (target__has_cpu(&target))
-		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
+	/*
+	 * Some events get initialized with sample_(period/type) set,
+	 * like tracepoints. Clear it up for counting.
+	 */
+	attr->sample_period = 0;
 
-	if (!target__has_task(&target) && perf_evsel__is_group_leader(evsel)) {
+	/*
+	 * But set sample_type to PERF_SAMPLE_IDENTIFIER, which should be harmless
+	 * while avoiding that older tools show confusing messages.
+	 *
+	 * However for pipe sessions we need to keep it zero,
+	 * because script's perf_evsel__check_attr is triggered
+	 * by attr->sample_type != 0, and we can't run it on
+	 * stat sessions.
+	 */
+	if (!(STAT_RECORD && perf_stat.file.is_pipe))
+		attr->sample_type = PERF_SAMPLE_IDENTIFIER;
+
+	/*
+	 * Disabling all counters initially, they will be enabled
+	 * either manually by us or by kernel via enable_on_exec
+	 * set later.
+	 */
+	if (perf_evsel__is_group_leader(evsel)) {
 		attr->disabled = 1;
-		if (!initial_delay)
+
+		/*
+		 * In case of initial_delay we enable tracee
+		 * events manually.
+		 */
+		if (target__none(&target) && !initial_delay)
 			attr->enable_on_exec = 1;
 	}
+
+	if (target__has_cpu(&target))
+		return perf_evsel__open_per_cpu(evsel, perf_evsel__cpus(evsel));
 
 	return perf_evsel__open_per_thread(evsel, evsel_list->threads);
 }
@@ -183,6 +229,42 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 		return 1;
 
 	return 0;
+}
+
+static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine __maybe_unused)
+{
+	if (perf_data_file__write(&perf_stat.file, event, event->header.size) < 0) {
+		pr_err("failed to write perf data, error: %m\n");
+		return -1;
+	}
+
+	perf_stat.bytes_written += event->header.size;
+	return 0;
+}
+
+static int write_stat_round_event(u64 tm, u64 type)
+{
+	return perf_event__synthesize_stat_round(NULL, tm, type,
+						 process_synthesized_event,
+						 NULL);
+}
+
+#define WRITE_STAT_ROUND_EVENT(time, interval) \
+	write_stat_round_event(time, PERF_STAT_ROUND_TYPE__ ## interval)
+
+#define SID(e, x, y) xyarray__entry(e->sample_id, x, y)
+
+static int
+perf_evsel__write_stat_event(struct perf_evsel *counter, u32 cpu, u32 thread,
+			     struct perf_counts_values *count)
+{
+	struct perf_sample_id *sid = SID(counter, cpu, thread);
+
+	return perf_event__synthesize_stat(NULL, cpu, thread, sid->id, count,
+					   process_synthesized_event, NULL);
 }
 
 /*
@@ -208,6 +290,13 @@ static int read_counter(struct perf_evsel *counter)
 			count = perf_counts(counter->counts, cpu, thread);
 			if (perf_evsel__read(counter, cpu, thread, count))
 				return -1;
+
+			if (STAT_RECORD) {
+				if (perf_evsel__write_stat_event(counter, cpu, thread, count)) {
+					pr_err("failed to write stat event\n");
+					return -1;
+				}
+			}
 		}
 	}
 
@@ -241,21 +330,26 @@ static void process_interval(void)
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	diff_timespec(&rs, &ts, &ref_time);
 
+	if (STAT_RECORD) {
+		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSECS_PER_SEC + rs.tv_nsec, INTERVAL))
+			pr_err("failed to write stat round event\n");
+	}
+
 	print_counters(&rs, 0, NULL);
 }
 
-static void handle_initial_delay(void)
+static void enable_counters(void)
 {
-	struct perf_evsel *counter;
-
-	if (initial_delay) {
-		const int ncpus = cpu_map__nr(evsel_list->cpus),
-			nthreads = thread_map__nr(evsel_list->threads);
-
+	if (initial_delay)
 		usleep(initial_delay * 1000);
-		evlist__for_each(evsel_list, counter)
-			perf_evsel__enable(counter, ncpus, nthreads);
-	}
+
+	/*
+	 * We need to enable counters only if:
+	 * - we don't have tracee (attaching to task or cpu)
+	 * - we have initial delay configured
+	 */
+	if (!target__none(&target) || initial_delay)
+		perf_evlist__enable(evsel_list);
 }
 
 static volatile int workload_exec_errno;
@@ -271,6 +365,135 @@ static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *inf
 	workload_exec_errno = info->si_value.sival_int;
 }
 
+static bool has_unit(struct perf_evsel *counter)
+{
+	return counter->unit && *counter->unit;
+}
+
+static bool has_scale(struct perf_evsel *counter)
+{
+	return counter->scale != 1;
+}
+
+static int perf_stat_synthesize_config(bool is_pipe)
+{
+	struct perf_evsel *counter;
+	int err;
+
+	if (is_pipe) {
+		err = perf_event__synthesize_attrs(NULL, perf_stat.session,
+						   process_synthesized_event);
+		if (err < 0) {
+			pr_err("Couldn't synthesize attrs.\n");
+			return err;
+		}
+	}
+
+	/*
+	 * Synthesize other events stuff not carried within
+	 * attr event - unit, scale, name
+	 */
+	evlist__for_each(evsel_list, counter) {
+		if (!counter->supported)
+			continue;
+
+		/*
+		 * Synthesize unit and scale only if it's defined.
+		 */
+		if (has_unit(counter)) {
+			err = perf_event__synthesize_event_update_unit(NULL, counter, process_synthesized_event);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel unit.\n");
+				return err;
+			}
+		}
+
+		if (has_scale(counter)) {
+			err = perf_event__synthesize_event_update_scale(NULL, counter, process_synthesized_event);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel scale.\n");
+				return err;
+			}
+		}
+
+		if (counter->own_cpus) {
+			err = perf_event__synthesize_event_update_cpus(NULL, counter, process_synthesized_event);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel scale.\n");
+				return err;
+			}
+		}
+
+		/*
+		 * Name is needed only for pipe output,
+		 * perf.data carries event names.
+		 */
+		if (is_pipe) {
+			err = perf_event__synthesize_event_update_name(NULL, counter, process_synthesized_event);
+			if (err < 0) {
+				pr_err("Couldn't synthesize evsel name.\n");
+				return err;
+			}
+		}
+	}
+
+	err = perf_event__synthesize_thread_map2(NULL, evsel_list->threads,
+						process_synthesized_event,
+						NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize thread map.\n");
+		return err;
+	}
+
+	err = perf_event__synthesize_cpu_map(NULL, evsel_list->cpus,
+					     process_synthesized_event, NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize thread map.\n");
+		return err;
+	}
+
+	err = perf_event__synthesize_stat_config(NULL, &stat_config,
+						 process_synthesized_event, NULL);
+	if (err < 0) {
+		pr_err("Couldn't synthesize config.\n");
+		return err;
+	}
+
+	return 0;
+}
+
+#define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
+
+static int __store_counter_ids(struct perf_evsel *counter,
+			       struct cpu_map *cpus,
+			       struct thread_map *threads)
+{
+	int cpu, thread;
+
+	for (cpu = 0; cpu < cpus->nr; cpu++) {
+		for (thread = 0; thread < threads->nr; thread++) {
+			int fd = FD(counter, cpu, thread);
+
+			if (perf_evlist__id_add_fd(evsel_list, counter,
+						   cpu, thread, fd) < 0)
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
+static int store_counter_ids(struct perf_evsel *counter)
+{
+	struct cpu_map *cpus = counter->cpus;
+	struct thread_map *threads = counter->threads;
+
+	if (perf_evsel__alloc_id(counter, cpus->nr, threads->nr))
+		return -ENOMEM;
+
+	return __store_counter_ids(counter, cpus, threads);
+}
+
 static int __run_perf_stat(int argc, const char **argv)
 {
 	int interval = stat_config.interval;
@@ -281,6 +504,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	size_t l;
 	int status = 0;
 	const bool forks = (argc > 0);
+	bool is_pipe = STAT_RECORD ? perf_stat.file.is_pipe : false;
 
 	if (interval) {
 		ts.tv_sec  = interval / 1000;
@@ -291,7 +515,7 @@ static int __run_perf_stat(int argc, const char **argv)
 	}
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv, false,
+		if (perf_evlist__prepare_workload(evsel_list, &target, argv, is_pipe,
 						  workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
@@ -335,6 +559,9 @@ static int __run_perf_stat(int argc, const char **argv)
 		l = strlen(counter->unit);
 		if (l > unit_width)
 			unit_width = l;
+
+		if (STAT_RECORD && store_counter_ids(counter))
+			return -1;
 	}
 
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
@@ -342,6 +569,24 @@ static int __run_perf_stat(int argc, const char **argv)
 			counter->filter, perf_evsel__name(counter), errno,
 			strerror_r(errno, msg, sizeof(msg)));
 		return -1;
+	}
+
+	if (STAT_RECORD) {
+		int err, fd = perf_data_file__fd(&perf_stat.file);
+
+		if (is_pipe) {
+			err = perf_header__write_pipe(perf_data_file__fd(&perf_stat.file));
+		} else {
+			err = perf_session__write_header(perf_stat.session, evsel_list,
+							 fd, false);
+		}
+
+		if (err < 0)
+			return err;
+
+		err = perf_stat_synthesize_config(is_pipe);
+		if (err < 0)
+			return err;
 	}
 
 	/*
@@ -352,7 +597,7 @@ static int __run_perf_stat(int argc, const char **argv)
 
 	if (forks) {
 		perf_evlist__start_workload(evsel_list);
-		handle_initial_delay();
+		enable_counters();
 
 		if (interval) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
@@ -371,7 +616,7 @@ static int __run_perf_stat(int argc, const char **argv)
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
-		handle_initial_delay();
+		enable_counters();
 		while (!done) {
 			nanosleep(&ts, NULL);
 			if (interval)
@@ -810,8 +1055,8 @@ static void print_header(int argc, const char **argv)
 		else if (target.cpu_list)
 			fprintf(output, "\'CPU(s) %s", target.cpu_list);
 		else if (!target__has_task(&target)) {
-			fprintf(output, "\'%s", argv[0]);
-			for (i = 1; i < argc; i++)
+			fprintf(output, "\'%s", argv ? argv[0] : "pipe");
+			for (i = 1; argv && (i < argc); i++)
 				fprintf(output, " %s", argv[i]);
 		} else if (target.pid)
 			fprintf(output, "process id \'%s", target.pid);
@@ -846,6 +1091,10 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	int interval = stat_config.interval;
 	struct perf_evsel *counter;
 	char buf[64], *prefix = NULL;
+
+	/* Do not print anything if we record to the pipe. */
+	if (STAT_RECORD && perf_stat.file.is_pipe)
+		return;
 
 	if (interval)
 		print_interval(prefix = buf, ts);
@@ -1077,6 +1326,109 @@ static int perf_stat_init_aggr_mode(void)
 	return cpus_aggr_map ? 0 : -ENOMEM;
 }
 
+static void perf_stat__exit_aggr_mode(void)
+{
+	cpu_map__put(aggr_map);
+	cpu_map__put(cpus_aggr_map);
+	aggr_map = NULL;
+	cpus_aggr_map = NULL;
+}
+
+static inline int perf_env__get_cpu(struct perf_env *env, struct cpu_map *map, int idx)
+{
+	int cpu;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	if (cpu >= env->nr_cpus_online)
+		return -1;
+
+	return cpu;
+}
+
+static int perf_env__get_socket(struct cpu_map *map, int idx, void *data)
+{
+	struct perf_env *env = data;
+	int cpu = perf_env__get_cpu(env, map, idx);
+
+	return cpu == -1 ? -1 : env->cpu[cpu].socket_id;
+}
+
+static int perf_env__get_core(struct cpu_map *map, int idx, void *data)
+{
+	struct perf_env *env = data;
+	int core = -1, cpu = perf_env__get_cpu(env, map, idx);
+
+	if (cpu != -1) {
+		int socket_id = env->cpu[cpu].socket_id;
+
+		/*
+		 * Encode socket in upper 16 bits
+		 * core_id is relative to socket, and
+		 * we need a global id. So we combine
+		 * socket + core id.
+		 */
+		core = (socket_id << 16) | (env->cpu[cpu].core_id & 0xffff);
+	}
+
+	return core;
+}
+
+static int perf_env__build_socket_map(struct perf_env *env, struct cpu_map *cpus,
+				      struct cpu_map **sockp)
+{
+	return cpu_map__build_map(cpus, sockp, perf_env__get_socket, env);
+}
+
+static int perf_env__build_core_map(struct perf_env *env, struct cpu_map *cpus,
+				    struct cpu_map **corep)
+{
+	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
+}
+
+static int perf_stat__get_socket_file(struct cpu_map *map, int idx)
+{
+	return perf_env__get_socket(map, idx, &perf_stat.session->header.env);
+}
+
+static int perf_stat__get_core_file(struct cpu_map *map, int idx)
+{
+	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
+}
+
+static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
+{
+	struct perf_env *env = &st->session->header.env;
+
+	switch (stat_config.aggr_mode) {
+	case AGGR_SOCKET:
+		if (perf_env__build_socket_map(env, evsel_list->cpus, &aggr_map)) {
+			perror("cannot build socket map");
+			return -1;
+		}
+		aggr_get_id = perf_stat__get_socket_file;
+		break;
+	case AGGR_CORE:
+		if (perf_env__build_core_map(env, evsel_list->cpus, &aggr_map)) {
+			perror("cannot build core map");
+			return -1;
+		}
+		aggr_get_id = perf_stat__get_core_file;
+		break;
+	case AGGR_NONE:
+	case AGGR_GLOBAL:
+	case AGGR_THREAD:
+	case AGGR_UNSET:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -1236,6 +1588,225 @@ static int add_default_attributes(void)
 	return perf_evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
 }
 
+static const char * const stat_record_usage[] = {
+	"perf stat record [<options>]",
+	NULL,
+};
+
+static void init_features(struct perf_session *session)
+{
+	int feat;
+
+	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
+		perf_header__set_feat(&session->header, feat);
+
+	perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
+	perf_header__clear_feat(&session->header, HEADER_TRACING_DATA);
+	perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+	perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
+}
+
+static int __cmd_record(int argc, const char **argv)
+{
+	struct perf_session *session;
+	struct perf_data_file *file = &perf_stat.file;
+
+	argc = parse_options(argc, argv, stat_options, stat_record_usage,
+			     PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (output_name)
+		file->path = output_name;
+
+	if (run_count != 1 || forever) {
+		pr_err("Cannot use -r option with perf stat record.\n");
+		return -1;
+	}
+
+	session = perf_session__new(file, false, NULL);
+	if (session == NULL) {
+		pr_err("Perf session creation failed.\n");
+		return -1;
+	}
+
+	init_features(session);
+
+	session->evlist   = evsel_list;
+	perf_stat.session = session;
+	perf_stat.record  = true;
+	return argc;
+}
+
+static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+				    union perf_event *event,
+				    struct perf_session *session)
+{
+	struct stat_round_event *round = &event->stat_round;
+	struct perf_evsel *counter;
+	struct timespec tsh, *ts = NULL;
+	const char **argv = session->header.env.cmdline_argv;
+	int argc = session->header.env.nr_cmdline;
+
+	evlist__for_each(evsel_list, counter)
+		perf_stat_process_counter(&stat_config, counter);
+
+	if (round->type == PERF_STAT_ROUND_TYPE__FINAL)
+		update_stats(&walltime_nsecs_stats, round->time);
+
+	if (stat_config.interval && round->time) {
+		tsh.tv_sec  = round->time / NSECS_PER_SEC;
+		tsh.tv_nsec = round->time % NSECS_PER_SEC;
+		ts = &tsh;
+	}
+
+	print_counters(ts, argc, argv);
+	return 0;
+}
+
+static
+int process_stat_config_event(struct perf_tool *tool __maybe_unused,
+			      union perf_event *event,
+			      struct perf_session *session __maybe_unused)
+{
+	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
+
+	perf_event__read_stat_config(&stat_config, &event->stat_config);
+
+	if (cpu_map__empty(st->cpus)) {
+		if (st->aggr_mode != AGGR_UNSET)
+			pr_warning("warning: processing task data, aggregation mode not set\n");
+		return 0;
+	}
+
+	if (st->aggr_mode != AGGR_UNSET)
+		stat_config.aggr_mode = st->aggr_mode;
+
+	if (perf_stat.file.is_pipe)
+		perf_stat_init_aggr_mode();
+	else
+		perf_stat_init_aggr_mode_file(st);
+
+	return 0;
+}
+
+static int set_maps(struct perf_stat *st)
+{
+	if (!st->cpus || !st->threads)
+		return 0;
+
+	if (WARN_ONCE(st->maps_allocated, "stats double allocation\n"))
+		return -EINVAL;
+
+	perf_evlist__set_maps(evsel_list, st->cpus, st->threads);
+
+	if (perf_evlist__alloc_stats(evsel_list, true))
+		return -ENOMEM;
+
+	st->maps_allocated = true;
+	return 0;
+}
+
+static
+int process_thread_map_event(struct perf_tool *tool __maybe_unused,
+			     union perf_event *event,
+			     struct perf_session *session __maybe_unused)
+{
+	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
+
+	if (st->threads) {
+		pr_warning("Extra thread map event, ignoring.\n");
+		return 0;
+	}
+
+	st->threads = thread_map__new_event(&event->thread_map);
+	if (!st->threads)
+		return -ENOMEM;
+
+	return set_maps(st);
+}
+
+static
+int process_cpu_map_event(struct perf_tool *tool __maybe_unused,
+			  union perf_event *event,
+			  struct perf_session *session __maybe_unused)
+{
+	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
+	struct cpu_map *cpus;
+
+	if (st->cpus) {
+		pr_warning("Extra cpu map event, ignoring.\n");
+		return 0;
+	}
+
+	cpus = cpu_map__new_data(&event->cpu_map.data);
+	if (!cpus)
+		return -ENOMEM;
+
+	st->cpus = cpus;
+	return set_maps(st);
+}
+
+static const char * const stat_report_usage[] = {
+	"perf stat report [<options>]",
+	NULL,
+};
+
+static struct perf_stat perf_stat = {
+	.tool = {
+		.attr		= perf_event__process_attr,
+		.event_update	= perf_event__process_event_update,
+		.thread_map	= process_thread_map_event,
+		.cpu_map	= process_cpu_map_event,
+		.stat_config	= process_stat_config_event,
+		.stat		= perf_event__process_stat_event,
+		.stat_round	= process_stat_round_event,
+	},
+	.aggr_mode = AGGR_UNSET,
+};
+
+static int __cmd_report(int argc, const char **argv)
+{
+	struct perf_session *session;
+	const struct option options[] = {
+	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_SET_UINT(0, "per-socket", &perf_stat.aggr_mode,
+		     "aggregate counts per processor socket", AGGR_SOCKET),
+	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
+		     "aggregate counts per physical processor core", AGGR_CORE),
+	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
+		     "disable CPU count aggregation", AGGR_NONE),
+	OPT_END()
+	};
+	struct stat st;
+	int ret;
+
+	argc = parse_options(argc, argv, options, stat_report_usage, 0);
+
+	if (!input_name || !strlen(input_name)) {
+		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+			input_name = "-";
+		else
+			input_name = "perf.data";
+	}
+
+	perf_stat.file.path = input_name;
+	perf_stat.file.mode = PERF_DATA_MODE_READ;
+
+	session = perf_session__new(&perf_stat.file, false, &perf_stat.tool);
+	if (session == NULL)
+		return -1;
+
+	perf_stat.session  = session;
+	stat_config.output = stderr;
+	evsel_list         = session->evlist;
+
+	ret = perf_session__process_events(session);
+	if (ret)
+		return ret;
+
+	perf_session__delete(session);
+	return 0;
+}
+
 int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	const char * const stat_usage[] = {
@@ -1246,6 +1817,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	const char *mode;
 	FILE *output = stderr;
 	unsigned int interval;
+	const char * const stat_subcommands[] = { "record", "report" };
 
 	setlocale(LC_ALL, "");
 
@@ -1253,12 +1825,30 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (evsel_list == NULL)
 		return -ENOMEM;
 
-	argc = parse_options(argc, argv, stat_options, stat_usage,
-		PARSE_OPT_STOP_AT_NON_OPTION);
+	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
+					(const char **) stat_usage,
+					PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (csv_sep) {
+		csv_output = true;
+		if (!strcmp(csv_sep, "\\t"))
+			csv_sep = "\t";
+	} else
+		csv_sep = DEFAULT_SEPARATOR;
+
+	if (argc && !strncmp(argv[0], "rec", 3)) {
+		argc = __cmd_record(argc, argv);
+		if (argc < 0)
+			return -1;
+	} else if (argc && !strncmp(argv[0], "rep", 3))
+		return __cmd_report(argc, argv);
 
 	interval = stat_config.interval;
 
-	if (output_name && strcmp(output_name, "-"))
+	/*
+	 * For record command the -o is already taken care of.
+	 */
+	if (!STAT_RECORD && output_name && strcmp(output_name, "-"))
 		output = NULL;
 
 	if (output_name && output_fd) {
@@ -1295,13 +1885,6 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	stat_config.output = output;
-
-	if (csv_sep) {
-		csv_output = true;
-		if (!strcmp(csv_sep, "\\t"))
-			csv_sep = "\t";
-	} else
-		csv_sep = DEFAULT_SEPARATOR;
 
 	/*
 	 * let the spreadsheet do the pretty-printing
@@ -1425,6 +2008,42 @@ int cmd_stat(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (!forever && status != -1 && !interval)
 		print_counters(NULL, argc, argv);
 
+	if (STAT_RECORD) {
+		/*
+		 * We synthesize the kernel mmap record just so that older tools
+		 * don't emit warnings about not being able to resolve symbols
+		 * due to /proc/sys/kernel/kptr_restrict settings and instear provide
+		 * a saner message about no samples being in the perf.data file.
+		 *
+		 * This also serves to suppress a warning about f_header.data.size == 0
+		 * in header.c at the moment 'perf stat record' gets introduced, which
+		 * is not really needed once we start adding the stat specific PERF_RECORD_
+		 * records, but the need to suppress the kptr_restrict messages in older
+		 * tools remain  -acme
+		 */
+		int fd = perf_data_file__fd(&perf_stat.file);
+		int err = perf_event__synthesize_kernel_mmap((void *)&perf_stat,
+							     process_synthesized_event,
+							     &perf_stat.session->machines.host);
+		if (err) {
+			pr_warning("Couldn't synthesize the kernel mmap record, harmless, "
+				   "older tools may produce warnings about this file\n.");
+		}
+
+		if (!interval) {
+			if (WRITE_STAT_ROUND_EVENT(walltime_nsecs_stats.max, FINAL))
+				pr_err("failed to write stat round event\n");
+		}
+
+		if (!perf_stat.file.is_pipe) {
+			perf_stat.session->header.data_size += perf_stat.bytes_written;
+			perf_session__write_header(perf_stat.session, evsel_list, fd, true);
+		}
+
+		perf_session__delete(perf_stat.session);
+	}
+
+	perf_stat__exit_aggr_mode();
 	perf_evlist__free_stats(evsel_list);
 out:
 	perf_evlist__delete(evsel_list);

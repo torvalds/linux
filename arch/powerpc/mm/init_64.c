@@ -87,11 +87,7 @@ static void pgd_ctor(void *addr)
 
 static void pmd_ctor(void *addr)
 {
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	memset(addr, 0, PMD_TABLE_SIZE * 2);
-#else
 	memset(addr, 0, PMD_TABLE_SIZE);
-#endif
 }
 
 struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE];

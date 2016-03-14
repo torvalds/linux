@@ -146,6 +146,17 @@ struct nvme_nvm_command {
 	};
 };
 
+#define NVME_NVM_LP_MLC_PAIRS 886
+struct nvme_nvm_lp_mlc {
+	__u16			num_pairs;
+	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
+};
+
+struct nvme_nvm_lp_tbl {
+	__u8			id[8];
+	struct nvme_nvm_lp_mlc	mlc;
+};
+
 struct nvme_nvm_id_group {
 	__u8			mtype;
 	__u8			fmtype;
@@ -169,7 +180,8 @@ struct nvme_nvm_id_group {
 	__le32			mpos;
 	__le32			mccap;
 	__le16			cpar;
-	__u8			reserved[906];
+	__u8			reserved[10];
+	struct nvme_nvm_lp_tbl lptbl;
 } __packed;
 
 struct nvme_nvm_addr_format {
@@ -266,6 +278,20 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 		dst->mccap = le32_to_cpu(src->mccap);
 
 		dst->cpar = le16_to_cpu(src->cpar);
+
+		if (dst->fmtype == NVM_ID_FMTYPE_MLC) {
+			memcpy(dst->lptbl.id, src->lptbl.id, 8);
+			dst->lptbl.mlc.num_pairs =
+					le16_to_cpu(src->lptbl.mlc.num_pairs);
+
+			if (dst->lptbl.mlc.num_pairs > NVME_NVM_LP_MLC_PAIRS) {
+				pr_err("nvm: number of MLC pairs not supported\n");
+				return -EINVAL;
+			}
+
+			memcpy(dst->lptbl.mlc.pairs, src->lptbl.mlc.pairs,
+						dst->lptbl.mlc.num_pairs);
+		}
 	}
 
 	return 0;
@@ -274,7 +300,6 @@ static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
 static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_id *nvme_nvm_id;
 	struct nvme_nvm_command c = {};
 	int ret;
@@ -287,7 +312,7 @@ static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
 	if (!nvme_nvm_id)
 		return -ENOMEM;
 
-	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,
 				nvme_nvm_id, sizeof(struct nvme_nvm_id));
 	if (ret) {
 		ret = -EIO;
@@ -312,9 +337,8 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 				nvm_l2p_update_fn *update_l2p, void *priv)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
-	u32 len = queue_max_hw_sectors(dev->admin_q) << 9;
+	u32 len = queue_max_hw_sectors(ns->ctrl->admin_q) << 9;
 	u32 nlb_pr_rq = len / sizeof(u64);
 	u64 cmd_slba = slba;
 	void *entries;
@@ -332,10 +356,10 @@ static int nvme_nvm_get_l2p_tbl(struct nvm_dev *nvmdev, u64 slba, u32 nlb,
 		c.l2p.slba = cpu_to_le64(cmd_slba);
 		c.l2p.nlb = cpu_to_le32(cmd_nlb);
 
-		ret = nvme_submit_sync_cmd(dev->admin_q,
+		ret = nvme_submit_sync_cmd(ns->ctrl->admin_q,
 				(struct nvme_command *)&c, entries, len);
 		if (ret) {
-			dev_err(dev->dev, "L2P table transfer failed (%d)\n",
+			dev_err(ns->ctrl->dev, "L2P table transfer failed (%d)\n",
 									ret);
 			ret = -EIO;
 			goto out;
@@ -361,7 +385,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 {
 	struct request_queue *q = nvmdev->q;
 	struct nvme_ns *ns = q->queuedata;
-	struct nvme_dev *dev = ns->dev;
+	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
 	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blocks;
@@ -375,41 +399,36 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	if (!bb_tbl)
 		return -ENOMEM;
 
-	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+	ret = nvme_submit_sync_cmd(ctrl->admin_q, (struct nvme_command *)&c,
 								bb_tbl, tblsz);
 	if (ret) {
-		dev_err(dev->dev, "get bad block table failed (%d)\n", ret);
+		dev_err(ctrl->dev, "get bad block table failed (%d)\n", ret);
 		ret = -EIO;
 		goto out;
 	}
 
 	if (bb_tbl->tblid[0] != 'B' || bb_tbl->tblid[1] != 'B' ||
 		bb_tbl->tblid[2] != 'L' || bb_tbl->tblid[3] != 'T') {
-		dev_err(dev->dev, "bbt format mismatch\n");
+		dev_err(ctrl->dev, "bbt format mismatch\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (le16_to_cpu(bb_tbl->verid) != 1) {
 		ret = -EINVAL;
-		dev_err(dev->dev, "bbt version not supported\n");
+		dev_err(ctrl->dev, "bbt version not supported\n");
 		goto out;
 	}
 
 	if (le32_to_cpu(bb_tbl->tblks) != nr_blocks) {
 		ret = -EINVAL;
-		dev_err(dev->dev, "bbt unsuspected blocks returned (%u!=%u)",
+		dev_err(ctrl->dev, "bbt unsuspected blocks returned (%u!=%u)",
 					le32_to_cpu(bb_tbl->tblks), nr_blocks);
 		goto out;
 	}
 
 	ppa = dev_to_generic_addr(nvmdev, ppa);
 	ret = update_bbtbl(ppa, nr_blocks, bb_tbl->blk, priv);
-	if (ret) {
-		ret = -EINTR;
-		goto out;
-	}
-
 out:
 	kfree(bb_tbl);
 	return ret;
@@ -419,7 +438,6 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 								int type)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_dev *dev = ns->dev;
 	struct nvme_nvm_command c = {};
 	int ret = 0;
 
@@ -429,10 +447,10 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct nvm_rq *rqd,
 	c.set_bb.nlb = cpu_to_le16(rqd->nr_pages - 1);
 	c.set_bb.value = type;
 
-	ret = nvme_submit_sync_cmd(dev->admin_q, (struct nvme_command *)&c,
+	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,
 								NULL, 0);
 	if (ret)
-		dev_err(dev->dev, "set bad block table failed (%d)\n", ret);
+		dev_err(ns->ctrl->dev, "set bad block table failed (%d)\n", ret);
 	return ret;
 }
 
@@ -453,11 +471,8 @@ static inline void nvme_nvm_rqtocmd(struct request *rq, struct nvm_rq *rqd,
 static void nvme_nvm_end_io(struct request *rq, int error)
 {
 	struct nvm_rq *rqd = rq->end_io_data;
-	struct nvm_dev *dev = rqd->dev;
 
-	if (dev->mt && dev->mt->end_io(rqd, error))
-		pr_err("nvme: err status: %x result: %lx\n",
-				rq->errors, (unsigned long)rq->special);
+	nvm_end_io(rqd, error);
 
 	kfree(rq->cmd);
 	blk_mq_free_request(rq);
@@ -471,7 +486,7 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	struct bio *bio = rqd->bio;
 	struct nvme_nvm_command *cmd;
 
-	rq = blk_mq_alloc_request(q, bio_rw(bio), GFP_KERNEL, 0);
+	rq = blk_mq_alloc_request(q, bio_rw(bio), 0);
 	if (IS_ERR(rq))
 		return -ENOMEM;
 
@@ -520,9 +535,8 @@ static int nvme_nvm_erase_block(struct nvm_dev *dev, struct nvm_rq *rqd)
 static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_dev *dev = ns->dev;
 
-	return dma_pool_create(name, dev->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	return dma_pool_create(name, ns->ctrl->dev, PAGE_SIZE, PAGE_SIZE, 0);
 }
 
 static void nvme_nvm_destroy_dma_pool(void *pool)
@@ -580,8 +594,9 @@ void nvme_nvm_unregister(struct request_queue *q, char *disk_name)
 
 int nvme_nvm_ns_supported(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
-	struct nvme_dev *dev = ns->dev;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	/* XXX: this is poking into PCI structures from generic code! */
+	struct pci_dev *pdev = to_pci_dev(ctrl->dev);
 
 	/* QEMU NVMe simulator - PCI ID + Vendor specific bit */
 	if (pdev->vendor == PCI_VENDOR_ID_CNEX &&

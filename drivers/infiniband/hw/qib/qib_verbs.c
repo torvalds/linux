@@ -346,6 +346,7 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	unsigned long flags;
 	struct qib_lkey_table *rkt;
 	struct qib_pd *pd;
+	int avoid_schedule = 0;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
@@ -438,11 +439,15 @@ static int qib_post_one_send(struct qib_qp *qp, struct ib_send_wr *wr,
 	    qp->ibqp.qp_type == IB_QPT_RC) {
 		if (wqe->length > 0x80000000U)
 			goto bail_inval_free;
+		if (wqe->length <= qp->pmtu)
+			avoid_schedule = 1;
 	} else if (wqe->length > (dd_from_ibdev(qp->ibqp.device)->pport +
-				  qp->port_num - 1)->ibmtu)
+				  qp->port_num - 1)->ibmtu) {
 		goto bail_inval_free;
-	else
+	} else {
 		atomic_inc(&to_iah(ud_wr(wr)->ah)->refcount);
+		avoid_schedule = 1;
+	}
 	wqe->ssn = qp->s_ssn++;
 	qp->s_head = next;
 
@@ -458,7 +463,7 @@ bail_inval_free:
 bail_inval:
 	ret = -EINVAL;
 bail:
-	if (!ret && !wr->next &&
+	if (!ret && !wr->next && !avoid_schedule &&
 	 !qib_sdma_empty(
 	   dd_from_ibdev(qp->ibqp.device)->pport + qp->port_num - 1)) {
 		qib_schedule_send(qp);
@@ -2256,7 +2261,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->poll_cq = qib_poll_cq;
 	ibdev->req_notify_cq = qib_req_notify_cq;
 	ibdev->get_dma_mr = qib_get_dma_mr;
-	ibdev->reg_phys_mr = qib_reg_phys_mr;
 	ibdev->reg_user_mr = qib_reg_user_mr;
 	ibdev->dereg_mr = qib_dereg_mr;
 	ibdev->alloc_mr = qib_alloc_mr;

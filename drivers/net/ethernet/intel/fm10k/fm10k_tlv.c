@@ -1,5 +1,5 @@
 /* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2015 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,8 +48,8 @@ s32 fm10k_tlv_msg_init(u32 *msg, u16 msg_id)
  *  the attribute buffer.  It will return success if provided with a valid
  *  pointers.
  **/
-s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
-				   const unsigned char *string)
+static s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
+					  const unsigned char *string)
 {
 	u32 attr_data = 0, len = 0;
 	u32 *attr;
@@ -98,7 +98,7 @@ s32 fm10k_tlv_attr_put_null_string(u32 *msg, u16 attr_id,
  *  it in the array pointed by by string.  It will return success if provided
  *  with a valid pointers.
  **/
-s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
+static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
 {
 	u32 len;
 
@@ -353,7 +353,7 @@ s32 fm10k_tlv_attr_get_le_struct(u32 *attr, void *le_struct, u32 len)
  *  function will return NULL on failure, and a pointer to the start
  *  of the nested attributes on success.
  **/
-u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
+static u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 {
 	u32 *attr;
 
@@ -370,7 +370,7 @@ u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
 }
 
 /**
- *  fm10k_tlv_attr_nest_start - Start a set of nested attributes
+ *  fm10k_tlv_attr_nest_stop - Stop a set of nested attributes
  *  @msg: Pointer to message block
  *
  *  This function closes off an existing set of nested attributes.  The
@@ -378,7 +378,7 @@ u32 *fm10k_tlv_attr_nest_start(u32 *msg, u16 attr_id)
  *  the case of a nest within the nest this would be the outer nest pointer.
  *  This function will return success provided all pointers are valid.
  **/
-s32 fm10k_tlv_attr_nest_stop(u32 *msg)
+static s32 fm10k_tlv_attr_nest_stop(u32 *msg)
 {
 	u32 *attr;
 	u32 len;
@@ -483,8 +483,8 @@ static s32 fm10k_tlv_attr_validate(u32 *attr,
  *  FM10K_NOT_IMPLEMENTED for any attribute that is outside of the array
  *  and 0 on success.
  **/
-s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
-			 const struct fm10k_tlv_attr *tlv_attr)
+static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
+				const struct fm10k_tlv_attr *tlv_attr)
 {
 	u32 i, attr_id, offset = 0;
 	s32 err = 0;
@@ -755,7 +755,7 @@ parse_nested:
 		err = fm10k_tlv_attr_get_mac_vlan(
 					results[FM10K_TEST_MSG_MAC_ADDR],
 					result_mac, &result_vlan);
-		if (!err && memcmp(test_mac, result_mac, ETH_ALEN))
+		if (!err && !ether_addr_equal(test_mac, result_mac))
 			err = FM10K_ERR_INVALID_VALUE;
 		if (!err && test_vlan != result_vlan)
 			err = FM10K_ERR_INVALID_VALUE;

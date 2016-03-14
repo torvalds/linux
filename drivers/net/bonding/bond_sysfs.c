@@ -42,7 +42,6 @@
 
 #include <net/bonding.h>
 
-#define to_dev(obj)	container_of(obj, struct device, kobj)
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
 
 /* "show" function for the bond_masters attribute.
@@ -481,7 +480,7 @@ static ssize_t bonding_show_mii_status(struct device *d,
 				       char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	bool active = !!rcu_access_pointer(bond->curr_active_slave);
+	bool active = netif_carrier_ok(bond->dev);
 
 	return sprintf(buf, "%s\n", active ? "up" : "down");
 }

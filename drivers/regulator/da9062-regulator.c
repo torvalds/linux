@@ -371,7 +371,7 @@ static int da9062_ldo_set_suspend_mode(struct regulator_dev *rdev,
 	return regmap_field_write(regl->suspend_sleep, val);
 }
 
-static struct regulator_ops da9062_buck_ops = {
+static const struct regulator_ops da9062_buck_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -389,7 +389,7 @@ static struct regulator_ops da9062_buck_ops = {
 	.set_suspend_mode	= da9062_buck_set_suspend_mode,
 };
 
-static struct regulator_ops da9062_ldo_ops = {
+static const struct regulator_ops da9062_ldo_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.is_enabled		= regulator_is_enabled_regmap,

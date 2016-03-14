@@ -10,7 +10,7 @@
 #include "util/header.h"
 #include "util/session.h"
 #include "util/intlist.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/trace-event.h"
 #include "util/debug.h"
 #include "util/tool.h"
@@ -1351,7 +1351,6 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	disable_buildid_cache();
 
 	use_browser = 0;
-	setup_browser(false);
 
 	if (argc) {
 		argc = parse_options(argc, argv, live_options,
@@ -1409,8 +1408,6 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	err = kvm_events_live_report(kvm);
 
 out:
-	exit_browser(0);
-
 	if (kvm->session)
 		perf_session__delete(kvm->session);
 	kvm->session = NULL;

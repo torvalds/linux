@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/backing-dev.h>
+#include <linux/dax.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
@@ -34,31 +35,39 @@ static void clear_exceptional_entry(struct address_space *mapping,
 		return;
 
 	spin_lock_irq(&mapping->tree_lock);
-	/*
-	 * Regular page slots are stabilized by the page lock even
-	 * without the tree itself locked.  These unlocked entries
-	 * need verification under the tree lock.
-	 */
-	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
-		goto unlock;
-	if (*slot != entry)
-		goto unlock;
-	radix_tree_replace_slot(slot, NULL);
-	mapping->nrshadows--;
-	if (!node)
-		goto unlock;
-	workingset_node_shadows_dec(node);
-	/*
-	 * Don't track node without shadow entries.
-	 *
-	 * Avoid acquiring the list_lru lock if already untracked.
-	 * The list_empty() test is safe as node->private_list is
-	 * protected by mapping->tree_lock.
-	 */
-	if (!workingset_node_shadows(node) &&
-	    !list_empty(&node->private_list))
-		list_lru_del(&workingset_shadow_nodes, &node->private_list);
-	__radix_tree_delete_node(&mapping->page_tree, node);
+
+	if (dax_mapping(mapping)) {
+		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
+			mapping->nrexceptional--;
+	} else {
+		/*
+		 * Regular page slots are stabilized by the page lock even
+		 * without the tree itself locked.  These unlocked entries
+		 * need verification under the tree lock.
+		 */
+		if (!__radix_tree_lookup(&mapping->page_tree, index, &node,
+					&slot))
+			goto unlock;
+		if (*slot != entry)
+			goto unlock;
+		radix_tree_replace_slot(slot, NULL);
+		mapping->nrexceptional--;
+		if (!node)
+			goto unlock;
+		workingset_node_shadows_dec(node);
+		/*
+		 * Don't track node without shadow entries.
+		 *
+		 * Avoid acquiring the list_lru lock if already untracked.
+		 * The list_empty() test is safe as node->private_list is
+		 * protected by mapping->tree_lock.
+		 */
+		if (!workingset_node_shadows(node) &&
+		    !list_empty(&node->private_list))
+			list_lru_del(&workingset_shadow_nodes,
+					&node->private_list);
+		__radix_tree_delete_node(&mapping->page_tree, node);
+	}
 unlock:
 	spin_unlock_irq(&mapping->tree_lock);
 }
@@ -228,7 +237,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	int		i;
 
 	cleancache_invalidate_inode(mapping);
-	if (mapping->nrpages == 0 && mapping->nrshadows == 0)
+	if (mapping->nrpages == 0 && mapping->nrexceptional == 0)
 		return;
 
 	/* Offsets within partial pages */
@@ -402,7 +411,7 @@ EXPORT_SYMBOL(truncate_inode_pages);
  */
 void truncate_inode_pages_final(struct address_space *mapping)
 {
-	unsigned long nrshadows;
+	unsigned long nrexceptional;
 	unsigned long nrpages;
 
 	/*
@@ -416,14 +425,14 @@ void truncate_inode_pages_final(struct address_space *mapping)
 
 	/*
 	 * When reclaim installs eviction entries, it increases
-	 * nrshadows first, then decreases nrpages.  Make sure we see
+	 * nrexceptional first, then decreases nrpages.  Make sure we see
 	 * this in the right order or we might miss an entry.
 	 */
 	nrpages = mapping->nrpages;
 	smp_rmb();
-	nrshadows = mapping->nrshadows;
+	nrexceptional = mapping->nrexceptional;
 
-	if (nrpages || nrshadows) {
+	if (nrpages || nrexceptional) {
 		/*
 		 * As truncation uses a lockless tree lookup, cycle
 		 * the tree lock to make sure any ongoing tree

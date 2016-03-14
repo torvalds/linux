@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -3127,7 +3127,6 @@ void cl_page_list_disown (const struct lu_env *env,
 			  struct cl_io *io, struct cl_page_list *plist);
 
 void cl_2queue_init     (struct cl_2queue *queue);
-void cl_2queue_add      (struct cl_2queue *queue, struct cl_page *page);
 void cl_2queue_disown   (const struct lu_env *env,
 			 struct cl_io *io, struct cl_2queue *queue);
 void cl_2queue_discard  (const struct lu_env *env,

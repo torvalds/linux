@@ -28,8 +28,6 @@
 #ifndef _I830_BIOS_H_
 #define _I830_BIOS_H_
 
-#include <drm/drmP.h>
-
 struct vbt_header {
 	u8 signature[20];		/**< Always starts with 'VBT$' */
 	u16 version;			/**< decimal */
@@ -587,8 +585,6 @@ struct psr_table {
 struct bdb_psr {
 	struct psr_table psr_table[16];
 } __packed;
-
-int intel_parse_bios(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

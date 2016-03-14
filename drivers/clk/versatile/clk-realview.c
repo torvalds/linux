@@ -11,10 +11,14 @@
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
 #include "clk-icst.h"
+
+#define REALVIEW_SYS_OSC0_OFFSET             0x0C
+#define REALVIEW_SYS_OSC1_OFFSET             0x10
+#define REALVIEW_SYS_OSC2_OFFSET             0x14
+#define REALVIEW_SYS_OSC3_OFFSET             0x18
+#define REALVIEW_SYS_OSC4_OFFSET             0x1C	/* OSC1 for RealView/AB */
+#define REALVIEW_SYS_LOCK_OFFSET             0x20
 
 /*
  * Implementation of the ARM RealView clock trees.

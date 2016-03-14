@@ -142,7 +142,8 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 		list_for_each_entry(bo, &node->bos, mn_list) {
 
-			if (!bo->tbo.ttm || bo->tbo.ttm->state != tt_bound)
+			if (!amdgpu_ttm_tt_affect_userptr(bo->tbo.ttm, start,
+							  end))
 				continue;
 
 			r = amdgpu_bo_reserve(bo, true);

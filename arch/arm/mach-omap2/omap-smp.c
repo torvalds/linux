@@ -241,7 +241,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 
 }
 
-struct smp_operations omap4_smp_ops __initdata = {
+const struct smp_operations omap4_smp_ops __initconst = {
 	.smp_init_cpus		= omap4_smp_init_cpus,
 	.smp_prepare_cpus	= omap4_smp_prepare_cpus,
 	.smp_secondary_init	= omap4_secondary_init,

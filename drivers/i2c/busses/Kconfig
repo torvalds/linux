@@ -516,7 +516,7 @@ config I2C_EFM32
 
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
-	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
 	  is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -532,6 +532,7 @@ config I2C_EG20T
 config I2C_EMEV2
 	tristate "EMMA Mobile series I2C adapter"
 	depends on HAVE_CLK
+	select I2C_SLAVE
 	help
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Renesas Electronics EM/EV family of processors.
@@ -963,11 +964,11 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_XLR
-	tristate "XLR I2C support"
-	depends on CPU_XLR
+	tristate "Netlogic XLR and Sigma Designs I2C support"
+	depends on CPU_XLR || ARCH_TANGOX
 	help
 	  This driver enables support for the on-chip I2C interface of
-	  the Netlogic XLR/XLS MIPS processors.
+	  the Netlogic XLR/XLS MIPS processors and Sigma Designs SOCs.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-xlr.

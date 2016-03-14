@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -115,8 +115,8 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		struct inode *inode = vmpage->mapping->host;
 		loff_t pos;
 
-		if (mutex_trylock(&inode->i_mutex)) {
-			mutex_unlock(&(inode)->i_mutex);
+		if (inode_trylock(inode)) {
+			inode_unlock((inode));
 
 			/* this is too bad. Someone is trying to write the
 			 * page w/o holding inode mutex. This means we can
@@ -880,14 +880,6 @@ static void ras_update_stride_detector(struct ll_readahead_state *ras,
 	return;
 }
 
-static unsigned long
-stride_page_count(struct ll_readahead_state *ras, unsigned long len)
-{
-	return stride_pg_count(ras->ras_stride_offset, ras->ras_stride_length,
-			       ras->ras_stride_pages, ras->ras_stride_offset,
-			       len);
-}
-
 /* Stride Read-ahead window will be increased inc_len according to
  * stride I/O pattern */
 static void ras_stride_increase_window(struct ll_readahead_state *ras,
@@ -921,7 +913,9 @@ static void ras_stride_increase_window(struct ll_readahead_state *ras,
 
 	window_len += step * ras->ras_stride_length + left;
 
-	if (stride_page_count(ras, window_len) <= ra->ra_max_pages_per_file)
+	if (stride_pg_count(ras->ras_stride_offset, ras->ras_stride_length,
+			    ras->ras_stride_pages, ras->ras_stride_offset,
+			    window_len) <= ra->ra_max_pages_per_file)
 		ras->ras_window_len = window_len;
 
 	RAS_CDEBUG(ras);

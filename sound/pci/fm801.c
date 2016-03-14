@@ -30,7 +30,7 @@
 #include <sound/initval.h>
 
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
-#include <media/tea575x.h>
+#include <media/drv-intf/tea575x.h>
 #endif
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
@@ -163,6 +163,7 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
  * @cap_ctrl:		capture control
  */
 struct fm801 {
+	struct device *dev;
 	int irq;
 
 	unsigned long port;
@@ -190,7 +191,6 @@ struct fm801 {
 	struct snd_ac97 *ac97;
 	struct snd_ac97 *ac97_sec;
 
-	struct pci_dev *pci;
 	struct snd_card *card;
 	struct snd_pcm *pcm;
 	struct snd_rawmidi *rmidi;
@@ -211,6 +211,20 @@ struct fm801 {
 	u16 saved_regs[0x20];
 #endif
 };
+
+/*
+ * IO accessors
+ */
+
+static inline void fm801_iowrite16(struct fm801 *chip, unsigned short offset, u16 value)
+{
+	outw(value, chip->port + offset);
+}
+
+static inline u16 fm801_ioread16(struct fm801 *chip, unsigned short offset)
+{
+	return inw(chip->port + offset);
+}
 
 static const struct pci_device_id snd_fm801_ids[] = {
 	{ 0x1319, 0x0801, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, 0, },   /* FM801 */
@@ -256,11 +270,11 @@ static int snd_fm801_update_bits(struct fm801 *chip, unsigned short reg,
 	unsigned short old, new;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	old = inw(chip->port + reg);
+	old = fm801_ioread16(chip, reg);
 	new = (old & ~mask) | value;
 	change = old != new;
 	if (change)
-		outw(new, chip->port + reg);
+		fm801_iowrite16(chip, reg, new);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return change;
 }
@@ -578,8 +592,9 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	}
 	if (chip->rmidi && (status & FM801_IRQ_MPU))
 		snd_mpu401_uart_interrupt(irq, chip->rmidi->private_data);
-	if (status & FM801_IRQ_VOLUME)
-		;/* TODO */
+	if (status & FM801_IRQ_VOLUME) {
+		/* TODO */
+	}
 
 	return IRQ_HANDLED;
 }
@@ -700,6 +715,7 @@ static struct snd_pcm_ops snd_fm801_capture_ops = {
 
 static int snd_fm801_pcm(struct fm801 *chip, int device)
 {
+	struct pci_dev *pdev = to_pci_dev(chip->dev);
 	struct snd_pcm *pcm;
 	int err;
 
@@ -715,7 +731,7 @@ static int snd_fm801_pcm(struct fm801 *chip, int device)
 	chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(chip->pci),
+					      snd_dma_pci_data(pdev),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
 	return snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
@@ -815,7 +831,7 @@ static void snd_fm801_tea575x_set_direction(struct snd_tea575x *tea, bool output
 	fm801_writew(chip, GPIO_CTRL, reg);
 }
 
-static struct snd_tea575x_ops snd_fm801_tea_ops = {
+static const struct snd_tea575x_ops snd_fm801_tea_ops = {
 	.set_pins = snd_fm801_tea575x_set_pins,
 	.get_pins = snd_fm801_tea575x_get_pins,
 	.set_direction = snd_fm801_tea575x_set_direction,
@@ -851,10 +867,11 @@ static int snd_fm801_get_single(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
+	long *value = ucontrol->value.integer.value;
 
-	ucontrol->value.integer.value[0] = (inw(chip->port + reg) >> shift) & mask;
+	value[0] = (fm801_ioread16(chip, reg) >> shift) & mask;
 	if (invert)
-		ucontrol->value.integer.value[0] = mask - ucontrol->value.integer.value[0];
+		value[0] = mask - value[0];
 	return 0;
 }
 
@@ -907,14 +924,15 @@ static int snd_fm801_get_double(struct snd_kcontrol *kcontrol,
 	int shift_right = (kcontrol->private_value >> 12) & 0x0f;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
+	long *value = ucontrol->value.integer.value;
 
 	spin_lock_irq(&chip->reg_lock);
-	ucontrol->value.integer.value[0] = (inw(chip->port + reg) >> shift_left) & mask;
-	ucontrol->value.integer.value[1] = (inw(chip->port + reg) >> shift_right) & mask;
+	value[0] = (fm801_ioread16(chip, reg) >> shift_left) & mask;
+	value[1] = (fm801_ioread16(chip, reg) >> shift_right) & mask;
 	spin_unlock_irq(&chip->reg_lock);
 	if (invert) {
-		ucontrol->value.integer.value[0] = mask - ucontrol->value.integer.value[0];
-		ucontrol->value.integer.value[1] = mask - ucontrol->value.integer.value[1];
+		value[0] = mask - value[0];
+		value[1] = mask - value[1];
 	}
 	return 0;
 }
@@ -1080,26 +1098,20 @@ static int wait_for_codec(struct fm801 *chip, unsigned int codec_id,
 	return -EIO;
 }
 
-static int snd_fm801_chip_init(struct fm801 *chip, int resume)
+static int reset_codec(struct fm801 *chip)
 {
-	unsigned short cmdw;
-
-	if (chip->tea575x_tuner & TUNER_ONLY)
-		goto __ac97_ok;
-
 	/* codec cold reset + AC'97 warm reset */
 	fm801_writew(chip, CODEC_CTRL, (1 << 5) | (1 << 6));
 	fm801_readw(chip, CODEC_CTRL); /* flush posting data */
 	udelay(100);
 	fm801_writew(chip, CODEC_CTRL, 0);
 
-	if (wait_for_codec(chip, 0, AC97_RESET, msecs_to_jiffies(750)) < 0)
-		if (!resume) {
-			dev_info(chip->card->dev,
-				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
-			chip->tea575x_tuner = 3 | TUNER_ONLY;
-			goto __ac97_ok;
-		}
+	return wait_for_codec(chip, 0, AC97_RESET, msecs_to_jiffies(750));
+}
+
+static void snd_fm801_chip_multichannel_init(struct fm801 *chip)
+{
+	unsigned short cmdw;
 
 	if (chip->multichannel) {
 		if (chip->secondary_addr) {
@@ -1126,8 +1138,11 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 		/* cause timeout problems */
 		wait_for_codec(chip, 0, AC97_VENDOR_ID1, msecs_to_jiffies(750));
 	}
+}
 
-      __ac97_ok:
+static void snd_fm801_chip_init(struct fm801 *chip)
+{
+	unsigned short cmdw;
 
 	/* init volume */
 	fm801_writew(chip, PCM_VOL, 0x0808);
@@ -1148,10 +1163,7 @@ static int snd_fm801_chip_init(struct fm801 *chip, int resume)
 	/* interrupt clear */
 	fm801_writew(chip, IRQ_STATUS,
 		     FM801_IRQ_PLAYBACK | FM801_IRQ_CAPTURE | FM801_IRQ_MPU);
-
-	return 0;
 }
-
 
 static int snd_fm801_free(struct fm801 *chip)
 {
@@ -1164,6 +1176,8 @@ static int snd_fm801_free(struct fm801 *chip)
 	cmdw = fm801_readw(chip, IRQ_MASK);
 	cmdw |= 0x00c3;
 	fm801_writew(chip, IRQ_MASK, cmdw);
+
+	devm_free_irq(chip->dev, chip->irq, chip);
 
       __end_hw:
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
@@ -1201,13 +1215,29 @@ static int snd_fm801_create(struct snd_card *card,
 		return -ENOMEM;
 	spin_lock_init(&chip->reg_lock);
 	chip->card = card;
-	chip->pci = pci;
+	chip->dev = &pci->dev;
 	chip->irq = -1;
 	chip->tea575x_tuner = tea575x_tuner;
 	if ((err = pci_request_regions(pci, "FM801")) < 0)
 		return err;
 	chip->port = pci_resource_start(pci, 0);
-	if ((tea575x_tuner & TUNER_ONLY) == 0) {
+
+	if (pci->revision >= 0xb1)	/* FM801-AU */
+		chip->multichannel = 1;
+
+	if (!(chip->tea575x_tuner & TUNER_ONLY)) {
+		if (reset_codec(chip) < 0) {
+			dev_info(chip->card->dev,
+				 "Primary AC'97 codec not found, assume SF64-PCR (tuner-only)\n");
+			chip->tea575x_tuner = 3 | TUNER_ONLY;
+		} else {
+			snd_fm801_chip_multichannel_init(chip);
+		}
+	}
+
+	snd_fm801_chip_init(chip);
+
+	if ((chip->tea575x_tuner & TUNER_ONLY) == 0) {
 		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
 				IRQF_SHARED, KBUILD_MODNAME, chip)) {
 			dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
@@ -1217,13 +1247,6 @@ static int snd_fm801_create(struct snd_card *card,
 		chip->irq = pci->irq;
 		pci_set_master(pci);
 	}
-
-	if (pci->revision >= 0xb1)	/* FM801-AU */
-		chip->multichannel = 1;
-
-	snd_fm801_chip_init(chip, 0);
-	/* init might set tuner access method */
-	tea575x_tuner = chip->tea575x_tuner;
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_fm801_free(chip);
@@ -1241,14 +1264,16 @@ static int snd_fm801_create(struct snd_card *card,
 	chip->tea.private_data = chip;
 	chip->tea.ops = &snd_fm801_tea_ops;
 	sprintf(chip->tea.bus_info, "PCI:%s", pci_name(pci));
-	if ((tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
-	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
+	if ((chip->tea575x_tuner & TUNER_TYPE_MASK) > 0 &&
+	    (chip->tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea, THIS_MODULE)) {
 			dev_err(card->dev, "TEA575x radio not found\n");
 			snd_fm801_free(chip);
 			return -ENODEV;
 		}
-	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0) {
+	} else if ((chip->tea575x_tuner & TUNER_TYPE_MASK) == 0) {
+		unsigned int tuner_only = chip->tea575x_tuner & TUNER_ONLY;
+
 		/* autodetect tuner connection */
 		for (tea575x_tuner = 1; tea575x_tuner <= 3; tea575x_tuner++) {
 			chip->tea575x_tuner = tea575x_tuner;
@@ -1263,6 +1288,8 @@ static int snd_fm801_create(struct snd_card *card,
 			dev_err(card->dev, "TEA575x radio not found\n");
 			chip->tea575x_tuner = TUNER_DISABLED;
 		}
+
+		chip->tea575x_tuner |= tuner_only;
 	}
 	if (!(chip->tea575x_tuner & TUNER_DISABLED)) {
 		strlcpy(chip->tea.card, get_tea575x_gpio(chip)->name,
@@ -1366,12 +1393,18 @@ static int snd_fm801_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-	snd_ac97_suspend(chip->ac97);
-	snd_ac97_suspend(chip->ac97_sec);
+
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
-		chip->saved_regs[i] = inw(chip->port + saved_regs[i]);
-	/* FIXME: tea575x suspend */
+		chip->saved_regs[i] = fm801_ioread16(chip, saved_regs[i]);
+
+	if (chip->tea575x_tuner & TUNER_ONLY) {
+		/* FIXME: tea575x suspend */
+	} else {
+		snd_pcm_suspend_all(chip->pcm);
+		snd_ac97_suspend(chip->ac97);
+		snd_ac97_suspend(chip->ac97_sec);
+	}
+
 	return 0;
 }
 
@@ -1381,11 +1414,23 @@ static int snd_fm801_resume(struct device *dev)
 	struct fm801 *chip = card->private_data;
 	int i;
 
-	snd_fm801_chip_init(chip, 1);
-	snd_ac97_resume(chip->ac97);
-	snd_ac97_resume(chip->ac97_sec);
+	if (chip->tea575x_tuner & TUNER_ONLY) {
+		snd_fm801_chip_init(chip);
+	} else {
+		reset_codec(chip);
+		snd_fm801_chip_multichannel_init(chip);
+		snd_fm801_chip_init(chip);
+		snd_ac97_resume(chip->ac97);
+		snd_ac97_resume(chip->ac97_sec);
+	}
+
 	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
-		outw(chip->saved_regs[i], chip->port + saved_regs[i]);
+		fm801_iowrite16(chip, saved_regs[i], chip->saved_regs[i]);
+
+#ifdef CONFIG_SND_FM801_TEA575X_BOOL
+	if (!(chip->tea575x_tuner & TUNER_DISABLED))
+		snd_tea575x_set_freq(&chip->tea);
+#endif
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

@@ -148,8 +148,7 @@ static inline u64 drm_mm_hole_node_start(struct drm_mm_node *hole_node)
 
 static inline u64 __drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 {
-	return list_entry(hole_node->node_list.next,
-			  struct drm_mm_node, node_list)->start;
+	return list_next_entry(hole_node, node_list)->start;
 }
 
 /**
@@ -180,6 +179,14 @@ static inline u64 drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 						&(mm)->head_node.node_list, \
 						node_list)
 
+#define __drm_mm_for_each_hole(entry, mm, hole_start, hole_end, backwards) \
+	for (entry = list_entry((backwards) ? (mm)->hole_stack.prev : (mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
+	     &entry->hole_stack != &(mm)->hole_stack ? \
+	     hole_start = drm_mm_hole_node_start(entry), \
+	     hole_end = drm_mm_hole_node_end(entry), \
+	     1 : 0; \
+	     entry = list_entry((backwards) ? entry->hole_stack.prev : entry->hole_stack.next, struct drm_mm_node, hole_stack))
+
 /**
  * drm_mm_for_each_hole - iterator to walk over all holes
  * @entry: drm_mm_node used internally to track progress
@@ -200,20 +207,7 @@ static inline u64 drm_mm_hole_node_end(struct drm_mm_node *hole_node)
  * going backwards.
  */
 #define drm_mm_for_each_hole(entry, mm, hole_start, hole_end) \
-	for (entry = list_entry((mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
-	     &entry->hole_stack != &(mm)->hole_stack ? \
-	     hole_start = drm_mm_hole_node_start(entry), \
-	     hole_end = drm_mm_hole_node_end(entry), \
-	     1 : 0; \
-	     entry = list_entry(entry->hole_stack.next, struct drm_mm_node, hole_stack))
-
-#define __drm_mm_for_each_hole(entry, mm, hole_start, hole_end, backwards) \
-	for (entry = list_entry((backwards) ? (mm)->hole_stack.prev : (mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
-	     &entry->hole_stack != &(mm)->hole_stack ? \
-	     hole_start = drm_mm_hole_node_start(entry), \
-	     hole_end = drm_mm_hole_node_end(entry), \
-	     1 : 0; \
-	     entry = list_entry((backwards) ? entry->hole_stack.prev : entry->hole_stack.next, struct drm_mm_node, hole_stack))
+	__drm_mm_for_each_hole(entry, mm, hole_start, hole_end, 0)
 
 /*
  * Basic range manager support (drm_mm.c)

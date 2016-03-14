@@ -30,6 +30,8 @@ The compatible list for this generic sound card currently:
  "fsl,imx-audio-sgtl5000"
  (compatible with Documentation/devicetree/bindings/sound/imx-audio-sgtl5000.txt)
 
+ "fsl,imx-audio-wm8960"
+
 Required properties:
 
   - compatible		: Contains one of entries in the compatible list.

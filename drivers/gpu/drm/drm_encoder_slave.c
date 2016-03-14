@@ -124,7 +124,7 @@ EXPORT_SYMBOL(drm_i2c_encoder_destroy);
  * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:
  */
 
-static inline struct drm_encoder_slave_funcs *
+static inline const struct drm_encoder_slave_funcs *
 get_slave_funcs(struct drm_encoder *enc)
 {
 	return to_encoder_slave(enc)->slave_funcs;

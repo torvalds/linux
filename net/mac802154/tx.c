@@ -38,12 +38,6 @@ void ieee802154_xmit_worker(struct work_struct *work)
 	struct net_device *dev = skb->dev;
 	int res;
 
-	rtnl_lock();
-
-	/* check if ifdown occurred while schedule */
-	if (!netif_running(dev))
-		goto err_tx;
-
 	res = drv_xmit_sync(local, skb);
 	if (res)
 		goto err_tx;
@@ -53,14 +47,11 @@ void ieee802154_xmit_worker(struct work_struct *work)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	rtnl_unlock();
-
 	return;
 
 err_tx:
 	/* Restart the netif queue on each sub_if_data object. */
 	ieee802154_wake_queue(&local->hw);
-	rtnl_unlock();
 	kfree_skb(skb);
 	netdev_dbg(dev, "transmission failed\n");
 }

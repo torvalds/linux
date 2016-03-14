@@ -284,17 +284,9 @@ static int crb_acpi_add(struct acpi_device *device)
 
 	chip->vendor.priv = priv;
 
-	/* Default timeouts and durations */
-	chip->vendor.timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
-	chip->vendor.timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
-	chip->vendor.timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
-	chip->vendor.timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
-	chip->vendor.duration[TPM_SHORT] =
-		msecs_to_jiffies(TPM2_DURATION_SHORT);
-	chip->vendor.duration[TPM_MEDIUM] =
-		msecs_to_jiffies(TPM2_DURATION_MEDIUM);
-	chip->vendor.duration[TPM_LONG] =
-		msecs_to_jiffies(TPM2_DURATION_LONG);
+	rc = tpm_get_timeouts(chip);
+	if (rc)
+		return rc;
 
 	chip->acpi_dev_handle = device->handle;
 

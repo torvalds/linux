@@ -86,7 +86,7 @@ static void identity_mapping_add(pgd_t *pgd, const char *text_start,
 
 	prot |= PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_SECT_AF;
 
-	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())
+	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale_family())
 		prot |= PMD_BIT4;
 
 	pgd += pgd_index(addr);

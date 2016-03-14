@@ -45,8 +45,6 @@ struct at91_gpio_chip {
 	struct at91_pinctrl_mux_ops *ops;	/* ops */
 };
 
-#define to_at91_gpio_chip(c) container_of(c, struct at91_gpio_chip, chip)
-
 static struct at91_gpio_chip *gpio_chips[MAX_GPIO_BANKS];
 
 static int gpio_banks;
@@ -811,7 +809,7 @@ static int at91_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 	chip = range->gc;
-	at91_chip = container_of(chip, struct at91_gpio_chip, chip);
+	at91_chip = gpiochip_get_data(chip);
 
 	dev_dbg(npct->dev, "enable pin %u as GPIO\n", offset);
 
@@ -1282,7 +1280,7 @@ static int at91_pinctrl_remove(struct platform_device *pdev)
 
 static int at91_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 	unsigned mask = 1 << offset;
 	u32 osr;
@@ -1293,7 +1291,7 @@ static int at91_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 
 static int at91_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 	unsigned mask = 1 << offset;
 
@@ -1303,7 +1301,7 @@ static int at91_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int at91_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 	unsigned mask = 1 << offset;
 	u32 pdsr;
@@ -1315,7 +1313,7 @@ static int at91_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void at91_gpio_set(struct gpio_chip *chip, unsigned offset,
 				int val)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 	unsigned mask = 1 << offset;
 
@@ -1325,7 +1323,7 @@ static void at91_gpio_set(struct gpio_chip *chip, unsigned offset,
 static void at91_gpio_set_multiple(struct gpio_chip *chip,
 				      unsigned long *mask, unsigned long *bits)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 
 #define BITS_MASK(bits) (((bits) == 32) ? ~0U : (BIT(bits) - 1))
@@ -1340,7 +1338,7 @@ static void at91_gpio_set_multiple(struct gpio_chip *chip,
 static int at91_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 				int val)
 {
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 	unsigned mask = 1 << offset;
 
@@ -1355,7 +1353,7 @@ static void at91_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	enum at91_mux mode;
 	int i;
-	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(chip);
 	void __iomem *pio = at91_gpio->regbase;
 
 	for (i = 0; i < chip->ngpio; i++) {
@@ -1570,9 +1568,7 @@ static void gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct gpio_chip *gpio_chip = irq_desc_get_handler_data(desc);
-	struct at91_gpio_chip *at91_gpio = container_of(gpio_chip,
-					   struct at91_gpio_chip, chip);
-
+	struct at91_gpio_chip *at91_gpio = gpiochip_get_data(gpio_chip);
 	void __iomem	*pio = at91_gpio->regbase;
 	unsigned long	isr;
 	int		n;
@@ -1648,7 +1644,7 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 		return 0;
 	}
 
-	prev = container_of(gpiochip_prev, struct at91_gpio_chip, chip);
+	prev = gpiochip_get_data(gpiochip_prev);
 
 	/* we can only have 2 banks before */
 	for (i = 0; i < 2; i++) {
@@ -1750,7 +1746,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	chip = &at91_chip->chip;
 	chip->of_node = np;
 	chip->label = dev_name(&pdev->dev);
-	chip->dev = &pdev->dev;
+	chip->parent = &pdev->dev;
 	chip->owner = THIS_MODULE;
 	chip->base = alias_idx * MAX_NB_GPIO_PER_BANK;
 
@@ -1783,7 +1779,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	range->npins = chip->ngpio;
 	range->gc = chip;
 
-	ret = gpiochip_add(chip);
+	ret = gpiochip_add_data(chip, at91_chip);
 	if (ret)
 		goto gpiochip_add_err;
 
@@ -1828,20 +1824,20 @@ static struct platform_driver at91_pinctrl_driver = {
 	.remove = at91_pinctrl_remove,
 };
 
+static struct platform_driver * const drivers[] = {
+	&at91_gpio_driver,
+	&at91_pinctrl_driver,
+};
+
 static int __init at91_pinctrl_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&at91_gpio_driver);
-	if (ret)
-		return ret;
-	return platform_driver_register(&at91_pinctrl_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 arch_initcall(at91_pinctrl_init);
 
 static void __exit at91_pinctrl_exit(void)
 {
-	platform_driver_unregister(&at91_pinctrl_driver);
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 module_exit(at91_pinctrl_exit);

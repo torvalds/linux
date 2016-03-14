@@ -19,6 +19,7 @@
 #include "irq.h"
 #include "mmu.h"
 #include "cpuid.h"
+#include "lapic.h"
 
 #include <linux/kvm_host.h>
 #include <linux/module.h>
@@ -595,6 +596,8 @@ struct vcpu_vmx {
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
 	struct page *pml_pg;
+
+	u64 current_tsc_ratio;
 };
 
 enum segment_cache_field {
@@ -862,7 +865,6 @@ static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
 static bool vmx_mpx_supported(void);
 static bool vmx_xsaves_supported(void);
-static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu);
 static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
@@ -870,7 +872,6 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 static bool guest_state_valid(struct kvm_vcpu *vcpu);
 static u32 vmx_segment_access_rights(struct kvm_segment *var);
-static void vmx_sync_pir_to_irr_dummy(struct kvm_vcpu *vcpu);
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx);
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx);
 static int alloc_identity_pagetable(struct kvm *kvm);
@@ -1448,7 +1449,51 @@ static inline void ept_sync_context(u64 eptp)
 	}
 }
 
-static __always_inline unsigned long vmcs_readl(unsigned long field)
+static __always_inline void vmcs_check16(unsigned long field)
+{
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
+			 "16-bit accessor invalid for 64-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+			 "16-bit accessor invalid for 64-bit high field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+			 "16-bit accessor invalid for 32-bit high field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+			 "16-bit accessor invalid for natural width field");
+}
+
+static __always_inline void vmcs_check32(unsigned long field)
+{
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+			 "32-bit accessor invalid for 16-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+			 "32-bit accessor invalid for natural width field");
+}
+
+static __always_inline void vmcs_check64(unsigned long field)
+{
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+			 "64-bit accessor invalid for 16-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+			 "64-bit accessor invalid for 64-bit high field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+			 "64-bit accessor invalid for 32-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
+			 "64-bit accessor invalid for natural width field");
+}
+
+static __always_inline void vmcs_checkl(unsigned long field)
+{
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
+			 "Natural width accessor invalid for 16-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
+			 "Natural width accessor invalid for 64-bit field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
+			 "Natural width accessor invalid for 64-bit high field");
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
+			 "Natural width accessor invalid for 32-bit field");
+}
+
+static __always_inline unsigned long __vmcs_readl(unsigned long field)
 {
 	unsigned long value;
 
@@ -1459,21 +1504,30 @@ static __always_inline unsigned long vmcs_readl(unsigned long field)
 
 static __always_inline u16 vmcs_read16(unsigned long field)
 {
-	return vmcs_readl(field);
+	vmcs_check16(field);
+	return __vmcs_readl(field);
 }
 
 static __always_inline u32 vmcs_read32(unsigned long field)
 {
-	return vmcs_readl(field);
+	vmcs_check32(field);
+	return __vmcs_readl(field);
 }
 
 static __always_inline u64 vmcs_read64(unsigned long field)
 {
+	vmcs_check64(field);
 #ifdef CONFIG_X86_64
-	return vmcs_readl(field);
+	return __vmcs_readl(field);
 #else
-	return vmcs_readl(field) | ((u64)vmcs_readl(field+1) << 32);
+	return __vmcs_readl(field) | ((u64)__vmcs_readl(field+1) << 32);
 #endif
+}
+
+static __always_inline unsigned long vmcs_readl(unsigned long field)
+{
+	vmcs_checkl(field);
+	return __vmcs_readl(field);
 }
 
 static noinline void vmwrite_error(unsigned long field, unsigned long value)
@@ -1483,7 +1537,7 @@ static noinline void vmwrite_error(unsigned long field, unsigned long value)
 	dump_stack();
 }
 
-static void vmcs_writel(unsigned long field, unsigned long value)
+static __always_inline void __vmcs_writel(unsigned long field, unsigned long value)
 {
 	u8 error;
 
@@ -1493,33 +1547,46 @@ static void vmcs_writel(unsigned long field, unsigned long value)
 		vmwrite_error(field, value);
 }
 
-static void vmcs_write16(unsigned long field, u16 value)
+static __always_inline void vmcs_write16(unsigned long field, u16 value)
 {
-	vmcs_writel(field, value);
+	vmcs_check16(field);
+	__vmcs_writel(field, value);
 }
 
-static void vmcs_write32(unsigned long field, u32 value)
+static __always_inline void vmcs_write32(unsigned long field, u32 value)
 {
-	vmcs_writel(field, value);
+	vmcs_check32(field);
+	__vmcs_writel(field, value);
 }
 
-static void vmcs_write64(unsigned long field, u64 value)
+static __always_inline void vmcs_write64(unsigned long field, u64 value)
 {
-	vmcs_writel(field, value);
+	vmcs_check64(field);
+	__vmcs_writel(field, value);
 #ifndef CONFIG_X86_64
 	asm volatile ("");
-	vmcs_writel(field+1, value >> 32);
+	__vmcs_writel(field+1, value >> 32);
 #endif
 }
 
-static void vmcs_clear_bits(unsigned long field, u32 mask)
+static __always_inline void vmcs_writel(unsigned long field, unsigned long value)
 {
-	vmcs_writel(field, vmcs_readl(field) & ~mask);
+	vmcs_checkl(field);
+	__vmcs_writel(field, value);
 }
 
-static void vmcs_set_bits(unsigned long field, u32 mask)
+static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 {
-	vmcs_writel(field, vmcs_readl(field) | mask);
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
+			 "vmcs_clear_bits does not support 64-bit fields");
+	__vmcs_writel(field, __vmcs_readl(field) & ~mask);
+}
+
+static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
+{
+        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
+			 "vmcs_set_bits does not support 64-bit fields");
+	__vmcs_writel(field, __vmcs_readl(field) | mask);
 }
 
 static inline void vm_entry_controls_init(struct vcpu_vmx *vmx, u32 val)
@@ -1746,6 +1813,13 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 			return;
 		}
 		break;
+	case MSR_IA32_PEBS_ENABLE:
+		/* PEBS needs a quiescent period after being disabled (to write
+		 * a record).  Disabling PEBS through VMX MSR swapping doesn't
+		 * provide that period, so a CPU could write host's record into
+		 * guest's memory.
+		 */
+		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
 	}
 
 	for (i = 0; i < m->nr; ++i)
@@ -1783,26 +1857,31 @@ static void reload_tss(void)
 
 static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 {
-	u64 guest_efer;
-	u64 ignore_bits;
+	u64 guest_efer = vmx->vcpu.arch.efer;
+	u64 ignore_bits = 0;
 
-	guest_efer = vmx->vcpu.arch.efer;
+	if (!enable_ept) {
+		/*
+		 * NX is needed to handle CR0.WP=1, CR4.SMEP=1.  Testing
+		 * host CPUID is more efficient than testing guest CPUID
+		 * or CR4.  Host SMEP is anyway a requirement for guest SMEP.
+		 */
+		if (boot_cpu_has(X86_FEATURE_SMEP))
+			guest_efer |= EFER_NX;
+		else if (!(guest_efer & EFER_NX))
+			ignore_bits |= EFER_NX;
+	}
 
 	/*
-	 * NX is emulated; LMA and LME handled by hardware; SCE meaningless
-	 * outside long mode
+	 * LMA and LME handled by hardware; SCE meaningless outside long mode.
 	 */
-	ignore_bits = EFER_NX | EFER_SCE;
+	ignore_bits |= EFER_SCE;
 #ifdef CONFIG_X86_64
 	ignore_bits |= EFER_LMA | EFER_LME;
 	/* SCE is meaningful only in long mode on Intel */
 	if (guest_efer & EFER_LMA)
 		ignore_bits &= ~(u64)EFER_SCE;
 #endif
-	guest_efer &= ~ignore_bits;
-	guest_efer |= host_efer & ignore_bits;
-	vmx->guest_msrs[efer_offset].data = guest_efer;
-	vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
 
 	clear_atomic_switch_msr(vmx, MSR_EFER);
 
@@ -1813,16 +1892,21 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	 */
 	if (cpu_has_load_ia32_efer ||
 	    (enable_ept && ((vmx->vcpu.arch.efer ^ host_efer) & EFER_NX))) {
-		guest_efer = vmx->vcpu.arch.efer;
 		if (!(guest_efer & EFER_LMA))
 			guest_efer &= ~EFER_LME;
 		if (guest_efer != host_efer)
 			add_atomic_switch_msr(vmx, MSR_EFER,
 					      guest_efer, host_efer);
 		return false;
-	}
+	} else {
+		guest_efer &= ~ignore_bits;
+		guest_efer |= host_efer & ignore_bits;
 
-	return true;
+		vmx->guest_msrs[efer_offset].data = guest_efer;
+		vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
+
+		return true;
+	}
 }
 
 static unsigned long segment_base(u16 selector)
@@ -2062,12 +2146,14 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
 
-		/* Setup TSC multiplier */
-		if (cpu_has_vmx_tsc_scaling())
-			vmcs_write64(TSC_MULTIPLIER,
-				     vcpu->arch.tsc_scaling_ratio);
-
 		vmx->loaded_vmcs->cpu = cpu;
+	}
+
+	/* Setup TSC multiplier */
+	if (kvm_has_tsc_control &&
+	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio) {
+		vmx->current_tsc_ratio = vcpu->arch.tsc_scaling_ratio;
+		vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 	}
 
 	vmx_vcpu_pi_load(vcpu, cpu);
@@ -2498,7 +2584,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	vmx->nested.nested_vmx_pinbased_ctls_high |=
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
-	if (vmx_cpu_uses_apicv(&vmx->vcpu))
+	if (kvm_vcpu_apicv_active(&vmx->vcpu))
 		vmx->nested.nested_vmx_pinbased_ctls_high |=
 			PIN_BASED_POSTED_INTR;
 
@@ -4186,7 +4272,7 @@ out:
 static int init_rmode_identity_map(struct kvm *kvm)
 {
 	int i, idx, r = 0;
-	pfn_t identity_map_pfn;
+	kvm_pfn_t identity_map_pfn;
 	u32 tmp;
 
 	if (!enable_ept)
@@ -4462,9 +4548,9 @@ static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
 			msr, MSR_TYPE_W);
 }
 
-static int vmx_cpu_uses_apicv(struct kvm_vcpu *vcpu)
+static bool vmx_get_enable_apicv(void)
 {
-	return enable_apicv && lapic_in_kernel(vcpu);
+	return enable_apicv;
 }
 
 static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
@@ -4586,11 +4672,6 @@ static void vmx_sync_pir_to_irr(struct kvm_vcpu *vcpu)
 	kvm_apic_update_irr(vcpu, vmx->pi_desc.pir);
 }
 
-static void vmx_sync_pir_to_irr_dummy(struct kvm_vcpu *vcpu)
-{
-	return;
-}
-
 /*
  * Set up the vmcs's constant host-state fields, i.e., host-state fields that
  * will not change in the lifetime of the guest.
@@ -4660,9 +4741,16 @@ static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
 {
 	u32 pin_based_exec_ctrl = vmcs_config.pin_based_exec_ctrl;
 
-	if (!vmx_cpu_uses_apicv(&vmx->vcpu))
+	if (!kvm_vcpu_apicv_active(&vmx->vcpu))
 		pin_based_exec_ctrl &= ~PIN_BASED_POSTED_INTR;
 	return pin_based_exec_ctrl;
+}
+
+static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, vmx_pin_based_exec_ctrl(vmx));
 }
 
 static u32 vmx_exec_control(struct vcpu_vmx *vmx)
@@ -4703,7 +4791,7 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
 	if (!ple_gap)
 		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
-	if (!vmx_cpu_uses_apicv(&vmx->vcpu))
+	if (!kvm_vcpu_apicv_active(&vmx->vcpu))
 		exec_control &= ~(SECONDARY_EXEC_APIC_REGISTER_VIRT |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 	exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE;
@@ -4767,7 +4855,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
 				vmx_secondary_exec_control(vmx));
 
-	if (vmx_cpu_uses_apicv(&vmx->vcpu)) {
+	if (kvm_vcpu_apicv_active(&vmx->vcpu)) {
 		vmcs_write64(EOI_EXIT_BITMAP0, 0);
 		vmcs_write64(EOI_EXIT_BITMAP1, 0);
 		vmcs_write64(EOI_EXIT_BITMAP2, 0);
@@ -4775,7 +4863,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 		vmcs_write16(GUEST_INTR_STATUS, 0);
 
-		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
 		vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((&vmx->pi_desc)));
 	}
 
@@ -4867,7 +4955,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	seg_setup(VCPU_SREG_CS);
 	vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
-	vmcs_write32(GUEST_CS_BASE, 0xffff0000);
+	vmcs_writel(GUEST_CS_BASE, 0xffff0000ul);
 
 	seg_setup(VCPU_SREG_DS);
 	seg_setup(VCPU_SREG_ES);
@@ -4903,7 +4991,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	vmcs_write32(GUEST_ACTIVITY_STATE, GUEST_ACTIVITY_ACTIVE);
 	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, 0);
-	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
+	vmcs_writel(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 
 	setup_msrs(vmx);
 
@@ -4919,7 +5007,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
-	if (vmx_cpu_uses_apicv(vcpu))
+	if (kvm_vcpu_apicv_active(vcpu))
 		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));
 
 	if (vmx->vpid != 0)
@@ -6201,15 +6289,6 @@ static __init int hardware_setup(void)
 		kvm_has_tsc_control = true;
 		kvm_max_tsc_scaling_ratio = KVM_VMX_TSC_MULTIPLIER_MAX;
 		kvm_tsc_scaling_ratio_frac_bits = 48;
-	}
-
-	if (enable_apicv)
-		kvm_x86_ops->update_cr8_intercept = NULL;
-	else {
-		kvm_x86_ops->hwapic_irr_update = NULL;
-		kvm_x86_ops->hwapic_isr_update = NULL;
-		kvm_x86_ops->deliver_posted_interrupt = NULL;
-		kvm_x86_ops->sync_pir_to_irr = vmx_sync_pir_to_irr_dummy;
 	}
 
 	vmx_disable_intercept_for_msr(MSR_FS_BASE, false);
@@ -7901,7 +7980,7 @@ static void dump_vmcs(void)
 	u32 pin_based_exec_ctrl = vmcs_read32(PIN_BASED_VM_EXEC_CONTROL);
 	u32 secondary_exec_control = 0;
 	unsigned long cr4 = vmcs_readl(GUEST_CR4);
-	u64 efer = vmcs_readl(GUEST_IA32_EFER);
+	u64 efer = vmcs_read64(GUEST_IA32_EFER);
 	int i, n;
 
 	if (cpu_has_secondary_exec_ctrls())
@@ -7917,10 +7996,10 @@ static void dump_vmcs(void)
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT) &&
 	    (cr4 & X86_CR4_PAE) && !(efer & EFER_LMA))
 	{
-		pr_err("PDPTR0 = 0x%016lx  PDPTR1 = 0x%016lx\n",
-		       vmcs_readl(GUEST_PDPTR0), vmcs_readl(GUEST_PDPTR1));
-		pr_err("PDPTR2 = 0x%016lx  PDPTR3 = 0x%016lx\n",
-		       vmcs_readl(GUEST_PDPTR2), vmcs_readl(GUEST_PDPTR3));
+		pr_err("PDPTR0 = 0x%016llx  PDPTR1 = 0x%016llx\n",
+		       vmcs_read64(GUEST_PDPTR0), vmcs_read64(GUEST_PDPTR1));
+		pr_err("PDPTR2 = 0x%016llx  PDPTR3 = 0x%016llx\n",
+		       vmcs_read64(GUEST_PDPTR2), vmcs_read64(GUEST_PDPTR3));
 	}
 	pr_err("RSP = 0x%016lx  RIP = 0x%016lx\n",
 	       vmcs_readl(GUEST_RSP), vmcs_readl(GUEST_RIP));
@@ -7941,16 +8020,16 @@ static void dump_vmcs(void)
 	vmx_dump_sel("TR:  ", GUEST_TR_SELECTOR);
 	if ((vmexit_ctl & (VM_EXIT_SAVE_IA32_PAT | VM_EXIT_SAVE_IA32_EFER)) ||
 	    (vmentry_ctl & (VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_LOAD_IA32_EFER)))
-		pr_err("EFER =     0x%016llx  PAT = 0x%016lx\n",
-		       efer, vmcs_readl(GUEST_IA32_PAT));
-	pr_err("DebugCtl = 0x%016lx  DebugExceptions = 0x%016lx\n",
-	       vmcs_readl(GUEST_IA32_DEBUGCTL),
+		pr_err("EFER =     0x%016llx  PAT = 0x%016llx\n",
+		       efer, vmcs_read64(GUEST_IA32_PAT));
+	pr_err("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
+	       vmcs_read64(GUEST_IA32_DEBUGCTL),
 	       vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS));
 	if (vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
-		pr_err("PerfGlobCtl = 0x%016lx\n",
-		       vmcs_readl(GUEST_IA32_PERF_GLOBAL_CTRL));
+		pr_err("PerfGlobCtl = 0x%016llx\n",
+		       vmcs_read64(GUEST_IA32_PERF_GLOBAL_CTRL));
 	if (vmentry_ctl & VM_ENTRY_LOAD_BNDCFGS)
-		pr_err("BndCfgS = 0x%016lx\n", vmcs_readl(GUEST_BNDCFGS));
+		pr_err("BndCfgS = 0x%016llx\n", vmcs_read64(GUEST_BNDCFGS));
 	pr_err("Interruptibility = %08x  ActivityState = %08x\n",
 	       vmcs_read32(GUEST_INTERRUPTIBILITY_INFO),
 	       vmcs_read32(GUEST_ACTIVITY_STATE));
@@ -7979,11 +8058,12 @@ static void dump_vmcs(void)
 	       vmcs_read32(HOST_IA32_SYSENTER_CS),
 	       vmcs_readl(HOST_IA32_SYSENTER_EIP));
 	if (vmexit_ctl & (VM_EXIT_LOAD_IA32_PAT | VM_EXIT_LOAD_IA32_EFER))
-		pr_err("EFER = 0x%016lx  PAT = 0x%016lx\n",
-		       vmcs_readl(HOST_IA32_EFER), vmcs_readl(HOST_IA32_PAT));
+		pr_err("EFER = 0x%016llx  PAT = 0x%016llx\n",
+		       vmcs_read64(HOST_IA32_EFER),
+		       vmcs_read64(HOST_IA32_PAT));
 	if (vmexit_ctl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
-		pr_err("PerfGlobCtl = 0x%016lx\n",
-		       vmcs_readl(HOST_IA32_PERF_GLOBAL_CTRL));
+		pr_err("PerfGlobCtl = 0x%016llx\n",
+		       vmcs_read64(HOST_IA32_PERF_GLOBAL_CTRL));
 
 	pr_err("*** Control State ***\n");
 	pr_err("PinBased=%08x CPUBased=%08x SecondaryExec=%08x\n",
@@ -8006,16 +8086,16 @@ static void dump_vmcs(void)
 	pr_err("IDTVectoring: info=%08x errcode=%08x\n",
 	       vmcs_read32(IDT_VECTORING_INFO_FIELD),
 	       vmcs_read32(IDT_VECTORING_ERROR_CODE));
-	pr_err("TSC Offset = 0x%016lx\n", vmcs_readl(TSC_OFFSET));
+	pr_err("TSC Offset = 0x%016llx\n", vmcs_read64(TSC_OFFSET));
 	if (secondary_exec_control & SECONDARY_EXEC_TSC_SCALING)
-		pr_err("TSC Multiplier = 0x%016lx\n",
-		       vmcs_readl(TSC_MULTIPLIER));
+		pr_err("TSC Multiplier = 0x%016llx\n",
+		       vmcs_read64(TSC_MULTIPLIER));
 	if (cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW)
 		pr_err("TPR Threshold = 0x%02x\n", vmcs_read32(TPR_THRESHOLD));
 	if (pin_based_exec_ctrl & PIN_BASED_POSTED_INTR)
 		pr_err("PostedIntrVec = 0x%02x\n", vmcs_read16(POSTED_INTR_NV));
 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT))
-		pr_err("EPT pointer = 0x%016lx\n", vmcs_readl(EPT_POINTER));
+		pr_err("EPT pointer = 0x%016llx\n", vmcs_read64(EPT_POINTER));
 	n = vmcs_read32(CR3_TARGET_COUNT);
 	for (i = 0; i + 1 < n; i += 4)
 		pr_err("CR3 target%u=%016lx target%u=%016lx\n",
@@ -8154,7 +8234,7 @@ static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 	 * apicv
 	 */
 	if (!cpu_has_vmx_virtualize_x2apic_mode() ||
-				!vmx_cpu_uses_apicv(vcpu))
+				!kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	if (!cpu_need_tpr_shadow(vcpu))
@@ -8259,10 +8339,9 @@ static void vmx_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr)
 	}
 }
 
-static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu)
+static void vmx_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 {
-	u64 *eoi_exit_bitmap = vcpu->arch.eoi_exit_bitmap;
-	if (!vmx_cpu_uses_apicv(vcpu))
+	if (!kvm_vcpu_apicv_active(vcpu))
 		return;
 
 	vmcs_write64(EOI_EXIT_BITMAP0, eoi_exit_bitmap[0]);
@@ -8932,7 +9011,8 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 
-	vmcs_set_secondary_exec_control(secondary_exec_ctl);
+	if (cpu_has_secondary_exec_ctrls())
+		vmcs_set_secondary_exec_control(secondary_exec_ctl);
 
 	if (static_cpu_has(X86_FEATURE_PCOMMIT) && nested) {
 		if (guest_cpuid_has_pcommit(vcpu))
@@ -9508,7 +9588,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		 */
 		vmx->nested.posted_intr_nv = vmcs12->posted_intr_nv;
 		vmx->nested.pi_pending = false;
-		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write16(POSTED_INTR_NV, POSTED_INTR_VECTOR);
 		vmcs_write64(POSTED_INTR_DESC_ADDR,
 			page_to_phys(vmx->nested.pi_desc_page) +
 			(unsigned long)(vmcs12->posted_intr_desc_addr &
@@ -10169,7 +10249,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	 * Additionally, restore L2's PDPTR to vmcs12.
 	 */
 	if (enable_ept) {
-		vmcs12->guest_cr3 = vmcs_read64(GUEST_CR3);
+		vmcs12->guest_cr3 = vmcs_readl(GUEST_CR3);
 		vmcs12->guest_pdptr0 = vmcs_read64(GUEST_PDPTR0);
 		vmcs12->guest_pdptr1 = vmcs_read64(GUEST_PDPTR1);
 		vmcs12->guest_pdptr2 = vmcs_read64(GUEST_PDPTR2);
@@ -10805,7 +10885,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.update_cr8_intercept = update_cr8_intercept,
 	.set_virtual_x2apic_mode = vmx_set_virtual_x2apic_mode,
 	.set_apic_access_page_addr = vmx_set_apic_access_page_addr,
-	.cpu_uses_apicv = vmx_cpu_uses_apicv,
+	.get_enable_apicv = vmx_get_enable_apicv,
+	.refresh_apicv_exec_ctrl = vmx_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = vmx_load_eoi_exitmap,
 	.hwapic_irr_update = vmx_hwapic_irr_update,
 	.hwapic_isr_update = vmx_hwapic_isr_update,

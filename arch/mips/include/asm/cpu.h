@@ -386,6 +386,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_BP_GHIST	0x8000000000ull /* R12K+ Branch Prediction Global History */
 #define MIPS_CPU_SP		0x10000000000ull /* Small (1KB) page support */
 #define MIPS_CPU_FTLB		0x20000000000ull /* CPU has Fixed-page-size TLB */
+#define MIPS_CPU_NAN_LEGACY	0x40000000000ull /* Legacy NaN implemented */
+#define MIPS_CPU_NAN_2008	0x80000000000ull /* 2008 NaN implemented */
 
 /*
  * CPU ASE encodings

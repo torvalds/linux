@@ -43,11 +43,12 @@ static void periodic_work_func(struct work_struct *work)
 	(*pw->workfunc)(pw->workfuncarg);
 }
 
-struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
-					struct workqueue_struct *workqueue,
-					void (*workfunc)(void *),
-					void *workfuncarg,
-					const char *devnam)
+struct periodic_work
+*visor_periodic_work_create(ulong jiffy_interval,
+			    struct workqueue_struct *workqueue,
+			    void (*workfunc)(void *),
+			    void *workfuncarg,
+			    const char *devnam)
 {
 	struct periodic_work *pw;
 

@@ -125,7 +125,7 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 
 	clk = of_clk_get_by_name(np, "timerclk");
 	if (IS_ERR(clk)) {
-		pr_err("clock get failed (%lu)\n", PTR_ERR(clk));
+		pr_err("clock get failed (%ld)\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 
@@ -184,7 +184,7 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 
 	clk = of_clk_get_by_name(np, "timerclk");
 	if (IS_ERR(clk)) {
-		pr_err("clock get failed (%lu)\n", PTR_ERR(clk));
+		pr_err("clock get failed (%ld)\n", PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 

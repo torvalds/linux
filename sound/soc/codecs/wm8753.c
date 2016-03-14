@@ -233,7 +233,7 @@ static int wm8753_get_dai(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 
-	ucontrol->value.integer.value[0] = wm8753->dai_func;
+	ucontrol->value.enumerated.item[0] = wm8753->dai_func;
 	return 0;
 }
 
@@ -244,7 +244,7 @@ static int wm8753_set_dai(struct snd_kcontrol *kcontrol,
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 ioctl;
 
-	if (wm8753->dai_func == ucontrol->value.integer.value[0])
+	if (wm8753->dai_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	if (snd_soc_codec_is_active(codec))
@@ -252,7 +252,7 @@ static int wm8753_set_dai(struct snd_kcontrol *kcontrol,
 
 	ioctl = snd_soc_read(codec, WM8753_IOCTL);
 
-	wm8753->dai_func = ucontrol->value.integer.value[0];
+	wm8753->dai_func = ucontrol->value.enumerated.item[0];
 
 	if (((ioctl >> 2) & 0x3) == wm8753->dai_func)
 		return 1;

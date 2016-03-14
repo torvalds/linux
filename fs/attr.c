@@ -195,7 +195,7 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 	struct timespec now;
 	unsigned int ia_valid = attr->ia_valid;
 
-	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
+	WARN_ON_ONCE(!inode_is_locked(inode));
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID | ATTR_TIMES_SET)) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))

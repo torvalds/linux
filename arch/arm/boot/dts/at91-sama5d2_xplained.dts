@@ -114,8 +114,24 @@
 
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_macb0_default>;
+				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
 				phy-mode = "rmii";
+				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+					interrupt-parent = <&pioA>;
+					interrupts = <73 IRQ_TYPE_LEVEL_LOW>;
+				};
+			};
+
+			pdmic@f8018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_pdmic_default>;
+				atmel,model = "PDMIC @ sama5d2_xplained";
+				atmel,mic-min-freq = <1000000>;
+				atmel,mic-max-freq = <3246000>;
+				atmel,mic-offset = <0x0>;
 				status = "okay";
 			};
 
@@ -129,6 +145,7 @@
 				dmas = <0>, <0>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_i2c0_default>;
+				i2c-sda-hold-time-ns = <350>;
 				status = "okay";
 
 				pmic: act8865@5b {
@@ -207,6 +224,10 @@
 				};
 			};
 
+			watchdog@f8048040 {
+				status = "okay";
+			};
+
 			uart3: serial@fc008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart3_default>;
@@ -282,6 +303,16 @@
 						 <PIN_PB21__GTX1>,
 						 <PIN_PB22__GMDC>,
 						 <PIN_PB23__GMDIO>;
+					bias-disable;
+				};
+
+				pinctrl_macb0_phy_irq: macb0_phy_irq {
+					pinmux = <PIN_PC9__GPIO>;
+				};
+
+				pinctrl_pdmic_default: pdmic_default {
+					pinmux = <PIN_PB26__PDMIC_DAT>,
+						<PIN_PB27__PDMIC_CLK>;
 					bias-disable;
 				};
 

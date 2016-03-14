@@ -8,6 +8,7 @@
 #define PCI_DEVICE_ID_INTEL_HSW_IMC	0x0c00
 #define PCI_DEVICE_ID_INTEL_HSW_U_IMC	0x0a04
 #define PCI_DEVICE_ID_INTEL_BDW_IMC	0x1604
+#define PCI_DEVICE_ID_INTEL_SKL_IMC	0x191f
 
 /* SNB event control */
 #define SNB_UNC_CTL_EV_SEL_MASK			0x000000ff
@@ -417,7 +418,7 @@ static void snb_uncore_imc_event_del(struct perf_event *event, int flags)
 	}
 }
 
-static int snb_pci2phy_map_init(int devid)
+int snb_pci2phy_map_init(int devid)
 {
 	struct pci_dev *dev = NULL;
 	struct pci2phy_map *map;
@@ -524,6 +525,14 @@ static const struct pci_device_id bdw_uncore_pci_ids[] = {
 	{ /* end: all zeroes */ },
 };
 
+static const struct pci_device_id skl_uncore_pci_ids[] = {
+	{ /* IMC */
+		PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SKL_IMC),
+		.driver_data = UNCORE_PCI_DEV_DATA(SNB_PCI_UNCORE_IMC, 0),
+	},
+	{ /* end: all zeroes */ },
+};
+
 static struct pci_driver snb_uncore_pci_driver = {
 	.name		= "snb_uncore",
 	.id_table	= snb_uncore_pci_ids,
@@ -544,6 +553,11 @@ static struct pci_driver bdw_uncore_pci_driver = {
 	.id_table	= bdw_uncore_pci_ids,
 };
 
+static struct pci_driver skl_uncore_pci_driver = {
+	.name		= "skl_uncore",
+	.id_table	= skl_uncore_pci_ids,
+};
+
 struct imc_uncore_pci_dev {
 	__u32 pci_id;
 	struct pci_driver *driver;
@@ -558,6 +572,7 @@ static const struct imc_uncore_pci_dev desktop_imc_pci_ids[] = {
 	IMC_DEV(HSW_IMC, &hsw_uncore_pci_driver),    /* 4th Gen Core Processor */
 	IMC_DEV(HSW_U_IMC, &hsw_uncore_pci_driver),  /* 4th Gen Core ULT Mobile Processor */
 	IMC_DEV(BDW_IMC, &bdw_uncore_pci_driver),    /* 5th Gen Core U */
+	IMC_DEV(SKL_IMC, &skl_uncore_pci_driver),    /* 6th Gen Core */
 	{  /* end marker */ }
 };
 
@@ -606,6 +621,11 @@ int hsw_uncore_pci_init(void)
 }
 
 int bdw_uncore_pci_init(void)
+{
+	return imc_uncore_pci_init();
+}
+
+int skl_uncore_pci_init(void)
 {
 	return imc_uncore_pci_init();
 }

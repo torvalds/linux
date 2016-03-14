@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -264,8 +264,8 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 		 */
 		if ((!this_source_obj) ||
 		    (ACPI_GET_DESCRIPTOR_TYPE(this_source_obj) !=
-		     ACPI_DESC_TYPE_OPERAND)
-		    || (this_source_obj->common.type != ACPI_TYPE_PACKAGE)) {
+		     ACPI_DESC_TYPE_OPERAND) ||
+		    (this_source_obj->common.type != ACPI_TYPE_PACKAGE)) {
 			status =
 			    walk_callback(ACPI_COPY_TYPE_SIMPLE,
 					  this_source_obj, state, context);
@@ -318,9 +318,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 			 * The callback above returned a new target package object.
 			 */
 			acpi_ut_push_generic_state(&state_list, state);
-			state = acpi_ut_create_pkg_state(this_source_obj,
-							 state->pkg.
-							 this_target_obj, 0);
+			state =
+			    acpi_ut_create_pkg_state(this_source_obj,
+						     state->pkg.this_target_obj,
+						     0);
 			if (!state) {
 
 				/* Free any stacked Update State objects */

@@ -16,11 +16,14 @@ struct thread_map {
 	struct thread_map_data map[];
 };
 
+struct thread_map_event;
+
 struct thread_map *thread_map__new_dummy(void);
 struct thread_map *thread_map__new_by_pid(pid_t pid);
 struct thread_map *thread_map__new_by_tid(pid_t tid);
 struct thread_map *thread_map__new_by_uid(uid_t uid);
 struct thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid);
+struct thread_map *thread_map__new_event(struct thread_map_event *event);
 
 struct thread_map *thread_map__get(struct thread_map *map);
 void thread_map__put(struct thread_map *map);

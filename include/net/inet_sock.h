@@ -28,6 +28,7 @@
 #include <net/request_sock.h>
 #include <net/netns/hash.h>
 #include <net/tcp_states.h>
+#include <net/l3mdev.h>
 
 /** struct ip_options - IP Options
  *
@@ -111,6 +112,19 @@ static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 		return skb->mark;
 
 	return sk->sk_mark;
+}
+
+static inline int inet_request_bound_dev_if(const struct sock *sk,
+					    struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	struct net *net = sock_net(sk);
+
+	if (!sk->sk_bound_dev_if && net->ipv4.sysctl_tcp_l3mdev_accept)
+		return l3mdev_master_ifindex_by_index(net, skb->skb_iif);
+#endif
+
+	return sk->sk_bound_dev_if;
 }
 
 struct inet_cork {

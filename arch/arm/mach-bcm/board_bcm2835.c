@@ -36,7 +36,12 @@ static void __init bcm2835_init(void)
 }
 
 static const char * const bcm2835_compat[] = {
+#ifdef CONFIG_ARCH_MULTI_V6
 	"brcm,bcm2835",
+#endif
+#ifdef CONFIG_ARCH_MULTI_V7
+	"brcm,bcm2836",
+#endif
 	NULL
 };
 

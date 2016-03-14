@@ -151,6 +151,7 @@ struct i2c_hid {
 	struct i2c_hid_platform_data pdata;
 
 	bool			irq_wake_enabled;
+	struct mutex		reset_lock;
 };
 
 static int __i2c_hid_command(struct i2c_client *client,
@@ -356,9 +357,16 @@ static int i2c_hid_hwreset(struct i2c_client *client)
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
 
+	/*
+	 * This prevents sending feature reports while the device is
+	 * being reset. Otherwise we may lose the reset complete
+	 * interrupt.
+	 */
+	mutex_lock(&ihid->reset_lock);
+
 	ret = i2c_hid_set_power(client, I2C_HID_PWR_ON);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	i2c_hid_dbg(ihid, "resetting...\n");
 
@@ -366,10 +374,11 @@ static int i2c_hid_hwreset(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev, "failed to reset device.\n");
 		i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
-		return ret;
 	}
 
-	return 0;
+out_unlock:
+	mutex_unlock(&ihid->reset_lock);
+	return ret;
 }
 
 static void i2c_hid_get_input(struct i2c_hid *ihid)
@@ -587,11 +596,14 @@ static int i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 		size_t count, unsigned char report_type, bool use_data)
 {
 	struct i2c_client *client = hid->driver_data;
+	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	int report_id = buf[0];
 	int ret;
 
 	if (report_type == HID_INPUT_REPORT)
 		return -EINVAL;
+
+	mutex_lock(&ihid->reset_lock);
 
 	if (report_id) {
 		buf++;
@@ -604,6 +616,8 @@ static int i2c_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 
 	if (report_id && ret >= 0)
 		ret++; /* add report_id to the number of transfered bytes */
+
+	mutex_unlock(&ihid->reset_lock);
 
 	return ret;
 }
@@ -990,6 +1004,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	ihid->wHIDDescRegister = cpu_to_le16(hidRegister);
 
 	init_waitqueue_head(&ihid->wait);
+	mutex_init(&ihid->reset_lock);
 
 	/* we need to allocate the command buffer without knowing the maximum
 	 * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
@@ -1184,7 +1199,6 @@ MODULE_DEVICE_TABLE(i2c, i2c_hid_id_table);
 static struct i2c_driver i2c_hid_driver = {
 	.driver = {
 		.name	= "i2c_hid",
-		.owner	= THIS_MODULE,
 		.pm	= &i2c_hid_pm,
 		.acpi_match_table = ACPI_PTR(i2c_hid_acpi_match),
 		.of_match_table = of_match_ptr(i2c_hid_of_match),

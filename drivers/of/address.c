@@ -597,7 +597,7 @@ static u64 __of_translate_address(struct device_node *dev,
 		pbus = of_match_bus(parent);
 		pbus->count_cells(dev, &pna, &pns);
 		if (!OF_CHECK_COUNTS(pna, pns)) {
-			printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
+			pr_err("prom_parse: Bad cell count for %s\n",
 			       of_node_full_name(dev));
 			break;
 		}

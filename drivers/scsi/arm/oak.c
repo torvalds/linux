@@ -5,9 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/signal.h>
 #include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
 
@@ -20,14 +18,16 @@
 #define DONT_USE_INTR
 
 #define priv(host)			((struct NCR5380_hostdata *)(host)->hostdata)
-#define NCR5380_local_declare()		void __iomem *_base
-#define NCR5380_setup(host)		_base = priv(host)->base
 
-#define NCR5380_read(reg)		readb(_base + ((reg) << 2))
-#define NCR5380_write(reg, value)	writeb(value, _base + ((reg) << 2))
+#define NCR5380_read(reg) \
+	readb(priv(instance)->base + ((reg) << 2))
+#define NCR5380_write(reg, value) \
+	writeb(value, priv(instance)->base + ((reg) << 2))
+
+#define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
-#define NCR5380_show_info		oakscsi_show_info
 
 #define NCR5380_implementation_fields	\
 	void __iomem *base
@@ -103,7 +103,6 @@ printk("reading %p len %d\n", addr, len);
 
 static struct scsi_host_template oakscsi_template = {
 	.module			= THIS_MODULE,
-	.show_info		= oakscsi_show_info,
 	.name			= "Oak 16-bit SCSI",
 	.info			= oakscsi_info,
 	.queuecommand		= oakscsi_queue_command,
@@ -115,6 +114,8 @@ static struct scsi_host_template oakscsi_template = {
 	.cmd_per_lun		= 2,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "oakscsi",
+	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
 
 static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
@@ -142,15 +143,21 @@ static int oakscsi_probe(struct expansion_card *ec, const struct ecard_id *id)
 	host->irq = NO_IRQ;
 	host->n_io_port = 255;
 
-	NCR5380_init(host, 0);
+	ret = NCR5380_init(host, 0);
+	if (ret)
+		goto out_unmap;
+
+	NCR5380_maybe_reset_bus(host);
 
 	ret = scsi_add_host(host, &ec->dev);
 	if (ret)
-		goto out_unmap;
+		goto out_exit;
 
 	scsi_scan_host(host);
 	goto out;
 
+ out_exit:
+	NCR5380_exit(host);
  out_unmap:
 	iounmap(priv(host)->base);
  unreg:

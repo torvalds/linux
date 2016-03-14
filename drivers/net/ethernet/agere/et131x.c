@@ -1235,7 +1235,7 @@ static int et131x_mii_read(struct et131x_adapter *adapter, u8 reg, u16 *value)
 	if (!phydev)
 		return -EIO;
 
-	return et131x_phy_mii_read(adapter, phydev->addr, reg, value);
+	return et131x_phy_mii_read(adapter, phydev->mdio.addr, reg, value);
 }
 
 static int et131x_mii_write(struct et131x_adapter *adapter, u8 addr, u8 reg,
@@ -1462,7 +1462,7 @@ static void et1310_phy_power_switch(struct et131x_adapter *adapter, bool down)
 	data &= ~BMCR_PDOWN;
 	if (down)
 		data |= BMCR_PDOWN;
-	et131x_mii_write(adapter, phydev->addr, MII_BMCR, data);
+	et131x_mii_write(adapter, phydev->mdio.addr, MII_BMCR, data);
 }
 
 /* et131x_xcvr_init - Init the phy if we are setting it into force mode */
@@ -1490,7 +1490,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 		else
 			lcr2 |= (LED_VAL_LINKON << LED_TXRX_SHIFT);
 
-		et131x_mii_write(adapter, phydev->addr, PHY_LED_2, lcr2);
+		et131x_mii_write(adapter, phydev->mdio.addr, PHY_LED_2, lcr2);
 	}
 }
 
@@ -2380,7 +2380,7 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 						    sizeof(u32),
 						    &tx_ring->tx_status_pa,
 						    GFP_KERNEL);
-	if (!tx_ring->tx_status_pa) {
+	if (!tx_ring->tx_status) {
 		dev_err(&adapter->pdev->dev,
 			"Cannot alloc memory for Tx status block\n");
 		return -ENOMEM;
@@ -3192,14 +3192,14 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG,
 					 register18 | 0x4);
-			et131x_mii_write(adapter, phydev->addr, PHY_INDEX_REG,
-					 register18 | 0x8402);
-			et131x_mii_write(adapter, phydev->addr, PHY_DATA_REG,
-					 register18 | 511);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_INDEX_REG, register18 | 0x8402);
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_DATA_REG, register18 | 511);
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG, register18);
 		}
 
@@ -3212,8 +3212,8 @@ static void et131x_adjust_link(struct net_device *netdev)
 			et131x_mii_read(adapter, PHY_CONFIG, &reg);
 			reg &= ~ET_PHY_CONFIG_TX_FIFO_DEPTH;
 			reg |= ET_PHY_CONFIG_FIFO_DEPTH_32;
-			et131x_mii_write(adapter, phydev->addr, PHY_CONFIG,
-					 reg);
+			et131x_mii_write(adapter, phydev->mdio.addr,
+					 PHY_CONFIG, reg);
 		}
 
 		et131x_set_rx_dma_timer(adapter);
@@ -3226,14 +3226,14 @@ static void et131x_adjust_link(struct net_device *netdev)
 
 			et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
 					&register18);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG,
 					 register18 | 0x4);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_INDEX_REG, register18 | 0x8402);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_DATA_REG, register18 | 511);
-			et131x_mii_write(adapter, phydev->addr,
+			et131x_mii_write(adapter, phydev->mdio.addr,
 					 PHY_MPHY_CONTROL_REG, register18);
 		}
 
@@ -3265,7 +3265,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(netdev, dev_name(&phydev->dev),
+	phydev = phy_connect(netdev, phydev_name(phydev),
 			     &et131x_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -3289,9 +3289,7 @@ static int et131x_mii_probe(struct net_device *netdev)
 	phydev->autoneg = AUTONEG_ENABLE;
 	adapter->phydev = phydev;
 
-	dev_info(&adapter->pdev->dev,
-		 "attached PHY driver [%s] (mii_bus:phy_addr=%s)\n",
-		 phydev->drv->name, dev_name(&phydev->dev));
+	phy_attached_info(phydev);
 
 	return 0;
 }
@@ -3327,7 +3325,6 @@ static void et131x_pci_remove(struct pci_dev *pdev)
 	netif_napi_del(&adapter->napi);
 	phy_disconnect(adapter->phydev);
 	mdiobus_unregister(adapter->mii_bus);
-	kfree(adapter->mii_bus->irq);
 	mdiobus_free(adapter->mii_bus);
 
 	et131x_adapter_memory_free(adapter);
@@ -3946,7 +3943,6 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct et131x_adapter *adapter;
 	int rc;
-	int ii;
 
 	rc = pci_enable_device(pdev);
 	if (rc < 0) {
@@ -4036,18 +4032,11 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	adapter->mii_bus->priv = netdev;
 	adapter->mii_bus->read = et131x_mdio_read;
 	adapter->mii_bus->write = et131x_mdio_write;
-	adapter->mii_bus->irq = kmalloc_array(PHY_MAX_ADDR, sizeof(int),
-					      GFP_KERNEL);
-	if (!adapter->mii_bus->irq)
-		goto err_mdio_free;
-
-	for (ii = 0; ii < PHY_MAX_ADDR; ii++)
-		adapter->mii_bus->irq[ii] = PHY_POLL;
 
 	rc = mdiobus_register(adapter->mii_bus);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to register MII bus\n");
-		goto err_mdio_free_irq;
+		goto err_mdio_free;
 	}
 
 	rc = et131x_mii_probe(netdev);
@@ -4087,8 +4076,6 @@ err_phy_disconnect:
 	phy_disconnect(adapter->phydev);
 err_mdio_unregister:
 	mdiobus_unregister(adapter->mii_bus);
-err_mdio_free_irq:
-	kfree(adapter->mii_bus->irq);
 err_mdio_free:
 	mdiobus_free(adapter->mii_bus);
 err_mem_free:

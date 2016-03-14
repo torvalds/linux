@@ -394,12 +394,46 @@
 #define CAUSEF_IV		(_ULCAST_(1)   << 23)
 #define CAUSEB_PCI		26
 #define CAUSEF_PCI		(_ULCAST_(1)   << 26)
+#define CAUSEB_DC		27
+#define CAUSEF_DC		(_ULCAST_(1)   << 27)
 #define CAUSEB_CE		28
 #define CAUSEF_CE		(_ULCAST_(3)   << 28)
 #define CAUSEB_TI		30
 #define CAUSEF_TI		(_ULCAST_(1)   << 30)
 #define CAUSEB_BD		31
 #define CAUSEF_BD		(_ULCAST_(1)   << 31)
+
+/*
+ * Cause.ExcCode trap codes.
+ */
+#define EXCCODE_INT		0	/* Interrupt pending */
+#define EXCCODE_MOD		1	/* TLB modified fault */
+#define EXCCODE_TLBL		2	/* TLB miss on load or ifetch */
+#define EXCCODE_TLBS		3	/* TLB miss on a store */
+#define EXCCODE_ADEL		4	/* Address error on a load or ifetch */
+#define EXCCODE_ADES		5	/* Address error on a store */
+#define EXCCODE_IBE		6	/* Bus error on an ifetch */
+#define EXCCODE_DBE		7	/* Bus error on a load or store */
+#define EXCCODE_SYS		8	/* System call */
+#define EXCCODE_BP		9	/* Breakpoint */
+#define EXCCODE_RI		10	/* Reserved instruction exception */
+#define EXCCODE_CPU		11	/* Coprocessor unusable */
+#define EXCCODE_OV		12	/* Arithmetic overflow */
+#define EXCCODE_TR		13	/* Trap instruction */
+#define EXCCODE_MSAFPE		14	/* MSA floating point exception */
+#define EXCCODE_FPE		15	/* Floating point exception */
+#define EXCCODE_TLBRI		19	/* TLB Read-Inhibit exception */
+#define EXCCODE_TLBXI		20	/* TLB Execution-Inhibit exception */
+#define EXCCODE_MSADIS		21	/* MSA disabled exception */
+#define EXCCODE_MDMX		22	/* MDMX unusable exception */
+#define EXCCODE_WATCH		23	/* Watch address reference */
+#define EXCCODE_MCHECK		24	/* Machine check */
+#define EXCCODE_THREAD		25	/* Thread exceptions (MT) */
+#define EXCCODE_DSPDIS		26	/* DSP disabled exception */
+#define EXCCODE_GE		27	/* Virtualized guest exception (VZ) */
+
+/* Implementation specific trap codes used by MIPS cores */
+#define MIPS_EXCCODE_TLBPAR	16	/* TLB parity error exception */
 
 /*
  * Bits in the coprocessor 0 config register.

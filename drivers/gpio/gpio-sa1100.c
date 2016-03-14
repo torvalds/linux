@@ -17,7 +17,7 @@
 
 static int sa1100_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	return GPLR & GPIO_GPIO(offset);
+	return !!(GPLR & GPIO_GPIO(offset));
 }
 
 static void sa1100_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -238,7 +238,7 @@ void __init sa1100_init_gpio(void)
 	GRER = 0;
 	GEDR = -1;
 
-	gpiochip_add(&sa1100_gpio_chip);
+	gpiochip_add_data(&sa1100_gpio_chip, NULL);
 
 	sa1100_gpio_irqdomain = irq_domain_add_simple(NULL,
 			28, IRQ_GPIO0,

@@ -33,7 +33,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/v4l2-dv-timings.h>
 
-#include <media/s5p_hdmi.h>
+#include <linux/platform_data/media/s5p_hdmi.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -627,7 +627,7 @@ static int hdmi_s_dv_timings(struct v4l2_subdev *sd,
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_timings); i++)
 		if (v4l2_match_dv_timings(&hdmi_timings[i].dv_timings,
-					timings, 0))
+					timings, 0, false))
 			break;
 	if (i == ARRAY_SIZE(hdmi_timings)) {
 		dev_err(dev, "timings not supported\n");

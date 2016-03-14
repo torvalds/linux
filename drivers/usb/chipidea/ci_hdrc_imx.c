@@ -345,6 +345,11 @@ static int ci_hdrc_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
+{
+	ci_hdrc_imx_remove(pdev);
+}
+
 #ifdef CONFIG_PM
 static int imx_controller_suspend(struct device *dev)
 {
@@ -462,6 +467,7 @@ static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
 	.remove = ci_hdrc_imx_remove,
+	.shutdown = ci_hdrc_imx_shutdown,
 	.driver = {
 		.name = "imx_usb",
 		.of_match_table = ci_hdrc_imx_dt_ids,

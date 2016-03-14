@@ -267,7 +267,7 @@ static int check_namespace(const struct qstr *nm)
 
 	if (!strncmp(nm->name, XATTR_TRUSTED_PREFIX,
 		     XATTR_TRUSTED_PREFIX_LEN)) {
-		if (nm->name[sizeof(XATTR_TRUSTED_PREFIX) - 1] == '\0')
+		if (nm->name[XATTR_TRUSTED_PREFIX_LEN] == '\0')
 			return -EINVAL;
 		type = TRUSTED_XATTR;
 	} else if (!strncmp(nm->name, XATTR_USER_PREFIX,
@@ -277,7 +277,7 @@ static int check_namespace(const struct qstr *nm)
 		type = USER_XATTR;
 	} else if (!strncmp(nm->name, XATTR_SECURITY_PREFIX,
 				     XATTR_SECURITY_PREFIX_LEN)) {
-		if (nm->name[sizeof(XATTR_SECURITY_PREFIX) - 1] == '\0')
+		if (nm->name[XATTR_SECURITY_PREFIX_LEN] == '\0')
 			return -EINVAL;
 		type = SECURITY_XATTR;
 	} else
@@ -313,7 +313,7 @@ static int setxattr(struct inode *host, const char *name, const void *value,
 	union ubifs_key key;
 	int err, type;
 
-	ubifs_assert(mutex_is_locked(&host->i_mutex));
+	ubifs_assert(inode_is_locked(host));
 
 	if (size > UBIFS_MAX_INO_DATA)
 		return -ERANGE;
@@ -550,7 +550,7 @@ int ubifs_removexattr(struct dentry *dentry, const char *name)
 
 	dbg_gen("xattr '%s', ino %lu ('%pd')", name,
 		host->i_ino, dentry);
-	ubifs_assert(mutex_is_locked(&host->i_mutex));
+	ubifs_assert(inode_is_locked(host));
 
 	err = check_namespace(&nm);
 	if (err < 0)

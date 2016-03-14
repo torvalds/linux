@@ -254,6 +254,16 @@ void sync_pt_free(struct sync_pt *pt);
  */
 struct sync_fence *sync_fence_create(const char *name, struct sync_pt *pt);
 
+/**
+ * sync_fence_create_dma() - creates a sync fence from dma-fence
+ * @name:	name of fence to create
+ * @pt:	dma-fence to add to the fence
+ *
+ * Creates a fence containg @pt.  Once this is called, the fence takes
+ * ownership of @pt.
+ */
+struct sync_fence *sync_fence_create_dma(const char *name, struct fence *pt);
+
 /*
  * API for sync_fence consumers
  */

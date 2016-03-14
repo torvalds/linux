@@ -1156,6 +1156,8 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 {
 	__virtio16 last_used_idx;
 	int r;
+	bool is_le = vq->is_le;
+
 	if (!vq->private_data) {
 		vq->is_le = virtio_legacy_is_little_endian();
 		return 0;
@@ -1165,15 +1167,20 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 
 	r = vhost_update_used_flags(vq);
 	if (r)
-		return r;
+		goto err;
 	vq->signalled_used_valid = false;
-	if (!access_ok(VERIFY_READ, &vq->used->idx, sizeof vq->used->idx))
-		return -EFAULT;
+	if (!access_ok(VERIFY_READ, &vq->used->idx, sizeof vq->used->idx)) {
+		r = -EFAULT;
+		goto err;
+	}
 	r = __get_user(last_used_idx, &vq->used->idx);
 	if (r)
-		return r;
+		goto err;
 	vq->last_used_idx = vhost16_to_cpu(vq, last_used_idx);
 	return 0;
+err:
+	vq->is_le = is_le;
+	return r;
 }
 EXPORT_SYMBOL_GPL(vhost_init_used);
 

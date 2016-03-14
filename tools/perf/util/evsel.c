@@ -36,6 +36,7 @@ static struct {
 	bool cloexec;
 	bool clockid;
 	bool clockid_wrong;
+	bool lbr_flags;
 } perf_missing_features;
 
 static clockid_t clockid;
@@ -574,7 +575,9 @@ perf_evsel__config_callgraph(struct perf_evsel *evsel,
 			} else {
 				perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
 				attr->branch_sample_type = PERF_SAMPLE_BRANCH_USER |
-							PERF_SAMPLE_BRANCH_CALL_STACK;
+							PERF_SAMPLE_BRANCH_CALL_STACK |
+							PERF_SAMPLE_BRANCH_NO_CYCLES |
+							PERF_SAMPLE_BRANCH_NO_FLAGS;
 			}
 		} else
 			 pr_warning("Cannot use LBR callstack with branch stack. "
@@ -981,10 +984,23 @@ int perf_evsel__append_filter(struct perf_evsel *evsel,
 	return -1;
 }
 
-int perf_evsel__enable(struct perf_evsel *evsel, int ncpus, int nthreads)
+int perf_evsel__enable(struct perf_evsel *evsel)
 {
+	int nthreads = thread_map__nr(evsel->threads);
+	int ncpus = cpu_map__nr(evsel->cpus);
+
 	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
 				     PERF_EVENT_IOC_ENABLE,
+				     0);
+}
+
+int perf_evsel__disable(struct perf_evsel *evsel)
+{
+	int nthreads = thread_map__nr(evsel->threads);
+	int ncpus = cpu_map__nr(evsel->cpus);
+
+	return perf_evsel__run_ioctl(evsel, ncpus, nthreads,
+				     PERF_EVENT_IOC_DISABLE,
 				     0);
 }
 
@@ -1192,6 +1208,7 @@ static void __p_sample_type(char *buf, size_t size, u64 value)
 		bit_name(PERIOD), bit_name(STREAM_ID), bit_name(RAW),
 		bit_name(BRANCH_STACK), bit_name(REGS_USER), bit_name(STACK_USER),
 		bit_name(IDENTIFIER), bit_name(REGS_INTR), bit_name(DATA_SRC),
+		bit_name(WEIGHT),
 		{ .name = NULL, }
 	};
 #undef bit_name
@@ -1323,6 +1340,9 @@ fallback_missing_features:
 		evsel->attr.mmap2 = 0;
 	if (perf_missing_features.exclude_guest)
 		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
+	if (perf_missing_features.lbr_flags)
+		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
+				     PERF_SAMPLE_BRANCH_NO_CYCLES);
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1441,6 +1461,12 @@ try_fallback:
 	} else if (!perf_missing_features.sample_id_all) {
 		perf_missing_features.sample_id_all = true;
 		goto retry_sample_id;
+	} else if (!perf_missing_features.lbr_flags &&
+			(evsel->attr.branch_sample_type &
+			 (PERF_SAMPLE_BRANCH_NO_CYCLES |
+			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
+		perf_missing_features.lbr_flags = true;
+		goto fallback_missing_features;
 	}
 
 out_close:
@@ -2271,6 +2297,29 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 
 		printed += comma_fprintf(fp, &first, " %s=%" PRIu64,
 					 term, (u64)evsel->attr.sample_freq);
+	}
+
+	if (details->trace_fields) {
+		struct format_field *field;
+
+		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
+			printed += comma_fprintf(fp, &first, " (not a tracepoint)");
+			goto out;
+		}
+
+		field = evsel->tp_format->format.fields;
+		if (field == NULL) {
+			printed += comma_fprintf(fp, &first, " (no trace field)");
+			goto out;
+		}
+
+		printed += comma_fprintf(fp, &first, " trace_fields: %s", field->name);
+
+		field = field->next;
+		while (field) {
+			printed += comma_fprintf(fp, &first, "%s", field->name);
+			field = field->next;
+		}
 	}
 out:
 	fputc('\n', fp);

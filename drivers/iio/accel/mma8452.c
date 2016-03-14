@@ -29,6 +29,7 @@
 #include <linux/iio/events.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 
 #define MMA8452_STATUS				0x00
 #define  MMA8452_STATUS_DRDY			(BIT(2) | BIT(1) | BIT(0))
@@ -57,7 +58,6 @@
 #define MMA8452_FF_MT_COUNT			0x18
 #define MMA8452_TRANSIENT_CFG			0x1d
 #define  MMA8452_TRANSIENT_CFG_HPF_BYP		BIT(0)
-#define  MMA8452_TRANSIENT_CFG_CHAN(chan)	BIT(chan + 1)
 #define  MMA8452_TRANSIENT_CFG_ELE		BIT(4)
 #define MMA8452_TRANSIENT_SRC			0x1e
 #define  MMA8452_TRANSIENT_SRC_XTRANSE		BIT(1)
@@ -141,6 +141,13 @@ struct mma_chip_info {
 	u8 ev_ths;
 	u8 ev_ths_mask;
 	u8 ev_count;
+};
+
+enum {
+	idx_x,
+	idx_y,
+	idx_z,
+	idx_ts,
 };
 
 static int mma8452_drdy(struct mma8452_data *data)
@@ -816,31 +823,31 @@ static struct attribute_group mma8452_event_attribute_group = {
 }
 
 static const struct iio_chan_spec mma8452_channels[] = {
-	MMA8452_CHANNEL(X, 0, 12),
-	MMA8452_CHANNEL(Y, 1, 12),
-	MMA8452_CHANNEL(Z, 2, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8452_CHANNEL(X, idx_x, 12),
+	MMA8452_CHANNEL(Y, idx_y, 12),
+	MMA8452_CHANNEL(Z, idx_z, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8453_channels[] = {
-	MMA8452_CHANNEL(X, 0, 10),
-	MMA8452_CHANNEL(Y, 1, 10),
-	MMA8452_CHANNEL(Z, 2, 10),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8452_CHANNEL(X, idx_x, 10),
+	MMA8452_CHANNEL(Y, idx_y, 10),
+	MMA8452_CHANNEL(Z, idx_z, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8652_channels[] = {
-	MMA8652_CHANNEL(X, 0, 12),
-	MMA8652_CHANNEL(Y, 1, 12),
-	MMA8652_CHANNEL(Z, 2, 12),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8652_CHANNEL(X, idx_x, 12),
+	MMA8652_CHANNEL(Y, idx_y, 12),
+	MMA8652_CHANNEL(Z, idx_z, 12),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 static const struct iio_chan_spec mma8653_channels[] = {
-	MMA8652_CHANNEL(X, 0, 10),
-	MMA8652_CHANNEL(Y, 1, 10),
-	MMA8652_CHANNEL(Z, 2, 10),
-	IIO_CHAN_SOFT_TIMESTAMP(3),
+	MMA8652_CHANNEL(X, idx_x, 10),
+	MMA8652_CHANNEL(Y, idx_y, 10),
+	MMA8652_CHANNEL(Z, idx_z, 10),
+	IIO_CHAN_SOFT_TIMESTAMP(idx_ts),
 };
 
 enum {
@@ -1130,13 +1137,21 @@ static int mma8452_probe(struct i2c_client *client,
 					   MMA8452_INT_FF_MT;
 		int enabled_interrupts = MMA8452_INT_TRANS |
 					 MMA8452_INT_FF_MT;
+		int irq2;
 
-		/* Assume wired to INT1 pin */
-		ret = i2c_smbus_write_byte_data(client,
-						MMA8452_CTRL_REG5,
-						supported_interrupts);
-		if (ret < 0)
-			return ret;
+		irq2 = of_irq_get_byname(client->dev.of_node, "INT2");
+
+		if (irq2 == client->irq) {
+			dev_dbg(&client->dev, "using interrupt line INT2\n");
+		} else {
+			ret = i2c_smbus_write_byte_data(client,
+							MMA8452_CTRL_REG5,
+							supported_interrupts);
+			if (ret < 0)
+				return ret;
+
+			dev_dbg(&client->dev, "using interrupt line INT1\n");
+		}
 
 		ret = i2c_smbus_write_byte_data(client,
 						MMA8452_CTRL_REG4,

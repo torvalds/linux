@@ -20,56 +20,34 @@
 #define GEN_74X164_NUMBER_GPIOS	8
 
 struct gen_74x164_chip {
-	u8			*buffer;
 	struct gpio_chip	gpio_chip;
 	struct mutex		lock;
 	u32			registers;
-};
-
-static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
-{
-	return container_of(gc, struct gen_74x164_chip, gpio_chip);
-}
-
-static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
-{
-	struct spi_device *spi = to_spi_device(chip->gpio_chip.dev);
-	struct spi_message message;
-	struct spi_transfer *msg_buf;
-	int i, ret = 0;
-
-	msg_buf = kzalloc(chip->registers * sizeof(struct spi_transfer),
-			GFP_KERNEL);
-	if (!msg_buf)
-		return -ENOMEM;
-
-	spi_message_init(&message);
-
 	/*
 	 * Since the registers are chained, every byte sent will make
 	 * the previous byte shift to the next register in the
-	 * chain. Thus, the first byte send will end up in the last
+	 * chain. Thus, the first byte sent will end up in the last
 	 * register at the end of the transfer. So, to have a logical
-	 * numbering, send the bytes in reverse order so that the last
-	 * byte of the buffer will end up in the last register.
+	 * numbering, store the bytes in reverse order.
 	 */
-	for (i = chip->registers - 1; i >= 0; i--) {
-		msg_buf[i].tx_buf = chip->buffer + i;
-		msg_buf[i].len = sizeof(u8);
-		spi_message_add_tail(msg_buf + i, &message);
-	}
+	u8			buffer[0];
+};
 
-	ret = spi_sync(spi, &message);
+static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
+{
+	struct spi_transfer xfer = {
+		.tx_buf = chip->buffer,
+		.len = chip->registers,
+	};
 
-	kfree(msg_buf);
-
-	return ret;
+	return spi_sync_transfer(to_spi_device(chip->gpio_chip.parent),
+				 &xfer, 1);
 }
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
-	u8 bank = offset / 8;
+	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
+	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 	int ret;
 
@@ -83,8 +61,8 @@ static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 static void gen_74x164_set_value(struct gpio_chip *gc,
 		unsigned offset, int val)
 {
-	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
-	u8 bank = offset / 8;
+	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
+	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 
 	mutex_lock(&chip->lock);
@@ -107,6 +85,7 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
+	u32 nregs;
 	int ret;
 
 	/*
@@ -118,7 +97,14 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
+	if (of_property_read_u32(spi->dev.of_node, "registers-number",
+				 &nregs)) {
+		dev_err(&spi->dev,
+			"Missing registers-number property in the DT.\n");
+		return -EINVAL;
+	}
+
+	chip = devm_kzalloc(&spi->dev, sizeof(*chip) + nregs, GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -130,20 +116,11 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.set = gen_74x164_set_value;
 	chip->gpio_chip.base = -1;
 
-	if (of_property_read_u32(spi->dev.of_node, "registers-number",
-				 &chip->registers)) {
-		dev_err(&spi->dev,
-			"Missing registers-number property in the DT.\n");
-		return -EINVAL;
-	}
-
+	chip->registers = nregs;
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
-	chip->buffer = devm_kzalloc(&spi->dev, chip->registers, GFP_KERNEL);
-	if (!chip->buffer)
-		return -ENOMEM;
 
 	chip->gpio_chip.can_sleep = true;
-	chip->gpio_chip.dev = &spi->dev;
+	chip->gpio_chip.parent = &spi->dev;
 	chip->gpio_chip.owner = THIS_MODULE;
 
 	mutex_init(&chip->lock);
@@ -154,7 +131,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 		goto exit_destroy;
 	}
 
-	ret = gpiochip_add(&chip->gpio_chip);
+	ret = gpiochip_add_data(&chip->gpio_chip, chip);
 	if (!ret)
 		return 0;
 

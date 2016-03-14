@@ -99,7 +99,7 @@ static void dump_iic_regs(const char* header, struct ibm_iic_private* dev)
 #endif
 
 /* Bus timings (in ns) for bit-banging */
-static struct i2c_timings {
+static struct ibm_iic_timings {
 	unsigned int hd_sta;
 	unsigned int su_sto;
 	unsigned int low;
@@ -241,7 +241,7 @@ static int iic_dc_wait(volatile struct iic_regs __iomem *iic, u8 mask)
 static int iic_smbus_quick(struct ibm_iic_private* dev, const struct i2c_msg* p)
 {
 	volatile struct iic_regs __iomem *iic = dev->vaddr;
-	const struct i2c_timings* t = &timings[dev->fast_mode ? 1 : 0];
+	const struct ibm_iic_timings *t = &timings[dev->fast_mode ? 1 : 0];
 	u8 mask, v, sda;
 	int i, res;
 

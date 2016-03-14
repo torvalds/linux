@@ -81,6 +81,7 @@ config STI_MBOX
 config MAILBOX_TEST
 	tristate "Mailbox Test Client"
 	depends on OF
+	depends on HAS_IOMEM
 	help
 	  Test client to help with testing new Controller driver
 	  implementations.

@@ -185,8 +185,7 @@ static void slice_flush_segments(void *parm)
 	if (mm != current->active_mm)
 		return;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = current->active_mm->context;
+	copy_mm_to_paca(&current->active_mm->context);
 
 	local_irq_save(flags);
 	slb_flush_and_rebolt();

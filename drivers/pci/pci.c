@@ -527,9 +527,9 @@ static void pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, i);
 }
 
-static struct pci_platform_pm_ops *pci_platform_pm;
+static const struct pci_platform_pm_ops *pci_platform_pm;
 
-int pci_set_platform_pm(struct pci_platform_pm_ops *ops)
+int pci_set_platform_pm(const struct pci_platform_pm_ops *ops)
 {
 	if (!ops->is_manageable || !ops->set_state || !ops->choose_state
 	    || !ops->sleep_wake)
@@ -1417,7 +1417,7 @@ struct pci_devres {
 
 static void pcim_release(struct device *gendev, void *res)
 {
-	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_dev *dev = to_pci_dev(gendev);
 	struct pci_devres *this = res;
 	int i;
 
@@ -1534,7 +1534,7 @@ void __weak pcibios_release_device(struct pci_dev *dev) {}
  * is the default implementation. Architecture implementations can
  * override this.
  */
-void __weak pcibios_disable_device (struct pci_dev *dev) {}
+void __weak pcibios_disable_device(struct pci_dev *dev) {}
 
 /**
  * pcibios_penalize_isa_irq - penalize an ISA IRQ
@@ -4772,8 +4772,10 @@ int pci_get_new_domain_nr(void)
 void pci_bus_assign_domain_nr(struct pci_bus *bus, struct device *parent)
 {
 	static int use_dt_domains = -1;
-	int domain = of_get_pci_domain_nr(parent->of_node);
+	int domain = -1;
 
+	if (parent)
+		domain = of_get_pci_domain_nr(parent->of_node);
 	/*
 	 * Check DT domain and use_dt_domains values.
 	 *

@@ -289,10 +289,8 @@ static void __node_free_rcu(struct rcu_head *head)
 
 	if (!n->tn_bits)
 		kmem_cache_free(trie_leaf_kmem, n);
-	else if (n->tn_bits <= TNODE_KMALLOC_MAX)
-		kfree(n);
 	else
-		vfree(n);
+		kvfree(n);
 }
 
 #define node_free(n) call_rcu(&tn_info(n)->rcu, __node_free_rcu)
@@ -1396,9 +1394,10 @@ found:
 		struct fib_info *fi = fa->fa_info;
 		int nhsel, err;
 
-		if ((index >= (1ul << fa->fa_slen)) &&
-		    ((BITS_PER_LONG > KEYLENGTH) || (fa->fa_slen != KEYLENGTH)))
-			continue;
+		if ((BITS_PER_LONG > KEYLENGTH) || (fa->fa_slen < KEYLENGTH)) {
+			if (index >= (1ul << fa->fa_slen))
+				continue;
+		}
 		if (fa->fa_tos && fa->fa_tos != flp->flowi4_tos)
 			continue;
 		if (fi->fib_dead)

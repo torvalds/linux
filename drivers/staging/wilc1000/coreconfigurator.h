@@ -72,7 +72,7 @@ typedef enum {
 
 struct wid {
 	u16 id;
-	enum WID_TYPE type;
+	enum wid_type type;
 	s32 size;
 	s8 *val;
 };
@@ -127,16 +127,18 @@ typedef struct {
 	size_t ie_len;
 } tstrDisconnectNotifInfo;
 
-s32 send_config_pkt(u8 mode, struct wid *wids, u32 count, u32 drv);
-s32 parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
-s32 DeallocateNetworkInfo(tstrNetworkInfo *pstrNetworkInfo);
+s32 wilc_send_config_pkt(struct wilc *wilc, u8 mode, struct wid *wids,
+			 u32 count, u32 drv);
+s32 wilc_parse_network_info(u8 *pu8MsgBuffer, tstrNetworkInfo **ppstrNetworkInfo);
+s32 wilc_dealloc_network_info(tstrNetworkInfo *pstrNetworkInfo);
 
-s32 ParseAssocRespInfo(u8 *pu8Buffer, u32 u32BufferLen,
+s32 wilc_parse_assoc_resp_info(u8 *pu8Buffer, u32 u32BufferLen,
 		       tstrConnectRespInfo **ppstrConnectRespInfo);
-s32 DeallocateAssocRespInfo(tstrConnectRespInfo *pstrConnectRespInfo);
-
-void NetworkInfoReceived(u8 *pu8Buffer, u32 u32Length);
-void GnrlAsyncInfoReceived(u8 *pu8Buffer, u32 u32Length);
-void host_int_ScanCompleteReceived(u8 *pu8Buffer, u32 u32Length);
-
+s32 wilc_dealloc_assoc_resp_info(tstrConnectRespInfo *pstrConnectRespInfo);
+void wilc_scan_complete_received(struct wilc *wilc, u8 *pu8Buffer,
+				 u32 u32Length);
+void wilc_network_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				u32 u32Length);
+void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *pu8Buffer,
+				   u32 u32Length);
 #endif

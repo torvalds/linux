@@ -116,7 +116,7 @@ static int sun6i_smp_boot_secondary(unsigned int cpu,
 	return 0;
 }
 
-static struct smp_operations sun6i_smp_ops __initdata = {
+static const struct smp_operations sun6i_smp_ops __initconst = {
 	.smp_prepare_cpus	= sun6i_smp_prepare_cpus,
 	.smp_boot_secondary	= sun6i_smp_boot_secondary,
 };
@@ -185,7 +185,7 @@ static int sun8i_smp_boot_secondary(unsigned int cpu,
 	return 0;
 }
 
-struct smp_operations sun8i_smp_ops __initdata = {
+static const struct smp_operations sun8i_smp_ops __initconst = {
 	.smp_prepare_cpus	= sun8i_smp_prepare_cpus,
 	.smp_boot_secondary	= sun8i_smp_boot_secondary,
 };

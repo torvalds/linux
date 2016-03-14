@@ -119,7 +119,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 	__be64 *eablk, *end;
 	int error;
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, &bh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0, &bh);
 	if (error)
 		return error;
 
@@ -143,7 +143,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 			break;
 		bn = be64_to_cpu(*eablk);
 
-		error = gfs2_meta_read(ip->i_gl, bn, DIO_WAIT, &eabh);
+		error = gfs2_meta_read(ip->i_gl, bn, DIO_WAIT, 0, &eabh);
 		if (error)
 			break;
 		error = ea_foreach_i(ip, eabh, ea_call, data);
@@ -477,7 +477,7 @@ static int gfs2_iter_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		return -ENOMEM;
 
 	for (x = 0; x < nptrs; x++) {
-		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0,
+		error = gfs2_meta_read(ip->i_gl, be64_to_cpu(*dataptrs), 0, 0,
 				       bh + x);
 		if (error) {
 			while (x--)
@@ -979,7 +979,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
 		__be64 *end;
 
-		error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT,
+		error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0,
 				       &indbh);
 		if (error)
 			return error;
@@ -1237,56 +1237,6 @@ static int gfs2_xattr_set(const struct xattr_handler *handler,
 				size, flags, handler->flags);
 }
 
-
-static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
-				  struct gfs2_ea_header *ea, char *data)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	unsigned int amount = GFS2_EA_DATA_LEN(ea);
-	unsigned int nptrs = DIV_ROUND_UP(amount, sdp->sd_jbsize);
-	int ret;
-
-	ret = gfs2_trans_begin(sdp, nptrs + RES_DINODE, 0);
-	if (ret)
-		return ret;
-
-	ret = gfs2_iter_unstuffed(ip, ea, data, NULL);
-	gfs2_trans_end(sdp);
-
-	return ret;
-}
-
-int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
-{
-	struct inode *inode = &ip->i_inode;
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct gfs2_ea_location el;
-	int error;
-
-	error = gfs2_ea_find(ip, GFS2_EATYPE_SYS, GFS2_POSIX_ACL_ACCESS, &el);
-	if (error)
-		return error;
-
-	if (GFS2_EA_IS_STUFFED(el.el_ea)) {
-		error = gfs2_trans_begin(sdp, RES_DINODE + RES_EATTR, 0);
-		if (error == 0) {
-			gfs2_trans_add_meta(ip->i_gl, el.el_bh);
-			memcpy(GFS2_EA2DATA(el.el_ea), data,
-			       GFS2_EA_DATA_LEN(el.el_ea));
-		}
-	} else {
-		error = ea_acl_chmod_unstuffed(ip, el.el_ea, data);
-	}
-
-	brelse(el.el_bh);
-	if (error)
-		return error;
-
-	error = gfs2_setattr_simple(inode, attr);
-	gfs2_trans_end(sdp);
-	return error;
-}
-
 static int ea_dealloc_indirect(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
@@ -1306,7 +1256,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
-	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, &indbh);
+	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, 0, &indbh);
 	if (error)
 		return error;
 

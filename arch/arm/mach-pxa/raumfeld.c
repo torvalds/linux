@@ -49,7 +49,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa300.h>
+#include "pxa300.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
@@ -1046,7 +1046,7 @@ static void __init raumfeld_common_init(void)
 	i2c_register_board_info(1, &raumfeld_pwri2c_board_info, 1);
 }
 
-static void __init raumfeld_controller_init(void)
+static void __init __maybe_unused raumfeld_controller_init(void)
 {
 	int ret;
 
@@ -1067,7 +1067,7 @@ static void __init raumfeld_controller_init(void)
 	raumfeld_w1_init();
 }
 
-static void __init raumfeld_connector_init(void)
+static void __init __maybe_unused raumfeld_connector_init(void)
 {
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_connector_pin_config));
 	spi_register_board_info(ARRAY_AND_SIZE(connector_spi_devices));
@@ -1079,7 +1079,7 @@ static void __init raumfeld_connector_init(void)
 	raumfeld_common_init();
 }
 
-static void __init raumfeld_speaker_init(void)
+static void __init __maybe_unused raumfeld_speaker_init(void)
 {
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(raumfeld_speaker_pin_config));
 	spi_register_board_info(ARRAY_AND_SIZE(speaker_spi_devices));

@@ -206,7 +206,7 @@ static void gab_work(struct work_struct *work)
 	bool is_plugged;
 	int status;
 
-	delayed_work = container_of(work, struct delayed_work, work);
+	delayed_work = to_delayed_work(work);
 	adc_bat = container_of(delayed_work, struct gab, bat_work);
 	pdata = adc_bat->pdata;
 	status = adc_bat->status;

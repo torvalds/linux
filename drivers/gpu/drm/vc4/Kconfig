@@ -1,7 +1,7 @@
 config DRM_VC4
 	tristate "Broadcom VC4 Graphics"
 	depends on ARCH_BCM2835 || COMPILE_TEST
-	depends on DRM && HAVE_DMA_ATTRS
+	depends on DRM
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER

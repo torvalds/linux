@@ -218,7 +218,7 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 	if (sd->s_type & (CONFIGFS_DIR | CONFIGFS_ITEM_LINK))
 		return sd->s_dentry->d_name.name;
 
-	if (sd->s_type & CONFIGFS_ITEM_ATTR) {
+	if (sd->s_type & (CONFIGFS_ITEM_ATTR | CONFIGFS_ITEM_BIN_ATTR)) {
 		attr = sd->s_element;
 		return attr->ca_name;
 	}
@@ -255,7 +255,7 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 		/* no inode means this hasn't been made visible yet */
 		return;
 
-	mutex_lock(&d_inode(dir)->i_mutex);
+	inode_lock(d_inode(dir));
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -268,5 +268,5 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 }

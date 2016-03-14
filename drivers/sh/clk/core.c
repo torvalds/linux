@@ -469,6 +469,9 @@ void clk_enable_init_clocks(void)
 
 unsigned long clk_get_rate(struct clk *clk)
 {
+	if (!clk)
+		return 0;
+
 	return clk->rate;
 }
 EXPORT_SYMBOL_GPL(clk_get_rate);
@@ -477,6 +480,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int ret = -EOPNOTSUPP;
 	unsigned long flags;
+
+	if (!clk)
+		return 0;
 
 	spin_lock_irqsave(&clock_lock, flags);
 
@@ -535,12 +541,18 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
 
 struct clk *clk_get_parent(struct clk *clk)
 {
+	if (!clk)
+		return NULL;
+
 	return clk->parent;
 }
 EXPORT_SYMBOL_GPL(clk_get_parent);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
+	if (!clk)
+		return 0;
+
 	if (likely(clk->ops && clk->ops->round_rate)) {
 		unsigned long flags, rounded;
 
@@ -554,94 +566,6 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk_get_rate(clk);
 }
 EXPORT_SYMBOL_GPL(clk_round_rate);
-
-long clk_round_parent(struct clk *clk, unsigned long target,
-		      unsigned long *best_freq, unsigned long *parent_freq,
-		      unsigned int div_min, unsigned int div_max)
-{
-	struct cpufreq_frequency_table *freq, *best = NULL;
-	unsigned long error = ULONG_MAX, freq_high, freq_low, div;
-	struct clk *parent = clk_get_parent(clk);
-
-	if (!parent) {
-		*parent_freq = 0;
-		*best_freq = clk_round_rate(clk, target);
-		return abs(target - *best_freq);
-	}
-
-	cpufreq_for_each_valid_entry(freq, parent->freq_table) {
-		if (unlikely(freq->frequency / target <= div_min - 1)) {
-			unsigned long freq_max;
-
-			freq_max = (freq->frequency + div_min / 2) / div_min;
-			if (error > target - freq_max) {
-				error = target - freq_max;
-				best = freq;
-				if (best_freq)
-					*best_freq = freq_max;
-			}
-
-			pr_debug("too low freq %u, error %lu\n", freq->frequency,
-				 target - freq_max);
-
-			if (!error)
-				break;
-
-			continue;
-		}
-
-		if (unlikely(freq->frequency / target >= div_max)) {
-			unsigned long freq_min;
-
-			freq_min = (freq->frequency + div_max / 2) / div_max;
-			if (error > freq_min - target) {
-				error = freq_min - target;
-				best = freq;
-				if (best_freq)
-					*best_freq = freq_min;
-			}
-
-			pr_debug("too high freq %u, error %lu\n", freq->frequency,
-				 freq_min - target);
-
-			if (!error)
-				break;
-
-			continue;
-		}
-
-		div = freq->frequency / target;
-		freq_high = freq->frequency / div;
-		freq_low = freq->frequency / (div + 1);
-
-		if (freq_high - target < error) {
-			error = freq_high - target;
-			best = freq;
-			if (best_freq)
-				*best_freq = freq_high;
-		}
-
-		if (target - freq_low < error) {
-			error = target - freq_low;
-			best = freq;
-			if (best_freq)
-				*best_freq = freq_low;
-		}
-
-		pr_debug("%u / %lu = %lu, / %lu = %lu, best %lu, parent %u\n",
-			 freq->frequency, div, freq_high, div + 1, freq_low,
-			 *best_freq, best->frequency);
-
-		if (!error)
-			break;
-	}
-
-	if (parent_freq)
-		*parent_freq = best->frequency;
-
-	return error;
-}
-EXPORT_SYMBOL_GPL(clk_round_parent);
 
 #ifdef CONFIG_PM
 static void clks_core_resume(void)

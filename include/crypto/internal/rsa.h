@@ -27,4 +27,6 @@ int rsa_parse_priv_key(struct rsa_key *rsa_key, const void *key,
 		       unsigned int key_len);
 
 void rsa_free_key(struct rsa_key *rsa_key);
+
+extern struct crypto_template rsa_pkcs1pad_tmpl;
 #endif

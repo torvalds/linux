@@ -29,8 +29,8 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-dv-timings.h>
-#include <media/adv7604.h>
-#include <media/adv7842.h>
+#include <media/i2c/adv7604.h>
+#include <media/i2c/adv7842.h>
 
 #include "cobalt-alsa.h"
 #include "cobalt-cpld.h"
@@ -43,11 +43,10 @@ static const struct v4l2_dv_timings cea1080p60 = V4L2_DV_BT_CEA_1920X1080P60;
 
 /* vb2 DMA streaming ops */
 
-static int cobalt_queue_setup(struct vb2_queue *q, const void *parg,
+static int cobalt_queue_setup(struct vb2_queue *q,
 			unsigned int *num_buffers, unsigned int *num_planes,
 			unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct cobalt_stream *s = q->drv_priv;
 	unsigned size = s->stride * s->height;
 
@@ -55,14 +54,11 @@ static int cobalt_queue_setup(struct vb2_queue *q, const void *parg,
 		*num_buffers = 3;
 	if (*num_buffers > NR_BUFS)
 		*num_buffers = NR_BUFS;
-	*num_planes = 1;
-	if (fmt) {
-		if (fmt->fmt.pix.sizeimage < size)
-			return -EINVAL;
-		size = fmt->fmt.pix.sizeimage;
-	}
-	sizes[0] = size;
 	alloc_ctxs[0] = s->cobalt->alloc_ctx;
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
+	*num_planes = 1;
+	sizes[0] = size;
 	return 0;
 }
 
@@ -649,7 +645,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 
-	if (v4l2_match_dv_timings(timings, &s->timings, 0))
+	if (v4l2_match_dv_timings(timings, &s->timings, 0, false))
 		return 0;
 
 	if (vb2_is_busy(&s->q))

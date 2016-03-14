@@ -150,7 +150,7 @@ an entry as shown below in the output.
 
 If this is not mounted, do the following.
 
-	 #mkdir /sysfs
+	#mkdir /sys
 	#mount -t sysfs sys /sys
 
 Now you should see entries for all present cpu, the following is an example

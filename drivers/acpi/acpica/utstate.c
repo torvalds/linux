@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -246,6 +246,7 @@ union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 	state->pkg.dest_object = external_object;
 	state->pkg.index = index;
 	state->pkg.num_packages = 1;
+
 	return (state);
 }
 
@@ -279,6 +280,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
 
 	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_CONTROL;
 	state->common.state = ACPI_CONTROL_CONDITIONAL_EXECUTING;
+
 	return (state);
 }
 
@@ -304,5 +306,6 @@ void acpi_ut_delete_generic_state(union acpi_generic_state *state)
 	if (state) {
 		(void)acpi_os_release_object(acpi_gbl_state_cache, state);
 	}
+
 	return;
 }

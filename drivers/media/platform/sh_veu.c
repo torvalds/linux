@@ -865,32 +865,14 @@ static const struct v4l2_ioctl_ops sh_veu_ioctl_ops = {
 		/* ========== Queue operations ========== */
 
 static int sh_veu_queue_setup(struct vb2_queue *vq,
-			      const void *parg,
 			      unsigned int *nbuffers, unsigned int *nplanes,
 			      unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *f = parg;
 	struct sh_veu_dev *veu = vb2_get_drv_priv(vq);
-	struct sh_veu_vfmt *vfmt;
-	unsigned int size, count = *nbuffers;
-
-	if (f) {
-		const struct v4l2_pix_format *pix = &f->fmt.pix;
-		const struct sh_veu_format *fmt = sh_veu_find_fmt(f);
-		struct v4l2_format ftmp = *f;
-
-		if (fmt->fourcc != pix->pixelformat)
-			return -EINVAL;
-		sh_veu_try_fmt(&ftmp, fmt);
-		if (ftmp.fmt.pix.width != pix->width ||
-		    ftmp.fmt.pix.height != pix->height)
-			return -EINVAL;
-		size = pix->bytesperline ? pix->bytesperline * pix->height * fmt->depth / fmt->ydepth :
-			pix->width * pix->height * fmt->depth / fmt->ydepth;
-	} else {
-		vfmt = sh_veu_get_vfmt(veu, vq->type);
-		size = vfmt->bytesperline * vfmt->frame.height * vfmt->fmt->depth / vfmt->fmt->ydepth;
-	}
+	struct sh_veu_vfmt *vfmt = sh_veu_get_vfmt(veu, vq->type);
+	unsigned int count = *nbuffers;
+	unsigned int size = vfmt->bytesperline * vfmt->frame.height *
+		vfmt->fmt->depth / vfmt->fmt->ydepth;
 
 	if (count < 2)
 		*nbuffers = count = 2;
@@ -898,6 +880,11 @@ static int sh_veu_queue_setup(struct vb2_queue *vq,
 	if (size * count > VIDEO_MEM_LIMIT) {
 		count = VIDEO_MEM_LIMIT / size;
 		*nbuffers = count;
+	}
+
+	if (*nplanes) {
+		alloc_ctxs[0] = veu->alloc_ctx;
+		return sizes[0] < size ? -EINVAL : 0;
 	}
 
 	*nplanes = 1;
@@ -1107,7 +1094,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 	if (!src || !dst)
 		return IRQ_NONE;
 
-	dst->timestamp = src->timestamp;
+	dst->vb2_buf.timestamp = src->vb2_buf.timestamp;
 	dst->flags &= ~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 	dst->flags |=
 		src->flags & V4L2_BUF_FLAG_TSTAMP_SRC_MASK;

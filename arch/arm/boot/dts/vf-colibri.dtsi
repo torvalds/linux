@@ -23,6 +23,18 @@
 	status = "okay";
 };
 
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan0>;
+	status = "disabled";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	status = "disabled";
+};
+
 &dspi1 {
 	bus-num = <1>;
 	pinctrl-names = "default";
@@ -125,6 +137,20 @@
 
 &iomuxc {
 	vf610-colibri {
+		pinctrl_flexcan0: can0grp {
+			fsl,pins = <
+				VF610_PAD_PTB14__CAN0_RX	0x31F1
+				VF610_PAD_PTB15__CAN0_TX	0x31F2
+			>;
+		};
+
+		pinctrl_flexcan1: can1grp {
+			fsl,pins = <
+				VF610_PAD_PTB16__CAN1_RX	0x31F1
+				VF610_PAD_PTB17__CAN1_TX	0x31F2
+			>;
+		};
+
 		pinctrl_gpio_ext: gpio_ext {
 			fsl,pins = <
 				VF610_PAD_PTD10__GPIO_89	0x22ed /* EXT_IO_0 */

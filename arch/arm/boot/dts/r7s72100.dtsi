@@ -329,7 +329,7 @@
 	};
 
 	gic: interrupt-controller@e8201000 {
-		compatible = "arm,cortex-a9-gic";
+		compatible = "arm,pl390";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
 		interrupt-controller;

@@ -385,6 +385,8 @@ static int mlx5e_set_channels(struct net_device *dev,
 		mlx5e_close_locked(dev);
 
 	priv->params.num_channels = count;
+	mlx5e_build_default_indir_rqt(priv->params.indirection_rqt,
+				      MLX5E_INDIR_RQT_SIZE, count);
 
 	if (was_opened)
 		err = mlx5e_open_locked(dev);
@@ -703,17 +705,35 @@ static int mlx5e_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	return 0;
 }
 
+static void mlx5e_modify_tirs_hash(struct mlx5e_priv *priv, void *in, int inlen)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	void *tirc = MLX5_ADDR_OF(modify_tir_in, in, ctx);
+	int i;
+
+	MLX5_SET(modify_tir_in, in, bitmask.hash, 1);
+	mlx5e_build_tir_ctx_hash(tirc, priv);
+
+	for (i = 0; i < MLX5E_NUM_TT; i++)
+		if (IS_HASHING_TT(i))
+			mlx5_core_modify_tir(mdev, priv->tirn[i], in, inlen);
+}
+
 static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 			  const u8 *key, const u8 hfunc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	bool close_open;
-	int err = 0;
+	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	void *in;
 
 	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
 	    (hfunc != ETH_RSS_HASH_XOR) &&
 	    (hfunc != ETH_RSS_HASH_TOP))
 		return -EINVAL;
+
+	in = mlx5_vzalloc(inlen);
+	if (!in)
+		return -ENOMEM;
 
 	mutex_lock(&priv->state_lock);
 
@@ -723,11 +743,6 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 		mlx5e_redirect_rqt(priv, MLX5E_INDIRECTION_RQT);
 	}
 
-	close_open = (key || (hfunc != ETH_RSS_HASH_NO_CHANGE)) &&
-		     test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (close_open)
-		mlx5e_close_locked(dev);
-
 	if (key)
 		memcpy(priv->params.toeplitz_hash_key, key,
 		       sizeof(priv->params.toeplitz_hash_key));
@@ -735,12 +750,13 @@ static int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE)
 		priv->params.rss_hfunc = hfunc;
 
-	if (close_open)
-		err = mlx5e_open_locked(priv->netdev);
+	mlx5e_modify_tirs_hash(priv, in, inlen);
 
 	mutex_unlock(&priv->state_lock);
 
-	return err;
+	kvfree(in);
+
+	return 0;
 }
 
 static int mlx5e_get_rxnfc(struct net_device *netdev,
@@ -855,6 +871,35 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 	return err;
 }
 
+static int mlx5e_get_ts_info(struct net_device *dev,
+			     struct ethtool_ts_info *info)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	int ret;
+
+	ret = ethtool_op_get_ts_info(dev, info);
+	if (ret)
+		return ret;
+
+	info->phc_index = priv->tstamp.ptp ?
+			  ptp_clock_index(priv->tstamp.ptp) : -1;
+
+	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
+		return 0;
+
+	info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
+				 SOF_TIMESTAMPING_RX_HARDWARE |
+				 SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	info->tx_types = (BIT(1) << HWTSTAMP_TX_OFF) |
+			 (BIT(1) << HWTSTAMP_TX_ON);
+
+	info->rx_filters = (BIT(1) << HWTSTAMP_FILTER_NONE) |
+			   (BIT(1) << HWTSTAMP_FILTER_ALL);
+
+	return 0;
+}
+
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
@@ -878,4 +923,5 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_tunable       = mlx5e_set_tunable,
 	.get_pauseparam    = mlx5e_get_pauseparam,
 	.set_pauseparam    = mlx5e_set_pauseparam,
+	.get_ts_info       = mlx5e_get_ts_info,
 };

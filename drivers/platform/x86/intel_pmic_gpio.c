@@ -274,11 +274,11 @@ static int platform_pmic_gpio_probe(struct platform_device *pdev)
 	pg->chip.base = pdata->gpio_base;
 	pg->chip.ngpio = NUM_GPIO;
 	pg->chip.can_sleep = 1;
-	pg->chip.dev = dev;
+	pg->chip.parent = dev;
 
 	mutex_init(&pg->buslock);
 
-	pg->chip.dev = dev;
+	pg->chip.parent = dev;
 	retval = gpiochip_add(&pg->chip);
 	if (retval) {
 		pr_err("Can not add pmic gpio chip\n");

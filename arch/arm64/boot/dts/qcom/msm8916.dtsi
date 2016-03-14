@@ -37,6 +37,22 @@
 		reg = <0 0 0 0>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		reserve_aligned@86000000 {
+			reg = <0x0 0x86000000 0x0 0x0300000>;
+			no-map;
+		};
+
+		smem_mem: smem_region@86300000 {
+			reg = <0x0 0x86300000 0x0 0x0100000>;
+			no-map;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -74,6 +90,29 @@
 			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	clocks {
+		xo_board: xo_board {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <19200000>;
+		};
+
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	smem {
+		compatible = "qcom,smem";
+
+		memory-region = <&smem_mem>;
+		qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+		hwlocks = <&tcsr_mutex 3>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -103,13 +142,36 @@
 			reg = <0x1800000 0x80000>;
 		};
 
+		tcsr_mutex_regs: syscon@1905000 {
+			compatible = "syscon";
+			reg = <0x1905000 0x20000>;
+		};
+
+		tcsr_mutex: hwlock {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_regs 0 0x1000>;
+			#hwlock-cells = <1>;
+		};
+
+		rpm_msg_ram: memory@60000 {
+			compatible = "qcom,rpm-msg-ram";
+			reg = <0x60000 0x8000>;
+		};
+
 		blsp1_uart1: serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
 			interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_UART1_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 1>, <&blsp_dma 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
+		};
+
+		apcs: syscon@b011000 {
+			compatible = "syscon";
+			reg = <0x0b011000 0x1000>;
 		};
 
 		blsp1_uart2: serial@78b0000 {
@@ -118,6 +180,8 @@
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 3>, <&blsp_dma 2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -436,6 +500,49 @@
 			reg = <0x00022000 0x200>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+	};
+
+	smd {
+		compatible = "qcom,smd";
+
+		rpm {
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests {
+				compatible = "qcom,rpm-msm8916";
+				qcom,smd-channels = "rpm_requests";
+
+				pm8916-regulators {
+					compatible = "qcom,rpm-pm8916-regulators";
+
+					pm8916_s1: s1 {};
+					pm8916_s2: s2 {};
+					pm8916_s3: s3 {};
+					pm8916_s4: s4 {};
+
+					pm8916_l1: l1 {};
+					pm8916_l2: l2 {};
+					pm8916_l3: l3 {};
+					pm8916_l4: l4 {};
+					pm8916_l5: l5 {};
+					pm8916_l6: l6 {};
+					pm8916_l7: l7 {};
+					pm8916_l8: l8 {};
+					pm8916_l9: l9 {};
+					pm8916_l10: l10 {};
+					pm8916_l11: l11 {};
+					pm8916_l12: l12 {};
+					pm8916_l13: l13 {};
+					pm8916_l14: l14 {};
+					pm8916_l15: l15 {};
+					pm8916_l16: l16 {};
+					pm8916_l17: l17 {};
+					pm8916_l18: l18 {};
+				};
+			};
 		};
 	};
 };

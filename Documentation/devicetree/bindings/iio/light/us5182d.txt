@@ -7,12 +7,23 @@ Required properties:
 Optional properties:
 - upisemi,glass-coef: glass attenuation factor - compensation factor of
                       resolution 1000 for material transmittance.
+
 - upisemi,dark-ths: array of 8 elements containing 16-bit thresholds (adc
                     counts) corresponding to every scale.
+
 - upisemi,upper-dark-gain: 8-bit dark gain compensation factor(4 int and 4
                            fractional bits - Q4.4) applied when light > threshold
+
 - upisemi,lower-dark-gain: 8-bit dark gain compensation factor(4 int and 4
                            fractional bits - Q4.4) applied when light < threshold
+
+- upisemi,continuous: This chip has two power modes: one-shot (chip takes one
+                      measurement and then shuts itself down) and continuous (
+                      chip takes continuous measurements). The one-shot mode is
+                      more power-friendly but the continuous mode may be more
+                      reliable. If this property is specified the continuous
+                      mode will be used instead of the default one-shot one for
+                      raw reads.
 
 If the optional properties are not specified these factors will default to the
 values in the below example.

@@ -31,7 +31,10 @@ static int sigmadsp_write_i2c(void *control_data,
 
 	kfree(buf);
 
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int sigmadsp_read_i2c(void *control_data,

@@ -987,7 +987,7 @@ bna_rxf_ucast_cfg_apply(struct bna_rxf *rxf)
 	if (!list_empty(&rxf->ucast_pending_add_q)) {
 		mac = list_first_entry(&rxf->ucast_pending_add_q,
 				       struct bna_mac, qe);
-		list_add_tail(&mac->qe, &rxf->ucast_active_q);
+		list_move_tail(&mac->qe, &rxf->ucast_active_q);
 		bna_bfi_ucast_req(rxf, mac, BFI_ENET_H2I_MAC_UCAST_ADD_REQ);
 		return 1;
 	}

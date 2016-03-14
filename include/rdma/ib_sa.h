@@ -160,6 +160,7 @@ struct ib_sa_path_rec {
 	int	     ifindex;
 	/* ignored in IB */
 	struct net  *net;
+	enum ib_gid_type gid_type;
 };
 
 static inline struct net_device *ib_get_ndev_from_path(struct ib_sa_path_rec *rec)
@@ -402,6 +403,8 @@ int ib_sa_get_mcmember_rec(struct ib_device *device, u8 port_num,
  */
 int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     struct ib_sa_mcmember_rec *rec,
+			     struct net_device *ndev,
+			     enum ib_gid_type gid_type,
 			     struct ib_ah_attr *ah_attr);
 
 /**

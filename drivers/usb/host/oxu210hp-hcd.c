@@ -394,8 +394,7 @@ static void ehci_quiesce(struct oxu_hcd *oxu)
 	u32	temp;
 
 #ifdef DEBUG
-	if (!HC_IS_RUNNING(oxu_to_hcd(oxu)->state))
-		BUG();
+	BUG_ON(!HC_IS_RUNNING(oxu_to_hcd(oxu)->state));
 #endif
 
 	/* wait for any schedule enables/disables to take effect */
@@ -1709,9 +1708,8 @@ static void start_unlink_async(struct oxu_hcd *oxu, struct ehci_qh *qh)
 
 #ifdef DEBUG
 	assert_spin_locked(&oxu->lock);
-	if (oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
-				&& qh->qh_state != QH_STATE_UNLINK_WAIT))
-		BUG();
+	BUG_ON(oxu->reclaim || (qh->qh_state != QH_STATE_LINKED
+				&& qh->qh_state != QH_STATE_UNLINK_WAIT));
 #endif
 
 	/* stop async schedule right now? */

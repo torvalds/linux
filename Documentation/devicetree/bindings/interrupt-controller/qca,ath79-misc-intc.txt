@@ -22,7 +22,7 @@ Interrupt Controllers bindings used by client devices.
 Example:
 
 	interrupt-controller@18060010 {
-		compatible = "qca,ar9132-misc-intc", qca,ar7100-misc-intc";
+		compatible = "qca,ar9132-misc-intc", "qca,ar7100-misc-intc";
 		reg = <0x18060010 0x4>;
 
 		interrupt-parent = <&cpuintc>;

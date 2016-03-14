@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,10 +118,9 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	status =
-	    acpi_ds_init_aml_walk(walk_state, op, node,
-				  obj_desc->method.aml_start,
-				  obj_desc->method.aml_length, NULL, 0);
+	status = acpi_ds_init_aml_walk(walk_state, op, node,
+				       obj_desc->method.aml_start,
+				       obj_desc->method.aml_length, NULL, 0);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
 		acpi_ps_free_op(op);
@@ -375,7 +374,8 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		    && (walk_state->thread->current_sync_level >
 			obj_desc->method.mutex->mutex.sync_level)) {
 			ACPI_ERROR((AE_INFO,
-				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
+				    "Cannot acquire Mutex for method [%4.4s]"
+				    ", current SyncLevel is too large (%u)",
 				    acpi_ut_get_node_name(method_node),
 				    walk_state->thread->current_sync_level));
 
@@ -411,8 +411,19 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 
 				obj_desc->method.mutex->mutex.thread_id =
 				    walk_state->thread->thread_id;
-				walk_state->thread->current_sync_level =
-				    obj_desc->method.sync_level;
+
+				/*
+				 * Update the current sync_level only if this is not an auto-
+				 * serialized method. In the auto case, we have to ignore
+				 * the sync level for the method mutex (created for the
+				 * auto-serialization) because we have no idea of what the
+				 * sync level should be. Therefore, just ignore it.
+				 */
+				if (!(obj_desc->method.info_flags &
+				      ACPI_METHOD_IGNORE_SYNC_LEVEL)) {
+					walk_state->thread->current_sync_level =
+					    obj_desc->method.sync_level;
+				}
 			} else {
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
@@ -501,16 +512,18 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	/* Init for new method, possibly wait on method mutex */
 
-	status = acpi_ds_begin_method_execution(method_node, obj_desc,
-						this_walk_state);
+	status =
+	    acpi_ds_begin_method_execution(method_node, obj_desc,
+					   this_walk_state);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	/* Begin method parse/execution. Create a new walk state */
 
-	next_walk_state = acpi_ds_create_walk_state(obj_desc->method.owner_id,
-						    NULL, obj_desc, thread);
+	next_walk_state =
+	    acpi_ds_create_walk_state(obj_desc->method.owner_id, NULL, obj_desc,
+				      thread);
 	if (!next_walk_state) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -797,7 +810,8 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		    info_flags & ACPI_METHOD_SERIALIZED_PENDING) {
 			if (walk_state) {
 				ACPI_INFO((AE_INFO,
-					   "Marking method %4.4s as Serialized because of AE_ALREADY_EXISTS error",
+					   "Marking method %4.4s as Serialized "
+					   "because of AE_ALREADY_EXISTS error",
 					   walk_state->method_node->name.
 					   ascii));
 			}
@@ -815,6 +829,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			 */
 			method_desc->method.info_flags &=
 			    ~ACPI_METHOD_SERIALIZED_PENDING;
+
 			method_desc->method.info_flags |=
 			    (ACPI_METHOD_SERIALIZED |
 			     ACPI_METHOD_IGNORE_SYNC_LEVEL);

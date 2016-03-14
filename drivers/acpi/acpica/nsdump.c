@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -539,11 +539,13 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				acpi_os_printf
 				    ("(Pointer to ACPI Object type %.2X [UNKNOWN])\n",
 				     obj_type);
+
 				bytes_to_dump = 32;
 			} else {
 				acpi_os_printf
 				    ("(Pointer to ACPI Object type %.2X [%s])\n",
 				     obj_type, acpi_ut_get_type_name(obj_type));
+
 				bytes_to_dump =
 				    sizeof(union acpi_operand_object);
 			}
@@ -573,6 +575,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			 */
 			bytes_to_dump = obj_desc->string.length;
 			obj_desc = (void *)obj_desc->string.pointer;
+
 			acpi_os_printf("(Buffer/String pointer %p length %X)\n",
 				       obj_desc, bytes_to_dump);
 			ACPI_DUMP_BUFFER(obj_desc, bytes_to_dump);
@@ -717,7 +720,7 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 
 	path_indent = 1;
 	if (level <= max_level) {

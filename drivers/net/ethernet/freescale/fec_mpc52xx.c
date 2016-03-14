@@ -1084,27 +1084,23 @@ static struct platform_driver mpc52xx_fec_driver = {
 /* Module                                                                   */
 /* ======================================================================== */
 
+static struct platform_driver * const drivers[] = {
+#ifdef CONFIG_FEC_MPC52xx_MDIO
+	&mpc52xx_fec_mdio_driver,
+#endif
+	&mpc52xx_fec_driver,
+};
+
 static int __init
 mpc52xx_fec_init(void)
 {
-#ifdef CONFIG_FEC_MPC52xx_MDIO
-	int ret;
-	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
-	if (ret) {
-		pr_err("failed to register mdio driver\n");
-		return ret;
-	}
-#endif
-	return platform_driver_register(&mpc52xx_fec_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 static void __exit
 mpc52xx_fec_exit(void)
 {
-	platform_driver_unregister(&mpc52xx_fec_driver);
-#ifdef CONFIG_FEC_MPC52xx_MDIO
-	platform_driver_unregister(&mpc52xx_fec_mdio_driver);
-#endif
+	platform_unregister_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 

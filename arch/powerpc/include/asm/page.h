@@ -286,8 +286,11 @@ extern long long virt_phys_offset;
 
 /* PTE level */
 typedef struct { pte_basic_t pte; } pte_t;
-#define pte_val(x)	((x).pte)
 #define __pte(x)	((pte_t) { (x) })
+static inline pte_basic_t pte_val(pte_t x)
+{
+	return x.pte;
+}
 
 /* 64k pages additionally define a bigger "real PTE" type that gathers
  * the "second half" part of the PTE for pseudo 64k pages
@@ -301,21 +304,30 @@ typedef struct { pte_t pte; } real_pte_t;
 /* PMD level */
 #ifdef CONFIG_PPC64
 typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((x).pmd)
 #define __pmd(x)	((pmd_t) { (x) })
+static inline unsigned long pmd_val(pmd_t x)
+{
+	return x.pmd;
+}
 
 /* PUD level exusts only on 4k pages */
 #ifndef CONFIG_PPC_64K_PAGES
 typedef struct { unsigned long pud; } pud_t;
-#define pud_val(x)	((x).pud)
 #define __pud(x)	((pud_t) { (x) })
+static inline unsigned long pud_val(pud_t x)
+{
+	return x.pud;
+}
 #endif /* !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
 typedef struct { unsigned long pgd; } pgd_t;
-#define pgd_val(x)	((x).pgd)
 #define __pgd(x)	((pgd_t) { (x) })
+static inline unsigned long pgd_val(pgd_t x)
+{
+	return x.pgd;
+}
 
 /* Page protection bits */
 typedef struct { unsigned long pgprot; } pgprot_t;
@@ -329,8 +341,11 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  */
 
 typedef pte_basic_t pte_t;
-#define pte_val(x)	(x)
 #define __pte(x)	(x)
+static inline pte_basic_t pte_val(pte_t pte)
+{
+	return pte;
+}
 
 #if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_STD_MMU_64)
 typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
@@ -341,67 +356,42 @@ typedef pte_t real_pte_t;
 
 #ifdef CONFIG_PPC64
 typedef unsigned long pmd_t;
-#define pmd_val(x)	(x)
 #define __pmd(x)	(x)
+static inline unsigned long pmd_val(pmd_t pmd)
+{
+	return pmd;
+}
 
 #ifndef CONFIG_PPC_64K_PAGES
 typedef unsigned long pud_t;
-#define pud_val(x)	(x)
 #define __pud(x)	(x)
+static inline unsigned long pud_val(pud_t pud)
+{
+	return pud;
+}
 #endif /* !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 typedef unsigned long pgd_t;
-#define pgd_val(x)	(x)
-#define pgprot_val(x)	(x)
+#define __pgd(x)	(x)
+static inline unsigned long pgd_val(pgd_t pgd)
+{
+	return pgd;
+}
 
 typedef unsigned long pgprot_t;
-#define __pgd(x)	(x)
+#define pgprot_val(x)	(x)
 #define __pgprot(x)	(x)
 
 #endif
 
 typedef struct { signed long pd; } hugepd_t;
 
-#ifdef CONFIG_HUGETLB_PAGE
-#ifdef CONFIG_PPC_BOOK3S_64
-#ifdef CONFIG_PPC_64K_PAGES
-/*
- * With 64k page size, we have hugepage ptes in the pgd and pmd entries. We don't
- * need to setup hugepage directory for them. Our pte and page directory format
- * enable us to have this enabled. But to avoid errors when implementing new
- * features disable hugepd for 64K. We enable a debug version here, So we catch
- * wrong usage.
- */
-#ifdef CONFIG_DEBUG_VM
-extern int hugepd_ok(hugepd_t hpd);
-#else
-#define hugepd_ok(x)	(0)
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	/*
-	 * hugepd pointer, bottom two bits == 00 and next 4 bits
-	 * indicate size of table
-	 */
-	return (((hpd.pd & 0x3) == 0x0) && ((hpd.pd & HUGEPD_SHIFT_MASK) != 0));
-}
-#endif
-#else
-static inline int hugepd_ok(hugepd_t hpd)
-{
-	return (hpd.pd > 0);
-}
-#endif
-
-#define is_hugepd(hpd)               (hugepd_ok(hpd))
-#define pgd_huge pgd_huge
-int pgd_huge(pgd_t pgd);
-#else /* CONFIG_HUGETLB_PAGE */
-#define is_hugepd(pdep)			0
-#define pgd_huge(pgd)			0
+#ifndef CONFIG_HUGETLB_PAGE
+#define is_hugepd(pdep)		(0)
+#define pgd_huge(pgd)		(0)
 #endif /* CONFIG_HUGETLB_PAGE */
+
 #define __hugepd(x) ((hugepd_t) { (x) })
 
 struct page;

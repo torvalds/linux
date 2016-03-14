@@ -504,3 +504,24 @@ in your dentry operations instead.
 [mandatory]
 	__fd_install() & fd_install() can now sleep. Callers should not
 	hold a spinlock	or other resources that do not allow a schedule.
+--
+[mandatory]
+	any symlink that might use page_follow_link_light/page_put_link() must
+	have inode_nohighmem(inode) called before anything might start playing with
+	its pagecache.  No highmem pages should end up in the pagecache of such
+	symlinks.  That includes any preseeding that might be done during symlink
+	creation.  __page_symlink() will honour the mapping gfp flags, so once
+	you've done inode_nohighmem() it's safe to use, but if you allocate and
+	insert the page manually, make sure to use the right gfp flags.
+--
+[mandatory]
+	->follow_link() is replaced with ->get_link(); same API, except that
+		* ->get_link() gets inode as a separate argument
+		* ->get_link() may be called in RCU mode - in that case NULL
+		  dentry is passed
+--
+[mandatory]
+	->get_link() gets struct delayed_call *done now, and should do
+	set_delayed_call() where it used to set *cookie.
+	->put_link() is gone - just give the destructor to set_delayed_call()
+	in ->get_link().

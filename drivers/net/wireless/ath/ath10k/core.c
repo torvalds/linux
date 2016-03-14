@@ -59,6 +59,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.fw = {
 			.dir = QCA988X_HW_2_0_FW_DIR,
 			.fw = QCA988X_HW_2_0_FW_FILE,
@@ -95,6 +96,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.fw = {
 			.dir = QCA6174_HW_2_1_FW_DIR,
 			.fw = QCA6174_HW_2_1_FW_FILE,
@@ -113,6 +115,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.fw = {
 			.dir = QCA6174_HW_3_0_FW_DIR,
 			.fw = QCA6174_HW_3_0_FW_FILE,
@@ -131,6 +134,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.otp_exe_param = 0,
 		.channel_counters_freq_hz = 88000,
 		.max_probe_resp_desc_thres = 0,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_AFTER,
 		.fw = {
 			/* uses same binaries as hw3.0 */
 			.dir = QCA6174_HW_3_0_FW_DIR,
@@ -151,6 +155,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.continuous_frag_desc = true,
 		.channel_counters_freq_hz = 150000,
 		.max_probe_resp_desc_thres = 24,
+		.hw_4addr_pad = ATH10K_HW_4ADDR_PAD_BEFORE,
 		.fw = {
 			.dir = QCA99X0_HW_2_0_FW_DIR,
 			.fw = QCA99X0_HW_2_0_FW_FILE,
@@ -211,6 +216,7 @@ static const char *const ath10k_core_fw_feature_str[] = {
 	[ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT] = "skip-clock-init",
 	[ATH10K_FW_FEATURE_RAW_MODE_SUPPORT] = "raw-mode",
 	[ATH10K_FW_FEATURE_SUPPORTS_ADAPTIVE_CCA] = "adaptive-cca",
+	[ATH10K_FW_FEATURE_MFP_SUPPORT] = "mfp",
 };
 
 static unsigned int ath10k_core_get_fw_feature_str(char *buf,
@@ -887,7 +893,7 @@ out:
 	if (!ar->board_data || !ar->board_len) {
 		ath10k_err(ar,
 			   "failed to fetch board data for %s from %s/%s\n",
-			   ar->hw_params.fw.dir, boardname, filename);
+			   boardname, ar->hw_params.fw.dir, filename);
 		ret = -ENODATA;
 		goto err;
 	}
@@ -1790,9 +1796,11 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_power_down;
 	}
 
+	ath10k_debug_print_hwfw_info(ar);
+
 	ret = ath10k_core_get_board_id_from_otp(ar);
 	if (ret && ret != -EOPNOTSUPP) {
-		ath10k_err(ar, "failed to get board id from otp for qca99x0: %d\n",
+		ath10k_err(ar, "failed to get board id from otp: %d\n",
 			   ret);
 		return ret;
 	}
@@ -1802,6 +1810,8 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		ath10k_err(ar, "failed to fetch board file: %d\n", ret);
 		goto err_free_firmware_files;
 	}
+
+	ath10k_debug_print_board_info(ar);
 
 	ret = ath10k_core_init_firmware_features(ar);
 	if (ret) {
@@ -1825,7 +1835,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 		goto err_unlock;
 	}
 
-	ath10k_print_driver_info(ar);
+	ath10k_debug_print_boot_info(ar);
 	ath10k_core_stop(ar);
 
 	mutex_unlock(&ar->conf_mutex);

@@ -44,10 +44,6 @@
 	};
 };
 
-&g2d {
-	status = "okay";
-};
-
 &i2c_0 {
 	#address-cells = <1>;
 	#size-cells = <0>;

@@ -24,12 +24,13 @@
 #define CALLCHAIN_RECORD_HELP  CALLCHAIN_HELP RECORD_MODE_HELP RECORD_SIZE_HELP
 
 #define CALLCHAIN_REPORT_HELP						\
-	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|none)\n" \
+	HELP_PAD "print_type:\tcall graph printing style (graph|flat|fractal|folded|none)\n" \
 	HELP_PAD "threshold:\tminimum call graph inclusion threshold (<percent>)\n" \
 	HELP_PAD "print_limit:\tmaximum number of call graph entry (<number>)\n" \
 	HELP_PAD "order:\t\tcall graph order (caller|callee)\n" \
 	HELP_PAD "sort_key:\tcall graph sort key (function|address)\n"	\
-	HELP_PAD "branch:\t\tinclude last branch info to call graph (branch)\n"
+	HELP_PAD "branch:\t\tinclude last branch info to call graph (branch)\n" \
+	HELP_PAD "value:\t\tcall graph value (percent|period|count)\n"
 
 enum perf_call_graph_mode {
 	CALLCHAIN_NONE,
@@ -43,7 +44,8 @@ enum chain_mode {
 	CHAIN_NONE,
 	CHAIN_FLAT,
 	CHAIN_GRAPH_ABS,
-	CHAIN_GRAPH_REL
+	CHAIN_GRAPH_REL,
+	CHAIN_FOLDED,
 };
 
 enum chain_order {
@@ -54,11 +56,14 @@ enum chain_order {
 struct callchain_node {
 	struct callchain_node	*parent;
 	struct list_head	val;
+	struct list_head	parent_val;
 	struct rb_node		rb_node_in; /* to insert nodes in an rbtree */
 	struct rb_node		rb_node;    /* to sort nodes in an output tree */
 	struct rb_root		rb_root_in; /* input tree of children */
 	struct rb_root		rb_root;    /* sorted output tree of children */
 	unsigned int		val_nr;
+	unsigned int		count;
+	unsigned int		children_count;
 	u64			hit;
 	u64			children_hit;
 };
@@ -78,6 +83,12 @@ enum chain_key {
 	CCKEY_ADDRESS
 };
 
+enum chain_value {
+	CCVAL_PERCENT,
+	CCVAL_PERIOD,
+	CCVAL_COUNT,
+};
+
 struct callchain_param {
 	bool			enabled;
 	enum perf_call_graph_mode record_mode;
@@ -90,6 +101,7 @@ struct callchain_param {
 	bool			order_set;
 	enum chain_key		key;
 	bool			branch_callstack;
+	enum chain_value	value;
 };
 
 extern struct callchain_param callchain_param;
@@ -131,6 +143,7 @@ extern __thread struct callchain_cursor callchain_cursor;
 static inline void callchain_init(struct callchain_root *root)
 {
 	INIT_LIST_HEAD(&root->node.val);
+	INIT_LIST_HEAD(&root->node.parent_val);
 
 	root->node.parent = NULL;
 	root->node.hit = 0;
@@ -142,6 +155,11 @@ static inline void callchain_init(struct callchain_root *root)
 static inline u64 callchain_cumul_hits(struct callchain_node *node)
 {
 	return node->hit + node->children_hit;
+}
+
+static inline unsigned callchain_cumul_counts(struct callchain_node *node)
+{
+	return node->count + node->children_count;
 }
 
 int callchain_register_param(struct callchain_param *param);
@@ -229,7 +247,13 @@ static inline int arch_skip_callchain_idx(struct thread *thread __maybe_unused,
 
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso);
+char *callchain_node__scnprintf_value(struct callchain_node *node,
+				      char *bf, size_t bfsize, u64 total);
+int callchain_node__fprintf_value(struct callchain_node *node,
+				  FILE *fp, u64 total);
 
 void free_callchain(struct callchain_root *root);
+void decay_callchain(struct callchain_root *root);
+int callchain_node__make_parent_list(struct callchain_node *node);
 
 #endif	/* __PERF_CALLCHAIN_H */

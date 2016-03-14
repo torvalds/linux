@@ -35,7 +35,7 @@
 #include "cx23885-ioctl.h"
 #include "tuner-xc2028.h"
 
-#include <media/cx25840.h>
+#include <media/drv-intf/cx25840.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -105,7 +105,7 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 			struct cx23885_buffer, queue);
 
 	buf->vb.sequence = q->count++;
-	v4l2_get_timestamp(&buf->vb.timestamp);
+	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf,
 			buf->vb.vb2_buf.index, count, q->count);
 	list_del(&buf->queue);
@@ -114,10 +114,18 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 
 int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 {
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.format.code = MEDIA_BUS_FMT_FIXED,
+	};
+
 	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n",
 		__func__,
 		(unsigned int)norm,
 		v4l2_norm_to_name(norm));
+
+	if (dev->tvnorm == norm)
+		return 0;
 
 	if (dev->tvnorm != norm) {
 		if (vb2_is_busy(&dev->vb2_vidq) || vb2_is_busy(&dev->vb2_vbiq) ||
@@ -126,8 +134,16 @@ int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 	}
 
 	dev->tvnorm = norm;
+	dev->width = 720;
+	dev->height = norm_maxh(norm);
+	dev->field = V4L2_FIELD_INTERLACED;
 
 	call_all(dev, video, s_std, norm);
+
+	format.format.width = dev->width;
+	format.format.height = dev->height;
+	format.format.field = dev->field;
+	call_all(dev, pad, set_fmt, NULL, &format);
 
 	return 0;
 }
@@ -247,7 +263,9 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
 		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
-		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R)) {
+		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R) ||
+		(dev->board == CX23885_BOARD_VIEWCAST_260E) ||
+		(dev->board == CX23885_BOARD_VIEWCAST_460E)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,
 			INPUT(input)->amux, 0, 0);
@@ -315,7 +333,7 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 	return 0;
 }
 
-static int queue_setup(struct vb2_queue *q, const void *parg,
+static int queue_setup(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {
@@ -545,7 +563,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	field = f->fmt.pix.field;
-	maxw  = norm_maxw(dev->tvnorm);
+	maxw  = 720;
 	maxh  = norm_maxh(dev->tvnorm);
 
 	if (V4L2_FIELD_ANY == field) {
@@ -644,6 +662,26 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	strlcpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
+
+	return 0;
+}
+
+static int vidioc_cropcap(struct file *file, void *priv,
+			  struct v4l2_cropcap *cc)
+{
+	struct cx23885_dev *dev = video_drvdata(file);
+	bool is_50hz = dev->tvnorm & V4L2_STD_625_50;
+
+	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	cc->bounds.left = 0;
+	cc->bounds.top = 0;
+	cc->bounds.width = 720;
+	cc->bounds.height = norm_maxh(dev->tvnorm);
+	cc->defrect = cc->bounds;
+	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
+	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
 
 	return 0;
 }
@@ -1082,6 +1120,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
+	.vidioc_cropcap       = vidioc_cropcap,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_enum_input    = vidioc_enum_input,

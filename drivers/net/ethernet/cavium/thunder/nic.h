@@ -116,6 +116,15 @@
 #define NIC_PF_INTR_ID_MBOX0		8
 #define NIC_PF_INTR_ID_MBOX1		9
 
+/* Minimum FIFO level before all packets for the CQ are dropped
+ *
+ * This value ensures that once a packet has been "accepted"
+ * for reception it will not get dropped due to non-availability
+ * of CQ descriptor. An errata in HW mandates this value to be
+ * atleast 0x100.
+ */
+#define NICPF_CQM_MIN_DROP_LEVEL       0x100
+
 /* Global timer for CQ timer thresh interrupts
  * Calculated for SCLK of 700Mhz
  * value written should be a 1/16th of what is expected
@@ -265,6 +274,7 @@ struct nicvf {
 	u8			tns_mode:1;
 	u8			sqs_mode:1;
 	u8			loopback_supported:1;
+	bool			hw_tso;
 	u16			mtu;
 	struct queue_set	*qs;
 #define	MAX_SQS_PER_VF_SINGLE_NODE		5
@@ -487,6 +497,11 @@ static inline int nic_get_node_id(struct pci_dev *pdev)
 {
 	u64 addr = pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM);
 	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);
+}
+
+static inline bool pass1_silicon(struct pci_dev *pdev)
+{
+	return pdev->revision < 8;
 }
 
 int nicvf_set_real_num_queues(struct net_device *netdev,

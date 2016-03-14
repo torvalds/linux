@@ -149,7 +149,7 @@ static inline int lock_mode_to_index(ldlm_mode_t mode)
 	int index;
 
 	LASSERT(mode != 0);
-	LASSERT(IS_PO2(mode));
+	LASSERT(is_power_of_2(mode));
 	for (index = -1; mode; index++)
 		mode >>= 1;
 	LASSERT(index < LCK_MODE_NUM);

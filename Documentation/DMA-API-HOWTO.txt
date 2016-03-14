@@ -951,16 +951,6 @@ to "Closing".
    alignment constraints (e.g. the alignment constraints about 64-bit
    objects).
 
-3) Supporting multiple types of IOMMUs
-
-   If your architecture needs to support multiple types of IOMMUs, you
-   can use include/linux/asm-generic/dma-mapping-common.h. It's a
-   library to support the DMA API with multiple types of IOMMUs. Lots
-   of architectures (x86, powerpc, sh, alpha, ia64, microblaze and
-   sparc) use it. Choose one to see how it can be used. If you need to
-   support multiple types of IOMMUs in a single system, the example of
-   x86 or powerpc helps.
-
 			   Closing
 
 This document, and the API itself, would not be in its current

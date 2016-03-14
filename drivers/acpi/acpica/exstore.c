@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -467,7 +467,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		case ACPI_TYPE_THERMAL:
 
 			ACPI_ERROR((AE_INFO,
-				    "Target must be [Buffer/Integer/String/Reference], found [%s] (%4.4s)",
+				    "Target must be [Buffer/Integer/String/Reference]"
+				    ", found [%s] (%4.4s)",
 				    acpi_ut_get_type_name(node->type),
 				    node->name.ascii));
 
@@ -504,8 +505,9 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * an implicit conversion, as per the ACPI specification.
 			 * A direct store is performed instead.
 			 */
-			status = acpi_ex_store_direct_to_node(source_desc, node,
-							      walk_state);
+			status =
+			    acpi_ex_store_direct_to_node(source_desc, node,
+							 walk_state);
 			break;
 		}
 
@@ -528,8 +530,9 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 			 * store has been performed such that the node/object type
 			 * has been changed.
 			 */
-			status = acpi_ns_attach_object(node, new_desc,
-						       new_desc->common.type);
+			status =
+			    acpi_ns_attach_object(node, new_desc,
+						  new_desc->common.type);
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 					  "Store type [%s] into [%s] via Convert/Attach\n",
@@ -563,8 +566,8 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		 * operator. (Note, for this default case, all normal
 		 * Store/Target operations exited above with an error).
 		 */
-		status = acpi_ex_store_direct_to_node(source_desc, node,
-						      walk_state);
+		status =
+		    acpi_ex_store_direct_to_node(source_desc, node, walk_state);
 		break;
 	}
 

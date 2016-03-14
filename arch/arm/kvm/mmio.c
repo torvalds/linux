@@ -206,12 +206,16 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	run->mmio.is_write	= is_write;
 	run->mmio.phys_addr	= fault_ipa;
 	run->mmio.len		= len;
-	memcpy(run->mmio.data, data_buf, len);
+	if (is_write)
+		memcpy(run->mmio.data, data_buf, len);
 
 	if (!ret) {
 		/* We handled the access successfully in the kernel. */
+		vcpu->stat.mmio_exit_kernel++;
 		kvm_handle_mmio_return(vcpu, run);
 		return 1;
+	} else {
+		vcpu->stat.mmio_exit_user++;
 	}
 
 	run->exit_reason	= KVM_EXIT_MMIO;

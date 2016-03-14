@@ -291,10 +291,13 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
 {
 	struct perf_event *event;
 	const struct perf_event_attr *attr;
+	struct file *file;
 
-	event = perf_event_get(fd);
-	if (IS_ERR(event))
-		return event;
+	file = perf_event_get(fd);
+	if (IS_ERR(file))
+		return file;
+
+	event = file->private_data;
 
 	attr = perf_event_attrs(event);
 	if (IS_ERR(attr))
@@ -304,24 +307,22 @@ static void *perf_event_fd_array_get_ptr(struct bpf_map *map, int fd)
 		goto err;
 
 	if (attr->type == PERF_TYPE_RAW)
-		return event;
+		return file;
 
 	if (attr->type == PERF_TYPE_HARDWARE)
-		return event;
+		return file;
 
 	if (attr->type == PERF_TYPE_SOFTWARE &&
 	    attr->config == PERF_COUNT_SW_BPF_OUTPUT)
-		return event;
+		return file;
 err:
-	perf_event_release_kernel(event);
+	fput(file);
 	return ERR_PTR(-EINVAL);
 }
 
 static void perf_event_fd_array_put_ptr(void *ptr)
 {
-	struct perf_event *event = ptr;
-
-	perf_event_release_kernel(event);
+	fput((struct file *)ptr);
 }
 
 static const struct bpf_map_ops perf_event_array_ops = {

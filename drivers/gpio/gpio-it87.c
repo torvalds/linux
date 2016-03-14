@@ -77,11 +77,6 @@ static struct it87_gpio it87_gpio_chip = {
 	.lock = __SPIN_LOCK_UNLOCKED(it87_gpio_chip.lock),
 };
 
-static inline struct it87_gpio *to_it87_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct it87_gpio, chip);
-}
-
 /* Superio chip access functions; copied from wdt_it87 */
 
 static inline int superio_enter(void)
@@ -165,7 +160,7 @@ static int it87_gpio_request(struct gpio_chip *chip, unsigned gpio_num)
 {
 	u8 mask, group;
 	int rc = 0;
-	struct it87_gpio *it87_gpio = to_it87_gpio(chip);
+	struct it87_gpio *it87_gpio = gpiochip_get_data(chip);
 
 	mask = 1 << (gpio_num % 8);
 	group = (gpio_num / 8);
@@ -198,7 +193,7 @@ static int it87_gpio_get(struct gpio_chip *chip, unsigned gpio_num)
 {
 	u16 reg;
 	u8 mask;
-	struct it87_gpio *it87_gpio = to_it87_gpio(chip);
+	struct it87_gpio *it87_gpio = gpiochip_get_data(chip);
 
 	mask = 1 << (gpio_num % 8);
 	reg = (gpio_num / 8) + it87_gpio->io_base;
@@ -210,7 +205,7 @@ static int it87_gpio_direction_in(struct gpio_chip *chip, unsigned gpio_num)
 {
 	u8 mask, group;
 	int rc = 0;
-	struct it87_gpio *it87_gpio = to_it87_gpio(chip);
+	struct it87_gpio *it87_gpio = gpiochip_get_data(chip);
 
 	mask = 1 << (gpio_num % 8);
 	group = (gpio_num / 8);
@@ -236,7 +231,7 @@ static void it87_gpio_set(struct gpio_chip *chip,
 {
 	u8 mask, curr_vals;
 	u16 reg;
-	struct it87_gpio *it87_gpio = to_it87_gpio(chip);
+	struct it87_gpio *it87_gpio = gpiochip_get_data(chip);
 
 	mask = 1 << (gpio_num % 8);
 	reg = (gpio_num / 8) + it87_gpio->io_base;
@@ -253,7 +248,7 @@ static int it87_gpio_direction_out(struct gpio_chip *chip,
 {
 	u8 mask, group;
 	int rc = 0;
-	struct it87_gpio *it87_gpio = to_it87_gpio(chip);
+	struct it87_gpio *it87_gpio = gpiochip_get_data(chip);
 
 	mask = 1 << (gpio_num % 8);
 	group = (gpio_num / 8);
@@ -380,7 +375,7 @@ static int __init it87_gpio_init(void)
 
 	it87_gpio->chip.names = (const char *const*)labels_table;
 
-	rc = gpiochip_add(&it87_gpio->chip);
+	rc = gpiochip_add_data(&it87_gpio->chip, it87_gpio);
 	if (rc)
 		goto labels_free;
 

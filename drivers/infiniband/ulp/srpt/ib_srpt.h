@@ -128,36 +128,6 @@ enum {
 	DEFAULT_MAX_RDMA_SIZE = 65536,
 };
 
-enum srpt_opcode {
-	SRPT_RECV,
-	SRPT_SEND,
-	SRPT_RDMA_MID,
-	SRPT_RDMA_ABORT,
-	SRPT_RDMA_READ_LAST,
-	SRPT_RDMA_WRITE_LAST,
-};
-
-static inline u64 encode_wr_id(u8 opcode, u32 idx)
-{
-	return ((u64)opcode << 32) | idx;
-}
-static inline enum srpt_opcode opcode_from_wr_id(u64 wr_id)
-{
-	return wr_id >> 32;
-}
-static inline u32 idx_from_wr_id(u64 wr_id)
-{
-	return (u32)wr_id;
-}
-
-struct rdma_iu {
-	u64		raddr;
-	u32		rkey;
-	struct ib_sge	*sge;
-	u32		sge_cnt;
-	int		mem_id;
-};
-
 /**
  * enum srpt_command_state - SCSI command state managed by SRPT.
  * @SRPT_STATE_NEW:           New command arrived and is being processed.
@@ -189,6 +159,7 @@ enum srpt_command_state {
  * @index: Index of the I/O context in its ioctx_ring array.
  */
 struct srpt_ioctx {
+	struct ib_cqe		cqe;
 	void			*buf;
 	dma_addr_t		dma;
 	uint32_t		index;
@@ -215,32 +186,30 @@ struct srpt_recv_ioctx {
  * @sg:          Pointer to sg-list associated with this I/O context.
  * @sg_cnt:      SG-list size.
  * @mapped_sg_count: ib_dma_map_sg() return value.
- * @n_rdma_ius:  Number of elements in the rdma_ius array.
- * @rdma_ius:    Array with information about the RDMA mapping.
+ * @n_rdma_wrs:  Number of elements in the rdma_wrs array.
+ * @rdma_wrs:    Array with information about the RDMA mapping.
  * @tag:         Tag of the received SRP information unit.
  * @spinlock:    Protects 'state'.
  * @state:       I/O context state.
- * @rdma_aborted: If initiating a multipart RDMA transfer failed, whether
- * 		 the already initiated transfers have finished.
  * @cmd:         Target core command data structure.
  * @sense_data:  SCSI sense data.
  */
 struct srpt_send_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct srpt_rdma_ch	*ch;
-	struct rdma_iu		*rdma_ius;
+	struct ib_rdma_wr	*rdma_wrs;
+	struct ib_cqe		rdma_cqe;
 	struct srp_direct_buf	*rbufs;
 	struct srp_direct_buf	single_rbuf;
 	struct scatterlist	*sg;
 	struct list_head	free_list;
 	spinlock_t		spinlock;
 	enum srpt_command_state	state;
-	bool			rdma_aborted;
 	struct se_cmd		cmd;
 	struct completion	tx_done;
 	int			sg_cnt;
 	int			mapped_sg_count;
-	u16			n_rdma_ius;
+	u16			n_rdma_wrs;
 	u8			n_rdma;
 	u8			n_rbuf;
 	bool			queue_status_only;
@@ -267,9 +236,6 @@ enum rdma_ch_state {
 
 /**
  * struct srpt_rdma_ch - RDMA channel.
- * @wait_queue:    Allows the kernel thread to wait for more work.
- * @thread:        Kernel thread that processes the IB queues associated with
- *                 the channel.
  * @cm_id:         IB CM ID associated with the channel.
  * @qp:            IB queue pair used for communicating over this channel.
  * @cq:            IB completion queue for this channel.
@@ -288,7 +254,6 @@ enum rdma_ch_state {
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
  * @ioctx_ring:    Send ring.
- * @wc:            IB work completion array for srpt_process_completion().
  * @list:          Node for insertion in the srpt_device.rch_list list.
  * @cmd_wait_list: List of SCSI commands that arrived before the RTU event. This
  *                 list contains struct srpt_ioctx elements and is protected
@@ -299,8 +264,6 @@ enum rdma_ch_state {
  * @release_done:  Enables waiting for srpt_release_channel() completion.
  */
 struct srpt_rdma_ch {
-	wait_queue_head_t	wait_queue;
-	struct task_struct	*thread;
 	struct ib_cm_id		*cm_id;
 	struct ib_qp		*qp;
 	struct ib_cq		*cq;
@@ -317,7 +280,6 @@ struct srpt_rdma_ch {
 	struct list_head	free_list;
 	enum rdma_ch_state	state;
 	struct srpt_send_ioctx	**ioctx_ring;
-	struct ib_wc		wc[16];
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
 	struct se_session	*sess;
@@ -364,11 +326,9 @@ struct srpt_port {
 	u16			sm_lid;
 	u16			lid;
 	union ib_gid		gid;
-	spinlock_t		port_acl_lock;
 	struct work_struct	work;
 	struct se_portal_group	port_tpg_1;
 	struct se_wwn		port_wwn;
-	struct list_head	port_acl_list;
 	struct srpt_port_attrib port_attrib;
 };
 
@@ -379,8 +339,6 @@ struct srpt_port {
  * @mr:            L_Key (local key) with write access to all local memory.
  * @srq:           Per-HCA SRQ (shared receive queue).
  * @cm_id:         Connection identifier.
- * @dev_attr:      Attributes of the InfiniBand device as obtained during the
- *                 ib_client.add() callback.
  * @srq_size:      SRQ size.
  * @ioctx_ring:    Per-HCA SRQ.
  * @rch_list:      Per-device channel list -- see also srpt_rdma_ch.list.
@@ -395,7 +353,6 @@ struct srpt_device {
 	struct ib_pd		*pd;
 	struct ib_srq		*srq;
 	struct ib_cm_id		*cm_id;
-	struct ib_device_attr	dev_attr;
 	int			srq_size;
 	struct srpt_recv_ioctx	**ioctx_ring;
 	struct list_head	rch_list;
@@ -409,15 +366,9 @@ struct srpt_device {
 /**
  * struct srpt_node_acl - Per-initiator ACL data (managed via configfs).
  * @nacl:      Target core node ACL information.
- * @i_port_id: 128-bit SRP initiator port ID.
- * @sport:     port information.
- * @list:      Element of the per-HCA ACL list.
  */
 struct srpt_node_acl {
 	struct se_node_acl	nacl;
-	u8			i_port_id[16];
-	struct srpt_port	*sport;
-	struct list_head	list;
 };
 
 #endif				/* IB_SRPT_H */

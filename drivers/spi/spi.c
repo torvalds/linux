@@ -84,8 +84,7 @@ static ssize_t spi_device_##field##_show(struct device *dev,		\
 					 struct device_attribute *attr,	\
 					char *buf)			\
 {									\
-	struct spi_device *spi = container_of(dev,			\
-					      struct spi_device, dev);	\
+	struct spi_device *spi = to_spi_device(dev);			\
 	return spi_statistics_##field##_show(&spi->statistics, buf);	\
 }									\
 static struct device_attribute dev_attr_spi_device_##field = {		\
@@ -604,6 +603,24 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	return proxy;
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
+
+/**
+ * spi_unregister_device - unregister a single SPI device
+ * @spi: spi_device to unregister
+ *
+ * Start making the passed SPI device vanish. Normally this would be handled
+ * by spi_unregister_master().
+ */
+void spi_unregister_device(struct spi_device *spi)
+{
+	if (!spi)
+		return;
+
+	if (spi->dev.of_node)
+		of_node_clear_flag(spi->dev.of_node, OF_POPULATED);
+	device_unregister(&spi->dev);
+}
+EXPORT_SYMBOL_GPL(spi_unregister_device);
 
 static void spi_match_master_to_boardinfo(struct spi_master *master,
 				struct spi_board_info *bi)
@@ -1548,6 +1565,8 @@ static void of_register_spi_devices(struct spi_master *master)
 		return;
 
 	for_each_available_child_of_node(master->dev.of_node, nc) {
+		if (of_node_test_and_set_flag(nc, OF_POPULATED))
+			continue;
 		spi = of_register_spi_device(master, nc);
 		if (IS_ERR(spi))
 			dev_warn(&master->dev, "Failed to create SPI device for %s\n",
@@ -1622,6 +1641,9 @@ static acpi_status acpi_spi_add_device(acpi_handle handle, u32 level,
 		spi_dev_put(spi);
 		return AE_OK;
 	}
+
+	if (spi->irq < 0)
+		spi->irq = acpi_dev_gpio_irq_get(adev, 0);
 
 	adev->power.flags.ignore_parent = true;
 	strlcpy(spi->modalias, acpi_device_hid(adev), sizeof(spi->modalias));
@@ -2633,6 +2655,11 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		if (master == NULL)
 			return NOTIFY_OK;	/* not for us */
 
+		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
+			put_device(&master->dev);
+			return NOTIFY_OK;
+		}
+
 		spi = of_register_spi_device(master, rd->dn);
 		put_device(&master->dev);
 
@@ -2644,6 +2671,10 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		break;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
+		/* already depopulated? */
+		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK;
+
 		/* find our device by node */
 		spi = of_find_spi_device_by_node(rd->dn);
 		if (spi == NULL)

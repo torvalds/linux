@@ -511,6 +511,11 @@
 #define DCCG_AUDIO_DTO1_CNTL              0x05cc
 #       define DCCG_AUDIO_DTO1_USE_512FBR_DTO (1 << 3)
 
+#define DCE41_DENTIST_DISPCLK_CNTL			0x049c
+#       define DENTIST_DPREFCLK_WDIVIDER(x)		(((x) & 0x7f) << 24)
+#       define DENTIST_DPREFCLK_WDIVIDER_MASK		(0x7f << 24)
+#       define DENTIST_DPREFCLK_WDIVIDER_SHIFT		24
+
 /* DCE 4.0 AFMT */
 #define HDMI_CONTROL                         0x7030
 #       define HDMI_KEEPOUT_MODE             (1 << 0)
