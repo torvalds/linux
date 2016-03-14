@@ -94,7 +94,7 @@ PNAME(mux_pll_src_cpll_gpll_npll_usb_p) = { "cpll", "gpll", "npll",
 					    "usbphy_480m" };
 PNAME(mux_pll_src_cpll_gpll_npll_mpll_p) = { "cpll", "gpll", "npll", "mpll_src" };
 PNAME(mux_vop_full_pwm_p) = { "xin24m", "cpll", "gpll", "npll" };
-PNAME(mux_clk_32k_p)		= { "xin32k", "clk_32k_inter" };
+PNAME(mux_clk_32k_p)		= { "xin32k", "clk_32k_intr" };
 PNAME(mux_i2s_8ch_pre_p)	= { "i2s_8ch_src", "i2s_8ch_frac",
 				    "ext_i2s", "xin12m" };
 PNAME(mux_i2s_8ch_clkout_p)	= { "i2s_8ch_pre", "xin12m" };
@@ -221,7 +221,7 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	 * Clock-Architecture Diagram 1
 	 */
 
-	GATE(0, "mpll_src", "mpll", CLK_IGNORE_UNUSED,
+	GATE(SCLK_MPLL_SRC, "mpll_src", "mpll", CLK_IGNORE_UNUSED,
 			RK3368_CLKGATE_CON(2), 11, GFLAGS),
 
 	/*
@@ -231,9 +231,9 @@ static struct rockchip_clk_branch rk3366_clk_branches[] __initdata = {
 	MUX(SCLK_USBPHY480M, "usbphy_480m", mux_usbphy480m_p, 0,
 			RK3368_CLKSEL_CON(13), 6, 1, MFLAGS),
 
-	DIV(0, "clk_32k_inter", "xin24m", 0,
+	DIV(SCLK_32K_INTR, "clk_32k_intr", "xin24m", 0,
 			RK3368_CLKSEL_CON(7), 0, 10, DFLAGS),
-	MUX(0, "clk_32k", mux_clk_32k_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_32K, "clk_32k", mux_clk_32k_p, CLK_SET_RATE_PARENT,
 			RK3368_CLKSEL_CON(7), 15, 1, MFLAGS),
 
 	GATE(0, "apll_core", "apll", CLK_IGNORE_UNUSED,

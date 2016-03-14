@@ -93,6 +93,9 @@
 #define SCLK_VIP_SRC		127
 #define SCLK_VIP_OUT		128
 #define SCLK_PVTM_PMU		129
+#define SCLK_MPLL_SRC		130
+#define SCLK_32K_INTR		131
+#define SCLK_32K		132
 
 #define DCLK_VOP_FULL		170
 #define DCLK_VOP_LITE		171
