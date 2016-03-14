@@ -126,6 +126,13 @@ hardware.
 	Interrupts: locally disabled.
 	This call must not sleep
 
+  throttle(port)
+	Notify the serial driver that input buffers for the line discipline are
+	close to full, and it should somehow signal that no more characters
+	should be sent to the serial port.
+
+	Locking: none.
+
   send_xchar(port,ch)
 	Transmit a high priority character, even if the port is stopped.
 	This is used to implement XON/XOFF flow control and tcflow().  If
