@@ -323,6 +323,10 @@
 	};
 };
 
+&nandc0 {
+	status = "okay"; /* enable both for emmc and nand */
+};
+
 &emmc {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <400000 100000000>;
