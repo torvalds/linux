@@ -1706,9 +1706,9 @@ static const struct intel_dpll_mgr skl_pll_mgr = {
 };
 
 static const struct dpll_info bxt_plls[] = {
-	{ "PORT PLL A", 0, &bxt_ddi_pll_funcs, 0 },
-	{ "PORT PLL B", 1, &bxt_ddi_pll_funcs, 0 },
-	{ "PORT PLL C", 2, &bxt_ddi_pll_funcs, 0 },
+	{ "PORT PLL A", DPLL_ID_SKL_DPLL0, &bxt_ddi_pll_funcs, 0 },
+	{ "PORT PLL B", DPLL_ID_SKL_DPLL1, &bxt_ddi_pll_funcs, 0 },
+	{ "PORT PLL C", DPLL_ID_SKL_DPLL2, &bxt_ddi_pll_funcs, 0 },
 	{ NULL, -1, NULL, },
 };
 
@@ -1726,7 +1726,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
 		dpll_mgr = &skl_pll_mgr;
-	else if IS_BROXTON(dev)
+	else if (IS_BROXTON(dev))
 		dpll_mgr = &bxt_pll_mgr;
 	else if (HAS_DDI(dev))
 		dpll_mgr = &hsw_pll_mgr;

@@ -9786,15 +9786,15 @@ static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 	switch (port) {
 	case PORT_A:
 		pipe_config->ddi_pll_sel = SKL_DPLL0;
-		id = DPLL_ID_SKL_DPLL1;
+		id = DPLL_ID_SKL_DPLL0;
 		break;
 	case PORT_B:
 		pipe_config->ddi_pll_sel = SKL_DPLL1;
-		id = DPLL_ID_SKL_DPLL2;
+		id = DPLL_ID_SKL_DPLL1;
 		break;
 	case PORT_C:
 		pipe_config->ddi_pll_sel = SKL_DPLL2;
-		id = DPLL_ID_SKL_DPLL3;
+		id = DPLL_ID_SKL_DPLL2;
 		break;
 	default:
 		DRM_ERROR("Incorrect port type\n");
