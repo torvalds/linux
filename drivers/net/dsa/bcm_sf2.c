@@ -516,7 +516,7 @@ static int bcm_sf2_sw_br_join(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
+static void bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
 	struct net_device *bridge = priv->port_sts[port].bridge_dev;
@@ -543,8 +543,6 @@ static int bcm_sf2_sw_br_leave(struct dsa_switch *ds, int port)
 	core_writel(priv, p_ctl, CORE_PORT_VLAN_CTL_PORT(port));
 	priv->port_sts[port].vlan_ctl_mask = p_ctl;
 	priv->port_sts[port].bridge_dev = NULL;
-
-	return 0;
 }
 
 static int bcm_sf2_sw_br_set_stp_state(struct dsa_switch *ds, int port,
@@ -1387,8 +1385,8 @@ static struct dsa_switch_driver bcm_sf2_switch_driver = {
 	.port_disable		= bcm_sf2_port_disable,
 	.get_eee		= bcm_sf2_sw_get_eee,
 	.set_eee		= bcm_sf2_sw_set_eee,
-	.port_join_bridge	= bcm_sf2_sw_br_join,
-	.port_leave_bridge	= bcm_sf2_sw_br_leave,
+	.port_bridge_join	= bcm_sf2_sw_br_join,
+	.port_bridge_leave	= bcm_sf2_sw_br_leave,
 	.port_stp_update	= bcm_sf2_sw_br_set_stp_state,
 	.port_fdb_prepare	= bcm_sf2_sw_fdb_prepare,
 	.port_fdb_add		= bcm_sf2_sw_fdb_add,

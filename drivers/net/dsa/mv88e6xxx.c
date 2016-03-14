@@ -2219,39 +2219,29 @@ unlock:
 	return err;
 }
 
-int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
+void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	struct net_device *bridge = ps->ports[port].bridge_dev;
 	u16 fid;
-	int i, err;
+	int i;
 
 	mutex_lock(&ps->smi_mutex);
 
 	/* Give the port a fresh Filtering Information Database */
-	err = _mv88e6xxx_fid_new(ds, &fid);
-	if (err)
-		goto unlock;
-
-	err = _mv88e6xxx_port_fid_set(ds, port, fid);
-	if (err)
-		goto unlock;
+	if (_mv88e6xxx_fid_new(ds, &fid) ||
+	    _mv88e6xxx_port_fid_set(ds, port, fid))
+		netdev_warn(ds->ports[port], "failed to assign a new FID\n");
 
 	/* Unassign the bridge and remap each port's VLANTable */
 	ps->ports[port].bridge_dev = NULL;
 
-	for (i = 0; i < ps->num_ports; ++i) {
-		if (i == port || ps->ports[i].bridge_dev == bridge) {
-			err = _mv88e6xxx_port_based_vlan_map(ds, i);
-			if (err)
-				break;
-		}
-	}
+	for (i = 0; i < ps->num_ports; ++i)
+		if (i == port || ps->ports[i].bridge_dev == bridge)
+			if (_mv88e6xxx_port_based_vlan_map(ds, i))
+				netdev_warn(ds->ports[i], "failed to remap\n");
 
-unlock:
 	mutex_unlock(&ps->smi_mutex);
-
-	return err;
 }
 
 static void mv88e6xxx_bridge_work(struct work_struct *work)

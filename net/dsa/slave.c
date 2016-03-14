@@ -448,21 +448,20 @@ static int dsa_slave_bridge_port_join(struct net_device *dev,
 
 	p->bridge_dev = br;
 
-	if (ds->drv->port_join_bridge)
-		ret = ds->drv->port_join_bridge(ds, p->port, br);
+	if (ds->drv->port_bridge_join)
+		ret = ds->drv->port_bridge_join(ds, p->port, br);
 
-	return ret;
+	return ret == -EOPNOTSUPP ? 0 : ret;
 }
 
-static int dsa_slave_bridge_port_leave(struct net_device *dev)
+static void dsa_slave_bridge_port_leave(struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
-	int ret = -EOPNOTSUPP;
 
 
-	if (ds->drv->port_leave_bridge)
-		ret = ds->drv->port_leave_bridge(ds, p->port);
+	if (ds->drv->port_bridge_leave)
+		ds->drv->port_bridge_leave(ds, p->port);
 
 	p->bridge_dev = NULL;
 
@@ -470,8 +469,6 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
 	dsa_slave_stp_update(dev, BR_STATE_FORWARDING);
-
-	return ret;
 }
 
 static int dsa_slave_port_attr_get(struct net_device *dev,
@@ -1146,40 +1143,46 @@ static bool dsa_slave_dev_check(struct net_device *dev)
 	return dev->netdev_ops == &dsa_slave_netdev_ops;
 }
 
-static int dsa_slave_master_changed(struct net_device *dev)
+static int dsa_slave_port_upper_event(struct net_device *dev,
+				      unsigned long event, void *ptr)
 {
-	struct net_device *master = netdev_master_upper_dev_get(dev);
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct net_device *upper = info->upper_dev;
 	int err = 0;
 
-	if (master && master->rtnl_link_ops &&
-	    !strcmp(master->rtnl_link_ops->kind, "bridge"))
-		err = dsa_slave_bridge_port_join(dev, master);
-	else if (dsa_port_is_bridged(p))
-		err = dsa_slave_bridge_port_leave(dev);
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		if (netif_is_bridge_master(upper)) {
+			if (info->linking)
+				err = dsa_slave_bridge_port_join(dev, upper);
+			else
+				dsa_slave_bridge_port_leave(dev);
+		}
 
-	return err;
+		break;
+	}
+
+	return notifier_from_errno(err);
+}
+
+static int dsa_slave_port_event(struct net_device *dev, unsigned long event,
+				void *ptr)
+{
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		return dsa_slave_port_upper_event(dev, event, ptr);
+	}
+
+	return NOTIFY_DONE;
 }
 
 int dsa_slave_netdevice_event(struct notifier_block *unused,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev;
-	int err = 0;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	switch (event) {
-	case NETDEV_CHANGEUPPER:
-		dev = netdev_notifier_info_to_dev(ptr);
-		if (!dsa_slave_dev_check(dev))
-			goto out;
+	if (dsa_slave_dev_check(dev))
+		return dsa_slave_port_event(dev, event, ptr);
 
-		err = dsa_slave_master_changed(dev);
-		if (err && err != -EOPNOTSUPP)
-			netdev_warn(dev, "failed to reflect master change\n");
-
-		break;
-	}
-
-out:
 	return NOTIFY_DONE;
 }
