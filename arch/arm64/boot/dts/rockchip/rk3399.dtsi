@@ -39,11 +39,13 @@
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
+
 #include <dt-bindings/clock/rk3399-cru.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -573,6 +575,68 @@
 		clocks = <&cru PCLK_RKPWM_PMU>;
 		clock-names = "pwm";
 		status = "disabled";
+	};
+
+	pmu: power-management@ff731000 {
+		compatible = "rockchip,rk3399-pmu", "syscon", "simple-mfd";
+		reg = <0x0 0xff310000 0x0 0x1000>;
+
+		power: power-controller {
+			status = "disabled";
+			compatible = "rockchip,rk3399-power-controller";
+			#power-domain-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pd_center {
+				reg = <RK3399_PD_CENTER>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pd_vdu {
+					reg = <RK3399_PD_VDU>;
+				};
+				pd_vcodec {
+					reg = <RK3399_PD_VCODEC>;
+				};
+				pd_iep {
+					reg = <RK3399_PD_IEP>;
+				};
+				pd_rga {
+					reg = <RK3399_PD_RGA>;
+				};
+			};
+			pd_vio {
+				reg = <RK3399_PD_VIO>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pd_isp0 {
+					reg = <RK3399_PD_ISP0>;
+				};
+				pd_isp1 {
+					reg = <RK3399_PD_ISP1>;
+				};
+				pd_hdcp {
+					reg = <RK3399_PD_HDCP>;
+				};
+				pd_vo {
+					reg = <RK3399_PD_VO>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pd_vopb {
+						reg = <RK3399_PD_VOPB>;
+					};
+					pd_vopl {
+						reg = <RK3399_PD_VOPL>;
+					};
+				};
+			};
+			pd_gpu {
+				reg = <RK3399_PD_GPU>;
+			};
+		};
 	};
 
 	pmucru: pmu-clock-controller@ff750000 {
