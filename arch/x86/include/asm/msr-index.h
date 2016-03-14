@@ -230,10 +230,10 @@
 #define HWP_PACKAGE_LEVEL_REQUEST_BIT	(1<<11)
 
 /* IA32_HWP_CAPABILITIES */
-#define HWP_HIGHEST_PERF(x)		(x & 0xff)
-#define HWP_GUARANTEED_PERF(x)		((x & (0xff << 8)) >>8)
-#define HWP_MOSTEFFICIENT_PERF(x)	((x & (0xff << 16)) >>16)
-#define HWP_LOWEST_PERF(x)		((x & (0xff << 24)) >>24)
+#define HWP_HIGHEST_PERF(x)		(((x) >> 0) & 0xff)
+#define HWP_GUARANTEED_PERF(x)		(((x) >> 8) & 0xff)
+#define HWP_MOSTEFFICIENT_PERF(x)	(((x) >> 16) & 0xff)
+#define HWP_LOWEST_PERF(x)		(((x) >> 24) & 0xff)
 
 /* IA32_HWP_REQUEST */
 #define HWP_MIN_PERF(x) 		(x & 0xff)
