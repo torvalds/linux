@@ -294,6 +294,7 @@ struct nicvf {
 	u32			speed;
 	struct page		*rb_page;
 	u32			rb_page_offset;
+	u16			rb_pageref;
 	bool			rb_alloc_fail;
 	bool			rb_work_scheduled;
 	struct delayed_work	rbdr_work;
