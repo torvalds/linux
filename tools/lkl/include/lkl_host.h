@@ -17,7 +17,7 @@ extern struct lkl_host_operations lkl_host_ops;
  */
 int lkl_printf(const char *fmt, ...);
 
-char lkl_virtio_devs[256];
+extern char lkl_virtio_devs[256];
 
 struct lkl_dev_buf {
 	void *addr;
