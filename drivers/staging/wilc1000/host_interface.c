@@ -2,6 +2,7 @@
 #include <linux/time.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/completion.h>
 #include "host_interface.h"
 #include "coreconfigurator.h"
 #include "wilc_wlan.h"
@@ -1979,7 +1980,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 		return -EFAULT;
 	}
 
-	up(&hif_drv->sem_inactive_time);
+	complete(&hif_drv->comp_inactive_time);
 
 	return result;
 }
@@ -3220,7 +3221,7 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 	if (result)
 		netdev_err(vif->ndev, "Failed to send get host ch param\n");
 
-	down(&hif_drv->sem_inactive_time);
+	wait_for_completion(&hif_drv->comp_inactive_time);
 
 	*pu32InactiveTime = inactive_time;
 
@@ -3407,7 +3408,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->sem_test_disconn_block, 0);
 	sema_init(&hif_drv->sem_get_rssi, 0);
-	sema_init(&hif_drv->sem_inactive_time, 0);
+	init_completion(&hif_drv->comp_inactive_time);
 
 	if (clients_count == 0)	{
 		result = wilc_mq_create(&hif_msg_q);
