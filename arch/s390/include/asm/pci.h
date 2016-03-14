@@ -45,7 +45,7 @@ struct zpci_fmb {
 	u64 rpcit_ops;
 	u64 dma_rbytes;
 	u64 dma_wbytes;
-} __packed __aligned(16);
+} __packed __aligned(64);
 
 enum zpci_state {
 	ZPCI_FN_STATE_RESERVED,
