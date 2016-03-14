@@ -117,8 +117,7 @@
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_gt90h>;
-	/* FIXME this really is aldo1, correct once we've pmic support */
-	vmmc-supply = <&reg_vcc3v0>;
+	vmmc-supply = <&reg_aldo1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
 	cd-inverted;
