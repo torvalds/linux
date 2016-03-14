@@ -1113,8 +1113,8 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 	if (!cmdbuf)
 		return NULL;
 
-	cmdbuf->vaddr = dma_alloc_writecombine(gpu->dev, size, &cmdbuf->paddr,
-					       GFP_KERNEL);
+	cmdbuf->vaddr = dma_alloc_wc(gpu->dev, size, &cmdbuf->paddr,
+				     GFP_KERNEL);
 	if (!cmdbuf->vaddr) {
 		kfree(cmdbuf);
 		return NULL;
@@ -1128,8 +1128,8 @@ struct etnaviv_cmdbuf *etnaviv_gpu_cmdbuf_new(struct etnaviv_gpu *gpu, u32 size,
 
 void etnaviv_gpu_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 {
-	dma_free_writecombine(cmdbuf->gpu->dev, cmdbuf->size,
-			      cmdbuf->vaddr, cmdbuf->paddr);
+	dma_free_wc(cmdbuf->gpu->dev, cmdbuf->size, cmdbuf->vaddr,
+		    cmdbuf->paddr);
 	kfree(cmdbuf);
 }
 
