@@ -28,11 +28,6 @@ The serial core provides a few helper functions.  This includes identifing
 the correct port structure (via uart_get_console) and decoding command line
 arguments (uart_parse_options).
 
-There is also a helper function (uart_write_console) which performs a
-character by character write, translating newlines to CRLF sequences.
-Driver writers are recommended to use this function rather than implementing
-their own version.
-
 
 Locking
 -------
