@@ -53,7 +53,7 @@
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
 
-#define UDP_MIN_HEADROOM        28
+#define UDP_MIN_HEADROOM        48
 
 /**
  * struct udp_media_addr - IP/UDP addressing information
