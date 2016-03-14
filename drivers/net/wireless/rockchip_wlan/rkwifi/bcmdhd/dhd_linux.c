@@ -9939,7 +9939,7 @@ dhd_module_cleanup(void)
 	printf("%s: Exit\n", __FUNCTION__);
 }
 
-static void __exit
+static void
 dhd_module_exit(void)
 {
 	dhd_buzzz_detach();
@@ -9947,11 +9947,11 @@ dhd_module_exit(void)
 	unregister_reboot_notifier(&dhd_reboot_notifier);
 }
 
-static int __init
+static int
 dhd_module_init(void)
 {
 	int err;
-	int retry = POWERUP_MAX_RETRY;
+	int retry = 0;
 
 	printf("%s: in\n", __FUNCTION__);
 
@@ -10010,7 +10010,33 @@ dhd_reboot_callback(struct notifier_block *this, unsigned long code, void *unuse
 	return NOTIFY_DONE;
 }
 
+static int wifi_init_thread(void *data)
+{
+	dhd_module_init();
 
+	return 0;
+}
+
+int __init rockchip_wifi_init_module_rkwifi(void)
+{
+	struct task_struct *kthread = NULL;
+
+	kthread = kthread_run(wifi_init_thread, NULL, "wifi_init_thread");
+	if (IS_ERR(kthread))
+		pr_err("create wifi_init_thread failed.\n");
+
+	return 0;
+}
+
+void __exit rockchip_wifi_exit_module_rkwifi(void)
+{
+	dhd_module_exit();
+}
+
+late_initcall(rockchip_wifi_init_module_rkwifi);
+module_exit(rockchip_wifi_exit_module_rkwifi);
+
+#if 0
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 #if defined(CONFIG_DEFERRED_INITCALLS)
 #if defined(CONFIG_MACH_UNIVERSAL7420) || defined(CONFIG_SOC_EXYNOS8890) || \
@@ -10032,6 +10058,7 @@ module_init(dhd_module_init);
 
 module_exit(dhd_module_exit);
 
+#endif
 /*
  * OS specific functions required to implement DHD driver in OS independent way
  */
