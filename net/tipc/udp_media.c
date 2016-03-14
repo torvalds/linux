@@ -52,7 +52,7 @@
 /* IANA assigned UDP port */
 #define UDP_PORT_DEFAULT	6118
 
-#define UDP_MIN_HEADROOM        28
+#define UDP_MIN_HEADROOM        48
 
 static const struct nla_policy tipc_nl_udp_policy[TIPC_NLA_UDP_MAX + 1] = {
 	[TIPC_NLA_UDP_UNSPEC]	= {.type = NLA_UNSPEC},
