@@ -17,7 +17,7 @@
  *
  * 7-bit I2C slave address 0x1c/0x1d (pin selectable)
  *
- * TODO: orientation events, autosleep
+ * TODO: orientation events
  */
 
 #include <linux/module.h>
