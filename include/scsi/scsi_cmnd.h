@@ -103,7 +103,7 @@ struct scsi_cmnd {
 
 	unsigned transfersize;	/* How much we are guaranteed to
 				   transfer with each SCSI transfer
-				   (ie, between disconnect / 
+				   (ie, between disconnect /
 				   reconnects.   Probably == sector
 				   size */
 
@@ -121,8 +121,8 @@ struct scsi_cmnd {
 	void (*scsi_done) (struct scsi_cmnd *);
 
 	/*
-	 * The following fields can be written to by the host specific code. 
-	 * Everything else should be left alone. 
+	 * The following fields can be written to by the host specific code.
+	 * Everything else should be left alone.
 	 */
 	struct scsi_pointer SCp;	/* Scratchpad used by some host adapters */
 
@@ -164,6 +164,7 @@ extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 extern void scsi_kunmap_atomic_sg(void *virt);
 
 extern int scsi_init_io(struct scsi_cmnd *cmd);
+extern void scsi_release_buffers(struct scsi_cmnd *cmd);
 
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
