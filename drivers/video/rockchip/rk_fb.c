@@ -164,6 +164,7 @@ int rk_fb_pixel_width(int data_format)
 
 	switch (data_format) {
 	case XBGR888:
+	case XRGB888:
 	case ABGR888:
 	case ARGB888:
 	case FBDC_ARGB_888:
@@ -172,9 +173,11 @@ int rk_fb_pixel_width(int data_format)
 		pixel_width = 4 * 8;
 		break;
 	case RGB888:
+	case BGR888:
 		pixel_width = 3 * 8;
 		break;
 	case RGB565:
+	case BGR565:
 	case FBDC_RGB_565:
 		pixel_width = 2 * 8;
 		break;
@@ -206,6 +209,9 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 		case HAL_PIXEL_FORMAT_RGBX_8888:
 			fb_data_fmt = XBGR888;
 			break;
+		case HAL_PIXEL_FORMAT_BGRX_8888:
+			fb_data_fmt = XRGB888;
+			break;
 		case HAL_PIXEL_FORMAT_RGBA_8888:
 			fb_data_fmt = ABGR888;
 			break;
@@ -215,8 +221,14 @@ static int rk_fb_data_fmt(int data_format, int bits_per_pixel)
 		case HAL_PIXEL_FORMAT_RGB_888:
 			fb_data_fmt = RGB888;
 			break;
+		case HAL_PIXEL_FORMAT_BGR_888:
+			fb_data_fmt = BGR888;
+			break;
 		case HAL_PIXEL_FORMAT_RGB_565:
 			fb_data_fmt = RGB565;
+			break;
+		case HAL_PIXEL_FORMAT_BGR_565:
+			fb_data_fmt = BGR565;
 			break;
 		case HAL_PIXEL_FORMAT_YCbCr_422_SP:	/* yuv422 */
 			fb_data_fmt = YUV422;
@@ -543,8 +555,14 @@ char *get_format_string(enum data_format format, char *fmt)
 	case RGB888:
 		strcpy(fmt, "RGB888");
 		break;
+	case BGR888:
+		strcpy(fmt, "BGR888");
+		break;
 	case RGB565:
 		strcpy(fmt, "RGB565");
+		break;
+	case BGR565:
+		strcpy(fmt, "BGR565");
 		break;
 	case YUV420:
 	case YUV420_NV21:
@@ -935,12 +953,15 @@ static int get_ipp_format(int fmt)
 
 	switch (fmt) {
 	case HAL_PIXEL_FORMAT_RGBX_8888:
+	case HAL_PIXEL_FORMAT_BGRX_8888:
 	case HAL_PIXEL_FORMAT_RGBA_8888:
 	case HAL_PIXEL_FORMAT_BGRA_8888:
 	case HAL_PIXEL_FORMAT_RGB_888:
+	case HAL_PIXEL_FORMAT_BGR_888:
 		ipp_fmt = IPP_XRGB_8888;
 		break;
 	case HAL_PIXEL_FORMAT_RGB_565:
+	case HAL_PIXEL_FORMAT_BGR_565:
 		ipp_fmt = IPP_RGB_565;
 		break;
 	case HAL_PIXEL_FORMAT_YCbCr_422_SP:
@@ -2121,6 +2142,7 @@ static int rk_fb_set_wb_buffer(struct fb_info *info,
 					wb_cfg->xsize * wb_cfg->ysize;
 	wb_data->xsize = wb_cfg->xsize;
 	wb_data->ysize = wb_cfg->ysize;
+	wb_data->data_format = fb_data_fmt;
 	wb_data->state = 1;
 
 	return 0;
