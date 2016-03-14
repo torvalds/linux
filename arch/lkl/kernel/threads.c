@@ -119,6 +119,11 @@ static void thread_bootstrap(void *_tba)
 	int (*f)(void *) = tba->f;
 	void *arg = tba->arg;
 
+	/* Our lifecycle is managed by the LKL kernel, so we want to
+	 * detach here in order to free up host resources when we're
+	 * killed */
+	lkl_ops->thread_detach();
+
 	lkl_ops->sem_down(ti->sched_sem);
 	kfree(tba);
 	if (ti->prev_sched)

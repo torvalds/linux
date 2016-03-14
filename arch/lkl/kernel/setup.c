@@ -43,6 +43,9 @@ int run_init_process(const char *init_filename)
 
 static void __init lkl_run_kernel(void *arg)
 {
+	/* Nobody will ever join us */
+	lkl_ops->thread_detach();
+
 	start_kernel();
 }
 
