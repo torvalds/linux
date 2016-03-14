@@ -142,6 +142,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
+	IWL_UCODE_TLV_FW_MEM_SEG	= 51,
 };
 
 struct iwl_ucode_tlv {
@@ -490,6 +491,37 @@ enum iwl_fw_dbg_monitor_mode {
 	MARBH_MODE = 2,
 	MIPI_MODE = 3,
 };
+
+/**
+ * enum iwl_fw_mem_seg_type - data types for dumping on error
+ *
+ * @FW_DBG_MEM_SMEM: the data type is SMEM
+ * @FW_DBG_MEM_DCCM_LMAC: the data type is DCCM_LMAC
+ * @FW_DBG_MEM_DCCM_UMAC: the data type is DCCM_UMAC
+ */
+enum iwl_fw_dbg_mem_seg_type {
+	FW_DBG_MEM_DCCM_LMAC = 0,
+	FW_DBG_MEM_DCCM_UMAC,
+	FW_DBG_MEM_SMEM,
+
+	/* Must be last */
+	FW_DBG_MEM_MAX,
+};
+
+/**
+ * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
+ *
+ * @data_type: enum %iwl_fw_mem_seg_type
+ * @ofs: the memory segment offset
+ * @len: the memory segment length, in bytes
+ *
+ * This parses IWL_UCODE_TLV_FW_MEM_SEG
+ */
+struct iwl_fw_dbg_mem_seg_tlv {
+	__le32 data_type;
+	__le32 ofs;
+	__le32 len;
+} __packed;
 
 /**
  * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data

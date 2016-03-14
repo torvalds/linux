@@ -179,6 +179,8 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 		kfree(drv->fw.dbg_conf_tlv[i]);
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_trigger_tlv); i++)
 		kfree(drv->fw.dbg_trigger_tlv[i]);
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++)
+		kfree(drv->fw.dbg_mem_tlv[i]);
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -297,6 +299,7 @@ struct iwl_firmware_pieces {
 	size_t dbg_conf_tlv_len[FW_DBG_CONF_MAX];
 	struct iwl_fw_dbg_trigger_tlv *dbg_trigger_tlv[FW_DBG_TRIGGER_MAX];
 	size_t dbg_trigger_tlv_len[FW_DBG_TRIGGER_MAX];
+	struct iwl_fw_dbg_mem_seg_tlv *dbg_mem_tlv[FW_DBG_MEM_MAX];
 };
 
 /*
@@ -1041,6 +1044,37 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			iwl_store_gscan_capa(&drv->fw, tlv_data, tlv_len);
 			gscan_capa = true;
 			break;
+		case IWL_UCODE_TLV_FW_MEM_SEG: {
+			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
+				(void *)tlv_data;
+			u32 type;
+
+			if (tlv_len != (sizeof(*dbg_mem)))
+				goto invalid_tlv_len;
+
+			type = le32_to_cpu(dbg_mem->data_type);
+			drv->fw.dbg_dynamic_mem = true;
+
+			if (type >= ARRAY_SIZE(drv->fw.dbg_mem_tlv)) {
+				IWL_ERR(drv,
+					"Skip unknown dbg mem segment: %u\n",
+					dbg_mem->data_type);
+				break;
+			}
+
+			if (pieces->dbg_mem_tlv[type]) {
+				IWL_ERR(drv,
+					"Ignore duplicate mem segment: %u\n",
+					dbg_mem->data_type);
+				break;
+			}
+
+			IWL_DEBUG_INFO(drv, "Found debug memory segment: %u\n",
+				       dbg_mem->data_type);
+
+			pieces->dbg_mem_tlv[type] = dbg_mem;
+			break;
+			}
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -1346,6 +1380,17 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 					drv->fw.dbg_trigger_tlv_len[i],
 					GFP_KERNEL);
 			if (!drv->fw.dbg_trigger_tlv[i])
+				goto out_free_fw;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg_mem_tlv); i++) {
+		if (pieces->dbg_mem_tlv[i]) {
+			drv->fw.dbg_mem_tlv[i] =
+				kmemdup(pieces->dbg_mem_tlv[i],
+					sizeof(*drv->fw.dbg_mem_tlv[i]),
+					GFP_KERNEL);
+			if (!drv->fw.dbg_mem_tlv[i])
 				goto out_free_fw;
 		}
 	}
