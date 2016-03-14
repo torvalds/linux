@@ -24,7 +24,7 @@
  */
 
 /* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
-#define BO_VALID    0x8000
+#define BO_VALID    0x8000   /* is current addr in cmdstream correct/valid? */
 #define BO_LOCKED   0x4000
 #define BO_PINNED   0x2000
 
@@ -136,16 +136,13 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
 }
 
 /* This is where we make sure all the bo's are reserved and pin'd: */
-static int submit_validate_objects(struct msm_gem_submit *submit)
+static int submit_lock_objects(struct msm_gem_submit *submit)
 {
 	int contended, slow_locked = -1, i, ret = 0;
 
 retry:
-	submit->valid = true;
-
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
-		uint32_t iova;
 
 		if (slow_locked == i)
 			slow_locked = -1;
@@ -158,30 +155,6 @@ retry:
 			if (ret)
 				goto fail;
 			submit->bos[i].flags |= BO_LOCKED;
-		}
-
-
-		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_iova_locked(&msm_obj->base,
-				submit->gpu->id, &iova);
-
-		/* this would break the logic in the fail path.. there is no
-		 * reason for this to happen, but just to be on the safe side
-		 * let's notice if this starts happening in the future:
-		 */
-		WARN_ON(ret == -EDEADLK);
-
-		if (ret)
-			goto fail;
-
-		submit->bos[i].flags |= BO_PINNED;
-
-		if (iova == submit->bos[i].iova) {
-			submit->bos[i].flags |= BO_VALID;
-		} else {
-			submit->bos[i].iova = iova;
-			submit->bos[i].flags &= ~BO_VALID;
-			submit->valid = false;
 		}
 	}
 
@@ -205,6 +178,38 @@ fail:
 			submit->bos[contended].flags |= BO_LOCKED;
 			slow_locked = contended;
 			goto retry;
+		}
+	}
+
+	return ret;
+}
+
+static int submit_pin_objects(struct msm_gem_submit *submit)
+{
+	int i, ret = 0;
+
+	submit->valid = true;
+
+	for (i = 0; i < submit->nr_bos; i++) {
+		struct msm_gem_object *msm_obj = submit->bos[i].obj;
+		uint32_t iova;
+
+		/* if locking succeeded, pin bo: */
+		ret = msm_gem_get_iova_locked(&msm_obj->base,
+				submit->gpu->id, &iova);
+
+		if (ret)
+			break;
+
+		submit->bos[i].flags |= BO_PINNED;
+
+		if (iova == submit->bos[i].iova) {
+			submit->bos[i].flags |= BO_VALID;
+		} else {
+			submit->bos[i].iova = iova;
+			/* iova changed, so address in cmdstream is not valid: */
+			submit->bos[i].flags &= ~BO_VALID;
+			submit->valid = false;
 		}
 	}
 
@@ -349,7 +354,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	ret = submit_validate_objects(submit);
+	ret = submit_lock_objects(submit);
+	if (ret)
+		goto out;
+
+	ret = submit_pin_objects(submit);
 	if (ret)
 		goto out;
 
