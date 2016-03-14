@@ -32,6 +32,7 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/bootmem.h>
+#include "internal.h"
 
 #define ACPI_MAX_TABLES		128
 
@@ -456,6 +457,7 @@ int __init acpi_table_init(void)
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
+	acpi_initrd_initialize_tables();
 
 	check_multiple_madt();
 	return 0;
