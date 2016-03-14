@@ -662,6 +662,7 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		assigned-clocks =
+			<&cru SCLK_32K>,
 			<&cru DCLK_VOP_FULL>, <&cru DCLK_VOP_LITE>,
 			<&cru PLL_CPLL>, <&cru PLL_GPLL>,
 			<&cru PLL_NPLL>, <&cru PLL_MPLL>,
@@ -669,6 +670,7 @@
 			<&cru ACLK_VOP_FULL>, <&cru ACLK_VOP_LITE>,
 			<&cru HCLK_VOP_LITE>,<&cru HCLK_VOP_LITE>;
 		assigned-clock-rates =
+			<0>,
 			<0>, <0>,
 			<750000000>, <576000000>,
 			<594000000>, <594000000>,
@@ -676,6 +678,7 @@
 			<375000000>, <288000000>,
 			<100000000>, <100000000>;
 		assigned-clock-parents =
+			<&cru SCLK_32K_INTR>,
 			<&cru SCLK_MPLL_SRC>, <&cru PLL_NPLL>;
 	};
 
