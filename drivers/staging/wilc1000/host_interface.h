@@ -277,7 +277,7 @@ struct host_if_drv {
 	struct mutex cfg_values_lock;
 	struct semaphore sem_test_key_block;
 	struct semaphore sem_test_disconn_block;
-	struct semaphore sem_get_rssi;
+	struct completion comp_get_rssi;
 	struct completion comp_inactive_time;
 
 	struct timer_list scan_timer;

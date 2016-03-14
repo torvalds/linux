@@ -1886,7 +1886,7 @@ static void Handle_GetRssi(struct wilc_vif *vif)
 		result = -EFAULT;
 	}
 
-	up(&vif->hif_drv->sem_get_rssi);
+	complete(&vif->hif_drv->comp_get_rssi);
 }
 
 static s32 Handle_GetStatistics(struct wilc_vif *vif,
@@ -3244,7 +3244,7 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 		return -EFAULT;
 	}
 
-	down(&hif_drv->sem_get_rssi);
+	wait_for_completion(&hif_drv->comp_get_rssi);
 
 	if (!rssi_level) {
 		netdev_err(vif->ndev, "RSS pointer value is null\n");
@@ -3407,7 +3407,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 
 	sema_init(&hif_drv->sem_test_key_block, 0);
 	sema_init(&hif_drv->sem_test_disconn_block, 0);
-	sema_init(&hif_drv->sem_get_rssi, 0);
+	init_completion(&hif_drv->comp_get_rssi);
 	init_completion(&hif_drv->comp_inactive_time);
 
 	if (clients_count == 0)	{
