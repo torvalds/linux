@@ -376,7 +376,8 @@ static void vop_read_reg_default_cfg(struct vop_device *vop_dev)
 			else if (win0->area[0].format == RGB888)
 				win0->area[0].xvir =
 				    win0->area[0].y_vir_stride * 4 / 3;
-			else if (win0->area[0].format == RGB565)
+			else if ((win0->area[0].format == RGB565) ||
+				 (win0->area[0].format == BGR565))
 				win0->area[0].xvir =
 				    2 * win0->area[0].y_vir_stride;
 			else
@@ -567,10 +568,13 @@ static int vop_axi_gather_cfg(struct vop_device *vop_dev,
 	case ARGB888:
 	case XBGR888:
 	case ABGR888:
+	case XRGB888:
 		yrgb_gather_num = 3;
 		break;
 	case RGB888:
 	case RGB565:
+	case BGR888:
+	case BGR565:
 		yrgb_gather_num = 2;
 		break;
 	case YUV444:
@@ -1321,6 +1325,18 @@ static int win_0_1_set_par(struct vop_device *vop_dev,
 	case RGB565:
 		win->area[0].fmt_cfg = VOP_FORMAT_RGB565;
 		win->area[0].swap_rb = 0;
+		break;
+	case XRGB888:
+		win->area[0].fmt_cfg = VOP_FORMAT_ARGB888;
+		win->area[0].swap_rb = 0;
+		break;
+	case BGR888:
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB888;
+		win->area[0].swap_rb = 1;
+		break;
+	case BGR565:
+		win->area[0].fmt_cfg = VOP_FORMAT_RGB565;
+		win->area[0].swap_rb = 1;
 		break;
 	case YUV422:
 		if (win->id == 0) {
