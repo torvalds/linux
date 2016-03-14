@@ -678,6 +678,19 @@ static long dispatch_ioctl_command(unsigned int command, unsigned long arg)
 		ret = copy_from_user(&client_debug_array_string,
 				     (void __user *)arg,
 				     ORANGEFS_MAX_DEBUG_STRING_LEN);
+		/*
+		 * The real client-core makes an effort to ensure
+		 * that actual strings that aren't too long to fit in
+		 * this buffer is what we get here. We're going to use
+		 * string functions on the stuff we got, so we'll make
+		 * this extra effort to try and keep from
+		 * flowing out of this buffer when we use the string
+		 * functions, even if somehow the stuff we end up
+		 * with here is garbage.
+		 */
+		client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN - 1] =
+			'\0';
+		
 		if (ret != 0) {
 			pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
 				__func__);
