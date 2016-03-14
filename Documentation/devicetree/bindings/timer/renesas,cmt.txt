@@ -36,15 +36,11 @@ Required Properties:
 		These are fallbacks for r8a73a4 and all the R-Car Gen2
 		entries	listed above.
 
-    - "renesas,cmt-48-gen2" is <deprecated>, use "renesas,cmt[01]-*" instead.
-
   - reg: base address and length of the registers block for the timer module.
   - interrupts: interrupt-specifier for the timer, one per channel.
   - clocks: a list of phandle + clock-specifier pairs, one for each entry
     in clock-names.
   - clock-names: must contain "fck" for the functional clock.
-
-  - renesas,channels-mask: <deprecated>, information kept in device driver.
 
 
 Example: R8A7790 (R-Car H2) CMT0 and CMT1 nodes
