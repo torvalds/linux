@@ -1,12 +1,12 @@
 /*
- * An I2C and SPI driver for the NXP PCF2127 RTC
+ * An I2C and SPI driver for the NXP PCF2127/29 RTC
  * Copyright 2013 Til-Technologies
  *
  * Author: Renaud Cerrato <r.cerrato@til-technologies.fr>
  *
  * based on the other drivers in this same directory.
  *
- * http://www.nxp.com/documents/data_sheet/PCF2127AT.pdf
+ * Datasheet: http://cache.nxp.com/documents/data_sheet/PCF2127.pdf
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -196,6 +196,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 #ifdef CONFIG_OF
 static const struct of_device_id pcf2127_of_match[] = {
 	{ .compatible = "nxp,pcf2127" },
+	{ .compatible = "nxp,pcf2129" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pcf2127_of_match);
@@ -302,6 +303,7 @@ static int pcf2127_i2c_probe(struct i2c_client *client,
 
 static const struct i2c_device_id pcf2127_i2c_id[] = {
 	{ "pcf2127", 0 },
+	{ "pcf2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf2127_i2c_id);
@@ -364,6 +366,7 @@ static int pcf2127_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id pcf2127_spi_id[] = {
 	{ "pcf2127", 0 },
+	{ "pcf2129", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, pcf2127_spi_id);
@@ -428,5 +431,5 @@ static void __exit pcf2127_exit(void)
 module_exit(pcf2127_exit)
 
 MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
-MODULE_DESCRIPTION("NXP PCF2127 RTC driver");
+MODULE_DESCRIPTION("NXP PCF2127/29 RTC driver");
 MODULE_LICENSE("GPL v2");
