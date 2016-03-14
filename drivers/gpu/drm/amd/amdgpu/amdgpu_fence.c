@@ -547,30 +547,6 @@ static const char *amdgpu_fence_get_timeline_name(struct fence *f)
 }
 
 /**
- * amdgpu_fence_is_signaled - test if fence is signaled
- *
- * @f: fence to test
- *
- * Test the fence sequence number if it is already signaled. If it isn't
- * signaled start fence processing. Returns True if the fence is signaled.
- */
-static bool amdgpu_fence_is_signaled(struct fence *f)
-{
-	struct amdgpu_fence *fence = to_amdgpu_fence(f);
-	struct amdgpu_ring *ring = fence->ring;
-
-	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
-		return true;
-
-	amdgpu_fence_process(ring);
-
-	if (atomic64_read(&ring->fence_drv.last_seq) >= fence->seq)
-		return true;
-
-	return false;
-}
-
-/**
  * amdgpu_fence_enable_signaling - enable signalling on fence
  * @fence: fence
  *
@@ -622,7 +598,6 @@ static const struct fence_ops amdgpu_fence_ops = {
 	.get_driver_name = amdgpu_fence_get_driver_name,
 	.get_timeline_name = amdgpu_fence_get_timeline_name,
 	.enable_signaling = amdgpu_fence_enable_signaling,
-	.signaled = amdgpu_fence_is_signaled,
 	.wait = fence_default_wait,
 	.release = amdgpu_fence_release,
 };
