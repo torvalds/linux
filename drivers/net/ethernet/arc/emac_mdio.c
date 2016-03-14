@@ -94,7 +94,7 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
 		phy_addr, reg_num, value);
 
 	arc_reg_set(priv, R_MDIO,
-		     0x50020000 | (phy_addr << 23) | (reg_num << 18) | value);
+		    0x50020000 | (phy_addr << 23) | (reg_num << 18) | value);
 
 	return arc_mdio_complete_wait(priv);
 }
