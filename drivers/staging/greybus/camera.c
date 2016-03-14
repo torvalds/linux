@@ -38,6 +38,7 @@ struct gb_camera_debugfs_buffer {
  * @connection: the greybus connection for camera control
  * @data_connected: whether the data connection has been established
  * @debugfs: debugfs entries for camera protocol operations testing
+ * @module: Greybus camera module registered to HOST processor.
  */
 struct gb_camera {
 	struct gb_connection *connection;
@@ -47,6 +48,8 @@ struct gb_camera {
 		struct dentry *root;
 		struct gb_camera_debugfs_buffer *buffers;
 	} debugfs;
+
+	struct gb_camera_module module;
 };
 
 struct gb_camera_stream_config {
@@ -504,16 +507,20 @@ static int gb_camera_op_flush(void *priv, u32 *request_id)
 	return gb_camera_flush(priv, request_id);
 }
 
-struct gb_camera_ops gb_cam_ops = {
-	.capabilities = gb_camera_op_capabilities,
-	.configure_streams = gb_camera_op_configure_streams,
-	.capture = gb_camera_op_capture,
-	.flush = gb_camera_op_flush,
-};
-
 static int gb_camera_register_intf_ops(struct gb_camera *gcam)
 {
-	return gb_camera_register(&gb_cam_ops, gcam);
+	gcam->module.priv = gcam;
+	gcam->module.ops.capabilities = gb_camera_op_capabilities;
+	gcam->module.ops.configure_streams = gb_camera_op_configure_streams;
+	gcam->module.ops.capture = gb_camera_op_capture;
+	gcam->module.ops.flush = gb_camera_op_flush;
+
+	return gb_camera_register(&gcam->module);
+}
+
+static int gb_camera_unregister_intf_ops(struct gb_camera *gcam)
+{
+	return gb_camera_unregister(&gcam->module);
 }
 
 /* -----------------------------------------------------------------------------
@@ -930,6 +937,8 @@ error:
 static void gb_camera_connection_exit(struct gb_connection *connection)
 {
 	struct gb_camera *gcam = connection->private;
+
+	gb_camera_unregister_intf_ops(gcam);
 
 	gb_camera_cleanup(gcam);
 }

@@ -34,9 +34,18 @@ struct gb_camera_ops {
 	int (*flush)(void *priv, u32 *request_id);
 };
 
-#define gb_camera_call(f, p, op, args...)             \
-	(((f)->op) ? (f)->op(p, ##args) : -ENOIOCTLCMD)
+struct gb_camera_module {
+	void *priv;
+	struct gb_camera_ops ops;
 
-int gb_camera_register(struct gb_camera_ops *ops, void *priv);
+	struct list_head list; /* Global list */
+};
+
+#define gb_camera_call(f, op, args...)      \
+	((!(f) ? -ENODEV : ((f)->ops.op) ?  \
+	(f)->ops.op((f)->priv, ##args) : -ENOIOCTLCMD))
+
+int gb_camera_register(struct gb_camera_module *module);
+int gb_camera_unregister(struct gb_camera_module *module);
 
 #endif /* __GB_CAMERA_H */
