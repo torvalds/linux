@@ -280,8 +280,6 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		}
 	}
 
-	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, crtc_w);
-
 	ret = ipu_dmfc_alloc_bandwidth(ipu_plane->dmfc,
 			calc_bandwidth(crtc_w, crtc_h,
 				       calc_vref(mode)), 64);
@@ -289,6 +287,8 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		dev_err(dev, "allocating dmfc bandwidth failed with %d\n", ret);
 		return ret;
 	}
+
+	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, crtc_w);
 
 	ipu_cpmem_zero(ipu_plane->ipu_ch);
 	ipu_cpmem_set_resolution(ipu_plane->ipu_ch, src_w, src_h);
