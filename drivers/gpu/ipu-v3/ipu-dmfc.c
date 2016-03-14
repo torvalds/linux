@@ -350,7 +350,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_alloc_bandwidth);
 
-int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width)
+void ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width)
 {
 	struct ipu_dmfc_priv *priv = dmfc->priv;
 	u32 dmfc_gen1;
@@ -367,8 +367,6 @@ int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width)
 	writel(dmfc_gen1, priv->base + DMFC_GENERAL1);
 
 	mutex_unlock(&priv->mutex);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_init_channel);
 
