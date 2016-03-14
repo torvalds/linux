@@ -462,7 +462,8 @@ mctrl_gpio_free(dev, gpios):
 	this function.
 
 mctrl_gpio_to_gpiod(gpios, gidx)
-	This returns the gpio structure associated to the modem line index.
+	This returns the gpio_desc structure associated to the modem line
+	index.
 
 mctrl_gpio_set(gpios, mctrl):
 	This will sets the gpios according to the mctrl state.
