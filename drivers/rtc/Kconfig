@@ -379,15 +379,6 @@ config RTC_DRV_X1205
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-x1205.
 
-config RTC_DRV_PCF2127
-	tristate "NXP PCF2127"
-	help
-	  If you say yes here you get support for the NXP PCF2127/29 RTC
-	  chips.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-pcf2127.
-
 config RTC_DRV_PCF8523
 	tristate "NXP PCF8523"
 	help
@@ -775,6 +766,16 @@ config RTC_DRV_DS3232
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called rtc-ds3232.
+
+config RTC_DRV_PCF2127
+	tristate "NXP PCF2127"
+	depends on RTC_I2C_AND_SPI
+	help
+	  If you say yes here you get support for the NXP PCF2127/29 RTC
+	  chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf2127.
 
 comment "Platform RTC drivers"
 

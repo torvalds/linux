@@ -1,5 +1,5 @@
 /*
- * An I2C driver for the NXP PCF2127 RTC
+ * An I2C and SPI driver for the NXP PCF2127 RTC
  * Copyright 2013 Til-Technologies
  *
  * Author: Renaud Cerrato <r.cerrato@til-technologies.fr>
@@ -14,6 +14,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -200,6 +201,8 @@ static const struct of_device_id pcf2127_of_match[] = {
 MODULE_DEVICE_TABLE(of, pcf2127_of_match);
 #endif
 
+#if IS_ENABLED(CONFIG_I2C)
+
 static int pcf2127_i2c_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
@@ -311,7 +314,118 @@ static struct i2c_driver pcf2127_i2c_driver = {
 	.probe		= pcf2127_i2c_probe,
 	.id_table	= pcf2127_i2c_id,
 };
-module_i2c_driver(pcf2127_i2c_driver);
+
+static int pcf2127_i2c_register_driver(void)
+{
+	return i2c_add_driver(&pcf2127_i2c_driver);
+}
+
+static void pcf2127_i2c_unregister_driver(void)
+{
+	i2c_del_driver(&pcf2127_i2c_driver);
+}
+
+#else
+
+static int pcf2127_i2c_register_driver(void)
+{
+	return 0;
+}
+
+static void pcf2127_i2c_unregister_driver(void)
+{
+}
+
+#endif
+
+#if IS_ENABLED(CONFIG_SPI_MASTER)
+
+static struct spi_driver pcf2127_spi_driver;
+
+static int pcf2127_spi_probe(struct spi_device *spi)
+{
+	static const struct regmap_config config = {
+		.reg_bits = 8,
+		.val_bits = 8,
+		.read_flag_mask = 0xa0,
+		.write_flag_mask = 0x20,
+	};
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_spi(spi, &config);
+	if (IS_ERR(regmap)) {
+		dev_err(&spi->dev, "%s: regmap allocation failed: %ld\n",
+			__func__, PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
+
+	return pcf2127_probe(&spi->dev, regmap, pcf2127_spi_driver.driver.name);
+}
+
+static const struct spi_device_id pcf2127_spi_id[] = {
+	{ "pcf2127", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, pcf2127_spi_id);
+
+static struct spi_driver pcf2127_spi_driver = {
+	.driver		= {
+		.name	= "rtc-pcf2127-spi",
+		.of_match_table = of_match_ptr(pcf2127_of_match),
+	},
+	.probe		= pcf2127_spi_probe,
+	.id_table	= pcf2127_spi_id,
+};
+
+static int pcf2127_spi_register_driver(void)
+{
+	return spi_register_driver(&pcf2127_spi_driver);
+}
+
+static void pcf2127_spi_unregister_driver(void)
+{
+	spi_unregister_driver(&pcf2127_spi_driver);
+}
+
+#else
+
+static int pcf2127_spi_register_driver(void)
+{
+	return 0;
+}
+
+static void pcf2127_spi_unregister_driver(void)
+{
+}
+
+#endif
+
+static int __init pcf2127_init(void)
+{
+	int ret;
+
+	ret = pcf2127_i2c_register_driver();
+	if (ret) {
+		pr_err("Failed to register pcf2127 i2c driver: %d\n", ret);
+		return ret;
+	}
+
+	ret = pcf2127_spi_register_driver();
+	if (ret) {
+		pr_err("Failed to register pcf2127 spi driver: %d\n", ret);
+		pcf2127_i2c_unregister_driver();
+	}
+
+	return ret;
+}
+module_init(pcf2127_init)
+
+static void __exit pcf2127_exit(void)
+{
+	pcf2127_spi_unregister_driver();
+	pcf2127_i2c_unregister_driver();
+}
+module_exit(pcf2127_exit)
 
 MODULE_AUTHOR("Renaud Cerrato <r.cerrato@til-technologies.fr>");
 MODULE_DESCRIPTION("NXP PCF2127 RTC driver");
