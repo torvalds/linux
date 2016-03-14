@@ -2061,7 +2061,7 @@ typedef struct _SET_DCE_CLOCK_PS_ALLOCATION_V1_1
 #define SET_DCE_CLOCK_FLAG_DPREFCLK_BYPASS         0x01
 #define SET_DCE_CLOCK_FLAG_ENABLE_PIXCLK           0x02
 
-// SetDCEClockTable input parameter for DCE11.2( ELM and BF ) and above
+// SetDCEClockTable input parameter for DCE11.2( POLARIS10 and POLARIS11 ) and above
 typedef struct _SET_DCE_CLOCK_PARAMETERS_V2_1
 {
   ULONG  ulDCEClkFreq;                               // target DCE frequency in unit of 10KHZ, return real DISPCLK/DPREFCLK frequency.
@@ -5494,7 +5494,7 @@ typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_4
   ULONG ulReserved[8];            // Reserved for future ASIC
 }ATOM_ASIC_PROFILING_INFO_V3_4;
 
-// for Ellemser/Baffin speed EVV algorithm
+// for  Polaris10/Polaris11 speed EVV algorithm
 typedef struct  _ATOM_ASIC_PROFILING_INFO_V3_5
 {
   ATOM_COMMON_TABLE_HEADER         asHeader;
@@ -5549,7 +5549,7 @@ typedef struct _ATOM_SCLK_FCW_RANGE_ENTRY_V1{
 }ATOM_SCLK_FCW_RANGE_ENTRY_V1;
 
 
-// SMU_InfoTable for Ellesmere/Baffin
+// SMU_InfoTable for  Polaris10/Polaris11
 typedef struct  _ATOM_SMU_INFO_V2_1
 {
   ATOM_COMMON_TABLE_HEADER         asHeader;

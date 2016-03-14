@@ -21,9 +21,9 @@
  *
  */
 
-#include "ellesmere_clockpowergating.h"
+#include "polaris10_clockpowergating.h"
 
-int ellesmere_phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -31,7 +31,7 @@ int ellesmere_phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_powerup_uvd(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr)) {
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -47,7 +47,7 @@ int ellesmere_phm_powerup_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_powerdown_vce(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -55,7 +55,7 @@ int ellesmere_phm_powerdown_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_powerup_vce(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerup_vce(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_vce_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr->smumgr,
@@ -63,7 +63,7 @@ int ellesmere_phm_powerup_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_powerdown_samu(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerdown_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -72,7 +72,7 @@ int ellesmere_phm_powerdown_samu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_powerup_samu(struct pp_hwmgr *hwmgr)
+int polaris10_phm_powerup_samu(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SamuPowerGating))
@@ -81,24 +81,24 @@ int ellesmere_phm_powerup_samu(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
+int polaris10_phm_disable_clock_power_gating(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
 	data->samu_power_gated = false;
 
-	ellesmere_phm_powerup_uvd(hwmgr);
-	ellesmere_phm_powerup_vce(hwmgr);
-	ellesmere_phm_powerup_samu(hwmgr);
+	polaris10_phm_powerup_uvd(hwmgr);
+	polaris10_phm_powerup_vce(hwmgr);
+	polaris10_phm_powerup_samu(hwmgr);
 
 	return 0;
 }
 
-int ellesmere_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+int polaris10_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (data->uvd_power_gated == bgate)
 		return 0;
@@ -106,34 +106,34 @@ int ellesmere_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	data->uvd_power_gated = bgate;
 
 	if (bgate) {
-		ellesmere_update_uvd_dpm(hwmgr, true);
-		ellesmere_phm_powerdown_uvd(hwmgr);
+		polaris10_update_uvd_dpm(hwmgr, true);
+		polaris10_phm_powerdown_uvd(hwmgr);
 	} else {
-		ellesmere_phm_powerup_uvd(hwmgr);
-		ellesmere_update_uvd_dpm(hwmgr, false);
+		polaris10_phm_powerup_uvd(hwmgr);
+		polaris10_update_uvd_dpm(hwmgr, false);
 	}
 
 	return 0;
 }
 
-int ellesmere_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+int polaris10_phm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (data->vce_power_gated == bgate)
 		return 0;
 
 	if (bgate)
-		ellesmere_phm_powerdown_vce(hwmgr);
+		polaris10_phm_powerdown_vce(hwmgr);
 	else
-		ellesmere_phm_powerup_vce(hwmgr);
+		polaris10_phm_powerup_vce(hwmgr);
 
 	return 0;
 }
 
-int ellesmere_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
+int polaris10_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (data->samu_power_gated == bgate)
 		return 0;
@@ -141,17 +141,17 @@ int ellesmere_phm_powergate_samu(struct pp_hwmgr *hwmgr, bool bgate)
 	data->samu_power_gated = bgate;
 
 	if (bgate) {
-		ellesmere_update_samu_dpm(hwmgr, true);
-		ellesmere_phm_powerdown_samu(hwmgr);
+		polaris10_update_samu_dpm(hwmgr, true);
+		polaris10_phm_powerdown_samu(hwmgr);
 	} else {
-		ellesmere_phm_powerup_samu(hwmgr);
-		ellesmere_update_samu_dpm(hwmgr, false);
+		polaris10_phm_powerup_samu(hwmgr);
+		polaris10_update_samu_dpm(hwmgr, false);
 	}
 
 	return 0;
 }
 
-int ellesmere_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
+int polaris10_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 					const uint32_t *msg_id)
 {
 	PPSMC_Msg msg;
@@ -399,11 +399,11 @@ int ellesmere_phm_update_clock_gatings(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-/* This function is for Baffin only for now,
+/* This function is for Polaris11 only for now,
  * Powerplay will only control the static per CU Power Gating.
  * Dynamic per CU Power Gating will be done in gfx.
  */
-int ellesmere_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
+int polaris10_phm_enable_per_cu_power_gating(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct cgs_system_info sys_info = {0};
 	uint32_t active_cus;

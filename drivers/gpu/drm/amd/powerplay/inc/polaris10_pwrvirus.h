@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _ELLESMERE_PWRVIRUS_H
-#define _ELLESMERE_PWRVIRUS_H
+#ifndef _POLARIS10_PWRVIRUS_H
+#define _POLARIS10_PWRVIRUS_H
 
 #define mmSMC_IND_INDEX_11                              0x01AC
 #define mmSMC_IND_DATA_11                               0x01AD

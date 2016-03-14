@@ -20,15 +20,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef ELLESMERE_POWERTUNE_H
-#define ELLESMERE_POWERTUNE_H
+#ifndef POLARIS10_POWERTUNE_H
+#define POLARIS10_POWERTUNE_H
 
-enum ellesmere_pt_config_reg_type {
-	ELLESMERE_CONFIGREG_MMR = 0,
-	ELLESMERE_CONFIGREG_SMC_IND,
-	ELLESMERE_CONFIGREG_DIDT_IND,
-	ELLESMERE_CONFIGREG_CACHE,
-	ELLESMERE_CONFIGREG_MAX
+enum polaris10_pt_config_reg_type {
+	POLARIS10_CONFIGREG_MMR = 0,
+	POLARIS10_CONFIGREG_SMC_IND,
+	POLARIS10_CONFIGREG_DIDT_IND,
+	POLARIS10_CONFIGREG_CACHE,
+	POLARIS10_CONFIGREG_MAX
 };
 
 /* PowerContainment Features */
@@ -36,15 +36,15 @@ enum ellesmere_pt_config_reg_type {
 #define POWERCONTAINMENT_FEATURE_TDCLimit        0x00000002
 #define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
 
-struct ellesmere_pt_config_reg {
+struct polaris10_pt_config_reg {
 	uint32_t                           offset;
 	uint32_t                           mask;
 	uint32_t                           shift;
 	uint32_t                           value;
-	enum ellesmere_pt_config_reg_type       type;
+	enum polaris10_pt_config_reg_type       type;
 };
 
-struct ellesmere_pt_defaults {
+struct polaris10_pt_defaults {
 	uint8_t   SviLoadLineEn;
 	uint8_t   SviLoadLineVddC;
 	uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
@@ -58,13 +58,13 @@ struct ellesmere_pt_defaults {
 	uint16_t  BAPMTI_RC[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
 };
 
-void ellesmere_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
-int ellesmere_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
-int ellesmere_populate_pm_fuses(struct pp_hwmgr *hwmgr);
-int ellesmere_enable_smc_cac(struct pp_hwmgr *hwmgr);
-int ellesmere_enable_power_containment(struct pp_hwmgr *hwmgr);
-int ellesmere_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
-int ellesmere_power_control_set_level(struct pp_hwmgr *hwmgr);
+void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
+int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr);
+int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr);
+int polaris10_enable_smc_cac(struct pp_hwmgr *hwmgr);
+int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr);
+int polaris10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n);
+int polaris10_power_control_set_level(struct pp_hwmgr *hwmgr);
 
-#endif  /* ELLESMERE_POWERTUNE_H */
+#endif  /* POLARIS10_POWERTUNE_H */
 

@@ -132,7 +132,7 @@ static const u32 stoney_golden_settings_a11[] =
 	mmFBC_MISC, 0x1f311fff, 0x14302000,
 };
 
-static const u32 baffin_golden_settings_a11[] =
+static const u32 polaris11_golden_settings_a11[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
@@ -141,7 +141,7 @@ static const u32 baffin_golden_settings_a11[] =
 	mmHDMI_CONTROL, 0x313f031f, 0x00000011,
 };
 
-static const u32 ellesmere_golden_settings_a11[] =
+static const u32 polaris10_golden_settings_a11[] =
 {
 	mmDCI_CLK_CNTL, 0x00000080, 0x00000000,
 	mmFBC_DEBUG_COMP, 0x000000f0, 0x00000070,
@@ -165,15 +165,15 @@ static void dce_v11_0_init_golden_registers(struct amdgpu_device *adev)
 						 stoney_golden_settings_a11,
 						 (const u32)ARRAY_SIZE(stoney_golden_settings_a11));
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		amdgpu_program_register_sequence(adev,
-						 baffin_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(baffin_golden_settings_a11));
+						 polaris11_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(polaris11_golden_settings_a11));
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		amdgpu_program_register_sequence(adev,
-						 ellesmere_golden_settings_a11,
-						 (const u32)ARRAY_SIZE(ellesmere_golden_settings_a11));
+						 polaris10_golden_settings_a11,
+						 (const u32)ARRAY_SIZE(polaris10_golden_settings_a11));
 		break;
 	default:
 		break;
@@ -1611,10 +1611,10 @@ static int dce_v11_0_audio_init(struct amdgpu_device *adev)
 	case CHIP_STONEY:
 		adev->mode_info.audio.num_pins = 7;
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		adev->mode_info.audio.num_pins = 8;
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		adev->mode_info.audio.num_pins = 6;
 		break;
 	default:
@@ -2411,8 +2411,8 @@ static u32 dce_v11_0_pick_pll(struct drm_crtc *crtc)
 	u32 pll_in_use;
 	int pll;
 
-	if ((adev->asic_type == CHIP_ELLESMERE) ||
-	    (adev->asic_type == CHIP_BAFFIN)) {
+	if ((adev->asic_type == CHIP_POLARIS10) ||
+	    (adev->asic_type == CHIP_POLARIS11)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
@@ -2838,8 +2838,8 @@ static int dce_v11_0_crtc_mode_set(struct drm_crtc *crtc,
 	if (!amdgpu_crtc->adjusted_clock)
 		return -EINVAL;
 
-	if ((adev->asic_type == CHIP_ELLESMERE) ||
-	    (adev->asic_type == CHIP_BAFFIN)) {
+	if ((adev->asic_type == CHIP_POLARIS10) ||
+	    (adev->asic_type == CHIP_POLARIS11)) {
 		struct amdgpu_encoder *amdgpu_encoder =
 			to_amdgpu_encoder(amdgpu_crtc->encoder);
 		int encoder_mode =
@@ -3004,12 +3004,12 @@ static int dce_v11_0_early_init(void *handle)
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		adev->mode_info.num_crtc = 5;
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
@@ -3116,8 +3116,8 @@ static int dce_v11_0_hw_init(void *handle)
 	/* init dig PHYs, disp eng pll */
 	amdgpu_atombios_crtc_powergate_init(adev);
 	amdgpu_atombios_encoder_init_dig(adev);
-	if ((adev->asic_type == CHIP_ELLESMERE) ||
-	    (adev->asic_type == CHIP_BAFFIN)) {
+	if ((adev->asic_type == CHIP_POLARIS10) ||
+	    (adev->asic_type == CHIP_POLARIS11)) {
 		amdgpu_atombios_crtc_set_dce_clock(adev, adev->clock.default_dispclk,
 						   DCE_CLOCK_TYPE_DISPCLK, ATOM_GCK_DFS);
 		amdgpu_atombios_crtc_set_dce_clock(adev, 0,

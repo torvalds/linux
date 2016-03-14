@@ -9,8 +9,8 @@ HARDWARE_MGR = hwmgr.o processpptables.o functiontables.o \
                tonga_hwmgr.o pppcielanes.o  tonga_thermal.o\
                fiji_powertune.o fiji_hwmgr.o tonga_clockpowergating.o \
                fiji_clockpowergating.o fiji_thermal.o \
-	       ellesmere_hwmgr.o ellesmere_powertune.o ellesmere_thermal.o \
-	       ellesmere_clockpowergating.o
+	       polaris10_hwmgr.o polaris10_powertune.o polaris10_thermal.o \
+	       polaris10_clockpowergating.o
 
 AMD_PP_HWMGR = $(addprefix $(AMD_PP_PATH)/hwmgr/,$(HARDWARE_MGR))
 

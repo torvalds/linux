@@ -26,10 +26,10 @@
 #include "linux/delay.h"
 #include "pp_acpi.h"
 #include "hwmgr.h"
-#include "ellesmere_hwmgr.h"
-#include "ellesmere_powertune.h"
-#include "ellesmere_dyn_defaults.h"
-#include "ellesmere_smumgr.h"
+#include "polaris10_hwmgr.h"
+#include "polaris10_powertune.h"
+#include "polaris10_dyn_defaults.h"
+#include "polaris10_smumgr.h"
 #include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
@@ -57,8 +57,8 @@
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
-#include "ellesmere_thermal.h"
-#include "ellesmere_clockpowergating.h"
+#include "polaris10_thermal.h"
+#include "polaris10_clockpowergating.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -98,15 +98,15 @@
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
 
-uint16_t ellesmere_clock_stretcher_lookup_table[2][4] = { {600, 1050, 3, 0},
+uint16_t polaris10_clock_stretcher_lookup_table[2][4] = { {600, 1050, 3, 0},
 							  {600, 1050, 6, 1} };
 
 /*  [FF, SS] type, [] 4 voltage ranges, and [Floor Freq, Boundary Freq, VID min , VID max] */
-uint32_t ellesmere_clock_stretcher_ddt_table[2][4][4] = { { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
+uint32_t polaris10_clock_stretcher_ddt_table[2][4][4] = { { {265, 529, 120, 128}, {325, 650, 96, 119}, {430, 860, 32, 95}, {0, 0, 0, 31} },
 							{ {275, 550, 104, 112}, {319, 638, 96, 103}, {360, 720, 64, 95}, {384, 768, 32, 63} } };
 
 /*  [Use_For_Low_freq] value, [0%, 5%, 10%, 7.14%, 14.28%, 20%] (coming from PWR_CKS_CNTL.stretch_amount reg spec) */
-uint8_t ellesmere_clock_stretch_amount_conversion[2][6] = { {0, 1, 3, 2, 4, 5},
+uint8_t polaris10_clock_stretch_amount_conversion[2][6] = { {0, 1, 3, 2, 4, 5},
 							    {0, 2, 4, 5, 6, 5} };
 
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
@@ -118,29 +118,29 @@ enum DPM_EVENT_SRC {
 	DPM_EVENT_SRC_DIGITAL_OR_EXTERNAL = 4
 };
 
-const unsigned long PhwEllesmere_Magic = (unsigned long)(PHM_VIslands_Magic);
+const unsigned long PhwPolaris10_Magic = (unsigned long)(PHM_VIslands_Magic);
 
-struct ellesmere_power_state *cast_phw_ellesmere_power_state(
+struct polaris10_power_state *cast_phw_polaris10_power_state(
 				  struct pp_hw_power_state *hw_ps)
 {
-	PP_ASSERT_WITH_CODE((PhwEllesmere_Magic == hw_ps->magic),
+	PP_ASSERT_WITH_CODE((PhwPolaris10_Magic == hw_ps->magic),
 				"Invalid Powerstate Type!",
 				 return NULL);
 
-	return (struct ellesmere_power_state *)hw_ps;
+	return (struct polaris10_power_state *)hw_ps;
 }
 
-const struct ellesmere_power_state *cast_const_phw_ellesmere_power_state(
+const struct polaris10_power_state *cast_const_phw_polaris10_power_state(
 				 const struct pp_hw_power_state *hw_ps)
 {
-	PP_ASSERT_WITH_CODE((PhwEllesmere_Magic == hw_ps->magic),
+	PP_ASSERT_WITH_CODE((PhwPolaris10_Magic == hw_ps->magic),
 				"Invalid Powerstate Type!",
 				 return NULL);
 
-	return (const struct ellesmere_power_state *)hw_ps;
+	return (const struct polaris10_power_state *)hw_ps;
 }
 
-static bool ellesmere_is_dpm_running(struct pp_hwmgr *hwmgr)
+static bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
 	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
 			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
@@ -228,7 +228,7 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 * @param    pHwMgr  the address of the powerplay hardware manager.
 * @return   always PP_Result_OK
 */
-int ellesmere_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
+int polaris10_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 {
 	PP_ASSERT_WITH_CODE(
 		(hwmgr->smumgr->smumgr_funcs->send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_Voltage_Cntl_Enable) == 0),
@@ -244,12 +244,12 @@ int ellesmere_enable_smc_voltage_controller(struct pp_hwmgr *hwmgr)
 *
 * @param    hwmgr  the address of the powerplay hardware manager.
 */
-static bool ellesmere_voltage_control(const struct pp_hwmgr *hwmgr)
+static bool polaris10_voltage_control(const struct pp_hwmgr *hwmgr)
 {
-	const struct ellesmere_hwmgr *data =
-			(const struct ellesmere_hwmgr *)(hwmgr->backend);
+	const struct polaris10_hwmgr *data =
+			(const struct polaris10_hwmgr *)(hwmgr->backend);
 
-	return (ELLESMERE_VOLTAGE_CONTROL_NONE != data->voltage_control);
+	return (POLARIS10_VOLTAGE_CONTROL_NONE != data->voltage_control);
 }
 
 /**
@@ -258,7 +258,7 @@ static bool ellesmere_voltage_control(const struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_enable_voltage_control(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_voltage_control(struct pp_hwmgr *hwmgr)
 {
 	/* enable voltage control */
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -273,21 +273,21 @@ static int ellesmere_enable_voltage_control(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_construct_voltage_tables(struct pp_hwmgr *hwmgr)
+static int polaris10_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
 	int result;
 
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
 		result = atomctrl_get_voltage_table_v3(hwmgr,
 				VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_GPIO_LUT,
 				&(data->mvdd_voltage_table));
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to retrieve MVDD table.",
 				return result);
-	} else if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
+	} else if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
 		result = phm_get_svi2_mvdd_voltage_table(&(data->mvdd_voltage_table),
 				table_info->vdd_dep_on_mclk);
 		PP_ASSERT_WITH_CODE((0 == result),
@@ -295,14 +295,14 @@ static int ellesmere_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 				return result;);
 	}
 
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
 		result = atomctrl_get_voltage_table_v3(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_GPIO_LUT,
 				&(data->vddci_voltage_table));
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to retrieve VDDCI table.",
 				return result);
-	} else if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
+	} else if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
 		result = phm_get_svi2_vddci_voltage_table(&(data->vddci_voltage_table),
 				table_info->vdd_dep_on_mclk);
 		PP_ASSERT_WITH_CODE((0 == result),
@@ -310,7 +310,7 @@ static int ellesmere_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 				return result);
 	}
 
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
 		result = phm_get_svi2_vdd_voltage_table(&(data->vddc_voltage_table),
 				table_info->vddc_lookup_table);
 		PP_ASSERT_WITH_CODE((0 == result),
@@ -345,10 +345,10 @@ static int ellesmere_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_program_static_screen_threshold_parameters(
+static int polaris10_program_static_screen_threshold_parameters(
 							struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/* Set static screen threshold unit */
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -368,7 +368,7 @@ static int ellesmere_program_static_screen_threshold_parameters(
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always  0
 */
-static int ellesmere_enable_display_gap(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_display_gap(struct pp_hwmgr *hwmgr)
 {
 	uint32_t display_gap =
 			cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
@@ -392,9 +392,9 @@ static int ellesmere_enable_display_gap(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always  0
 */
-static int ellesmere_program_voting_clients(struct pp_hwmgr *hwmgr)
+static int polaris10_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/* Clear reset for voting clients before enabling DPM */
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -428,15 +428,15 @@ static int ellesmere_program_voting_clients(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always  0
 */
-static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
+static int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(hwmgr->smumgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
 	uint32_t tmp;
 	int result;
 	bool error = false;
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, DpmTable),
 			&tmp, data->sram_end);
@@ -446,7 +446,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, SoftRegisters),
 			&tmp, data->sram_end);
@@ -458,7 +458,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, mcRegisterTable),
 			&tmp, data->sram_end);
@@ -466,7 +466,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 	if (!result)
 		data->mc_reg_table_start = tmp;
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, FanTable),
 			&tmp, data->sram_end);
@@ -476,7 +476,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, mcArbDramTimingTable),
 			&tmp, data->sram_end);
@@ -486,7 +486,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 	error |= (0 != result);
 
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			SMU7_FIRMWARE_HEADER_LOCATION +
 			offsetof(SMU74_Firmware_Header, Version),
 			&tmp, data->sram_end);
@@ -502,7 +502,7 @@ static int ellesmere_process_firmware_header(struct pp_hwmgr *hwmgr)
 /* Copy one arb setting to another and then switch the active set.
  * arb_src and arb_dest is one of the MC_CG_ARB_FREQ_Fx constants.
  */
-static int ellesmere_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
+static int polaris10_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 		uint32_t arb_src, uint32_t arb_dest)
 {
 	uint32_t mc_arb_dram_timing;
@@ -555,15 +555,15 @@ static int ellesmere_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
 * @return   always 0
 * This function is to be called from the SetPowerState table.
 */
-static int ellesmere_initial_switch_from_arbf0_to_f1(struct pp_hwmgr *hwmgr)
+static int polaris10_initial_switch_from_arbf0_to_f1(struct pp_hwmgr *hwmgr)
 {
-	return ellesmere_copy_and_switch_arb_sets(hwmgr,
+	return polaris10_copy_and_switch_arb_sets(hwmgr,
 			MC_CG_ARB_FREQ_F0, MC_CG_ARB_FREQ_F1);
 }
 
-static int ellesmere_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
+static int polaris10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_pcie_table *pcie_table = table_info->pcie_table;
@@ -660,9 +660,9 @@ static int ellesmere_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
  * on the power policy or external client requests,
  * such as UVD request, etc.
  */
-int ellesmere_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
+int polaris10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint32_t i;
@@ -725,11 +725,11 @@ int ellesmere_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	}
 
 	/* setup PCIE gen speed levels */
-	ellesmere_setup_default_pcie_table(hwmgr);
+	polaris10_setup_default_pcie_table(hwmgr);
 
 	/* save a copy of the default DPM table */
 	memcpy(&(data->golden_dpm_table), &(data->dpm_table),
-			sizeof(struct ellesmere_dpm_table));
+			sizeof(struct polaris10_dpm_table));
 
 	return 0;
 }
@@ -746,13 +746,13 @@ uint8_t convert_to_vid(uint16_t vddc)
  * @param    *table The SMC DPM table structure to be populated.
  * @return   0
  */
-static int ellesmere_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 			SMU74_Discrete_DpmTable *table)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t count, level;
 
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
 		count = data->mvdd_voltage_table.count;
 		if (count > SMU_MAX_SMIO_LEVELS)
 			count = SMU_MAX_SMIO_LEVELS;
@@ -773,15 +773,15 @@ static int ellesmere_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_populate_smc_vddci_table(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_vddci_table(struct pp_hwmgr *hwmgr,
 					struct SMU74_Discrete_DpmTable *table)
 {
 	uint32_t count, level;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	count = data->vddci_voltage_table.count;
 
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
 		if (count > SMU_MAX_SMIO_LEVELS)
 			count = SMU_MAX_SMIO_LEVELS;
 		for (level = 0; level < count; ++level) {
@@ -805,12 +805,12 @@ static int ellesmere_populate_smc_vddci_table(struct pp_hwmgr *hwmgr,
 * @param    table  the SMC DPM table structure to be populated
 * @return   always 0
 */
-static int ellesmere_populate_cac_table(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_cac_table(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
 	uint32_t count;
 	uint8_t index;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_voltage_lookup_table *lookup_table =
@@ -839,20 +839,20 @@ static int ellesmere_populate_cac_table(struct pp_hwmgr *hwmgr,
 * @return   always  0
 */
 
-int ellesmere_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
+int polaris10_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
-	ellesmere_populate_smc_vddci_table(hwmgr, table);
-	ellesmere_populate_smc_mvdd_table(hwmgr, table);
-	ellesmere_populate_cac_table(hwmgr, table);
+	polaris10_populate_smc_vddci_table(hwmgr, table);
+	polaris10_populate_smc_mvdd_table(hwmgr, table);
+	polaris10_populate_cac_table(hwmgr, table);
 
 	return 0;
 }
 
-static int ellesmere_populate_ulv_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_ulv_level(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_Ulv *state)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -872,17 +872,17 @@ static int ellesmere_populate_ulv_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_populate_ulv_state(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_ulv_state(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
-	return ellesmere_populate_ulv_level(hwmgr, &table->Ulv);
+	return polaris10_populate_ulv_level(hwmgr, &table->Ulv);
 }
 
-static int ellesmere_populate_smc_link_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_link_level(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_dpm_table *dpm_table = &data->dpm_table;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_dpm_table *dpm_table = &data->dpm_table;
 	int i;
 
 	/* Index (dpm_table->pcie_speed_table.count)
@@ -906,7 +906,7 @@ static int ellesmere_populate_smc_link_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint32_t ellesemere_get_xclk(struct pp_hwmgr *hwmgr)
+static uint32_t polaris10_get_xclk(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reference_clock, tmp;
 	struct cgs_display_info info = {0};
@@ -937,10 +937,10 @@ static uint32_t ellesemere_get_xclk(struct pp_hwmgr *hwmgr)
 * @param    clock  the engine clock to use to populate the structure
 * @param    sclk   the SMC SCLK structure to be populated
 */
-static int ellesmere_calculate_sclk_params(struct pp_hwmgr *hwmgr,
+static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		uint32_t clock, SMU_SclkSetting *sclk_setting)
 {
-	const struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	const struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	const SMU74_Discrete_DpmTable *table = &(data->smc_state_table);
 	struct pp_atomctrl_clock_dividers_ai dividers;
 
@@ -968,7 +968,7 @@ static int ellesmere_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		return result;
 	}
 
-	ref_clock = ellesemere_get_xclk(hwmgr);
+	ref_clock = polaris10_get_xclk(hwmgr);
 
 	for (i = 0; i < NUM_SCLK_RANGE; i++) {
 		if (clock > data->range_table[i].trans_lower_frequency
@@ -1001,13 +1001,13 @@ static int ellesmere_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
+static int polaris10_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_clock_voltage_dependency_table *dep_table,
 		uint32_t clock, SMU_VoltageLevel *voltage, uint32_t *mvdd)
 {
 	uint32_t i;
 	uint16_t vddci;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	*voltage = *mvdd = 0;
 
@@ -1020,7 +1020,7 @@ static int ellesmere_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		if (dep_table->entries[i].clk >= clock) {
 			*voltage |= (dep_table->entries[i].vddc *
 					VOLTAGE_SCALE) << VDDC_SHIFT;
-			if (ELLESMERE_VOLTAGE_CONTROL_NONE == data->vddci_control)
+			if (POLARIS10_VOLTAGE_CONTROL_NONE == data->vddci_control)
 				*voltage |= (data->vbios_boot_state.vddci_bootup_value *
 						VOLTAGE_SCALE) << VDDCI_SHIFT;
 			else if (dep_table->entries[i].vddci)
@@ -1033,7 +1033,7 @@ static int ellesmere_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 				*voltage |= (vddci * VOLTAGE_SCALE) <<	VDDCI_SHIFT;
 			}
 
-			if (ELLESMERE_VOLTAGE_CONTROL_NONE == data->mvdd_control)
+			if (POLARIS10_VOLTAGE_CONTROL_NONE == data->mvdd_control)
 				*mvdd = data->vbios_boot_state.mvdd_bootup_value *
 					VOLTAGE_SCALE;
 			else if (dep_table->entries[i].mvdd)
@@ -1048,7 +1048,7 @@ static int ellesmere_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 	/* sclk is bigger than max sclk in the dependence table */
 	*voltage |= (dep_table->entries[i - 1].vddc * VOLTAGE_SCALE) << VDDC_SHIFT;
 
-	if (ELLESMERE_VOLTAGE_CONTROL_NONE == data->vddci_control)
+	if (POLARIS10_VOLTAGE_CONTROL_NONE == data->vddci_control)
 		*voltage |= (data->vbios_boot_state.vddci_bootup_value *
 				VOLTAGE_SCALE) << VDDCI_SHIFT;
 	else if (dep_table->entries[i-1].vddci) {
@@ -1058,7 +1058,7 @@ static int ellesmere_get_dependency_volt_by_clk(struct pp_hwmgr *hwmgr,
 		*voltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
 	}
 
-	if (ELLESMERE_VOLTAGE_CONTROL_NONE == data->mvdd_control)
+	if (POLARIS10_VOLTAGE_CONTROL_NONE == data->mvdd_control)
 		*mvdd = data->vbios_boot_state.mvdd_bootup_value * VOLTAGE_SCALE;
 	else if (dep_table->entries[i].mvdd)
 		*mvdd = (uint32_t) dep_table->entries[i - 1].mvdd * VOLTAGE_SCALE;
@@ -1075,14 +1075,14 @@ sclkFcwRange_t Range_Table[NUM_SCLK_RANGE] = { {VCO_2_4, POSTDIV_DIV_BY_16,  75,
 						{VCO_2_4, POSTDIV_DIV_BY_2,   75, 160, 108},
 						{VCO_3_6, POSTDIV_DIV_BY_2,  112, 216, 160} };
 
-static void ellesmere_get_sclk_range_table(struct pp_hwmgr *hwmgr)
+static void polaris10_get_sclk_range_table(struct pp_hwmgr *hwmgr)
 {
 	uint32_t i, ref_clk;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	SMU74_Discrete_DpmTable  *table = &(data->smc_state_table);
 	struct pp_atom_ctrl_sclk_range_table range_table_from_vbios = { { {0} } };
 
-	ref_clk = ellesemere_get_xclk(hwmgr);
+	ref_clk = polaris10_get_xclk(hwmgr);
 
 	if (0 == atomctrl_get_smc_sclk_range_table(hwmgr, &range_table_from_vbios)) {
 		for (i = 0; i < NUM_SCLK_RANGE; i++) {
@@ -1126,22 +1126,22 @@ static void ellesmere_get_sclk_range_table(struct pp_hwmgr *hwmgr)
 * @param    sclk        the SMC SCLK structure to be populated
 */
 
-static int ellesmere_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 		uint32_t clock, uint16_t sclk_al_threshold,
 		struct SMU74_Discrete_GraphicsLevel *level)
 {
 	int result, i, temp;
 	/* PP_Clocks minClocks; */
 	uint32_t mvdd;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	SMU_SclkSetting curr_sclk_setting = { 0 };
 
-	result = ellesmere_calculate_sclk_params(hwmgr, clock, &curr_sclk_setting);
+	result = polaris10_calculate_sclk_params(hwmgr, clock, &curr_sclk_setting);
 
 	/* populate graphics levels */
-	result = ellesmere_get_dependency_volt_by_clk(hwmgr,
+	result = polaris10_get_dependency_volt_by_clk(hwmgr,
 			table_info->vdd_dep_on_sclk, clock,
 			&level->MinVoltage, &mvdd);
 
@@ -1171,7 +1171,7 @@ static int ellesmere_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 		level->DeepSleepDivId = PhwFiji_GetSleepDividerIdFromClock(hwmgr, clock, minClocks.engineClockInSR);
 	*/
 	PP_ASSERT_WITH_CODE((clock >= 2500), "Engine clock can't satisfy stutter requirement!", return 0);
-	for (i = ELLESMERE_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
+	for (i = POLARIS10_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
 		temp = clock / (1UL << i);
 
 		if (temp >= 2500 || i == 0)
@@ -1212,10 +1212,10 @@ static int ellesmere_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 *
 * @param    hwmgr      the address of the hardware manager
 */
-static int ellesmere_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_dpm_table *dpm_table = &data->dpm_table;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_dpm_table *dpm_table = &data->dpm_table;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_pcie_table *pcie_table = table_info->pcie_table;
@@ -1233,11 +1233,11 @@ static int ellesmere_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		mid_pcie_level_enabled = 0,
 		count = 0;
 
-	ellesmere_get_sclk_range_table(hwmgr);
+	polaris10_get_sclk_range_table(hwmgr);
 
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 
-		result = ellesmere_populate_single_graphic_level(hwmgr,
+		result = polaris10_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
 				(uint16_t)data->activity_target[i],
 				&(data->smc_state_table.GraphicsLevel[i]));
@@ -1296,16 +1296,16 @@ static int ellesmere_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		levels[1].pcieDpmLevel = mid_pcie_level_enabled;
 	}
 	/* level count will send to smc once at init smc table and never change */
-	result = ellesmere_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, data->sram_end);
 
 	return result;
 }
 
-static int ellesmere_populate_single_memory_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 		uint32_t clock, struct SMU74_Discrete_MemoryLevel *mem_level)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
@@ -1314,7 +1314,7 @@ static int ellesmere_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (table_info->vdd_dep_on_mclk) {
-		result = ellesmere_get_dependency_volt_by_clk(hwmgr,
+		result = polaris10_get_dependency_volt_by_clk(hwmgr,
 				table_info->vdd_dep_on_mclk, clock,
 				&mem_level->MinVoltage, &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
@@ -1356,10 +1356,10 @@ static int ellesmere_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 *
 * @param    hwmgr      the address of the hardware manager
 */
-static int ellesmere_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_dpm_table *dpm_table = &data->dpm_table;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_dpm_table *dpm_table = &data->dpm_table;
 	int result;
 	/* populate MCLK dpm table to SMU7 */
 	uint32_t array = data->dpm_table_start +
@@ -1374,7 +1374,7 @@ static int ellesmere_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
 				"can not populate memory level as memory clock is zero",
 				return -EINVAL);
-		result = ellesmere_populate_single_memory_level(hwmgr,
+		result = polaris10_populate_single_memory_level(hwmgr,
 				dpm_table->mclk_table.dpm_levels[i].value,
 				&levels[i]);
 		if (result)
@@ -1401,7 +1401,7 @@ static int ellesmere_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			PPSMC_DISPLAY_WATERMARK_HIGH;
 
 	/* level count will send to smc once at init smc table and never change */
-	result = ellesmere_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
+	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
 			(uint32_t)array_size, data->sram_end);
 
 	return result;
@@ -1414,15 +1414,15 @@ static int ellesmere_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 * @param    mclk        the MCLK value to be used in the decision if MVDD should be high or low.
 * @param    voltage     the SMC VOLTAGE structure to be populated
 */
-int ellesmere_populate_mvdd_value(struct pp_hwmgr *hwmgr,
+int polaris10_populate_mvdd_value(struct pp_hwmgr *hwmgr,
 		uint32_t mclk, SMIO_Pattern *smio_pat)
 {
-	const struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	const struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint32_t i = 0;
 
-	if (ELLESMERE_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_NONE != data->mvdd_control) {
 		/* find mvdd value which clock is more than request */
 		for (i = 0; i < table_info->vdd_dep_on_mclk->count; i++) {
 			if (mclk <= table_info->vdd_dep_on_mclk->entries[i].clk) {
@@ -1439,12 +1439,12 @@ int ellesmere_populate_mvdd_value(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 		SMU74_Discrete_DpmTable *table)
 {
 	int result = 0;
 	uint32_t sclk_frequency;
-	const struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	const struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	SMIO_Pattern vol_level;
@@ -1457,7 +1457,7 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 		/* Get MinVoltage and Frequency from DPM0,
 		 * already converted to SMC_UL */
 		sclk_frequency = data->dpm_table.sclk_table.dpm_levels[0].value;
-		result = ellesmere_get_dependency_volt_by_clk(hwmgr,
+		result = polaris10_get_dependency_volt_by_clk(hwmgr,
 				table_info->vdd_dep_on_sclk,
 				table->ACPILevel.SclkFrequency,
 				&table->ACPILevel.MinVoltage, &mvdd);
@@ -1470,7 +1470,7 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 				data->vbios_boot_state.vddc_bootup_value * VOLTAGE_SCALE;
 	}
 
-	result = ellesmere_calculate_sclk_params(hwmgr, sclk_frequency,  &(table->ACPILevel.SclkSetting));
+	result = polaris10_calculate_sclk_params(hwmgr, sclk_frequency,  &(table->ACPILevel.SclkSetting));
 	PP_ASSERT_WITH_CODE(result == 0, "Error retrieving Engine Clock dividers from VBIOS.", return result);
 
 	table->ACPILevel.DeepSleepDivId = 0;
@@ -1497,7 +1497,7 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 		/* Get MinVoltage and Frequency from DPM0, already converted to SMC_UL */
 		table->MemoryACPILevel.MclkFrequency =
 				data->dpm_table.mclk_table.dpm_levels[0].value;
-		result = ellesmere_get_dependency_volt_by_clk(hwmgr,
+		result = polaris10_get_dependency_volt_by_clk(hwmgr,
 				table_info->vdd_dep_on_mclk,
 				table->MemoryACPILevel.MclkFrequency,
 				&table->MemoryACPILevel.MinVoltage, &mvdd);
@@ -1513,17 +1513,17 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	}
 
 	us_mvdd = 0;
-	if ((ELLESMERE_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
+	if ((POLARIS10_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
 			(data->mclk_dpm_key_disabled))
 		us_mvdd = data->vbios_boot_state.mvdd_bootup_value;
 	else {
-		if (!ellesmere_populate_mvdd_value(hwmgr,
+		if (!polaris10_populate_mvdd_value(hwmgr,
 				data->dpm_table.mclk_table.dpm_levels[0].value,
 				&vol_level))
 			us_mvdd = vol_level.Voltage;
 	}
 
-	if (0 == ellesmere_populate_mvdd_value(hwmgr, 0, &vol_level))
+	if (0 == polaris10_populate_mvdd_value(hwmgr, 0, &vol_level))
 		table->MemoryACPILevel.MinMvdd = PP_HOST_TO_SMC_UL(vol_level.Voltage);
 	else
 		table->MemoryACPILevel.MinMvdd = 0;
@@ -1544,7 +1544,7 @@ static int ellesmere_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ellesmere_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		SMU74_Discrete_DpmTable *table)
 {
 	int result = -EINVAL;
@@ -1554,7 +1554,7 @@ static int ellesmere_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
 			table_info->mm_dep_table;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	table->VceLevelCount = (uint8_t)(mm_table->count);
 	table->VceBootLevel = 0;
@@ -1583,7 +1583,7 @@ static int ellesmere_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ellesmere_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 		SMU74_Discrete_DpmTable *table)
 {
 	int result = -EINVAL;
@@ -1593,7 +1593,7 @@ static int ellesmere_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
 			table_info->mm_dep_table;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	table->SamuBootLevel = 0;
 	table->SamuLevelCount = (uint8_t)(mm_table->count);
@@ -1621,7 +1621,7 @@ static int ellesmere_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ellesmere_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 		int32_t eng_clock, int32_t mem_clock,
 		SMU74_Discrete_MCArbDramTimingTableEntry *arb_regs)
 {
@@ -1647,16 +1647,16 @@ static int ellesmere_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
+static int polaris10_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct SMU74_Discrete_MCArbDramTimingTable arb_regs;
 	uint32_t i, j;
 	int result = 0;
 
 	for (i = 0; i < data->dpm_table.sclk_table.count; i++) {
 		for (j = 0; j < data->dpm_table.mclk_table.count; j++) {
-			result = ellesmere_populate_memory_timing_parameters(hwmgr,
+			result = polaris10_populate_memory_timing_parameters(hwmgr,
 					data->dpm_table.sclk_table.dpm_levels[i].value,
 					data->dpm_table.mclk_table.dpm_levels[j].value,
 					&arb_regs.entries[i][j]);
@@ -1667,7 +1667,7 @@ static int ellesmere_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	result = ellesmere_copy_bytes_to_smc(
+	result = polaris10_copy_bytes_to_smc(
 			hwmgr->smumgr,
 			data->arb_table_start,
 			(uint8_t *)&arb_regs,
@@ -1676,7 +1676,7 @@ static int ellesmere_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int ellesmere_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
 	int result = -EINVAL;
@@ -1686,7 +1686,7 @@ static int ellesmere_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
 			table_info->mm_dep_table;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	table->UvdLevelCount = (uint8_t)(mm_table->count);
 	table->UvdBootLevel = 0;
@@ -1723,11 +1723,11 @@ static int ellesmere_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int ellesmere_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
 	int result = 0;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	table->GraphicsBootLevel = 0;
 	table->MemoryBootLevel = 0;
@@ -1756,9 +1756,9 @@ static int ellesmere_populate_smc_boot_level(struct pp_hwmgr *hwmgr,
 }
 
 
-static int ellesmere_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint8_t count, level;
@@ -1785,12 +1785,12 @@ static int ellesmere_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 {
 	uint32_t ro, efuse, efuse2, clock_freq, volt_without_cks,
 			volt_with_cks, value;
 	uint16_t clock_freq_u16;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint8_t type, i, j, cks_setting, stretch_amount, stretch_amount2,
 			volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
@@ -1865,28 +1865,28 @@ static int ellesmere_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 			ixPWR_CKS_CNTL);
 	value &= 0xFFC2FF87;
 	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].minFreq =
-			ellesmere_clock_stretcher_lookup_table[stretch_amount2][0];
+			polaris10_clock_stretcher_lookup_table[stretch_amount2][0];
 	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].maxFreq =
-			ellesmere_clock_stretcher_lookup_table[stretch_amount2][1];
+			polaris10_clock_stretcher_lookup_table[stretch_amount2][1];
 	clock_freq_u16 = (uint16_t)(PP_SMC_TO_HOST_UL(data->smc_state_table.
 			GraphicsLevel[data->smc_state_table.GraphicsDpmLevelCount - 1].SclkSetting.SclkFrequency) / 100);
-	if (ellesmere_clock_stretcher_lookup_table[stretch_amount2][0] < clock_freq_u16
-	&& ellesmere_clock_stretcher_lookup_table[stretch_amount2][1] > clock_freq_u16) {
+	if (polaris10_clock_stretcher_lookup_table[stretch_amount2][0] < clock_freq_u16
+	&& polaris10_clock_stretcher_lookup_table[stretch_amount2][1] > clock_freq_u16) {
 		/* Program PWR_CKS_CNTL. CKS_USE_FOR_LOW_FREQ */
-		value |= (ellesmere_clock_stretcher_lookup_table[stretch_amount2][3]) << 16;
+		value |= (polaris10_clock_stretcher_lookup_table[stretch_amount2][3]) << 16;
 		/* Program PWR_CKS_CNTL. CKS_LDO_REFSEL */
-		value |= (ellesmere_clock_stretcher_lookup_table[stretch_amount2][2]) << 18;
+		value |= (polaris10_clock_stretcher_lookup_table[stretch_amount2][2]) << 18;
 		/* Program PWR_CKS_CNTL. CKS_STRETCH_AMOUNT */
-		value |= (ellesmere_clock_stretch_amount_conversion
-				[ellesmere_clock_stretcher_lookup_table[stretch_amount2][3]]
+		value |= (polaris10_clock_stretch_amount_conversion
+				[polaris10_clock_stretcher_lookup_table[stretch_amount2][3]]
 				 [stretch_amount]) << 3;
 	}
 	CONVERT_FROM_HOST_TO_SMC_US(data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].minFreq);
 	CONVERT_FROM_HOST_TO_SMC_US(data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].maxFreq);
 	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].setting =
-			ellesmere_clock_stretcher_lookup_table[stretch_amount2][2] & 0x7F;
+			polaris10_clock_stretcher_lookup_table[stretch_amount2][2] & 0x7F;
 	data->smc_state_table.CKS_LOOKUPTable.CKS_LOOKUPTableEntry[0].setting |=
-			(ellesmere_clock_stretcher_lookup_table[stretch_amount2][3]) << 7;
+			(polaris10_clock_stretcher_lookup_table[stretch_amount2][3]) << 7;
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
 			ixPWR_CKS_CNTL, value);
@@ -1897,9 +1897,9 @@ static int ellesmere_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		 * in the last row of Clock Stretcher Voltage Table.
 		 */
 		data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].minVID =
-				(uint8_t) ellesmere_clock_stretcher_ddt_table[type][i][2];
+				(uint8_t) polaris10_clock_stretcher_ddt_table[type][i][2];
 		data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].maxVID =
-				(uint8_t) ellesmere_clock_stretcher_ddt_table[type][i][3];
+				(uint8_t) polaris10_clock_stretcher_ddt_table[type][i][3];
 		/* Loop through each SCLK and check the frequency
 		 * to see if it lies within the frequency for clock stretcher.
 		 */
@@ -1912,9 +1912,9 @@ static int ellesmere_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 			 *  and it's in 10Khz unit,
 			 *  as opposed to Data table, which is in Mhz unit.
 			 */
-			if (clock_freq >= (ellesmere_clock_stretcher_ddt_table[type][i][0]) * 100) {
+			if (clock_freq >= (polaris10_clock_stretcher_ddt_table[type][i][0]) * 100) {
 				cks_setting |= 0x2;
-				if (clock_freq < (ellesmere_clock_stretcher_ddt_table[type][i][1]) * 100)
+				if (clock_freq < (polaris10_clock_stretcher_ddt_table[type][i][1]) * 100)
 					cks_setting |= 0x1;
 			}
 			data->smc_state_table.ClockStretcherDataTable.ClockStretcherDataTableEntry[i].setting
@@ -1938,17 +1938,17 @@ static int ellesmere_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 * @param    table   the SMC DPM table structure to be populated
 * @return   always 0
 */
-static int ellesmere_populate_vr_config(struct pp_hwmgr *hwmgr,
+static int polaris10_populate_vr_config(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint16_t config;
 
 	config = VR_MERGED_WITH_VDDC;
 	table->VRConfig |= (config << VRCONF_VDDGFX_SHIFT);
 
 	/* Set Vddc Voltage Controller */
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
 		config = VR_SVI2_PLANE_1;
 		table->VRConfig |= config;
 	} else {
@@ -1957,10 +1957,10 @@ static int ellesmere_populate_vr_config(struct pp_hwmgr *hwmgr,
 				);
 	}
 	/* Set Vddci Voltage Controller */
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
 		config = VR_SVI2_PLANE_2;  /* only in merged mode */
 		table->VRConfig |= (config << VRCONF_VDDCI_SHIFT);
-	} else if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+	} else if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
 		config = VR_SMIO_PATTERN_1;
 		table->VRConfig |= (config << VRCONF_VDDCI_SHIFT);
 	} else {
@@ -1968,10 +1968,10 @@ static int ellesmere_populate_vr_config(struct pp_hwmgr *hwmgr,
 		table->VRConfig |= (config << VRCONF_VDDCI_SHIFT);
 	}
 	/* Set Mvdd Voltage Controller */
-	if (ELLESMERE_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
+	if (POLARIS10_VOLTAGE_CONTROL_BY_SVID2 == data->mvdd_control) {
 		config = VR_SVI2_PLANE_2;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
-	} else if (ELLESMERE_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+	} else if (POLARIS10_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
 		config = VR_SMIO_PATTERN_2;
 		table->VRConfig |= (config << VRCONF_MVDD_SHIFT);
 	} else {
@@ -1988,24 +1988,24 @@ static int ellesmere_populate_vr_config(struct pp_hwmgr *hwmgr,
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
+static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct SMU74_Discrete_DpmTable *table = &(data->smc_state_table);
-	const struct ellesmere_ulv_parm *ulv = &(data->ulv);
+	const struct polaris10_ulv_parm *ulv = &(data->ulv);
 	uint8_t i;
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin;
 	pp_atomctrl_clock_dividers_vi dividers;
 
-	result = ellesmere_setup_default_dpm_tables(hwmgr);
+	result = polaris10_setup_default_dpm_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to setup default DPM tables!", return result);
 
-	if (ELLESMERE_VOLTAGE_CONTROL_NONE != data->voltage_control)
-		ellesmere_populate_smc_voltage_tables(hwmgr, table);
+	if (POLARIS10_VOLTAGE_CONTROL_NONE != data->voltage_control)
+		polaris10_populate_smc_voltage_tables(hwmgr, table);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_AutomaticDCTransition))
@@ -2019,34 +2019,34 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 		table->SystemFlags |= PPSMC_SYSTEMFLAG_GDDR5;
 
 	if (ulv->ulv_supported && table_info->us_ulv_voltage_offset) {
-		result = ellesmere_populate_ulv_state(hwmgr, table);
+		result = polaris10_populate_ulv_state(hwmgr, table);
 		PP_ASSERT_WITH_CODE(0 == result,
 				"Failed to initialize ULV state!", return result);
 		cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-				ixCG_ULV_PARAMETER, PPELLESMERE_CGULVPARAMETER_DFLT);
+				ixCG_ULV_PARAMETER, PPPOLARIS10_CGULVPARAMETER_DFLT);
 	}
 
-	result = ellesmere_populate_smc_link_level(hwmgr, table);
+	result = polaris10_populate_smc_link_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize Link Level!", return result);
 
-	result = ellesmere_populate_all_graphic_levels(hwmgr);
+	result = polaris10_populate_all_graphic_levels(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize Graphics Level!", return result);
 
-	result = ellesmere_populate_all_memory_levels(hwmgr);
+	result = polaris10_populate_all_memory_levels(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize Memory Level!", return result);
 
-	result = ellesmere_populate_smc_acpi_level(hwmgr, table);
+	result = polaris10_populate_smc_acpi_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize ACPI Level!", return result);
 
-	result = ellesmere_populate_smc_vce_level(hwmgr, table);
+	result = polaris10_populate_smc_vce_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize VCE Level!", return result);
 
-	result = ellesmere_populate_smc_samu_level(hwmgr, table);
+	result = polaris10_populate_smc_samu_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize SAMU Level!", return result);
 
@@ -2054,29 +2054,29 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	 * (the other states are just copies of the boot state) we only
 	 * need to populate the  ARB settings for the initial state.
 	 */
-	result = ellesmere_program_memory_timing_parameters(hwmgr);
+	result = polaris10_program_memory_timing_parameters(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to Write ARB settings for the initial state.", return result);
 
-	result = ellesmere_populate_smc_uvd_level(hwmgr, table);
+	result = polaris10_populate_smc_uvd_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize UVD Level!", return result);
 
-	result = ellesmere_populate_smc_boot_level(hwmgr, table);
+	result = polaris10_populate_smc_boot_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize Boot Level!", return result);
 
-	result = ellesmere_populate_smc_initailial_state(hwmgr);
+	result = polaris10_populate_smc_initailial_state(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize Boot State!", return result);
 
-	result = ellesmere_populate_bapm_parameters_in_dpm_table(hwmgr);
+	result = polaris10_populate_bapm_parameters_in_dpm_table(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to populate BAPM Parameters!", return result);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ClockStretcher)) {
-		result = ellesmere_populate_clock_stretcher_data_table(hwmgr);
+		result = polaris10_populate_clock_stretcher_data_table(hwmgr);
 		PP_ASSERT_WITH_CODE(0 == result,
 				"Failed to populate Clock Stretcher Data Table!",
 				return result);
@@ -2089,10 +2089,10 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->ThermalInterval  = 1;
 	table->TemperatureLimitHigh =
 			table_info->cac_dtp_table->usTargetOperatingTemp *
-			ELLESMERE_Q88_FORMAT_CONVERSION_UNIT;
+			POLARIS10_Q88_FORMAT_CONVERSION_UNIT;
 	table->TemperatureLimitLow  =
 			(table_info->cac_dtp_table->usTargetOperatingTemp - 1) *
-			ELLESMERE_Q88_FORMAT_CONVERSION_UNIT;
+			POLARIS10_Q88_FORMAT_CONVERSION_UNIT;
 	table->MemoryVoltageChangeEnable = 1;
 	table->MemoryInterval = 1;
 	table->VoltageResponseTime = 0;
@@ -2101,7 +2101,7 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->PCIeBootLinkLevel = 0;
 	table->PCIeGenInterval = 1;
 
-	result = ellesmere_populate_vr_config(hwmgr, table);
+	result = polaris10_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to populate VRConfig setting!", return result);
 
@@ -2111,7 +2111,7 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	if (atomctrl_get_pp_assign_pin(hwmgr, VDDC_VRHOT_GPIO_PINID, &gpio_pin)) {
 		table->VRHotGpio = gpio_pin.uc_gpio_pin_bit_shift;
 	} else {
-		table->VRHotGpio = ELLESMERE_UNUSED_GPIO_PIN;
+		table->VRHotGpio = POLARIS10_UNUSED_GPIO_PIN;
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_RegulatorHot);
 	}
@@ -2122,7 +2122,7 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_AutomaticDCTransition);
 	} else {
-		table->AcDcGpio = ELLESMERE_UNUSED_GPIO_PIN;
+		table->AcDcGpio = POLARIS10_UNUSED_GPIO_PIN;
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_AutomaticDCTransition);
 	}
@@ -2179,7 +2179,7 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 	CONVERT_FROM_HOST_TO_SMC_US(table->PhaseResponseTime);
 
 	/* Upload all dpm data to SMC memory.(dpm level, dpm level count etc) */
-	result = ellesmere_copy_bytes_to_smc(hwmgr->smumgr,
+	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr,
 			data->dpm_table_start +
 			offsetof(SMU74_Discrete_DpmTable, SystemFlags),
 			(uint8_t *)&(table->SystemFlags),
@@ -2197,9 +2197,9 @@ static int ellesmere_init_smc_table(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_init_arb_table_index(struct pp_hwmgr *hwmgr)
+static int polaris10_init_arb_table_index(struct pp_hwmgr *hwmgr)
 {
-	const struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	const struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t tmp;
 	int result;
 
@@ -2211,7 +2211,7 @@ static int ellesmere_init_arb_table_index(struct pp_hwmgr *hwmgr)
 	 * In reality this field should not be in that structure
 	 * but in a soft register.
 	 */
-	result = ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	result = polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			data->arb_table_start, &tmp, data->sram_end);
 
 	if (result)
@@ -2220,11 +2220,11 @@ static int ellesmere_init_arb_table_index(struct pp_hwmgr *hwmgr)
 	tmp &= 0x00FFFFFF;
 	tmp |= ((uint32_t)MC_CG_ARB_FREQ_F1) << 24;
 
-	return ellesmere_write_smc_sram_dword(hwmgr->smumgr,
+	return polaris10_write_smc_sram_dword(hwmgr->smumgr,
 			data->arb_table_start, tmp, data->sram_end);
 }
 
-static int ellesmere_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_RegulatorHot))
@@ -2234,17 +2234,17 @@ static int ellesmere_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_enable_sclk_control(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_sclk_control(struct pp_hwmgr *hwmgr)
 {
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SCLK_PWRMGT_CNTL,
 			SCLK_PWRMGT_OFF, 0);
 	return 0;
 }
 
-static int ellesmere_enable_ulv(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_ulv(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_ulv_parm *ulv = &(data->ulv);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_ulv_parm *ulv = &(data->ulv);
 
 	if (ulv->ulv_supported)
 		return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_EnableULV);
@@ -2252,7 +2252,7 @@ static int ellesmere_enable_ulv(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep)) {
@@ -2272,9 +2272,9 @@ static int ellesmere_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/* enable SCLK dpm */
 	if (!data->sclk_dpm_key_disabled)
@@ -2307,9 +2307,9 @@ static int ellesmere_enable_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_start_dpm(struct pp_hwmgr *hwmgr)
+static int polaris10_start_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/*enable general power management */
 
@@ -2336,7 +2336,7 @@ static int ellesmere_start_dpm(struct pp_hwmgr *hwmgr)
 			return -1);
 */
 
-	if (ellesmere_enable_sclk_mclk_dpm(hwmgr)) {
+	if (polaris10_enable_sclk_mclk_dpm(hwmgr)) {
 		printk(KERN_ERR "Failed to enable Sclk DPM and Mclk DPM!");
 		return -1;
 	}
@@ -2358,7 +2358,7 @@ static int ellesmere_start_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static void ellesmere_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
+static void polaris10_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
 {
 	bool protection;
 	enum DPM_EVENT_SRC src;
@@ -2398,46 +2398,46 @@ static void ellesmere_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sou
 				THERMAL_PROTECTION_DIS, 1);
 }
 
-static int ellesmere_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
+static int polaris10_enable_auto_throttle_source(struct pp_hwmgr *hwmgr,
 		PHM_AutoThrottleSource source)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (!(data->active_auto_throttle_sources & (1 << source))) {
 		data->active_auto_throttle_sources |= 1 << source;
-		ellesmere_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
+		polaris10_set_dpm_event_sources(hwmgr, data->active_auto_throttle_sources);
 	}
 	return 0;
 }
 
-static int ellesmere_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_thermal_auto_throttle(struct pp_hwmgr *hwmgr)
 {
-	return ellesmere_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
+	return polaris10_enable_auto_throttle_source(hwmgr, PHM_AutoThrottleSource_Thermal);
 }
 
-int ellesmere_pcie_performance_request(struct pp_hwmgr *hwmgr)
+int polaris10_pcie_performance_request(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	data->pcie_performance_request = true;
 
 	return 0;
 }
 
-int ellesmere_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
+int polaris10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
-	tmp_result = (!ellesmere_is_dpm_running(hwmgr)) ? 0 : -1;
+	tmp_result = (!polaris10_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(result == 0,
 			"DPM is already running right now, no need to enable DPM!",
 			return 0);
 
-	if (ellesmere_voltage_control(hwmgr)) {
-		tmp_result = ellesmere_enable_voltage_control(hwmgr);
+	if (polaris10_voltage_control(hwmgr)) {
+		tmp_result = polaris10_enable_voltage_control(hwmgr);
 		PP_ASSERT_WITH_CODE(tmp_result == 0,
 				"Failed to enable voltage control!",
 				result = tmp_result);
 
-		tmp_result = ellesmere_construct_voltage_tables(hwmgr);
+		tmp_result = polaris10_construct_voltage_tables(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
 				"Failed to contruct voltage tables!",
 				result = tmp_result);
@@ -2453,116 +2453,116 @@ int ellesmere_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				GENERAL_PWRMGT, THERMAL_PROTECTION_DIS, 0);
 
-	tmp_result = ellesmere_program_static_screen_threshold_parameters(hwmgr);
+	tmp_result = polaris10_program_static_screen_threshold_parameters(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to program static screen threshold parameters!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_enable_display_gap(hwmgr);
+	tmp_result = polaris10_enable_display_gap(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable display gap!", result = tmp_result);
 
-	tmp_result = ellesmere_program_voting_clients(hwmgr);
+	tmp_result = polaris10_program_voting_clients(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to program voting clients!", result = tmp_result);
 
-	tmp_result = ellesmere_process_firmware_header(hwmgr);
+	tmp_result = polaris10_process_firmware_header(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to process firmware header!", result = tmp_result);
 
-	tmp_result = ellesmere_initial_switch_from_arbf0_to_f1(hwmgr);
+	tmp_result = polaris10_initial_switch_from_arbf0_to_f1(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to initialize switch from ArbF0 to F1!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_init_smc_table(hwmgr);
+	tmp_result = polaris10_init_smc_table(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to initialize SMC table!", result = tmp_result);
 
-	tmp_result = ellesmere_init_arb_table_index(hwmgr);
+	tmp_result = polaris10_init_arb_table_index(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to initialize ARB table index!", result = tmp_result);
 
-	tmp_result = ellesmere_populate_pm_fuses(hwmgr);
+	tmp_result = polaris10_populate_pm_fuses(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to populate PM fuses!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_vrhot_gpio_interrupt(hwmgr);
+	tmp_result = polaris10_enable_vrhot_gpio_interrupt(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_sclk_control(hwmgr);
+	tmp_result = polaris10_enable_sclk_control(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable SCLK control!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_smc_voltage_controller(hwmgr);
+	tmp_result = polaris10_enable_smc_voltage_controller(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable voltage control!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_ulv(hwmgr);
+	tmp_result = polaris10_enable_ulv(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable ULV!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_deep_sleep_master_switch(hwmgr);
+	tmp_result = polaris10_enable_deep_sleep_master_switch(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable deep sleep master switch!", result = tmp_result);
 
-	tmp_result = ellesmere_start_dpm(hwmgr);
+	tmp_result = polaris10_start_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to start DPM!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_smc_cac(hwmgr);
+	tmp_result = polaris10_enable_smc_cac(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable SMC CAC!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_power_containment(hwmgr);
+	tmp_result = polaris10_enable_power_containment(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable power containment!", result = tmp_result);
 
-	tmp_result = ellesmere_power_control_set_level(hwmgr);
+	tmp_result = polaris10_power_control_set_level(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to power control set level!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_thermal_auto_throttle(hwmgr);
+	tmp_result = polaris10_enable_thermal_auto_throttle(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable thermal auto throttle!", result = tmp_result);
 
-	tmp_result = ellesmere_pcie_performance_request(hwmgr);
+	tmp_result = polaris10_pcie_performance_request(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable thermal auto throttle!", result = tmp_result);
 
 	return result;
 }
 
-int ellesmere_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
+int polaris10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 
 	return 0;
 }
 
-int ellesmere_reset_asic_tasks(struct pp_hwmgr *hwmgr)
+int polaris10_reset_asic_tasks(struct pp_hwmgr *hwmgr)
 {
 
 	return 0;
 }
 
-int ellesmere_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
+int polaris10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
 	return phm_hwmgr_backend_fini(hwmgr);
 }
 
-int ellesmere_set_features_platform_caps(struct pp_hwmgr *hwmgr)
+int polaris10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
-	if (data->mvdd_control == ELLESMERE_VOLTAGE_CONTROL_NONE)
+	if (data->mvdd_control == POLARIS10_VOLTAGE_CONTROL_NONE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_EnableMVDDControl);
 
-	if (data->vddci_control == ELLESMERE_VOLTAGE_CONTROL_NONE)
+	if (data->vddci_control == POLARIS10_VOLTAGE_CONTROL_NONE)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
 
@@ -2607,11 +2607,11 @@ int ellesmere_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static void ellesmere_init_dpm_defaults(struct pp_hwmgr *hwmgr)
+static void polaris10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	ellesmere_initialize_power_tune_defaults(hwmgr);
+	polaris10_initialize_power_tune_defaults(hwmgr);
 
 	data->pcie_gen_performance.max = PP_PCIEGen1;
 	data->pcie_gen_performance.min = PP_PCIEGen3;
@@ -2629,9 +2629,9 @@ static void ellesmere_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always 0
 */
-static int ellesmere_get_evv_voltages(struct pp_hwmgr *hwmgr)
+static int polaris10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint16_t vv_id;
 	uint16_t vddc = 0;
 	uint16_t i, j;
@@ -2642,7 +2642,7 @@ static int ellesmere_get_evv_voltages(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_sclk;
 	int result;
 
-	for (i = 0; i < ELLESMERE_MAX_LEAKAGE_COUNT; i++) {
+	for (i = 0; i < POLARIS10_MAX_LEAKAGE_COUNT; i++) {
 		vv_id = ATOM_VIRTUAL_VOLTAGE_ID0 + i;
 		if (!phm_get_sclk_for_voltage_evv(hwmgr,
 				table_info->vddc_lookup_table, vv_id, &sclk)) {
@@ -2687,8 +2687,8 @@ static int ellesmere_get_evv_voltages(struct pp_hwmgr *hwmgr)
  * @param     pointer to changing voltage
  * @param     pointer to leakage table
  */
-static void ellesmere_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
-		uint16_t *voltage, struct ellesmere_leakage_voltage *leakage_table)
+static void polaris10_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
+		uint16_t *voltage, struct polaris10_leakage_voltage *leakage_table)
 {
 	uint32_t index;
 
@@ -2714,32 +2714,32 @@ static void ellesmere_patch_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 * @param     pointer to leakage table
 * @return     always 0
 */
-static int ellesmere_patch_lookup_table_with_leakage(struct pp_hwmgr *hwmgr,
+static int polaris10_patch_lookup_table_with_leakage(struct pp_hwmgr *hwmgr,
 		phm_ppt_v1_voltage_lookup_table *lookup_table,
-		struct ellesmere_leakage_voltage *leakage_table)
+		struct polaris10_leakage_voltage *leakage_table)
 {
 	uint32_t i;
 
 	for (i = 0; i < lookup_table->count; i++)
-		ellesmere_patch_with_vdd_leakage(hwmgr,
+		polaris10_patch_with_vdd_leakage(hwmgr,
 				&lookup_table->entries[i].us_vdd, leakage_table);
 
 	return 0;
 }
 
-static int ellesmere_patch_clock_voltage_limits_with_vddc_leakage(
-		struct pp_hwmgr *hwmgr, struct ellesmere_leakage_voltage *leakage_table,
+static int polaris10_patch_clock_voltage_limits_with_vddc_leakage(
+		struct pp_hwmgr *hwmgr, struct polaris10_leakage_voltage *leakage_table,
 		uint16_t *vddc)
 {
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	ellesmere_patch_with_vdd_leakage(hwmgr, (uint16_t *)vddc, leakage_table);
+	polaris10_patch_with_vdd_leakage(hwmgr, (uint16_t *)vddc, leakage_table);
 	hwmgr->dyn_state.max_clock_voltage_on_dc.vddc =
 			table_info->max_clock_voltage_on_dc.vddc;
 	return 0;
 }
 
-static int ellesmere_patch_voltage_dependency_tables_with_lookup_table(
+static int polaris10_patch_voltage_dependency_tables_with_lookup_table(
 		struct pp_hwmgr *hwmgr)
 {
 	uint8_t entryId;
@@ -2776,19 +2776,19 @@ static int ellesmere_patch_voltage_dependency_tables_with_lookup_table(
 
 }
 
-static int ellesmere_calc_voltage_dependency_tables(struct pp_hwmgr *hwmgr)
+static int polaris10_calc_voltage_dependency_tables(struct pp_hwmgr *hwmgr)
 {
 	/* Need to determine if we need calculated voltage. */
 	return 0;
 }
 
-static int ellesmere_calc_mm_voltage_dependency_table(struct pp_hwmgr *hwmgr)
+static int polaris10_calc_mm_voltage_dependency_table(struct pp_hwmgr *hwmgr)
 {
 	/* Need to determine if we need calculated voltage from mm table. */
 	return 0;
 }
 
-static int ellesmere_sort_lookup_table(struct pp_hwmgr *hwmgr,
+static int polaris10_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table)
 {
 	uint32_t table_size, i, j;
@@ -2813,44 +2813,44 @@ static int ellesmere_sort_lookup_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_complete_dependency_tables(struct pp_hwmgr *hwmgr)
+static int polaris10_complete_dependency_tables(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	int tmp_result;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	tmp_result = ellesmere_patch_lookup_table_with_leakage(hwmgr,
+	tmp_result = polaris10_patch_lookup_table_with_leakage(hwmgr,
 			table_info->vddc_lookup_table, &(data->vddc_leakage));
 	if (tmp_result)
 		result = tmp_result;
 
-	tmp_result = ellesmere_patch_clock_voltage_limits_with_vddc_leakage(hwmgr,
+	tmp_result = polaris10_patch_clock_voltage_limits_with_vddc_leakage(hwmgr,
 			&(data->vddc_leakage), &table_info->max_clock_voltage_on_dc.vddc);
 	if (tmp_result)
 		result = tmp_result;
 
-	tmp_result = ellesmere_patch_voltage_dependency_tables_with_lookup_table(hwmgr);
+	tmp_result = polaris10_patch_voltage_dependency_tables_with_lookup_table(hwmgr);
 	if (tmp_result)
 		result = tmp_result;
 
-	tmp_result = ellesmere_calc_voltage_dependency_tables(hwmgr);
+	tmp_result = polaris10_calc_voltage_dependency_tables(hwmgr);
 	if (tmp_result)
 		result = tmp_result;
 
-	tmp_result = ellesmere_calc_mm_voltage_dependency_table(hwmgr);
+	tmp_result = polaris10_calc_mm_voltage_dependency_table(hwmgr);
 	if (tmp_result)
 		result = tmp_result;
 
-	tmp_result = ellesmere_sort_lookup_table(hwmgr, table_info->vddc_lookup_table);
+	tmp_result = polaris10_sort_lookup_table(hwmgr, table_info->vddc_lookup_table);
 	if (tmp_result)
 		result = tmp_result;
 
 	return result;
 }
 
-static int ellesmere_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
+static int polaris10_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -2886,9 +2886,9 @@ static int ellesmere_set_private_data_based_on_pptable(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
+int polaris10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin_assignment;
 	uint32_t temp_reg;
 	int result;
@@ -2897,38 +2897,38 @@ int ellesmere_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	data->sram_end = SMC_RAM_END;
 
 	data->disable_dpm_mask = 0xFF;
-	data->static_screen_threshold = PPELLESMERE_STATICSCREENTHRESHOLD_DFLT;
-	data->static_screen_threshold_unit = PPELLESMERE_STATICSCREENTHRESHOLD_DFLT;
-	data->activity_target[0] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[1] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[2] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[3] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[4] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[5] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[6] = PPELLESMERE_TARGETACTIVITY_DFLT;
-	data->activity_target[7] = PPELLESMERE_TARGETACTIVITY_DFLT;
+	data->static_screen_threshold = PPPOLARIS10_STATICSCREENTHRESHOLD_DFLT;
+	data->static_screen_threshold_unit = PPPOLARIS10_STATICSCREENTHRESHOLD_DFLT;
+	data->activity_target[0] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[1] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[2] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[3] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[4] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[5] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[6] = PPPOLARIS10_TARGETACTIVITY_DFLT;
+	data->activity_target[7] = PPPOLARIS10_TARGETACTIVITY_DFLT;
 
-	data->voting_rights_clients0 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT0;
-	data->voting_rights_clients1 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT1;
-	data->voting_rights_clients2 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT2;
-	data->voting_rights_clients3 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT3;
-	data->voting_rights_clients4 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT4;
-	data->voting_rights_clients5 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT5;
-	data->voting_rights_clients6 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT6;
-	data->voting_rights_clients7 = PPELLESMERE_VOTINGRIGHTSCLIENTS_DFLT7;
+	data->voting_rights_clients0 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT0;
+	data->voting_rights_clients1 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT1;
+	data->voting_rights_clients2 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT2;
+	data->voting_rights_clients3 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT3;
+	data->voting_rights_clients4 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT4;
+	data->voting_rights_clients5 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT5;
+	data->voting_rights_clients6 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT6;
+	data->voting_rights_clients7 = PPPOLARIS10_VOTINGRIGHTSCLIENTS_DFLT7;
 
 	data->vddc_vddci_delta = VDDC_VDDCI_DELTA;
 
-	data->mclk_activity_target = PPELLESMERE_MCLK_TARGETACTIVITY_DFLT;
+	data->mclk_activity_target = PPPOLARIS10_MCLK_TARGETACTIVITY_DFLT;
 
 	/* need to set voltage control types before EVV patching */
-	data->voltage_control = ELLESMERE_VOLTAGE_CONTROL_NONE;
-	data->vddci_control = ELLESMERE_VOLTAGE_CONTROL_NONE;
-	data->mvdd_control = ELLESMERE_VOLTAGE_CONTROL_NONE;
+	data->voltage_control = POLARIS10_VOLTAGE_CONTROL_NONE;
+	data->vddci_control = POLARIS10_VOLTAGE_CONTROL_NONE;
+	data->mvdd_control = POLARIS10_VOLTAGE_CONTROL_NONE;
 
 	if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 			VOLTAGE_TYPE_VDDC, VOLTAGE_OBJ_SVID2))
-		data->voltage_control = ELLESMERE_VOLTAGE_CONTROL_BY_SVID2;
+		data->voltage_control = POLARIS10_VOLTAGE_CONTROL_BY_SVID2;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_DynamicPatchPowerState);
@@ -2937,36 +2937,36 @@ int ellesmere_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_EnableMVDDControl)) {
 		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_GPIO_LUT))
-			data->mvdd_control = ELLESMERE_VOLTAGE_CONTROL_BY_GPIO;
+			data->mvdd_control = POLARIS10_VOLTAGE_CONTROL_BY_GPIO;
 		else if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_MVDDC, VOLTAGE_OBJ_SVID2))
-			data->mvdd_control = ELLESMERE_VOLTAGE_CONTROL_BY_SVID2;
+			data->mvdd_control = POLARIS10_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ControlVDDCI)) {
 		if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_GPIO_LUT))
-			data->vddci_control = ELLESMERE_VOLTAGE_CONTROL_BY_GPIO;
+			data->vddci_control = POLARIS10_VOLTAGE_CONTROL_BY_GPIO;
 		else if (atomctrl_is_voltage_controled_by_gpio_v3(hwmgr,
 				VOLTAGE_TYPE_VDDCI, VOLTAGE_OBJ_SVID2))
-			data->vddci_control = ELLESMERE_VOLTAGE_CONTROL_BY_SVID2;
+			data->vddci_control = POLARIS10_VOLTAGE_CONTROL_BY_SVID2;
 	}
 
-	ellesmere_set_features_platform_caps(hwmgr);
+	polaris10_set_features_platform_caps(hwmgr);
 
-	ellesmere_init_dpm_defaults(hwmgr);
+	polaris10_init_dpm_defaults(hwmgr);
 
 	/* Get leakage voltage based on leakage ID. */
-	result = ellesmere_get_evv_voltages(hwmgr);
+	result = polaris10_get_evv_voltages(hwmgr);
 
 	if (result) {
 		printk("Get EVV Voltage Failed.  Abort Driver loading!\n");
 		return -1;
 	}
 
-	ellesmere_complete_dependency_tables(hwmgr);
-	ellesmere_set_private_data_based_on_pptable(hwmgr);
+	polaris10_complete_dependency_tables(hwmgr);
+	polaris10_set_private_data_based_on_pptable(hwmgr);
 
 	/* Initalize Dynamic State Adjustment Rule Settings */
 	result = phm_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
@@ -2977,7 +2977,7 @@ int ellesmere_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		data->is_tlu_enabled = 0;
 
 		hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =
-							ELLESMERE_MAX_HARDWARE_POWERLEVELS;
+							POLARIS10_MAX_HARDWARE_POWERLEVELS;
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
@@ -3030,15 +3030,15 @@ int ellesmere_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 			data->pcie_lane_cap = (uint32_t)sys_info.value;
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
-		ellesmere_hwmgr_backend_fini(hwmgr);
+		polaris10_hwmgr_backend_fini(hwmgr);
 	}
 
 	return 0;
 }
 
-static int ellesmere_force_dpm_highest(struct pp_hwmgr *hwmgr)
+static int polaris10_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t level, tmp;
 
 	if (!data->pcie_dpm_key_disabled) {
@@ -3085,9 +3085,9 @@ static int ellesmere_force_dpm_highest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
+static int polaris10_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	phm_apply_dal_min_voltage_request(hwmgr);
 
@@ -3108,11 +3108,11 @@ static int ellesmere_upload_dpm_level_enable_mask(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
+static int polaris10_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	if (!ellesmere_is_dpm_running(hwmgr))
+	if (!polaris10_is_dpm_running(hwmgr))
 		return -EINVAL;
 
 	if (!data->pcie_dpm_key_disabled) {
@@ -3120,13 +3120,13 @@ static int ellesmere_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 				PPSMC_MSG_PCIeDPM_UnForceLevel);
 	}
 
-	return ellesmere_upload_dpm_level_enable_mask(hwmgr);
+	return polaris10_upload_dpm_level_enable_mask(hwmgr);
 }
 
-static int ellesmere_force_dpm_lowest(struct pp_hwmgr *hwmgr)
+static int polaris10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data =
-			(struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data =
+			(struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t level;
 
 	if (!data->sclk_dpm_key_disabled)
@@ -3162,24 +3162,24 @@ static int ellesmere_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 	return 0;
 
 }
-static int ellesmere_force_dpm_level(struct pp_hwmgr *hwmgr,
+static int polaris10_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
 	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_HIGH:
-		ret = ellesmere_force_dpm_highest(hwmgr);
+		ret = polaris10_force_dpm_highest(hwmgr);
 		if (ret)
 			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
-		ret = ellesmere_force_dpm_lowest(hwmgr);
+		ret = polaris10_force_dpm_lowest(hwmgr);
 		if (ret)
 			return ret;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
-		ret = ellesmere_unforce_dpm_levels(hwmgr);
+		ret = polaris10_unforce_dpm_levels(hwmgr);
 		if (ret)
 			return ret;
 		break;
@@ -3192,19 +3192,19 @@ static int ellesmere_force_dpm_level(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-static int ellesmere_get_power_state_size(struct pp_hwmgr *hwmgr)
+static int polaris10_get_power_state_size(struct pp_hwmgr *hwmgr)
 {
-	return sizeof(struct ellesmere_power_state);
+	return sizeof(struct polaris10_power_state);
 }
 
 
-static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
+static int polaris10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state *request_ps,
 			const struct pp_power_state *current_ps)
 {
 
-	struct ellesmere_power_state *ellesmere_ps =
-				cast_phw_ellesmere_power_state(&request_ps->hardware);
+	struct polaris10_power_state *polaris10_ps =
+				cast_phw_polaris10_power_state(&request_ps->hardware);
 	uint32_t sclk;
 	uint32_t mclk;
 	struct PP_Clocks minimum_clocks = {0};
@@ -3213,7 +3213,7 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	struct cgs_display_info info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int32_t count;
@@ -3222,7 +3222,7 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	data->battery_state = (PP_StateUILabel_Battery ==
 			request_ps->classification.ui_label);
 
-	PP_ASSERT_WITH_CODE(ellesmere_ps->performance_level_count == 2,
+	PP_ASSERT_WITH_CODE(polaris10_ps->performance_level_count == 2,
 				 "VI should always have 2 performance levels",
 				);
 
@@ -3232,16 +3232,16 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	/* Cap clock DPM tables at DC MAX if it is in DC. */
 	if (PP_PowerSource_DC == hwmgr->power_source) {
-		for (i = 0; i < ellesmere_ps->performance_level_count; i++) {
-			if (ellesmere_ps->performance_levels[i].memory_clock > max_limits->mclk)
-				ellesmere_ps->performance_levels[i].memory_clock = max_limits->mclk;
-			if (ellesmere_ps->performance_levels[i].engine_clock > max_limits->sclk)
-				ellesmere_ps->performance_levels[i].engine_clock = max_limits->sclk;
+		for (i = 0; i < polaris10_ps->performance_level_count; i++) {
+			if (polaris10_ps->performance_levels[i].memory_clock > max_limits->mclk)
+				polaris10_ps->performance_levels[i].memory_clock = max_limits->mclk;
+			if (polaris10_ps->performance_levels[i].engine_clock > max_limits->sclk)
+				polaris10_ps->performance_levels[i].engine_clock = max_limits->sclk;
 		}
 	}
 
-	ellesmere_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
-	ellesmere_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
+	polaris10_ps->vce_clks.evclk = hwmgr->vce_arbiter.evclk;
+	polaris10_ps->vce_clks.ecclk = hwmgr->vce_arbiter.ecclk;
 
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
@@ -3279,7 +3279,7 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (minimum_clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
 		minimum_clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
 
-	ellesmere_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
+	polaris10_ps->sclk_threshold = hwmgr->gfx_arbiter.sclk_threshold;
 
 	if (0 != hwmgr->gfx_arbiter.sclk_over_drive) {
 		PP_ASSERT_WITH_CODE((hwmgr->gfx_arbiter.sclk_over_drive <=
@@ -3289,7 +3289,7 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 						hwmgr->platform_descriptor.overdriveLimit.engineClock);
 
 		if (hwmgr->gfx_arbiter.sclk_over_drive >= hwmgr->gfx_arbiter.sclk)
-			ellesmere_ps->performance_levels[1].engine_clock =
+			polaris10_ps->performance_levels[1].engine_clock =
 					hwmgr->gfx_arbiter.sclk_over_drive;
 	}
 
@@ -3301,7 +3301,7 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 						hwmgr->platform_descriptor.overdriveLimit.memoryClock);
 
 		if (hwmgr->gfx_arbiter.mclk_over_drive >= hwmgr->gfx_arbiter.mclk)
-			ellesmere_ps->performance_levels[1].memory_clock =
+			polaris10_ps->performance_levels[1].memory_clock =
 					hwmgr->gfx_arbiter.mclk_over_drive;
 	}
 
@@ -3312,12 +3312,12 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	disable_mclk_switching = (1 < info.display_count) ||
 				    disable_mclk_switching_for_frame_lock;
 
-	sclk = ellesmere_ps->performance_levels[0].engine_clock;
-	mclk = ellesmere_ps->performance_levels[0].memory_clock;
+	sclk = polaris10_ps->performance_levels[0].engine_clock;
+	mclk = polaris10_ps->performance_levels[0].memory_clock;
 
 	if (disable_mclk_switching)
-		mclk = ellesmere_ps->performance_levels
-		[ellesmere_ps->performance_level_count - 1].memory_clock;
+		mclk = polaris10_ps->performance_levels
+		[polaris10_ps->performance_level_count - 1].memory_clock;
 
 	if (sclk < minimum_clocks.engineClock)
 		sclk = (minimum_clocks.engineClock > max_limits->sclk) ?
@@ -3327,45 +3327,45 @@ static int ellesmere_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		mclk = (minimum_clocks.memoryClock > max_limits->mclk) ?
 				max_limits->mclk : minimum_clocks.memoryClock;
 
-	ellesmere_ps->performance_levels[0].engine_clock = sclk;
-	ellesmere_ps->performance_levels[0].memory_clock = mclk;
+	polaris10_ps->performance_levels[0].engine_clock = sclk;
+	polaris10_ps->performance_levels[0].memory_clock = mclk;
 
-	ellesmere_ps->performance_levels[1].engine_clock =
-		(ellesmere_ps->performance_levels[1].engine_clock >=
-				ellesmere_ps->performance_levels[0].engine_clock) ?
-						ellesmere_ps->performance_levels[1].engine_clock :
-						ellesmere_ps->performance_levels[0].engine_clock;
+	polaris10_ps->performance_levels[1].engine_clock =
+		(polaris10_ps->performance_levels[1].engine_clock >=
+				polaris10_ps->performance_levels[0].engine_clock) ?
+						polaris10_ps->performance_levels[1].engine_clock :
+						polaris10_ps->performance_levels[0].engine_clock;
 
 	if (disable_mclk_switching) {
-		if (mclk < ellesmere_ps->performance_levels[1].memory_clock)
-			mclk = ellesmere_ps->performance_levels[1].memory_clock;
+		if (mclk < polaris10_ps->performance_levels[1].memory_clock)
+			mclk = polaris10_ps->performance_levels[1].memory_clock;
 
-		ellesmere_ps->performance_levels[0].memory_clock = mclk;
-		ellesmere_ps->performance_levels[1].memory_clock = mclk;
+		polaris10_ps->performance_levels[0].memory_clock = mclk;
+		polaris10_ps->performance_levels[1].memory_clock = mclk;
 	} else {
-		if (ellesmere_ps->performance_levels[1].memory_clock <
-				ellesmere_ps->performance_levels[0].memory_clock)
-			ellesmere_ps->performance_levels[1].memory_clock =
-					ellesmere_ps->performance_levels[0].memory_clock;
+		if (polaris10_ps->performance_levels[1].memory_clock <
+				polaris10_ps->performance_levels[0].memory_clock)
+			polaris10_ps->performance_levels[1].memory_clock =
+					polaris10_ps->performance_levels[0].memory_clock;
 	}
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_StablePState)) {
-		for (i = 0; i < ellesmere_ps->performance_level_count; i++) {
-			ellesmere_ps->performance_levels[i].engine_clock = stable_pstate_sclk;
-			ellesmere_ps->performance_levels[i].memory_clock = stable_pstate_mclk;
-			ellesmere_ps->performance_levels[i].pcie_gen = data->pcie_gen_performance.max;
-			ellesmere_ps->performance_levels[i].pcie_lane = data->pcie_gen_performance.max;
+		for (i = 0; i < polaris10_ps->performance_level_count; i++) {
+			polaris10_ps->performance_levels[i].engine_clock = stable_pstate_sclk;
+			polaris10_ps->performance_levels[i].memory_clock = stable_pstate_mclk;
+			polaris10_ps->performance_levels[i].pcie_gen = data->pcie_gen_performance.max;
+			polaris10_ps->performance_levels[i].pcie_lane = data->pcie_gen_performance.max;
 		}
 	}
 	return 0;
 }
 
 
-static int ellesmere_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
+static int polaris10_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
-	struct ellesmere_power_state  *ellesmere_ps;
+	struct polaris10_power_state  *polaris10_ps;
 
 	if (hwmgr == NULL)
 		return -EINVAL;
@@ -3375,19 +3375,19 @@ static int ellesmere_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 	if (ps == NULL)
 		return -EINVAL;
 
-	ellesmere_ps = cast_phw_ellesmere_power_state(&ps->hardware);
+	polaris10_ps = cast_phw_polaris10_power_state(&ps->hardware);
 
 	if (low)
-		return ellesmere_ps->performance_levels[0].memory_clock;
+		return polaris10_ps->performance_levels[0].memory_clock;
 	else
-		return ellesmere_ps->performance_levels
-				[ellesmere_ps->performance_level_count-1].memory_clock;
+		return polaris10_ps->performance_levels
+				[polaris10_ps->performance_level_count-1].memory_clock;
 }
 
-static int ellesmere_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
+static int polaris10_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 {
 	struct pp_power_state  *ps;
-	struct ellesmere_power_state  *ellesmere_ps;
+	struct polaris10_power_state  *polaris10_ps;
 
 	if (hwmgr == NULL)
 		return -EINVAL;
@@ -3397,20 +3397,20 @@ static int ellesmere_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 	if (ps == NULL)
 		return -EINVAL;
 
-	ellesmere_ps = cast_phw_ellesmere_power_state(&ps->hardware);
+	polaris10_ps = cast_phw_polaris10_power_state(&ps->hardware);
 
 	if (low)
-		return ellesmere_ps->performance_levels[0].engine_clock;
+		return polaris10_ps->performance_levels[0].engine_clock;
 	else
-		return ellesmere_ps->performance_levels
-				[ellesmere_ps->performance_level_count-1].engine_clock;
+		return polaris10_ps->performance_levels
+				[polaris10_ps->performance_level_count-1].engine_clock;
 }
 
-static int ellesmere_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
+static int polaris10_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 					struct pp_hw_power_state *hw_ps)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_power_state *ps = (struct ellesmere_power_state *)hw_ps;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_power_state *ps = (struct polaris10_power_state *)hw_ps;
 	ATOM_FIRMWARE_INFO_V2_2 *fw_info;
 	uint16_t size;
 	uint8_t frev, crev;
@@ -3452,14 +3452,14 @@ static int ellesmere_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
+static int polaris10_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 		void *state, struct pp_power_state *power_state,
 		void *pp_table, uint32_t classification_flag)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_power_state  *ellesmere_power_state =
-			(struct ellesmere_power_state *)(&(power_state->hardware));
-	struct ellesmere_performance_level *performance_level;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_power_state  *polaris10_power_state =
+			(struct polaris10_power_state *)(&(power_state->hardware));
+	struct polaris10_performance_level *performance_level;
 	ATOM_Tonga_State *state_entry = (ATOM_Tonga_State *)state;
 	ATOM_Tonga_POWERPLAYTABLE *powerplay_table =
 			(ATOM_Tonga_POWERPLAYTABLE *)pp_table;
@@ -3501,16 +3501,16 @@ static int ellesmere_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 	power_state->temperatures.min = 0;
 	power_state->temperatures.max = 0;
 
-	performance_level = &(ellesmere_power_state->performance_levels
-			[ellesmere_power_state->performance_level_count++]);
+	performance_level = &(polaris10_power_state->performance_levels
+			[polaris10_power_state->performance_level_count++]);
 
 	PP_ASSERT_WITH_CODE(
-			(ellesmere_power_state->performance_level_count < SMU74_MAX_LEVELS_GRAPHICS),
+			(polaris10_power_state->performance_level_count < SMU74_MAX_LEVELS_GRAPHICS),
 			"Performance levels exceeds SMC limit!",
 			return -1);
 
 	PP_ASSERT_WITH_CODE(
-			(ellesmere_power_state->performance_level_count <=
+			(polaris10_power_state->performance_level_count <=
 					hwmgr->platform_descriptor.hardwareActivityPerformanceLevels),
 			"Performance levels exceeds Driver limit!",
 			return -1);
@@ -3525,8 +3525,8 @@ static int ellesmere_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 	performance_level->pcie_lane = get_pcie_lane_support(data->pcie_lane_cap,
 			state_entry->ucPCIELaneHigh);
 
-	performance_level = &(ellesmere_power_state->performance_levels
-			[ellesmere_power_state->performance_level_count++]);
+	performance_level = &(polaris10_power_state->performance_levels
+			[polaris10_power_state->performance_level_count++]);
 	performance_level->memory_clock = mclk_dep_table->entries
 			[state_entry->ucMemoryClockIndexHigh].ulMclk;
 	performance_level->engine_clock = sclk_dep_table->entries
@@ -3539,12 +3539,12 @@ static int ellesmere_get_pp_table_entry_callback_func(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_get_pp_table_entry(struct pp_hwmgr *hwmgr,
+static int polaris10_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 		unsigned long entry_index, struct pp_power_state *state)
 {
 	int result;
-	struct ellesmere_power_state *ps;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_power_state *ps;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table =
@@ -3552,10 +3552,10 @@ static int ellesmere_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 
 	state->hardware.magic = PHM_VIslands_Magic;
 
-	ps = (struct ellesmere_power_state *)(&state->hardware);
+	ps = (struct polaris10_power_state *)(&state->hardware);
 
 	result = tonga_get_powerplay_table_entry(hwmgr, entry_index, state,
-			ellesmere_get_pp_table_entry_callback_func);
+			polaris10_get_pp_table_entry_callback_func);
 
 	/* This is the earliest time we have all the dependency table and the VBIOS boot state
 	 * as PP_Tables_GetPowerPlayTableEntry retrieves the VBIOS boot state
@@ -3644,7 +3644,7 @@ static int ellesmere_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 }
 
 static void
-ellesmere_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
+polaris10_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *m)
 {
 	uint32_t sclk, mclk;
 
@@ -3659,19 +3659,19 @@ ellesmere_print_current_perforce_level(struct pp_hwmgr *hwmgr, struct seq_file *
 			mclk / 100, sclk / 100);
 }
 
-static int ellesmere_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
+static int polaris10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	const struct ellesmere_power_state *ellesmere_ps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
-	uint32_t sclk = ellesmere_ps->performance_levels
-			[ellesmere_ps->performance_level_count - 1].engine_clock;
-	struct ellesmere_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
-	uint32_t mclk = ellesmere_ps->performance_levels
-			[ellesmere_ps->performance_level_count - 1].memory_clock;
+	const struct polaris10_power_state *polaris10_ps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	uint32_t sclk = polaris10_ps->performance_levels
+			[polaris10_ps->performance_level_count - 1].engine_clock;
+	struct polaris10_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	uint32_t mclk = polaris10_ps->performance_levels
+			[polaris10_ps->performance_level_count - 1].memory_clock;
 	struct PP_Clocks min_clocks = {0};
 	uint32_t i;
 	struct cgs_display_info info = {0};
@@ -3689,7 +3689,9 @@ static int ellesmere_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr,
 	/* TODO: Check SCLK in DAL's minimum clocks
 	 * in case DeepSleep divider update is required.
 	 */
-		if (data->display_timing.min_clock_in_sr != min_clocks.engineClockInSR)
+		if (data->display_timing.min_clock_in_sr != min_clocks.engineClockInSR &&
+			(min_clocks.engineClockInSR >= POLARIS10_MINIMUM_ENGINE_CLOCK ||
+				data->display_timing.min_clock_in_sr >= POLARIS10_MINIMUM_ENGINE_CLOCK))
 			data->need_update_smu7_dpm_table |= DPMTABLE_UPDATE_SCLK;
 	}
 
@@ -3709,16 +3711,16 @@ static int ellesmere_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static uint16_t ellesmere_get_maximum_link_speed(struct pp_hwmgr *hwmgr,
-		const struct ellesmere_power_state *ellesmere_ps)
+static uint16_t polaris10_get_maximum_link_speed(struct pp_hwmgr *hwmgr,
+		const struct polaris10_power_state *polaris10_ps)
 {
 	uint32_t i;
 	uint32_t sclk, max_sclk = 0;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_dpm_table *dpm_table = &data->dpm_table;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_dpm_table *dpm_table = &data->dpm_table;
 
-	for (i = 0; i < ellesmere_ps->performance_level_count; i++) {
-		sclk = ellesmere_ps->performance_levels[i].engine_clock;
+	for (i = 0; i < polaris10_ps->performance_level_count; i++) {
+		sclk = polaris10_ps->performance_levels[i].engine_clock;
 		if (max_sclk < sclk)
 			max_sclk = sclk;
 	}
@@ -3734,22 +3736,22 @@ static uint16_t ellesmere_get_maximum_link_speed(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_request_link_speed_change_before_state_change(
+static int polaris10_request_link_speed_change_before_state_change(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	const struct ellesmere_power_state *ellesmere_nps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
-	const struct ellesmere_power_state *ellesmere_cps =
-			cast_const_phw_ellesmere_power_state(states->pcurrent_state);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	const struct polaris10_power_state *polaris10_nps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
+	const struct polaris10_power_state *polaris10_cps =
+			cast_const_phw_polaris10_power_state(states->pcurrent_state);
 
-	uint16_t target_link_speed = ellesmere_get_maximum_link_speed(hwmgr, ellesmere_nps);
+	uint16_t target_link_speed = polaris10_get_maximum_link_speed(hwmgr, polaris10_nps);
 	uint16_t current_link_speed;
 
 	if (data->force_pcie_gen == PP_PCIEGenInvalid)
-		current_link_speed = ellesmere_get_maximum_link_speed(hwmgr, ellesmere_cps);
+		current_link_speed = polaris10_get_maximum_link_speed(hwmgr, polaris10_cps);
 	else
 		current_link_speed = data->force_pcie_gen;
 
@@ -3779,9 +3781,9 @@ static int ellesmere_request_link_speed_change_before_state_change(
 	return 0;
 }
 
-static int ellesmere_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
+static int polaris10_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (0 == data->need_update_smu7_dpm_table)
 		return 0;
@@ -3789,7 +3791,7 @@ static int ellesmere_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->sclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
-		PP_ASSERT_WITH_CODE(true == ellesmere_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
 				"Trying to freeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -3801,7 +3803,7 @@ static int ellesmere_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
-		PP_ASSERT_WITH_CODE(true == ellesmere_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
 				"Trying to freeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -3813,22 +3815,22 @@ static int ellesmere_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_and_upload_sclk_mclk_dpm_levels(
+static int polaris10_populate_and_upload_sclk_mclk_dpm_levels(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	int result = 0;
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	const struct ellesmere_power_state *ellesmere_ps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	uint32_t sclk = ellesmere_ps->performance_levels
-			[ellesmere_ps->performance_level_count - 1].engine_clock;
-	uint32_t mclk = ellesmere_ps->performance_levels
-			[ellesmere_ps->performance_level_count - 1].memory_clock;
-	struct ellesmere_dpm_table *dpm_table = &data->dpm_table;
+	const struct polaris10_power_state *polaris10_ps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	uint32_t sclk = polaris10_ps->performance_levels
+			[polaris10_ps->performance_level_count - 1].engine_clock;
+	uint32_t mclk = polaris10_ps->performance_levels
+			[polaris10_ps->performance_level_count - 1].memory_clock;
+	struct polaris10_dpm_table *dpm_table = &data->dpm_table;
 
-	struct ellesmere_dpm_table *golden_dpm_table = &data->golden_dpm_table;
+	struct polaris10_dpm_table *golden_dpm_table = &data->golden_dpm_table;
 	uint32_t dpm_count, clock_percent;
 	uint32_t i;
 
@@ -3924,7 +3926,7 @@ static int ellesmere_populate_and_upload_sclk_mclk_dpm_levels(
 
 	if (data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK)) {
-		result = ellesmere_populate_all_graphic_levels(hwmgr);
+		result = polaris10_populate_all_graphic_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to populate SCLK during PopulateNewDPMClocksStates Function!",
 				return result);
@@ -3933,7 +3935,7 @@ static int ellesmere_populate_and_upload_sclk_mclk_dpm_levels(
 	if (data->need_update_smu7_dpm_table &
 			(DPMTABLE_OD_UPDATE_MCLK + DPMTABLE_UPDATE_MCLK)) {
 		/*populate MCLK dpm table to SMU7 */
-		result = ellesmere_populate_all_memory_levels(hwmgr);
+		result = polaris10_populate_all_memory_levels(hwmgr);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"Failed to populate MCLK during PopulateNewDPMClocksStates Function!",
 				return result);
@@ -3942,12 +3944,12 @@ static int ellesmere_populate_and_upload_sclk_mclk_dpm_levels(
 	return result;
 }
 
-static int ellesmere_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
-			  struct ellesmere_single_dpm_table *dpm_table,
+static int polaris10_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
+			  struct polaris10_single_dpm_table *dpm_table,
 			uint32_t low_limit, uint32_t high_limit)
 {
 	uint32_t i;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	for (i = 0; i < dpm_table->count; i++) {
 		if ((dpm_table->dpm_levels[i].value < low_limit)
@@ -3962,43 +3964,43 @@ static int ellesmere_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int ellesmere_trim_dpm_states(struct pp_hwmgr *hwmgr,
-		const struct ellesmere_power_state *ellesmere_ps)
+static int polaris10_trim_dpm_states(struct pp_hwmgr *hwmgr,
+		const struct polaris10_power_state *polaris10_ps)
 {
 	int result = 0;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t high_limit_count;
 
-	PP_ASSERT_WITH_CODE((ellesmere_ps->performance_level_count >= 1),
+	PP_ASSERT_WITH_CODE((polaris10_ps->performance_level_count >= 1),
 			"power state did not have any performance level",
 			return -1);
 
-	high_limit_count = (1 == ellesmere_ps->performance_level_count) ? 0 : 1;
+	high_limit_count = (1 == polaris10_ps->performance_level_count) ? 0 : 1;
 
-	ellesmere_trim_single_dpm_states(hwmgr,
+	polaris10_trim_single_dpm_states(hwmgr,
 			&(data->dpm_table.sclk_table),
-			ellesmere_ps->performance_levels[0].engine_clock,
-			ellesmere_ps->performance_levels[high_limit_count].engine_clock);
+			polaris10_ps->performance_levels[0].engine_clock,
+			polaris10_ps->performance_levels[high_limit_count].engine_clock);
 
-	ellesmere_trim_single_dpm_states(hwmgr,
+	polaris10_trim_single_dpm_states(hwmgr,
 			&(data->dpm_table.mclk_table),
-			ellesmere_ps->performance_levels[0].memory_clock,
-			ellesmere_ps->performance_levels[high_limit_count].memory_clock);
+			polaris10_ps->performance_levels[0].memory_clock,
+			polaris10_ps->performance_levels[high_limit_count].memory_clock);
 
 	return result;
 }
 
-static int ellesmere_generate_dpm_level_enable_mask(
+static int polaris10_generate_dpm_level_enable_mask(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	int result;
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	const struct ellesmere_power_state *ellesmere_ps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	const struct polaris10_power_state *polaris10_ps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
 
-	result = ellesmere_trim_dpm_states(hwmgr, ellesmere_ps);
+	result = polaris10_trim_dpm_states(hwmgr, polaris10_ps);
 	if (result)
 		return result;
 
@@ -4012,30 +4014,30 @@ static int ellesmere_generate_dpm_level_enable_mask(
 	return 0;
 }
 
-int ellesmere_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+int polaris10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable ?
 			PPSMC_MSG_UVDDPM_Enable :
 			PPSMC_MSG_UVDDPM_Disable);
 }
 
-int ellesmere_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
+int polaris10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
 			PPSMC_MSG_VCEDPM_Enable :
 			PPSMC_MSG_VCEDPM_Disable);
 }
 
-int ellesmere_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
+int polaris10_enable_disable_samu_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, enable?
 			PPSMC_MSG_SAMUDPM_Enable :
 			PPSMC_MSG_SAMUDPM_Disable);
 }
 
-int ellesmere_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+int polaris10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -4065,25 +4067,25 @@ int ellesmere_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 					(uint32_t)(1 << data->smc_state_table.UvdBootLevel));
 	}
 
-	return ellesmere_enable_disable_uvd_dpm(hwmgr, !bgate);
+	return polaris10_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
-static int ellesmere_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
+static int polaris10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	const struct ellesmere_power_state *ellesmere_nps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
-	const struct ellesmere_power_state *ellesmere_cps =
-			cast_const_phw_ellesmere_power_state(states->pcurrent_state);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	const struct polaris10_power_state *polaris10_nps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
+	const struct polaris10_power_state *polaris10_cps =
+			cast_const_phw_polaris10_power_state(states->pcurrent_state);
 
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
-	if (ellesmere_nps->vce_clks.evclk > 0 &&
-	(ellesmere_cps == NULL || ellesmere_cps->vce_clks.evclk == 0)) {
+	if (polaris10_nps->vce_clks.evclk > 0 &&
+	(polaris10_cps == NULL || polaris10_cps->vce_clks.evclk == 0)) {
 
 		data->smc_state_table.VceBootLevel =
 				(uint8_t) (table_info->mm_dep_table->count - 1);
@@ -4104,19 +4106,19 @@ static int ellesmere_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input)
 					PPSMC_MSG_VCEDPM_SetEnabledMask,
 					(uint32_t)1 << data->smc_state_table.VceBootLevel);
 
-			ellesmere_enable_disable_vce_dpm(hwmgr, true);
-		} else if (ellesmere_nps->vce_clks.evclk == 0 &&
-				ellesmere_cps != NULL &&
-				ellesmere_cps->vce_clks.evclk > 0)
-			ellesmere_enable_disable_vce_dpm(hwmgr, false);
+			polaris10_enable_disable_vce_dpm(hwmgr, true);
+		} else if (polaris10_nps->vce_clks.evclk == 0 &&
+				polaris10_cps != NULL &&
+				polaris10_cps->vce_clks.evclk > 0)
+			polaris10_enable_disable_vce_dpm(hwmgr, false);
 	}
 
 	return 0;
 }
 
-int ellesmere_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+int polaris10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t mm_boot_level_offset, mm_boot_level_value;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -4142,12 +4144,12 @@ int ellesmere_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 					(uint32_t)(1 << data->smc_state_table.SamuBootLevel));
 	}
 
-	return ellesmere_enable_disable_samu_dpm(hwmgr, !bgate);
+	return polaris10_enable_disable_samu_dpm(hwmgr, !bgate);
 }
 
-static int ellesmere_update_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int polaris10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	int result = 0;
 	uint32_t low_sclk_interrupt_threshold = 0;
@@ -4163,7 +4165,7 @@ static int ellesmere_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 		CONVERT_FROM_HOST_TO_SMC_UL(low_sclk_interrupt_threshold);
 
-		result = ellesmere_copy_bytes_to_smc(
+		result = polaris10_copy_bytes_to_smc(
 				hwmgr->smumgr,
 				data->dpm_table_start +
 				offsetof(SMU74_Discrete_DpmTable,
@@ -4176,20 +4178,20 @@ static int ellesmere_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int ellesmere_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
+static int polaris10_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_OD_UPDATE_MCLK))
-		return ellesmere_program_memory_timing_parameters(hwmgr);
+		return polaris10_program_memory_timing_parameters(hwmgr);
 
 	return 0;
 }
 
-static int ellesmere_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
+static int polaris10_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (0 == data->need_update_smu7_dpm_table)
 		return 0;
@@ -4198,7 +4200,7 @@ static int ellesmere_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 		(data->need_update_smu7_dpm_table &
 		(DPMTABLE_OD_UPDATE_SCLK + DPMTABLE_UPDATE_SCLK))) {
 
-		PP_ASSERT_WITH_CODE(true == ellesmere_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
 				"Trying to Unfreeze SCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -4210,7 +4212,7 @@ static int ellesmere_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	if ((0 == data->mclk_dpm_key_disabled) &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
-		PP_ASSERT_WITH_CODE(true == ellesmere_is_dpm_running(hwmgr),
+		PP_ASSERT_WITH_CODE(true == polaris10_is_dpm_running(hwmgr),
 				"Trying to Unfreeze MCLK DPM when DPM is disabled",
 				);
 		PP_ASSERT_WITH_CODE(0 == smum_send_msg_to_smc(hwmgr->smumgr,
@@ -4224,15 +4226,15 @@ static int ellesmere_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_notify_link_speed_change_after_state_change(
+static int polaris10_notify_link_speed_change_after_state_change(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	const struct ellesmere_power_state *ellesmere_ps =
-			cast_const_phw_ellesmere_power_state(states->pnew_state);
-	uint16_t target_link_speed = ellesmere_get_maximum_link_speed(hwmgr, ellesmere_ps);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	const struct polaris10_power_state *polaris10_ps =
+			cast_const_phw_polaris10_power_state(states->pnew_state);
+	uint16_t target_link_speed = polaris10_get_maximum_link_speed(hwmgr, polaris10_ps);
 	uint8_t  request;
 
 	if (data->pspp_notify_required) {
@@ -4258,12 +4260,12 @@ static int ellesmere_notify_link_speed_change_after_state_change(
 	return 0;
 }
 
-static int ellesmere_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
+static int polaris10_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 {
 	int tmp_result, result = 0;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
-	tmp_result = ellesmere_find_dpm_states_clocks_in_dpm_table(hwmgr, input);
+	tmp_result = polaris10_find_dpm_states_clocks_in_dpm_table(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to find DPM states clocks in DPM table!",
 			result = tmp_result);
@@ -4271,47 +4273,47 @@ static int ellesmere_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PCIEPerformanceRequest)) {
 		tmp_result =
-			ellesmere_request_link_speed_change_before_state_change(hwmgr, input);
+			polaris10_request_link_speed_change_before_state_change(hwmgr, input);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
 				"Failed to request link speed change before state change!",
 				result = tmp_result);
 	}
 
-	tmp_result = ellesmere_freeze_sclk_mclk_dpm(hwmgr);
+	tmp_result = polaris10_freeze_sclk_mclk_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to freeze SCLK MCLK DPM!", result = tmp_result);
 
-	tmp_result = ellesmere_populate_and_upload_sclk_mclk_dpm_levels(hwmgr, input);
+	tmp_result = polaris10_populate_and_upload_sclk_mclk_dpm_levels(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to populate and upload SCLK MCLK DPM levels!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_generate_dpm_level_enable_mask(hwmgr, input);
+	tmp_result = polaris10_generate_dpm_level_enable_mask(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to generate DPM level enabled mask!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_update_vce_dpm(hwmgr, input);
+	tmp_result = polaris10_update_vce_dpm(hwmgr, input);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to update VCE DPM!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_update_sclk_threshold(hwmgr);
+	tmp_result = polaris10_update_sclk_threshold(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_program_mem_timing_parameters(hwmgr);
+	tmp_result = polaris10_program_mem_timing_parameters(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to program memory timing parameters!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_unfreeze_sclk_mclk_dpm(hwmgr);
+	tmp_result = polaris10_unfreeze_sclk_mclk_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to unfreeze SCLK MCLK DPM!",
 			result = tmp_result);
 
-	tmp_result = ellesmere_upload_dpm_level_enable_mask(hwmgr);
+	tmp_result = polaris10_upload_dpm_level_enable_mask(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to upload DPM level enabled mask!",
 			result = tmp_result);
@@ -4319,7 +4321,7 @@ static int ellesmere_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PCIEPerformanceRequest)) {
 		tmp_result =
-			ellesmere_notify_link_speed_change_after_state_change(hwmgr, input);
+			polaris10_notify_link_speed_change_after_state_change(hwmgr, input);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
 				"Failed to notify link speed change after state change!",
 				result = tmp_result);
@@ -4328,7 +4330,7 @@ static int ellesmere_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *i
 	return result;
 }
 
-static int ellesmere_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
+static int polaris10_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm)
 {
 	hwmgr->thermal_controller.
 	advanceFanControlParameters.usMaxFanPWM = us_max_fan_pwm;
@@ -4340,14 +4342,14 @@ static int ellesmere_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_
 			PPSMC_MSG_SetFanPwmMax, us_max_fan_pwm);
 }
 
-int ellesmere_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
+int polaris10_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 {
 	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
 
 	return (smum_send_msg_to_smc(hwmgr->smumgr, msg) == 0) ?  0 : -1;
 }
 
-int ellesmere_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+int polaris10_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	uint32_t num_active_displays = 0;
 	struct cgs_display_info info = {0};
@@ -4358,9 +4360,9 @@ int ellesmere_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwm
 	num_active_displays = info.display_count;
 
 	if (num_active_displays > 1)  /* to do && (pHwMgr->pPECI->displayConfiguration.bMultiMonitorInSync != TRUE)) */
-		ellesmere_notify_smc_display_change(hwmgr, false);
+		polaris10_notify_smc_display_change(hwmgr, false);
 	else
-		ellesmere_notify_smc_display_change(hwmgr, true);
+		polaris10_notify_smc_display_change(hwmgr, true);
 
 	return 0;
 }
@@ -4371,9 +4373,9 @@ int ellesmere_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwm
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @return   always OK
 */
-int ellesmere_program_display_gap(struct pp_hwmgr *hwmgr)
+int polaris10_program_display_gap(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t num_active_displays = 0;
 	uint32_t display_gap = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL);
 	uint32_t display_gap2;
@@ -4409,16 +4411,15 @@ int ellesmere_program_display_gap(struct pp_hwmgr *hwmgr)
 
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, data->soft_regs_start + offsetof(SMU74_SoftRegisters, VBlankTimeout), (frame_time_in_us - pre_vbi_time_in_us));
 
-	if (num_active_displays == 1)
-		ellesmere_notify_smc_display_change(hwmgr, true);
+	polaris10_notify_smc_display_change(hwmgr, num_active_displays != 0);
 
 	return 0;
 }
 
 
-int ellesmere_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
+int polaris10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
-	return ellesmere_program_display_gap(hwmgr);
+	return polaris10_program_display_gap(hwmgr);
 }
 
 /**
@@ -4428,7 +4429,7 @@ int ellesmere_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 * @param    usMaxFanRpm:  max operating fan RPM value.
 * @return   The response that came from the SMC.
 */
-static int ellesmere_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_rpm)
+static int polaris10_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_rpm)
 {
 	hwmgr->thermal_controller.
 	advanceFanControlParameters.usMaxFanRPM = us_max_fan_rpm;
@@ -4440,15 +4441,15 @@ static int ellesmere_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
-int ellesmere_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
+int polaris10_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
 					const void *thermal_interrupt_info)
 {
 	return 0;
 }
 
-bool ellesmere_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
+bool polaris10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	bool is_update_required = false;
 	struct cgs_display_info info = {0, 0, NULL};
 
@@ -4459,14 +4460,16 @@ bool ellesmere_check_smc_update_required_for_display_configuration(struct pp_hwm
 /* TO DO NEED TO GET DEEP SLEEP CLOCK FROM DAL
 	if (phm_cap_enabled(hwmgr->hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep)) {
 		cgs_get_min_clock_settings(hwmgr->device, &min_clocks);
-		if (min_clocks.engineClockInSR != data->display_timing.minClockInSR)
+		if (min_clocks.engineClockInSR != data->display_timing.minClockInSR &&
+			(min_clocks.engineClockInSR >= POLARIS10_MINIMUM_ENGINE_CLOCK ||
+				data->display_timing.minClockInSR >= POLARIS10_MINIMUM_ENGINE_CLOCK))
 			is_update_required = true;
 */
 	return is_update_required;
 }
 
-static inline bool ellesmere_are_power_levels_equal(const struct ellesmere_performance_level *pl1,
-							   const struct ellesmere_performance_level *pl2)
+static inline bool polaris10_are_power_levels_equal(const struct polaris10_performance_level *pl1,
+							   const struct polaris10_performance_level *pl2)
 {
 	return ((pl1->memory_clock == pl2->memory_clock) &&
 		  (pl1->engine_clock == pl2->engine_clock) &&
@@ -4474,10 +4477,10 @@ static inline bool ellesmere_are_power_levels_equal(const struct ellesmere_perfo
 		  (pl1->pcie_lane == pl2->pcie_lane));
 }
 
-int ellesmere_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
+int polaris10_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *pstate1, const struct pp_hw_power_state *pstate2, bool *equal)
 {
-	const struct ellesmere_power_state *psa = cast_const_phw_ellesmere_power_state(pstate1);
-	const struct ellesmere_power_state *psb = cast_const_phw_ellesmere_power_state(pstate2);
+	const struct polaris10_power_state *psa = cast_const_phw_polaris10_power_state(pstate1);
+	const struct polaris10_power_state *psb = cast_const_phw_polaris10_power_state(pstate2);
 	int i;
 
 	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
@@ -4490,7 +4493,7 @@ int ellesmere_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_powe
 	}
 
 	for (i = 0; i < psa->performance_level_count; i++) {
-		if (!ellesmere_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
+		if (!polaris10_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
 			/* If we have found even one performance level pair that is different the states are different. */
 			*equal = false;
 			return 0;
@@ -4505,9 +4508,9 @@ int ellesmere_check_states_equal(struct pp_hwmgr *hwmgr, const struct pp_hw_powe
 	return 0;
 }
 
-int ellesmere_upload_mc_firmware(struct pp_hwmgr *hwmgr)
+int polaris10_upload_mc_firmware(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	uint32_t vbios_version;
 
@@ -4527,7 +4530,7 @@ int ellesmere_upload_mc_firmware(struct pp_hwmgr *hwmgr)
  * 	PPMCME_FirmwareDescriptorEntry *pfd = NULL;
 	pfd = &tonga_mcmeFirmware;
 	if (0 == PHM_READ_FIELD(hwmgr->device, MC_SEQ_SUP_CNTL, RUN))
-		ellesmere_load_mc_microcode(hwmgr, pfd->dpmThreshold,
+		polaris10_load_mc_microcode(hwmgr, pfd->dpmThreshold,
 					pfd->cfgArray, pfd->cfgSize, pfd->ioDebugArray,
 					pfd->ioDebugSize, pfd->ucodeArray, pfd->ucodeSize);
 */
@@ -4540,9 +4543,9 @@ int ellesmere_upload_mc_firmware(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-static int ellesmere_read_clock_registers(struct pp_hwmgr *hwmgr)
+static int polaris10_read_clock_registers(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	data->clock_registers.vCG_SPLL_FUNC_CNTL = cgs_read_ind_register(hwmgr->device,
 						CGS_IND_REG__SMC, ixCG_SPLL_FUNC_CNTL)
@@ -4565,9 +4568,9 @@ static int ellesmere_read_clock_registers(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-static int ellesmere_get_memory_type(struct pp_hwmgr *hwmgr)
+static int polaris10_get_memory_type(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t temp;
 
 	temp = cgs_read_register(hwmgr->device, mmMC_SEQ_MISC0);
@@ -4585,7 +4588,7 @@ static int ellesmere_get_memory_type(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-static int ellesmere_enable_acpi_power_management(struct pp_hwmgr *hwmgr)
+static int polaris10_enable_acpi_power_management(struct pp_hwmgr *hwmgr)
 {
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			GENERAL_PWRMGT, STATIC_PM_EN, 1);
@@ -4599,9 +4602,9 @@ static int ellesmere_enable_acpi_power_management(struct pp_hwmgr *hwmgr)
  * @param    hwmgr  the address of the powerplay hardware manager.
  * @return   always 0
  */
-static int ellesmere_init_power_gate_state(struct pp_hwmgr *hwmgr)
+static int polaris10_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	data->uvd_power_gated = false;
 	data->vce_power_gated = false;
@@ -4610,33 +4613,33 @@ static int ellesmere_init_power_gate_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_init_sclk_threshold(struct pp_hwmgr *hwmgr)
+static int polaris10_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	data->low_sclk_interrupt_threshold = 0;
 
 	return 0;
 }
 
-int ellesmere_setup_asic_task(struct pp_hwmgr *hwmgr)
+int polaris10_setup_asic_task(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
-	ellesmere_upload_mc_firmware(hwmgr);
+	polaris10_upload_mc_firmware(hwmgr);
 
-	tmp_result = ellesmere_read_clock_registers(hwmgr);
+	tmp_result = polaris10_read_clock_registers(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to read clock registers!", result = tmp_result);
 
-	tmp_result = ellesmere_get_memory_type(hwmgr);
+	tmp_result = polaris10_get_memory_type(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to get memory type!", result = tmp_result);
 
-	tmp_result = ellesmere_enable_acpi_power_management(hwmgr);
+	tmp_result = polaris10_enable_acpi_power_management(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable ACPI power management!", result = tmp_result);
 
-	tmp_result = ellesmere_init_power_gate_state(hwmgr);
+	tmp_result = polaris10_init_power_gate_state(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to init power gate state!", result = tmp_result);
 
@@ -4644,68 +4647,198 @@ int ellesmere_setup_asic_task(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to get MC microcode version!", result = tmp_result);
 
-	tmp_result = ellesmere_init_sclk_threshold(hwmgr);
+	tmp_result = polaris10_init_sclk_threshold(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to init sclk threshold!", result = tmp_result);
 
 	return result;
 }
 
-static const struct pp_hwmgr_func ellesmere_hwmgr_funcs = {
-	.backend_init = &ellesmere_hwmgr_backend_init,
-	.backend_fini = &ellesmere_hwmgr_backend_fini,
-	.asic_setup = &ellesmere_setup_asic_task,
-	.dynamic_state_management_enable = &ellesmere_enable_dpm_tasks,
-	.apply_state_adjust_rules = ellesmere_apply_state_adjust_rules,
-	.force_dpm_level = &ellesmere_force_dpm_level,
-	.power_state_set = ellesmere_set_power_state_tasks,
-	.get_power_state_size = ellesmere_get_power_state_size,
-	.get_mclk = ellesmere_dpm_get_mclk,
-	.get_sclk = ellesmere_dpm_get_sclk,
-	.patch_boot_state = ellesmere_dpm_patch_boot_state,
-	.get_pp_table_entry = ellesmere_get_pp_table_entry,
+static int polaris10_get_pp_table(struct pp_hwmgr *hwmgr, char **table)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	*table = (char *)&data->smc_state_table;
+
+	return sizeof(struct SMU74_Discrete_DpmTable);
+}
+
+static int polaris10_set_pp_table(struct pp_hwmgr *hwmgr, const char *buf, size_t size)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	void *table = (void *)&data->smc_state_table;
+
+	memcpy(table, buf, size);
+
+	return 0;
+}
+
+static int polaris10_force_clock_level(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, int level)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_MCLK:
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					(1 << level));
+		break;
+	case PP_PCIE:
+		if (!data->pcie_dpm_key_disabled)
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					(1 << level));
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static uint16_t polaris10_get_current_pcie_speed(struct pp_hwmgr *hwmgr)
+{
+	uint32_t speedCntl = 0;
+
+	/* mmPCIE_PORT_INDEX rename as mmPCIE_INDEX */
+	speedCntl = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__PCIE,
+			ixPCIE_LC_SPEED_CNTL);
+	return((uint16_t)PHM_GET_FIELD(speedCntl,
+			PCIE_LC_SPEED_CNTL, LC_CURRENT_DATA_RATE));
+}
+
+static int polaris10_print_clock_levels(struct pp_hwmgr *hwmgr,
+		enum pp_clock_type type, char *buf)
+{
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
+	struct polaris10_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
+	struct polaris10_single_dpm_table *pcie_table = &(data->dpm_table.pcie_speed_table);
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetSclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_API_GetMclkFrequency);
+		clock = cgs_read_register(hwmgr->device, mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = polaris10_get_current_pcie_speed(hwmgr);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x8" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+	return size;
+}
+
+static const struct pp_hwmgr_func polaris10_hwmgr_funcs = {
+	.backend_init = &polaris10_hwmgr_backend_init,
+	.backend_fini = &polaris10_hwmgr_backend_fini,
+	.asic_setup = &polaris10_setup_asic_task,
+	.dynamic_state_management_enable = &polaris10_enable_dpm_tasks,
+	.apply_state_adjust_rules = polaris10_apply_state_adjust_rules,
+	.force_dpm_level = &polaris10_force_dpm_level,
+	.power_state_set = polaris10_set_power_state_tasks,
+	.get_power_state_size = polaris10_get_power_state_size,
+	.get_mclk = polaris10_dpm_get_mclk,
+	.get_sclk = polaris10_dpm_get_sclk,
+	.patch_boot_state = polaris10_dpm_patch_boot_state,
+	.get_pp_table_entry = polaris10_get_pp_table_entry,
 	.get_num_of_pp_table_entries = tonga_get_number_of_powerplay_table_entries,
-	.print_current_perforce_level = ellesmere_print_current_perforce_level,
-	.powerdown_uvd = ellesmere_phm_powerdown_uvd,
-	.powergate_uvd = ellesmere_phm_powergate_uvd,
-	.powergate_vce = ellesmere_phm_powergate_vce,
-	.disable_clock_power_gating = ellesmere_phm_disable_clock_power_gating,
-	.update_clock_gatings = ellesmere_phm_update_clock_gatings,
-	.notify_smc_display_config_after_ps_adjustment = ellesmere_notify_smc_display_config_after_ps_adjustment,
-	.display_config_changed = ellesmere_display_configuration_changed_task,
-	.set_max_fan_pwm_output = ellesmere_set_max_fan_pwm_output,
-	.set_max_fan_rpm_output = ellesmere_set_max_fan_rpm_output,
-	.get_temperature = ellesmere_thermal_get_temperature,
-	.stop_thermal_controller = ellesmere_thermal_stop_thermal_controller,
-	.get_fan_speed_info = ellesmere_fan_ctrl_get_fan_speed_info,
-	.get_fan_speed_percent = ellesmere_fan_ctrl_get_fan_speed_percent,
-	.set_fan_speed_percent = ellesmere_fan_ctrl_set_fan_speed_percent,
-	.reset_fan_speed_to_default = ellesmere_fan_ctrl_reset_fan_speed_to_default,
-	.get_fan_speed_rpm = ellesmere_fan_ctrl_get_fan_speed_rpm,
-	.set_fan_speed_rpm = ellesmere_fan_ctrl_set_fan_speed_rpm,
-	.uninitialize_thermal_controller = ellesmere_thermal_ctrl_uninitialize_thermal_controller,
-	.register_internal_thermal_interrupt = ellesmere_register_internal_thermal_interrupt,
-	.check_smc_update_required_for_display_configuration = ellesmere_check_smc_update_required_for_display_configuration,
-	.check_states_equal = ellesmere_check_states_equal,
-	.get_pp_table = ellesmere_get_pp_table,
-	.set_pp_table = ellesmere_set_pp_table,
-	.force_clock_level = ellesmere_force_clock_level,
-	.print_clock_levels = ellesmere_print_clock_levels,
-	.enable_per_cu_power_gating = ellesmere_phm_enable_per_cu_power_gating,
+	.print_current_perforce_level = polaris10_print_current_perforce_level,
+	.powerdown_uvd = polaris10_phm_powerdown_uvd,
+	.powergate_uvd = polaris10_phm_powergate_uvd,
+	.powergate_vce = polaris10_phm_powergate_vce,
+	.disable_clock_power_gating = polaris10_phm_disable_clock_power_gating,
+	.update_clock_gatings = polaris10_phm_update_clock_gatings,
+	.notify_smc_display_config_after_ps_adjustment = polaris10_notify_smc_display_config_after_ps_adjustment,
+	.display_config_changed = polaris10_display_configuration_changed_task,
+	.set_max_fan_pwm_output = polaris10_set_max_fan_pwm_output,
+	.set_max_fan_rpm_output = polaris10_set_max_fan_rpm_output,
+	.get_temperature = polaris10_thermal_get_temperature,
+	.stop_thermal_controller = polaris10_thermal_stop_thermal_controller,
+	.get_fan_speed_info = polaris10_fan_ctrl_get_fan_speed_info,
+	.get_fan_speed_percent = polaris10_fan_ctrl_get_fan_speed_percent,
+	.set_fan_speed_percent = polaris10_fan_ctrl_set_fan_speed_percent,
+	.reset_fan_speed_to_default = polaris10_fan_ctrl_reset_fan_speed_to_default,
+	.get_fan_speed_rpm = polaris10_fan_ctrl_get_fan_speed_rpm,
+	.set_fan_speed_rpm = polaris10_fan_ctrl_set_fan_speed_rpm,
+	.uninitialize_thermal_controller = polaris10_thermal_ctrl_uninitialize_thermal_controller,
+	.register_internal_thermal_interrupt = polaris10_register_internal_thermal_interrupt,
+	.check_smc_update_required_for_display_configuration = polaris10_check_smc_update_required_for_display_configuration,
+	.check_states_equal = polaris10_check_states_equal,
+	.get_pp_table = polaris10_get_pp_table,
+	.set_pp_table = polaris10_set_pp_table,
+	.force_clock_level = polaris10_force_clock_level,
+	.print_clock_levels = polaris10_print_clock_levels,
+	.enable_per_cu_power_gating = polaris10_phm_enable_per_cu_power_gating,
 };
 
-int ellesemere_hwmgr_init(struct pp_hwmgr *hwmgr)
+int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr  *data;
+	struct polaris10_hwmgr  *data;
 
-	data = kzalloc (sizeof(struct ellesmere_hwmgr), GFP_KERNEL);
+	data = kzalloc (sizeof(struct polaris10_hwmgr), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
 	hwmgr->backend = data;
-	hwmgr->hwmgr_func = &ellesmere_hwmgr_funcs;
+	hwmgr->hwmgr_func = &polaris10_hwmgr_funcs;
 	hwmgr->pptable_func = &tonga_pptable_funcs;
-	pp_ellesmere_thermal_initialize(hwmgr);
+	pp_polaris10_thermal_initialize(hwmgr);
 
 	return 0;
 }

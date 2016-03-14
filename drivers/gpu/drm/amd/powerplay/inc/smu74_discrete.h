@@ -705,6 +705,7 @@ struct SMU7_Discrete_Pm_Status_Table {
 	uint16_t Sclk_dpm_residency[8];
 	uint16_t Uvd_dpm_residency[8];
 	uint16_t Vce_dpm_residency[8];
+	uint16_t Mclk_dpm_residency[4];
 
 	uint32_t P_vddci_acc;
 	uint32_t P_vddr1_acc;
@@ -778,6 +779,47 @@ typedef struct SMU7_GfxCuPgScoreboard SMU7_GfxCuPgScoreboard;
 #define SMU7_THERM_OUT_MODE_DISABLE       0x0
 #define SMU7_THERM_OUT_MODE_THERM_ONLY    0x1
 #define SMU7_THERM_OUT_MODE_THERM_VRHOT   0x2
+
+// DIDT Defines
+#define SQ_Enable_MASK 0x1
+#define SQ_IR_MASK 0x2
+#define SQ_PCC_MASK 0x4
+#define SQ_EDC_MASK 0x8
+
+#define TCP_Enable_MASK 0x100
+#define TCP_IR_MASK 0x200
+#define TCP_PCC_MASK 0x400
+#define TCP_EDC_MASK 0x800
+
+#define TD_Enable_MASK 0x10000
+#define TD_IR_MASK 0x20000
+#define TD_PCC_MASK 0x40000
+#define TD_EDC_MASK 0x80000
+
+#define DB_Enable_MASK 0x1000000
+#define DB_IR_MASK 0x2000000
+#define DB_PCC_MASK 0x4000000 
+#define DB_EDC_MASK 0x8000000
+
+#define SQ_Enable_SHIFT 0
+#define SQ_IR_SHIFT 1
+#define SQ_PCC_SHIFT 2
+#define SQ_EDC_SHIFT 3
+
+#define TCP_Enable_SHIFT 8
+#define TCP_IR_SHIFT 9
+#define TCP_PCC_SHIFT 10
+#define TCP_EDC_SHIFT 11
+
+#define TD_Enable_SHIFT 16
+#define TD_IR_SHIFT 17
+#define TD_PCC_SHIFT 18
+#define TD_EDC_SHIFT 19
+
+#define DB_Enable_SHIFT 24
+#define DB_IR_SHIFT 25
+#define DB_PCC_SHIFT 26 
+#define DB_EDC_SHIFT 27
 
 #pragma pack(pop)
 

@@ -21,18 +21,18 @@
  *
  */
 
-#ifndef _ELLESMERE_SMUMANAGER_H
-#define _ELLESMERE_SMUMANAGER_H
+#ifndef _POLARIS10_SMUMANAGER_H
+#define _POLARIS10_SMUMANAGER_H
 
-#include <ellesmere_ppsmc.h>
+#include <polaris10_ppsmc.h>
 #include <pp_endian.h>
 
-struct ellesmere_avfs {
+struct polaris10_avfs {
 	enum AVFS_BTC_STATUS avfs_btc_status;
 	uint32_t           avfs_btc_param;
 };
 
-struct ellesmere_buffer_entry {
+struct polaris10_buffer_entry {
 	uint32_t data_size;
 	uint32_t mc_addr_low;
 	uint32_t mc_addr_high;
@@ -40,11 +40,11 @@ struct ellesmere_buffer_entry {
 	unsigned long  handle;
 };
 
-struct ellesmere_smumgr {
+struct polaris10_smumgr {
 	uint8_t *header;
 	uint8_t *mec_image;
-	struct ellesmere_buffer_entry smu_buffer;
-	struct ellesmere_buffer_entry header_buffer;
+	struct polaris10_buffer_entry smu_buffer;
+	struct polaris10_buffer_entry header_buffer;
 	uint32_t soft_regs_start;
 	uint8_t *read_rrm_straps;
 	uint32_t read_drm_straps_mc_address_high;
@@ -53,15 +53,15 @@ struct ellesmere_smumgr {
 	bool post_initial_boot;
 	uint8_t protected_mode;
 	uint8_t security_hard_key;
-	struct ellesmere_avfs  avfs;
+	struct polaris10_avfs  avfs;
 };
 
 
-int ellesmere_smum_init(struct pp_smumgr *smumgr);
+int polaris10_smum_init(struct pp_smumgr *smumgr);
 
-int ellesmere_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t *value, uint32_t limit);
-int ellesmere_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t value, uint32_t limit);
-int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
+int polaris10_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t *value, uint32_t limit);
+int polaris10_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t value, uint32_t limit);
+int polaris10_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
 				const uint8_t *src, uint32_t byte_count, uint32_t limit);
 
 #endif

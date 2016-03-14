@@ -276,8 +276,8 @@ static void vi_init_golden_registers(struct amdgpu_device *adev)
 						 stoney_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(stoney_mgcg_cgcg_init));
 		break;
-	case CHIP_BAFFIN:
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
 	default:
 		break;
 	}
@@ -539,8 +539,8 @@ static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 		break;
 	case CHIP_FIJI:
 	case CHIP_TONGA:
-	case CHIP_BAFFIN:
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 		asic_register_table = cz_allowed_read_registers;
@@ -911,7 +911,7 @@ static const struct amdgpu_ip_block_version fiji_ip_blocks[] =
 	},
 };
 
-static const struct amdgpu_ip_block_version baffin_ip_blocks[] =
+static const struct amdgpu_ip_block_version polaris11_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
@@ -1071,10 +1071,10 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		adev->ip_blocks = tonga_ip_blocks;
 		adev->num_ip_blocks = ARRAY_SIZE(tonga_ip_blocks);
 		break;
-	case CHIP_BAFFIN:
-	case CHIP_ELLESMERE:
-		adev->ip_blocks = baffin_ip_blocks;
-		adev->num_ip_blocks = ARRAY_SIZE(baffin_ip_blocks);
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		adev->ip_blocks = polaris11_ip_blocks;
+		adev->num_ip_blocks = ARRAY_SIZE(polaris11_ip_blocks);
 		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -1177,12 +1177,12 @@ static int vi_common_early_init(void *handle)
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x5A;
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		adev->cg_flags = 0;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x50;

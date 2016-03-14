@@ -21,14 +21,14 @@
  *
  */
 
-#include "ellesmere_thermal.h"
-#include "ellesmere_hwmgr.h"
-#include "ellesmere_smumgr.h"
-#include "ellesmere_ppsmc.h"
+#include "polaris10_thermal.h"
+#include "polaris10_hwmgr.h"
+#include "polaris10_smumgr.h"
+#include "polaris10_ppsmc.h"
 #include "smu/smu_7_1_3_d.h"
 #include "smu/smu_7_1_3_sh_mask.h"
 
-int ellesmere_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
+int polaris10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 		struct phm_fan_speed_info *fan_speed_info)
 {
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
@@ -54,7 +54,7 @@ int ellesmere_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int ellesmere_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int polaris10_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 		uint32_t *speed)
 {
 	uint32_t duty100;
@@ -83,7 +83,7 @@ int ellesmere_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int ellesmere_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
+int polaris10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 {
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
@@ -112,7 +112,7 @@ int ellesmere_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed
 *           mode    the fan control mode, 0 default, 1 by percent, 5, by RPM
 * @exception Should always succeed.
 */
-int ellesmere_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
+int polaris10_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 {
 
 	if (hwmgr->fan_ctrl_is_in_default_mode) {
@@ -138,7 +138,7 @@ int ellesmere_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr, uint32_t mode)
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @exception Should always succeed.
 */
-int ellesmere_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
+int polaris10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 {
 	if (!hwmgr->fan_ctrl_is_in_default_mode) {
 		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -151,7 +151,7 @@ int ellesmere_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
+int polaris10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
@@ -186,7 +186,7 @@ int ellesmere_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 }
 
 
-int ellesmere_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
+int polaris10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
 	return smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_StopFanControl);
 }
@@ -197,7 +197,7 @@ int ellesmere_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 * @param    speed is the percentage value (0% - 100%) to be set.
 * @exception Fails is the 100% setting appears to be 0.
 */
-int ellesmere_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
+int polaris10_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 		uint32_t speed)
 {
 	uint32_t duty100;
@@ -212,7 +212,7 @@ int ellesmere_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl))
-		ellesmere_fan_ctrl_stop_smc_fan_control(hwmgr);
+		polaris10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	duty100 = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_FDO_CTRL1, FMAX_DUTY100);
@@ -227,7 +227,7 @@ int ellesmere_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_FDO_CTRL0, FDO_STATIC_DUTY, duty);
 
-	return ellesmere_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+	return polaris10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 }
 
 /**
@@ -235,7 +235,7 @@ int ellesmere_fan_ctrl_set_fan_speed_percent(struct pp_hwmgr *hwmgr,
 * @param    hwmgr  the address of the powerplay hardware manager.
 * @exception Always succeeds.
 */
-int ellesmere_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
+int polaris10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
@@ -244,11 +244,11 @@ int ellesmere_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl)) {
-		result = ellesmere_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+		result = polaris10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 		if (!result)
-			result = ellesmere_fan_ctrl_start_smc_fan_control(hwmgr);
+			result = polaris10_fan_ctrl_start_smc_fan_control(hwmgr);
 	} else
-		result = ellesmere_fan_ctrl_set_default_mode(hwmgr);
+		result = polaris10_fan_ctrl_set_default_mode(hwmgr);
 
 	return result;
 }
@@ -259,7 +259,7 @@ int ellesmere_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr)
 * @param    speed is the percentage value (min - max) to be set.
 * @exception Fails is the speed not lie between min and max.
 */
-int ellesmere_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
+int polaris10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 {
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
@@ -273,7 +273,7 @@ int ellesmere_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl))
-		ellesmere_fan_ctrl_stop_smc_fan_control(hwmgr);
+		polaris10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	crystal_clock_freq = tonga_get_xclk(hwmgr);
 
@@ -282,7 +282,7 @@ int ellesmere_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 				CG_TACH_STATUS, TACH_PERIOD, tach_period);
 
-	return ellesmere_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+	return polaris10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 }
 
 /**
@@ -290,7 +290,7 @@ int ellesmere_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 *
 * @param    hwmgr The address of the hardware manager.
 */
-int ellesmere_thermal_get_temperature(struct pp_hwmgr *hwmgr)
+int polaris10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 {
 	int temp;
 
@@ -299,7 +299,7 @@ int ellesmere_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 
 	/* Bit 9 means the reading is lower than the lowest usable value. */
 	if (temp & 0x200)
-		temp = ELLESMERE_THERMAL_MAXIMUM_TEMP_READING;
+		temp = POLARIS10_THERMAL_MAXIMUM_TEMP_READING;
 	else
 		temp = temp & 0x1ff;
 
@@ -315,12 +315,12 @@ int ellesmere_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 * @param    range Temperature range to be programmed for high and low alert signals
 * @exception PP_Result_BadInput if the input data is not valid.
 */
-static int ellesmere_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
+static int polaris10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		uint32_t low_temp, uint32_t high_temp)
 {
-	uint32_t low = ELLESMERE_THERMAL_MINIMUM_ALERT_TEMP *
+	uint32_t low = POLARIS10_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = ELLESMERE_THERMAL_MAXIMUM_ALERT_TEMP *
+	uint32_t high = POLARIS10_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	if (low < low_temp)
@@ -349,7 +349,7 @@ static int ellesmere_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 *
 * @param    hwmgr The address of the hardware manager.
 */
-static int ellesmere_thermal_initialize(struct pp_hwmgr *hwmgr)
+static int polaris10_thermal_initialize(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->thermal_controller.fanInfo.ucTachometerPulsesPerRevolution)
 		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -368,13 +368,13 @@ static int ellesmere_thermal_initialize(struct pp_hwmgr *hwmgr)
 *
 * @param    hwmgr The address of the hardware manager.
 */
-static int ellesmere_thermal_enable_alert(struct pp_hwmgr *hwmgr)
+static int polaris10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
 	uint32_t alert;
 
 	alert = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_THERMAL_INT, THERM_INT_MASK);
-	alert &= ~(ELLESMERE_THERMAL_HIGH_ALERT_MASK | ELLESMERE_THERMAL_LOW_ALERT_MASK);
+	alert &= ~(POLARIS10_THERMAL_HIGH_ALERT_MASK | POLARIS10_THERMAL_LOW_ALERT_MASK);
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_THERMAL_INT, THERM_INT_MASK, alert);
 
@@ -386,13 +386,13 @@ static int ellesmere_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 * Disable thermal alerts on the RV770 thermal controller.
 * @param    hwmgr The address of the hardware manager.
 */
-static int ellesmere_thermal_disable_alert(struct pp_hwmgr *hwmgr)
+static int polaris10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
 	uint32_t alert;
 
 	alert = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_THERMAL_INT, THERM_INT_MASK);
-	alert |= (ELLESMERE_THERMAL_HIGH_ALERT_MASK | ELLESMERE_THERMAL_LOW_ALERT_MASK);
+	alert |= (POLARIS10_THERMAL_HIGH_ALERT_MASK | POLARIS10_THERMAL_LOW_ALERT_MASK);
 	PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 			CG_THERMAL_INT, THERM_INT_MASK, alert);
 
@@ -405,12 +405,12 @@ static int ellesmere_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 * Currently just disables alerts.
 * @param    hwmgr The address of the hardware manager.
 */
-int ellesmere_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
+int polaris10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 {
-	int result = ellesmere_thermal_disable_alert(hwmgr);
+	int result = polaris10_thermal_disable_alert(hwmgr);
 
 	if (!hwmgr->thermal_controller.fanInfo.bNoFan)
-		ellesmere_fan_ctrl_set_default_mode(hwmgr);
+		polaris10_fan_ctrl_set_default_mode(hwmgr);
 
 	return result;
 }
@@ -424,10 +424,10 @@ int ellesmere_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_ellesmere_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
+int tf_polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	SMU74_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
 	uint32_t duty100;
 	uint32_t t_diff1, t_diff2, pwm_diff1, pwm_diff2;
@@ -502,7 +502,7 @@ int tf_ellesmere_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 			hwmgr->device, CGS_IND_REG__SMC,
 			CG_MULT_THERMAL_CTRL, TEMP_SEL);
 
-	res = ellesmere_copy_bytes_to_smc(hwmgr->smumgr, data->fan_table_start,
+	res = polaris10_copy_bytes_to_smc(hwmgr->smumgr, data->fan_table_start,
 			(uint8_t *)&fan_table, (uint32_t)sizeof(fan_table),
 			data->sram_end);
 
@@ -536,7 +536,7 @@ int tf_ellesmere_thermal_setup_fan_table(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_ellesmere_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
+int tf_polaris10_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 /* If the fantable setup has failed we could have disabled
@@ -546,8 +546,8 @@ int tf_ellesmere_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 */
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_MicrocodeFanControl)) {
-		ellesmere_fan_ctrl_start_smc_fan_control(hwmgr);
-		ellesmere_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
+		polaris10_fan_ctrl_start_smc_fan_control(hwmgr);
+		polaris10_fan_ctrl_set_static_mode(hwmgr, FDO_PWM_MODE_STATIC);
 	}
 
 	return 0;
@@ -562,7 +562,7 @@ int tf_ellesmere_thermal_start_smc_fan_control(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from set temperature range routine
 */
-int tf_ellesmere_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
+int tf_polaris10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 	struct PP_TemperatureRange *range = (struct PP_TemperatureRange *)input;
@@ -570,7 +570,7 @@ int tf_ellesmere_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 	if (range == NULL)
 		return -EINVAL;
 
-	return ellesmere_thermal_set_temperature_range(hwmgr, range->min, range->max);
+	return polaris10_thermal_set_temperature_range(hwmgr, range->min, range->max);
 }
 
 /**
@@ -582,10 +582,10 @@ int tf_ellesmere_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from initialize thermal controller routine
 */
-int tf_ellesmere_thermal_initialize(struct pp_hwmgr *hwmgr,
+int tf_polaris10_thermal_initialize(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
-    return ellesmere_thermal_initialize(hwmgr);
+    return polaris10_thermal_initialize(hwmgr);
 }
 
 /**
@@ -597,10 +597,10 @@ int tf_ellesmere_thermal_initialize(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from enable alert routine
 */
-int tf_ellesmere_thermal_enable_alert(struct pp_hwmgr *hwmgr,
+int tf_polaris10_thermal_enable_alert(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
-	return ellesmere_thermal_enable_alert(hwmgr);
+	return polaris10_thermal_enable_alert(hwmgr);
 }
 
 /**
@@ -612,18 +612,18 @@ int tf_ellesmere_thermal_enable_alert(struct pp_hwmgr *hwmgr,
 * @param    Result the last failure code
 * @return   result from disable alert routine
 */
-static int tf_ellesmere_thermal_disable_alert(struct pp_hwmgr *hwmgr,
+static int tf_polaris10_thermal_disable_alert(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
-	return ellesmere_thermal_disable_alert(hwmgr);
+	return polaris10_thermal_disable_alert(hwmgr);
 }
 
-static int tf_ellesmere_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
+static int tf_polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
 		void *input, void *output, void *storage, int result)
 {
 	int ret;
 	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 	if (smu_data->avfs.avfs_btc_status != AVFS_BTC_ENABLEAVFS)
 		return 0;
@@ -639,47 +639,47 @@ static int tf_ellesmere_thermal_avfs_enable(struct pp_hwmgr *hwmgr,
 }
 
 static struct phm_master_table_item
-ellesmere_thermal_start_thermal_controller_master_list[] = {
-	{NULL, tf_ellesmere_thermal_initialize},
-	{NULL, tf_ellesmere_thermal_set_temperature_range},
-	{NULL, tf_ellesmere_thermal_enable_alert},
-	{NULL, tf_ellesmere_thermal_avfs_enable},
+polaris10_thermal_start_thermal_controller_master_list[] = {
+	{NULL, tf_polaris10_thermal_initialize},
+	{NULL, tf_polaris10_thermal_set_temperature_range},
+	{NULL, tf_polaris10_thermal_enable_alert},
+	{NULL, tf_polaris10_thermal_avfs_enable},
 /* We should restrict performance levels to low before we halt the SMC.
  * On the other hand we are still in boot state when we do this
  * so it would be pointless.
  * If this assumption changes we have to revisit this table.
  */
-	{NULL, tf_ellesmere_thermal_setup_fan_table},
-	{NULL, tf_ellesmere_thermal_start_smc_fan_control},
+	{NULL, tf_polaris10_thermal_setup_fan_table},
+	{NULL, tf_polaris10_thermal_start_smc_fan_control},
 	{NULL, NULL}
 };
 
 static struct phm_master_table_header
-ellesmere_thermal_start_thermal_controller_master = {
+polaris10_thermal_start_thermal_controller_master = {
 	0,
 	PHM_MasterTableFlag_None,
-	ellesmere_thermal_start_thermal_controller_master_list
+	polaris10_thermal_start_thermal_controller_master_list
 };
 
 static struct phm_master_table_item
-ellesmere_thermal_set_temperature_range_master_list[] = {
-	{NULL, tf_ellesmere_thermal_disable_alert},
-	{NULL, tf_ellesmere_thermal_set_temperature_range},
-	{NULL, tf_ellesmere_thermal_enable_alert},
+polaris10_thermal_set_temperature_range_master_list[] = {
+	{NULL, tf_polaris10_thermal_disable_alert},
+	{NULL, tf_polaris10_thermal_set_temperature_range},
+	{NULL, tf_polaris10_thermal_enable_alert},
 	{NULL, NULL}
 };
 
 struct phm_master_table_header
-ellesmere_thermal_set_temperature_range_master = {
+polaris10_thermal_set_temperature_range_master = {
 	0,
 	PHM_MasterTableFlag_None,
-	ellesmere_thermal_set_temperature_range_master_list
+	polaris10_thermal_set_temperature_range_master_list
 };
 
-int ellesmere_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
+int polaris10_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	if (!hwmgr->thermal_controller.fanInfo.bNoFan)
-		ellesmere_fan_ctrl_set_default_mode(hwmgr);
+		polaris10_fan_ctrl_set_default_mode(hwmgr);
 	return 0;
 }
 
@@ -688,17 +688,17 @@ int ellesmere_thermal_ctrl_uninitialize_thermal_controller(struct pp_hwmgr *hwmg
 * @param    hwmgr The address of the hardware manager.
 * @exception Any error code from the low-level communication.
 */
-int pp_ellesmere_thermal_initialize(struct pp_hwmgr *hwmgr)
+int pp_polaris10_thermal_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result;
 
 	result = phm_construct_table(hwmgr,
-			&ellesmere_thermal_set_temperature_range_master,
+			&polaris10_thermal_set_temperature_range_master,
 			&(hwmgr->set_temperature_range));
 
 	if (!result) {
 		result = phm_construct_table(hwmgr,
-				&ellesmere_thermal_start_thermal_controller_master,
+				&polaris10_thermal_start_thermal_controller_master,
 				&(hwmgr->start_thermal_controller));
 		if (result)
 			phm_destroy_table(hwmgr, &(hwmgr->set_temperature_range));

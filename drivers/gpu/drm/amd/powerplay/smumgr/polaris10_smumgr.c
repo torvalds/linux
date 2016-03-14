@@ -24,7 +24,7 @@
 #include "smumgr.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"
-#include "ellesmere_smumgr.h"
+#include "polaris10_smumgr.h"
 #include "smu74_discrete.h"
 #include "smu/smu_7_1_3_d.h"
 #include "smu/smu_7_1_3_sh_mask.h"
@@ -34,12 +34,12 @@
 #include "gca/gfx_8_0_d.h"
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
-#include "ellesmere_pwrvirus.h"
+#include "polaris10_pwrvirus.h"
 #include "ppatomctrl.h"
 #include "pp_debug.h"
 #include "cgs_common.h"
 
-#define ELLESMERE_SMC_SIZE 0x20000
+#define POLARIS10_SMC_SIZE 0x20000
 #define VOLTAGE_SCALE 4
 
 /* Microcode file is stored in this buffer */
@@ -49,7 +49,7 @@
 
 #define SMC_RAM_END 0x40000
 
-SMU74_Discrete_GraphicsLevel avfs_graphics_level_ellesmere[8] = {
+SMU74_Discrete_GraphicsLevel avfs_graphics_level_polaris10[8] = {
 	/*  Min      pcie   DeepSleep Activity  CgSpll      CgSpll    CcPwr  CcPwr  Sclk         Enabled      Enabled                       Voltage    Power */
 	/* Voltage, DpmLevel, DivId,  Level,  FuncCntl3,  FuncCntl4,  DynRm, DynRm1 Did, Padding,ForActivity, ForThrottle, UpHyst, DownHyst, DownHyst, Throttle */
 	{ 0x3c0fd047, 0x00, 0x03, 0x1e00, 0x00200410, 0x87020000, 0, 0, 0x16, 0, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, { 0x30750000, 0, 0, 0, 0, 0, 0, 0 } },
@@ -62,7 +62,7 @@ SMU74_Discrete_GraphicsLevel avfs_graphics_level_ellesmere[8] = {
 	{ 0xf811d047, 0x01, 0x00, 0x1e00, 0x00000610, 0x87020000, 0, 0, 0x0c, 0, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, { 0x80380100, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
-SMU74_Discrete_MemoryLevel avfs_memory_level_ellesmere = {0x50140000, 0x50140000, 0x00320000, 0x00, 0x00,
+SMU74_Discrete_MemoryLevel avfs_memory_level_polaris10 = {0x50140000, 0x50140000, 0x00320000, 0x00, 0x00,
 							0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x0000, 0x00, 0x00};
 
 /**
@@ -70,7 +70,7 @@ SMU74_Discrete_MemoryLevel avfs_memory_level_ellesmere = {0x50140000, 0x50140000
 * @param    smumgr  the address of the powerplay hardware manager.
 * @param    smcAddress the address in the SMC RAM to access.
 */
-static int ellesmere_set_smc_sram_address(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t limit)
+static int polaris10_set_smc_sram_address(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t limit)
 {
 	PP_ASSERT_WITH_CODE((0 == (3 & smc_addr)), "SMC address must be 4 byte aligned.", return -EINVAL);
 	PP_ASSERT_WITH_CODE((limit > (smc_addr + 3)), "SMC addr is beyond the SMC RAM area.", return -EINVAL);
@@ -89,7 +89,7 @@ static int ellesmere_set_smc_sram_address(struct pp_smumgr *smumgr, uint32_t smc
 * @param    src the byte array to copy the bytes to.
 * @param    byte_count the number of bytes to copy.
 */
-int ellesmere_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address, uint32_t *dest, uint32_t byte_count, uint32_t limit)
+int polaris10_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address, uint32_t *dest, uint32_t byte_count, uint32_t limit)
 {
 	uint32_t data;
 	uint32_t addr;
@@ -103,7 +103,7 @@ int ellesmere_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_a
 	addr = smc_start_address;
 
 	while (byte_count >= 4) {
-		ellesmere_read_smc_sram_dword(smumgr, addr, &data, limit);
+		polaris10_read_smc_sram_dword(smumgr, addr, &data, limit);
 
 		*dest = PP_SMC_TO_HOST_UL(data);
 
@@ -113,7 +113,7 @@ int ellesmere_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_a
 	}
 
 	if (byte_count) {
-		ellesmere_read_smc_sram_dword(smumgr, addr, &data, limit);
+		polaris10_read_smc_sram_dword(smumgr, addr, &data, limit);
 		*pdata = PP_SMC_TO_HOST_UL(data);
 	/* Cast dest into byte type in dest_byte.  This way, we don't overflow if the allocated memory is not 4-byte aligned. */
 		dest_byte = (uint8_t *)dest;
@@ -132,7 +132,7 @@ int ellesmere_copy_bytes_from_smc(struct pp_smumgr *smumgr, uint32_t smc_start_a
 * @param    src the byte array to copy the bytes from.
 * @param    byte_count the number of bytes to copy.
 */
-int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
+int polaris10_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_address,
 				const uint8_t *src, uint32_t byte_count, uint32_t limit)
 {
 	int result;
@@ -150,7 +150,7 @@ int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 	/* Bytes are written into the SMC addres space with the MSB first. */
 		data = src[0] * 0x1000000 + src[1] * 0x10000 + src[2] * 0x100 + src[3];
 
-		result = ellesmere_set_smc_sram_address(smumgr, addr, limit);
+		result = polaris10_set_smc_sram_address(smumgr, addr, limit);
 
 		if (0 != result)
 			return result;
@@ -166,7 +166,7 @@ int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 
 		data = 0;
 
-		result = ellesmere_set_smc_sram_address(smumgr, addr, limit);
+		result = polaris10_set_smc_sram_address(smumgr, addr, limit);
 
 		if (0 != result)
 			return result;
@@ -186,7 +186,7 @@ int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 
 		data |= (original_data & ~((~0UL) << extra_shift));
 
-		result = ellesmere_set_smc_sram_address(smumgr, addr, limit);
+		result = polaris10_set_smc_sram_address(smumgr, addr, limit);
 
 		if (0 != result)
 			return result;
@@ -198,11 +198,11 @@ int ellesmere_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smc_start_add
 }
 
 
-static int ellesmere_program_jump_on_start(struct pp_smumgr *smumgr)
+static int polaris10_program_jump_on_start(struct pp_smumgr *smumgr)
 {
 	static unsigned char data[4] = { 0xE0, 0x00, 0x80, 0x40 };
 
-	ellesmere_copy_bytes_to_smc(smumgr, 0x0, data, 4, sizeof(data)+1);
+	polaris10_copy_bytes_to_smc(smumgr, 0x0, data, 4, sizeof(data)+1);
 
 	return 0;
 }
@@ -212,7 +212,7 @@ static int ellesmere_program_jump_on_start(struct pp_smumgr *smumgr)
 *
 * @param    smumgr  the address of the powerplay hardware manager.
 */
-bool ellesmere_is_smc_ram_running(struct pp_smumgr *smumgr)
+bool polaris10_is_smc_ram_running(struct pp_smumgr *smumgr)
 {
 	return ((0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMC_SYSCON_CLOCK_CNTL_0, ck_disable))
 	&& (0x20100 <= cgs_read_ind_register(smumgr->device, CGS_IND_REG__SMC, ixSMC_PC_C)));
@@ -225,9 +225,9 @@ bool ellesmere_is_smc_ram_running(struct pp_smumgr *smumgr)
 * @param    msg the message to send.
 * @return   The response that came from the SMC.
 */
-int ellesmere_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
+int polaris10_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 {
-	if (!ellesmere_is_smc_ram_running(smumgr))
+	if (!polaris10_is_smc_ram_running(smumgr))
 		return -1;
 
 	SMUM_WAIT_FIELD_UNEQUAL(smumgr, SMC_RESP_0, SMC_RESP, 0);
@@ -254,7 +254,7 @@ int ellesmere_send_msg_to_smc(struct pp_smumgr *smumgr, uint16_t msg)
 * @param    msg the message to send.
 * @return   Always return 0.
 */
-int ellesmere_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr, uint16_t msg)
+int polaris10_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr, uint16_t msg)
 {
 	cgs_write_register(smumgr->device, mmSMC_MESSAGE_0, msg);
 
@@ -269,9 +269,9 @@ int ellesmere_send_msg_to_smc_without_waiting(struct pp_smumgr *smumgr, uint16_t
 * @param    parameter: the parameter to send
 * @return   The response that came from the SMC.
 */
-int ellesmere_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr, uint16_t msg, uint32_t parameter)
+int polaris10_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr, uint16_t msg, uint32_t parameter)
 {
-	if (!ellesmere_is_smc_ram_running(smumgr)) {
+	if (!polaris10_is_smc_ram_running(smumgr)) {
 		return -1;
 	}
 
@@ -279,7 +279,7 @@ int ellesmere_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr, uint16_t 
 
 	cgs_write_register(smumgr->device, mmSMC_MSG_ARG_0, parameter);
 
-	return ellesmere_send_msg_to_smc(smumgr, msg);
+	return polaris10_send_msg_to_smc(smumgr, msg);
 }
 
 
@@ -291,14 +291,14 @@ int ellesmere_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr, uint16_t 
 * @param    parameter: the parameter to send
 * @return   The response that came from the SMC.
 */
-int ellesmere_send_msg_to_smc_with_parameter_without_waiting(struct pp_smumgr *smumgr, uint16_t msg, uint32_t parameter)
+int polaris10_send_msg_to_smc_with_parameter_without_waiting(struct pp_smumgr *smumgr, uint16_t msg, uint32_t parameter)
 {
 	cgs_write_register(smumgr->device, mmSMC_MSG_ARG_0, parameter);
 
-	return ellesmere_send_msg_to_smc_without_waiting(smumgr, msg);
+	return polaris10_send_msg_to_smc_without_waiting(smumgr, msg);
 }
 
-int ellesmere_send_msg_to_smc_offset(struct pp_smumgr *smumgr)
+int polaris10_send_msg_to_smc_offset(struct pp_smumgr *smumgr)
 {
 	cgs_write_register(smumgr->device, mmSMC_MSG_ARG_0, 0x20000);
 
@@ -319,10 +319,10 @@ int ellesmere_send_msg_to_smc_offset(struct pp_smumgr *smumgr)
 * @param    msg the message to send.
 * @return   The response that came from the SMC.
 */
-int ellesmere_wait_for_smc_inactive(struct pp_smumgr *smumgr)
+int polaris10_wait_for_smc_inactive(struct pp_smumgr *smumgr)
 {
 	/* If the SMC is not even on it qualifies as inactive. */
-	if (!ellesmere_is_smc_ram_running(smumgr))
+	if (!polaris10_is_smc_ram_running(smumgr))
 		return -1;
 
 	SMUM_WAIT_VFPF_INDIRECT_FIELD(smumgr, SMC_IND, SMC_SYSCON_CLOCK_CNTL_0, cken, 0);
@@ -336,7 +336,7 @@ int ellesmere_wait_for_smc_inactive(struct pp_smumgr *smumgr)
 * @param    smumgr  the address of the powerplay hardware manager.
 * @param    pFirmware the data structure containing the various sections of the firmware.
 */
-static int ellesmere_upload_smc_firmware_data(struct pp_smumgr *smumgr, uint32_t length, uint32_t *src, uint32_t limit)
+static int polaris10_upload_smc_firmware_data(struct pp_smumgr *smumgr, uint32_t length, uint32_t *src, uint32_t limit)
 {
 	uint32_t byte_count = length;
 
@@ -355,7 +355,7 @@ static int ellesmere_upload_smc_firmware_data(struct pp_smumgr *smumgr, uint32_t
 	return 0;
 }
 
-static enum cgs_ucode_id ellesmere_convert_fw_type_to_cgs(uint32_t fw_type)
+static enum cgs_ucode_id polaris10_convert_fw_type_to_cgs(uint32_t fw_type)
 {
 	enum cgs_ucode_id result = CGS_UCODE_ID_MAXIMUM;
 
@@ -400,22 +400,22 @@ static enum cgs_ucode_id ellesmere_convert_fw_type_to_cgs(uint32_t fw_type)
 	return result;
 }
 
-static int ellesmere_upload_smu_firmware_image(struct pp_smumgr *smumgr)
+static int polaris10_upload_smu_firmware_image(struct pp_smumgr *smumgr)
 {
 	int result = 0;
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 	struct cgs_firmware_info info = {0};
 
 	if (smu_data->security_hard_key == 1)
 		cgs_get_firmware_info(smumgr->device,
-			ellesmere_convert_fw_type_to_cgs(UCODE_ID_SMU), &info);
+			polaris10_convert_fw_type_to_cgs(UCODE_ID_SMU), &info);
 	else
 		cgs_get_firmware_info(smumgr->device,
-			ellesmere_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
+			polaris10_convert_fw_type_to_cgs(UCODE_ID_SMU_SK), &info);
 
 	/* TO DO cgs_init_samu_load_smu(smumgr->device, (uint32_t *)info.kptr, info.image_size, smu_data->post_initial_boot);*/
-	result = ellesmere_upload_smc_firmware_data(smumgr, info.image_size, (uint32_t *)info.kptr, ELLESMERE_SMC_SIZE);
+	result = polaris10_upload_smc_firmware_data(smumgr, info.image_size, (uint32_t *)info.kptr, POLARIS10_SMC_SIZE);
 
 	return result;
 }
@@ -427,11 +427,11 @@ static int ellesmere_upload_smu_firmware_image(struct pp_smumgr *smumgr)
 * @param    smcAddress the address in the SMC RAM to access.
 * @param    value and output parameter for the data read from the SMC SRAM.
 */
-int ellesmere_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t *value, uint32_t limit)
+int polaris10_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t *value, uint32_t limit)
 {
 	int result;
 
-	result = ellesmere_set_smc_sram_address(smumgr, smc_addr, limit);
+	result = polaris10_set_smc_sram_address(smumgr, smc_addr, limit);
 
 	if (result)
 		return result;
@@ -447,11 +447,11 @@ int ellesmere_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, u
 * @param    smc_addr the address in the SMC RAM to access.
 * @param    value to write to the SMC SRAM.
 */
-int ellesmere_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t value, uint32_t limit)
+int polaris10_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, uint32_t value, uint32_t limit)
 {
 	int result;
 
-	result = ellesmere_set_smc_sram_address(smumgr, smc_addr, limit);
+	result = polaris10_set_smc_sram_address(smumgr, smc_addr, limit);
 
 	if (result)
 		return result;
@@ -462,7 +462,7 @@ int ellesmere_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr, 
 }
 
 
-int ellesmere_smu_fini(struct pp_smumgr *smumgr)
+int polaris10_smu_fini(struct pp_smumgr *smumgr)
 {
 	if (smumgr->backend) {
 		kfree(smumgr->backend);
@@ -472,7 +472,7 @@ int ellesmere_smu_fini(struct pp_smumgr *smumgr)
 }
 
 /* Convert the firmware type to SMU type mask. For MEC, we need to check all MEC related type */
-static uint32_t ellesmere_get_mask_for_firmware_type(uint32_t fw_type)
+static uint32_t polaris10_get_mask_for_firmware_type(uint32_t fw_type)
 {
 	uint32_t result = 0;
 
@@ -509,7 +509,7 @@ static uint32_t ellesmere_get_mask_for_firmware_type(uint32_t fw_type)
 
 /* Populate one firmware image to the data structure */
 
-static int ellesmere_populate_single_firmware_entry(struct pp_smumgr *smumgr,
+static int polaris10_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 						uint32_t fw_type,
 						struct SMU_Entry *entry)
 {
@@ -517,7 +517,7 @@ static int ellesmere_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 	struct cgs_firmware_info info = {0};
 
 	result = cgs_get_firmware_info(smumgr->device,
-				ellesmere_convert_fw_type_to_cgs(fw_type),
+				polaris10_convert_fw_type_to_cgs(fw_type),
 				&info);
 
 	if (!result) {
@@ -539,9 +539,9 @@ static int ellesmere_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 	return 0;
 }
 
-static int ellesmere_request_smu_load_fw(struct pp_smumgr *smumgr)
+static int polaris10_request_smu_load_fw(struct pp_smumgr *smumgr)
 {
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 	uint32_t fw_to_load;
 
 	int result = 0;
@@ -557,25 +557,25 @@ static int ellesmere_request_smu_load_fw(struct pp_smumgr *smumgr)
 					smu_data->soft_regs_start + offsetof(SMU74_SoftRegisters, UcodeLoadStatus),
 					0x0);
 
-	ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_HI, smu_data->smu_buffer.mc_addr_high);
-	ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_LO, smu_data->smu_buffer.mc_addr_low);
+	polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_HI, smu_data->smu_buffer.mc_addr_high);
+	polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_LO, smu_data->smu_buffer.mc_addr_low);
 
 	toc = (struct SMU_DRAMData_TOC *)smu_data->header;
 	toc->num_entries = 0;
 	toc->structure_version = 1;
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_RLC_G, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_CE, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_PFP, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_ME, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC_JT1, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC_JT2, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_SDMA0, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
-	PP_ASSERT_WITH_CODE(0 == ellesmere_populate_single_firmware_entry(smumgr, UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_RLC_G, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_CE, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_PFP, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_ME, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC_JT1, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_CP_MEC_JT2, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_SDMA0, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
+	PP_ASSERT_WITH_CODE(0 == polaris10_populate_single_firmware_entry(smumgr, UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]), "Failed to Get Firmware Entry.", return -1);
 
-	ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_data->header_buffer.mc_addr_high);
-	ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, smu_data->header_buffer.mc_addr_low);
+	polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_data->header_buffer.mc_addr_high);
+	polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, smu_data->header_buffer.mc_addr_low);
 
 	fw_to_load = UCODE_ID_RLC_G_MASK
 		   + UCODE_ID_SDMA0_MASK
@@ -585,17 +585,17 @@ static int ellesmere_request_smu_load_fw(struct pp_smumgr *smumgr)
 		   + UCODE_ID_CP_PFP_MASK
 		   + UCODE_ID_CP_MEC_MASK;
 
-	if (ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_LoadUcodes, fw_to_load))
+	if (polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_LoadUcodes, fw_to_load))
 		printk(KERN_ERR "Fail to Request SMU Load uCode");
 
 	return result;
 }
 
 /* Check if the FW has been loaded, SMU will not return if loading has not finished. */
-static int ellesmere_check_fw_load_finish(struct pp_smumgr *smumgr, uint32_t fw_type)
+static int polaris10_check_fw_load_finish(struct pp_smumgr *smumgr, uint32_t fw_type)
 {
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
-	uint32_t fw_mask = ellesmere_get_mask_for_firmware_type(fw_type);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	uint32_t fw_mask = polaris10_get_mask_for_firmware_type(fw_type);
 	uint32_t ret;
 	/* Check SOFT_REGISTERS_TABLE_28.UcodeLoadStatus */
 	ret = smum_wait_on_indirect_register(smumgr, mmSMC_IND_INDEX_11,
@@ -605,19 +605,19 @@ static int ellesmere_check_fw_load_finish(struct pp_smumgr *smumgr, uint32_t fw_
 	return ret;
 }
 
-static int ellesmere_reload_firmware(struct pp_smumgr *smumgr)
+static int polaris10_reload_firmware(struct pp_smumgr *smumgr)
 {
 	return smumgr->smumgr_funcs->start_smu(smumgr);
 }
 
-static int ellesmere_setup_pwr_virus(struct pp_smumgr *smumgr)
+static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 {
 	int i;
 	int result = -1;
 	uint32_t reg, data;
 
 	PWR_Command_Table *pvirus = pwr_virus_table;
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 
 	for (i = 0; i < PWR_VIRUS_TABLE_SIZE; i++) {
@@ -644,14 +644,14 @@ static int ellesmere_setup_pwr_virus(struct pp_smumgr *smumgr)
 	return result;
 }
 
-static int ellesmere_perform_btc(struct pp_smumgr *smumgr)
+static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 {
 	int result = 0;
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
-		if (0 != ellesmere_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
-			printk("[AVFS][SmuEllesmere_PerformBtc] PerformBTC SMU msg failed");
+		if (0 != polaris10_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
+			printk("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
 	}
@@ -667,7 +667,7 @@ static int ellesmere_perform_btc(struct pp_smumgr *smumgr)
 }
 
 
-int ellesmere_setup_graphics_level_structure(struct pp_smumgr *smumgr)
+int polaris10_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 {
 	uint32_t vr_config;
 	uint32_t dpm_table_start;
@@ -675,13 +675,13 @@ int ellesmere_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 	uint16_t u16_boot_mvdd;
 	uint32_t graphics_level_address, vr_config_address, graphics_level_size;
 
-	graphics_level_size = sizeof(avfs_graphics_level_ellesmere);
+	graphics_level_size = sizeof(avfs_graphics_level_polaris10);
 	u16_boot_mvdd = PP_HOST_TO_SMC_US(1300 * VOLTAGE_SCALE);
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_read_smc_sram_dword(smumgr,
+	PP_ASSERT_WITH_CODE(0 == polaris10_read_smc_sram_dword(smumgr,
 				SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, DpmTable),
 				&dpm_table_start, 0x40000),
-			"[AVFS][Ellesmere_SetupGfxLvlStruct] SMU could not communicate starting address of DPM table",
+			"[AVFS][Polaris10_SetupGfxLvlStruct] SMU could not communicate starting address of DPM table",
 			return -1);
 
 	/*  Default value for VRConfig = VR_MERGED_WITH_VDDC + VR_STATIC_VOLTAGE(VDDCI) */
@@ -689,41 +689,41 @@ int ellesmere_setup_graphics_level_structure(struct pp_smumgr *smumgr)
 
 	vr_config_address = dpm_table_start + offsetof(SMU74_Discrete_DpmTable, VRConfig);
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_copy_bytes_to_smc(smumgr, vr_config_address,
+	PP_ASSERT_WITH_CODE(0 == polaris10_copy_bytes_to_smc(smumgr, vr_config_address,
 				(uint8_t *)&vr_config, sizeof(uint32_t), 0x40000),
-			"[AVFS][Ellesmere_SetupGfxLvlStruct] Problems copying VRConfig value over to SMC",
+			"[AVFS][Polaris10_SetupGfxLvlStruct] Problems copying VRConfig value over to SMC",
 			return -1);
 
 	graphics_level_address = dpm_table_start + offsetof(SMU74_Discrete_DpmTable, GraphicsLevel);
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_copy_bytes_to_smc(smumgr, graphics_level_address,
-				(uint8_t *)(&avfs_graphics_level_ellesmere),
+	PP_ASSERT_WITH_CODE(0 == polaris10_copy_bytes_to_smc(smumgr, graphics_level_address,
+				(uint8_t *)(&avfs_graphics_level_polaris10),
 				graphics_level_size, 0x40000),
-			"[AVFS][Ellesmere_SetupGfxLvlStruct] Copying of SCLK DPM table failed!",
+			"[AVFS][Polaris10_SetupGfxLvlStruct] Copying of SCLK DPM table failed!",
 			return -1);
 
 	graphics_level_address = dpm_table_start + offsetof(SMU74_Discrete_DpmTable, MemoryLevel);
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_copy_bytes_to_smc(smumgr, graphics_level_address,
-				(uint8_t *)(&avfs_memory_level_ellesmere), sizeof(avfs_memory_level_ellesmere), 0x40000),
-				"[AVFS][Ellesmere_SetupGfxLvlStruct] Copying of MCLK DPM table failed!",
+	PP_ASSERT_WITH_CODE(0 == polaris10_copy_bytes_to_smc(smumgr, graphics_level_address,
+				(uint8_t *)(&avfs_memory_level_polaris10), sizeof(avfs_memory_level_polaris10), 0x40000),
+				"[AVFS][Polaris10_SetupGfxLvlStruct] Copying of MCLK DPM table failed!",
 			return -1);
 
 	/* MVDD Boot value - neccessary for getting rid of the hang that occurs during Mclk DPM enablement */
 
 	graphics_level_address = dpm_table_start + offsetof(SMU74_Discrete_DpmTable, BootMVdd);
 
-	PP_ASSERT_WITH_CODE(0 == ellesmere_copy_bytes_to_smc(smumgr, graphics_level_address,
+	PP_ASSERT_WITH_CODE(0 == polaris10_copy_bytes_to_smc(smumgr, graphics_level_address,
 			(uint8_t *)(&u16_boot_mvdd), sizeof(u16_boot_mvdd), 0x40000),
-			"[AVFS][Ellesmere_SetupGfxLvlStruct] Copying of DPM table failed!",
+			"[AVFS][Polaris10_SetupGfxLvlStruct] Copying of DPM table failed!",
 			return -1);
 
 	return 0;
 }
 
-int ellesmere_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
+int polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 {
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 
 	switch (smu_data->avfs.avfs_btc_status) {
 	case AVFS_BTC_COMPLETED_PREVIOUSLY:
@@ -732,21 +732,21 @@ int ellesmere_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 	case AVFS_BTC_BOOT: /* Cold Boot State - Post SMU Start */
 
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_DPMTABLESETUP_FAILED;
-		PP_ASSERT_WITH_CODE(0 == ellesmere_setup_graphics_level_structure(smumgr),
-		"[AVFS][Ellesmere_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
+		PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(smumgr),
+		"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
 		return -1);
 
 		if (smu_data->avfs.avfs_btc_param > 1) {
-			printk("[AVFS][Ellesmere_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+			printk("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			PP_ASSERT_WITH_CODE(-1 == ellesmere_setup_pwr_virus(smumgr),
-			"[AVFS][Ellesmere_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
+			PP_ASSERT_WITH_CODE(-1 == polaris10_setup_pwr_virus(smumgr),
+			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
 			return -1);
 		}
 
 		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
-		PP_ASSERT_WITH_CODE(0 == ellesmere_perform_btc(smumgr),
-					"[AVFS][Ellesmere_AVFSEventMgr] Failure at SmuEllesmere_PerformBTC. AVFS Disabled",
+		PP_ASSERT_WITH_CODE(0 == polaris10_perform_btc(smumgr),
+					"[AVFS][Polaris10_AVFSEventMgr] Failure at SmuPolaris10_PerformBTC. AVFS Disabled",
 				 return -1);
 
 		break;
@@ -763,7 +763,7 @@ int ellesmere_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 	return 0;
 }
 
-static int ellesmere_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
+static int polaris10_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
 {
 	int result = 0;
 
@@ -774,7 +774,7 @@ static int ellesmere_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_RESET_CNTL, rst_reg, 1);
 
-	result = ellesmere_upload_smu_firmware_image(smumgr);
+	result = polaris10_upload_smu_firmware_image(smumgr);
 	if (result != 0)
 		return result;
 
@@ -793,7 +793,7 @@ static int ellesmere_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
 
 
 	/* Call Test SMU message with 0x20000 offset to trigger SMU start */
-	ellesmere_send_msg_to_smc_offset(smumgr);
+	polaris10_send_msg_to_smc_offset(smumgr);
 
 	/* Wait done bit to be set */
 	/* Check pass/failed indicator */
@@ -818,7 +818,7 @@ static int ellesmere_start_smu_in_protection_mode(struct pp_smumgr *smumgr)
 	return result;
 }
 
-static int ellesmere_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
+static int polaris10_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
 {
 	int result = 0;
 
@@ -834,12 +834,12 @@ static int ellesmere_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
 					SMC_SYSCON_RESET_CNTL,
 					rst_reg, 1);
 
-	result = ellesmere_upload_smu_firmware_image(smumgr);
+	result = polaris10_upload_smu_firmware_image(smumgr);
 	if (result != 0)
 		return result;
 
 	/* Set smc instruct start point at 0x0 */
-	ellesmere_program_jump_on_start(smumgr);
+	polaris10_program_jump_on_start(smumgr);
 
 	SMUM_WRITE_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMC_SYSCON_CLOCK_CNTL_0, ck_disable, 0);
@@ -855,56 +855,56 @@ static int ellesmere_start_smu_in_non_protection_mode(struct pp_smumgr *smumgr)
 	return result;
 }
 
-static int ellesmere_start_smu(struct pp_smumgr *smumgr)
+static int polaris10_start_smu(struct pp_smumgr *smumgr)
 {
 	int result = 0;
-	struct ellesmere_smumgr *smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 	bool SMU_VFT_INTACT;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!ellesmere_is_smc_ram_running(smumgr)) {
+	if (!polaris10_is_smc_ram_running(smumgr)) {
 		SMU_VFT_INTACT = false;
 		smu_data->protected_mode = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->security_hard_key = (uint8_t) (SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
 		if (smu_data->protected_mode == 0) {
-			result = ellesmere_start_smu_in_non_protection_mode(smumgr);
+			result = polaris10_start_smu_in_non_protection_mode(smumgr);
 		} else {
-			result = ellesmere_start_smu_in_protection_mode(smumgr);
+			result = polaris10_start_smu_in_protection_mode(smumgr);
 
 			/* If failed, try with different security Key. */
 			if (result != 0) {
 				smu_data->security_hard_key ^= 1;
-				result = ellesmere_start_smu_in_protection_mode(smumgr);
+				result = polaris10_start_smu_in_protection_mode(smumgr);
 			}
 		}
 
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
 
-		ellesmere_avfs_event_mgr(smumgr, true);
+		polaris10_avfs_event_mgr(smumgr, true);
 	} else
 		SMU_VFT_INTACT = true; /*Driver went offline but SMU was still alive and contains the VFT table */
 
 	smu_data->post_initial_boot = true;
-	ellesmere_avfs_event_mgr(smumgr, SMU_VFT_INTACT);
+	polaris10_avfs_event_mgr(smumgr, SMU_VFT_INTACT);
 	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is not executed */
-	ellesmere_read_smc_sram_dword(smumgr, SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, SoftRegisters),
+	polaris10_read_smc_sram_dword(smumgr, SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, SoftRegisters),
 					&(smu_data->soft_regs_start), 0x40000);
 
-	result = ellesmere_request_smu_load_fw(smumgr);
+	result = polaris10_request_smu_load_fw(smumgr);
 
 	return result;
 }
 
-static int ellesmere_smu_init(struct pp_smumgr *smumgr)
+static int polaris10_smu_init(struct pp_smumgr *smumgr)
 {
-	struct ellesmere_smumgr *smu_data;
+	struct polaris10_smumgr *smu_data;
 	uint8_t *internal_buf;
 	uint64_t mc_addr = 0;
 	/* Allocate memory for backend private data */
-	smu_data = (struct ellesmere_smumgr *)(smumgr->backend);
+	smu_data = (struct polaris10_smumgr *)(smumgr->backend);
 	smu_data->header_buffer.data_size =
 		((sizeof(struct SMU_DRAMData_TOC) / 4096) + 1) * 4096;
 	smu_data->smu_buffer.data_size = 200*4096;
@@ -955,28 +955,28 @@ static int ellesmere_smu_init(struct pp_smumgr *smumgr)
 }
 
 static const struct pp_smumgr_func ellsemere_smu_funcs = {
-	.smu_init = ellesmere_smu_init,
-	.smu_fini = ellesmere_smu_fini,
-	.start_smu = ellesmere_start_smu,
-	.check_fw_load_finish = ellesmere_check_fw_load_finish,
-	.request_smu_load_fw = ellesmere_reload_firmware,
+	.smu_init = polaris10_smu_init,
+	.smu_fini = polaris10_smu_fini,
+	.start_smu = polaris10_start_smu,
+	.check_fw_load_finish = polaris10_check_fw_load_finish,
+	.request_smu_load_fw = polaris10_reload_firmware,
 	.request_smu_load_specific_fw = NULL,
-	.send_msg_to_smc = ellesmere_send_msg_to_smc,
-	.send_msg_to_smc_with_parameter = ellesmere_send_msg_to_smc_with_parameter,
+	.send_msg_to_smc = polaris10_send_msg_to_smc,
+	.send_msg_to_smc_with_parameter = polaris10_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 };
 
-int ellesmere_smum_init(struct pp_smumgr *smumgr)
+int polaris10_smum_init(struct pp_smumgr *smumgr)
 {
-	struct ellesmere_smumgr *ellesmere_smu = NULL;
+	struct polaris10_smumgr *polaris10_smu = NULL;
 
-	ellesmere_smu = kzalloc(sizeof(struct ellesmere_smumgr), GFP_KERNEL);
+	polaris10_smu = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
 
-	if (ellesmere_smu == NULL)
+	if (polaris10_smu == NULL)
 		return -1;
 
-	smumgr->backend = ellesmere_smu;
+	smumgr->backend = polaris10_smu;
 	smumgr->smumgr_funcs = &ellsemere_smu_funcs;
 
 	return 0;

@@ -23,16 +23,16 @@
 
 #include "hwmgr.h"
 #include "smumgr.h"
-#include "ellesmere_hwmgr.h"
-#include "ellesmere_powertune.h"
-#include "ellesmere_smumgr.h"
+#include "polaris10_hwmgr.h"
+#include "polaris10_powertune.h"
+#include "polaris10_smumgr.h"
 #include "smu74_discrete.h"
 #include "pp_debug.h"
 
 #define VOLTAGE_SCALE  4
 #define POWERTUNE_DEFAULT_SET_MAX    1
 
-struct ellesmere_pt_defaults ellesmere_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
+struct polaris10_pt_defaults polaris10_power_tune_data_set_array[POWERTUNE_DEFAULT_SET_MAX] = {
 	/* sviLoadLIneEn, SviLoadLineVddC, TDC_VDDC_ThrottleReleaseLimitPerc, TDC_MAWt,
 	 * TdcWaterfallCtl, DTEAmbientTempBase, DisplayCac, BAPM_TEMP_GRADIENT */
 	{ 1, 0xF, 0xFD, 0x19, 5, 45, 0, 0xB0000,
@@ -40,27 +40,27 @@ struct ellesmere_pt_defaults ellesmere_power_tune_data_set_array[POWERTUNE_DEFAU
 	{ 0x17C, 0x172, 0x180, 0x1BC, 0x1B3, 0x1BD, 0x206, 0x200, 0x203, 0x25D, 0x25A, 0x255, 0x2C3, 0x2C5, 0x2B4 } },
 };
 
-void ellesmere_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
+void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *ellesmere_hwmgr = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *polaris10_hwmgr = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct  phm_ppt_v1_information *table_info =
 			(struct  phm_ppt_v1_information *)(hwmgr->pptable);
 
 	if (table_info &&
 			table_info->cac_dtp_table->usPowerTuneDataSetID <= POWERTUNE_DEFAULT_SET_MAX &&
 			table_info->cac_dtp_table->usPowerTuneDataSetID)
-		ellesmere_hwmgr->power_tune_defaults =
-				&ellesmere_power_tune_data_set_array
+		polaris10_hwmgr->power_tune_defaults =
+				&polaris10_power_tune_data_set_array
 				[table_info->cac_dtp_table->usPowerTuneDataSetID - 1];
 	else
-		ellesmere_hwmgr->power_tune_defaults = &ellesmere_power_tune_data_set_array[0];
+		polaris10_hwmgr->power_tune_defaults = &polaris10_power_tune_data_set_array[0];
 
 }
 
-int ellesmere_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
+int polaris10_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_pt_defaults *defaults = data->power_tune_defaults;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 	SMU74_Discrete_DpmTable  *dpm_table = &(data->smc_state_table);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -101,10 +101,10 @@ int ellesmere_populate_bapm_parameters_in_dpm_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_svi_load_line(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_pt_defaults *defaults = data->power_tune_defaults;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 
 	data->power_tune_table.SviLoadLineEn = defaults->SviLoadLineEn;
 	data->power_tune_table.SviLoadLineVddC = defaults->SviLoadLineVddC;
@@ -114,13 +114,13 @@ static int ellesmere_populate_svi_load_line(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_tdc_limit(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 {
 	uint16_t tdc_limit;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct  ellesmere_pt_defaults *defaults = data->power_tune_defaults;
+	struct  polaris10_pt_defaults *defaults = data->power_tune_defaults;
 
 	tdc_limit = (uint16_t)(table_info->cac_dtp_table->usTDC * 128);
 	data->power_tune_table.TDC_VDDC_PkgLimit =
@@ -132,13 +132,13 @@ static int ellesmere_populate_tdc_limit(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
+static int polaris10_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_offset)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
-	struct ellesmere_pt_defaults *defaults = data->power_tune_defaults;
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
+	struct polaris10_pt_defaults *defaults = data->power_tune_defaults;
 	uint32_t temp;
 
-	if (ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+	if (polaris10_read_smc_sram_dword(hwmgr->smumgr,
 			fuse_table_offset +
 			offsetof(SMU74_Discrete_PmFuses, TdcWaterfallCtl),
 			(uint32_t *)&temp, data->sram_end))
@@ -156,10 +156,10 @@ static int ellesmere_populate_dw8(struct pp_hwmgr *hwmgr, uint32_t fuse_table_of
 	return 0;
 }
 
-static int ellesmere_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -168,9 +168,9 @@ static int ellesmere_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if ((hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity & (1 << 15))
 		|| 0 == hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity)
@@ -182,10 +182,10 @@ static int ellesmere_populate_fuzzy_fan(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 {
 	int i;
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	/* Currently not used. Set all to zero. */
 	for (i = 0; i < 16; i++)
@@ -194,14 +194,14 @@ static int ellesmere_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int ellesmere_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
+static int polaris10_min_max_vgnb_lpml_id_from_bapm_vddc(struct pp_hwmgr *hwmgr)
 {
 	return 0;
 }
 
-static int ellesmere_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
+static int polaris10_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	uint16_t hi_sidd = data->power_tune_table.BapmVddCBaseLeakageHiSidd;
@@ -219,14 +219,14 @@ static int ellesmere_populate_bapm_vddc_base_leakage_sidd(struct pp_hwmgr *hwmgr
 	return 0;
 }
 
-int ellesmere_populate_pm_fuses(struct pp_hwmgr *hwmgr)
+int polaris10_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	uint32_t pm_fuse_table_offset;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PowerContainment)) {
-		if (ellesmere_read_smc_sram_dword(hwmgr->smumgr,
+		if (polaris10_read_smc_sram_dword(hwmgr->smumgr,
 				SMU7_FIRMWARE_HEADER_LOCATION +
 				offsetof(SMU74_Firmware_Header, PmFuseTable),
 				&pm_fuse_table_offset, data->sram_end))
@@ -234,47 +234,47 @@ int ellesmere_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 					"Attempt to get pm_fuse_table_offset Failed!",
 					return -EINVAL);
 
-		if (ellesmere_populate_svi_load_line(hwmgr))
+		if (polaris10_populate_svi_load_line(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate SviLoadLine Failed!",
 					return -EINVAL);
 
-		if (ellesmere_populate_tdc_limit(hwmgr))
+		if (polaris10_populate_tdc_limit(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate TDCLimit Failed!", return -EINVAL);
 
-		if (ellesmere_populate_dw8(hwmgr, pm_fuse_table_offset))
+		if (polaris10_populate_dw8(hwmgr, pm_fuse_table_offset))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate TdcWaterfallCtl, "
 					"LPMLTemperature Min and Max Failed!",
 					return -EINVAL);
 
-		if (0 != ellesmere_populate_temperature_scaler(hwmgr))
+		if (0 != polaris10_populate_temperature_scaler(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate LPMLTemperatureScaler Failed!",
 					return -EINVAL);
 
-		if (ellesmere_populate_fuzzy_fan(hwmgr))
+		if (polaris10_populate_fuzzy_fan(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate Fuzzy Fan Control parameters Failed!",
 					return -EINVAL);
 
-		if (ellesmere_populate_gnb_lpml(hwmgr))
+		if (polaris10_populate_gnb_lpml(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate GnbLPML Failed!",
 					return -EINVAL);
 
-		if (ellesmere_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
+		if (polaris10_min_max_vgnb_lpml_id_from_bapm_vddc(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate GnbLPML Min and Max Vid Failed!",
 					return -EINVAL);
 
-		if (ellesmere_populate_bapm_vddc_base_leakage_sidd(hwmgr))
+		if (polaris10_populate_bapm_vddc_base_leakage_sidd(hwmgr))
 			PP_ASSERT_WITH_CODE(false,
 					"Attempt to populate BapmVddCBaseLeakage Hi and Lo "
 					"Sidd Failed!", return -EINVAL);
 
-		if (ellesmere_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
+		if (polaris10_copy_bytes_to_smc(hwmgr->smumgr, pm_fuse_table_offset,
 				(uint8_t *)&data->power_tune_table,
 				sizeof(struct SMU74_Discrete_PmFuses), data->sram_end))
 			PP_ASSERT_WITH_CODE(false,
@@ -284,9 +284,9 @@ int ellesmere_populate_pm_fuses(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int ellesmere_enable_smc_cac(struct pp_hwmgr *hwmgr)
+int polaris10_enable_smc_cac(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	int result = 0;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -302,9 +302,9 @@ int ellesmere_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int ellesmere_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
+int polaris10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	if (data->power_containment_features &
 			POWERCONTAINMENT_FEATURE_PkgPwrLimit)
@@ -313,15 +313,15 @@ int ellesmere_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 	return 0;
 }
 
-static int ellesmere_set_overdriver_target_tdp(struct pp_hwmgr *pHwMgr, uint32_t target_tdp)
+static int polaris10_set_overdriver_target_tdp(struct pp_hwmgr *pHwMgr, uint32_t target_tdp)
 {
 	return smum_send_msg_to_smc_with_parameter(pHwMgr->smumgr,
 			PPSMC_MSG_OverDriveSetTargetTdp, target_tdp);
 }
 
-int ellesmere_enable_power_containment(struct pp_hwmgr *hwmgr)
+int polaris10_enable_power_containment(struct pp_hwmgr *hwmgr)
 {
-	struct ellesmere_hwmgr *data = (struct ellesmere_hwmgr *)(hwmgr->backend);
+	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int smc_result;
@@ -363,7 +363,7 @@ int ellesmere_enable_power_containment(struct pp_hwmgr *hwmgr)
 				data->power_containment_features |=
 						POWERCONTAINMENT_FEATURE_PkgPwrLimit;
 
-				if (ellesmere_set_power_limit(hwmgr, default_limit))
+				if (polaris10_set_power_limit(hwmgr, default_limit))
 					printk(KERN_ERR "Failed to set Default Power Limit in SMC!");
 			}
 		}
@@ -371,7 +371,7 @@ int ellesmere_enable_power_containment(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int ellesmere_power_control_set_level(struct pp_hwmgr *hwmgr)
+int polaris10_power_control_set_level(struct pp_hwmgr *hwmgr)
 {
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
@@ -389,7 +389,7 @@ int ellesmere_power_control_set_level(struct pp_hwmgr *hwmgr)
 		 * but message to be 8 bit fraction for messages
 		 */
 		target_tdp = ((100 + adjust_percent) * (int)(cac_table->usTDP * 256)) / 100;
-		result = ellesmere_set_overdriver_target_tdp(hwmgr, (uint32_t)target_tdp);
+		result = polaris10_set_overdriver_target_tdp(hwmgr, (uint32_t)target_tdp);
 	}
 
 	return result;

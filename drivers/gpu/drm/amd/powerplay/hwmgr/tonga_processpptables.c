@@ -493,8 +493,8 @@ static int get_pcie_table(
 
 		*pp_tonga_pcie_table = pcie_table;
 	} else {
-		/* Ellesmere/Baffin and newer. */
-		const ATOM_Ellesmere_PCIE_Table *atom_pcie_table = (ATOM_Ellesmere_PCIE_Table *)pTable;
+		/* Polaris10/Polaris11 and newer. */
+		const ATOM_Polaris10_PCIE_Table *atom_pcie_table = (ATOM_Polaris10_PCIE_Table *)pTable;
 		PP_ASSERT_WITH_CODE((atom_pcie_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
 

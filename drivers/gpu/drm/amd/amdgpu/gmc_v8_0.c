@@ -43,8 +43,8 @@ static void gmc_v8_0_set_gart_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 
 MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
-MODULE_FIRMWARE("amdgpu/baffin_mc.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -75,7 +75,7 @@ static const u32 fiji_mgcg_cgcg_init[] =
 	mmMC_MEM_POWER_LS, 0xffffffff, 0x00000104
 };
 
-static const u32 golden_settings_baffin_a11[] =
+static const u32 golden_settings_polaris11_a11[] =
 {
 	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
 	mmVM_PRT_APERTURE1_LOW_ADDR, 0x0fffffff, 0x0fffffff,
@@ -83,7 +83,7 @@ static const u32 golden_settings_baffin_a11[] =
 	mmVM_PRT_APERTURE3_LOW_ADDR, 0x0fffffff, 0x0fffffff
 };
 
-static const u32 golden_settings_ellesmere_a11[] =
+static const u32 golden_settings_polaris10_a11[] =
 {
 	mmMC_ARB_WTM_GRPWT_RD, 0x00000003, 0x00000000,
 	mmVM_PRT_APERTURE0_LOW_ADDR, 0x0fffffff, 0x0fffffff,
@@ -122,15 +122,15 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 golden_settings_tonga_a11,
 						 (const u32)ARRAY_SIZE(golden_settings_tonga_a11));
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		amdgpu_program_register_sequence(adev,
-						 golden_settings_baffin_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_baffin_a11));
+						 golden_settings_polaris11_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		amdgpu_program_register_sequence(adev,
-						 golden_settings_ellesmere_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_ellesmere_a11));
+						 golden_settings_polaris10_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_polaris10_a11));
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
@@ -238,11 +238,11 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_TONGA:
 		chip_name = "tonga";
 		break;
-	case CHIP_BAFFIN:
-		chip_name = "baffin";
+	case CHIP_POLARIS11:
+		chip_name = "polaris11";
 		break;
-	case CHIP_ELLESMERE:
-		chip_name = "ellesmere";
+	case CHIP_POLARIS10:
+		chip_name = "polaris10";
 		break;
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:

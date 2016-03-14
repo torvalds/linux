@@ -52,7 +52,7 @@
 
 #define TOPAZ_GB_ADDR_CONFIG_GOLDEN 0x22010001
 #define CARRIZO_GB_ADDR_CONFIG_GOLDEN 0x22010001
-#define BAFFIN_GB_ADDR_CONFIG_GOLDEN 0x22011002
+#define POLARIS11_GB_ADDR_CONFIG_GOLDEN 0x22011002
 #define TONGA_GB_ADDR_CONFIG_GOLDEN 0x22011003
 
 #define ARRAY_MODE(x)					((x) << GB_TILE_MODE0__ARRAY_MODE__SHIFT)
@@ -121,19 +121,19 @@ MODULE_FIRMWARE("amdgpu/fiji_mec.bin");
 MODULE_FIRMWARE("amdgpu/fiji_mec2.bin");
 MODULE_FIRMWARE("amdgpu/fiji_rlc.bin");
 
-MODULE_FIRMWARE("amdgpu/baffin_ce.bin");
-MODULE_FIRMWARE("amdgpu/baffin_pfp.bin");
-MODULE_FIRMWARE("amdgpu/baffin_me.bin");
-MODULE_FIRMWARE("amdgpu/baffin_mec.bin");
-MODULE_FIRMWARE("amdgpu/baffin_mec2.bin");
-MODULE_FIRMWARE("amdgpu/baffin_rlc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_rlc.bin");
 
-MODULE_FIRMWARE("amdgpu/ellesmere_ce.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_pfp.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_me.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_mec.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_mec2.bin");
-MODULE_FIRMWARE("amdgpu/ellesmere_rlc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_ce.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_pfp.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_me.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_mec.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_mec2.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_rlc.bin");
 
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
@@ -265,7 +265,7 @@ static const u32 tonga_mgcg_cgcg_init[] =
 	mmCP_MEM_SLP_CNTL, 0x00000001, 0x00000001,
 };
 
-static const u32 golden_settings_baffin_a11[] =
+static const u32 golden_settings_polaris11_a11[] =
 {
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
 	mmDB_DEBUG2, 0xf00fffff, 0x00000400,
@@ -281,7 +281,7 @@ static const u32 golden_settings_baffin_a11[] =
 	mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003210,
 };
 
-static const u32 baffin_golden_common_all[] =
+static const u32 polaris11_golden_common_all[] =
 {
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x16000012,
@@ -293,7 +293,7 @@ static const u32 baffin_golden_common_all[] =
 	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
 };
 
-static const u32 golden_settings_ellesmere_a11[] =
+static const u32 golden_settings_polaris10_a11[] =
 {
 	mmATC_MISC_CG, 0x000c0fc0, 0x000c0200,
 	mmCB_HW_CONTROL_3, 0x000001ff, 0x00000040,
@@ -311,7 +311,7 @@ static const u32 golden_settings_ellesmere_a11[] =
 	mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000,
 };
 
-static const u32 ellesmere_golden_common_all[] =
+static const u32 polaris10_golden_common_all[] =
 {
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmPA_SC_RASTER_CONFIG, 0xffffffff, 0x16000012,
@@ -674,21 +674,21 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 						 tonga_golden_common_all,
 						 (const u32)ARRAY_SIZE(tonga_golden_common_all));
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		amdgpu_program_register_sequence(adev,
-						 golden_settings_baffin_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_baffin_a11));
+						 golden_settings_polaris11_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_polaris11_a11));
 		amdgpu_program_register_sequence(adev,
-						 baffin_golden_common_all,
-						 (const u32)ARRAY_SIZE(baffin_golden_common_all));
+						 polaris11_golden_common_all,
+						 (const u32)ARRAY_SIZE(polaris11_golden_common_all));
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		amdgpu_program_register_sequence(adev,
-						 golden_settings_ellesmere_a11,
-						 (const u32)ARRAY_SIZE(golden_settings_ellesmere_a11));
+						 golden_settings_polaris10_a11,
+						 (const u32)ARRAY_SIZE(golden_settings_polaris10_a11));
 		amdgpu_program_register_sequence(adev,
-						 ellesmere_golden_common_all,
-						 (const u32)ARRAY_SIZE(ellesmere_golden_common_all));
+						 polaris10_golden_common_all,
+						 (const u32)ARRAY_SIZE(polaris10_golden_common_all));
 		break;
 	case CHIP_CARRIZO:
 		amdgpu_program_register_sequence(adev,
@@ -859,11 +859,11 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_FIJI:
 		chip_name = "fiji";
 		break;
-	case CHIP_BAFFIN:
-		chip_name = "baffin";
+	case CHIP_POLARIS11:
+		chip_name = "polaris11";
 		break;
-	case CHIP_ELLESMERE:
-		chip_name = "ellesmere";
+	case CHIP_POLARIS10:
+		chip_name = "polaris10";
 		break;
 	case CHIP_STONEY:
 		chip_name = "stoney";
@@ -1092,11 +1092,11 @@ static void gfx_v8_0_get_csb_buffer(struct amdgpu_device *adev,
 			PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		buffer[count++] = cpu_to_le32(0x16000012);
 		buffer[count++] = cpu_to_le32(0x0000002A);
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		buffer[count++] = cpu_to_le32(0x16000012);
 		buffer[count++] = cpu_to_le32(0x00000000);
 		break;
@@ -1628,7 +1628,7 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
 		gb_addr_config = TONGA_GB_ADDR_CONFIG_GOLDEN;
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		ret = amdgpu_atombios_get_gfx_info(adev);
 		if (ret)
 			return ret;
@@ -1640,9 +1640,9 @@ static int gfx_v8_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x130;
-		gb_addr_config = BAFFIN_GB_ADDR_CONFIG_GOLDEN;
+		gb_addr_config = POLARIS11_GB_ADDR_CONFIG_GOLDEN;
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		ret = amdgpu_atombios_get_gfx_info(adev);
 		if (ret)
 			return ret;
@@ -2551,7 +2551,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 				WREG32(mmGB_MACROTILE_MODE0 + reg_offset, mod2array[reg_offset]);
 
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		modearray[0] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 				PIPE_CONFIG(ADDR_SURF_P4_16x16) |
 				TILE_SPLIT(ADDR_SURF_TILE_SPLIT_64B) |
@@ -2753,7 +2753,7 @@ static void gfx_v8_0_tiling_mode_table_init(struct amdgpu_device *adev)
 				WREG32(mmGB_MACROTILE_MODE0 + reg_offset, mod2array[reg_offset]);
 
 		break;
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		modearray[0] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 				PIPE_CONFIG(ADDR_SURF_P8_32x32_16x16) |
 				TILE_SPLIT(ADDR_SURF_TILE_SPLIT_64B) |
@@ -3658,7 +3658,7 @@ static void gfx_v8_0_enable_save_restore_machine(struct amdgpu_device *adev)
 	WREG32(mmRLC_SRM_CNTL, data);
 }
 
-static void baffin_init_power_gating(struct amdgpu_device *adev)
+static void polaris11_init_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
@@ -3701,8 +3701,8 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
 
-		if (adev->asic_type == CHIP_BAFFIN)
-			baffin_init_power_gating(adev);
+		if (adev->asic_type == CHIP_POLARIS11)
+			polaris11_init_power_gating(adev);
 	}
 }
 
@@ -3776,8 +3776,8 @@ static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 
 	/* disable CG */
 	WREG32(mmRLC_CGCG_CGLS_CTRL, 0);
-	if (adev->asic_type == CHIP_BAFFIN ||
-		adev->asic_type == CHIP_ELLESMERE)
+	if (adev->asic_type == CHIP_POLARIS11 ||
+		adev->asic_type == CHIP_POLARIS10)
 		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, 0);
 
 	/* disable PG */
@@ -3958,11 +3958,11 @@ static int gfx_v8_0_cp_gfx_start(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, mmPA_SC_RASTER_CONFIG - PACKET3_SET_CONTEXT_REG_START);
 	switch (adev->asic_type) {
 	case CHIP_TONGA:
-	case CHIP_ELLESMERE:
+	case CHIP_POLARIS10:
 		amdgpu_ring_write(ring, 0x16000012);
 		amdgpu_ring_write(ring, 0x0000002A);
 		break;
-	case CHIP_BAFFIN:
+	case CHIP_POLARIS11:
 		amdgpu_ring_write(ring, 0x16000012);
 		amdgpu_ring_write(ring, 0x00000000);
 		break;
@@ -4610,8 +4610,8 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 			if ((adev->asic_type == CHIP_CARRIZO) ||
 			    (adev->asic_type == CHIP_FIJI) ||
 			    (adev->asic_type == CHIP_STONEY) ||
-			    (adev->asic_type == CHIP_BAFFIN) ||
-			    (adev->asic_type == CHIP_ELLESMERE)) {
+			    (adev->asic_type == CHIP_POLARIS11) ||
+			    (adev->asic_type == CHIP_POLARIS10)) {
 				WREG32(mmCP_MEC_DOORBELL_RANGE_LOWER,
 				       AMDGPU_DOORBELL_KIQ << 2);
 				WREG32(mmCP_MEC_DOORBELL_RANGE_UPPER,
@@ -4646,8 +4646,8 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 		WREG32(mmCP_HQD_PERSISTENT_STATE, tmp);
 		mqd->cp_hqd_persistent_state = tmp;
 		if (adev->asic_type == CHIP_STONEY ||
-			adev->asic_type == CHIP_BAFFIN ||
-			adev->asic_type == CHIP_ELLESMERE) {
+			adev->asic_type == CHIP_POLARIS11 ||
+			adev->asic_type == CHIP_POLARIS10) {
 			tmp = RREG32(mmCP_ME1_PIPE3_INT_CNTL);
 			tmp = REG_SET_FIELD(tmp, CP_ME1_PIPE3_INT_CNTL, GENERIC2_INT_ENABLE, 1);
 			WREG32(mmCP_ME1_PIPE3_INT_CNTL, tmp);
@@ -5216,7 +5216,7 @@ static int gfx_v8_0_late_init(void *handle)
 	return 0;
 }
 
-static void baffin_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
+static void polaris11_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
 		bool enable)
 {
 	uint32_t data, temp;
@@ -5242,7 +5242,7 @@ static void baffin_enable_gfx_static_mg_power_gating(struct amdgpu_device *adev,
 	}
 }
 
-static void baffin_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
+static void polaris11_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev,
 		bool enable)
 {
 	uint32_t data, temp;
@@ -5263,7 +5263,7 @@ static void baffin_enable_gfx_dynamic_mg_power_gating(struct amdgpu_device *adev
 	}
 }
 
-static void baffin_enable_gfx_quick_mg_power_gating(struct amdgpu_device *adev,
+static void polaris11_enable_gfx_quick_mg_power_gating(struct amdgpu_device *adev,
 		bool enable)
 {
 	uint32_t data, temp;
@@ -5293,15 +5293,15 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 		return 0;
 
 	switch (adev->asic_type) {
-	case CHIP_BAFFIN:
-		if (adev->pg_flags & AMDGPU_PG_SUPPORT_GFX_SMG)
-			baffin_enable_gfx_static_mg_power_gating(adev,
+	case CHIP_POLARIS11:
+		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG)
+			polaris11_enable_gfx_static_mg_power_gating(adev,
 					state == AMD_PG_STATE_GATE ? true : false);
-		else if (adev->pg_flags & AMDGPU_PG_SUPPORT_GFX_DMG)
-			baffin_enable_gfx_dynamic_mg_power_gating(adev,
+		else if (adev->pg_flags & AMD_PG_SUPPORT_GFX_DMG)
+			polaris11_enable_gfx_dynamic_mg_power_gating(adev,
 					state == AMD_PG_STATE_GATE ? true : false);
 		else
-			baffin_enable_gfx_quick_mg_power_gating(adev,
+			polaris11_enable_gfx_quick_mg_power_gating(adev,
 					state == AMD_PG_STATE_GATE ? true : false);
 		break;
 	default:

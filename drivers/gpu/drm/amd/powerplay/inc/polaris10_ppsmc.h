@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef ELLESMERE_PP_SMC_H
-#define ELLESMERE_PP_SMC_H
+#ifndef POLARIS10_PP_SMC_H
+#define POLARIS10_PP_SMC_H
 
 
 #pragma pack(push, 1)
@@ -386,8 +386,16 @@ typedef uint16_t PPSMC_Result;
 
 #define PPSMC_MSG_GFX_CU_PG_ENABLE            ((uint16_t) 0x280)
 #define PPSMC_MSG_GFX_CU_PG_DISABLE           ((uint16_t) 0x281)
+#define PPSMC_MSG_GetCurrPkgPwr               ((uint16_t) 0x282)
 
 #define PPSMC_MSG_SetGpuPllDfsForSclk         ((uint16_t) 0x300)
+#define PPSMC_MSG_Didt_Block_Function		  ((uint16_t) 0x301)
+
+#define PPSMC_MSG_SecureSRBMWrite             ((uint16_t) 0x600)
+#define PPSMC_MSG_SecureSRBMRead              ((uint16_t) 0x601)
+#define PPSMC_MSG_SetAddress                  ((uint16_t) 0x800)
+#define PPSMC_MSG_GetData                     ((uint16_t) 0x801)
+#define PPSMC_MSG_SetData                     ((uint16_t) 0x802)
 
 typedef uint16_t PPSMC_Msg;
 
