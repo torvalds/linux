@@ -2695,7 +2695,6 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 			    !conf->fullsync &&
 			    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 				break;
-			BUG_ON(sync_blocks < (PAGE_SIZE>>9));
 			if ((len >> 9) > sync_blocks)
 				len = sync_blocks<<9;
 		}
