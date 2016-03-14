@@ -177,8 +177,7 @@ hardware.
 	should be terminated when another call is made with a zero
 	ctl.
 
-	Locking: none.
-	Interrupts: caller dependent.
+	Locking: caller holds port->mutex
 	This call must not sleep
 
   startup(port)
