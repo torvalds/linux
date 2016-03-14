@@ -170,11 +170,11 @@ static int copy_attributes_to_inode(struct inode *inode,
 			rounded_up_size =
 			    (inode_size + (4096 - (inode_size % 4096)));
 
-			orangefs_lock_inode(inode);
+			spin_lock(&inode->i_lock);
 			inode->i_bytes = inode_size;
 			inode->i_blocks =
 			    (unsigned long)(rounded_up_size / 512);
-			orangefs_unlock_inode(inode);
+			spin_unlock(&inode->i_lock);
 
 			/*
 			 * NOTE: make sure all the places we're called
@@ -194,9 +194,9 @@ static int copy_attributes_to_inode(struct inode *inode,
 	default:
 		inode->i_size = PAGE_CACHE_SIZE;
 
-		orangefs_lock_inode(inode);
+		spin_lock(&inode->i_lock);
 		inode_set_bytes(inode, inode->i_size);
-		orangefs_unlock_inode(inode);
+		spin_unlock(&inode->i_lock);
 		break;
 	}
 

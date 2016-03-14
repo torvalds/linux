@@ -632,9 +632,6 @@ do {									\
 	spin_unlock(&orangefs_superblocks_lock);				\
 } while (0)
 
-#define orangefs_lock_inode(inode) spin_lock(&inode->i_lock)
-#define orangefs_unlock_inode(inode) spin_unlock(&inode->i_lock)
-
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
 	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
