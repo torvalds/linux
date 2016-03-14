@@ -268,17 +268,15 @@ int orangefs_getattr(struct vfsmount *mnt,
 		     "orangefs_getattr: called on %s\n",
 		     dentry->d_name.name);
 
-	/*
-	 * Similar to the above comment, a getattr also expects that all
-	 * fields/attributes of the inode would be refreshed. So again, we
-	 * dont have too much of a choice but refresh all the attributes.
-	 */
 	ret = orangefs_inode_getattr(inode, ORANGEFS_ATTR_SYS_ALL_NOHINT, 0);
 	if (ret == 0) {
 		generic_fillattr(inode, kstat);
+
 		/* override block size reported to stat */
 		orangefs_inode = ORANGEFS_I(inode);
 		kstat->blksize = orangefs_inode->blksize;
+
+		inode->i_link = ORANGEFS_I(dentry->d_inode)->link_target;
 	} else {
 		/* assume an I/O error and flag inode as bad */
 		gossip_debug(GOSSIP_INODE_DEBUG,
