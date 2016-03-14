@@ -47,6 +47,7 @@ struct vc4_hdmi {
 	void __iomem *hdmicore_regs;
 	void __iomem *hd_regs;
 	int hpd_gpio;
+	bool hpd_active_low;
 
 	struct clk *pixel_clock;
 	struct clk *hsm_clock;
@@ -166,7 +167,8 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	if (vc4->hdmi->hpd_gpio) {
-		if (gpio_get_value(vc4->hdmi->hpd_gpio))
+		if (gpio_get_value_cansleep(vc4->hdmi->hpd_gpio) ^
+		    vc4->hdmi->hpd_active_low)
 			return connector_status_connected;
 		else
 			return connector_status_disconnected;
@@ -517,11 +519,17 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	 * we'll use the HDMI core's register.
 	 */
 	if (of_find_property(dev->of_node, "hpd-gpios", &value)) {
-		hdmi->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpios", 0);
+		enum of_gpio_flags hpd_gpio_flags;
+
+		hdmi->hpd_gpio = of_get_named_gpio_flags(dev->of_node,
+							 "hpd-gpios", 0,
+							 &hpd_gpio_flags);
 		if (hdmi->hpd_gpio < 0) {
 			ret = hdmi->hpd_gpio;
 			goto err_unprepare_hsm;
 		}
+
+		hdmi->hpd_active_low = hpd_gpio_flags & OF_GPIO_ACTIVE_LOW;
 	}
 
 	vc4->hdmi = hdmi;
