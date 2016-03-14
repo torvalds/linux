@@ -266,10 +266,8 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 	struct rfkill_rk_data *rfkill = data;
     struct rfkill_rk_gpio *poweron = &rfkill->pdata->poweron_gpio;
     struct rfkill_rk_gpio *reset = &rfkill->pdata->reset_gpio;
-#if defined(CONFIG_AP6210) || defined(CONFIG_AP6335)
     struct rfkill_rk_gpio* rts = &rfkill->pdata->rts_gpio;
     struct pinctrl *pinctrl = rfkill->pdata->pinctrl;
-#endif
     int power = 0, vref_ctrl_enable = 0;
     bool toggle = false;
 
@@ -305,7 +303,7 @@ static int rfkill_rk_set_power(void *data, bool blocked)
             msleep(20);
 			gpio_direction_output(reset->io, reset->enable);
         }
-#if defined(CONFIG_AP6210) || defined(CONFIG_AP6335)
+
         if (pinctrl != NULL && gpio_is_valid(rts->io))
         {
             pinctrl_select_state(pinctrl, rts->gpio_state);
@@ -316,7 +314,7 @@ static int rfkill_rk_set_power(void *data, bool blocked)
             gpio_direction_output(rts->io, !rts->enable);
             pinctrl_select_state(pinctrl, rts->default_state);
         }
-#endif
+
         bt_power_state = 1;
     	LOG("bt turn on power\n");
 	} else {
