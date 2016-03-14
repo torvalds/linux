@@ -2836,8 +2836,12 @@ static int nvhdmi_chmap_cea_alloc_validate_get_type(struct hdac_chmap *chmap,
 	if (cap->ca_index == 0x00 && channels == 2)
 		return SNDRV_CTL_TLVT_CHMAP_FIXED;
 
-	return chmap->ops.chmap_cea_alloc_validate_get_type(
-				chmap, cap, channels);
+	/* If the speaker allocation matches the channel count, it is OK. */
+	if (cap->channels != channels)
+		return -1;
+
+	/* all channels are remappable freely */
+	return SNDRV_CTL_TLVT_CHMAP_VAR;
 }
 
 static int nvhdmi_chmap_validate(struct hdac_chmap *chmap,
@@ -3457,6 +3461,7 @@ HDA_CODEC_ENTRY(0x10de0070, "GPU 70 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de0071, "GPU 71 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de0072, "GPU 72 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de007d, "GPU 7d HDMI/DP",	patch_nvhdmi),
+HDA_CODEC_ENTRY(0x10de0082, "GPU 82 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de0083, "GPU 83 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de8001, "MCP73 HDMI",	patch_nvhdmi_2ch),
 HDA_CODEC_ENTRY(0x11069f80, "VX900 HDMI/DP",	patch_via_hdmi),
