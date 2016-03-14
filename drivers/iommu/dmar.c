@@ -329,7 +329,8 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 	/* Only care about add/remove events for physical functions */
 	if (pdev->is_virtfn)
 		return NOTIFY_DONE;
-	if (action != BUS_NOTIFY_ADD_DEVICE && action != BUS_NOTIFY_DEL_DEVICE)
+	if (action != BUS_NOTIFY_ADD_DEVICE &&
+	    action != BUS_NOTIFY_REMOVED_DEVICE)
 		return NOTIFY_DONE;
 
 	info = dmar_alloc_pci_notify_info(pdev, action);
@@ -339,7 +340,7 @@ static int dmar_pci_bus_notifier(struct notifier_block *nb,
 	down_write(&dmar_global_lock);
 	if (action == BUS_NOTIFY_ADD_DEVICE)
 		dmar_pci_bus_add_dev(info);
-	else if (action == BUS_NOTIFY_DEL_DEVICE)
+	else if (action == BUS_NOTIFY_REMOVED_DEVICE)
 		dmar_pci_bus_del_dev(info);
 	up_write(&dmar_global_lock);
 

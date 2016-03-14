@@ -90,7 +90,6 @@ MODULE_FIRMWARE("amdgpu/topaz_ce.bin");
 MODULE_FIRMWARE("amdgpu/topaz_pfp.bin");
 MODULE_FIRMWARE("amdgpu/topaz_me.bin");
 MODULE_FIRMWARE("amdgpu/topaz_mec.bin");
-MODULE_FIRMWARE("amdgpu/topaz_mec2.bin");
 MODULE_FIRMWARE("amdgpu/topaz_rlc.bin");
 
 MODULE_FIRMWARE("amdgpu/fiji_ce.bin");
@@ -807,7 +806,8 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.mec_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.mec_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	if (adev->asic_type != CHIP_STONEY) {
+	if ((adev->asic_type != CHIP_STONEY) &&
+	    (adev->asic_type != CHIP_TOPAZ)) {
 		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mec2.bin", chip_name);
 		err = request_firmware(&adev->gfx.mec2_fw, fw_name, adev->dev);
 		if (!err) {
@@ -4681,7 +4681,8 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
 	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
-		 WAIT_REG_MEM_FUNCTION(3))); /* equal */
+				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
+				 WAIT_REG_MEM_ENGINE(usepfp))); /* pfp or me */
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
 	amdgpu_ring_write(ring, seq);

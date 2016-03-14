@@ -1267,6 +1267,10 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		return -EBUSY;
 	}
 
+	/* we don't support "match all" in the firmware */
+	if (!req->n_match_sets)
+		return -EOPNOTSUPP;
+
 	ret = iwl_mvm_check_running_scans(mvm, type);
 	if (ret)
 		return ret;

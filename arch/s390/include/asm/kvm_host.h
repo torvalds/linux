@@ -506,7 +506,6 @@ struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
 	unsigned int      host_acrs[NUM_ACRS];
 	struct fpu	  host_fpregs;
-	struct fpu	  guest_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;

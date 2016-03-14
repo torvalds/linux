@@ -604,8 +604,6 @@ struct amdgpu_sa_manager {
 	uint32_t		align;
 };
 
-struct amdgpu_sa_bo;
-
 /* sub-allocation buffer */
 struct amdgpu_sa_bo {
 	struct list_head		olist;
@@ -2314,6 +2312,8 @@ bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
+				  unsigned long end);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
 uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem);

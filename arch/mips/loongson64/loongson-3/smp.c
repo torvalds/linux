@@ -30,13 +30,13 @@
 #include "smp.h"
 
 DEFINE_PER_CPU(int, cpu_state);
-DEFINE_PER_CPU(uint32_t, core0_c0count);
 
 static void *ipi_set0_regs[16];
 static void *ipi_clear0_regs[16];
 static void *ipi_status0_regs[16];
 static void *ipi_en0_regs[16];
 static void *ipi_mailbox_buf[16];
+static uint32_t core0_c0count[NR_CPUS];
 
 /* read a 32bit value from ipi register */
 #define loongson3_ipi_read32(addr) readl(addr)
@@ -275,12 +275,14 @@ void loongson3_ipi_interrupt(struct pt_regs *regs)
 	if (action & SMP_ASK_C0COUNT) {
 		BUG_ON(cpu != 0);
 		c0count = read_c0_count();
-		for (i = 1; i < num_possible_cpus(); i++)
-			per_cpu(core0_c0count, i) = c0count;
+		c0count = c0count ? c0count : 1;
+		for (i = 1; i < nr_cpu_ids; i++)
+			core0_c0count[i] = c0count;
+		__wbflush(); /* Let others see the result ASAP */
 	}
 }
 
-#define MAX_LOOPS 1111
+#define MAX_LOOPS 800
 /*
  * SMP init and finish on secondary CPUs
  */
@@ -305,16 +307,20 @@ static void loongson3_init_secondary(void)
 		cpu_logical_map(cpu) / loongson_sysconf.cores_per_package;
 
 	i = 0;
-	__this_cpu_write(core0_c0count, 0);
+	core0_c0count[cpu] = 0;
 	loongson3_send_ipi_single(0, SMP_ASK_C0COUNT);
-	while (!__this_cpu_read(core0_c0count)) {
+	while (!core0_c0count[cpu]) {
 		i++;
 		cpu_relax();
 	}
 
 	if (i > MAX_LOOPS)
 		i = MAX_LOOPS;
-	initcount = __this_cpu_read(core0_c0count) + i;
+	if (cpu_data[cpu].package)
+		initcount = core0_c0count[cpu] + i;
+	else /* Local access is faster for loops */
+		initcount = core0_c0count[cpu] + i/2;
+
 	write_c0_count(initcount);
 }
 

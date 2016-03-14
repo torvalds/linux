@@ -62,7 +62,7 @@ vmlinux_link()
 			-Wl,--start-group                                    \
 				 ${KBUILD_VMLINUX_MAIN}                      \
 			-Wl,--end-group                                      \
-			-lutil -lrt ${1}
+			-lutil -lrt -lpthread ${1}
 		rm -f linux
 	fi
 }

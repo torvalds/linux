@@ -956,6 +956,7 @@ clean_orphan:
 		tmp_ret = ocfs2_del_inode_from_orphan(osb, inode, di_bh,
 				update_isize, end);
 		if (tmp_ret < 0) {
+			ocfs2_inode_unlock(inode, 1);
 			ret = tmp_ret;
 			mlog_errno(ret);
 			brelse(di_bh);

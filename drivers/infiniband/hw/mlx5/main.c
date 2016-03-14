@@ -275,7 +275,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_sge = min(max_rq_sg, max_sq_sg);
 	props->max_sge_rd = props->max_sge;
 	props->max_cq		   = 1 << MLX5_CAP_GEN(mdev, log_max_cq);
-	props->max_cqe = (1 << MLX5_CAP_GEN(mdev, log_max_eq_sz)) - 1;
+	props->max_cqe = (1 << MLX5_CAP_GEN(mdev, log_max_cq_sz)) - 1;
 	props->max_mr		   = 1 << MLX5_CAP_GEN(mdev, log_max_mkey);
 	props->max_pd		   = 1 << MLX5_CAP_GEN(mdev, log_max_pd);
 	props->max_qp_rd_atom	   = 1 << MLX5_CAP_GEN(mdev, log_max_ra_req_qp);

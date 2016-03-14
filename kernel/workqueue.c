@@ -568,6 +568,16 @@ static struct pool_workqueue *unbound_pwq_by_node(struct workqueue_struct *wq,
 						  int node)
 {
 	assert_rcu_or_wq_mutex_or_pool_mutex(wq);
+
+	/*
+	 * XXX: @node can be NUMA_NO_NODE if CPU goes offline while a
+	 * delayed item is pending.  The plan is to keep CPU -> NODE
+	 * mapping valid and stable across CPU on/offlines.  Once that
+	 * happens, this workaround can be removed.
+	 */
+	if (unlikely(node == NUMA_NO_NODE))
+		return wq->dfl_pwq;
+
 	return rcu_dereference_raw(wq->numa_pwq_tbl[node]);
 }
 
@@ -1458,13 +1468,13 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	timer_stats_timer_set_start_info(&dwork->timer);
 
 	dwork->wq = wq;
-	/* timer isn't guaranteed to run in this cpu, record earlier */
-	if (cpu == WORK_CPU_UNBOUND)
-		cpu = raw_smp_processor_id();
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
 
-	add_timer_on(timer, cpu);
+	if (unlikely(cpu != WORK_CPU_UNBOUND))
+		add_timer_on(timer, cpu);
+	else
+		add_timer(timer);
 }
 
 /**

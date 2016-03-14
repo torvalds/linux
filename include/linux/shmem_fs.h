@@ -15,10 +15,7 @@ struct shmem_inode_info {
 	unsigned int		seals;		/* shmem seals */
 	unsigned long		flags;
 	unsigned long		alloced;	/* data pages alloced to file */
-	union {
-		unsigned long	swapped;	/* subtotal assigned to swap */
-		char		*symlink;	/* unswappable short symlink */
-	};
+	unsigned long		swapped;	/* subtotal assigned to swap */
 	struct shared_policy	policy;		/* NUMA memory alloc policy */
 	struct list_head	swaplist;	/* chain of maybes on swap */
 	struct simple_xattrs	xattrs;		/* list of xattrs */
