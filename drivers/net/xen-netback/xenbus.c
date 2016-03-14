@@ -511,8 +511,6 @@ static void set_backend_state(struct backend_info *be,
 			switch (state) {
 			case XenbusStateInitWait:
 			case XenbusStateConnected:
-				pr_info("%s: prepare for reconnect\n",
-					be->dev->nodename);
 				backend_switch_state(be, XenbusStateInitWait);
 				break;
 			case XenbusStateClosing:
