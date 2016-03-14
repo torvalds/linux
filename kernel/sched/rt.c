@@ -945,6 +945,10 @@ static void update_curr_rt(struct rq *rq)
 	if (curr->sched_class != &rt_sched_class)
 		return;
 
+	/* Kick cpufreq (see the comment in linux/cpufreq.h). */
+	if (cpu_of(rq) == smp_processor_id())
+		cpufreq_trigger_update(rq_clock(rq));
+
 	delta_exec = rq_clock_task(rq) - curr->se.exec_start;
 	if (unlikely((s64)delta_exec <= 0))
 		return;
