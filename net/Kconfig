@@ -253,6 +253,9 @@ config XPS
 	depends on SMP
 	default y
 
+config HWBM
+       bool
+
 config SOCK_CGROUP_DATA
 	bool
 	default n
