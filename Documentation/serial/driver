@@ -259,6 +259,11 @@ hardware.
 	Interrupts: caller dependent.
 	This call must not sleep
 
+  set_ldisc(port,termios)
+	Notifier for discipline change. See Documentation/serial/tty.txt.
+
+	Locking: caller holds port->mutex
+
   pm(port,state,oldstate)
 	Perform any power management related activities on the specified
 	port.  State indicates the new state (defined by
