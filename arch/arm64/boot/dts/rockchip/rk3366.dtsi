@@ -80,6 +80,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLK>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&cpu_sleep>;
 		};
 
 		cpu1: cpu@1 {
@@ -88,6 +89,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&cpu_sleep>;
 		};
 
 		cpu2: cpu@2 {
@@ -96,6 +98,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&cpu_sleep>;
 		};
 
 		cpu3: cpu@3 {
@@ -104,6 +107,19 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			operating-points-v2 = <&cpu0_opp_table>;
+			cpu-idle-states = <&cpu_sleep>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+			cpu_sleep: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x0010000>;
+				entry-latency-us = <350>;
+				exit-latency-us = <600>;
+				min-residency-us = <1150>;
+			};
 		};
 	};
 
