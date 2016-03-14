@@ -178,7 +178,7 @@ static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
 
 static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 {
-	struct iio_bfin_timer_trigger_pdata *pdata = pdev->dev.platform_data;
+	struct iio_bfin_timer_trigger_pdata *pdata;
 	struct bfin_tmr_state *st;
 	unsigned int config;
 	int ret;
@@ -221,6 +221,7 @@ static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 
 	config = PWM_OUT | PERIOD_CNT | IRQ_ENA;
 
+	pdata =	dev_get_platdata(&pdev->dev);
 	if (pdata && pdata->output_enable) {
 		unsigned long long val;
 
