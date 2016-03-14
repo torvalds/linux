@@ -90,7 +90,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 		return;
 
 	WARN_ON(!pll->config.crtc_mask);
-	if (pll->active == 0) {
+	if (pll->active_mask == 0) {
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
@@ -112,18 +112,23 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
+	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
+	unsigned old_mask = pll->active_mask;
 
 	if (WARN_ON(pll == NULL))
 		return;
 
-	if (WARN_ON(pll->config.crtc_mask == 0))
+	if (WARN_ON(!(pll->config.crtc_mask & crtc_mask)) ||
+	    WARN_ON(pll->active_mask & crtc_mask))
 		return;
 
-	DRM_DEBUG_KMS("enable %s (active %d, on? %d) for crtc %d\n",
-		      pll->name, pll->active, pll->on,
+	pll->active_mask |= crtc_mask;
+
+	DRM_DEBUG_KMS("enable %s (active %x, on? %d) for crtc %d\n",
+		      pll->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
 
-	if (pll->active++) {
+	if (old_mask) {
 		WARN_ON(!pll->on);
 		assert_shared_dpll_enabled(dev_priv, pll);
 		return;
@@ -142,6 +147,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_shared_dpll *pll = crtc->config->shared_dpll;
+	unsigned crtc_mask = 1 << drm_crtc_index(&crtc->base);
 
 	/* PCH only available on ILK+ */
 	if (INTEL_INFO(dev)->gen < 5)
@@ -150,21 +156,18 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (pll == NULL)
 		return;
 
-	if (WARN_ON(!(pll->config.crtc_mask & (1 << drm_crtc_index(&crtc->base)))))
+	if (WARN_ON(!(pll->config.crtc_mask & crtc_mask)))
 		return;
 
-	DRM_DEBUG_KMS("disable %s (active %d, on? %d) for crtc %d\n",
-		      pll->name, pll->active, pll->on,
+	DRM_DEBUG_KMS("disable %s (active %x, on? %d) for crtc %d\n",
+		      pll->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
-
-	if (WARN_ON(pll->active == 0)) {
-		assert_shared_dpll_disabled(dev_priv, pll);
-		return;
-	}
 
 	assert_shared_dpll_enabled(dev_priv, pll);
 	WARN_ON(!pll->on);
-	if (--pll->active)
+
+	pll->active_mask &= ~crtc_mask;
+	if (pll->active_mask)
 		return;
 
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
@@ -197,10 +200,10 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		if (memcmp(&crtc_state->dpll_hw_state,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, ative %d)\n",
+			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, active %x)\n",
 				      crtc->base.base.id, pll->name,
 				      shared_dpll[i].crtc_mask,
-				      pll->active);
+				      pll->active_mask);
 			return pll;
 		}
 	}

@@ -115,7 +115,7 @@ struct intel_shared_dpll_funcs {
 struct intel_shared_dpll {
 	struct intel_shared_dpll_config config;
 
-	int active; /* count of number of active CRTCs (i.e. DPMS on) */
+	unsigned active_mask; /* mask of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
 	const char *name;
 	/* should match the index in the dev_priv->shared_dplls array */

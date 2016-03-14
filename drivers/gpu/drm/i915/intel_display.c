@@ -12962,7 +12962,7 @@ check_shared_dpll_state(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll =
 			intel_get_shared_dpll_by_id(dev_priv, i);
-		int enabled_crtcs = 0, active_crtcs = 0;
+		unsigned enabled_crtcs = 0, active_crtcs = 0;
 		bool active;
 
 		memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
@@ -12971,15 +12971,15 @@ check_shared_dpll_state(struct drm_device *dev)
 
 		active = pll->funcs.get_hw_state(dev_priv, pll, &dpll_hw_state);
 
-		I915_STATE_WARN(pll->active > hweight32(pll->config.crtc_mask),
-		     "more active pll users than references: %i vs %i\n",
-		     pll->active, hweight32(pll->config.crtc_mask));
-		I915_STATE_WARN(pll->active && !pll->on,
-		     "pll in active use but not on in sw tracking\n");
+		I915_STATE_WARN(pll->active_mask & ~pll->config.crtc_mask,
+		     "more active pll users than references: %x vs %x\n",
+		     pll->active_mask, pll->config.crtc_mask);
 
 		if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
-			I915_STATE_WARN(pll->on && !pll->active,
-			     "pll in on but not on in use in sw tracking\n");
+			I915_STATE_WARN(!pll->on && pll->active_mask,
+			     "pll in active use but not on in sw tracking\n");
+			I915_STATE_WARN(pll->on && !pll->active_mask,
+			     "pll is on but not used by any active crtc\n");
 			I915_STATE_WARN(pll->on != active,
 			     "pll on state mismatch (expected %i, found %i)\n",
 			     pll->on, active);
@@ -12987,16 +12987,17 @@ check_shared_dpll_state(struct drm_device *dev)
 
 		for_each_intel_crtc(dev, crtc) {
 			if (crtc->base.state->enable && crtc->config->shared_dpll == pll)
-				enabled_crtcs++;
-			if (crtc->active && crtc->config->shared_dpll == pll)
-				active_crtcs++;
+				enabled_crtcs |= 1 << drm_crtc_index(&crtc->base);
+			if (crtc->base.state->active && crtc->config->shared_dpll == pll)
+				active_crtcs |= 1 << drm_crtc_index(&crtc->base);
 		}
-		I915_STATE_WARN(pll->active != active_crtcs,
-		     "pll active crtcs mismatch (expected %i, found %i)\n",
-		     pll->active, active_crtcs);
-		I915_STATE_WARN(hweight32(pll->config.crtc_mask) != enabled_crtcs,
-		     "pll enabled crtcs mismatch (expected %i, found %i)\n",
-		     hweight32(pll->config.crtc_mask), enabled_crtcs);
+
+		I915_STATE_WARN(pll->active_mask != active_crtcs,
+		     "pll active crtcs mismatch (expected %x, found %x)\n",
+		     pll->active_mask, active_crtcs);
+		I915_STATE_WARN(pll->config.crtc_mask != enabled_crtcs,
+		     "pll enabled crtcs mismatch (expected %x, found %x)\n",
+		     pll->config.crtc_mask, enabled_crtcs);
 
 		I915_STATE_WARN(pll->on && memcmp(&pll->config.hw_state, &dpll_hw_state,
 				       sizeof(dpll_hw_state)),
@@ -15694,14 +15695,12 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		pll->on = pll->funcs.get_hw_state(dev_priv, pll,
 						  &pll->config.hw_state);
-		pll->active = 0;
 		pll->config.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
-			if (crtc->active && crtc->config->shared_dpll == pll) {
-				pll->active++;
+			if (crtc->active && crtc->config->shared_dpll == pll)
 				pll->config.crtc_mask |= 1 << crtc->pipe;
-			}
 		}
+		pll->active_mask = pll->config.crtc_mask;
 
 		DRM_DEBUG_KMS("%s hw state readout: crtc_mask 0x%08x, on %i\n",
 			      pll->name, pll->config.crtc_mask, pll->on);
@@ -15825,7 +15824,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
 
-		if (!pll->on || pll->active)
+		if (!pll->on || pll->active_mask)
 			continue;
 
 		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
