@@ -437,8 +437,7 @@ static s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 	/* one word */
 	buffer.length = cpu_to_be16(sizeof(u16));
 
-	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
-					      sizeof(buffer),
+	status = ixgbe_host_interface_command(hw, &buffer, sizeof(buffer),
 					      IXGBE_HI_COMMAND_TIMEOUT, false);
 	if (status)
 		return status;
@@ -488,7 +487,7 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 		buffer.address = cpu_to_be32((offset + current_word) * 2);
 		buffer.length = cpu_to_be16(words_to_read * 2);
 
-		status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
+		status = ixgbe_host_interface_command(hw, &buffer,
 						      sizeof(buffer),
 						      IXGBE_HI_COMMAND_TIMEOUT,
 						      false);
@@ -771,8 +770,7 @@ static s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 	buffer.data = data;
 	buffer.address = cpu_to_be32(offset * 2);
 
-	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
-					      sizeof(buffer),
+	status = ixgbe_host_interface_command(hw, &buffer, sizeof(buffer),
 					      IXGBE_HI_COMMAND_TIMEOUT, false);
 	return status;
 }
@@ -814,8 +812,7 @@ static s32 ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 	buffer.req.buf_lenl = FW_SHADOW_RAM_DUMP_LEN;
 	buffer.req.checksum = FW_DEFAULT_CHECKSUM;
 
-	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
-					      sizeof(buffer),
+	status = ixgbe_host_interface_command(hw, &buffer, sizeof(buffer),
 					      IXGBE_HI_COMMAND_TIMEOUT, false);
 	return status;
 }
@@ -864,7 +861,7 @@ static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 		fw_cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
 		fw_cmd.port_number = hw->bus.lan_id;
 
-		status = ixgbe_host_interface_command(hw, (u32 *)&fw_cmd,
+		status = ixgbe_host_interface_command(hw, &fw_cmd,
 					sizeof(struct ixgbe_hic_disable_rxen),
 					IXGBE_HI_COMMAND_TIMEOUT, true);
 
