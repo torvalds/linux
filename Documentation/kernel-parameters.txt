@@ -193,6 +193,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
 
+	acpi_force_32bit_fadt_addr
+			force FADT to use 32 bit addresses rather than the
+			64 bit X_* addresses. Some firmware have broken 64
+			bit addresses for force ACPI ignore these and use
+			the older legacy 32 bit addresses.
+
 	acpica_no_return_repair [HW, ACPI]
 			Disable AML predefined validation mechanism
 			This mechanism can repair the evaluation result to make
