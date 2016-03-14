@@ -1857,7 +1857,7 @@ static void Handle_Disconnect(struct wilc_vif *vif)
 		}
 	}
 
-	up(&hif_drv->sem_test_disconn_block);
+	complete(&hif_drv->comp_test_disconn_block);
 }
 
 void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
@@ -3099,7 +3099,7 @@ int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 	if (result)
 		netdev_err(vif->ndev, "Failed to send message: disconnect\n");
 
-	down(&hif_drv->sem_test_disconn_block);
+	wait_for_completion(&hif_drv->comp_test_disconn_block);
 
 	return result;
 }
@@ -3406,7 +3406,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	}
 
 	sema_init(&hif_drv->sem_test_key_block, 0);
-	sema_init(&hif_drv->sem_test_disconn_block, 0);
+	init_completion(&hif_drv->comp_test_disconn_block);
 	init_completion(&hif_drv->comp_get_rssi);
 	init_completion(&hif_drv->comp_inactive_time);
 
