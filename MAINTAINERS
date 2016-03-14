@@ -7666,7 +7666,6 @@ F:	net/nfc/
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
 F:	drivers/nfc/
-F:	include/linux/platform_data/microread.h
 F:	include/linux/platform_data/nfcmrvl.h
 F:	include/linux/platform_data/nxp-nci.h
 F:	include/linux/platform_data/pn544.h
@@ -9509,6 +9508,7 @@ F:	drivers/media/i2c/s5k5baf.c
 
 SAMSUNG S3FWRN5 NFC DRIVER
 M:	Robert Baldyga <r.baldyga@samsung.com>
+M:	Krzysztof Opasiak <k.opasiak@samsung.com>
 L:	linux-nfc@lists.01.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/nfc/s3fwrn5
