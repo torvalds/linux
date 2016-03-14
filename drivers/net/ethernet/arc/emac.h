@@ -102,6 +102,11 @@ struct buffer_state {
 	DEFINE_DMA_UNMAP_LEN(len);
 };
 
+struct arc_emac_mdio_bus_data {
+	struct gpio_desc *reset_gpio;
+	int msec;
+};
+
 /**
  * struct arc_emac_priv - Storage of EMAC's private information.
  * @dev:	Pointer to the current device.
@@ -131,6 +136,7 @@ struct arc_emac_priv {
 	struct device *dev;
 	struct phy_device *phy_dev;
 	struct mii_bus *bus;
+	struct arc_emac_mdio_bus_data bus_data;
 
 	void __iomem *regs;
 	struct clk *clk;
