@@ -1676,7 +1676,9 @@ static int mtk_probe(struct platform_device *pdev)
 	struct mtk_eth *eth;
 	int err;
 
-	device_reset(&pdev->dev);
+	err = device_reset(&pdev->dev);
+	if (err)
+		return err;
 
 	match = of_match_device(of_mtk_match, &pdev->dev);
 	soc = (struct mtk_soc_data *)match->data;
