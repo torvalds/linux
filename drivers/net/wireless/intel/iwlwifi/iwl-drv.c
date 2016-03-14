@@ -1724,4 +1724,4 @@ MODULE_PARM_DESC(d0i3_timeout, "Timeout to D0i3 entry when idle (ms)");
 
 module_param_named(disable_11ac, iwlwifi_mod_params.disable_11ac, bool,
 		   S_IRUGO);
-MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities");
+MODULE_PARM_DESC(disable_11ac, "Disable VHT capabilities (default: false)");
