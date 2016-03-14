@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,34 +21,26 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
-#include "rootnv50.h"
+#include "gk104.h"
+#include "changk104.h"
 
-static const struct nv50_disp_func
-gm204_disp = {
-	.intr = gf119_disp_intr,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_intr_supervisor,
-	.root = &gm204_disp_root_oclass,
-	.head.vblank_init = gf119_disp_vblank_init,
-	.head.vblank_fini = gf119_disp_vblank_fini,
-	.head.scanoutpos = gf119_disp_root_scanoutpos,
-	.outp.internal.crt = nv50_dac_output_new,
-	.outp.internal.tmds = nv50_sor_output_new,
-	.outp.internal.lvds = nv50_sor_output_new,
-	.outp.internal.dp = gm204_sor_dp_new,
-	.dac.nr = 3,
-	.dac.power = nv50_dac_power,
-	.dac.sense = nv50_dac_sense,
-	.sor.nr = 4,
-	.sor.power = nv50_sor_power,
-	.sor.hda_eld = gf119_hda_eld,
-	.sor.hdmi = gk104_hdmi_ctrl,
-	.sor.magic = gm204_sor_magic,
+static const struct nvkm_fifo_func
+gk110_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.chan = {
+		&gk110_fifo_gpfifo_oclass,
+		NULL
+	},
 };
 
 int
-gm204_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gk110_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	return gf119_disp_new_(&gm204_disp, device, index, pdisp);
+	return gk104_fifo_new_(&gk110_fifo, device, index, 4096, pfifo);
 }

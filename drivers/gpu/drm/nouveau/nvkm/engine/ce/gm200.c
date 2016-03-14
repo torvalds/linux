@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Red Hat Inc.
+ * Copyright 2015 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,38 +21,34 @@
  *
  * Authors: Ben Skeggs
  */
-#include "rootnv50.h"
-#include "dmacnv50.h"
+#include "priv.h"
 
 #include <nvif/class.h>
 
-static const struct nv50_disp_root_func
-gm204_disp_root = {
-	.init = gf119_disp_root_init,
-	.fini = gf119_disp_root_fini,
-	.dmac = {
-		&gm204_disp_core_oclass,
-		&gk110_disp_base_oclass,
-		&gk104_disp_ovly_oclass,
-	},
-	.pioc = {
-		&gk104_disp_oimm_oclass,
-		&gk104_disp_curs_oclass,
-	},
+static const struct nvkm_engine_func
+gm200_ce = {
+	.intr = gk104_ce_intr,
+	.sclass = {
+		{ -1, -1, MAXWELL_DMA_COPY_A },
+		{}
+	}
 };
 
-static int
-gm204_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
+int
+gm200_ce_new(struct nvkm_device *device, int index,
+	     struct nvkm_engine **pengine)
 {
-	return nv50_disp_root_new_(&gm204_disp_root, disp, oclass,
-				   data, size, pobject);
+	if (index == NVKM_ENGINE_CE0) {
+		return nvkm_engine_new_(&gm200_ce, device, index,
+					0x00000040, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE1) {
+		return nvkm_engine_new_(&gm200_ce, device, index,
+					0x00000080, true, pengine);
+	} else
+	if (index == NVKM_ENGINE_CE2) {
+		return nvkm_engine_new_(&gm200_ce, device, index,
+					0x00200000, true, pengine);
+	}
+	return -ENODEV;
 }
-
-const struct nvkm_disp_oclass
-gm204_disp_root_oclass = {
-	.base.oclass = GM204_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = gm204_disp_root_new,
-};

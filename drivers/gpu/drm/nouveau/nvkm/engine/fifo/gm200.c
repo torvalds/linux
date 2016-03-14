@@ -19,30 +19,28 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Ben Skeggs
  */
-#include "gf100.h"
-#include "ctxgf100.h"
+#include "gk104.h"
+#include "changk104.h"
 
-#include <nvif/class.h>
-
-static const struct gf100_gr_func
-gm206_gr = {
-	.init = gm204_gr_init,
-	.mmio = gm204_gr_pack_mmio,
-	.ppc_nr = 2,
-	.grctx = &gm206_grctx,
-	.sclass = {
-		{ -1, -1, FERMI_TWOD_A },
-		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
-		{ -1, -1, MAXWELL_B, &gf100_fermi },
-		{ -1, -1, MAXWELL_COMPUTE_B },
-		{}
-	}
+static const struct nvkm_fifo_func
+gm200_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.chan = {
+		&gm200_fifo_gpfifo_oclass,
+		NULL
+	},
 };
 
 int
-gm206_gr_new(struct nvkm_device *device, int index, struct nvkm_gr **pgr)
+gm200_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	return gf100_gr_new_(&gm206_gr, device, index, pgr);
+	return gk104_fifo_new_(&gm200_fifo, device, index, 4096, pfifo);
 }

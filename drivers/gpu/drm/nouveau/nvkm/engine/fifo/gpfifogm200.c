@@ -19,22 +19,16 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
+ * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "changk104.h"
 
-static const struct nvkm_subdev_func
-gm204_ibus = {
-	.intr = gk104_ibus_intr,
+#include <nvif/class.h>
+
+const struct nvkm_fifo_chan_oclass
+gm200_fifo_gpfifo_oclass = {
+	.base.oclass = MAXWELL_CHANNEL_GPFIFO_A,
+	.base.minver = 0,
+	.base.maxver = 0,
+	.ctor = gk104_fifo_gpfifo_new,
 };
-
-int
-gm204_ibus_new(struct nvkm_device *device, int index,
-	       struct nvkm_subdev **pibus)
-{
-	struct nvkm_subdev *ibus;
-	if (!(ibus = *pibus = kzalloc(sizeof(*ibus), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_subdev_ctor(&gm204_ibus, device, index, 0, ibus);
-	return 0;
-}

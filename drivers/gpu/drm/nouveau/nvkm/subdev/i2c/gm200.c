@@ -25,16 +25,16 @@
 #include "pad.h"
 
 static const struct nvkm_i2c_func
-gm204_i2c = {
+gm200_i2c = {
 	.pad_x_new = gf119_i2c_pad_x_new,
-	.pad_s_new = gm204_i2c_pad_s_new,
+	.pad_s_new = gm200_i2c_pad_s_new,
 	.aux = 8,
 	.aux_stat = gk104_aux_stat,
 	.aux_mask = gk104_aux_mask,
 };
 
 int
-gm204_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
+gm200_i2c_new(struct nvkm_device *device, int index, struct nvkm_i2c **pi2c)
 {
-	return nvkm_i2c_new_(&gm204_i2c, device, index, pi2c);
+	return nvkm_i2c_new_(&gm200_i2c, device, index, pi2c);
 }

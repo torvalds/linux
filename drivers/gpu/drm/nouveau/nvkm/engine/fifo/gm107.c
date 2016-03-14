@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,34 +21,26 @@
  *
  * Authors: Ben Skeggs
  */
-#include "priv.h"
+#include "gk104.h"
+#include "changk104.h"
 
-#include <nvif/class.h>
-
-static const struct nvkm_engine_func
-gm204_ce = {
-	.intr = gk104_ce_intr,
-	.sclass = {
-		{ -1, -1, MAXWELL_DMA_COPY_A },
-		{}
-	}
+static const struct nvkm_fifo_func
+gm107_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.chan = {
+		&gk110_fifo_gpfifo_oclass,
+		NULL
+	},
 };
 
 int
-gm204_ce_new(struct nvkm_device *device, int index,
-	     struct nvkm_engine **pengine)
+gm107_fifo_new(struct nvkm_device *device, int index, struct nvkm_fifo **pfifo)
 {
-	if (index == NVKM_ENGINE_CE0) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00000040, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE1) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00000080, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE2) {
-		return nvkm_engine_new_(&gm204_ce, device, index,
-					0x00200000, true, pengine);
-	}
-	return -ENODEV;
+	return gk104_fifo_new_(&gm107_fifo, device, index, 2048, pfifo);
 }

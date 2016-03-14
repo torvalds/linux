@@ -198,6 +198,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 			break;
 		case FERMI_CHANNEL_GPFIFO:
 		case KEPLER_CHANNEL_GPFIFO_A:
+		case KEPLER_CHANNEL_GPFIFO_B:
 		case MAXWELL_CHANNEL_GPFIFO_A:
 			ret = nvc0_fence_create(drm);
 			break;
@@ -215,13 +216,13 @@ nouveau_accel_init(struct nouveau_drm *drm)
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
 		ret = nouveau_channel_new(drm, &drm->device,
-					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE0|
-					  KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_CE1,
+					  NVA06F_V0_ENGINE_CE0 |
+					  NVA06F_V0_ENGINE_CE1,
 					  0, &drm->cechan);
 		if (ret)
 			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 
-		arg0 = KEPLER_CHANNEL_GPFIFO_A_V0_ENGINE_GR;
+		arg0 = NVA06F_V0_ENGINE_GR;
 		arg1 = 1;
 	} else
 	if (device->info.chipset >= 0xa3 &&
@@ -375,7 +376,7 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 	struct pci_dev *pdev = drm->dev->pdev;
 
 	if (!pdev) {
-		DRM_INFO("not a PCI device; no HDMI\n");
+		NV_DEBUG(drm, "not a PCI device; no HDMI\n");
 		drm->hdmi_device = NULL;
 		return;
 	}
