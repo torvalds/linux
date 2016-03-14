@@ -28,23 +28,18 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	struct page *page;
 	phys_addr_t paddr;
 	void *kvaddr;
+	int need_coh = 1, need_kvaddr = 0;
 
 	page = alloc_pages(gfp, order);
 	if (!page)
 		return NULL;
-
-	/* This is linear addr (0x8000_0000 based) */
-	paddr = page_to_phys(page);
-
-	/* For now bus address is exactly same as paddr */
-	*dma_handle = paddr;
 
 	/*
 	 * IOC relies on all data (even coherent DMA data) being in cache
 	 * Thus allocate normal cached memory
 	 *
 	 * The gains with IOC are two pronged:
-	 *   -For streaming data, elides needs for cache maintenance, saving
+	 *   -For streaming data, elides need for cache maintenance, saving
 	 *    cycles in flush code, and bus bandwidth as all the lines of a
 	 *    buffer need to be flushed out to memory
 	 *   -For coherent data, Read/Write to buffers terminate early in cache
@@ -52,13 +47,31 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	 */
 	if ((is_isa_arcv2() && ioc_exists) ||
 	    dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs))
-		return paddr;
+		need_coh = 0;
+
+	/*
+	 * - A coherent buffer needs MMU mapping to enforce non-cachability
+	 * - A highmem page needs a virtual handle (hence MMU mapping)
+	 *   independent of cachability
+	 */
+	if (PageHighMem(page) || need_coh)
+		need_kvaddr = 1;
+
+	/* This is linear addr (0x8000_0000 based) */
+	paddr = page_to_phys(page);
+
+	/* For now bus address is exactly same as paddr */
+	*dma_handle = paddr;
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
-	kvaddr = ioremap_nocache((unsigned long)paddr, size);
-	if (kvaddr == NULL) {
-		__free_pages(page, order);
-		return NULL;
+	if (need_kvaddr) {
+		kvaddr = ioremap_nocache((unsigned long)paddr, size);
+		if (kvaddr == NULL) {
+			__free_pages(page, order);
+			return NULL;
+		}
+	} else {
+		kvaddr = (void *)paddr;
 	}
 
 	/*
@@ -71,7 +84,8 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	 * Currently flush_cache_vmap nukes the L1 cache completely which
 	 * will be optimized as a separate commit
 	 */
-	dma_cache_wback_inv((unsigned long)paddr, size);
+	if (need_coh)
+		dma_cache_wback_inv((unsigned long)paddr, size);
 
 	return kvaddr;
 }
@@ -80,9 +94,12 @@ static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 		dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
 	struct page *page = virt_to_page(dma_handle);
+	int is_non_coh = 1;
 
-	if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs) &&
-	    !(is_isa_arcv2() && ioc_exists))
+	is_non_coh = dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs) ||
+			(is_isa_arcv2() && ioc_exists);
+
+	if (PageHighMem(page) || !is_non_coh)
 		iounmap((void __force __iomem *)vaddr);
 
 	__free_pages(page, get_order(size));
