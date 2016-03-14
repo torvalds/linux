@@ -190,9 +190,6 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 			seq |= last_emitted & 0xffffffff00000000LL;
 		}
 
-		if (seq <= last_seq || seq > last_emitted)
-			return;
-
 	} while (atomic64_cmpxchg(&drv->last_seq, last_seq, seq) != last_seq);
 
 	if (seq < last_emitted)
