@@ -36,8 +36,7 @@ It is the responsibility of the low level hardware driver to perform the
 necessary locking using port->lock.  There are some exceptions (which
 are described in the uart_ops listing below.)
 
-There are three locks.  A per-port spinlock, a per-port tmpbuf semaphore,
-and an overall semaphore.
+There are two locks.  A per-port spinlock, and an overall semaphore.
 
 From the core driver perspective, the port->lock locks the following
 data:
@@ -49,9 +48,6 @@ data:
 
 The low level driver is free to use this lock to provide any additional
 locking.
-
-The core driver uses the info->tmpbuf_sem lock to prevent multi-threaded
-access to the info->tmpbuf bouncebuffer used for port writes.
 
 The port_sem semaphore is used to protect against ports being added/
 removed or reconfigured at inappropriate times. Since v2.6.27, this
