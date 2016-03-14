@@ -1611,27 +1611,22 @@ static struct stats_orangefs_obj *stats_orangefs_obj;
 
 int orangefs_sysfs_init(void)
 {
-	int rc;
+	int rc = -EINVAL;
 
 	gossip_debug(GOSSIP_SYSFS_DEBUG, "orangefs_sysfs_init: start\n");
 
 	/* create /sys/fs/orangefs. */
 	orangefs_obj = kzalloc(sizeof(*orangefs_obj), GFP_KERNEL);
-	if (!orangefs_obj) {
-		rc = -EINVAL;
+	if (!orangefs_obj)
 		goto out;
-	}
 
 	rc = kobject_init_and_add(&orangefs_obj->kobj,
 				  &orangefs_ktype,
 				  fs_kobj,
 				  ORANGEFS_KOBJ_ID);
 
-	if (rc) {
-		kobject_put(&orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto ofs_obj_bail;
 
 	kobject_uevent(&orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1639,7 +1634,7 @@ int orangefs_sysfs_init(void)
 	acache_orangefs_obj = kzalloc(sizeof(*acache_orangefs_obj), GFP_KERNEL);
 	if (!acache_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto ofs_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&acache_orangefs_obj->kobj,
@@ -1647,11 +1642,8 @@ int orangefs_sysfs_init(void)
 				  &orangefs_obj->kobj,
 				  ACACHE_KOBJ_ID);
 
-	if (rc) {
-		kobject_put(&acache_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto acache_obj_bail;
 
 	kobject_uevent(&acache_orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1660,18 +1652,15 @@ int orangefs_sysfs_init(void)
 		kzalloc(sizeof(*capcache_orangefs_obj), GFP_KERNEL);
 	if (!capcache_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto acache_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&capcache_orangefs_obj->kobj,
 				  &capcache_orangefs_ktype,
 				  &orangefs_obj->kobj,
 				  CAPCACHE_KOBJ_ID);
-	if (rc) {
-		kobject_put(&capcache_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto capcache_obj_bail;
 
 	kobject_uevent(&capcache_orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1680,18 +1669,15 @@ int orangefs_sysfs_init(void)
 		kzalloc(sizeof(*ccache_orangefs_obj), GFP_KERNEL);
 	if (!ccache_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto capcache_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&ccache_orangefs_obj->kobj,
 				  &ccache_orangefs_ktype,
 				  &orangefs_obj->kobj,
 				  CCACHE_KOBJ_ID);
-	if (rc) {
-		kobject_put(&ccache_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto ccache_obj_bail;
 
 	kobject_uevent(&ccache_orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1699,7 +1685,7 @@ int orangefs_sysfs_init(void)
 	ncache_orangefs_obj = kzalloc(sizeof(*ncache_orangefs_obj), GFP_KERNEL);
 	if (!ncache_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto ccache_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&ncache_orangefs_obj->kobj,
@@ -1707,11 +1693,8 @@ int orangefs_sysfs_init(void)
 				  &orangefs_obj->kobj,
 				  NCACHE_KOBJ_ID);
 
-	if (rc) {
-		kobject_put(&ncache_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto ncache_obj_bail;
 
 	kobject_uevent(&ncache_orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1719,7 +1702,7 @@ int orangefs_sysfs_init(void)
 	pc_orangefs_obj = kzalloc(sizeof(*pc_orangefs_obj), GFP_KERNEL);
 	if (!pc_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto ncache_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&pc_orangefs_obj->kobj,
@@ -1727,11 +1710,8 @@ int orangefs_sysfs_init(void)
 				  &orangefs_obj->kobj,
 				  "perf_counters");
 
-	if (rc) {
-		kobject_put(&pc_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto pc_obj_bail;
 
 	kobject_uevent(&pc_orangefs_obj->kobj, KOBJ_ADD);
 
@@ -1739,7 +1719,7 @@ int orangefs_sysfs_init(void)
 	stats_orangefs_obj = kzalloc(sizeof(*stats_orangefs_obj), GFP_KERNEL);
 	if (!stats_orangefs_obj) {
 		rc = -EINVAL;
-		goto out;
+		goto pc_obj_bail;
 	}
 
 	rc = kobject_init_and_add(&stats_orangefs_obj->kobj,
@@ -1747,13 +1727,32 @@ int orangefs_sysfs_init(void)
 				  &orangefs_obj->kobj,
 				  STATS_KOBJ_ID);
 
-	if (rc) {
-		kobject_put(&stats_orangefs_obj->kobj);
-		rc = -EINVAL;
-		goto out;
-	}
+	if (rc)
+		goto stats_obj_bail;
 
 	kobject_uevent(&stats_orangefs_obj->kobj, KOBJ_ADD);
+	goto out;
+
+stats_obj_bail:
+		kobject_put(&stats_orangefs_obj->kobj);
+
+pc_obj_bail:
+		kobject_put(&pc_orangefs_obj->kobj);
+
+ncache_obj_bail:
+		kobject_put(&ncache_orangefs_obj->kobj);
+
+ccache_obj_bail:
+		kobject_put(&ccache_orangefs_obj->kobj);
+
+capcache_obj_bail:
+		kobject_put(&capcache_orangefs_obj->kobj);
+
+acache_obj_bail:
+		kobject_put(&acache_orangefs_obj->kobj);
+
+ofs_obj_bail:
+		kobject_put(&orangefs_obj->kobj);
 out:
 	return rc;
 }

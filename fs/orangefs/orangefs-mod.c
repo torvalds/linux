@@ -185,21 +185,38 @@ static int __init orangefs_init(void)
 	 */
 	ret = orangefs_prepare_debugfs_help_string(1);
 	if (ret)
-		goto out;
+		goto prepare_helpstring_failed;
 
-	orangefs_debugfs_init();
-	orangefs_kernel_debug_init();
-	orangefs_sysfs_init();
+	ret = orangefs_debugfs_init();
+	if (ret)
+		goto debugfs_init_failed;
+
+	ret = orangefs_kernel_debug_init();
+	if (ret)
+		goto kernel_debug_init_failed;
+
+	ret = orangefs_sysfs_init();
+	if (ret)
+		goto sysfs_init_failed;
 
 	ret = register_filesystem(&orangefs_fs_type);
 	if (ret == 0) {
 		pr_info("orangefs: module version %s loaded\n", ORANGEFS_VERSION);
-		return 0;
+		ret = 0;
+		goto out;
 	}
 
-	orangefs_debugfs_cleanup();
 	orangefs_sysfs_exit();
 	fsid_key_table_finalize();
+
+sysfs_init_failed:
+
+kernel_debug_init_failed:
+
+debugfs_init_failed:
+	orangefs_debugfs_cleanup();
+
+prepare_helpstring_failed:
 
 cleanup_progress_table:
 	kfree(htable_ops_in_progress);

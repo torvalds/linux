@@ -101,30 +101,33 @@ int orangefs_debugfs_init(void)
 	int rc = -ENOMEM;
 
 	debug_dir = debugfs_create_dir("orangefs", NULL);
-	if (!debug_dir)
+	if (!debug_dir) {
+		pr_info("%s: debugfs_create_dir failed.\n", __func__);
 		goto out;
+	}
 
 	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
 				  0444,
 				  debug_dir,
 				  debug_help_string,
 				  &debug_help_fops);
-	if (!help_file_dentry)
+	if (!help_file_dentry) {
+		pr_info("%s: debugfs_create_file failed.\n", __func__);
 		goto out;
+	}
 
 	orangefs_debug_disabled = 0;
 	rc = 0;
 
 out:
-	if (rc)
-		orangefs_debugfs_cleanup();
 
 	return rc;
 }
 
 void orangefs_debugfs_cleanup(void)
 {
-	debugfs_remove_recursive(debug_dir);
+	if (debug_dir)
+		debugfs_remove_recursive(debug_dir);
 }
 
 /* open ORANGEFS_KMOD_DEBUG_HELP_FILE */
@@ -198,7 +201,6 @@ static int help_show(struct seq_file *m, void *v)
  */
 int orangefs_kernel_debug_init(void)
 {
-
 	int rc = -ENOMEM;
 	struct dentry *ret;
 	char *k_buffer = NULL;
@@ -232,8 +234,6 @@ int orangefs_kernel_debug_init(void)
 	rc = 0;
 
 out:
-	if (rc)
-		orangefs_debugfs_cleanup();
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
@@ -268,7 +268,7 @@ int orangefs_client_debug_init(void)
 						  c_buffer,
 						  &kernel_debug_fops);
 	if (!client_debug_dentry) {
-		pr_info("%s: failed to create %s.\n",
+		pr_info("%s: failed to create updated %s.\n",
 			__func__,
 			ORANGEFS_CLIENT_DEBUG_FILE);
 		goto out;
@@ -277,8 +277,6 @@ int orangefs_client_debug_init(void)
 	rc = 0;
 
 out:
-	if (rc)
-		orangefs_debugfs_cleanup();
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
 	return rc;
