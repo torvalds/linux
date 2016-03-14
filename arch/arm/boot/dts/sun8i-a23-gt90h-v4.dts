@@ -50,8 +50,8 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
-	model = "Allwinner GT90H Quad Core Tablet (v4)";
-	compatible = "allwinner,gt90h-v4", "allwinner,sun8i-a33";
+	model = "Allwinner GT90H Dual Core Tablet (v4)";
+	compatible = "allwinner,gt90h-v4", "allwinner,sun8i-a23";
 
 	aliases {
 		serial0 = &r_uart;
