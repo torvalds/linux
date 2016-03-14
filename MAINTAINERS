@@ -5198,6 +5198,16 @@ F:	include/linux/hyperv.h
 F:	tools/hv/
 F:	Documentation/ABI/stable/sysfs-bus-vmbus
 
+I2C MUXES
+M:	Peter Rosin <peda@axentia.se>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/i2c/muxes/
+F:	Documentation/devicetree/bindings/i2c/i2c-mux*
+F:	drivers/i2c/i2c-mux.c
+F:	drivers/i2c/muxes/
+F:	include/linux/i2c-mux.h
+
 I2C OVER PARALLEL PORT
 M:	Jean Delvare <jdelvare@suse.com>
 L:	linux-i2c@vger.kernel.org
