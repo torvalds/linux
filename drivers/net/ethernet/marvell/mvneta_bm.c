@@ -10,16 +10,17 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/genalloc.h>
-#include <linux/platform_device.h>
-#include <linux/netdevice.h>
-#include <linux/skbuff.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mbus.h>
 #include <linux/module.h>
-#include <linux/io.h>
+#include <linux/netdevice.h>
 #include <linux/of.h>
-#include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/skbuff.h>
+#include <net/hwbm.h>
 #include "mvneta_bm.h"
 
 #define MVNETA_BM_DRIVER_NAME "mvneta_bm"
@@ -88,16 +89,12 @@ static void mvneta_bm_pool_target_set(struct mvneta_bm *priv, int pool_id,
 	mvneta_bm_write(priv, MVNETA_BM_XBAR_POOL_REG(pool_id), val);
 }
 
-/* Allocate skb for BM pool */
-void *mvneta_buf_alloc(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
-		       dma_addr_t *buf_phys_addr)
+int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf)
 {
-	void *buf;
+	struct mvneta_bm_pool *bm_pool =
+		(struct mvneta_bm_pool *)hwbm_pool->priv;
+	struct mvneta_bm *priv = bm_pool->priv;
 	dma_addr_t phys_addr;
-
-	buf = mvneta_frag_alloc(bm_pool->frag_size);
-	if (!buf)
-		return NULL;
 
 	/* In order to update buf_cookie field of RX descriptor properly,
 	 * BM hardware expects buf virtual address to be placed in the
@@ -106,75 +103,13 @@ void *mvneta_buf_alloc(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
 	*(u32 *)buf = (u32)buf;
 	phys_addr = dma_map_single(&priv->pdev->dev, buf, bm_pool->buf_size,
 				   DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(&priv->pdev->dev, phys_addr))) {
-		mvneta_frag_free(bm_pool->frag_size, buf);
-		return NULL;
-	}
-	*buf_phys_addr = phys_addr;
-
-	return buf;
-}
-
-/* Refill processing for HW buffer management */
-int mvneta_bm_pool_refill(struct mvneta_bm *priv,
-			  struct mvneta_bm_pool *bm_pool)
-{
-	dma_addr_t buf_phys_addr;
-	void *buf;
-
-	buf = mvneta_buf_alloc(priv, bm_pool, &buf_phys_addr);
-	if (!buf)
+	if (unlikely(dma_mapping_error(&priv->pdev->dev, phys_addr)))
 		return -ENOMEM;
 
-	mvneta_bm_pool_put_bp(priv, bm_pool, buf_phys_addr);
-
+	mvneta_bm_pool_put_bp(priv, bm_pool, phys_addr);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mvneta_bm_pool_refill);
-
-/* Allocate buffers for the pool */
-int mvneta_bm_bufs_add(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
-		       int buf_num)
-{
-	int err, i;
-
-	if (bm_pool->buf_num == bm_pool->size) {
-		dev_dbg(&priv->pdev->dev, "pool %d already filled\n",
-			bm_pool->id);
-		return bm_pool->buf_num;
-	}
-
-	if (buf_num < 0 ||
-	    (buf_num + bm_pool->buf_num > bm_pool->size)) {
-		dev_err(&priv->pdev->dev,
-			"cannot allocate %d buffers for pool %d\n",
-			buf_num, bm_pool->id);
-		return 0;
-	}
-
-	for (i = 0; i < buf_num; i++) {
-		err = mvneta_bm_pool_refill(priv, bm_pool);
-		if (err < 0)
-			break;
-	}
-
-	/* Update BM driver with number of buffers added to pool */
-	bm_pool->buf_num += i;
-
-	dev_dbg(&priv->pdev->dev,
-		"%s pool %d: pkt_size=%4d, buf_size=%4d, frag_size=%4d\n",
-		bm_pool->type == MVNETA_BM_SHORT ? "short" : "long",
-		bm_pool->id, bm_pool->pkt_size, bm_pool->buf_size,
-		bm_pool->frag_size);
-
-	dev_dbg(&priv->pdev->dev,
-		"%s pool %d: %d of %d buffers added\n",
-		bm_pool->type == MVNETA_BM_SHORT ? "short" : "long",
-		bm_pool->id, i, buf_num);
-
-	return i;
-}
-EXPORT_SYMBOL_GPL(mvneta_bm_bufs_add);
+EXPORT_SYMBOL_GPL(mvneta_bm_construct);
 
 /* Create pool */
 static int mvneta_bm_pool_create(struct mvneta_bm *priv,
@@ -183,8 +118,7 @@ static int mvneta_bm_pool_create(struct mvneta_bm *priv,
 	struct platform_device *pdev = priv->pdev;
 	u8 target_id, attr;
 	int size_bytes, err;
-
-	size_bytes = sizeof(u32) * bm_pool->size;
+	size_bytes = sizeof(u32) * bm_pool->hwbm_pool.size;
 	bm_pool->virt_addr = dma_alloc_coherent(&pdev->dev, size_bytes,
 						&bm_pool->phys_addr,
 						GFP_KERNEL);
@@ -245,11 +179,16 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 
 	/* Allocate buffers in case BM pool hasn't been used yet */
 	if (new_pool->type == MVNETA_BM_FREE) {
+		struct hwbm_pool *hwbm_pool = &new_pool->hwbm_pool;
+
+		new_pool->priv = priv;
 		new_pool->type = type;
 		new_pool->buf_size = MVNETA_RX_BUF_SIZE(new_pool->pkt_size);
-		new_pool->frag_size =
+		hwbm_pool->frag_size =
 			SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(new_pool->pkt_size)) +
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+		hwbm_pool->construct = mvneta_bm_construct;
+		hwbm_pool->priv = new_pool;
 
 		/* Create new pool */
 		err = mvneta_bm_pool_create(priv, new_pool);
@@ -260,10 +199,10 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 		}
 
 		/* Allocate buffers for this pool */
-		num = mvneta_bm_bufs_add(priv, new_pool, new_pool->size);
-		if (num != new_pool->size) {
+		num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+		if (num != hwbm_pool->size) {
 			WARN(1, "pool %d: %d of %d allocated\n",
-			     new_pool->id, num, new_pool->size);
+			     new_pool->id, num, hwbm_pool->size);
 			return NULL;
 		}
 	}
@@ -284,7 +223,7 @@ void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
 
 	mvneta_bm_config_set(priv, MVNETA_BM_EMPTY_LIMIT_MASK);
 
-	for (i = 0; i < bm_pool->buf_num; i++) {
+	for (i = 0; i < bm_pool->hwbm_pool.buf_num; i++) {
 		dma_addr_t buf_phys_addr;
 		u32 *vaddr;
 
@@ -303,13 +242,13 @@ void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
 
 		dma_unmap_single(&priv->pdev->dev, buf_phys_addr,
 				 bm_pool->buf_size, DMA_FROM_DEVICE);
-		mvneta_frag_free(bm_pool->frag_size, vaddr);
+		hwbm_buf_free(&bm_pool->hwbm_pool, vaddr);
 	}
 
 	mvneta_bm_config_clear(priv, MVNETA_BM_EMPTY_LIMIT_MASK);
 
 	/* Update BM driver with number of buffers removed from pool */
-	bm_pool->buf_num -= i;
+	bm_pool->hwbm_pool.buf_num -= i;
 }
 EXPORT_SYMBOL_GPL(mvneta_bm_bufs_free);
 
@@ -317,6 +256,7 @@ EXPORT_SYMBOL_GPL(mvneta_bm_bufs_free);
 void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 			    struct mvneta_bm_pool *bm_pool, u8 port_map)
 {
+	struct hwbm_pool *hwbm_pool = &bm_pool->hwbm_pool;
 	bm_pool->port_map &= ~port_map;
 	if (bm_pool->port_map)
 		return;
@@ -324,11 +264,12 @@ void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 	bm_pool->type = MVNETA_BM_FREE;
 
 	mvneta_bm_bufs_free(priv, bm_pool, port_map);
-	if (bm_pool->buf_num)
+	if (hwbm_pool->buf_num)
 		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
 
 	if (bm_pool->virt_addr) {
-		dma_free_coherent(&priv->pdev->dev, sizeof(u32) * bm_pool->size,
+		dma_free_coherent(&priv->pdev->dev,
+				  sizeof(u32) * hwbm_pool->size,
 				  bm_pool->virt_addr, bm_pool->phys_addr);
 		bm_pool->virt_addr = NULL;
 	}
@@ -381,10 +322,10 @@ static void mvneta_bm_pools_init(struct mvneta_bm *priv)
 				 MVNETA_BM_POOL_CAP_ALIGN));
 			size = ALIGN(size, MVNETA_BM_POOL_CAP_ALIGN);
 		}
-		bm_pool->size = size;
+		bm_pool->hwbm_pool.size = size;
 
 		mvneta_bm_write(priv, MVNETA_BM_POOL_SIZE_REG(i),
-				bm_pool->size);
+				bm_pool->hwbm_pool.size);
 
 		/* Obtain custom pkt_size from DT */
 		sprintf(prop, "pool%d,pkt-size", i);

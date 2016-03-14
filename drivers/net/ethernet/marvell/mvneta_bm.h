@@ -108,20 +108,15 @@ struct mvneta_bm {
 };
 
 struct mvneta_bm_pool {
+	struct hwbm_pool hwbm_pool;
 	/* Pool number in the range 0-3 */
 	u8 id;
 	enum mvneta_bm_type type;
 
-	/* Buffer Pointers Pool External (BPPE) size in number of bytes */
-	int size;
-	/* Number of buffers used by this pool */
-	int buf_num;
-	/* Pool buffer size */
-	int buf_size;
 	/* Packet size */
 	int pkt_size;
-	/* Single frag size */
-	u32 frag_size;
+	/* Size of the buffer acces through DMA*/
+	u32 buf_size;
 
 	/* BPPE virtual base address */
 	u32 *virt_addr;
@@ -143,8 +138,7 @@ void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 			    struct mvneta_bm_pool *bm_pool, u8 port_map);
 void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
 			 u8 port_map);
-int mvneta_bm_bufs_add(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
-		       int buf_num);
+int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf);
 int mvneta_bm_pool_refill(struct mvneta_bm *priv,
 			  struct mvneta_bm_pool *bm_pool);
 struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
@@ -170,8 +164,7 @@ void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 			    struct mvneta_bm_pool *bm_pool, u8 port_map) {}
 void mvneta_bm_bufs_free(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
 			 u8 port_map) {}
-int mvneta_bm_bufs_add(struct mvneta_bm *priv, struct mvneta_bm_pool *bm_pool,
-		       int buf_num) { return 0; }
+int mvneta_bm_construct(struct hwbm_pool *hwbm_pool, void *buf) { return 0; }
 int mvneta_bm_pool_refill(struct mvneta_bm *priv,
 			  struct mvneta_bm_pool *bm_pool) {return 0; }
 struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,

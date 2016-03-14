@@ -43,6 +43,7 @@ config MVMDIO
 config MVNETA_BM
 	tristate "Marvell Armada 38x/XP network interface BM support"
 	depends on MVNETA
+	select HWBM
 	---help---
 	  This driver supports auxiliary block of the network
 	  interface units in the Marvell ARMADA XP and ARMADA 38x SoC

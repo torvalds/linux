@@ -30,6 +30,7 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
+#include <net/hwbm.h>
 #include "mvneta_bm.h"
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -1026,11 +1027,12 @@ static int mvneta_bm_port_init(struct platform_device *pdev,
 static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
 {
 	struct mvneta_bm_pool *bm_pool = pp->pool_long;
+	struct hwbm_pool *hwbm_pool = &bm_pool->hwbm_pool;
 	int num;
 
 	/* Release all buffers from long pool */
 	mvneta_bm_bufs_free(pp->bm_priv, bm_pool, 1 << pp->id);
-	if (bm_pool->buf_num) {
+	if (hwbm_pool->buf_num) {
 		WARN(1, "cannot free all buffers in pool %d\n",
 		     bm_pool->id);
 		goto bm_mtu_err;
@@ -1038,14 +1040,14 @@ static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
 
 	bm_pool->pkt_size = MVNETA_RX_PKT_SIZE(mtu);
 	bm_pool->buf_size = MVNETA_RX_BUF_SIZE(bm_pool->pkt_size);
-	bm_pool->frag_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
-			  SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(bm_pool->pkt_size));
+	hwbm_pool->frag_size = SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) +
+			SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(bm_pool->pkt_size));
 
 	/* Fill entire long pool */
-	num = mvneta_bm_bufs_add(pp->bm_priv, bm_pool, bm_pool->size);
-	if (num != bm_pool->size) {
+	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+	if (num != hwbm_pool->size) {
 		WARN(1, "pool %d: %d of %d allocated\n",
-		     bm_pool->id, num, bm_pool->size);
+		     bm_pool->id, num, hwbm_pool->size);
 		goto bm_mtu_err;
 	}
 	mvneta_bm_pool_bufsize_set(pp, bm_pool->buf_size, bm_pool->id);
@@ -2066,14 +2068,14 @@ err_drop_frame:
 		}
 
 		/* Refill processing */
-		err = mvneta_bm_pool_refill(pp->bm_priv, bm_pool);
+		err = hwbm_pool_refill(&bm_pool->hwbm_pool, GFP_ATOMIC);
 		if (err) {
 			netdev_err(dev, "Linux processing - Can't refill\n");
 			rxq->missed++;
 			goto err_drop_frame_ret_pool;
 		}
 
-		frag_size = bm_pool->frag_size;
+		frag_size = bm_pool->hwbm_pool.frag_size;
 
 		skb = build_skb(data, frag_size > PAGE_SIZE ? 0 : frag_size);
 
