@@ -52,7 +52,6 @@ struct amdgpu_fence {
 
 	/* RB, DMA, etc. */
 	struct amdgpu_ring		*ring;
-	uint64_t			seq;
 };
 
 static struct kmem_cache *amdgpu_fence_slab;
@@ -104,7 +103,7 @@ static u32 amdgpu_fence_read(struct amdgpu_ring *ring)
 	if (drv->cpu_addr)
 		seq = le32_to_cpu(*drv->cpu_addr);
 	else
-		seq = lower_32_bits(atomic64_read(&drv->last_seq));
+		seq = atomic_read(&drv->last_seq);
 
 	return seq;
 }
@@ -123,23 +122,22 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct fence **f)
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_fence *fence;
 	struct fence **ptr;
-	unsigned idx;
+	uint32_t seq;
 
 	fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_KERNEL);
 	if (fence == NULL)
 		return -ENOMEM;
 
-	fence->seq = ++ring->fence_drv.sync_seq;
+	seq = ++ring->fence_drv.sync_seq;
 	fence->ring = ring;
 	fence_init(&fence->base, &amdgpu_fence_ops,
 		   &ring->fence_drv.lock,
 		   adev->fence_context + ring->idx,
-		   fence->seq);
+		   seq);
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
-			       fence->seq, AMDGPU_FENCE_FLAG_INT);
+			       seq, AMDGPU_FENCE_FLAG_INT);
 
-	idx = fence->seq & ring->fence_drv.num_fences_mask;
-	ptr = &ring->fence_drv.fences[idx];
+	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
 	/* This function can't be called concurrently anyway, otherwise
 	 * emitting the fence would mess up the hardware ring buffer.
 	 */
@@ -177,22 +175,16 @@ static void amdgpu_fence_schedule_fallback(struct amdgpu_ring *ring)
 void amdgpu_fence_process(struct amdgpu_ring *ring)
 {
 	struct amdgpu_fence_driver *drv = &ring->fence_drv;
-	uint64_t seq, last_seq, last_emitted;
+	uint32_t seq, last_seq;
 	int r;
 
 	do {
-		last_seq = atomic64_read(&ring->fence_drv.last_seq);
-		last_emitted = ring->fence_drv.sync_seq;
+		last_seq = atomic_read(&ring->fence_drv.last_seq);
 		seq = amdgpu_fence_read(ring);
-		seq |= last_seq & 0xffffffff00000000LL;
-		if (seq < last_seq) {
-			seq &= 0xffffffff;
-			seq |= last_emitted & 0xffffffff00000000LL;
-		}
 
-	} while (atomic64_cmpxchg(&drv->last_seq, last_seq, seq) != last_seq);
+	} while (atomic_cmpxchg(&drv->last_seq, last_seq, seq) != last_seq);
 
-	if (seq < last_emitted)
+	if (seq != ring->fence_drv.sync_seq)
 		amdgpu_fence_schedule_fallback(ring);
 
 	while (last_seq != seq) {
@@ -279,13 +271,10 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring)
 	 * but it's ok to report slightly wrong fence count here.
 	 */
 	amdgpu_fence_process(ring);
-	emitted = ring->fence_drv.sync_seq
-		- atomic64_read(&ring->fence_drv.last_seq);
-	/* to avoid 32bits warp around */
-	if (emitted > 0x10000000)
-		emitted = 0x10000000;
-
-	return (unsigned)emitted;
+	emitted = 0x100000000ull;
+	emitted -= atomic_read(&ring->fence_drv.last_seq);
+	emitted += ACCESS_ONCE(ring->fence_drv.sync_seq);
+	return lower_32_bits(emitted);
 }
 
 /**
@@ -317,7 +306,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 		ring->fence_drv.cpu_addr = adev->uvd.cpu_addr + index;
 		ring->fence_drv.gpu_addr = adev->uvd.gpu_addr + index;
 	}
-	amdgpu_fence_write(ring, atomic64_read(&ring->fence_drv.last_seq));
+	amdgpu_fence_write(ring, atomic_read(&ring->fence_drv.last_seq));
 	amdgpu_irq_get(adev, irq_src, irq_type);
 
 	ring->fence_drv.irq_src = irq_src;
@@ -353,7 +342,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	ring->fence_drv.cpu_addr = NULL;
 	ring->fence_drv.gpu_addr = 0;
 	ring->fence_drv.sync_seq = 0;
-	atomic64_set(&ring->fence_drv.last_seq, 0);
+	atomic_set(&ring->fence_drv.last_seq, 0);
 	ring->fence_drv.initialized = false;
 
 	setup_timer(&ring->fence_drv.fallback_timer, amdgpu_fence_fallback,
@@ -621,9 +610,9 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 		amdgpu_fence_process(ring);
 
 		seq_printf(m, "--- ring %d (%s) ---\n", i, ring->name);
-		seq_printf(m, "Last signaled fence 0x%016llx\n",
-			   (unsigned long long)atomic64_read(&ring->fence_drv.last_seq));
-		seq_printf(m, "Last emitted        0x%016llx\n",
+		seq_printf(m, "Last signaled fence 0x%08x\n",
+			   atomic_read(&ring->fence_drv.last_seq));
+		seq_printf(m, "Last emitted        0x%08x\n",
 			   ring->fence_drv.sync_seq);
 	}
 	return 0;

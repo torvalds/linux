@@ -386,8 +386,8 @@ struct amdgpu_fence_driver {
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
-	uint64_t			sync_seq;
-	atomic64_t			last_seq;
+	uint32_t			sync_seq;
+	atomic_t			last_seq;
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
