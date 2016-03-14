@@ -1676,9 +1676,6 @@ static int mtk_probe(struct platform_device *pdev)
 	struct mtk_eth *eth;
 	int err;
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-
 	device_reset(&pdev->dev);
 
 	match = of_match_device(of_mtk_match, &pdev->dev);
