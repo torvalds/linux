@@ -156,7 +156,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (pll == NULL)
 		return;
 
-	if (WARN_ON(!(pll->config.crtc_mask & crtc_mask)))
+	if (WARN_ON(!(pll->active_mask & crtc_mask)))
 		return;
 
 	DRM_DEBUG_KMS("disable %s (active %x, on? %d) for crtc %d\n",

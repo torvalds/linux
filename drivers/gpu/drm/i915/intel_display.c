@@ -13525,7 +13525,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 
 	drm_atomic_helper_swap_state(dev, state);
-	dev_priv->wm.config = to_intel_atomic_state(state)->wm_config;
+	dev_priv->wm.config = intel_state->wm_config;
+	intel_shared_dpll_commit(state);
 
 	if (intel_state->modeset) {
 		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
@@ -13577,8 +13578,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 	intel_modeset_update_crtc_state(state);
 
 	if (intel_state->modeset) {
-		intel_shared_dpll_commit(state);
-
 		drm_atomic_helper_update_legacy_modeset_state(state->dev, state);
 
 		if (dev_priv->display.modeset_commit_cdclk &&
