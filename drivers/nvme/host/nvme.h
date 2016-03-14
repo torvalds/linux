@@ -72,6 +72,7 @@ struct nvme_ctrl {
 	struct mutex namespaces_mutex;
 	struct device *device;	/* char device */
 	struct list_head node;
+	struct ida ns_ida;
 
 	char name[12];
 	char serial[20];
@@ -102,6 +103,7 @@ struct nvme_ns {
 	struct request_queue *queue;
 	struct gendisk *disk;
 	struct kref kref;
+	int instance;
 
 	u8 eui[8];
 	u8 uuid[16];
@@ -112,6 +114,11 @@ struct nvme_ns {
 	bool ext;
 	u8 pi_type;
 	int type;
+	unsigned long flags;
+
+#define NVME_NS_REMOVING 0
+#define NVME_NS_DEAD     1
+
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
@@ -240,6 +247,7 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 
 void nvme_stop_queues(struct nvme_ctrl *ctrl);
 void nvme_start_queues(struct nvme_ctrl *ctrl);
+void nvme_kill_queues(struct nvme_ctrl *ctrl);
 
 struct request *nvme_alloc_request(struct request_queue *q,
 		struct nvme_command *cmd, unsigned int flags);

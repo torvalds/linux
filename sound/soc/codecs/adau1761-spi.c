@@ -1,5 +1,5 @@
 /*
- * Driver for ADAU1761/ADAU1461/ADAU1761/ADAU1961 codec
+ * Driver for ADAU1361/ADAU1461/ADAU1761/ADAU1961 codec
  *
  * Copyright 2014 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
@@ -61,9 +61,21 @@ static const struct spi_device_id adau1761_spi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, adau1761_spi_id);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id adau1761_spi_dt_ids[] = {
+	{ .compatible = "adi,adau1361", },
+	{ .compatible = "adi,adau1461", },
+	{ .compatible = "adi,adau1761", },
+	{ .compatible = "adi,adau1961", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adau1761_spi_dt_ids);
+#endif
+
 static struct spi_driver adau1761_spi_driver = {
 	.driver = {
 		.name = "adau1761",
+		.of_match_table = of_match_ptr(adau1761_spi_dt_ids),
 	},
 	.probe = adau1761_spi_probe,
 	.remove = adau1761_spi_remove,

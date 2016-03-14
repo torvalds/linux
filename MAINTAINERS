@@ -4518,6 +4518,12 @@ L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/dma/fsldma.*
 
+FREESCALE GPMI NAND DRIVER
+M:	Han Xu <han.xu@nxp.com>
+L:	linux-mtd@lists.infradead.org
+S:	Maintained
+F:	drivers/mtd/nand/gpmi-nand/*
+
 FREESCALE I2C CPM DRIVER
 M:	Jochen Friedrich <jochen@scram.de>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -4534,7 +4540,7 @@ F:	include/linux/platform_data/video-imxfb.h
 F:	drivers/video/fbdev/imxfb.c
 
 FREESCALE QUAD SPI DRIVER
-M:	Han Xu <han.xu@freescale.com>
+M:	Han Xu <han.xu@nxp.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/spi-nor/fsl-quadspi.c

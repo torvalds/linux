@@ -30,6 +30,7 @@ struct apq8016_sbc_data {
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
+#define MIC_CTRL_TER_WS_SLAVE_SEL	BIT(21)
 #define MIC_CTRL_QUA_WS_SLAVE_SEL_10	BIT(17)
 #define MIC_CTRL_TLMM_SCLK_EN		BIT(1)
 #define	SPKR_CTL_PRI_WS_SLAVE_SEL_11	(BIT(17) | BIT(16))
@@ -52,6 +53,12 @@ static int apq8016_sbc_dai_init(struct snd_soc_pcm_runtime *rtd)
 		writel(readl(pdata->mic_iomux) | MIC_CTRL_QUA_WS_SLAVE_SEL_10 |
 			MIC_CTRL_TLMM_SCLK_EN,
 			pdata->mic_iomux);
+		break;
+	case MI2S_TERTIARY:
+		writel(readl(pdata->mic_iomux) | MIC_CTRL_TER_WS_SLAVE_SEL |
+			MIC_CTRL_TLMM_SCLK_EN,
+			pdata->mic_iomux);
+
 		break;
 
 	default:
@@ -126,9 +133,6 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 		}
 
 		link->platform_of_node = link->cpu_of_node;
-		/* For now we only support playback */
-		link->playback_only = true;
-
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
 			dev_err(card->dev, "error getting codec dai_link name\n");

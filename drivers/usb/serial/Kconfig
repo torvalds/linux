@@ -475,22 +475,6 @@ config USB_SERIAL_MOS7840
 	  To compile this driver as a module, choose M here: the
 	  module will be called mos7840.  If unsure, choose N.
 
-config USB_SERIAL_MXUPORT11
-	tristate "USB Moxa UPORT 11x0 Serial Driver"
-	---help---
-	  Say Y here if you want to use a MOXA UPort 11x0 Serial hub.
-
-	  This driver supports:
-
-	  - UPort 1110  : 1 port RS-232 USB to Serial Hub.
-	  - UPort 1130  : 1 port RS-422/485 USB to Serial Hub.
-	  - UPort 1130I : 1 port RS-422/485 USB to Serial Hub with Isolation.
-	  - UPort 1150  : 1 port RS-232/422/485 USB to Serial Hub.
-	  - UPort 1150I : 1 port RS-232/422/485 USB to Serial Hub with Isolation.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mxu11x0.
-
 config USB_SERIAL_MXUPORT
 	tristate "USB Moxa UPORT Serial Driver"
 	---help---

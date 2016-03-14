@@ -52,7 +52,7 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	unsigned char fenab;
 	int err;
 
-	flush_user_windows();
+	synchronize_user_stack();
 	if (get_thread_wsaved()					||
 	    (((unsigned long)ucp) & (sizeof(unsigned long)-1))	||
 	    (!__access_ok(ucp, sizeof(*ucp))))

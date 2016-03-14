@@ -66,27 +66,33 @@ struct media_device_info {
 /*
  * DVB entities
  */
-#define MEDIA_ENT_F_DTV_DEMOD		(MEDIA_ENT_F_BASE + 1)
-#define MEDIA_ENT_F_TS_DEMUX		(MEDIA_ENT_F_BASE + 2)
-#define MEDIA_ENT_F_DTV_CA		(MEDIA_ENT_F_BASE + 3)
-#define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 4)
+#define MEDIA_ENT_F_DTV_DEMOD		(MEDIA_ENT_F_BASE + 0x00001)
+#define MEDIA_ENT_F_TS_DEMUX		(MEDIA_ENT_F_BASE + 0x00002)
+#define MEDIA_ENT_F_DTV_CA		(MEDIA_ENT_F_BASE + 0x00003)
+#define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 0x00004)
+
+/*
+ * I/O entities
+ */
+#define MEDIA_ENT_F_IO_DTV		(MEDIA_ENT_F_BASE + 0x01001)
+#define MEDIA_ENT_F_IO_VBI		(MEDIA_ENT_F_BASE + 0x01002)
+#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 0x01003)
 
 /*
  * Connectors
  */
 /* It is a responsibility of the entity drivers to add connectors and links */
-#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
-#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
-#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
-/* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
+#ifdef __KERNEL__
+	/*
+	 * For now, it should not be used in userspace, as some
+	 * definitions may change
+	 */
 
-/*
- * I/O entities
- */
-#define MEDIA_ENT_F_IO_DTV  		(MEDIA_ENT_F_BASE + 31)
-#define MEDIA_ENT_F_IO_VBI  		(MEDIA_ENT_F_BASE + 32)
-#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 33)
+#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 0x30001)
+#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 0x30002)
+#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 0x30003)
+
+#endif
 
 /*
  * Don't touch on those. The ranges MEDIA_ENT_F_OLD_BASE and
@@ -291,14 +297,14 @@ struct media_v2_entity {
 	__u32 id;
 	char name[64];		/* FIXME: move to a property? (RFC says so) */
 	__u32 function;		/* Main function of the entity */
-	__u16 reserved[12];
-};
+	__u32 reserved[6];
+} __attribute__ ((packed));
 
 /* Should match the specific fields at media_intf_devnode */
 struct media_v2_intf_devnode {
 	__u32 major;
 	__u32 minor;
-};
+} __attribute__ ((packed));
 
 struct media_v2_interface {
 	__u32 id;
@@ -310,22 +316,22 @@ struct media_v2_interface {
 		struct media_v2_intf_devnode devnode;
 		__u32 raw[16];
 	};
-};
+} __attribute__ ((packed));
 
 struct media_v2_pad {
 	__u32 id;
 	__u32 entity_id;
 	__u32 flags;
-	__u16 reserved[9];
-};
+	__u32 reserved[5];
+} __attribute__ ((packed));
 
 struct media_v2_link {
 	__u32 id;
 	__u32 source_id;
 	__u32 sink_id;
 	__u32 flags;
-	__u32 reserved[5];
-};
+	__u32 reserved[6];
+} __attribute__ ((packed));
 
 struct media_v2_topology {
 	__u64 topology_version;
@@ -345,7 +351,7 @@ struct media_v2_topology {
 	__u32 num_links;
 	__u32 reserved4;
 	__u64 ptr_links;
-};
+} __attribute__ ((packed));
 
 static inline void __user *media_get_uptr(__u64 arg)
 {

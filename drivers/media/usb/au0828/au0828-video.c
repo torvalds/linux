@@ -1843,8 +1843,7 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 			ent->function = MEDIA_ENT_F_CONN_RF;
 			break;
 		default: /* AU0828_VMUX_DEBUG */
-			ent->function = MEDIA_ENT_F_CONN_TEST;
-			break;
+			continue;
 		}
 
 		ret = media_entity_pads_init(ent, 1, &dev->input_pad[i]);
