@@ -1755,6 +1755,8 @@
 #define RK3366_GRF_VOP_IOVOL_SEL(x)	(((x) << 0) | (1 << (0 + 16)))
 #define RK3368_GRF_VOP_IOVOL_SEL(x)	(((x) << 5) | (1 << (5 + 16)))
 
+#define RK3366_WB_ALIGN			16
+
 enum lb_mode {
 	LB_YUV_3840X5 = 0x0,
 	LB_YUV_2560X8 = 0x1,

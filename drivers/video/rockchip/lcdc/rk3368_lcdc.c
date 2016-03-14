@@ -4688,51 +4688,72 @@ static int rk3368_lcdc_set_wb(struct rk_lcdc_driver *dev_drv)
 	struct rk_fb_reg_wb_data *wb_data;
 	u32 src_w, src_h, dst_w, dst_h, fmt_cfg;
 	u32 xscale_en = 0, x_scale_fac = 0, y_throw = 0;
+	u32 csc_mode = 0, rgb2yuv = 0, dither_en = 0;
 
 	if (unlikely(!lcdc_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
 	wb_data = &dev_drv->wb_data;
-	src_w = dev_drv->cur_screen->xsize;
-	src_h = dev_drv->cur_screen->ysize;
-	dst_w = dev_drv->wb_data.xsize;
-	dst_h = dev_drv->wb_data.ysize;
+	if ((wb_data->xsize == 0) || (wb_data->ysize == 0))
+		return 0;
+
+	src_w = dev_drv->cur_screen->mode.xres;
+	src_h = dev_drv->cur_screen->mode.yres;
+	dst_w = wb_data->xsize;
+	dst_h = wb_data->ysize;
+	if (!IS_ALIGNED(dst_w, RK3366_WB_ALIGN))
+		pr_info("dst_w: %d not align 16 pixel\n", dst_w);
+
 	if (src_w > dst_w)
 		xscale_en = 1;
+	else if (src_w < dst_w)
+		dst_w = src_w;
 	else
 		xscale_en = 0;
 	if (wb_data->state && xscale_en)
 		x_scale_fac = GET_SCALE_FACTOR_BILI_DN(src_w, dst_w);
-	if (src_h >= 2 * dst_h)
+	if ((src_h >= 2 * dst_h) && (dst_h != 0))
 		y_throw = 1;
 	else
 		y_throw = 0;
-
 	switch (wb_data->data_format) {
-	case ARGB888:
+	case XRGB888:
+	case XBGR888:
 		fmt_cfg = 0;
 		break;
 	case RGB888:
+	case BGR888:
 		fmt_cfg = 1;
 		break;
 	case RGB565:
+	case BGR565:
 		fmt_cfg = 2;
+		dither_en = 1;
 		break;
 	case YUV420:
-		fmt_cfg = 8;
+		fmt_cfg = 4;
+		if (dev_drv->overlay_mode == VOP_RGB_DOMAIN)
+			rgb2yuv = 1;
+		if ((src_w < 1280) && (src_h < 720))
+			csc_mode = VOP_R2Y_CSC_BT601;
+		else
+			csc_mode = VOP_R2Y_CSC_BT709;
 		break;
 	default:
+		fmt_cfg = 0;
 		pr_info("unsupport fmt: %d\n", wb_data->data_format);
 		break;
 	}
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_msk_reg(lcdc_dev, WB_CTRL0,
 		     m_WB_EN | m_WB_FMT | m_WB_XPSD_BIL_EN |
-		     m_WB_YTHROW_EN,
+		     m_WB_YTHROW_EN | m_WB_RGB2YUV_EN | m_WB_RGB2YUV_MODE |
+		     m_WB_DITHER_EN,
 		     v_WB_EN(wb_data->state) | v_WB_FMT(fmt_cfg) |
 		     v_WB_XPSD_BIL_EN(xscale_en) |
-		     v_WB_YTHROW_EN(y_throw));
+		     v_WB_YTHROW_EN(y_throw) | v_WB_RGB2YUV_EN(rgb2yuv) |
+		     v_WB_RGB2YUV_MODE(csc_mode) | v_WB_DITHER_EN(dither_en));
 	lcdc_msk_reg(lcdc_dev, WB_CTRL1,
 		     m_WB_WIDTH | m_WB_XPSD_BIL_FACTOR,
 		     v_WB_WIDTH(dst_w) |
