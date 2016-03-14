@@ -264,9 +264,8 @@ enum iwl_rx_mpdu_mac_flags2 {
 };
 
 enum iwl_rx_mpdu_amsdu_info {
-	IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK	= 0x3f,
-	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x40,
-	/* 0x80 bit reserved for now */
+	IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK	= 0x7f,
+	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
 enum iwl_rx_l3l4_flags {

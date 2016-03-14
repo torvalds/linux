@@ -297,6 +297,7 @@ struct iwl_pwr_tx_backoff {
  * @host_interrupt_operation_mode: device needs host interrupt operation
  *	mode set
  * @nvm_hw_section_num: the ID of the HW NVM section
+ * @mac_addr_from_csr: read HW address from CSR registers
  * @features: hw features, any combination of feature_whitelist
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
@@ -345,6 +346,7 @@ struct iwl_cfg {
 	const bool host_interrupt_operation_mode;
 	bool high_temp;
 	u8   nvm_hw_section_num;
+	bool mac_addr_from_csr;
 	bool lp_xtal_workaround;
 	const struct iwl_pwr_tx_backoff *pwr_tx_backoffs;
 	bool no_power_up_nic_in_init;

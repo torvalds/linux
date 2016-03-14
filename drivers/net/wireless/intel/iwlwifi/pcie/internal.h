@@ -347,7 +347,7 @@ struct iwl_tso_hdr_page {
  */
 struct iwl_trans_pcie {
 	struct iwl_rxq *rxq;
-	struct iwl_rx_mem_buffer rx_pool[MQ_RX_POOL_SIZE];
+	struct iwl_rx_mem_buffer rx_pool[RX_POOL_SIZE];
 	struct iwl_rx_mem_buffer *global_table[MQ_RX_TABLE_SIZE];
 	struct iwl_rb_allocator rba;
 	struct iwl_trans *trans;

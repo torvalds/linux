@@ -5495,7 +5495,7 @@ static int wlcore_op_remain_on_channel(struct ieee80211_hw *hw,
 {
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl1271 *wl = hw->priv;
-	int channel, ret = 0;
+	int channel, active_roc, ret = 0;
 
 	channel = ieee80211_frequency_to_channel(chan->center_freq);
 
@@ -5508,9 +5508,9 @@ static int wlcore_op_remain_on_channel(struct ieee80211_hw *hw,
 		goto out;
 
 	/* return EBUSY if we can't ROC right now */
-	if (WARN_ON(wl->roc_vif ||
-		    find_first_bit(wl->roc_map,
-				   WL12XX_MAX_ROLES) < WL12XX_MAX_ROLES)) {
+	active_roc = find_first_bit(wl->roc_map, WL12XX_MAX_ROLES);
+	if (wl->roc_vif || active_roc < WL12XX_MAX_ROLES) {
+		wl1271_warning("active roc on role %d", active_roc);
 		ret = -EBUSY;
 		goto out;
 	}

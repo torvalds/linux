@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016        Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -963,6 +964,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	struct sk_buff_head skbs;
 	u8 skb_freed = 0;
 	u16 next_reclaimed, seq_ctl;
+	bool is_ndp = false;
 
 	__skb_queue_head_init(&skbs);
 
@@ -1014,6 +1016,20 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		if (status != TX_STATUS_SUCCESS) {
 			struct ieee80211_hdr *hdr = (void *)skb->data;
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
+		}
+
+		if (unlikely(!seq_ctl)) {
+			struct ieee80211_hdr *hdr = (void *)skb->data;
+
+			/*
+			 * If it is an NDP, we can't update next_reclaim since
+			 * its sequence control is 0. Note that for that same
+			 * reason, NDPs are never sent to A-MPDU'able queues
+			 * so that we can never have more than one freed frame
+			 * for a single Tx resonse (see WARN_ON below).
+			 */
+			if (ieee80211_is_qos_nullfunc(hdr->frame_control))
+				is_ndp = true;
 		}
 
 		/*
@@ -1079,9 +1095,16 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			bool send_eosp_ndp = false;
 
 			spin_lock_bh(&mvmsta->lock);
-			tid_data->next_reclaimed = next_reclaimed;
-			IWL_DEBUG_TX_REPLY(mvm, "Next reclaimed packet:%d\n",
-					   next_reclaimed);
+			if (!is_ndp) {
+				tid_data->next_reclaimed = next_reclaimed;
+				IWL_DEBUG_TX_REPLY(mvm,
+						   "Next reclaimed packet:%d\n",
+						   next_reclaimed);
+			} else {
+				IWL_DEBUG_TX_REPLY(mvm,
+						   "NDP - don't update next_reclaimed\n");
+			}
+
 			iwl_mvm_check_ratid_empty(mvm, sta, tid);
 
 			if (mvmsta->sleep_tx_count) {

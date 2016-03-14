@@ -809,6 +809,12 @@ struct iwl_fw_dbg_conf_tlv {
  *	change APs.
  * @max_bssid_history_entries: number of BSSID/RSSI entries that the device can
  *	hold.
+ * @max_hotlist_ssids: maximum number of entries for hotlist SSIDs.
+ * @max_number_epno_networks: max number of epno entries.
+ * @max_number_epno_networks_by_ssid: max number of epno entries if ssid is
+ *	specified.
+ * @max_number_of_white_listed_ssid: max number of white listed SSIDs.
+ * @max_number_of_black_listed_ssid: max number of black listed SSIDs.
  */
 struct iwl_fw_gscan_capabilities {
 	__le32 max_scan_cache_size;
@@ -819,6 +825,11 @@ struct iwl_fw_gscan_capabilities {
 	__le32 max_hotlist_aps;
 	__le32 max_significant_change_aps;
 	__le32 max_bssid_history_entries;
+	__le32 max_hotlist_ssids;
+	__le32 max_number_epno_networks;
+	__le32 max_number_epno_networks_by_ssid;
+	__le32 max_number_of_white_listed_ssid;
+	__le32 max_number_of_black_listed_ssid;
 } __packed;
 
 #endif  /* __iwl_fw_file_h__ */

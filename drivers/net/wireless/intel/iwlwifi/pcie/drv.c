@@ -631,12 +631,30 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* if RTPM is in use, enable it in our device */
 	if (iwl_trans->runtime_pm_mode != IWL_PLAT_PM_MODE_DISABLED) {
+		/* We explicitly set the device to active here to
+		 * clear contingent errors.
+		 */
 		pm_runtime_set_active(&pdev->dev);
+
 		pm_runtime_set_autosuspend_delay(&pdev->dev,
 					 iwlwifi_mod_params.d0i3_entry_delay);
 		pm_runtime_use_autosuspend(&pdev->dev);
+
+		/* We are not supposed to call pm_runtime_allow() by
+		 * ourselves, but let userspace enable runtime PM via
+		 * sysfs.  However, since we don't enable this from
+		 * userspace yet, we need to allow/forbid() ourselves.
+		*/
 		pm_runtime_allow(&pdev->dev);
 	}
+
+	/* The PCI device starts with a reference taken and we are
+	 * supposed to release it here.  But to simplify the
+	 * interaction with the opmode, we don't do it now, but let
+	 * the opmode release it when it's ready.  To account for this
+	 * reference, we start with ref_count set to 1.
+	 */
+	trans_pcie->ref_count = 1;
 
 	return 0;
 
@@ -652,7 +670,17 @@ static void iwl_pci_remove(struct pci_dev *pdev)
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	/* if RTPM was in use, restore it to the state before probe */
+	if (trans->runtime_pm_mode != IWL_PLAT_PM_MODE_DISABLED) {
+		/* We should not call forbid here, but we do for now.
+		 * Check the comment to pm_runtime_allow() in
+		 * iwl_pci_probe().
+		 */
+		pm_runtime_forbid(trans->dev);
+	}
+
 	iwl_drv_stop(trans_pcie->drv);
+
 	iwl_trans_pcie_free(trans);
 }
 
