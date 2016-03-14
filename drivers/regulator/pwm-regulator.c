@@ -70,7 +70,7 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 
 	ret = pwm_config(drvdata->pwm, dutycycle, pwm_reg_period);
 	if (ret) {
-		dev_err(&rdev->dev, "Failed to configure PWM\n");
+		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
 	}
 
@@ -146,13 +146,13 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 
 	ret = pwm_config(drvdata->pwm, (period / 100) * duty_cycle, period);
 	if (ret) {
-		dev_err(&rdev->dev, "Failed to configure PWM\n");
+		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
 	}
 
 	ret = pwm_enable(drvdata->pwm);
 	if (ret) {
-		dev_err(&rdev->dev, "Failed to enable PWM\n");
+		dev_err(&rdev->dev, "Failed to enable PWM: %d\n", ret);
 		return ret;
 	}
 	drvdata->volt_uV = min_uV;
@@ -200,8 +200,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 
 	if ((length < sizeof(*duty_cycle_table)) ||
 	    (length % sizeof(*duty_cycle_table))) {
-		dev_err(&pdev->dev,
-			"voltage-table length(%d) is invalid\n",
+		dev_err(&pdev->dev, "voltage-table length(%d) is invalid\n",
 			length);
 		return -EINVAL;
 	}
@@ -214,7 +213,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 					 (u32 *)duty_cycle_table,
 					 length / sizeof(u32));
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to read voltage-table\n");
+		dev_err(&pdev->dev, "Failed to read voltage-table: %d\n", ret);
 		return ret;
 	}
 
@@ -277,16 +276,18 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 
 	drvdata->pwm = devm_pwm_get(&pdev->dev, NULL);
 	if (IS_ERR(drvdata->pwm)) {
-		dev_err(&pdev->dev, "Failed to get PWM\n");
-		return PTR_ERR(drvdata->pwm);
+		ret = PTR_ERR(drvdata->pwm);
+		dev_err(&pdev->dev, "Failed to get PWM: %d\n", ret);
+		return ret;
 	}
 
 	regulator = devm_regulator_register(&pdev->dev,
 					    &drvdata->desc, &config);
 	if (IS_ERR(regulator)) {
-		dev_err(&pdev->dev, "Failed to register regulator %s\n",
-			drvdata->desc.name);
-		return PTR_ERR(regulator);
+		ret = PTR_ERR(regulator);
+		dev_err(&pdev->dev, "Failed to register regulator %s: %d\n",
+			drvdata->desc.name, ret);
+		return ret;
 	}
 
 	return 0;
