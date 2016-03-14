@@ -321,6 +321,20 @@
 		WIFI,host_wake_irq = <&gpio3 20 GPIO_ACTIVE_HIGH>; /* GPIO3_c4 */
 		status = "okay";
 	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		//wifi-bt-power-toggle;
+		uart_rts_gpios = <&gpio3 11 GPIO_ACTIVE_LOW>; /* GPIO3_b3 */
+		pinctrl-names = "default","rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_rts_gpio>;
+		//BT,power_gpio  = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIO3_c3 */
+		BT,reset_gpio    = <&gpio3 19 GPIO_ACTIVE_HIGH>; /* GPIO3_c3 */
+		BT,wake_gpio     = <&gpio3 18 GPIO_ACTIVE_HIGH>; /* GPIO3_c2 */
+		BT,wake_host_irq = <&gpio3 21 GPIO_ACTIVE_HIGH>; /* GPIO3_c5 */
+		status = "okay";
+	};
 };
 
 &nandc0 {
@@ -372,6 +386,11 @@
 	pinctrl-0 = <&sdio_bus4 &sdio_cmd &sdio_clk>;
 	sd-uhs-sdr104;
 	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-0 = <&uart0_xfer &uart0_cts>;
 };
 
 &saradc {
@@ -726,15 +745,21 @@
 };
 
 &pinctrl {
-        pmic {
-                pmic_int_l: pmic-int-l {
-                        rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
-                };
-        };
+	pmic {
+		pmic_int_l: pmic-int-l {
+			rockchip,pins = <0 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifienable-h {
 			rockchip,pins = <0 14 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart0_rts_gpio: uart0-rts-gpios {
+			rockchip,pins = <3 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
