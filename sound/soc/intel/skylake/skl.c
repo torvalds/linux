@@ -28,6 +28,9 @@
 #include <linux/firmware.h>
 #include <sound/pcm.h>
 #include "../common/sst-acpi.h"
+#include <sound/hda_register.h>
+#include <sound/hdaudio.h>
+#include <sound/hda_i915.h>
 #include "skl.h"
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
@@ -242,6 +245,16 @@ static int skl_resume(struct device *dev)
 	struct skl *skl  = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int ret;
+
+	/* Turned OFF in HDMI codec driver after codec reconfiguration */
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		ret = snd_hdac_display_power(bus, true);
+		if (ret < 0) {
+			dev_err(bus->dev,
+				"Cannot turn on display power on i915\n");
+			return ret;
+		}
+	}
 
 	/*
 	 * resume only when we are not in suspend active, otherwise need to
@@ -481,6 +494,27 @@ static int skl_create(struct pci_dev *pci,
 	return 0;
 }
 
+static int skl_i915_init(struct hdac_bus *bus)
+{
+	int err;
+
+	/*
+	 * The HDMI codec is in GPU so we need to ensure that it is powered
+	 * up and ready for probe
+	 */
+	err = snd_hdac_i915_init(bus);
+	if (err < 0)
+		return err;
+
+	err = snd_hdac_display_power(bus, true);
+	if (err < 0) {
+		dev_err(bus->dev, "Cannot turn on display power on i915\n");
+		return err;
+	}
+
+	return err;
+}
+
 static int skl_first_init(struct hdac_ext_bus *ebus)
 {
 	struct skl *skl = ebus_to_skl(ebus);
@@ -543,6 +577,12 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	/* initialize chip */
 	skl_init_pci(skl);
 
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		err = skl_i915_init(bus);
+		if (err < 0)
+			return err;
+	}
+
 	skl_init_chip(bus, true);
 
 	/* codec detection */
@@ -573,10 +613,14 @@ static int skl_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 
+	skl->pci_id = pci->device;
+
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
 	if (skl->nhlt == NULL)
 		goto out_free;
+
+	skl_nhlt_update_topology_bin(skl);
 
 	pci_set_drvdata(skl->pci, ebus);
 
@@ -613,6 +657,14 @@ static int skl_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_unregister;
 
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		err = snd_hdac_display_power(bus, false);
+		if (err < 0) {
+			dev_err(bus->dev, "Cannot turn off display power on i915\n");
+			return err;
+		}
+	}
+
 	/*configure PM */
 	pm_runtime_put_noidle(bus->dev);
 	pm_runtime_allow(bus->dev);
@@ -634,6 +686,31 @@ out_free:
 	return err;
 }
 
+static void skl_shutdown(struct pci_dev *pci)
+{
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_stream *s;
+	struct hdac_ext_stream *stream;
+	struct skl *skl;
+
+	if (ebus == NULL)
+		return;
+
+	skl = ebus_to_skl(ebus);
+
+	if (skl->init_failed)
+		return;
+
+	snd_hdac_ext_stop_streams(ebus);
+	list_for_each_entry(s, &bus->stream_list, list) {
+		stream = stream_to_hdac_ext_stream(s);
+		snd_hdac_ext_stream_decouple(ebus, stream, false);
+	}
+
+	snd_hdac_bus_stop_chip(bus);
+}
+
 static void skl_remove(struct pci_dev *pci)
 {
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
@@ -641,6 +718,9 @@ static void skl_remove(struct pci_dev *pci)
 
 	if (skl->tplg)
 		release_firmware(skl->tplg);
+
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		snd_hdac_i915_exit(&ebus->bus);
 
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
@@ -662,11 +742,18 @@ static struct sst_acpi_mach sst_skl_devdata[] = {
 	{}
 };
 
+static struct sst_acpi_mach sst_bxtp_devdata[] = {
+	{ "INT343A", "bxt_alc298s_i2s", "intel/dsp_fw_bxtn.bin", NULL, NULL, NULL },
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9d70),
 		.driver_data = (unsigned long)&sst_skl_devdata},
+	/* BXT-P */
+	{ PCI_DEVICE(0x8086, 0x5a98),
+		.driver_data = (unsigned long)&sst_bxtp_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
@@ -677,6 +764,7 @@ static struct pci_driver skl_driver = {
 	.id_table = skl_ids,
 	.probe = skl_probe,
 	.remove = skl_remove,
+	.shutdown = skl_shutdown,
 	.driver = {
 		.pm = &skl_pm,
 	},

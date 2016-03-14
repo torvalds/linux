@@ -125,7 +125,7 @@ LEAF(_restore_fp_context)
 	END(_restore_fp_context)
 	.set	reorder
 
-	.type	fault@function
+	.type	fault, @function
 	.ent	fault
 fault:	li	v0, -EFAULT
 	jr	ra

@@ -358,6 +358,7 @@ int ib_register_device(struct ib_device *device,
 	ret = device->query_device(device, &device->attrs, &uhw);
 	if (ret) {
 		printk(KERN_WARNING "Couldn't query the device attributes\n");
+		ib_cache_cleanup_one(device);
 		goto out;
 	}
 
