@@ -821,6 +821,7 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E3F", 0 },
 	{ "BCM2E40", 0 },
 	{ "BCM2E54", 0 },
+	{ "BCM2E55", 0 },
 	{ "BCM2E64", 0 },
 	{ "BCM2E65", 0 },
 	{ "BCM2E67", 0 },

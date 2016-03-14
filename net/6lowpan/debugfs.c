@@ -161,7 +161,7 @@ out:
 	return status;
 }
 
-const struct file_operations lowpan_ctx_pfx_fops = {
+static const struct file_operations lowpan_ctx_pfx_fops = {
 	.open		= lowpan_ctx_pfx_open,
 	.read		= seq_read,
 	.write		= lowpan_ctx_pfx_write,
@@ -238,7 +238,7 @@ static int lowpan_context_open(struct inode *inode, struct file *file)
 	return single_open(file, lowpan_context_show, inode->i_private);
 }
 
-const struct file_operations lowpan_context_fops = {
+static const struct file_operations lowpan_context_fops = {
 	.open		= lowpan_context_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
