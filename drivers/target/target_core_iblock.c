@@ -282,11 +282,28 @@ static void iblock_complete_cmd(struct se_cmd *cmd)
 
 	if (!atomic_dec_and_test(&ibr->pending))
 		return;
-
-	if (atomic_read(&ibr->ib_bio_err_cnt))
-		status = SAM_STAT_CHECK_CONDITION;
-	else
+	/*
+	 * Propigate use these two bio completion values from raw block
+	 * drivers to signal up BUSY and TASK_SET_FULL status to the
+	 * host side initiator.  The latter for Linux/iSCSI initiators
+	 * means the Linux/SCSI LLD will begin to reduce it's internal
+	 * per session queue_depth.
+	 */
+	if (atomic_read(&ibr->ib_bio_err_cnt)) {
+		switch (ibr->ib_bio_retry) {
+		case -EAGAIN:
+			status = SAM_STAT_BUSY;
+			break;
+		case -ENOMEM:
+			status = SAM_STAT_TASK_SET_FULL;
+			break;
+		default:
+			status = SAM_STAT_CHECK_CONDITION;
+			break;
+		}
+	} else {
 		status = SAM_STAT_GOOD;
+	}
 
 	target_complete_cmd(cmd, status);
 	kfree(ibr);
@@ -298,7 +315,15 @@ static void iblock_bio_done(struct bio *bio)
 	struct iblock_req *ibr = cmd->priv;
 
 	if (bio->bi_error) {
-		pr_err("bio error: %p,  err: %d\n", bio, bio->bi_error);
+		pr_debug_ratelimited("test_bit(BIO_UPTODATE) failed for bio: %p,"
+			" err: %d\n", bio, bio->bi_error);
+		/*
+		 * Save the retryable status provided and translate into
+		 * SAM status in iblock_complete_cmd().
+		 */
+		if (bio->bi_error == -EAGAIN || bio->bi_error == -ENOMEM) {
+			ibr->ib_bio_retry = bio->bi_error;
+		}
 		/*
 		 * Bump the ib_bio_err_cnt and release bio.
 		 */
@@ -413,8 +438,39 @@ iblock_execute_unmap(struct se_cmd *cmd, sector_t lba, sector_t nolb)
 }
 
 static sense_reason_t
+iblock_execute_write_same_direct(struct block_device *bdev, struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	struct scatterlist *sg = &cmd->t_data_sg[0];
+	struct page *page = NULL;
+	int ret;
+
+	if (sg->offset) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page)
+			return TCM_OUT_OF_RESOURCES;
+		sg_copy_to_buffer(sg, cmd->t_data_nents, page_address(page),
+				  dev->dev_attrib.block_size);
+	}
+
+	ret = blkdev_issue_write_same(bdev,
+				target_to_linux_sector(dev, cmd->t_task_lba),
+				target_to_linux_sector(dev,
+					sbc_get_write_same_sectors(cmd)),
+				GFP_KERNEL, page ? page : sg_page(sg));
+	if (page)
+		__free_page(page);
+	if (ret)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+static sense_reason_t
 iblock_execute_write_same(struct se_cmd *cmd)
 {
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 	struct iblock_req *ibr;
 	struct scatterlist *sg;
 	struct bio *bio;
@@ -438,6 +494,9 @@ iblock_execute_write_same(struct se_cmd *cmd)
 			cmd->se_dev->dev_attrib.block_size);
 		return TCM_INVALID_CDB_FIELD;
 	}
+
+	if (bdev_write_same(bdev))
+		return iblock_execute_write_same_direct(bdev, cmd);
 
 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
 	if (!ibr)
@@ -643,8 +702,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
 	unsigned bio_cnt;
-	int rw = 0;
-	int i;
+	int i, rw = 0;
 
 	if (data_direction == DMA_TO_DEVICE) {
 		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);

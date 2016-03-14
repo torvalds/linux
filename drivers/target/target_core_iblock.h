@@ -9,6 +9,7 @@
 struct iblock_req {
 	atomic_t pending;
 	atomic_t ib_bio_err_cnt;
+	int ib_bio_retry;
 } ____cacheline_aligned;
 
 #define IBDF_HAS_UDEV_PATH		0x01
