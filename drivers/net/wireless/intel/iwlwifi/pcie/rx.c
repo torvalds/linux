@@ -908,6 +908,8 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 	allocator_pool_size = trans->num_rx_queues *
 		(RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC);
 	num_alloc = queue_size + allocator_pool_size;
+	BUILD_BUG_ON(ARRAY_SIZE(trans_pcie->global_table) !=
+		     ARRAY_SIZE(trans_pcie->rx_pool));
 	for (i = 0; i < num_alloc; i++) {
 		struct iwl_rx_mem_buffer *rxb = &trans_pcie->rx_pool[i];
 
