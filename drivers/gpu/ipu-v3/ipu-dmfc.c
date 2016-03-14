@@ -355,6 +355,8 @@ int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width)
 	struct ipu_dmfc_priv *priv = dmfc->priv;
 	u32 dmfc_gen1;
 
+	mutex_lock(&priv->mutex);
+
 	dmfc_gen1 = readl(priv->base + DMFC_GENERAL1);
 
 	if ((dmfc->slots * 64 * 4) / width > dmfc->data->max_fifo_lines)
@@ -363,6 +365,8 @@ int ipu_dmfc_init_channel(struct dmfc_channel *dmfc, int width)
 		dmfc_gen1 &= ~(1 << dmfc->data->eot_shift);
 
 	writel(dmfc_gen1, priv->base + DMFC_GENERAL1);
+
+	mutex_unlock(&priv->mutex);
 
 	return 0;
 }
