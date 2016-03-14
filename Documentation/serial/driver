@@ -380,7 +380,7 @@ uart_get_baud_rate(port,termios,old,min,max)
 	Interrupts: n/a
 
 uart_get_divisor(port,baud)
-	Return the divsor (baud_base / baud) for the specified baud
+	Return the divisor (baud_base / baud) for the specified baud
 	rate, appropriately rounded.
 
 	If 38400 baud and custom divisor is selected, return the
