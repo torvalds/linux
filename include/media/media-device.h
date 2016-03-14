@@ -39,8 +39,10 @@ struct device;
  * @notify_data: Input data to invoke the callback
  * @notify: Callback function pointer
  *
- * Drivers may register a callback to take action when
- * new entities get registered with the media device.
+ * Drivers may register a callback to take action when new entities get
+ * registered with the media device. This handler is intended for creating
+ * links between existing entities and should not create entities and register
+ * them.
  */
 struct media_entity_notify {
 	struct list_head list;
