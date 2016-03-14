@@ -699,7 +699,7 @@ static int ad5933_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	int ret, voltage_uv = 0;
-	struct ad5933_platform_data *pdata = client->dev.platform_data;
+	struct ad5933_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct ad5933_state *st;
 	struct iio_dev *indio_dev;
 
