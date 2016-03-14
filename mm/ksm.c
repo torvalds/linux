@@ -2346,8 +2346,12 @@ static int ksm_scan_thread(void *nothing)
 		try_to_freeze();
 
 		if (ksmd_should_run()) {
-			schedule_timeout_interruptible(
-				msecs_to_jiffies(ksm_thread_sleep_millisecs));
+			if (ksm_thread_sleep_millisecs >= 1000)
+				schedule_timeout_interruptible(
+					msecs_to_jiffies(round_jiffies_relative(ksm_thread_sleep_millisecs)));
+			else
+				schedule_timeout_interruptible(
+					msecs_to_jiffies(ksm_thread_sleep_millisecs));
 		} else {
 			wait_event_freezable(ksm_thread_wait,
 				ksmd_should_run() || kthread_should_stop());
