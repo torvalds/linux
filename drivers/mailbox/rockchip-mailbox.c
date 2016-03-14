@@ -213,7 +213,7 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 		return PTR_ERR(mb->mbox_base);
 
 	/* Each channel has two buffers for A2B and B2A */
-	mb->buf_size = resource_size(res) / (drv_data->num_chans * 2);
+	mb->buf_size = (size_t)resource_size(res) / (drv_data->num_chans * 2);
 
 	mb->pclk = devm_clk_get(&pdev->dev, "pclk_mailbox");
 	if (IS_ERR(mb->pclk)) {
