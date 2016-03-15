@@ -195,21 +195,21 @@ static unsigned long zone_reclaimable_pages(struct zone *zone)
 {
 	unsigned long nr;
 
-	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
-	     zone_page_state(zone, NR_INACTIVE_FILE) +
-	     zone_page_state(zone, NR_ISOLATED_FILE);
+	nr = zone_page_state_snapshot(zone, NR_ACTIVE_FILE) +
+	     zone_page_state_snapshot(zone, NR_INACTIVE_FILE) +
+	     zone_page_state_snapshot(zone, NR_ISOLATED_FILE);
 
 	if (get_nr_swap_pages() > 0)
-		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
-		      zone_page_state(zone, NR_INACTIVE_ANON) +
-		      zone_page_state(zone, NR_ISOLATED_ANON);
+		nr += zone_page_state_snapshot(zone, NR_ACTIVE_ANON) +
+		      zone_page_state_snapshot(zone, NR_INACTIVE_ANON) +
+		      zone_page_state_snapshot(zone, NR_ISOLATED_ANON);
 
 	return nr;
 }
 
 bool zone_reclaimable(struct zone *zone)
 {
-	return zone_page_state(zone, NR_PAGES_SCANNED) <
+	return zone_page_state_snapshot(zone, NR_PAGES_SCANNED) <
 		zone_reclaimable_pages(zone) * 6;
 }
 
