@@ -26,7 +26,7 @@ struct gb_power_supply_prop {
 struct gb_power_supply {
 	u8				id;
 	bool				registered;
-#ifdef DRIVER_OWNS_PSY_STRUCT
+#ifndef CORE_OWNS_PSY_STRUCT
 	struct power_supply		psy;
 #define to_gb_power_supply(x) container_of(x, struct gb_power_supply, psy)
 #else
@@ -126,7 +126,7 @@ static void next_interval(struct gb_power_supply *gbpsy)
 		gbpsy->update_interval = update_interval_max;
 }
 
-#ifdef DRIVER_OWNS_PSY_STRUCT
+#ifndef CORE_OWNS_PSY_STRUCT
 static void __gb_power_supply_changed(struct gb_power_supply *gbpsy)
 {
 	power_supply_changed(&gbpsy->psy);
@@ -513,7 +513,7 @@ static int property_is_writeable(struct power_supply *b,
 }
 
 
-#ifdef DRIVER_OWNS_PSY_STRUCT
+#ifndef CORE_OWNS_PSY_STRUCT
 static int gb_power_supply_register(struct gb_power_supply *gbpsy)
 {
 	struct gb_connection *connection = get_conn_from_psy(gbpsy);
@@ -569,7 +569,7 @@ static void _gb_power_supply_release(struct gb_power_supply *gbpsy)
 	gbpsy->update_interval = 0;
 
 	cancel_delayed_work_sync(&gbpsy->work);
-#ifdef DRIVER_OWNS_PSY_STRUCT
+#ifndef CORE_OWNS_PSY_STRUCT
 	if (gbpsy->registered)
 		power_supply_unregister(&gbpsy->psy);
 #else
