@@ -125,7 +125,22 @@ enum transcoder {
 	TRANSCODER_EDP,
 	I915_MAX_TRANSCODERS
 };
-#define transcoder_name(t) ((t) + 'A')
+
+static inline const char *transcoder_name(enum transcoder transcoder)
+{
+	switch (transcoder) {
+	case TRANSCODER_A:
+		return "A";
+	case TRANSCODER_B:
+		return "B";
+	case TRANSCODER_C:
+		return "C";
+	case TRANSCODER_EDP:
+		return "EDP";
+	default:
+		return "<invalid>";
+	}
+}
 
 /*
  * I915_MAX_PLANES in the enum below is the maximum (across all platforms)

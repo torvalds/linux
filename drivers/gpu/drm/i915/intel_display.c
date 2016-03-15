@@ -12092,7 +12092,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("[CRTC:%d]%s config %p for pipe %c\n", crtc->base.base.id,
 		      context, pipe_config, pipe_name(crtc->pipe));
 
-	DRM_DEBUG_KMS("cpu_transcoder: %c\n", transcoder_name(pipe_config->cpu_transcoder));
+	DRM_DEBUG_KMS("cpu_transcoder: %s\n", transcoder_name(pipe_config->cpu_transcoder));
 	DRM_DEBUG_KMS("pipe bpp: %i, dithering: %i\n",
 		      pipe_config->pipe_bpp, pipe_config->dither);
 	DRM_DEBUG_KMS("fdi/pch: %i, lanes: %i, gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
@@ -16221,7 +16221,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 	}
 
 	for (i = 0; i < error->num_transcoders; i++) {
-		err_printf(m, "CPU transcoder: %c\n",
+		err_printf(m, "CPU transcoder: %s\n",
 			   transcoder_name(error->transcoder[i].cpu_transcoder));
 		err_printf(m, "  Power: %s\n",
 			   onoff(error->transcoder[i].power_domain_on));

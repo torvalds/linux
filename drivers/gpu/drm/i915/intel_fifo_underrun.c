@@ -212,7 +212,7 @@ static void cpt_check_pch_fifo_underruns(struct intel_crtc *crtc)
 	I915_WRITE(SERR_INT, SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder));
 	POSTING_READ(SERR_INT);
 
-	DRM_ERROR("pch fifo underrun on pch transcoder %c\n",
+	DRM_ERROR("pch fifo underrun on pch transcoder %s\n",
 		  transcoder_name(pch_transcoder));
 }
 
@@ -235,7 +235,7 @@ static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
 
 		if (old && I915_READ(SERR_INT) &
 		    SERR_INT_TRANS_FIFO_UNDERRUN(pch_transcoder)) {
-			DRM_ERROR("uncleared pch fifo underrun on pch transcoder %c\n",
+			DRM_ERROR("uncleared pch fifo underrun on pch transcoder %s\n",
 				  transcoder_name(pch_transcoder));
 		}
 	}
@@ -386,7 +386,7 @@ void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 {
 	if (intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder,
 						  false))
-		DRM_ERROR("PCH transcoder %c FIFO underrun\n",
+		DRM_ERROR("PCH transcoder %s FIFO underrun\n",
 			  transcoder_name(pch_transcoder));
 }
 
