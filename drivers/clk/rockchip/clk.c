@@ -347,6 +347,9 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
+	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+						   "rockchip,grf");
+
 	return ctx;
 
 err_free:
@@ -364,9 +367,6 @@ void __init rockchip_clk_of_add_provider(struct device_node *np,
 
 struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx)
 {
-	if (IS_ERR(ctx->grf))
-		ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
-							   "rockchip,grf");
 	return ctx->grf;
 }
 
