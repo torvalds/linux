@@ -268,8 +268,7 @@ int orangefs_getattr(struct vfsmount *mnt,
 		     "orangefs_getattr: called on %s\n",
 		     dentry->d_name.name);
 
-	ret = orangefs_inode_old_getattr(inode, ORANGEFS_ATTR_SYS_ALL_NOHINT,
-	    0);
+	ret = orangefs_inode_getattr(inode, 0, 1);
 	if (ret == 0) {
 		generic_fillattr(inode, kstat);
 
@@ -278,14 +277,6 @@ int orangefs_getattr(struct vfsmount *mnt,
 		kstat->blksize = orangefs_inode->blksize;
 
 		inode->i_link = ORANGEFS_I(dentry->d_inode)->link_target;
-	} else {
-		/* assume an I/O error and flag inode as bad */
-		gossip_debug(GOSSIP_INODE_DEBUG,
-			     "%s:%s:%d calling make bad inode\n",
-			     __FILE__,
-			     __func__,
-			     __LINE__);
-		orangefs_make_bad_inode(inode);
 	}
 	return ret;
 }
@@ -300,8 +291,7 @@ int orangefs_permission(struct inode *inode, int mask)
 	gossip_debug(GOSSIP_INODE_DEBUG, "%s: refreshing\n", __func__);
 
 	/* Make sure the permission (and other common attrs) are up to date. */
-	ret = orangefs_inode_old_getattr(inode,
-	    ORANGEFS_ATTR_SYS_ALL_NOHINT_NOSIZE, 0);
+	ret = orangefs_inode_getattr(inode, 0, 0);
 	if (ret < 0)
 		return ret;
 
