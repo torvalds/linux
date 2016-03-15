@@ -1546,17 +1546,6 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 
 	I915_WRITE(DPLL_MD(pipe), pipe_config->dpll_hw_state.dpll_md);
 	POSTING_READ(DPLL_MD(pipe));
-
-	/* We do this three times for luck */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
-	I915_WRITE(reg, dpll);
-	POSTING_READ(reg);
-	udelay(150); /* wait for warmup */
 }
 
 static void chv_enable_pll(struct intel_crtc *crtc,
