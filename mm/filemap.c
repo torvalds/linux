@@ -577,7 +577,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 			__inc_zone_page_state(new, NR_SHMEM);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 		unlock_page_memcg(memcg);
-		mem_cgroup_replace_page(old, new);
+		mem_cgroup_migrate(old, new);
 		radix_tree_preload_end();
 		if (freepage)
 			freepage(old);

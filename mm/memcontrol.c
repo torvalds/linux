@@ -4457,7 +4457,7 @@ static int mem_cgroup_move_account(struct page *page,
 	VM_BUG_ON(compound && !PageTransHuge(page));
 
 	/*
-	 * Prevent mem_cgroup_replace_page() from looking at
+	 * Prevent mem_cgroup_migrate() from looking at
 	 * page->mem_cgroup of its source page while we change it.
 	 */
 	ret = -EBUSY;
@@ -5486,16 +5486,17 @@ void mem_cgroup_uncharge_list(struct list_head *page_list)
 }
 
 /**
- * mem_cgroup_replace_page - migrate a charge to another page
- * @oldpage: currently charged page
- * @newpage: page to transfer the charge to
+ * mem_cgroup_migrate - charge a page's replacement
+ * @oldpage: currently circulating page
+ * @newpage: replacement page
  *
- * Migrate the charge from @oldpage to @newpage.
+ * Charge @newpage as a replacement page for @oldpage. @oldpage will
+ * be uncharged upon free.
  *
  * Both pages must be locked, @newpage->mapping must be set up.
  * Either or both pages might be on the LRU already.
  */
-void mem_cgroup_replace_page(struct page *oldpage, struct page *newpage)
+void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
 {
 	struct mem_cgroup *memcg;
 	unsigned int nr_pages;
