@@ -6,22 +6,48 @@
 #include <linux/poison.h>
 #include <linux/ratelimit.h>
 
-static bool page_poisoning_enabled __read_mostly;
+static bool __page_poisoning_enabled __read_mostly;
+static bool want_page_poisoning __read_mostly;
+
+static int early_page_poison_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (strcmp(buf, "on") == 0)
+		want_page_poisoning = true;
+	else if (strcmp(buf, "off") == 0)
+		want_page_poisoning = false;
+
+	return 0;
+}
+early_param("page_poison", early_page_poison_param);
+
+bool page_poisoning_enabled(void)
+{
+	return __page_poisoning_enabled;
+}
 
 static bool need_page_poisoning(void)
 {
-	if (!debug_pagealloc_enabled())
-		return false;
-
-	return true;
+	return want_page_poisoning;
 }
 
 static void init_page_poisoning(void)
 {
-	if (!debug_pagealloc_enabled())
-		return;
+	/*
+	 * page poisoning is debug page alloc for some arches. If either
+	 * of those options are enabled, enable poisoning
+	 */
+	if (!IS_ENABLED(CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC)) {
+		if (!want_page_poisoning && !debug_pagealloc_enabled())
+			return;
+	} else {
+		if (!want_page_poisoning)
+			return;
+	}
 
-	page_poisoning_enabled = true;
+	__page_poisoning_enabled = true;
 }
 
 struct page_ext_operations page_poisoning_ops = {
@@ -83,6 +109,9 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
 	unsigned char *start;
 	unsigned char *end;
 
+	if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+		return;
+
 	start = memchr_inv(mem, PAGE_POISON, bytes);
 	if (!start)
 		return;
@@ -95,9 +124,9 @@ static void check_poison_mem(unsigned char *mem, size_t bytes)
 	if (!__ratelimit(&ratelimit))
 		return;
 	else if (start == end && single_bit_flip(*start, PAGE_POISON))
-		printk(KERN_ERR "pagealloc: single bit error\n");
+		pr_err("pagealloc: single bit error\n");
 	else
-		printk(KERN_ERR "pagealloc: memory corruption\n");
+		pr_err("pagealloc: memory corruption\n");
 
 	print_hex_dump(KERN_ERR, "", DUMP_PREFIX_ADDRESS, 16, 1, start,
 			end - start + 1, 1);
@@ -125,9 +154,9 @@ static void unpoison_pages(struct page *page, int n)
 		unpoison_page(page + i);
 }
 
-void __kernel_map_pages(struct page *page, int numpages, int enable)
+void kernel_poison_pages(struct page *page, int numpages, int enable)
 {
-	if (!page_poisoning_enabled)
+	if (!page_poisoning_enabled())
 		return;
 
 	if (enable)
@@ -135,3 +164,10 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	else
 		poison_pages(page, numpages);
 }
+
+#ifndef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	/* This function does nothing, all work is done via poison pages */
+}
+#endif
