@@ -1528,24 +1528,25 @@ static void vlv_enable_pll(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	i915_reg_t reg = DPLL(crtc->pipe);
+	enum pipe pipe = crtc->pipe;
+	i915_reg_t reg = DPLL(pipe);
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, pipe);
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev_priv->dev))
-		assert_panel_unlocked(dev_priv, crtc->pipe);
+		assert_panel_unlocked(dev_priv, pipe);
 
 	I915_WRITE(reg, dpll);
 	POSTING_READ(reg);
 	udelay(150);
 
 	if (wait_for(((I915_READ(reg) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
-		DRM_ERROR("DPLL %d failed to lock\n", crtc->pipe);
+		DRM_ERROR("DPLL %d failed to lock\n", pipe);
 
-	I915_WRITE(DPLL_MD(crtc->pipe), pipe_config->dpll_hw_state.dpll_md);
-	POSTING_READ(DPLL_MD(crtc->pipe));
+	I915_WRITE(DPLL_MD(pipe), pipe_config->dpll_hw_state.dpll_md);
+	POSTING_READ(DPLL_MD(pipe));
 
 	/* We do this three times for luck */
 	I915_WRITE(reg, dpll);
@@ -1564,11 +1565,11 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	enum dpio_channel port = vlv_pipe_to_channel(pipe);
 	u32 tmp;
 
-	assert_pipe_disabled(dev_priv, crtc->pipe);
+	assert_pipe_disabled(dev_priv, pipe);
 
 	mutex_lock(&dev_priv->sb_lock);
 
