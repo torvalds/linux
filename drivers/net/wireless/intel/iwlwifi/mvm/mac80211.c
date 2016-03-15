@@ -2345,7 +2345,8 @@ static void iwl_mvm_check_uapsd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 	}
 
-	if (iwlwifi_mod_params.uapsd_disable) {
+	if (!vif->p2p &&
+	    (iwlwifi_mod_params.uapsd_disable & IWL_DISABLE_UAPSD_BSS)) {
 		vif->driver_flags &= ~IEEE80211_VIF_SUPPORTS_UAPSD;
 		return;
 	}

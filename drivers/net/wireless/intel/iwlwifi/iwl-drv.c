@@ -1561,7 +1561,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.d0i3_disable = true,
 	.d0i3_entry_delay = 1000,
 #ifndef CONFIG_IWLWIFI_UAPSD
-	.uapsd_disable = true,
+	.uapsd_disable = IWL_DISABLE_UAPSD_BSS | IWL_DISABLE_UAPSD_P2P_CLIENT,
 #endif /* CONFIG_IWLWIFI_UAPSD */
 	/* the rest are 0 by default */
 };
@@ -1681,11 +1681,13 @@ module_param_named(lar_disable, iwlwifi_mod_params.lar_disable,
 MODULE_PARM_DESC(lar_disable, "disable LAR functionality (default: N)");
 
 module_param_named(uapsd_disable, iwlwifi_mod_params.uapsd_disable,
-		   bool, S_IRUGO | S_IWUSR);
+		   uint, S_IRUGO | S_IWUSR);
 #ifdef CONFIG_IWLWIFI_UAPSD
-MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: N)");
+MODULE_PARM_DESC(uapsd_disable,
+		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 0)");
 #else
-MODULE_PARM_DESC(uapsd_disable, "disable U-APSD functionality (default: Y)");
+MODULE_PARM_DESC(uapsd_disable,
+		 "disable U-APSD functionality bitmap 1: BSS 2: P2P Client (default: 3)");
 #endif
 
 /*

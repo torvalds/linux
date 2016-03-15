@@ -1072,7 +1072,8 @@ bool iwl_mvm_is_p2p_standalone_uapsd_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
 			   IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD) &&
-		IWL_MVM_P2P_UAPSD_STANDALONE;
+		!(iwlwifi_mod_params.uapsd_disable &
+		  IWL_DISABLE_UAPSD_P2P_CLIENT);
 }
 
 static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
