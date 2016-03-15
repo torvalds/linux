@@ -458,7 +458,8 @@ static int compare_attributes_to_inode(struct inode *inode,
  * otherwise. When check is 1, returns 1 on success where the inode is valid
  * and 0 on success where the inode is stale and -errno otherwise.
  */
-int orangefs_inode_getattr(struct inode *inode, __u32 getattr_mask, int check)
+int orangefs_inode_old_getattr(struct inode *inode, __u32 getattr_mask,
+    int check)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
@@ -532,6 +533,124 @@ out:
 		     (int)atomic_read(&inode->i_count),
 		     ret);
 
+	op_release(new_op);
+	return ret;
+}
+
+static int orangefs_inode_type(enum orangefs_ds_type objtype)
+{
+	if (objtype == ORANGEFS_TYPE_METAFILE)
+		return S_IFREG;
+	else if (objtype == ORANGEFS_TYPE_DIRECTORY)
+		return S_IFDIR;
+	else if (objtype == ORANGEFS_TYPE_SYMLINK)
+		return S_IFLNK;
+	else
+		return -1;
+}
+
+int orangefs_inode_getattr(struct inode *inode, int new, int size)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op;
+	loff_t inode_size, rounded_up_size;
+	int ret;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
+	    get_khandle_from_ino(inode));
+
+	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
+	if (!new_op)
+		return -ENOMEM;
+	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getattr.mask = size ?
+	    ORANGEFS_ATTR_SYS_ALL_NOHINT : ORANGEFS_ATTR_SYS_ALL_NOHINT_NOSIZE;
+
+	ret = service_operation(new_op, __func__,
+	    get_interruptible_flag(inode));
+	if (ret != 0)
+		goto out;
+
+	ret = orangefs_inode_type(new_op->
+	    downcall.resp.getattr.attributes.objtype);
+	if (!new) {
+		/*
+		 * If the inode type or symlink target have changed then this
+		 * inode is stale.
+		 */
+		if (ret == -1 || !(inode->i_mode & ret)) {
+			orangefs_make_bad_inode(inode);
+			ret = -ESTALE;
+			goto out;
+		}
+		if (ret == S_IFLNK && strncmp(orangefs_inode->link_target,
+		    new_op->downcall.resp.getattr.link_target,
+		    ORANGEFS_NAME_MAX)) {
+			orangefs_make_bad_inode(inode);
+			ret = -ESTALE;
+			goto out;
+		}
+	}
+
+	switch (ret) {
+	case S_IFREG:
+		inode->i_flags = orangefs_inode_flags(&new_op->
+		    downcall.resp.getattr.attributes);
+		if (size) {
+			inode_size = (loff_t)new_op->
+			    downcall.resp.getattr.attributes.size;
+			rounded_up_size =
+			    (inode_size + (4096 - (inode_size % 4096)));
+			inode->i_size = inode_size;
+			orangefs_inode->blksize =
+			    new_op->downcall.resp.getattr.attributes.blksize;
+			spin_lock(&inode->i_lock);
+			inode->i_bytes = inode_size;
+			inode->i_blocks =
+			    (unsigned long)(rounded_up_size / 512);
+			spin_unlock(&inode->i_lock);
+		}
+		break;
+	case S_IFDIR:
+		inode->i_size = PAGE_CACHE_SIZE;
+		orangefs_inode->blksize = (1 << inode->i_blkbits);
+		spin_lock(&inode->i_lock);
+		inode_set_bytes(inode, inode->i_size);
+		spin_unlock(&inode->i_lock);
+		set_nlink(inode, 1);
+		break;
+	case S_IFLNK:
+		if (new) {
+			inode->i_size = (loff_t)strlen(new_op->
+			    downcall.resp.getattr.link_target);
+			orangefs_inode->blksize = (1 << inode->i_blkbits);
+			strlcpy(orangefs_inode->link_target,
+			    new_op->downcall.resp.getattr.link_target,
+			    ORANGEFS_NAME_MAX);
+		}
+		break;
+	}
+
+	inode->i_uid = make_kuid(&init_user_ns, new_op->
+	    downcall.resp.getattr.attributes.owner);
+	inode->i_gid = make_kgid(&init_user_ns, new_op->
+	    downcall.resp.getattr.attributes.group);
+	inode->i_atime.tv_sec = (time64_t)new_op->
+	    downcall.resp.getattr.attributes.atime;
+	inode->i_mtime.tv_sec = (time64_t)new_op->
+	    downcall.resp.getattr.attributes.mtime;
+	inode->i_ctime.tv_sec = (time64_t)new_op->
+	    downcall.resp.getattr.attributes.ctime;
+	inode->i_atime.tv_nsec = 0;
+	inode->i_mtime.tv_nsec = 0;
+	inode->i_ctime.tv_nsec = 0;
+
+	/* special case: mark the root inode as sticky */
+	inode->i_mode = ret | (is_root_handle(inode) ? S_ISVTX : 0) |
+	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
+
+	ret = 0;
+out:
 	op_release(new_op);
 	return ret;
 }

@@ -117,7 +117,7 @@ static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	/* Now we must perform a getattr to validate the inode contents. */
 
-	ret = orangefs_inode_getattr(dentry->d_inode,
+	ret = orangefs_inode_old_getattr(dentry->d_inode,
 	    ORANGEFS_ATTR_SYS_TYPE|ORANGEFS_ATTR_SYS_LNK_TARGET, 1);
 	if (ret < 0) {
 		gossip_debug(GOSSIP_DCACHE_DEBUG, "%s:%s:%d getattr failure.\n",
