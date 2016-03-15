@@ -201,37 +201,6 @@ For 32-bit we have the following conventions - kernel is built with
 	.byte 0xf1
 	.endm
 
-#else /* CONFIG_X86_64 */
-
-/*
- * For 32bit only simplified versions of SAVE_ALL/RESTORE_ALL. These
- * are different from the entry_32.S versions in not changing the segment
- * registers. So only suitable for in kernel use, not when transitioning
- * from or to user space. The resulting stack frame is not a standard
- * pt_regs frame. The main use case is calling C code from assembler
- * when all the registers need to be preserved.
- */
-
-	.macro SAVE_ALL
-	pushl %eax
-	pushl %ebp
-	pushl %edi
-	pushl %esi
-	pushl %edx
-	pushl %ecx
-	pushl %ebx
-	.endm
-
-	.macro RESTORE_ALL
-	popl %ebx
-	popl %ecx
-	popl %edx
-	popl %esi
-	popl %edi
-	popl %ebp
-	popl %eax
-	.endm
-
 #endif /* CONFIG_X86_64 */
 
 /*
