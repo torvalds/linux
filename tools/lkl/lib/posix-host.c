@@ -53,13 +53,17 @@ struct lkl_sem_t {
 			lkl_printf("%s: %s\n", #exp, strerror(errno));	\
 	} while (0)
 
-/* pthread_* functions use the reverse convention */
-#define WARN_PTHREAD(exp) do {						\
-		int __ret = exp;					\
-		if (__ret > 0)						\
-			lkl_printf("%s: %s\n", #exp, strerror(__ret));	\
-	} while (0)
+static int _warn_pthread(int ret, char *str_exp)
+{
+	if (ret > 0)
+		lkl_printf("%s: %s\n", str_exp, strerror(ret));
 
+	return ret;
+}
+
+
+/* pthread_* functions use the reverse convention */
+#define WARN_PTHREAD(exp) _warn_pthread(exp, #exp)
 
 static struct lkl_sem_t *sem_alloc(int count)
 {
