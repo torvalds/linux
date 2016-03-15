@@ -119,9 +119,7 @@ static inline struct intel_dsi_host *to_intel_dsi_host(struct mipi_dsi_host *h)
 	return container_of(h, struct intel_dsi_host, base);
 }
 
-#define for_each_dsi_port(__port, __ports_mask) \
-	for ((__port) = PORT_A; (__port) < I915_MAX_PORTS; (__port)++)	\
-		for_each_if ((__ports_mask) & (1 << (__port)))
+#define for_each_dsi_port(__port, __ports_mask) for_each_port_masked(__port, __ports_mask)
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 {
