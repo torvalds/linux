@@ -34,6 +34,7 @@ struct sym_entry {
 	unsigned int len;
 	unsigned int start_pos;
 	unsigned char *sym;
+	unsigned int percpu_absolute;
 };
 
 struct addr_range {
@@ -170,6 +171,8 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	}
 	strcpy((char *)s->sym + 1, str);
 	s->sym[0] = stype;
+
+	s->percpu_absolute = 0;
 
 	/* Record if we've found __per_cpu_start/end. */
 	check_symbol_range(sym, s->addr, &percpu_range, 1);
@@ -325,7 +328,7 @@ static int expand_symbol(unsigned char *data, int len, char *result)
 
 static int symbol_absolute(struct sym_entry *s)
 {
-	return toupper(s->sym[0]) == 'A';
+	return s->percpu_absolute;
 }
 
 static void write_src(void)
@@ -681,8 +684,15 @@ static void make_percpus_absolute(void)
 	unsigned int i;
 
 	for (i = 0; i < table_cnt; i++)
-		if (symbol_in_range(&table[i], &percpu_range, 1))
+		if (symbol_in_range(&table[i], &percpu_range, 1)) {
+			/*
+			 * Keep the 'A' override for percpu symbols to
+			 * ensure consistent behavior compared to older
+			 * versions of this tool.
+			 */
 			table[i].sym[0] = 'A';
+			table[i].percpu_absolute = 1;
+		}
 }
 
 int main(int argc, char **argv)
