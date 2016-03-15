@@ -357,33 +357,14 @@ static void imx6_pcie_init_phy(struct pcie_port *pp)
 
 static int imx6_pcie_wait_for_link(struct pcie_port *pp)
 {
-	unsigned int retries;
+	/* check if the link is up or not */
+	if (!dw_pcie_wait_for_link(pp))
+		return 0;
 
-	/*
-	 * Test if the PHY reports that the link is up and also that the LTSSM
-	 * training finished. There are three possible states of the link when
-	 * this code is called:
-	 * 1) The link is DOWN (unlikely)
-	 *    The link didn't come up yet for some reason. This usually means
-	 *    we have a real problem somewhere, if it happens with a peripheral
-	 *    connected. This state calls for inspection of the DEBUG registers.
-	 * 2) The link is UP, but still in LTSSM training
-	 *    Wait for the training to finish, which should take a very short
-	 *    time. If the training does not finish, we have a problem and we
-	 *    need to inspect the DEBUG registers. If the training does finish,
-	 *    the link is up and operating correctly.
-	 * 3) The link is UP and no longer in LTSSM training
-	 *    The link is up and operating correctly.
-	 */
-	for (retries = 0; retries < 200; retries++) {
-		u32 reg = readl(pp->dbi_base + PCIE_PHY_DEBUG_R1);
-		if ((reg & PCIE_PHY_DEBUG_R1_XMLH_LINK_UP) &&
-		    !(reg & PCIE_PHY_DEBUG_R1_XMLH_LINK_IN_TRAINING))
-			return 0;
-		usleep_range(1000, 2000);
-	}
-
-	return -EINVAL;
+	dev_dbg(pp->dev, "DEBUG_R0: 0x%08x, DEBUG_R1: 0x%08x\n",
+		readl(pp->dbi_base + PCIE_PHY_DEBUG_R0),
+		readl(pp->dbi_base + PCIE_PHY_DEBUG_R1));
+	return -ETIMEDOUT;
 }
 
 static int imx6_pcie_wait_for_speed_change(struct pcie_port *pp)
