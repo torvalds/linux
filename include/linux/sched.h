@@ -182,8 +182,6 @@ extern void update_cpu_load_nohz(int active);
 static inline void update_cpu_load_nohz(int active) { }
 #endif
 
-extern unsigned long get_parent_ip(unsigned long addr);
-
 extern void dump_cpu_task(int cpu);
 
 struct seq_file;
@@ -920,6 +918,10 @@ static inline int sched_info_on(void)
 #endif
 }
 
+#ifdef CONFIG_SCHEDSTATS
+void force_schedstat_enabled(void);
+#endif
+
 enum cpu_idle_type {
 	CPU_IDLE,
 	CPU_NOT_IDLE,
@@ -1289,6 +1291,8 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	unsigned long watchdog_stamp;
 	unsigned int time_slice;
+	unsigned short on_rq;
+	unsigned short on_list;
 
 	struct sched_rt_entity *back;
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -1329,10 +1333,6 @@ struct sched_dl_entity {
 	 * task has to wait for a replenishment to be performed at the
 	 * next firing of dl_timer.
 	 *
-	 * @dl_new tells if a new instance arrived. If so we must
-	 * start executing it with full runtime and reset its absolute
-	 * deadline;
-	 *
 	 * @dl_boosted tells if we are boosted due to DI. If so we are
 	 * outside bandwidth enforcement mechanism (but only until we
 	 * exit the critical section);
@@ -1340,7 +1340,7 @@ struct sched_dl_entity {
 	 * @dl_yielded tells if task gave up the cpu before consuming
 	 * all its available runtime during the last job.
 	 */
-	int dl_throttled, dl_new, dl_boosted, dl_yielded;
+	int dl_throttled, dl_boosted, dl_yielded;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
