@@ -895,8 +895,6 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 					      DATA_INT_CLR | ENABLE_RX_VMM);
 		ret = wilc->hif_func->hif_block_rx_ext(wilc, 0, buffer, size);
 
-		if (!ret)
-			goto _end_;
 _end_:
 		if (ret) {
 			offset += size;
