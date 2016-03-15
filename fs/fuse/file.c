@@ -1247,6 +1247,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 			       size_t *nbytesp, int write)
 {
 	size_t nbytes = 0;  /* # bytes already packed in req */
+	ssize_t ret = 0;
 
 	/* Special case for kernel I/O: can copy directly into the buffer */
 	if (ii->type & ITER_KVEC) {
@@ -1266,13 +1267,12 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 	while (nbytes < *nbytesp && req->num_pages < req->max_pages) {
 		unsigned npages;
 		size_t start;
-		ssize_t ret = iov_iter_get_pages(ii,
-					&req->pages[req->num_pages],
+		ret = iov_iter_get_pages(ii, &req->pages[req->num_pages],
 					*nbytesp - nbytes,
 					req->max_pages - req->num_pages,
 					&start);
 		if (ret < 0)
-			return ret;
+			break;
 
 		iov_iter_advance(ii, ret);
 		nbytes += ret;
@@ -1295,7 +1295,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 
 	*nbytesp = nbytes;
 
-	return 0;
+	return ret;
 }
 
 static inline int fuse_iter_npages(const struct iov_iter *ii_p)
@@ -1319,6 +1319,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	pgoff_t idx_to = (pos + count - 1) >> PAGE_CACHE_SHIFT;
 	ssize_t res = 0;
 	struct fuse_req *req;
+	int err = 0;
 
 	if (io->async)
 		req = fuse_get_req_for_background(fc, fuse_iter_npages(iter));
@@ -1339,11 +1340,9 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		size_t nres;
 		fl_owner_t owner = current->files;
 		size_t nbytes = min(count, nmax);
-		int err = fuse_get_user_pages(req, iter, &nbytes, write);
-		if (err) {
-			res = err;
+		err = fuse_get_user_pages(req, iter, &nbytes, write);
+		if (err && !nbytes)
 			break;
-		}
 
 		if (write)
 			nres = fuse_send_write(req, io, pos, nbytes, owner);
@@ -1353,11 +1352,11 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		if (!io->async)
 			fuse_release_user_pages(req, !write);
 		if (req->out.h.error) {
-			if (!res)
-				res = req->out.h.error;
+			err = req->out.h.error;
 			break;
 		} else if (nres > nbytes) {
-			res = -EIO;
+			res = 0;
+			err = -EIO;
 			break;
 		}
 		count -= nres;
@@ -1381,7 +1380,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	if (res > 0)
 		*ppos = pos;
 
-	return res;
+	return res > 0 ? res : err;
 }
 EXPORT_SYMBOL_GPL(fuse_direct_io);
 
