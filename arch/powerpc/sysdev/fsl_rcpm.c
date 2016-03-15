@@ -22,6 +22,7 @@
 #include <linux/fsl/guts.h>
 #include <asm/cputhreads.h>
 #include <asm/fsl_pm.h>
+#include <asm/smp.h>
 
 static struct ccsr_rcpm_v1 __iomem *rcpm_v1_regs;
 static struct ccsr_rcpm_v2 __iomem *rcpm_v2_regs;
