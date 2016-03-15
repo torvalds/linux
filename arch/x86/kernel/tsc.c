@@ -1246,14 +1246,14 @@ void __init tsc_init(void)
  */
 unsigned long calibrate_delay_is_known(void)
 {
-	int i, cpu = smp_processor_id();
+	int sibling, cpu = smp_processor_id();
 
 	if (!tsc_disabled && !cpu_has(&cpu_data(cpu), X86_FEATURE_CONSTANT_TSC))
 		return 0;
 
-	for_each_online_cpu(i)
-		if (cpu_data(i).phys_proc_id == cpu_data(cpu).phys_proc_id)
-			return cpu_data(i).loops_per_jiffy;
+	sibling = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+	if (sibling < nr_cpu_ids)
+		return cpu_data(sibling).loops_per_jiffy;
 	return 0;
 }
 #endif
