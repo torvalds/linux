@@ -1617,9 +1617,6 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
-	/* No really, not for ILK+ */
-	BUG_ON(INTEL_INFO(dev)->gen >= 5);
-
 	/* PLL is protected by panel, make sure we can write it */
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
@@ -1795,9 +1792,6 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	i915_reg_t reg;
 	uint32_t val, pipeconf_val;
 
-	/* PCH only available on ILK+ */
-	BUG_ON(!HAS_PCH_SPLIT(dev));
-
 	/* Make sure PCH DPLL is enabled */
 	assert_shared_dpll_enabled(dev_priv, intel_crtc->config->shared_dpll);
 
@@ -1850,9 +1844,6 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 				      enum transcoder cpu_transcoder)
 {
 	u32 val, pipeconf_val;
-
-	/* PCH only available on ILK+ */
-	BUG_ON(!HAS_PCH_SPLIT(dev_priv->dev));
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
