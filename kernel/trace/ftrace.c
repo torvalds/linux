@@ -1030,8 +1030,7 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 	for_each_possible_cpu(cpu) {
 		stat = &per_cpu(ftrace_profile_stats, cpu);
 
-		/* allocate enough for function name + cpu number */
-		name = kmalloc(32, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "function%d", cpu);
 		if (!name) {
 			/*
 			 * The files created are permanent, if something happens
@@ -1043,7 +1042,6 @@ static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 			return;
 		}
 		stat->stat = function_stats;
-		snprintf(name, 32, "function%d", cpu);
 		stat->stat.name = name;
 		ret = register_stat_tracer(&stat->stat);
 		if (ret) {
