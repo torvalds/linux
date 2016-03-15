@@ -460,9 +460,10 @@ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 /*
  * Calculate the number of objects and left-over bytes for a given buffer size.
  */
-static void cache_estimate(unsigned long gfporder, size_t buffer_size,
-		unsigned long flags, size_t *left_over, unsigned int *num)
+static unsigned int cache_estimate(unsigned long gfporder, size_t buffer_size,
+		unsigned long flags, size_t *left_over)
 {
+	unsigned int num;
 	size_t slab_size = PAGE_SIZE << gfporder;
 
 	/*
@@ -483,13 +484,15 @@ static void cache_estimate(unsigned long gfporder, size_t buffer_size,
 	 * correct alignment when allocated.
 	 */
 	if (flags & (CFLGS_OBJFREELIST_SLAB | CFLGS_OFF_SLAB)) {
-		*num = slab_size / buffer_size;
+		num = slab_size / buffer_size;
 		*left_over = slab_size % buffer_size;
 	} else {
-		*num = slab_size / (buffer_size + sizeof(freelist_idx_t));
+		num = slab_size / (buffer_size + sizeof(freelist_idx_t));
 		*left_over = slab_size %
 			(buffer_size + sizeof(freelist_idx_t));
 	}
+
+	return num;
 }
 
 #if DEBUG
@@ -1893,7 +1896,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 		unsigned int num;
 		size_t remainder;
 
-		cache_estimate(gfporder, size, flags, &remainder, &num);
+		num = cache_estimate(gfporder, size, flags, &remainder);
 		if (!num)
 			continue;
 
