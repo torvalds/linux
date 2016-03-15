@@ -775,7 +775,7 @@ static int rmi_f11_get_query_parameters(struct rmi_device *rmi_dev,
 	sensor_query->has_abs = !!(query_buf[0] & RMI_F11_HAS_ABS);
 	sensor_query->has_gestures = !!(query_buf[0] & RMI_F11_HAS_GESTURES);
 	sensor_query->has_sensitivity_adjust =
-		!!(query_buf[0] && RMI_F11_HAS_SENSITIVITY_ADJ);
+		!!(query_buf[0] & RMI_F11_HAS_SENSITIVITY_ADJ);
 	sensor_query->configurable = !!(query_buf[0] & RMI_F11_CONFIGURABLE);
 
 	sensor_query->nr_x_electrodes =
@@ -803,7 +803,7 @@ static int rmi_f11_get_query_parameters(struct rmi_device *rmi_dev,
 		sensor_query->has_bending_correction =
 			!!(query_buf[0] & RMI_F11_HAS_BENDING_CORRECTION);
 		sensor_query->has_large_object_suppression =
-		!!(query_buf[0] && RMI_F11_HAS_LARGE_OBJECT_SUPPRESSION);
+			!!(query_buf[0] & RMI_F11_HAS_LARGE_OBJECT_SUPPRESSION);
 		sensor_query->has_jitter_filter =
 			!!(query_buf[0] & RMI_F11_HAS_JITTER_FILTER);
 		query_size++;
