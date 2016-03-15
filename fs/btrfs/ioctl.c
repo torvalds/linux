@@ -125,10 +125,10 @@ static unsigned int btrfs_flags_to_ioctl(unsigned int flags)
 	if (flags & BTRFS_INODE_NODATACOW)
 		iflags |= FS_NOCOW_FL;
 
-	if ((flags & BTRFS_INODE_COMPRESS) && !(flags & BTRFS_INODE_NOCOMPRESS))
-		iflags |= FS_COMPR_FL;
-	else if (flags & BTRFS_INODE_NOCOMPRESS)
+	if (flags & BTRFS_INODE_NOCOMPRESS)
 		iflags |= FS_NOCOMP_FL;
+	else if (flags & BTRFS_INODE_COMPRESS)
+		iflags |= FS_COMPR_FL;
 
 	return iflags;
 }
