@@ -47,6 +47,11 @@ struct lkl_dev_blk_ops {
 	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
 };
 
+struct lkl_netdev {
+	struct lkl_dev_net_ops *ops;
+	lkl_thread_t rx_tid, tx_tid;
+};
+
 struct lkl_dev_net_ops {
 	int (*tx)(struct lkl_netdev *nd, void *data, int len);
 	int (*rx)(struct lkl_netdev *nd, void *data, int *len);

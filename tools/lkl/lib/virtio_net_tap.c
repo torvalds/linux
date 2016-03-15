@@ -24,6 +24,8 @@
 
 #include <lkl_host.h>
 
+#include "virtio.h"
+
 struct lkl_netdev_tap {
 	struct lkl_netdev dev;
 	int fd;

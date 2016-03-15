@@ -27,7 +27,6 @@
 #define bad_request(s) lkl_printf("virtio_net: %s\n", s);
 #endif /* DEBUG */
 
-
 struct virtio_net_poll {
 	struct virtio_net_dev *dev;
 	int event;
@@ -213,14 +212,16 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
 	 * this, but netdevs are the only flavor that need these
 	 * locks, so it's better to do it here. */
 	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, QUEUE_DEPTH);
-
+ 
 	if (ret)
 		goto out_free;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->rx_poll) == 0)
+	nd->rx_tid = lkl_host_ops.thread_create(poll_thread, &dev->rx_poll);
+	if (nd->rx_tid == 0)
 		goto out_cleanup_dev;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->tx_poll) == 0)
+	nd->tx_tid = lkl_host_ops.thread_create(poll_thread, &dev->tx_poll);
+	if (nd->tx_tid == 0)
 		goto out_cleanup_dev;
 
 	ret = dev_register(dev);
