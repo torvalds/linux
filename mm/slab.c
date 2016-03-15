@@ -3587,7 +3587,10 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 	for (i = 0; i < size; i++) {
 		void *objp = p[i];
 
-		s = cache_from_obj(orig_s, objp);
+		if (!orig_s) /* called via kfree_bulk */
+			s = virt_to_cache(objp);
+		else
+			s = cache_from_obj(orig_s, objp);
 
 		debug_check_no_locks_freed(objp, s->object_size);
 		if (!(s->flags & SLAB_DEBUG_OBJECTS))

@@ -323,6 +323,15 @@ void kmem_cache_free(struct kmem_cache *, void *);
 void kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
 int kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
+/*
+ * Caller must not use kfree_bulk() on memory not originally allocated
+ * by kmalloc(), because the SLOB allocator cannot handle this.
+ */
+static __always_inline void kfree_bulk(size_t size, void **p)
+{
+	kmem_cache_free_bulk(NULL, size, p);
+}
+
 #ifdef CONFIG_NUMA
 void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignment;
 void *kmem_cache_alloc_node(struct kmem_cache *, gfp_t flags, int node) __assume_slab_alignment;
