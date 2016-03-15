@@ -476,12 +476,14 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 	 */
 	if (wq->name.name) {
 		/* Block all but "shutdown" signals while waiting */
-		sigset_t oldset;
+		unsigned long shutdown_sigs_mask;
 		unsigned long irqflags;
+		sigset_t oldset;
 
 		spin_lock_irqsave(&current->sighand->siglock, irqflags);
 		oldset = current->blocked;
-		siginitsetinv(&current->blocked, SHUTDOWN_SIGS & ~oldset.sig[0]);
+		shutdown_sigs_mask = SHUTDOWN_SIGS & ~oldset.sig[0];
+		siginitsetinv(&current->blocked, shutdown_sigs_mask);
 		recalc_sigpending();
 		spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
 
