@@ -1002,18 +1002,21 @@ obligation to wait for these new readers.
 <tr><th>&nbsp;</th></tr>
 <tr><th align="left">Quick Quiz:</th></tr>
 <tr><td>
-	Suppose that synchronize_rcu() did wait until all readers had completed.
-	Would the updater be able to rely on this?
+	Suppose that synchronize_rcu() did wait until <i>all</i>
+	readers had completed instead of waiting only on
+	pre-existing readers.
+	For how long would the updater be able to rely on there
+	being no readers?
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
-	No.
+	For no time at all.
 	Even if <tt>synchronize_rcu()</tt> were to wait until
 	all readers had completed, a new reader might start immediately after
 	<tt>synchronize_rcu()</tt> completed.
 	Therefore, the code following
-	<tt>synchronize_rcu()</tt> cannot rely on there being no readers
-	in any case.
+	<tt>synchronize_rcu()</tt> can <i>never</i> rely on there being
+	no readers.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
