@@ -3136,7 +3136,7 @@ static int polaris10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 							    (1 << level));
 
 	}
-/* uvd is enabled, can't set mclk low right now
+
 	if (!data->mclk_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.mclk_dpm_enable_mask) {
 			level = phm_get_lowest_enabled_level(hwmgr,
@@ -3146,7 +3146,7 @@ static int polaris10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 							    (1 << level));
 		}
 	}
-*/
+
 	if (!data->pcie_dpm_key_disabled) {
 		if (data->dpm_level_enable_mask.pcie_dpm_enable_mask) {
 			level = phm_get_lowest_enabled_level(hwmgr,
