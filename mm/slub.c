@@ -164,6 +164,14 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
 				SLAB_POISON | SLAB_STORE_USER)
 
 /*
+ * These debug flags cannot use CMPXCHG because there might be consistency
+ * issues when checking or reading debug information
+ */
+#define SLAB_NO_CMPXCHG (SLAB_CONSISTENCY_CHECKS | SLAB_STORE_USER | \
+				SLAB_TRACE)
+
+
+/*
  * Debugging flags that require metadata to be stored in the slab.  These get
  * disabled when slub_debug=O is used and a cache's min order increases with
  * metadata.
@@ -3338,7 +3346,7 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
 
 #if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
-	if (system_has_cmpxchg_double() && (s->flags & SLAB_DEBUG_FLAGS) == 0)
+	if (system_has_cmpxchg_double() && (s->flags & SLAB_NO_CMPXCHG) == 0)
 		/* Enable fast mode */
 		s->flags |= __CMPXCHG_DOUBLE;
 #endif
@@ -4846,7 +4854,6 @@ static ssize_t red_zone_store(struct kmem_cache *s,
 
 	s->flags &= ~SLAB_RED_ZONE;
 	if (buf[0] == '1') {
-		s->flags &= ~__CMPXCHG_DOUBLE;
 		s->flags |= SLAB_RED_ZONE;
 	}
 	calculate_sizes(s, -1);
@@ -4867,7 +4874,6 @@ static ssize_t poison_store(struct kmem_cache *s,
 
 	s->flags &= ~SLAB_POISON;
 	if (buf[0] == '1') {
-		s->flags &= ~__CMPXCHG_DOUBLE;
 		s->flags |= SLAB_POISON;
 	}
 	calculate_sizes(s, -1);
