@@ -1,6 +1,7 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2016 Oracle. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -84,18 +85,83 @@ static const struct ethtool_ops vnet_ethtool_ops = {
 static LIST_HEAD(vnet_list);
 static DEFINE_MUTEX(vnet_list_mutex);
 
+static struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
+{
+	unsigned int hash = vnet_hashfn(skb->data);
+	struct hlist_head *hp = &vp->port_hash[hash];
+	struct vnet_port *port;
+
+	hlist_for_each_entry_rcu(port, hp, hash) {
+		if (!sunvnet_port_is_up_common(port))
+			continue;
+		if (ether_addr_equal(port->raddr, skb->data))
+			return port;
+	}
+	list_for_each_entry_rcu(port, &vp->port_list, list) {
+		if (!port->switch_port)
+			continue;
+		if (!sunvnet_port_is_up_common(port))
+			continue;
+		return port;
+	}
+	return NULL;
+}
+
+/* func arg to vnet_start_xmit_common() to get the proper tx port */
+static struct vnet_port *vnet_tx_port_find(struct sk_buff *skb,
+					   struct net_device *dev)
+{
+	struct vnet *vp = netdev_priv(dev);
+
+	return __tx_port_find(vp, skb);
+}
+
+static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
+			     void *accel_priv, select_queue_fallback_t fallback)
+{
+	struct vnet *vp = netdev_priv(dev);
+	struct vnet_port *port = __tx_port_find(vp, skb);
+
+	if (!port)
+		return 0;
+
+	return port->q_index;
+}
+
+/* Wrappers to common functions */
+static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	return sunvnet_start_xmit_common(skb, dev, vnet_tx_port_find);
+}
+
+static void vnet_set_rx_mode(struct net_device *dev)
+{
+	struct vnet *vp = netdev_priv(dev);
+
+	return sunvnet_set_rx_mode_common(dev, vp);
+}
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void vnet_poll_controller(struct net_device *dev)
+{
+	struct vnet *vp = netdev_priv(dev);
+
+	return sunvnet_poll_controller_common(dev, vp);
+}
+#endif
+
 static const struct net_device_ops vnet_ops = {
 	.ndo_open		= sunvnet_open_common,
 	.ndo_stop		= sunvnet_close_common,
-	.ndo_set_rx_mode	= sunvnet_set_rx_mode_common,
+	.ndo_set_rx_mode	= vnet_set_rx_mode,
 	.ndo_set_mac_address	= sunvnet_set_mac_addr_common,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= sunvnet_tx_timeout_common,
 	.ndo_change_mtu		= sunvnet_change_mtu_common,
-	.ndo_start_xmit		= sunvnet_start_xmit_common,
-	.ndo_select_queue	= sunvnet_select_queue_common,
+	.ndo_start_xmit		= vnet_start_xmit,
+	.ndo_select_queue	= vnet_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= sunvnet_poll_controller_common,
+	.ndo_poll_controller	= vnet_poll_controller,
 #endif
 };
 

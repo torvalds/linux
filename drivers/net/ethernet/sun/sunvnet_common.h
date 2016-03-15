@@ -32,6 +32,13 @@ struct vnet_tx_entry {
 };
 
 struct vnet;
+
+/* Structure to describe a vnet-port or vsw-port in the MD.
+ * If the vsw bit is set, this structure represents a vswitch
+ * port, and the net_device can be found from ->dev. If the
+ * vsw bit is not set, the net_device is available from ->vp->dev.
+ * See the VNET_PORT_TO_NET_DEVICE macro below.
+ */
 struct vnet_port {
 	struct vio_driver_state	vio;
 
@@ -39,9 +46,11 @@ struct vnet_port {
 	u8			raddr[ETH_ALEN];
 	unsigned		switch_port:1;
 	unsigned		tso:1;
-	unsigned		__pad:14;
+	unsigned		vsw:1;
+	unsigned		__pad:13;
 
 	struct vnet		*vp;
+	struct net_device	*dev;
 
 	struct vnet_tx_entry	tx_bufs[VNET_TX_RING_SIZE];
 
@@ -105,21 +114,23 @@ struct vnet {
 	int			nports;
 };
 
+/* Def used by common code to get the net_device from the proper location */
+#define VNET_PORT_TO_NET_DEVICE(__port) \
+	((__port)->vsw ? (__port)->dev : (__port)->vp->dev)
+
 /* Common funcs */
 void sunvnet_clean_timer_expire_common(unsigned long port0);
 int sunvnet_open_common(struct net_device *dev);
 int sunvnet_close_common(struct net_device *dev);
-void sunvnet_set_rx_mode_common(struct net_device *dev);
+void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp);
 int sunvnet_set_mac_addr_common(struct net_device *dev, void *p);
 void sunvnet_tx_timeout_common(struct net_device *dev);
 int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu);
-int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev);
-u16 sunvnet_select_queue_common(struct net_device *dev,
-				struct sk_buff *skb,
-				void *accel_priv,
-				select_queue_fallback_t fallback);
+int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
+			   struct vnet_port *(*vnet_tx_port)
+			   (struct sk_buff *, struct net_device *));
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void sunvnet_poll_controller_common(struct net_device *dev);
+void sunvnet_poll_controller_common(struct net_device *dev, struct vnet *vp);
 #endif
 void sunvnet_event_common(void *arg, int event);
 int sunvnet_send_attr_common(struct vio_driver_state *vio);
@@ -127,6 +138,7 @@ int sunvnet_handle_attr_common(struct vio_driver_state *vio, void *arg);
 void sunvnet_handshake_complete_common(struct vio_driver_state *vio);
 int sunvnet_poll_common(struct napi_struct *napi, int budget);
 void sunvnet_port_free_tx_bufs_common(struct vnet_port *port);
+bool sunvnet_port_is_up_common(struct vnet_port *vnet);
 void sunvnet_port_add_txq_common(struct vnet_port *port);
 void sunvnet_port_rm_txq_common(struct vnet_port *port);
 

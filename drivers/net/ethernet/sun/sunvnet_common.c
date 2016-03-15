@@ -1,6 +1,7 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2016 Oracle. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -62,7 +63,7 @@ static int vnet_port_alloc_tx_ring(struct vnet_port *port);
 int sunvnet_send_attr_common(struct vio_driver_state *vio)
 {
 	struct vnet_port *port = to_vnet_port(vio);
-	struct net_device *dev = port->vp->dev;
+	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	struct vio_net_attr_info pkt;
 	int framelen = ETH_FRAME_LEN;
 	int i, err;
@@ -330,7 +331,7 @@ static inline void vnet_fullcsum(struct sk_buff *skb)
 
 static int vnet_rx_one(struct vnet_port *port, struct vio_net_desc *desc)
 {
-	struct net_device *dev = port->vp->dev;
+	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	unsigned int len = desc->size;
 	unsigned int copy_len;
 	struct sk_buff *skb;
@@ -633,7 +634,6 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	struct vio_dring_data *pkt = msgbuf;
 	struct net_device *dev;
-	struct vnet *vp;
 	u32 end;
 	struct vio_net_desc *desc;
 	struct netdev_queue *txq;
@@ -642,8 +642,7 @@ static int vnet_ack(struct vnet_port *port, void *msgbuf)
 		return 0;
 
 	end = pkt->end_idx;
-	vp = port->vp;
-	dev = vp->dev;
+	dev = VNET_PORT_TO_NET_DEVICE(port);
 	netif_tx_lock(dev);
 	if (unlikely(!idx_is_pending(dr, end))) {
 		netif_tx_unlock(dev);
@@ -688,10 +687,11 @@ static int vnet_nack(struct vnet_port *port, void *msgbuf)
 static int handle_mcast(struct vnet_port *port, void *msgbuf)
 {
 	struct vio_net_mcast_info *pkt = msgbuf;
+	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 
 	if (pkt->tag.stype != VIO_SUBTYPE_ACK)
 		pr_err("%s: Got unexpected MCAST reply [%02x:%02x:%04x:%08x]\n",
-		       port->vp->dev->name,
+		       dev->name,
 		       pkt->tag.type,
 		       pkt->tag.stype,
 		       pkt->tag.stype_env,
@@ -708,7 +708,8 @@ static void maybe_tx_wakeup(struct vnet_port *port)
 {
 	struct netdev_queue *txq;
 
-	txq = netdev_get_tx_queue(port->vp->dev, port->q_index);
+	txq = netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
+				  port->q_index);
 	__netif_tx_lock(txq, smp_processor_id());
 	if (likely(netif_tx_queue_stopped(txq))) {
 		struct vio_dring_state *dr;
@@ -719,12 +720,13 @@ static void maybe_tx_wakeup(struct vnet_port *port)
 	__netif_tx_unlock(txq);
 }
 
-static inline bool port_is_up(struct vnet_port *vnet)
+bool sunvnet_port_is_up_common(struct vnet_port *vnet)
 {
 	struct vio_driver_state *vio = &vnet->vio;
 
 	return !!(vio->hs_state & VIO_HS_COMPLETE);
 }
+EXPORT_SYMBOL_GPL(sunvnet_port_is_up_common);
 
 static int vnet_event_napi(struct vnet_port *port, int budget)
 {
@@ -797,7 +799,7 @@ ldc_ctrl:
 napi_resume:
 		if (likely(msgbuf.tag.type == VIO_TYPE_DATA)) {
 			if (msgbuf.tag.stype == VIO_SUBTYPE_INFO) {
-				if (!port_is_up(port)) {
+				if (!sunvnet_port_is_up_common(port)) {
 					/* failures like handshake_failure()
 					 * may have cleaned up dring, but
 					 * NAPI polling may bring us here.
@@ -911,28 +913,6 @@ static int __vnet_tx_trigger(struct vnet_port *port, u32 start)
 	return err;
 }
 
-static struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
-{
-	unsigned int hash = vnet_hashfn(skb->data);
-	struct hlist_head *hp = &vp->port_hash[hash];
-	struct vnet_port *port;
-
-	hlist_for_each_entry_rcu(port, hp, hash) {
-		if (!port_is_up(port))
-			continue;
-		if (ether_addr_equal(port->raddr, skb->data))
-			return port;
-	}
-	list_for_each_entry_rcu(port, &vp->port_list, list) {
-		if (!port->switch_port)
-			continue;
-		if (!port_is_up(port))
-			continue;
-		return port;
-	}
-	return NULL;
-}
-
 static struct sk_buff *vnet_clean_tx_ring(struct vnet_port *port,
 					  unsigned *pending)
 {
@@ -994,9 +974,9 @@ void sunvnet_clean_timer_expire_common(unsigned long port0)
 	struct sk_buff *freeskbs;
 	unsigned pending;
 
-	netif_tx_lock(port->vp->dev);
+	netif_tx_lock(VNET_PORT_TO_NET_DEVICE(port));
 	freeskbs = vnet_clean_tx_ring(port, &pending);
-	netif_tx_unlock(port->vp->dev);
+	netif_tx_unlock(VNET_PORT_TO_NET_DEVICE(port));
 
 	vnet_free_skbs(freeskbs);
 
@@ -1140,21 +1120,11 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 	return skb;
 }
 
-u16 sunvnet_select_queue_common(struct net_device *dev, struct sk_buff *skb,
-		  void *accel_priv, select_queue_fallback_t fallback)
+static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
+				struct vnet_port *(*vnet_tx_port)
+				(struct sk_buff *, struct net_device *))
 {
-	struct vnet *vp = netdev_priv(dev);
-	struct vnet_port *port = __tx_port_find(vp, skb);
-
-	if (port == NULL)
-		return 0;
-	return port->q_index;
-}
-EXPORT_SYMBOL_GPL(sunvnet_select_queue_common);
-
-static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
-{
-	struct net_device *dev = port->vp->dev;
+	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_TX_RING];
 	struct sk_buff *segs;
 	int maclen, datalen;
@@ -1239,7 +1209,8 @@ static int vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb)
 			curr->csum_offset = offsetof(struct udphdr, check);
 
 		if (!(status & NETDEV_TX_MASK))
-			status = sunvnet_start_xmit_common(curr, dev);
+			status = sunvnet_start_xmit_common(curr, dev,
+							   vnet_tx_port);
 		if (status & NETDEV_TX_MASK)
 			dev_kfree_skb_any(curr);
 	}
@@ -1253,9 +1224,10 @@ out_dropped:
 	return NETDEV_TX_OK;
 }
 
-int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev)
+int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
+			      struct vnet_port *(*vnet_tx_port)
+			      (struct sk_buff *, struct net_device *))
 {
-	struct vnet *vp = netdev_priv(dev);
 	struct vnet_port *port = NULL;
 	struct vio_dring_state *dr;
 	struct vio_net_desc *d;
@@ -1266,14 +1238,14 @@ int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev)
 	struct netdev_queue *txq;
 
 	rcu_read_lock();
-	port = __tx_port_find(vp, skb);
+	port = vnet_tx_port(skb, dev);
 	if (unlikely(!port)) {
 		rcu_read_unlock();
 		goto out_dropped;
 	}
 
 	if (skb_is_gso(skb) && skb->len > port->tsolen) {
-		err = vnet_handle_offloads(port, skb);
+		err = vnet_handle_offloads(port, skb, vnet_tx_port);
 		rcu_read_unlock();
 		return err;
 	}
@@ -1588,9 +1560,8 @@ static void __send_mc_list(struct vnet *vp, struct vnet_port *port)
 	}
 }
 
-void sunvnet_set_rx_mode_common(struct net_device *dev)
+void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp)
 {
-	struct vnet *vp = netdev_priv(dev);
 	struct vnet_port *port;
 
 	rcu_read_lock();
@@ -1717,9 +1688,8 @@ err_out:
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-void sunvnet_poll_controller_common(struct net_device *dev)
+void sunvnet_poll_controller_common(struct net_device *dev, struct vnet *vp)
 {
-	struct vnet *vp = netdev_priv(dev);
 	struct vnet_port *port;
 	unsigned long flags;
 
@@ -1741,13 +1711,16 @@ void sunvnet_port_add_txq_common(struct vnet_port *port)
 	n = vp->nports++;
 	n = n & (VNET_MAX_TXQS - 1);
 	port->q_index = n;
-	netif_tx_wake_queue(netdev_get_tx_queue(vp->dev, port->q_index));
+	netif_tx_wake_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
+						port->q_index));
+
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_add_txq_common);
 
 void sunvnet_port_rm_txq_common(struct vnet_port *port)
 {
 	port->vp->nports--;
-	netif_tx_stop_queue(netdev_get_tx_queue(port->vp->dev, port->q_index));
+	netif_tx_stop_queue(netdev_get_tx_queue(VNET_PORT_TO_NET_DEVICE(port),
+						port->q_index));
 }
 EXPORT_SYMBOL_GPL(sunvnet_port_rm_txq_common);
