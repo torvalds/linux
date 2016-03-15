@@ -4953,31 +4953,31 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
 					unsigned long node_start_pfn,
 					unsigned long node_end_pfn,
+					unsigned long *zone_start_pfn,
+					unsigned long *zone_end_pfn,
 					unsigned long *ignored)
 {
-	unsigned long zone_start_pfn, zone_end_pfn;
-
 	/* When hotadd a new node from cpu_up(), the node should be empty */
 	if (!node_start_pfn && !node_end_pfn)
 		return 0;
 
 	/* Get the start and end of the zone */
-	zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
-	zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
+	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
 	adjust_zone_range_for_zone_movable(nid, zone_type,
 				node_start_pfn, node_end_pfn,
-				&zone_start_pfn, &zone_end_pfn);
+				zone_start_pfn, zone_end_pfn);
 
 	/* Check that this node has pages within the zone's required range */
-	if (zone_end_pfn < node_start_pfn || zone_start_pfn > node_end_pfn)
+	if (*zone_end_pfn < node_start_pfn || *zone_start_pfn > node_end_pfn)
 		return 0;
 
 	/* Move the zone boundaries inside the node if necessary */
-	zone_end_pfn = min(zone_end_pfn, node_end_pfn);
-	zone_start_pfn = max(zone_start_pfn, node_start_pfn);
+	*zone_end_pfn = min(*zone_end_pfn, node_end_pfn);
+	*zone_start_pfn = max(*zone_start_pfn, node_start_pfn);
 
 	/* Return the spanned pages */
-	return zone_end_pfn - zone_start_pfn;
+	return *zone_end_pfn - *zone_start_pfn;
 }
 
 /*
@@ -5042,8 +5042,18 @@ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
 					unsigned long zone_type,
 					unsigned long node_start_pfn,
 					unsigned long node_end_pfn,
+					unsigned long *zone_start_pfn,
+					unsigned long *zone_end_pfn,
 					unsigned long *zones_size)
 {
+	unsigned int zone;
+
+	*zone_start_pfn = node_start_pfn;
+	for (zone = 0; zone < zone_type; zone++)
+		*zone_start_pfn += zones_size[zone];
+
+	*zone_end_pfn = *zone_start_pfn + zones_size[zone_type];
+
 	return zones_size[zone_type];
 }
 
@@ -5072,15 +5082,22 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		struct zone *zone = pgdat->node_zones + i;
+		unsigned long zone_start_pfn, zone_end_pfn;
 		unsigned long size, real_size;
 
 		size = zone_spanned_pages_in_node(pgdat->node_id, i,
 						  node_start_pfn,
 						  node_end_pfn,
+						  &zone_start_pfn,
+						  &zone_end_pfn,
 						  zones_size);
 		real_size = size - zone_absent_pages_in_node(pgdat->node_id, i,
 						  node_start_pfn, node_end_pfn,
 						  zholes_size);
+		if (size)
+			zone->zone_start_pfn = zone_start_pfn;
+		else
+			zone->zone_start_pfn = 0;
 		zone->spanned_pages = size;
 		zone->present_pages = real_size;
 
@@ -5201,7 +5218,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 {
 	enum zone_type j;
 	int nid = pgdat->node_id;
-	unsigned long zone_start_pfn = pgdat->node_start_pfn;
 	int ret;
 
 	pgdat_resize_init(pgdat);
@@ -5222,6 +5238,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
 		unsigned long size, realsize, freesize, memmap_pages;
+		unsigned long zone_start_pfn = zone->zone_start_pfn;
 
 		size = zone->spanned_pages;
 		realsize = freesize = zone->present_pages;
@@ -5290,7 +5307,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 		ret = init_currently_empty_zone(zone, zone_start_pfn, size);
 		BUG_ON(ret);
 		memmap_init(size, nid, j, zone_start_pfn);
-		zone_start_pfn += size;
 	}
 }
 
@@ -5358,6 +5374,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
 	pr_info("Initmem setup node %d [mem %#018Lx-%#018Lx]\n", nid,
 		(u64)start_pfn << PAGE_SHIFT,
 		end_pfn ? ((u64)end_pfn << PAGE_SHIFT) - 1 : 0);
+#else
+	start_pfn = node_start_pfn;
 #endif
 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
 				  zones_size, zholes_size);
