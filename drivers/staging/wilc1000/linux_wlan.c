@@ -907,7 +907,7 @@ int wilc_mac_open(struct net_device *ndev)
 	wl = vif->wilc;
 
 	if (!wl || !wl->dev) {
-		netdev_err(ndev, "wilc1000: SPI device not ready\n");
+		netdev_err(ndev, "device not ready\n");
 		return -ENODEV;
 	}
 
