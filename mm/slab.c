@@ -2483,14 +2483,14 @@ static inline void set_free_obj(struct page *page,
 	((freelist_idx_t *)(page->freelist))[idx] = val;
 }
 
-static void cache_init_objs(struct kmem_cache *cachep,
-			    struct page *page)
+static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
 {
+#if DEBUG
 	int i;
 
 	for (i = 0; i < cachep->num; i++) {
 		void *objp = index_to_obj(cachep, page, i);
-#if DEBUG
+
 		if (cachep->flags & SLAB_STORE_USER)
 			*dbg_userword(cachep, objp) = NULL;
 
@@ -2519,10 +2519,22 @@ static void cache_init_objs(struct kmem_cache *cachep,
 			poison_obj(cachep, objp, POISON_FREE);
 			slab_kernel_map(cachep, objp, 0, 0);
 		}
-#else
-		if (cachep->ctor)
-			cachep->ctor(objp);
+	}
 #endif
+}
+
+static void cache_init_objs(struct kmem_cache *cachep,
+			    struct page *page)
+{
+	int i;
+
+	cache_init_objs_debug(cachep, page);
+
+	for (i = 0; i < cachep->num; i++) {
+		/* constructor could break poison info */
+		if (DEBUG == 0 && cachep->ctor)
+			cachep->ctor(index_to_obj(cachep, page, i));
+
 		set_free_obj(page, i, i);
 	}
 }
