@@ -2550,7 +2550,8 @@ static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
 		return 0;
 
 	/* delay migration when the lockres is in RECOCERING state */
-	if (res->state & DLM_LOCK_RES_RECOVERING)
+	if (res->state & (DLM_LOCK_RES_RECOVERING|
+			DLM_LOCK_RES_RECOVERY_WAITING))
 		return 0;
 
 	if (res->owner != dlm->node_num)

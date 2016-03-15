@@ -282,6 +282,7 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_DROPPING_REF         0x00000040
 #define DLM_LOCK_RES_BLOCK_DIRTY          0x00001000
 #define DLM_LOCK_RES_SETREF_INPROG        0x00002000
+#define DLM_LOCK_RES_RECOVERY_WAITING     0x00004000
 
 /* max milliseconds to wait to sync up a network failure with a node death */
 #define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
@@ -804,7 +805,8 @@ __dlm_lockres_state_to_status(struct dlm_lock_resource *res)
 
 	assert_spin_locked(&res->spinlock);
 
-	if (res->state & DLM_LOCK_RES_RECOVERING)
+	if (res->state & (DLM_LOCK_RES_RECOVERING|
+			DLM_LOCK_RES_RECOVERY_WAITING))
 		status = DLM_RECOVERING;
 	else if (res->state & DLM_LOCK_RES_MIGRATING)
 		status = DLM_MIGRATING;
@@ -1026,6 +1028,7 @@ static inline void __dlm_wait_on_lockres(struct dlm_lock_resource *res)
 {
 	__dlm_wait_on_lockres_flags(res, (DLM_LOCK_RES_IN_PROGRESS|
 				    	  DLM_LOCK_RES_RECOVERING|
+					  DLM_LOCK_RES_RECOVERY_WAITING|
 					  DLM_LOCK_RES_MIGRATING));
 }
 

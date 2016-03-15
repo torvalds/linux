@@ -2175,6 +2175,13 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
 		bucket = dlm_lockres_hash(dlm, i);
 		hlist_for_each_entry(res, bucket, hash_node) {
+			if (res->state & DLM_LOCK_RES_RECOVERY_WAITING) {
+				spin_lock(&res->spinlock);
+				res->state &= ~DLM_LOCK_RES_RECOVERY_WAITING;
+				spin_unlock(&res->spinlock);
+				wake_up(&res->wq);
+			}
+
 			if (!(res->state & DLM_LOCK_RES_RECOVERING))
 				continue;
 
@@ -2312,6 +2319,7 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 			     res->lockname.len, res->lockname.name, freed, dead_node);
 			__dlm_print_one_lock_resource(res);
 		}
+		res->state |= DLM_LOCK_RES_RECOVERY_WAITING;
 		dlm_lockres_clear_refmap_bit(dlm, res, dead_node);
 	} else if (test_bit(dead_node, res->refmap)) {
 		mlog(0, "%s:%.*s: dead node %u had a ref, but had "
