@@ -3239,6 +3239,26 @@ sub process {
 #ignore lines not being added
 		next if ($line =~ /^[^\+]/);
 
+# check for declarations of signed or unsigned without int
+		while ($line =~ m{($Declare++)\s*($Ident)\s*[=,;\[\)]}g) {
+			my $type = $1;
+			my $var = $2;
+			if ($type =~ /^((?:un)?signed)((?:\s*\*)*)\s*$/) {
+				my $sign = $1;
+				my $pointer = $2;
+
+				$pointer = "" if (!defined $pointer);
+
+				if (WARN("UNSPECIFIED_INT",
+					 "Prefer '" . trim($sign) . " int" . rtrim($pointer) . "' to bare use of '$sign" . rtrim($pointer) . "'\n" . $herecurr) &&
+				    $fix) {
+					my $decl = trim($sign) . " int ";
+					$decl .= trim($pointer) if (rtrim($pointer) ne "");
+					$fixed[$fixlinenr] =~ s@\b\Q$type\E\s*$var\b@$decl$var@;
+				}
+			}
+		}
+
 # TEST: allow direct testing of the type matcher.
 		if ($dbg_type) {
 			if ($line =~ /^.\s*$Declare\s*$/) {
