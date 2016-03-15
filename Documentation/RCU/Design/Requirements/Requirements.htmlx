@@ -1257,12 +1257,27 @@ These classes is covered in the following sections.
 <h3><a name="Specialization">Specialization</a></h3>
 
 <p>
-RCU is and always has been intended primarily for read-mostly situations, as
-illustrated by the following figure.
-This means that RCU's read-side primitives are optimized, often at the
+RCU is and always has been intended primarily for read-mostly situations,
+which means that RCU's read-side primitives are optimized, often at the
 expense of its update-side primitives.
+Experience thus far is captured by the following list of situations:
 
-<p><img src="RCUApplicability.svg" alt="RCUApplicability.svg" width="70%"></p>
+<ol>
+<li>	Read-mostly data, where stale and inconsistent data is not
+	a problem:   RCU works great!
+<li>	Read-mostly data, where data must be consistent:
+	RCU works well.
+<li>	Read-write data, where data must be consistent:
+	RCU <i>might</i> work OK.
+	Or not.
+<li>	Write-mostly data, where data must be consistent:
+	RCU is very unlikely to be the right tool for the job,
+	with the following exceptions, where RCU can provide:
+	<ol type=a>
+	<li>	Existence guarantees for update-friendly mechanisms.
+	<li>	Wait-free read-side primitives for real-time use.
+	</ol>
+</ol>
 
 <p>
 This focus on read-mostly situations means that RCU must interoperate
@@ -1330,10 +1345,7 @@ some period of time, so the exact wait period is a judgment call.
 One of our pair of veternarians might wait 30 seconds before pronouncing
 the cat dead, while the other might insist on waiting a full minute.
 The two veternarians would then disagree on the state of the cat during
-the final 30 seconds of the minute following the last heartbeat, as
-fancifully illustrated below:
-
-<p><img src="2013-08-is-it-dead.png" alt="2013-08-is-it-dead.png" width="431"></p>
+the final 30 seconds of the minute following the last heartbeat.
 
 <p>
 Interestingly enough, this same situation applies to hardware.
