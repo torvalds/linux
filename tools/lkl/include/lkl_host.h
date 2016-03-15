@@ -53,6 +53,10 @@ struct lkl_dev_net_ops {
 #define LKL_DEV_NET_POLL_RX		1
 #define LKL_DEV_NET_POLL_TX		2
 	int (*poll)(struct lkl_netdev *nd, int events);
+	/* Release all resources acquired --- in particular, kill the
+	 * polling threads and close any open handles. Not implemented
+	 * by all netdev types. 0 for success, -1 for failure. */
+	int (*close)(struct lkl_netdev *nd);
 };
 
 #ifdef __cplusplus

@@ -53,6 +53,9 @@ ans=$(LKL_HIJACK_MOUNT=proc,sysfs\
 echo "$ans" | tail -n 15 | grep "65536" # lo's MTU
 # lo's dev id
 echo "$ans" | grep "0x0"        # lo's dev_id
+# Doesn't really belong in this section, but might as well check for
+# it here.
+! echo "$ans" | grep "WARN: failed to free"
 
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then

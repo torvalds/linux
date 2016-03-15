@@ -229,6 +229,17 @@ struct lkl_netdev {
 int lkl_netdev_add(struct lkl_netdev *nd, void *mac);
 
 /**
+* lkl_netdevs_remove - destroy all network devices
+*
+* Attempts to release all resources held by network devices created
+* via lkl_netdev_add.
+*
+* @returns 0 if all devices are successfully removed, -1 if at least
+* one fails.
+*/
+int lkl_netdevs_remove(void);
+
+/**
  * lkl_netdev_get_ifindex - retrieve the interface index for a given network
  * device id
  *
