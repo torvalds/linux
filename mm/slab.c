@@ -2926,14 +2926,6 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 #define cache_alloc_debugcheck_after(a,b,objp,d) (objp)
 #endif
 
-static bool slab_should_failslab(struct kmem_cache *cachep, gfp_t flags)
-{
-	if (unlikely(cachep == kmem_cache))
-		return false;
-
-	return should_failslab(cachep->object_size, flags, cachep->flags);
-}
-
 static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
 	void *objp;
@@ -3155,7 +3147,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 
 	lockdep_trace_alloc(flags);
 
-	if (slab_should_failslab(cachep, flags))
+	if (should_failslab(cachep, flags))
 		return NULL;
 
 	cachep = memcg_kmem_get_cache(cachep, flags);
@@ -3243,7 +3235,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
 
 	lockdep_trace_alloc(flags);
 
-	if (slab_should_failslab(cachep, flags))
+	if (should_failslab(cachep, flags))
 		return NULL;
 
 	cachep = memcg_kmem_get_cache(cachep, flags);

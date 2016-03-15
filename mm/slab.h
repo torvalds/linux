@@ -360,7 +360,7 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
 	lockdep_trace_alloc(flags);
 	might_sleep_if(gfpflags_allow_blocking(flags));
 
-	if (should_failslab(s->object_size, flags, s->flags))
+	if (should_failslab(s, flags))
 		return NULL;
 
 	return memcg_kmem_get_cache(s, flags);
