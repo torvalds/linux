@@ -49,6 +49,7 @@
 #	define IOCON_HAEN	(1 << 3)
 #	define IOCON_ODR	(1 << 2)
 #	define IOCON_INTPOL	(1 << 1)
+#	define IOCON_INTCC	(1)
 #define MCP_GPPU	0x06
 #define MCP_INTF	0x07
 #define MCP_INTCAP	0x08
@@ -679,6 +680,9 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 		if (mirror)
 			status |= IOCON_MIRROR | (IOCON_MIRROR << 8);
+
+		if (type == MCP_TYPE_S18)
+			status |= IOCON_INTCC | (IOCON_INTCC << 8);
 
 		status = mcp->ops->write(mcp, MCP_IOCON, status);
 		if (status < 0)
