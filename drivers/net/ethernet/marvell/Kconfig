@@ -40,10 +40,9 @@ config MVMDIO
 
 	  This driver is used by the MV643XX_ETH and MVNETA drivers.
 
-config MVNETA_BM
+config MVNETA_BM_ENABLE
 	tristate "Marvell Armada 38x/XP network interface BM support"
 	depends on MVNETA
-	select HWBM
 	---help---
 	  This driver supports auxiliary block of the network
 	  interface units in the Marvell ARMADA XP and ARMADA 38x SoC
@@ -66,6 +65,15 @@ config MVNETA
 	  Note that this driver is distinct from the mv643xx_eth
 	  driver, which should be used for the older Marvell SoCs
 	  (Dove, Orion, Discovery, Kirkwood).
+
+config MVNETA_BM
+	tristate
+	default y if MVNETA=y && MVNETA_BM_ENABLE
+	default MVNETA_BM_ENABLE
+	select HWBM
+	help
+	  MVNETA_BM must not be 'm' if MVNETA=y, so this symbol ensures
+	  that all dependencies are met.
 
 config MVPP2
 	tristate "Marvell Armada 375 network interface support"
