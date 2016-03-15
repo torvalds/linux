@@ -931,8 +931,10 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 						     cb->nlh->nlmsg_seq,
 						     RTM_NEWNEIGH,
 						     NLM_F_MULTI, rd);
-				if (err < 0)
+				if (err < 0) {
+					cb->args[1] = err;
 					goto out;
+				}
 skip:
 				++idx;
 			}
@@ -1306,8 +1308,10 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		gbp = (struct vxlanhdr_gbp *)vxh;
 		md->gbp = ntohs(gbp->policy_id);
 
-		if (tun_dst)
+		if (tun_dst) {
 			tun_dst->u.tun_info.key.tun_flags |= TUNNEL_VXLAN_OPT;
+			tun_dst->u.tun_info.options_len = sizeof(*md);
+		}
 
 		if (gbp->dont_learn)
 			md->gbp |= VXLAN_GBP_DONT_LEARN;

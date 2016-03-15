@@ -230,6 +230,30 @@ static void hns_dsaf_mix_def_qid_cfg(struct dsaf_device *dsaf_dev)
 	}
 }
 
+static void hns_dsaf_inner_qid_cfg(struct dsaf_device *dsaf_dev)
+{
+	u16 max_q_per_vf, max_vfn;
+	u32 q_id, q_num_per_port;
+	u32 mac_id;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver))
+		return;
+
+	hns_rcb_get_queue_mode(dsaf_dev->dsaf_mode,
+			       HNS_DSAF_COMM_SERVICE_NW_IDX,
+			       &max_vfn, &max_q_per_vf);
+	q_num_per_port = max_vfn * max_q_per_vf;
+
+	for (mac_id = 0, q_id = 0; mac_id < DSAF_SERVICE_NW_NUM; mac_id++) {
+		dsaf_set_dev_field(dsaf_dev,
+				   DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,
+				   DSAFV2_SERDES_LBK_QID_M,
+				   DSAFV2_SERDES_LBK_QID_S,
+				   q_id);
+		q_id += q_num_per_port;
+	}
+}
+
 /**
  * hns_dsaf_sw_port_type_cfg - cfg sw type
  * @dsaf_id: dsa fabric id
@@ -691,6 +715,16 @@ void hns_dsaf_set_promisc_mode(struct dsaf_device *dsaf_dev, u32 en)
 	dsaf_set_dev_bit(dsaf_dev, DSAF_CFG_0_REG, DSAF_CFG_MIX_MODE_S, !!en);
 }
 
+void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en)
+{
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    dsaf_dev->mac_cb[mac_id].mac_type == HNAE_PORT_DEBUG)
+		return;
+
+	dsaf_set_dev_bit(dsaf_dev, DSAFV2_SERDES_LBK_0_REG + 4 * mac_id,
+			 DSAFV2_SERDES_LBK_EN_B, !!en);
+}
+
 /**
  * hns_dsaf_tbl_stat_en - tbl
  * @dsaf_id: dsa fabric id
@@ -1021,6 +1055,9 @@ static void hns_dsaf_comm_init(struct dsaf_device *dsaf_dev)
 
 	/* set promisc def queue id */
 	hns_dsaf_mix_def_qid_cfg(dsaf_dev);
+
+	/* set inner loopback queue id */
+	hns_dsaf_inner_qid_cfg(dsaf_dev);
 
 	/* in non switch mode, set all port to access mode */
 	hns_dsaf_sw_port_type_cfg(dsaf_dev, DSAF_SW_PORT_TYPE_NON_VLAN);

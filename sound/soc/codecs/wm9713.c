@@ -1212,7 +1212,7 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	if (IS_ERR(wm9713->ac97))
 		return PTR_ERR(wm9713->ac97);
 
-	regmap = devm_regmap_init_ac97(wm9713->ac97, &wm9713_regmap_config);
+	regmap = regmap_init_ac97(wm9713->ac97, &wm9713_regmap_config);
 	if (IS_ERR(regmap)) {
 		snd_soc_free_ac97_codec(wm9713->ac97);
 		return PTR_ERR(regmap);

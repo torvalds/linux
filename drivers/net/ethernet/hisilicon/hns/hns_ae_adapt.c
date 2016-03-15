@@ -675,8 +675,12 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 {
 	int ret;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
 	switch (loop) {
+	case MAC_INTERNALLOOP_PHY:
+		ret = 0;
+		break;
 	case MAC_INTERNALLOOP_SERDES:
 		ret = hns_mac_config_sds_loopback(vf_cb->mac_cb, en);
 		break;
@@ -686,6 +690,10 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	default:
 		ret = -EINVAL;
 	}
+
+	if (!ret)
+		hns_dsaf_set_inner_lb(mac_cb->dsaf_dev, mac_cb->mac_id, en);
+
 	return ret;
 }
 

@@ -81,9 +81,9 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 static unsigned long text_ip_addr(unsigned long ip)
 {
 	/*
-	 * On x86_64, kernel text mappings are mapped read-only with
-	 * CONFIG_DEBUG_RODATA. So we use the kernel identity mapping instead
-	 * of the kernel text mapping to modify the kernel text.
+	 * On x86_64, kernel text mappings are mapped read-only, so we use
+	 * the kernel identity mapping instead of the kernel text mapping
+	 * to modify the kernel text.
 	 *
 	 * For 32bit kernels, these mappings are same and we can use
 	 * kernel identity mapping to modify code.

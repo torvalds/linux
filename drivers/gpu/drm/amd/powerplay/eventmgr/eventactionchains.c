@@ -165,6 +165,7 @@ const struct action_chain resume_action_chain = {
 };
 
 static const pem_event_action *complete_init_event[] = {
+	unblock_adjust_power_state_tasks,
 	adjust_power_state_tasks,
 	enable_gfx_clock_gating_tasks,
 	enable_gfx_voltage_island_power_gating_tasks,

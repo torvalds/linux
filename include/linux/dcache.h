@@ -409,9 +409,7 @@ static inline bool d_mountpoint(const struct dentry *dentry)
  */
 static inline unsigned __d_entry_type(const struct dentry *dentry)
 {
-	unsigned type = READ_ONCE(dentry->d_flags);
-	smp_rmb();
-	return type & DCACHE_ENTRY_TYPE;
+	return dentry->d_flags & DCACHE_ENTRY_TYPE;
 }
 
 static inline bool d_is_miss(const struct dentry *dentry)

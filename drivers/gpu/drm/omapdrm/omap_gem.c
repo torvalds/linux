@@ -1330,8 +1330,8 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 			omap_gem_detach_pages(obj);
 
 		if (!is_shmem(obj)) {
-			dma_free_writecombine(dev->dev, obj->size,
-					omap_obj->vaddr, omap_obj->paddr);
+			dma_free_wc(dev->dev, obj->size, omap_obj->vaddr,
+				    omap_obj->paddr);
 		} else if (omap_obj->vaddr) {
 			vunmap(omap_obj->vaddr);
 		}
@@ -1395,8 +1395,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		/* attempt to allocate contiguous memory if we don't
 		 * have DMM for remappign discontiguous buffers
 		 */
-		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
-				&omap_obj->paddr, GFP_KERNEL);
+		omap_obj->vaddr =  dma_alloc_wc(dev->dev, size,
+						&omap_obj->paddr, GFP_KERNEL);
 		if (!omap_obj->vaddr) {
 			kfree(omap_obj);
 

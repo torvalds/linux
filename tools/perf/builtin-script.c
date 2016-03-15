@@ -23,6 +23,7 @@
 #include "util/stat.h"
 #include <linux/bitmap.h>
 #include "asm/bug.h"
+#include "util/mem-events.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -58,6 +59,9 @@ enum perf_output_field {
 	PERF_OUTPUT_IREGS	    = 1U << 14,
 	PERF_OUTPUT_BRSTACK	    = 1U << 15,
 	PERF_OUTPUT_BRSTACKSYM	    = 1U << 16,
+	PERF_OUTPUT_DATA_SRC	    = 1U << 17,
+	PERF_OUTPUT_WEIGHT	    = 1U << 18,
+	PERF_OUTPUT_BPF_OUTPUT	    = 1U << 19,
 };
 
 struct output_option {
@@ -81,6 +85,9 @@ struct output_option {
 	{.str = "iregs", .field = PERF_OUTPUT_IREGS},
 	{.str = "brstack", .field = PERF_OUTPUT_BRSTACK},
 	{.str = "brstacksym", .field = PERF_OUTPUT_BRSTACKSYM},
+	{.str = "data_src", .field = PERF_OUTPUT_DATA_SRC},
+	{.str = "weight",   .field = PERF_OUTPUT_WEIGHT},
+	{.str = "bpf-output",   .field = PERF_OUTPUT_BPF_OUTPUT},
 };
 
 /* default set to maintain compatibility with current format */
@@ -101,7 +108,7 @@ static struct {
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
 			      PERF_OUTPUT_PERIOD,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 
 	[PERF_TYPE_SOFTWARE] = {
@@ -111,7 +118,7 @@ static struct {
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_PERIOD | PERF_OUTPUT_BPF_OUTPUT,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -121,7 +128,7 @@ static struct {
 
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 				  PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
-				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+				  PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE
 	},
 
 	[PERF_TYPE_RAW] = {
@@ -131,9 +138,10 @@ static struct {
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
-			      PERF_OUTPUT_PERIOD,
+			      PERF_OUTPUT_PERIOD |  PERF_OUTPUT_ADDR |
+			      PERF_OUTPUT_DATA_SRC | PERF_OUTPUT_WEIGHT,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 
 	[PERF_TYPE_BREAKPOINT] = {
@@ -145,7 +153,7 @@ static struct {
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
 			      PERF_OUTPUT_PERIOD,
 
-		.invalid_fields = PERF_OUTPUT_TRACE,
+		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
 	},
 };
 
@@ -240,6 +248,16 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	if (PRINT_FIELD(ADDR) &&
 		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
 					   PERF_OUTPUT_ADDR, allow_user_set))
+		return -EINVAL;
+
+	if (PRINT_FIELD(DATA_SRC) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_DATA_SRC, "DATA_SRC",
+					PERF_OUTPUT_DATA_SRC))
+		return -EINVAL;
+
+	if (PRINT_FIELD(WEIGHT) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_WEIGHT, "WEIGHT",
+					PERF_OUTPUT_WEIGHT))
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -608,6 +626,84 @@ static void print_sample_flags(u32 flags)
 	printf("  %-4s ", str);
 }
 
+struct printer_data {
+	int line_no;
+	bool hit_nul;
+	bool is_printable;
+};
+
+static void
+print_sample_bpf_output_printer(enum binary_printer_ops op,
+				unsigned int val,
+				void *extra)
+{
+	unsigned char ch = (unsigned char)val;
+	struct printer_data *printer_data = extra;
+
+	switch (op) {
+	case BINARY_PRINT_DATA_BEGIN:
+		printf("\n");
+		break;
+	case BINARY_PRINT_LINE_BEGIN:
+		printf("%17s", !printer_data->line_no ? "BPF output:" :
+						        "           ");
+		break;
+	case BINARY_PRINT_ADDR:
+		printf(" %04x:", val);
+		break;
+	case BINARY_PRINT_NUM_DATA:
+		printf(" %02x", val);
+		break;
+	case BINARY_PRINT_NUM_PAD:
+		printf("   ");
+		break;
+	case BINARY_PRINT_SEP:
+		printf("  ");
+		break;
+	case BINARY_PRINT_CHAR_DATA:
+		if (printer_data->hit_nul && ch)
+			printer_data->is_printable = false;
+
+		if (!isprint(ch)) {
+			printf("%c", '.');
+
+			if (!printer_data->is_printable)
+				break;
+
+			if (ch == '\0')
+				printer_data->hit_nul = true;
+			else
+				printer_data->is_printable = false;
+		} else {
+			printf("%c", ch);
+		}
+		break;
+	case BINARY_PRINT_CHAR_PAD:
+		printf(" ");
+		break;
+	case BINARY_PRINT_LINE_END:
+		printf("\n");
+		printer_data->line_no++;
+		break;
+	case BINARY_PRINT_DATA_END:
+	default:
+		break;
+	}
+}
+
+static void print_sample_bpf_output(struct perf_sample *sample)
+{
+	unsigned int nr_bytes = sample->raw_size;
+	struct printer_data printer_data = {0, false, true};
+
+	print_binary(sample->raw_data, nr_bytes, 8,
+		     print_sample_bpf_output_printer, &printer_data);
+
+	if (printer_data.is_printable && printer_data.hit_nul)
+		printf("%17s \"%s\"\n", "BPF string:",
+		       (char *)(sample->raw_data));
+}
+
 struct perf_script {
 	struct perf_tool	tool;
 	struct perf_session	*session;
@@ -632,6 +728,23 @@ static int perf_evlist__max_name_len(struct perf_evlist *evlist)
 	}
 
 	return max;
+}
+
+static size_t data_src__printf(u64 data_src)
+{
+	struct mem_info mi = { .data_src.val = data_src };
+	char decode[100];
+	char out[100];
+	static int maxlen;
+	int len;
+
+	perf_script__meminfo_scnprintf(decode, 100, &mi);
+
+	len = scnprintf(out, 100, "%16" PRIx64 " %s", data_src, decode);
+	if (maxlen < len)
+		maxlen = len;
+
+	return printf("%-*s", maxlen, out);
 }
 
 static void process_event(struct perf_script *script, union perf_event *event,
@@ -673,6 +786,12 @@ static void process_event(struct perf_script *script, union perf_event *event,
 	if (PRINT_FIELD(ADDR))
 		print_sample_addr(event, sample, thread, attr);
 
+	if (PRINT_FIELD(DATA_SRC))
+		data_src__printf(sample->data_src);
+
+	if (PRINT_FIELD(WEIGHT))
+		printf("%16" PRIu64, sample->weight);
+
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)
 			printf(" ");
@@ -691,6 +810,9 @@ static void process_event(struct perf_script *script, union perf_event *event,
 		print_sample_brstack(event, sample, thread, attr);
 	else if (PRINT_FIELD(BRSTACKSYM))
 		print_sample_brstacksym(event, sample, thread, attr);
+
+	if (perf_evsel__is_bpf_output(evsel) && PRINT_FIELD(BPF_OUTPUT))
+		print_sample_bpf_output(sample);
 
 	printf("\n");
 }
@@ -1090,23 +1212,6 @@ static struct script_spec *script_spec__find(const char *spec)
 	return NULL;
 }
 
-static struct script_spec *script_spec__findnew(const char *spec,
-						struct scripting_ops *ops)
-{
-	struct script_spec *s = script_spec__find(spec);
-
-	if (s)
-		return s;
-
-	s = script_spec__new(spec, ops);
-	if (!s)
-		return NULL;
-
-	script_spec__add(s);
-
-	return s;
-}
-
 int script_spec_register(const char *spec, struct scripting_ops *ops)
 {
 	struct script_spec *s;
@@ -1115,9 +1220,11 @@ int script_spec_register(const char *spec, struct scripting_ops *ops)
 	if (s)
 		return -1;
 
-	s = script_spec__findnew(spec, ops);
+	s = script_spec__new(spec, ops);
 	if (!s)
 		return -1;
+	else
+		script_spec__add(s);
 
 	return 0;
 }

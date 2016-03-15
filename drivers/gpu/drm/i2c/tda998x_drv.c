@@ -1382,8 +1382,16 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static int tda998x_connector_dpms(struct drm_connector *connector, int mode)
+{
+	if (drm_core_check_feature(connector->dev, DRIVER_ATOMIC))
+		return drm_atomic_helper_connector_dpms(connector, mode);
+	else
+		return drm_helper_connector_dpms(connector, mode);
+}
+
 static const struct drm_connector_funcs tda998x_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
+	.dpms = tda998x_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = tda998x_connector_detect,

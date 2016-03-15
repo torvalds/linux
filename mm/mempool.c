@@ -135,8 +135,8 @@ static void *remove_element(mempool_t *pool)
 	void *element = pool->elements[--pool->curr_nr];
 
 	BUG_ON(pool->curr_nr < 0);
-	check_element(pool, element);
 	kasan_unpoison_element(pool, element);
+	check_element(pool, element);
 	return element;
 }
 

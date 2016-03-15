@@ -396,6 +396,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
+	ci->i_pool_ns_len = 0;
 
 	ci->i_fragtree = RB_ROOT;
 	mutex_init(&ci->i_fragtree_mutex);
@@ -756,6 +757,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 		if (ci->i_layout.fl_pg_pool != info->layout.fl_pg_pool)
 			ci->i_ceph_flags &= ~CEPH_I_POOL_PERM;
 		ci->i_layout = info->layout;
+		ci->i_pool_ns_len = iinfo->pool_ns_len;
 
 		queue_trunc = ceph_fill_file_size(inode, issued,
 					le32_to_cpu(info->truncate_seq),
