@@ -757,8 +757,8 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	if (iss & ISS_CGIS)
-		result = ravb_ptp_interrupt(ndev);
+	if ((iss & ISS_CGIS) && ravb_ptp_interrupt(ndev) == IRQ_HANDLED)
+		result = IRQ_HANDLED;
 
 	mmiowb();
 	spin_unlock(&priv->lock);
