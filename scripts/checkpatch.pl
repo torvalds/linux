@@ -4560,6 +4560,9 @@ sub process {
 			{
 			}
 
+			# Make asm volatile uses seem like a generic function
+			$dstat =~ s/\b_*asm_*\s+_*volatile_*\b/asm_volatile/g;
+
 			my $exceptions = qr{
 				$Declare|
 				module_param_named|
