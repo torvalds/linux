@@ -53,7 +53,7 @@
 #ifdef CONFIG_8xx_CPU6
 #define do_mtspr_cpu6(rn, rn_addr, v)	\
 	do {								\
-		int _reg_cpu6 = rn_addr, _tmp_cpu6[1];		\
+		int _reg_cpu6 = rn_addr, _tmp_cpu6;		\
 		asm volatile("stw %0, %1;"				\
 			     "lwz %0, %1;"				\
 			     "mtspr " __stringify(rn) ",%2" :		\
