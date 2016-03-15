@@ -133,8 +133,11 @@ struct irq_domain;
  *			Use accessor functions to deal with it
  * @node:		node index useful for balancing
  * @handler_data:	per-IRQ data for the irq_chip methods
- * @affinity:		IRQ affinity on SMP
+ * @affinity:		IRQ affinity on SMP. If this is an IPI
+ *			related irq, then this is the mask of the
+ *			CPUs to which an IPI can be sent.
  * @msi_desc:		MSI descriptor
+ * @ipi_offset:		Offset of first IPI target cpu in @affinity. Optional.
  */
 struct irq_common_data {
 	unsigned int		__private state_use_accessors;
@@ -144,6 +147,9 @@ struct irq_common_data {
 	void			*handler_data;
 	struct msi_desc		*msi_desc;
 	cpumask_var_t		affinity;
+#ifdef CONFIG_GENERIC_IRQ_IPI
+	unsigned int		ipi_offset;
+#endif
 };
 
 /**
@@ -343,6 +349,8 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_get_irqchip_state:	return the internal state of an interrupt
  * @irq_set_irqchip_state:	set the internal state of a interrupt
  * @irq_set_vcpu_affinity:	optional to target a vCPU in a virtual machine
+ * @ipi_send_single:	send a single IPI to destination cpus
+ * @ipi_send_mask:	send an IPI to destination cpus in cpumask
  * @flags:		chip specific flags
  */
 struct irq_chip {
@@ -386,6 +394,9 @@ struct irq_chip {
 	int		(*irq_set_irqchip_state)(struct irq_data *data, enum irqchip_irq_state which, bool state);
 
 	int		(*irq_set_vcpu_affinity)(struct irq_data *data, void *vcpu_info);
+
+	void		(*ipi_send_single)(struct irq_data *data, unsigned int cpu);
+	void		(*ipi_send_mask)(struct irq_data *data, const struct cpumask *dest);
 
 	unsigned long	flags;
 };
@@ -935,5 +946,13 @@ static inline u32 irq_reg_readl(struct irq_chip_generic *gc,
 	else
 		return readl(gc->reg_base + reg_offset);
 }
+
+/* Contrary to Linux irqs, for hardware irqs the irq number 0 is valid */
+#define INVALID_HWIRQ	(~0UL)
+irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu);
+int __ipi_send_single(struct irq_desc *desc, unsigned int cpu);
+int __ipi_send_mask(struct irq_desc *desc, const struct cpumask *dest);
+int ipi_send_single(unsigned int virq, unsigned int cpu);
+int ipi_send_mask(unsigned int virq, const struct cpumask *dest);
 
 #endif /* _LINUX_IRQ_H */

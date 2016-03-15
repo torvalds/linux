@@ -18,6 +18,66 @@
 #include <asm/proto.h>
 #include <asm/ipi.h>
 
+void __default_send_IPI_shortcut(unsigned int shortcut, int vector, unsigned int dest)
+{
+	/*
+	 * Subtle. In the case of the 'never do double writes' workaround
+	 * we have to lock out interrupts to be safe.  As we don't care
+	 * of the value read we use an atomic rmw access to avoid costly
+	 * cli/sti.  Otherwise we use an even cheaper single atomic write
+	 * to the APIC.
+	 */
+	unsigned int cfg;
+
+	/*
+	 * Wait for idle.
+	 */
+	__xapic_wait_icr_idle();
+
+	/*
+	 * No need to touch the target chip field
+	 */
+	cfg = __prepare_ICR(shortcut, vector, dest);
+
+	/*
+	 * Send the IPI. The write to APIC_ICR fires this off.
+	 */
+	native_apic_mem_write(APIC_ICR, cfg);
+}
+
+/*
+ * This is used to send an IPI with no shorthand notation (the destination is
+ * specified in bits 56 to 63 of the ICR).
+ */
+void __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest)
+{
+	unsigned long cfg;
+
+	/*
+	 * Wait for idle.
+	 */
+	if (unlikely(vector == NMI_VECTOR))
+		safe_apic_wait_icr_idle();
+	else
+		__xapic_wait_icr_idle();
+
+	/*
+	 * prepare target chip field
+	 */
+	cfg = __prepare_ICR2(mask);
+	native_apic_mem_write(APIC_ICR2, cfg);
+
+	/*
+	 * program the ICR
+	 */
+	cfg = __prepare_ICR(0, vector, dest);
+
+	/*
+	 * Send the IPI. The write to APIC_ICR fires this off.
+	 */
+	native_apic_mem_write(APIC_ICR, cfg);
+}
+
 void default_send_IPI_single_phys(int cpu, int vector)
 {
 	unsigned long flags;
