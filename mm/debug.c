@@ -11,6 +11,7 @@
 #include <linux/memcontrol.h>
 #include <trace/events/mmflags.h>
 #include <linux/migrate.h>
+#include <linux/page_owner.h>
 
 #include "internal.h"
 
@@ -67,6 +68,7 @@ void dump_page_badflags(struct page *page, const char *reason,
 void dump_page(struct page *page, const char *reason)
 {
 	dump_page_badflags(page, reason, 0);
+	dump_page_owner(page);
 }
 EXPORT_SYMBOL(dump_page);
 
