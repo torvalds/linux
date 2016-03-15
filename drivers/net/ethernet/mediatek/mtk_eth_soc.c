@@ -186,9 +186,9 @@ static int mtk_phy_connect_node(struct mtk_eth *eth, struct mtk_mac *mac,
 
 	phydev = of_phy_connect(eth->netdev[mac->id], phy_node,
 				mtk_phy_link_adjust, 0, phy_mode);
-	if (IS_ERR(phydev)) {
+	if (!phydev) {
 		dev_err(eth->dev, "could not connect to PHY\n");
-		return PTR_ERR(phydev);
+		return -ENODEV;
 	}
 
 	dev_info(eth->dev,
