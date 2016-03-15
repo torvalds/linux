@@ -135,6 +135,8 @@ long lkl_sys_halt(void)
 	lkl_ops->sem_free(idle_sem);
 	lkl_ops->sem_free(init_sem);
 
+	free_initial_syscall_thread();
+
 	return 0;
 }
 

@@ -2,6 +2,7 @@
 #define _ASM_LKL_SYSCALLS_H
 
 int initial_syscall_thread(void *);
+void free_initial_syscall_thread(void);
 long lkl_syscall(long no, long *params);
 
 #define sys_mmap sys_ni_syscall
