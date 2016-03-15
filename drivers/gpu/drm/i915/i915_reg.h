@@ -8144,6 +8144,7 @@ enum skl_disp_power_wells {
 #define  READ_REQUEST_PRIORITY_HIGH			(3 << 3)
 #define  RGB_FLIP_TO_BGR				(1 << 2)
 
+#define  BXT_PIPE_SELECT_SHIFT				7
 #define  BXT_PIPE_SELECT_MASK				(7 << 7)
 #define  BXT_PIPE_SELECT(pipe)				((pipe) << 7)
 

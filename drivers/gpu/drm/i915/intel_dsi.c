@@ -700,7 +700,19 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 		if (!(I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY))
 			continue;
 
-		*pipe = port == PORT_A ? PIPE_A : PIPE_B;
+		if (IS_BROXTON(dev_priv)) {
+			u32 tmp = I915_READ(MIPI_CTRL(port));
+			tmp &= BXT_PIPE_SELECT_MASK;
+			tmp >>= BXT_PIPE_SELECT_SHIFT;
+
+			if (WARN_ON(tmp > PIPE_C))
+				continue;
+
+			*pipe = tmp;
+		} else {
+			*pipe = port == PORT_A ? PIPE_A : PIPE_B;
+		}
+
 		active = true;
 		break;
 	}
