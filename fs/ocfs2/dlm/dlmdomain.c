@@ -1399,7 +1399,7 @@ static int dlm_send_join_cancels(struct dlm_ctxt *dlm,
 				 unsigned int map_size)
 {
 	int status, tmpstat;
-	unsigned int node;
+	int node;
 
 	if (map_size != (BITS_TO_LONGS(O2NM_MAX_NODES) *
 			 sizeof(unsigned long))) {
