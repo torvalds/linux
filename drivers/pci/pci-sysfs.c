@@ -1138,33 +1138,36 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 	/* allocate attribute structure, piggyback attribute name */
 	int name_len = write_combine ? 13 : 10;
 	struct bin_attribute *res_attr;
+	char *res_attr_name;
 	int retval;
 
 	res_attr = kzalloc(sizeof(*res_attr) + name_len, GFP_ATOMIC);
-	if (res_attr) {
-		char *res_attr_name = (char *)(res_attr + 1);
+	if (!res_attr)
+		return -ENOMEM;
 
-		sysfs_bin_attr_init(res_attr);
-		if (write_combine) {
-			pdev->res_attr_wc[num] = res_attr;
-			sprintf(res_attr_name, "resource%d_wc", num);
-			res_attr->mmap = pci_mmap_resource_wc;
-		} else {
-			pdev->res_attr[num] = res_attr;
-			sprintf(res_attr_name, "resource%d", num);
-			res_attr->mmap = pci_mmap_resource_uc;
-		}
-		if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
-			res_attr->read = pci_read_resource_io;
-			res_attr->write = pci_write_resource_io;
-		}
-		res_attr->attr.name = res_attr_name;
-		res_attr->attr.mode = S_IRUSR | S_IWUSR;
-		res_attr->size = pci_resource_len(pdev, num);
-		res_attr->private = &pdev->resource[num];
-		retval = sysfs_create_bin_file(&pdev->dev.kobj, res_attr);
-	} else
-		retval = -ENOMEM;
+	res_attr_name = (char *)(res_attr + 1);
+
+	sysfs_bin_attr_init(res_attr);
+	if (write_combine) {
+		pdev->res_attr_wc[num] = res_attr;
+		sprintf(res_attr_name, "resource%d_wc", num);
+		res_attr->mmap = pci_mmap_resource_wc;
+	} else {
+		pdev->res_attr[num] = res_attr;
+		sprintf(res_attr_name, "resource%d", num);
+		res_attr->mmap = pci_mmap_resource_uc;
+	}
+	if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
+		res_attr->read = pci_read_resource_io;
+		res_attr->write = pci_write_resource_io;
+	}
+	res_attr->attr.name = res_attr_name;
+	res_attr->attr.mode = S_IRUSR | S_IWUSR;
+	res_attr->size = pci_resource_len(pdev, num);
+	res_attr->private = &pdev->resource[num];
+	retval = sysfs_create_bin_file(&pdev->dev.kobj, res_attr);
+	if (retval)
+		kfree(res_attr);
 
 	return retval;
 }
@@ -1360,7 +1363,7 @@ error:
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 {
 	int retval;
-	int rom_size = 0;
+	int rom_size;
 	struct bin_attribute *attr;
 
 	if (!sysfs_initialized)
@@ -1377,12 +1380,8 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (retval)
 		goto err_config_file;
 
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
-		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
-		rom_size = 0x20000;
-
 	/* If the device has a ROM, try to expose it in sysfs. */
+	rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
 	if (rom_size) {
 		attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
 		if (!attr) {
@@ -1413,7 +1412,7 @@ int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 	return 0;
 
 err_rom_file:
-	if (rom_size) {
+	if (pdev->rom_attr) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 		kfree(pdev->rom_attr);
 		pdev->rom_attr = NULL;
@@ -1451,8 +1450,6 @@ static void pci_remove_capabilities_sysfs(struct pci_dev *dev)
  */
 void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
-	int rom_size = 0;
-
 	if (!sysfs_initialized)
 		return;
 
@@ -1465,18 +1462,13 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 	pci_remove_resource_files(pdev);
 
-	if (pci_resource_len(pdev, PCI_ROM_RESOURCE))
-		rom_size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-	else if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
-		rom_size = 0x20000;
-
-	if (rom_size && pdev->rom_attr) {
+	if (pdev->rom_attr) {
 		sysfs_remove_bin_file(&pdev->dev.kobj, pdev->rom_attr);
 		kfree(pdev->rom_attr);
+		pdev->rom_attr = NULL;
 	}
 
 	pci_remove_firmware_label_files(pdev);
-
 }
 
 static int __init pci_sysfs_init(void)
