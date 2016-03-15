@@ -1964,8 +1964,6 @@ static void mxt_free_input_device(struct mxt_data *data)
 
 static void mxt_free_object_table(struct mxt_data *data)
 {
-	mxt_debug_msg_remove(data);
-
 	data->object_table = NULL;
 	data->info = NULL;
 	kfree(data->raw_info_block);
@@ -2947,6 +2945,7 @@ static int mxt_enter_bootloader(struct mxt_data *data)
 			return ret;
 
 		data->in_bootloader = true;
+		mxt_debug_msg_remove(data);
 		mxt_sysfs_remove(data);
 		mxt_free_input_device(data);
 		mxt_free_object_table(data);
@@ -3694,6 +3693,7 @@ static int mxt_remove(struct i2c_client *client)
 	struct mxt_data *data = i2c_get_clientdata(client);
 
 	sysfs_remove_group(&client->dev.kobj, &mxt_fw_attr_group);
+	mxt_debug_msg_remove(data);
 	mxt_sysfs_remove(data);
 
 	if (data->irq)
