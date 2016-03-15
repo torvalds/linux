@@ -31,7 +31,7 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 		return;
 	}
 
-	DPRINTK("entering catatonic mode");
+	DPRINTK("entering catatonic mode\n");
 
 	sbi->catatonic = 1;
 	wq = sbi->queues;
@@ -101,7 +101,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	struct file *pipe = NULL;
 	size_t pktsz;
 
-	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d",
+	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d\n",
 		(unsigned long) wq->wait_queue_token,
 		wq->name.len, wq->name.name, type);
 
@@ -164,7 +164,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		break;
 	}
 	default:
-		AUTOFS_WARN("bad type %d!", type);
+		AUTOFS_WARN("bad type %d!\n", type);
 		mutex_unlock(&sbi->wq_mutex);
 		return;
 	}
@@ -453,7 +453,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 					autofs_ptype_expire_indirect;
 		}
 
-		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d",
+		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
@@ -463,7 +463,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
-		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
+		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 		mutex_unlock(&sbi->wq_mutex);
@@ -494,7 +494,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 		recalc_sigpending();
 		spin_unlock_irqrestore(&current->sighand->siglock, irqflags);
 	} else {
-		DPRINTK("skipped sleeping");
+		DPRINTK("skipped sleeping\n");
 	}
 
 	status = wq->status;

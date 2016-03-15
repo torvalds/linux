@@ -75,7 +75,7 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
 	if ((param->ver_major != AUTOFS_DEV_IOCTL_VERSION_MAJOR) ||
 	    (param->ver_minor > AUTOFS_DEV_IOCTL_VERSION_MINOR)) {
 		AUTOFS_WARN("ioctl control interface version mismatch: "
-		     "kernel(%u.%u), user(%u.%u), cmd(%d)",
+		     "kernel(%u.%u), user(%u.%u), cmd(%d)\n",
 		     AUTOFS_DEV_IOCTL_VERSION_MAJOR,
 		     AUTOFS_DEV_IOCTL_VERSION_MINOR,
 		     param->ver_major, param->ver_minor, cmd);
@@ -130,7 +130,7 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 	err = check_dev_ioctl_version(cmd, param);
 	if (err) {
 		AUTOFS_WARN("invalid device control module version "
-		     "supplied for cmd(0x%08x)", cmd);
+		     "supplied for cmd(0x%08x)\n", cmd);
 		goto out;
 	}
 
@@ -138,14 +138,14 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 		err = invalid_str(param->path, param->size - sizeof(*param));
 		if (err) {
 			AUTOFS_WARN(
-			  "path string terminator missing for cmd(0x%08x)",
+			  "path string terminator missing for cmd(0x%08x)\n",
 			  cmd);
 			goto out;
 		}
 
 		err = check_name(param->path);
 		if (err) {
-			AUTOFS_WARN("invalid path supplied for cmd(0x%08x)",
+			AUTOFS_WARN("invalid path supplied for cmd(0x%08x)\n",
 				    cmd);
 			goto out;
 		}
@@ -373,7 +373,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		new_pid = get_task_pid(current, PIDTYPE_PGID);
 
 		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
-			AUTOFS_WARN("not allowed to change PID namespace");
+			AUTOFS_WARN("not allowed to change PID namespace\n");
 			err = -EINVAL;
 			goto out;
 		}
@@ -661,7 +661,7 @@ static int _autofs_dev_ioctl(unsigned int command,
 
 	fn = lookup_dev_ioctl(cmd);
 	if (!fn) {
-		AUTOFS_WARN("unknown command 0x%08x", command);
+		AUTOFS_WARN("unknown command 0x%08x\n", command);
 		return -ENOTTY;
 	}
 
@@ -754,7 +754,7 @@ int __init autofs_dev_ioctl_init(void)
 
 	r = misc_register(&_autofs_dev_ioctl_misc);
 	if (r) {
-		AUTOFS_ERROR("misc_register failed for control device");
+		AUTOFS_ERROR("misc_register failed for control device\n");
 		return r;
 	}
 
