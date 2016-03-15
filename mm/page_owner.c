@@ -84,6 +84,31 @@ gfp_t __get_page_owner_gfp(struct page *page)
 	return page_ext->gfp_mask;
 }
 
+void __copy_page_owner(struct page *oldpage, struct page *newpage)
+{
+	struct page_ext *old_ext = lookup_page_ext(oldpage);
+	struct page_ext *new_ext = lookup_page_ext(newpage);
+	int i;
+
+	new_ext->order = old_ext->order;
+	new_ext->gfp_mask = old_ext->gfp_mask;
+	new_ext->nr_entries = old_ext->nr_entries;
+
+	for (i = 0; i < ARRAY_SIZE(new_ext->trace_entries); i++)
+		new_ext->trace_entries[i] = old_ext->trace_entries[i];
+
+	/*
+	 * We don't clear the bit on the oldpage as it's going to be freed
+	 * after migration. Until then, the info can be useful in case of
+	 * a bug, and the overal stats will be off a bit only temporarily.
+	 * Also, migrate_misplaced_transhuge_page() can still fail the
+	 * migration and then we want the oldpage to retain the info. But
+	 * in that case we also don't need to explicitly clear the info from
+	 * the new page, which will be freed.
+	 */
+	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
+}
+
 static ssize_t
 print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 		struct page *page, struct page_ext *page_ext)

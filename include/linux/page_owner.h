@@ -11,6 +11,7 @@ extern void __reset_page_owner(struct page *page, unsigned int order);
 extern void __set_page_owner(struct page *page,
 			unsigned int order, gfp_t gfp_mask);
 extern gfp_t __get_page_owner_gfp(struct page *page);
+extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
 
 static inline void reset_page_owner(struct page *page, unsigned int order)
 {
@@ -32,6 +33,11 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
 	else
 		return 0;
 }
+static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
+{
+	if (static_branch_unlikely(&page_owner_inited))
+		__copy_page_owner(oldpage, newpage);
+}
 #else
 static inline void reset_page_owner(struct page *page, unsigned int order)
 {
@@ -44,6 +50,8 @@ static inline gfp_t get_page_owner_gfp(struct page *page)
 {
 	return 0;
 }
-
+static inline void copy_page_owner(struct page *oldpage, struct page *newpage)
+{
+}
 #endif /* CONFIG_PAGE_OWNER */
 #endif /* __LINUX_PAGE_OWNER_H */
