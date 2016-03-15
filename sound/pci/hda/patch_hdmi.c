@@ -2243,9 +2243,10 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
-	/* Try to bind with i915 for any Intel codecs (if not done yet) */
+	/* Try to bind with i915 for Intel HSW+ codecs (if not done yet) */
 	if (!codec_has_acomp(codec) &&
-	    (codec->core.vendor_id >> 16) == 0x8086)
+	    (codec->core.vendor_id >> 16) == 0x8086 &&
+	    is_haswell_plus(codec))
 		if (!snd_hdac_i915_init(&codec->bus->core))
 			spec->i915_bound = true;
 
