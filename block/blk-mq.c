@@ -544,7 +544,10 @@ EXPORT_SYMBOL(blk_mq_abort_requeue_list);
 
 struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 {
-	return tags->rqs[tag];
+	if (tag < tags->nr_tags)
+		return tags->rqs[tag];
+
+	return NULL;
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
