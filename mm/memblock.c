@@ -612,14 +612,12 @@ static int __init_memblock memblock_add_region(phys_addr_t base,
 						int nid,
 						unsigned long flags)
 {
-	struct memblock_type *type = &memblock.memory;
-
 	memblock_dbg("memblock_add: [%#016llx-%#016llx] flags %#02lx %pF\n",
 		     (unsigned long long)base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
-	return memblock_add_range(type, base, size, nid, flags);
+	return memblock_add_range(&memblock.memory, base, size, nid, flags);
 }
 
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
@@ -740,14 +738,12 @@ static int __init_memblock memblock_reserve_region(phys_addr_t base,
 						   int nid,
 						   unsigned long flags)
 {
-	struct memblock_type *type = &memblock.reserved;
-
 	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] flags %#02lx %pF\n",
 		     (unsigned long long)base,
 		     (unsigned long long)base + size - 1,
 		     flags, (void *)_RET_IP_);
 
-	return memblock_add_range(type, base, size, nid, flags);
+	return memblock_add_range(&memblock.reserved, base, size, nid, flags);
 }
 
 int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
