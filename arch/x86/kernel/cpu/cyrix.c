@@ -8,6 +8,7 @@
 #include <linux/timer.h>
 #include <asm/pci-direct.h>
 #include <asm/tsc.h>
+#include <asm/cpufeature.h>
 
 #include "cpu.h"
 

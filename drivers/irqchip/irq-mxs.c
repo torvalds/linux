@@ -183,7 +183,7 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 	void __iomem *icoll_base;
 
 	icoll_base = of_io_request_and_map(np, 0, np->name);
-	if (!icoll_base)
+	if (IS_ERR(icoll_base))
 		panic("%s: unable to map resource", np->full_name);
 	return icoll_base;
 }

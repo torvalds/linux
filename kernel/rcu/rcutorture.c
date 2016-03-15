@@ -932,12 +932,14 @@ rcu_torture_writer(void *arg)
 	int nsynctypes = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
-	pr_alert("%s" TORTURE_FLAG
-		 " Grace periods expedited from boot/sysfs for %s,\n",
-		 torture_type, cur_ops->name);
-	pr_alert("%s" TORTURE_FLAG
-		 " Testing of dynamic grace-period expediting diabled.\n",
-		 torture_type);
+	if (!can_expedite) {
+		pr_alert("%s" TORTURE_FLAG
+			 " Grace periods expedited from boot/sysfs for %s,\n",
+			 torture_type, cur_ops->name);
+		pr_alert("%s" TORTURE_FLAG
+			 " Disabled dynamic grace-period expediting.\n",
+			 torture_type);
+	}
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)

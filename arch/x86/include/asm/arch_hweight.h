@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_HWEIGHT_H
 #define _ASM_X86_HWEIGHT_H
 
+#include <asm/cpufeatures.h>
+
 #ifdef CONFIG_64BIT
 /* popcnt %edi, %eax -- redundant REX prefix for alignment */
 #define POPCNT32 ".byte 0xf3,0x40,0x0f,0xb8,0xc7"

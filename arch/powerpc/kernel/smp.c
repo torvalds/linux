@@ -727,7 +727,7 @@ void start_secondary(void *unused)
 
 	local_irq_enable();
 
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 
 	BUG();
 }
