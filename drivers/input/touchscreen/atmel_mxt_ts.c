@@ -3699,16 +3699,16 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		disable_irq(data->irq);
 	}
 
-	error = mxt_initialize(data);
-	if (error)
-		goto err_free_irq;
-
 	error = sysfs_create_group(&client->dev.kobj, &mxt_fw_attr_group);
 	if (error) {
 		dev_err(&client->dev, "Failure %d creating fw sysfs group\n",
 			error);
 		return error;
 	}
+
+	error = mxt_initialize(data);
+	if (error)
+		goto err_free_irq;
 
 	return 0;
 
