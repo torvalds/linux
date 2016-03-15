@@ -593,7 +593,6 @@ config PCI_SYSCALL
 	def_bool PCI
 
 source "drivers/pci/Kconfig"
-source "drivers/pci/pcie/Kconfig"
 
 endmenu
 
