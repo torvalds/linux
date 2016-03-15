@@ -661,6 +661,8 @@ err_dma:
 		itxd = mtk_qdma_phys_to_virt(ring, itxd->txd2);
 	} while (itxd != txd);
 
+	spin_unlock_irqrestore(&eth->page_lock, flags);
+
 	return -ENOMEM;
 }
 
