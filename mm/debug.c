@@ -10,8 +10,19 @@
 #include <linux/trace_events.h>
 #include <linux/memcontrol.h>
 #include <trace/events/mmflags.h>
+#include <linux/migrate.h>
 
 #include "internal.h"
+
+char *migrate_reason_names[MR_TYPES] = {
+	"compaction",
+	"memory_failure",
+	"memory_hotplug",
+	"syscall_or_cpuset",
+	"mempolicy_mbind",
+	"numa_misplaced",
+	"cma",
+};
 
 const struct trace_print_flags pageflag_names[] = {
 	__def_pageflag_names,

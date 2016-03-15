@@ -6,6 +6,7 @@
 #include <linux/stacktrace.h>
 #include <linux/page_owner.h>
 #include <linux/jump_label.h>
+#include <linux/migrate.h>
 #include "internal.h"
 
 static bool page_owner_disabled = true;
@@ -73,8 +74,16 @@ void __set_page_owner(struct page *page, unsigned int order, gfp_t gfp_mask)
 	page_ext->order = order;
 	page_ext->gfp_mask = gfp_mask;
 	page_ext->nr_entries = trace.nr_entries;
+	page_ext->last_migrate_reason = -1;
 
 	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+}
+
+void __set_page_owner_migrate_reason(struct page *page, int reason)
+{
+	struct page_ext *page_ext = lookup_page_ext(page);
+
+	page_ext->last_migrate_reason = reason;
 }
 
 gfp_t __get_page_owner_gfp(struct page *page)
@@ -150,6 +159,14 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 	ret += snprint_stack_trace(kbuf + ret, count - ret, &trace, 0);
 	if (ret >= count)
 		goto err;
+
+	if (page_ext->last_migrate_reason != -1) {
+		ret += snprintf(kbuf + ret, count - ret,
+			"Page has been migrated, last migrate reason: %s\n",
+			migrate_reason_names[page_ext->last_migrate_reason]);
+		if (ret >= count)
+			goto err;
+	}
 
 	ret += snprintf(kbuf + ret, count - ret, "\n");
 	if (ret >= count)
