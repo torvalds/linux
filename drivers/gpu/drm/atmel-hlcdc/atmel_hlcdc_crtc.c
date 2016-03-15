@@ -319,7 +319,11 @@ static int atmel_hlcdc_crtc_atomic_check(struct drm_crtc *c,
 	if (ret)
 		return ret;
 
-	return atmel_hlcdc_plane_prepare_disc_area(s);
+	ret = atmel_hlcdc_plane_prepare_disc_area(s);
+	if (ret)
+		return ret;
+
+	return atmel_hlcdc_plane_prepare_ahb_routing(s);
 }
 
 static void atmel_hlcdc_crtc_atomic_begin(struct drm_crtc *c,

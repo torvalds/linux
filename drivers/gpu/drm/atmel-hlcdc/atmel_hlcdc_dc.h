@@ -163,6 +163,7 @@ struct atmel_hlcdc_planes *
 atmel_hlcdc_create_planes(struct drm_device *dev);
 
 int atmel_hlcdc_plane_prepare_disc_area(struct drm_crtc_state *c_state);
+int atmel_hlcdc_plane_prepare_ahb_routing(struct drm_crtc_state *c_state);
 
 void atmel_hlcdc_crtc_irq(struct drm_crtc *c);
 
