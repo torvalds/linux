@@ -513,7 +513,6 @@ struct sh_eth_private {
 	u32 cur_rx, dirty_rx;		/* Producer/consumer ring indices */
 	u32 cur_tx, dirty_tx;
 	u32 rx_buf_sz;			/* Based on MTU+slack. */
-	int edmac_endian;
 	struct napi_struct napi;
 	bool irq_enabled;
 	/* MII transceiver section. */

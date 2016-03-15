@@ -151,10 +151,44 @@
 
 		};
 		edma0: edma@01c00000 {
-			compatible = "ti,edma3";
-			reg =	<0x0 0x10000>;
-			interrupts = <11 13 12>;
-			#dma-cells = <1>;
+			compatible = "ti,edma3-tpcc";
+			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
+			reg =	<0x0 0x8000>;
+			reg-names = "edma3_cc";
+			interrupts = <11 12>;
+			interrupt-names = "edma3_ccint", "edma3_ccerrint";
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma0_tptc0 7>, <&edma0_tptc1 0>;
+		};
+		edma0_tptc0: tptc@01c08000 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x8000 0x400>;
+			interrupts = <13>;
+			interrupt-names = "edm3_tcerrint";
+		};
+		edma0_tptc1: tptc@01c08400 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x8400 0x400>;
+			interrupts = <32>;
+			interrupt-names = "edm3_tcerrint";
+		};
+		edma1: edma@01e30000 {
+			compatible = "ti,edma3-tpcc";
+			/* eDMA3 CC1: 0x01e3 0000 - 0x01e3 7fff */
+			reg =	<0x230000 0x8000>;
+			reg-names = "edma3_cc";
+			interrupts = <93 94>;
+			interrupt-names = "edma3_ccint", "edma3_ccerrint";
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma1_tptc0 7>;
+		};
+		edma1_tptc0: tptc@01e38000 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x238000 0x400>;
+			interrupts = <95>;
+			interrupt-names = "edm3_tcerrint";
 		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
@@ -201,6 +235,16 @@
 			compatible = "ti,da830-mmc";
 			reg = <0x40000 0x1000>;
 			interrupts = <16>;
+			dmas = <&edma0 16 0>, <&edma0 17 0>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+		mmc1: mmc@1e1b000 {
+			compatible = "ti,da830-mmc";
+			reg = <0x21b000 0x1000>;
+			interrupts = <72>;
+			dmas = <&edma1 28 0>, <&edma1 29 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		ehrpwm0: ehrpwm@01f00000 {
@@ -241,6 +285,8 @@
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <56>;
+			dmas = <&edma0 18 0>, <&edma0 19 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 		mdio: mdio@1e24000 {
@@ -285,8 +331,8 @@
 			interrupts = <54>;
 			interrupt-names = "common";
 			status = "disabled";
-			dmas = <&edma0 1>,
-				<&edma0 0>;
+			dmas = <&edma0 1 1>,
+				<&edma0 0 1>;
 			dma-names = "tx", "rx";
 		};
 	};

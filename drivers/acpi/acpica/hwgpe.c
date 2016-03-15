@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -187,9 +187,8 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
 	 */
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info);
 
-	status = acpi_hw_write(register_bit,
-			       &gpe_register_info->status_address);
-
+	status =
+	    acpi_hw_write(register_bit, &gpe_register_info->status_address);
 	return (status);
 }
 
@@ -297,6 +296,7 @@ acpi_hw_gpe_enable_write(u8 enable_mask,
 	acpi_status status;
 
 	gpe_register_info->enable_mask = enable_mask;
+
 	status = acpi_hw_write(enable_mask, &gpe_register_info->enable_address);
 	return (status);
 }

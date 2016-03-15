@@ -33,10 +33,105 @@
 
 #define RCB_IRQ_NOT_INITED 0
 #define RCB_IRQ_INITED 1
+#define HNS_BUFFER_SIZE_2048 2048
+
+#define BD_MAX_SEND_SIZE 8191
+#define SKB_TMP_LEN(SKB) \
+	(((SKB)->transport_header - (SKB)->mac_header) + tcp_hdrlen(SKB))
+
+static void fill_v2_desc(struct hnae_ring *ring, void *priv,
+			 int size, dma_addr_t dma, int frag_end,
+			 int buf_num, enum hns_desc_type type, int mtu)
+{
+	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
+	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct iphdr *iphdr;
+	struct ipv6hdr *ipv6hdr;
+	struct sk_buff *skb;
+	int skb_tmp_len;
+	__be16 protocol;
+	u8 bn_pid = 0;
+	u8 rrcfv = 0;
+	u8 ip_offset = 0;
+	u8 tvsvsn = 0;
+	u16 mss = 0;
+	u8 l4_len = 0;
+	u16 paylen = 0;
+
+	desc_cb->priv = priv;
+	desc_cb->length = size;
+	desc_cb->dma = dma;
+	desc_cb->type = type;
+
+	desc->addr = cpu_to_le64(dma);
+	desc->tx.send_size = cpu_to_le16((u16)size);
+
+	/*config bd buffer end */
+	hnae_set_bit(rrcfv, HNSV2_TXD_VLD_B, 1);
+	hnae_set_field(bn_pid, HNSV2_TXD_BUFNUM_M, 0, buf_num - 1);
+
+	if (type == DESC_TYPE_SKB) {
+		skb = (struct sk_buff *)priv;
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			skb_reset_mac_len(skb);
+			protocol = skb->protocol;
+			ip_offset = ETH_HLEN;
+
+			if (protocol == htons(ETH_P_8021Q)) {
+				ip_offset += VLAN_HLEN;
+				protocol = vlan_get_protocol(skb);
+				skb->protocol = protocol;
+			}
+
+			if (skb->protocol == htons(ETH_P_IP)) {
+				iphdr = ip_hdr(skb);
+				hnae_set_bit(rrcfv, HNSV2_TXD_L3CS_B, 1);
+				hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B, 1);
+
+				/* check for tcp/udp header */
+				if (iphdr->protocol == IPPROTO_TCP) {
+					hnae_set_bit(tvsvsn,
+						     HNSV2_TXD_TSE_B, 1);
+					skb_tmp_len = SKB_TMP_LEN(skb);
+					l4_len = tcp_hdrlen(skb);
+					mss = mtu - skb_tmp_len - ETH_FCS_LEN;
+					paylen = skb->len - skb_tmp_len;
+				}
+			} else if (skb->protocol == htons(ETH_P_IPV6)) {
+				hnae_set_bit(tvsvsn, HNSV2_TXD_IPV6_B, 1);
+				ipv6hdr = ipv6_hdr(skb);
+				hnae_set_bit(rrcfv, HNSV2_TXD_L4CS_B, 1);
+
+				/* check for tcp/udp header */
+				if (ipv6hdr->nexthdr == IPPROTO_TCP) {
+					hnae_set_bit(tvsvsn,
+						     HNSV2_TXD_TSE_B, 1);
+					skb_tmp_len = SKB_TMP_LEN(skb);
+					l4_len = tcp_hdrlen(skb);
+					mss = mtu - skb_tmp_len - ETH_FCS_LEN;
+					paylen = skb->len - skb_tmp_len;
+				}
+			}
+			desc->tx.ip_offset = ip_offset;
+			desc->tx.tse_vlan_snap_v6_sctp_nth = tvsvsn;
+			desc->tx.mss = cpu_to_le16(mss);
+			desc->tx.l4_len = l4_len;
+			desc->tx.paylen = cpu_to_le16(paylen);
+		}
+	}
+
+	hnae_set_bit(rrcfv, HNSV2_TXD_FE_B, frag_end);
+
+	desc->tx.bn_pid = bn_pid;
+	desc->tx.ra_ri_cs_fe_vld = rrcfv;
+
+	ring_ptr_move_fw(ring, next_to_use);
+}
 
 static void fill_desc(struct hnae_ring *ring, void *priv,
 		      int size, dma_addr_t dma, int frag_end,
-		      int buf_num, enum hns_desc_type type)
+		      int buf_num, enum hns_desc_type type, int mtu)
 {
 	struct hnae_desc *desc = &ring->desc[ring->next_to_use];
 	struct hnae_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
@@ -100,6 +195,100 @@ static void unfill_desc(struct hnae_ring *ring)
 	ring_ptr_move_bw(ring, next_to_use);
 }
 
+static int hns_nic_maybe_stop_tx(
+	struct sk_buff **out_skb, int *bnum, struct hnae_ring *ring)
+{
+	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
+	int buf_num;
+
+	/* no. of segments (plus a header) */
+	buf_num = skb_shinfo(skb)->nr_frags + 1;
+
+	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
+		if (ring_space(ring) < 1)
+			return -EBUSY;
+
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+		buf_num = 1;
+	} else if (buf_num > ring_space(ring)) {
+		return -EBUSY;
+	}
+
+	*bnum = buf_num;
+	return 0;
+}
+
+static int hns_nic_maybe_stop_tso(
+	struct sk_buff **out_skb, int *bnum, struct hnae_ring *ring)
+{
+	int i;
+	int size;
+	int buf_num;
+	int frag_num;
+	struct sk_buff *skb = *out_skb;
+	struct sk_buff *new_skb = NULL;
+	struct skb_frag_struct *frag;
+
+	size = skb_headlen(skb);
+	buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+
+	frag_num = skb_shinfo(skb)->nr_frags;
+	for (i = 0; i < frag_num; i++) {
+		frag = &skb_shinfo(skb)->frags[i];
+		size = skb_frag_size(frag);
+		buf_num += (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+	}
+
+	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
+		buf_num = (skb->len + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+		if (ring_space(ring) < buf_num)
+			return -EBUSY;
+		/* manual split the send packet */
+		new_skb = skb_copy(skb, GFP_ATOMIC);
+		if (!new_skb)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		*out_skb = new_skb;
+
+	} else if (ring_space(ring) < buf_num) {
+		return -EBUSY;
+	}
+
+	*bnum = buf_num;
+	return 0;
+}
+
+static void fill_tso_desc(struct hnae_ring *ring, void *priv,
+			  int size, dma_addr_t dma, int frag_end,
+			  int buf_num, enum hns_desc_type type, int mtu)
+{
+	int frag_buf_num;
+	int sizeoflast;
+	int k;
+
+	frag_buf_num = (size + BD_MAX_SEND_SIZE - 1) / BD_MAX_SEND_SIZE;
+	sizeoflast = size % BD_MAX_SEND_SIZE;
+	sizeoflast = sizeoflast ? sizeoflast : BD_MAX_SEND_SIZE;
+
+	/* when the frag size is bigger than hardware, split this frag */
+	for (k = 0; k < frag_buf_num; k++)
+		fill_v2_desc(ring, priv,
+			     (k == frag_buf_num - 1) ?
+					sizeoflast : BD_MAX_SEND_SIZE,
+			     dma + BD_MAX_SEND_SIZE * k,
+			     frag_end && (k == frag_buf_num - 1) ? 1 : 0,
+			     buf_num,
+			     (type == DESC_TYPE_SKB && !k) ?
+					DESC_TYPE_SKB : DESC_TYPE_PAGE,
+			     mtu);
+}
+
 int hns_nic_net_xmit_hw(struct net_device *ndev,
 			struct sk_buff *skb,
 			struct hns_nic_ring_data *ring_data)
@@ -110,37 +299,25 @@ int hns_nic_net_xmit_hw(struct net_device *ndev,
 	struct netdev_queue *dev_queue;
 	struct skb_frag_struct *frag;
 	int buf_num;
+	int seg_num;
 	dma_addr_t dma;
 	int size, next_to_use;
-	int i, j;
-	struct sk_buff *new_skb;
+	int i;
 
-	assert(ring->max_desc_num_per_pkt <= ring->desc_num);
-
-	/* no. of segments (plus a header) */
-	buf_num = skb_shinfo(skb)->nr_frags + 1;
-
-	if (unlikely(buf_num > ring->max_desc_num_per_pkt)) {
-		if (ring_space(ring) < 1) {
-			ring->stats.tx_busy++;
-			goto out_net_tx_busy;
-		}
-
-		new_skb = skb_copy(skb, GFP_ATOMIC);
-		if (!new_skb) {
-			ring->stats.sw_err_cnt++;
-			netdev_err(ndev, "no memory to xmit!\n");
-			goto out_err_tx_ok;
-		}
-
-		dev_kfree_skb_any(skb);
-		skb = new_skb;
-		buf_num = 1;
-		assert(skb_shinfo(skb)->nr_frags == 1);
-	} else if (buf_num > ring_space(ring)) {
+	switch (priv->ops.maybe_stop_tx(&skb, &buf_num, ring)) {
+	case -EBUSY:
 		ring->stats.tx_busy++;
 		goto out_net_tx_busy;
+	case -ENOMEM:
+		ring->stats.sw_err_cnt++;
+		netdev_err(ndev, "no memory to xmit!\n");
+		goto out_err_tx_ok;
+	default:
+		break;
 	}
+
+	/* no. of segments (plus a header) */
+	seg_num = skb_shinfo(skb)->nr_frags + 1;
 	next_to_use = ring->next_to_use;
 
 	/* fill the first part */
@@ -151,11 +328,11 @@ int hns_nic_net_xmit_hw(struct net_device *ndev,
 		ring->stats.sw_err_cnt++;
 		goto out_err_tx_ok;
 	}
-	fill_desc(ring, skb, size, dma, buf_num == 1 ? 1 : 0, buf_num,
-		  DESC_TYPE_SKB);
+	priv->ops.fill_desc(ring, skb, size, dma, seg_num == 1 ? 1 : 0,
+			    buf_num, DESC_TYPE_SKB, ndev->mtu);
 
 	/* fill the fragments */
-	for (i = 1; i < buf_num; i++) {
+	for (i = 1; i < seg_num; i++) {
 		frag = &skb_shinfo(skb)->frags[i - 1];
 		size = skb_frag_size(frag);
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
@@ -164,8 +341,9 @@ int hns_nic_net_xmit_hw(struct net_device *ndev,
 			ring->stats.sw_err_cnt++;
 			goto out_map_frag_fail;
 		}
-		fill_desc(ring, skb_frag_page(frag), size, dma,
-			  buf_num - 1 == i ? 1 : 0, buf_num, DESC_TYPE_PAGE);
+		priv->ops.fill_desc(ring, skb_frag_page(frag), size, dma,
+				    seg_num - 1 == i ? 1 : 0, buf_num,
+				    DESC_TYPE_PAGE, ndev->mtu);
 	}
 
 	/*complete translate all packets*/
@@ -182,18 +360,19 @@ int hns_nic_net_xmit_hw(struct net_device *ndev,
 
 out_map_frag_fail:
 
-	for (j = i - 1; j > 0; j--) {
+	while (ring->next_to_use != next_to_use) {
 		unfill_desc(ring);
-		next_to_use = ring->next_to_use;
-		dma_unmap_page(dev, ring->desc_cb[next_to_use].dma,
-			       ring->desc_cb[next_to_use].length,
-			       DMA_TO_DEVICE);
+		if (ring->next_to_use != next_to_use)
+			dma_unmap_page(dev,
+				       ring->desc_cb[ring->next_to_use].dma,
+				       ring->desc_cb[ring->next_to_use].length,
+				       DMA_TO_DEVICE);
+		else
+			dma_unmap_single(dev,
+					 ring->desc_cb[next_to_use].dma,
+					 ring->desc_cb[next_to_use].length,
+					 DMA_TO_DEVICE);
 	}
-
-	unfill_desc(ring);
-	next_to_use = ring->next_to_use;
-	dma_unmap_single(dev, ring->desc_cb[next_to_use].dma,
-			 ring->desc_cb[next_to_use].length, DMA_TO_DEVICE);
 
 out_err_tx_ok:
 
@@ -313,20 +492,67 @@ static unsigned int hns_nic_get_headlen(unsigned char *data, u32 flag,
 		return max_size;
 }
 
-static void
-hns_nic_reuse_page(struct hnae_desc_cb *desc_cb, int tsize, int last_offset)
+static void hns_nic_reuse_page(struct sk_buff *skb, int i,
+			       struct hnae_ring *ring, int pull_len,
+			       struct hnae_desc_cb *desc_cb)
 {
-	 /* avoid re-using remote pages,flag default unreuse */
-	if (likely(page_to_nid(desc_cb->priv) == numa_node_id())) {
-		/* move offset up to the next cache line */
-		desc_cb->page_offset += tsize;
+	struct hnae_desc *desc;
+	int truesize, size;
+	int last_offset;
+	bool twobufs;
 
-		if (desc_cb->page_offset <= last_offset) {
+	twobufs = ((PAGE_SIZE < 8192) && hnae_buf_size(ring) == HNS_BUFFER_SIZE_2048);
+
+	desc = &ring->desc[ring->next_to_clean];
+	size = le16_to_cpu(desc->rx.size);
+
+	if (twobufs) {
+		truesize = hnae_buf_size(ring);
+	} else {
+		truesize = ALIGN(size, L1_CACHE_BYTES);
+		last_offset = hnae_page_size(ring) - hnae_buf_size(ring);
+	}
+
+	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
+			size - pull_len, truesize - pull_len);
+
+	 /* avoid re-using remote pages,flag default unreuse */
+	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
+		return;
+
+	if (twobufs) {
+		/* if we are only owner of page we can reuse it */
+		if (likely(page_count(desc_cb->priv) == 1)) {
+			/* flip page offset to other buffer */
+			desc_cb->page_offset ^= truesize;
+
 			desc_cb->reuse_flag = 1;
 			/* bump ref count on page before it is given*/
 			get_page(desc_cb->priv);
 		}
+		return;
 	}
+
+	/* move offset up to the next cache line */
+	desc_cb->page_offset += truesize;
+
+	if (desc_cb->page_offset <= last_offset) {
+		desc_cb->reuse_flag = 1;
+		/* bump ref count on page before it is given*/
+		get_page(desc_cb->priv);
+	}
+}
+
+static void get_v2rx_desc_bnum(u32 bnum_flag, int *out_bnum)
+{
+	*out_bnum = hnae_get_field(bnum_flag,
+				   HNS_RXD_BUFNUM_M, HNS_RXD_BUFNUM_S) + 1;
+}
+
+static void get_rx_desc_bnum(u32 bnum_flag, int *out_bnum)
+{
+	*out_bnum = hnae_get_field(bnum_flag,
+				   HNS_RXD_BUFNUM_M, HNS_RXD_BUFNUM_S);
 }
 
 static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
@@ -334,29 +560,41 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 {
 	struct hnae_ring *ring = ring_data->ring;
 	struct net_device *ndev = ring_data->napi.dev;
+	struct hns_nic_priv *priv = netdev_priv(ndev);
 	struct sk_buff *skb;
 	struct hnae_desc *desc;
 	struct hnae_desc_cb *desc_cb;
 	unsigned char *va;
-	int bnum, length, size, i, truesize, last_offset;
+	int bnum, length, i;
 	int pull_len;
 	u32 bnum_flag;
 
-	last_offset = hnae_page_size(ring) - hnae_buf_size(ring);
 	desc = &ring->desc[ring->next_to_clean];
 	desc_cb = &ring->desc_cb[ring->next_to_clean];
-	length = le16_to_cpu(desc->rx.pkt_len);
-	bnum_flag = le32_to_cpu(desc->rx.ipoff_bnum_pid_flag);
-	bnum = hnae_get_field(bnum_flag, HNS_RXD_BUFNUM_M, HNS_RXD_BUFNUM_S);
-	*out_bnum = bnum;
+
+	prefetch(desc);
+
 	va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
 
-	skb = *out_skb = napi_alloc_skb(&ring_data->napi, HNS_RX_HEAD_SIZE);
+	/* prefetch first cache line of first page */
+	prefetch(va);
+#if L1_CACHE_BYTES < 128
+	prefetch(va + L1_CACHE_BYTES);
+#endif
+
+	skb = *out_skb = napi_alloc_skb(&ring_data->napi,
+					HNS_RX_HEAD_SIZE);
 	if (unlikely(!skb)) {
 		netdev_err(ndev, "alloc rx skb fail\n");
 		ring->stats.sw_err_cnt++;
 		return -ENOMEM;
 	}
+
+	prefetchw(skb->data);
+	length = le16_to_cpu(desc->rx.pkt_len);
+	bnum_flag = le32_to_cpu(desc->rx.ipoff_bnum_pid_flag);
+	priv->ops.get_rxd_bnum(bnum_flag, &bnum);
+	*out_bnum = bnum;
 
 	if (length <= HNS_RX_HEAD_SIZE) {
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
@@ -380,13 +618,7 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		memcpy(__skb_put(skb, pull_len), va,
 		       ALIGN(pull_len, sizeof(long)));
 
-		size = le16_to_cpu(desc->rx.size);
-		truesize = ALIGN(size, L1_CACHE_BYTES);
-		skb_add_rx_frag(skb, 0, desc_cb->priv,
-				desc_cb->page_offset + pull_len,
-				size - pull_len, truesize - pull_len);
-
-		hns_nic_reuse_page(desc_cb, truesize, last_offset);
+		hns_nic_reuse_page(skb, 0, ring, pull_len, desc_cb);
 		ring_ptr_move_fw(ring, next_to_clean);
 
 		if (unlikely(bnum >= (int)MAX_SKB_FRAGS)) { /* check err*/
@@ -396,13 +628,8 @@ static int hns_nic_poll_rx_skb(struct hns_nic_ring_data *ring_data,
 		for (i = 1; i < bnum; i++) {
 			desc = &ring->desc[ring->next_to_clean];
 			desc_cb = &ring->desc_cb[ring->next_to_clean];
-			size = le16_to_cpu(desc->rx.size);
-			truesize = ALIGN(size, L1_CACHE_BYTES);
-			skb_add_rx_frag(skb, i, desc_cb->priv,
-					desc_cb->page_offset,
-					size, truesize);
 
-			hns_nic_reuse_page(desc_cb, truesize, last_offset);
+			hns_nic_reuse_page(skb, i, ring, 0, desc_cb);
 			ring_ptr_move_fw(ring, next_to_clean);
 		}
 	}
@@ -540,19 +767,19 @@ recv:
 	}
 
 	/* make all data has been write before submit */
-	if (clean_count > 0) {
-		hns_nic_alloc_rx_buffers(ring_data, clean_count);
-		clean_count = 0;
-	}
-
 	if (recv_pkts < budget) {
 		ex_num = readl_relaxed(ring->io_base + RCB_REG_FBDNUM);
-		rmb(); /*complete read rx ring bd number*/
-		if (ex_num > 0) {
-			num += ex_num;
+
+		if (ex_num > clean_count) {
+			num += ex_num - clean_count;
+			rmb(); /*complete read rx ring bd number*/
 			goto recv;
 		}
 	}
+
+	/* make all data has been write before submit */
+	if (clean_count > 0)
+		hns_nic_alloc_rx_buffers(ring_data, clean_count);
 
 	return recv_pkts;
 }
@@ -642,13 +869,19 @@ static int hns_nic_tx_poll_one(struct hns_nic_ring_data *ring_data,
 
 	bytes = 0;
 	pkts = 0;
-	while (head != ring->next_to_clean)
+	while (head != ring->next_to_clean) {
 		hns_nic_reclaim_one_desc(ring, &bytes, &pkts);
+		/* issue prefetch for next Tx descriptor */
+		prefetch(&ring->desc_cb[ring->next_to_clean]);
+	}
 
 	NETIF_TX_UNLOCK(ndev);
 
 	dev_queue = netdev_get_tx_queue(ndev, ring_data->queue_index);
 	netdev_tx_completed_queue(dev_queue, pkts, bytes);
+
+	if (unlikely(priv->link && !netif_carrier_ok(ndev)))
+		netif_carrier_on(ndev);
 
 	if (unlikely(pkts && netif_carrier_ok(ndev) &&
 		     (ring_space(ring) >= ring->max_desc_num_per_pkt * 2))) {
@@ -716,6 +949,7 @@ static int hns_nic_common_poll(struct napi_struct *napi, int budget)
 			ring_data->ring, 0);
 
 		ring_data->fini_process(ring_data);
+		return 0;
 	}
 
 	return clean_complete;
@@ -848,14 +1082,57 @@ static void hns_nic_ring_close(struct net_device *netdev, int idx)
 	napi_disable(&priv->ring_data[idx].napi);
 }
 
+static void hns_set_irq_affinity(struct hns_nic_priv *priv)
+{
+	struct hnae_handle *h = priv->ae_handle;
+	struct hns_nic_ring_data *rd;
+	int i;
+	int cpu;
+	cpumask_t mask;
+
+	/*diffrent irq banlance for 16core and 32core*/
+	if (h->q_num == num_possible_cpus()) {
+		for (i = 0; i < h->q_num * 2; i++) {
+			rd = &priv->ring_data[i];
+			if (cpu_online(rd->queue_index)) {
+				cpumask_clear(&mask);
+				cpu = rd->queue_index;
+				cpumask_set_cpu(cpu, &mask);
+				(void)irq_set_affinity_hint(rd->ring->irq,
+							    &mask);
+			}
+		}
+	} else {
+		for (i = 0; i < h->q_num; i++) {
+			rd = &priv->ring_data[i];
+			if (cpu_online(rd->queue_index * 2)) {
+				cpumask_clear(&mask);
+				cpu = rd->queue_index * 2;
+				cpumask_set_cpu(cpu, &mask);
+				(void)irq_set_affinity_hint(rd->ring->irq,
+							    &mask);
+			}
+		}
+
+		for (i = h->q_num; i < h->q_num * 2; i++) {
+			rd = &priv->ring_data[i];
+			if (cpu_online(rd->queue_index * 2 + 1)) {
+				cpumask_clear(&mask);
+				cpu = rd->queue_index * 2 + 1;
+				cpumask_set_cpu(cpu, &mask);
+				(void)irq_set_affinity_hint(rd->ring->irq,
+							    &mask);
+			}
+		}
+	}
+}
+
 static int hns_nic_init_irq(struct hns_nic_priv *priv)
 {
 	struct hnae_handle *h = priv->ae_handle;
 	struct hns_nic_ring_data *rd;
 	int i;
 	int ret;
-	int cpu;
-	cpumask_t mask;
 
 	for (i = 0; i < h->q_num * 2; i++) {
 		rd = &priv->ring_data[i];
@@ -878,15 +1155,10 @@ static int hns_nic_init_irq(struct hns_nic_priv *priv)
 		}
 		disable_irq(rd->ring->irq);
 		rd->ring->irq_init_flag = RCB_IRQ_INITED;
-
-		/*set cpu affinity*/
-		if (cpu_online(rd->queue_index)) {
-			cpumask_clear(&mask);
-			cpu = rd->queue_index;
-			cpumask_set_cpu(cpu, &mask);
-			irq_set_affinity_hint(rd->ring->irq, &mask);
-		}
 	}
+
+	/*set cpu affinity*/
+	hns_set_irq_affinity(priv);
 
 	return 0;
 }
@@ -1136,6 +1408,51 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	return ret;
 }
 
+static int hns_nic_set_features(struct net_device *netdev,
+				netdev_features_t features)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
+
+	switch (priv->enet_ver) {
+	case AE_VERSION_1:
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6))
+			netdev_info(netdev, "enet v1 do not support tso!\n");
+		break;
+	default:
+		if (features & (NETIF_F_TSO | NETIF_F_TSO6)) {
+			priv->ops.fill_desc = fill_tso_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
+			/* The chip only support 7*4096 */
+			netif_set_gso_max_size(netdev, 7 * 4096);
+			h->dev->ops->set_tso_stats(h, 1);
+		} else {
+			priv->ops.fill_desc = fill_v2_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+			h->dev->ops->set_tso_stats(h, 0);
+		}
+		break;
+	}
+	netdev->features = features;
+	return 0;
+}
+
+static netdev_features_t hns_nic_fix_features(
+		struct net_device *netdev, netdev_features_t features)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+
+	switch (priv->enet_ver) {
+	case AE_VERSION_1:
+		features &= ~(NETIF_F_TSO | NETIF_F_TSO6 |
+				NETIF_F_HW_VLAN_CTAG_FILTER);
+		break;
+	default:
+		break;
+	}
+	return features;
+}
+
 /**
  * nic_set_multicast_list - set mutl mac address
  * @netdev: net device
@@ -1231,6 +1548,8 @@ static const struct net_device_ops hns_nic_netdev_ops = {
 	.ndo_set_mac_address = hns_nic_net_set_mac_address,
 	.ndo_change_mtu = hns_nic_change_mtu,
 	.ndo_do_ioctl = hns_nic_do_ioctl,
+	.ndo_set_features = hns_nic_set_features,
+	.ndo_fix_features = hns_nic_fix_features,
 	.ndo_get_stats64 = hns_nic_get_stats64,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = hns_nic_poll_controller,
@@ -1315,22 +1634,26 @@ static void hns_nic_reset_subtask(struct hns_nic_priv *priv)
 		return;
 
 	hns_nic_dump(priv);
-	netdev_info(priv->netdev, "Reset %s port\n",
-		    (type == HNAE_PORT_DEBUG ? "debug" : "business"));
+	netdev_info(priv->netdev, "try to reset %s port!\n",
+		    (type == HNAE_PORT_DEBUG ? "debug" : "service"));
 
 	rtnl_lock();
 	/* put off any impending NetWatchDogTimeout */
 	priv->netdev->trans_start = jiffies;
 
-	if (type == HNAE_PORT_DEBUG)
+	if (type == HNAE_PORT_DEBUG) {
 		hns_nic_net_reinit(priv->netdev);
+	} else {
+		netif_carrier_off(priv->netdev);
+		netif_tx_disable(priv->netdev);
+	}
 	rtnl_unlock();
 }
 
 /* for doing service complete*/
 static void hns_nic_service_event_complete(struct hns_nic_priv *priv)
 {
-	assert(!test_bit(NIC_STATE_SERVICE_SCHED, &priv->state));
+	WARN_ON(!test_bit(NIC_STATE_SERVICE_SCHED, &priv->state));
 
 	smp_mb__before_atomic();
 	clear_bit(NIC_STATE_SERVICE_SCHED, &priv->state);
@@ -1435,8 +1758,9 @@ static void hns_nic_uninit_ring_data(struct hns_nic_priv *priv)
 	for (i = 0; i < h->q_num * 2; i++) {
 		netif_napi_del(&priv->ring_data[i].napi);
 		if (priv->ring_data[i].ring->irq_init_flag == RCB_IRQ_INITED) {
-			irq_set_affinity_hint(priv->ring_data[i].ring->irq,
-					      NULL);
+			(void)irq_set_affinity_hint(
+				priv->ring_data[i].ring->irq,
+				NULL);
 			free_irq(priv->ring_data[i].ring->irq,
 				 &priv->ring_data[i]);
 		}
@@ -1446,6 +1770,31 @@ static void hns_nic_uninit_ring_data(struct hns_nic_priv *priv)
 	kfree(priv->ring_data);
 }
 
+static void hns_nic_set_priv_ops(struct net_device *netdev)
+{
+	struct hns_nic_priv *priv = netdev_priv(netdev);
+	struct hnae_handle *h = priv->ae_handle;
+
+	if (AE_IS_VER1(priv->enet_ver)) {
+		priv->ops.fill_desc = fill_desc;
+		priv->ops.get_rxd_bnum = get_rx_desc_bnum;
+		priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+	} else {
+		priv->ops.get_rxd_bnum = get_v2rx_desc_bnum;
+		if ((netdev->features & NETIF_F_TSO) ||
+		    (netdev->features & NETIF_F_TSO6)) {
+			priv->ops.fill_desc = fill_tso_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tso;
+			/* This chip only support 7*4096 */
+			netif_set_gso_max_size(netdev, 7 * 4096);
+			h->dev->ops->set_tso_stats(h, 1);
+		} else {
+			priv->ops.fill_desc = fill_v2_desc;
+			priv->ops.maybe_stop_tx = hns_nic_maybe_stop_tx;
+		}
+	}
+}
+
 static int hns_nic_try_get_ae(struct net_device *ndev)
 {
 	struct hns_nic_priv *priv = netdev_priv(ndev);
@@ -1453,7 +1802,7 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 	int ret;
 
 	h = hnae_get_handle(&priv->netdev->dev,
-			    priv->ae_name, priv->port_id, NULL);
+			    priv->ae_node, priv->port_id, NULL);
 	if (IS_ERR_OR_NULL(h)) {
 		ret = PTR_ERR(h);
 		dev_dbg(priv->dev, "has not handle, register notifier!\n");
@@ -1472,6 +1821,8 @@ static int hns_nic_try_get_ae(struct net_device *ndev)
 		ret = -ENOMEM;
 		goto out_init_ring_data;
 	}
+
+	hns_nic_set_priv_ops(ndev);
 
 	ret = register_netdev(ndev);
 	if (ret) {
@@ -1524,18 +1875,21 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	priv->netdev = ndev;
 
-	if (of_device_is_compatible(node, "hisilicon,hns-nic-v2"))
-		priv->enet_ver = AE_VERSION_2;
-	else
+	if (of_device_is_compatible(node, "hisilicon,hns-nic-v1"))
 		priv->enet_ver = AE_VERSION_1;
+	else
+		priv->enet_ver = AE_VERSION_2;
 
-	ret = of_property_read_string(node, "ae-name", &priv->ae_name);
-	if (ret)
-		goto out_read_string_fail;
+	priv->ae_node = (void *)of_parse_phandle(node, "ae-handle", 0);
+	if (IS_ERR_OR_NULL(priv->ae_node)) {
+		ret = PTR_ERR(priv->ae_node);
+		dev_err(dev, "not find ae-handle\n");
+		goto out_read_prop_fail;
+	}
 
 	ret = of_property_read_u32(node, "port-id", &priv->port_id);
 	if (ret)
-		goto out_read_string_fail;
+		goto out_read_prop_fail;
 
 	hns_init_mac_addr(ndev);
 
@@ -1543,12 +1897,24 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 	ndev->netdev_ops = &hns_nic_netdev_ops;
 	hns_ethtool_set_ops(ndev);
+
 	ndev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
 		NETIF_F_GRO;
 	ndev->vlan_features |=
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
 	ndev->vlan_features |= NETIF_F_SG | NETIF_F_GSO | NETIF_F_GRO;
+
+	switch (priv->enet_ver) {
+	case AE_VERSION_2:
+		ndev->features |= NETIF_F_TSO | NETIF_F_TSO6;
+		ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_GSO |
+			NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6;
+		break;
+	default:
+		break;
+	}
 
 	SET_NETDEV_DEV(ndev, dev);
 
@@ -1582,7 +1948,7 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 
 out_notify_fail:
 	(void)cancel_work_sync(&priv->service_task);
-out_read_string_fail:
+out_read_prop_fail:
 	free_netdev(ndev);
 	return ret;
 }

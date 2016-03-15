@@ -70,7 +70,8 @@ static const char *cko_sels[] = { "cko1", "cko2", };
 static const char *lvds_sels[] = {
 	"dummy", "dummy", "dummy", "dummy", "dummy", "dummy",
 	"pll4_audio", "pll5_video", "pll8_mlb", "enet_ref",
-	"pcie_ref_125m", "sata_ref_100m",
+	"pcie_ref_125m", "sata_ref_100m",  "usbphy1", "usbphy2",
+	"dummy", "dummy", "dummy", "dummy", "osc",
 };
 static const char *pll_bypass_src_sels[] = { "osc", "lvds1_in", "lvds2_in", "dummy", };
 static const char *pll1_bypass_sels[] = { "pll1", "pll1_bypass_src", };

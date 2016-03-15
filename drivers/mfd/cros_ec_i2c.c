@@ -292,7 +292,7 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	struct cros_ec_device *ec_dev = NULL;
 	int err;
 
- 	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
+	ec_dev = devm_kzalloc(dev, sizeof(*ec_dev), GFP_KERNEL);
 	if (!ec_dev)
 		return -ENOMEM;
 

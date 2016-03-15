@@ -294,8 +294,6 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		data->needs_update = 0;
 	}
 
-	data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
-
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))
 		return 0;
@@ -326,20 +324,25 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	if (latency_req > interactivity_req)
 		latency_req = interactivity_req;
 
-	/*
-	 * We want to default to C1 (hlt), not to busy polling
-	 * unless the timer is happening really really soon.
-	 */
-	if (data->next_timer_us > 5 &&
-	    !drv->states[CPUIDLE_DRIVER_STATE_START].disabled &&
-		dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable == 0)
+	if (CPUIDLE_DRIVER_STATE_START > 0) {
+		data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
+		/*
+		 * We want to default to C1 (hlt), not to busy polling
+		 * unless the timer is happening really really soon.
+		 */
+		if (interactivity_req > 20 &&
+		    !drv->states[CPUIDLE_DRIVER_STATE_START].disabled &&
+			dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable == 0)
+			data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+	} else {
 		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+	}
 
 	/*
 	 * Find the idle state with the lowest power while satisfying
 	 * our constraints.
 	 */
-	for (i = CPUIDLE_DRIVER_STATE_START; i < drv->state_count; i++) {
+	for (i = data->last_state_idx + 1; i < drv->state_count; i++) {
 		struct cpuidle_state *s = &drv->states[i];
 		struct cpuidle_state_usage *su = &dev->states_usage[i];
 
@@ -404,8 +407,10 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	measured_us = cpuidle_get_last_residency(dev);
 
 	/* Deduct exit latency */
-	if (measured_us > target->exit_latency)
+	if (measured_us > 2 * target->exit_latency)
 		measured_us -= target->exit_latency;
+	else
+		measured_us /= 2;
 
 	/* Make sure our coefficients do not exceed unity */
 	if (measured_us > data->next_timer_us)

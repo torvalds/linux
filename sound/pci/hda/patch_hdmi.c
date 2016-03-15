@@ -51,8 +51,10 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 #define is_broadwell(codec)    ((codec)->core.vendor_id == 0x80862808)
 #define is_skylake(codec) ((codec)->core.vendor_id == 0x80862809)
 #define is_broxton(codec) ((codec)->core.vendor_id == 0x8086280a)
+#define is_kabylake(codec) ((codec)->core.vendor_id == 0x8086280b)
 #define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec) \
-				|| is_skylake(codec) || is_broxton(codec))
+				|| is_skylake(codec) || is_broxton(codec) \
+				|| is_kabylake(codec))
 
 #define is_valleyview(codec) ((codec)->core.vendor_id == 0x80862882)
 #define is_cherryview(codec) ((codec)->core.vendor_id == 0x80862883)
@@ -83,6 +85,7 @@ struct hdmi_spec_per_pin {
 	struct mutex lock;
 	struct delayed_work work;
 	struct snd_kcontrol *eld_ctl;
+	struct snd_jack *acomp_jack; /* jack via audio component */
 	int repoll_count;
 	bool setup; /* the stream has been set up by prepare callback */
 	int channels; /* current number of channels */
@@ -150,8 +153,15 @@ struct hdmi_spec {
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
 	struct i915_audio_component_audio_ops i915_audio_ops;
+	bool i915_bound; /* was i915 bound in this driver? */
 };
 
+#ifdef CONFIG_SND_HDA_I915
+#define codec_has_acomp(codec) \
+	((codec)->bus->core.audio_component != NULL)
+#else
+#define codec_has_acomp(codec)	false
+#endif
 
 struct hdmi_audio_infoframe {
 	u8 type; /* 0x84 */
@@ -438,7 +448,8 @@ static int hdmi_eld_ctl_get(struct snd_kcontrol *kcontrol,
 	eld = &per_pin->sink_eld;
 
 	mutex_lock(&per_pin->lock);
-	if (eld->eld_size > ARRAY_SIZE(ucontrol->value.bytes.data)) {
+	if (eld->eld_size > ARRAY_SIZE(ucontrol->value.bytes.data) ||
+	    eld->eld_size > ELD_MAX_SIZE) {
 		mutex_unlock(&per_pin->lock);
 		snd_BUG();
 		return -EINVAL;
@@ -1183,7 +1194,7 @@ static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid)
 static void jack_callback(struct hda_codec *codec,
 			  struct hda_jack_callback *jack)
 {
-	check_presence_and_report(codec, jack->tbl->nid);
+	check_presence_and_report(codec, jack->nid);
 }
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -1530,7 +1541,59 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 	return 0;
 }
 
-static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
+/* update per_pin ELD from the given new ELD;
+ * setup info frame and notification accordingly
+ */
+static void update_eld(struct hda_codec *codec,
+		       struct hdmi_spec_per_pin *per_pin,
+		       struct hdmi_eld *eld)
+{
+	struct hdmi_eld *pin_eld = &per_pin->sink_eld;
+	bool old_eld_valid = pin_eld->eld_valid;
+	bool eld_changed;
+
+	if (eld->eld_valid)
+		snd_hdmi_show_eld(codec, &eld->info);
+
+	eld_changed = (pin_eld->eld_valid != eld->eld_valid);
+	if (eld->eld_valid && pin_eld->eld_valid)
+		if (pin_eld->eld_size != eld->eld_size ||
+		    memcmp(pin_eld->eld_buffer, eld->eld_buffer,
+			   eld->eld_size) != 0)
+			eld_changed = true;
+
+	pin_eld->eld_valid = eld->eld_valid;
+	pin_eld->eld_size = eld->eld_size;
+	if (eld->eld_valid)
+		memcpy(pin_eld->eld_buffer, eld->eld_buffer, eld->eld_size);
+	pin_eld->info = eld->info;
+
+	/*
+	 * Re-setup pin and infoframe. This is needed e.g. when
+	 * - sink is first plugged-in
+	 * - transcoder can change during stream playback on Haswell
+	 *   and this can make HW reset converter selection on a pin.
+	 */
+	if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
+		if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
+			intel_verify_pin_cvt_connect(codec, per_pin);
+			intel_not_share_assigned_cvt(codec, per_pin->pin_nid,
+						     per_pin->mux_idx);
+		}
+
+		hdmi_setup_audio_infoframe(codec, per_pin, per_pin->non_pcm);
+	}
+
+	if (eld_changed)
+		snd_ctl_notify(codec->card,
+			       SNDRV_CTL_EVENT_MASK_VALUE |
+			       SNDRV_CTL_EVENT_MASK_INFO,
+			       &per_pin->eld_ctl->id);
+}
+
+/* update ELD and jack state via HD-audio verbs */
+static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
+					 int repoll)
 {
 	struct hda_jack_tbl *jack;
 	struct hda_codec *codec = per_pin->codec;
@@ -1547,9 +1610,8 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	 * the unsolicited response to avoid custom WARs.
 	 */
 	int present;
-	bool update_eld = false;
-	bool eld_changed = false;
 	bool ret;
+	bool do_repoll = false;
 
 	snd_hda_power_up_pm(codec);
 	present = snd_hda_pin_sense(codec, pin_nid);
@@ -1570,66 +1632,19 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 						     &eld->eld_size) < 0)
 			eld->eld_valid = false;
 		else {
-			memset(&eld->info, 0, sizeof(struct parsed_hdmi_eld));
 			if (snd_hdmi_parse_eld(codec, &eld->info, eld->eld_buffer,
 						    eld->eld_size) < 0)
 				eld->eld_valid = false;
 		}
-
-		if (eld->eld_valid) {
-			snd_hdmi_show_eld(codec, &eld->info);
-			update_eld = true;
-		}
-		else if (repoll) {
-			schedule_delayed_work(&per_pin->work,
-					      msecs_to_jiffies(300));
-			goto unlock;
-		}
+		if (!eld->eld_valid && repoll)
+			do_repoll = true;
 	}
 
-	if (pin_eld->eld_valid != eld->eld_valid)
-		eld_changed = true;
+	if (do_repoll)
+		schedule_delayed_work(&per_pin->work, msecs_to_jiffies(300));
+	else
+		update_eld(codec, per_pin, eld);
 
-	if (pin_eld->eld_valid && !eld->eld_valid)
-		update_eld = true;
-
-	if (update_eld) {
-		bool old_eld_valid = pin_eld->eld_valid;
-		pin_eld->eld_valid = eld->eld_valid;
-		if (pin_eld->eld_size != eld->eld_size ||
-			      memcmp(pin_eld->eld_buffer, eld->eld_buffer,
-				     eld->eld_size) != 0) {
-			memcpy(pin_eld->eld_buffer, eld->eld_buffer,
-			       eld->eld_size);
-			eld_changed = true;
-		}
-		pin_eld->eld_size = eld->eld_size;
-		pin_eld->info = eld->info;
-
-		/*
-		 * Re-setup pin and infoframe. This is needed e.g. when
-		 * - sink is first plugged-in (infoframe is not set up if !monitor_present)
-		 * - transcoder can change during stream playback on Haswell
-		 *   and this can make HW reset converter selection on a pin.
-		 */
-		if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
-			if (is_haswell_plus(codec) ||
-				is_valleyview_plus(codec)) {
-				intel_verify_pin_cvt_connect(codec, per_pin);
-				intel_not_share_assigned_cvt(codec, pin_nid,
-							per_pin->mux_idx);
-			}
-
-			hdmi_setup_audio_infoframe(codec, per_pin,
-						   per_pin->non_pcm);
-		}
-	}
-
-	if (eld_changed)
-		snd_ctl_notify(codec->card,
-			       SNDRV_CTL_EVENT_MASK_VALUE | SNDRV_CTL_EVENT_MASK_INFO,
-			       &per_pin->eld_ctl->id);
- unlock:
 	ret = !repoll || !pin_eld->monitor_present || pin_eld->eld_valid;
 
 	jack = snd_hda_jack_tbl_get(codec, pin_nid);
@@ -1639,6 +1654,54 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	mutex_unlock(&per_pin->lock);
 	snd_hda_power_down_pm(codec);
 	return ret;
+}
+
+/* update ELD and jack state via audio component */
+static void sync_eld_via_acomp(struct hda_codec *codec,
+			       struct hdmi_spec_per_pin *per_pin)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hdmi_eld *eld = &spec->temp_eld;
+	int size;
+
+	mutex_lock(&per_pin->lock);
+	size = snd_hdac_acomp_get_eld(&codec->bus->core, per_pin->pin_nid,
+				      &eld->monitor_present, eld->eld_buffer,
+				      ELD_MAX_SIZE);
+	if (size < 0)
+		goto unlock;
+	if (size > 0) {
+		size = min(size, ELD_MAX_SIZE);
+		if (snd_hdmi_parse_eld(codec, &eld->info,
+				       eld->eld_buffer, size) < 0)
+			size = -EINVAL;
+	}
+
+	if (size > 0) {
+		eld->eld_valid = true;
+		eld->eld_size = size;
+	} else {
+		eld->eld_valid = false;
+		eld->eld_size = 0;
+	}
+
+	update_eld(codec, per_pin, eld);
+	snd_jack_report(per_pin->acomp_jack,
+			eld->monitor_present ? SND_JACK_AVOUT : 0);
+ unlock:
+	mutex_unlock(&per_pin->lock);
+}
+
+static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
+{
+	struct hda_codec *codec = per_pin->codec;
+
+	if (codec_has_acomp(codec)) {
+		sync_eld_via_acomp(codec, per_pin);
+		return false; /* don't call snd_hda_jack_report_sync() */
+	} else {
+		return hdmi_present_sense_via_verbs(per_pin, repoll);
+	}
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
@@ -1776,17 +1839,6 @@ static bool check_non_pcm_per_cvt(struct hda_codec *codec, hda_nid_t cvt_nid)
 	return non_pcm;
 }
 
-/* There is a fixed mapping between audio pin node and display port
- * on current Intel platforms:
- * Pin Widget 5 - PORT B (port = 1 in i915 driver)
- * Pin Widget 6 - PORT C (port = 2 in i915 driver)
- * Pin Widget 7 - PORT D (port = 3 in i915 driver)
- */
-static int intel_pin2port(hda_nid_t pin_nid)
-{
-	return pin_nid - 4;
-}
-
 /*
  * HDMI callbacks
  */
@@ -1803,7 +1855,6 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
 	hda_nid_t pin_nid = per_pin->pin_nid;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct i915_audio_component *acomp = codec->bus->core.audio_component;
 	bool non_pcm;
 	int pinctl;
 
@@ -1822,10 +1873,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
 	/* Todo: add DP1.2 MST audio support later */
-	if (acomp && acomp->ops && acomp->ops->sync_audio_rate)
-		acomp->ops->sync_audio_rate(acomp->dev,
-				intel_pin2port(pin_nid),
-				runtime->rate);
+	snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);
@@ -2091,6 +2139,30 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static void free_acomp_jack_priv(struct snd_jack *jack)
+{
+	struct hdmi_spec_per_pin *per_pin = jack->private_data;
+
+	per_pin->acomp_jack = NULL;
+}
+
+static int add_acomp_jack_kctl(struct hda_codec *codec,
+			       struct hdmi_spec_per_pin *per_pin,
+			       const char *name)
+{
+	struct snd_jack *jack;
+	int err;
+
+	err = snd_jack_new(codec->card, name, SND_JACK_AVOUT, &jack,
+			   true, false);
+	if (err < 0)
+		return err;
+	per_pin->acomp_jack = jack;
+	jack->private_data = per_pin;
+	jack->private_free = free_acomp_jack_priv;
+	return 0;
+}
+
 static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 {
 	char hdmi_str[32] = "HDMI/DP";
@@ -2101,6 +2173,8 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 
 	if (pcmdev > 0)
 		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
+	if (codec_has_acomp(codec))
+		return add_acomp_jack_kctl(codec, per_pin, hdmi_str);
 	phantom_jack = !is_jack_detectable(codec, per_pin->pin_nid);
 	if (phantom_jack)
 		strncat(hdmi_str, " Phantom",
@@ -2196,8 +2270,10 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		hda_nid_t pin_nid = per_pin->pin_nid;
 
 		hdmi_init_pin(codec, pin_nid);
-		snd_hda_jack_detect_enable_callback(codec, pin_nid,
-			codec->jackpoll_interval > 0 ? jack_callback : NULL);
+		if (!codec_has_acomp(codec))
+			snd_hda_jack_detect_enable_callback(codec, pin_nid,
+				codec->jackpoll_interval > 0 ?
+				jack_callback : NULL);
 	}
 	return 0;
 }
@@ -2219,7 +2295,7 @@ static void generic_hdmi_free(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
+	if (codec_has_acomp(codec))
 		snd_hdac_i915_register_notifier(NULL);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
@@ -2227,8 +2303,12 @@ static void generic_hdmi_free(struct hda_codec *codec)
 
 		cancel_delayed_work_sync(&per_pin->work);
 		eld_proc_free(per_pin);
+		if (per_pin->acomp_jack)
+			snd_device_free(codec->card, per_pin->acomp_jack);
 	}
 
+	if (spec->i915_bound)
+		snd_hdac_i915_exit(&codec->bus->core);
 	hdmi_array_free(spec);
 	kfree(spec);
 }
@@ -2357,6 +2437,9 @@ static void intel_pin_eld_notify(void *audio_ptr, int port)
 	 */
 	if (snd_power_get_state(codec->card) != SNDRV_CTL_POWER_D0)
 		return;
+	/* ditto during suspend/resume process itself */
+	if (atomic_read(&(codec)->core.in_pm))
+		return;
 
 	check_presence_and_report(codec, pin_nid);
 }
@@ -2373,6 +2456,12 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
+	/* Try to bind with i915 for any Intel codecs (if not done yet) */
+	if (!codec_has_acomp(codec) &&
+	    (codec->core.vendor_id >> 16) == 0x8086)
+		if (!snd_hdac_i915_init(&codec->bus->core))
+			spec->i915_bound = true;
+
 	if (is_haswell_plus(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
 		intel_haswell_fixup_enable_dp12(codec);
@@ -2388,14 +2477,9 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 			is_broxton(codec))
 		codec->core.link_power_control = 1;
 
-	if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
-		codec->depop_delay = 0;
-		spec->i915_audio_ops.audio_ptr = codec;
-		spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
-		snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
-	}
-
 	if (hdmi_parse_codec(codec) < 0) {
+		if (spec->i915_bound)
+			snd_hdac_i915_exit(&codec->bus->core);
 		codec->spec = NULL;
 		kfree(spec);
 		return -EINVAL;
@@ -2413,6 +2497,18 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	generic_hdmi_init_per_pins(codec);
 
 	init_channel_allocations();
+
+	if (codec_has_acomp(codec)) {
+		codec->depop_delay = 0;
+		spec->i915_audio_ops.audio_ptr = codec;
+		/* intel_audio_codec_enable() or intel_audio_codec_disable()
+		 * will call pin_eld_notify with using audio_ptr pointer
+		 * We need make sure audio_ptr is really setup
+		 */
+		wmb();
+		spec->i915_audio_ops.pin_eld_notify = intel_pin_eld_notify;
+		snd_hdac_i915_register_notifier(&spec->i915_audio_ops);
+	}
 
 	return 0;
 }
@@ -3563,6 +3659,7 @@ HDA_CODEC_ENTRY(0x10de0070, "GPU 70 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de0071, "GPU 71 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de0072, "GPU 72 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de007d, "GPU 7d HDMI/DP",	patch_nvhdmi),
+HDA_CODEC_ENTRY(0x10de0083, "GPU 83 HDMI/DP",	patch_nvhdmi),
 HDA_CODEC_ENTRY(0x10de8001, "MCP73 HDMI",	patch_nvhdmi_2ch),
 HDA_CODEC_ENTRY(0x11069f80, "VX900 HDMI/DP",	patch_via_hdmi),
 HDA_CODEC_ENTRY(0x11069f81, "VX900 HDMI/DP",	patch_via_hdmi),
@@ -3579,6 +3676,7 @@ HDA_CODEC_ENTRY(0x80862807, "Haswell HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862808, "Broadwell HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862809, "Skylake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x8086280a, "Broxton HDMI",	patch_generic_hdmi),
+HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_generic_hdmi),
 HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_generic_hdmi),

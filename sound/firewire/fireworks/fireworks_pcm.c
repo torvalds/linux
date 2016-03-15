@@ -251,8 +251,11 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&efw->capture_substreams);
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->capture_substreams++;
+		mutex_unlock(&efw->mutex);
+	}
 
 	amdtp_am824_set_pcm_format(&efw->tx_stream, params_format(hw_params));
 
@@ -269,8 +272,11 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
-		atomic_inc(&efw->playback_substreams);
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->playback_substreams++;
+		mutex_unlock(&efw->mutex);
+	}
 
 	amdtp_am824_set_pcm_format(&efw->rx_stream, params_format(hw_params));
 
@@ -281,8 +287,11 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&efw->capture_substreams);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->capture_substreams--;
+		mutex_unlock(&efw->mutex);
+	}
 
 	snd_efw_stream_stop_duplex(efw);
 
@@ -292,8 +301,11 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		atomic_dec(&efw->playback_substreams);
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
+		mutex_lock(&efw->mutex);
+		efw->playback_substreams--;
+		mutex_unlock(&efw->mutex);
+	}
 
 	snd_efw_stream_stop_duplex(efw);
 

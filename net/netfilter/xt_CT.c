@@ -143,7 +143,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 		goto out;
 	}
 
-	timeout = timeout_find_get(timeout_name);
+	timeout = timeout_find_get(par->net, timeout_name);
 	if (timeout == NULL) {
 		ret = -ENOENT;
 		pr_info("No such timeout policy \"%s\"\n", timeout_name);

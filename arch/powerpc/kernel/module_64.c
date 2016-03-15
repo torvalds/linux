@@ -326,7 +326,10 @@ static void dedotify_versions(struct modversion_info *vers,
 		}
 }
 
-/* Undefined symbols which refer to .funcname, hack to funcname (or .TOC.) */
+/*
+ * Undefined symbols which refer to .funcname, hack to funcname. Make .TOC.
+ * seem to be defined (value set later).
+ */
 static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 {
 	unsigned int i;
@@ -334,8 +337,11 @@ static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 	for (i = 1; i < numsyms; i++) {
 		if (syms[i].st_shndx == SHN_UNDEF) {
 			char *name = strtab + syms[i].st_name;
-			if (name[0] == '.')
-				memmove(name, name+1, strlen(name));
+			if (name[0] == '.') {
+				if (strcmp(name+1, "TOC.") == 0)
+					syms[i].st_shndx = SHN_ABS;
+				syms[i].st_name++;
+			}
 		}
 	}
 }
@@ -351,7 +357,7 @@ static Elf64_Sym *find_dot_toc(Elf64_Shdr *sechdrs,
 	numsyms = sechdrs[symindex].sh_size / sizeof(Elf64_Sym);
 
 	for (i = 1; i < numsyms; i++) {
-		if (syms[i].st_shndx == SHN_UNDEF
+		if (syms[i].st_shndx == SHN_ABS
 		    && strcmp(strtab + syms[i].st_name, "TOC.") == 0)
 			return &syms[i];
 	}
@@ -633,6 +639,33 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			 * That would only save us one instruction, so ignore
 			 * it.
 			 */
+			break;
+
+		case R_PPC64_ENTRY:
+			/*
+			 * Optimize ELFv2 large code model entry point if
+			 * the TOC is within 2GB range of current location.
+			 */
+			value = my_r2(sechdrs, me) - (unsigned long)location;
+			if (value + 0x80008000 > 0xffffffff)
+				break;
+			/*
+			 * Check for the large code model prolog sequence:
+		         *	ld r2, ...(r12)
+			 *	add r2, r2, r12
+			 */
+			if ((((uint32_t *)location)[0] & ~0xfffc)
+			    != 0xe84c0000)
+				break;
+			if (((uint32_t *)location)[1] != 0x7c426214)
+				break;
+			/*
+			 * If found, replace it with:
+			 *	addis r2, r12, (.TOC.-func)@ha
+			 *	addi r2, r12, (.TOC.-func)@l
+			 */
+			((uint32_t *)location)[0] = 0x3c4c0000 + PPC_HA(value);
+			((uint32_t *)location)[1] = 0x38420000 + PPC_LO(value);
 			break;
 
 		case R_PPC64_REL16_HA:

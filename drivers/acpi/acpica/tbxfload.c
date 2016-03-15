@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -191,6 +191,7 @@ acpi_status acpi_tb_load_namespace(void)
 					"(%4.4s:%8.8s) while loading table",
 					table->signature.ascii,
 					table->pointer->oem_table_id));
+
 			tables_failed++;
 
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
@@ -206,7 +207,7 @@ acpi_status acpi_tb_load_namespace(void)
 
 	if (!tables_failed) {
 		ACPI_INFO((AE_INFO,
-			   "%u ACPI AML tables successfully acquired and loaded",
+			   "%u ACPI AML tables successfully acquired and loaded\n",
 			   tables_loaded));
 	} else {
 		ACPI_ERROR((AE_INFO,

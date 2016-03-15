@@ -88,6 +88,70 @@ const char *bpf_program__title(struct bpf_program *prog, bool needs_copy);
 
 int bpf_program__fd(struct bpf_program *prog);
 
+struct bpf_insn;
+
+/*
+ * Libbpf allows callers to adjust BPF programs before being loaded
+ * into kernel. One program in an object file can be transform into
+ * multiple variants to be attached to different code.
+ *
+ * bpf_program_prep_t, bpf_program__set_prep and bpf_program__nth_fd
+ * are APIs for this propose.
+ *
+ * - bpf_program_prep_t:
+ *   It defines 'preprocessor', which is a caller defined function
+ *   passed to libbpf through bpf_program__set_prep(), and will be
+ *   called before program is loaded. The processor should adjust
+ *   the program one time for each instances according to the number
+ *   passed to it.
+ *
+ * - bpf_program__set_prep:
+ *   Attachs a preprocessor to a BPF program. The number of instances
+ *   whould be created is also passed through this function.
+ *
+ * - bpf_program__nth_fd:
+ *   After the program is loaded, get resuling fds from bpf program for
+ *   each instances.
+ *
+ * If bpf_program__set_prep() is not used, the program whould be loaded
+ * without adjustment during bpf_object__load(). The program has only
+ * one instance. In this case bpf_program__fd(prog) is equal to
+ * bpf_program__nth_fd(prog, 0).
+ */
+
+struct bpf_prog_prep_result {
+	/*
+	 * If not NULL, load new instruction array.
+	 * If set to NULL, don't load this instance.
+	 */
+	struct bpf_insn *new_insn_ptr;
+	int new_insn_cnt;
+
+	/* If not NULL, result fd is set to it */
+	int *pfd;
+};
+
+/*
+ * Parameters of bpf_program_prep_t:
+ *  - prog:	The bpf_program being loaded.
+ *  - n:	Index of instance being generated.
+ *  - insns:	BPF instructions array.
+ *  - insns_cnt:Number of instructions in insns.
+ *  - res:	Output parameter, result of transformation.
+ *
+ * Return value:
+ *  - Zero: pre-processing success.
+ *  - Non-zero: pre-processing, stop loading.
+ */
+typedef int (*bpf_program_prep_t)(struct bpf_program *prog, int n,
+				  struct bpf_insn *insns, int insns_cnt,
+				  struct bpf_prog_prep_result *res);
+
+int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
+			  bpf_program_prep_t prep);
+
+int bpf_program__nth_fd(struct bpf_program *prog, int n);
+
 /*
  * We don't need __attribute__((packed)) now since it is
  * unnecessary for 'bpf_map_def' because they are all aligned.
@@ -100,5 +164,29 @@ struct bpf_map_def {
 	unsigned int value_size;
 	unsigned int max_entries;
 };
+
+/*
+ * There is another 'struct bpf_map' in include/linux/map.h. However,
+ * it is not a uapi header so no need to consider name clash.
+ */
+struct bpf_map;
+struct bpf_map *
+bpf_object__get_map_by_name(struct bpf_object *obj, const char *name);
+
+struct bpf_map *
+bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
+#define bpf_map__for_each(pos, obj)		\
+	for ((pos) = bpf_map__next(NULL, (obj));	\
+	     (pos) != NULL;				\
+	     (pos) = bpf_map__next((pos), (obj)))
+
+int bpf_map__get_fd(struct bpf_map *map);
+int bpf_map__get_def(struct bpf_map *map, struct bpf_map_def *pdef);
+const char *bpf_map__get_name(struct bpf_map *map);
+
+typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
+int bpf_map__set_private(struct bpf_map *map, void *priv,
+			 bpf_map_clear_priv_t clear_priv);
+int bpf_map__get_private(struct bpf_map *map, void **ppriv);
 
 #endif

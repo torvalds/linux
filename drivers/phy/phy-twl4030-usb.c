@@ -34,7 +34,7 @@
 #include <linux/usb/otg.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
-#include <linux/usb/musb-omap.h>
+#include <linux/usb/musb.h>
 #include <linux/usb/ulpi.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
@@ -148,10 +148,10 @@
  * If VBUS is valid or ID is ground, then we know a
  * cable is present and we need to be runtime-enabled
  */
-static inline bool cable_present(enum omap_musb_vbus_id_status stat)
+static inline bool cable_present(enum musb_vbus_id_status stat)
 {
-	return stat == OMAP_MUSB_VBUS_VALID ||
-		stat == OMAP_MUSB_ID_GROUND;
+	return stat == MUSB_VBUS_VALID ||
+		stat == MUSB_ID_GROUND;
 }
 
 struct twl4030_usb {
@@ -170,7 +170,7 @@ struct twl4030_usb {
 	enum twl4030_usb_mode	usb_mode;
 
 	int			irq;
-	enum omap_musb_vbus_id_status linkstat;
+	enum musb_vbus_id_status linkstat;
 	bool			vbus_supplied;
 
 	struct delayed_work	id_workaround_work;
@@ -276,11 +276,11 @@ static bool twl4030_is_driving_vbus(struct twl4030_usb *twl)
 	return (ret & (ULPI_OTG_DRVVBUS | ULPI_OTG_CHRGVBUS)) ? true : false;
 }
 
-static enum omap_musb_vbus_id_status
+static enum musb_vbus_id_status
 	twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
 	int	status;
-	enum omap_musb_vbus_id_status linkstat = OMAP_MUSB_UNKNOWN;
+	enum musb_vbus_id_status linkstat = MUSB_UNKNOWN;
 
 	twl->vbus_supplied = false;
 
@@ -306,14 +306,14 @@ static enum omap_musb_vbus_id_status
 		}
 
 		if (status & BIT(2))
-			linkstat = OMAP_MUSB_ID_GROUND;
+			linkstat = MUSB_ID_GROUND;
 		else if (status & BIT(7))
-			linkstat = OMAP_MUSB_VBUS_VALID;
+			linkstat = MUSB_VBUS_VALID;
 		else
-			linkstat = OMAP_MUSB_VBUS_OFF;
+			linkstat = MUSB_VBUS_OFF;
 	} else {
-		if (twl->linkstat != OMAP_MUSB_UNKNOWN)
-			linkstat = OMAP_MUSB_VBUS_OFF;
+		if (twl->linkstat != MUSB_UNKNOWN)
+			linkstat = MUSB_VBUS_OFF;
 	}
 
 	dev_dbg(twl->dev, "HW_CONDITIONS 0x%02x/%d; link %d\n",
@@ -535,7 +535,7 @@ static DEVICE_ATTR(vbus, 0444, twl4030_usb_vbus_show, NULL);
 static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 {
 	struct twl4030_usb *twl = _twl;
-	enum omap_musb_vbus_id_status status;
+	enum musb_vbus_id_status status;
 	bool status_changed = false;
 
 	status = twl4030_usb_linkstat(twl);
@@ -567,11 +567,11 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 			pm_runtime_mark_last_busy(twl->dev);
 			pm_runtime_put_autosuspend(twl->dev);
 		}
-		omap_musb_mailbox(status);
+		musb_mailbox(status);
 	}
 
 	/* don't schedule during sleep - irq works right then */
-	if (status == OMAP_MUSB_ID_GROUND && pm_runtime_active(twl->dev)) {
+	if (status == MUSB_ID_GROUND && pm_runtime_active(twl->dev)) {
 		cancel_delayed_work(&twl->id_workaround_work);
 		schedule_delayed_work(&twl->id_workaround_work, HZ);
 	}
@@ -670,7 +670,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	twl->dev		= &pdev->dev;
 	twl->irq		= platform_get_irq(pdev, 0);
 	twl->vbus_supplied	= false;
-	twl->linkstat		= OMAP_MUSB_UNKNOWN;
+	twl->linkstat		= MUSB_UNKNOWN;
 
 	twl->phy.dev		= twl->dev;
 	twl->phy.label		= "twl4030";
@@ -715,6 +715,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	/* Our job is to use irqs and status from the power module
 	 * to keep the transceiver disabled when nothing's connected.
@@ -750,12 +751,20 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 	struct twl4030_usb *twl = platform_get_drvdata(pdev);
 	int val;
 
+	usb_remove_phy(&twl->phy);
 	pm_runtime_get_sync(twl->dev);
 	cancel_delayed_work(&twl->id_workaround_work);
 	device_remove_file(twl->dev, &dev_attr_vbus);
 
 	/* set transceiver mode to power on defaults */
 	twl4030_usb_set_mode(twl, -1);
+
+	/* idle ulpi before powering off */
+	if (cable_present(twl->linkstat))
+		pm_runtime_put_noidle(twl->dev);
+	pm_runtime_mark_last_busy(twl->dev);
+	pm_runtime_put_sync_suspend(twl->dev);
+	pm_runtime_disable(twl->dev);
 
 	/* autogate 60MHz ULPI clock,
 	 * clear dpll clock request for i2c access,
@@ -770,11 +779,6 @@ static int twl4030_usb_remove(struct platform_device *pdev)
 
 	/* disable complete OTG block */
 	twl4030_usb_clear_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
-
-	if (cable_present(twl->linkstat))
-		pm_runtime_put_noidle(twl->dev);
-	pm_runtime_mark_last_busy(twl->dev);
-	pm_runtime_put(twl->dev);
 
 	return 0;
 }

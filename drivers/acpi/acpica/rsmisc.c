@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,8 +189,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			item_count = ACPI_GET8(source);
 			ACPI_SET8(destination, item_count);
 
-			resource->length = resource->length +
-			    (info->value * item_count);
+			resource->length =
+			    resource->length + (info->value * item_count);
 			break;
 
 		case ACPI_RSC_COUNT_GPIO_RES:
@@ -445,8 +445,8 @@ exit:
 
 		/* Round the resource struct length up to the next boundary (32 or 64) */
 
-		resource->length =
-		    (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(resource->length);
+		resource->length = (u32)
+		    ACPI_ROUND_UP_TO_NATIVE_WORD(resource->length);
 	}
 	return_ACPI_STATUS(AE_OK);
 }
@@ -550,9 +550,8 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			item_count = ACPI_GET8(source);
 			ACPI_SET8(destination, item_count);
 
-			aml_length =
-			    (u16) (aml_length +
-				   (info->value * (item_count - 1)));
+			aml_length = (u16)
+			    (aml_length + (info->value * (item_count - 1)));
 			break;
 
 		case ACPI_RSC_COUNT16:
@@ -723,11 +722,10 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/*
 			 * 16-bit encoded bitmask (IRQ macro)
 			 */
-			temp16 = acpi_rs_encode_bitmask(source,
-							*ACPI_ADD_PTR(u8,
-								      resource,
-								      info->
-								      value));
+			temp16 =
+			    acpi_rs_encode_bitmask(source,
+						   *ACPI_ADD_PTR(u8, resource,
+								 info->value));
 			ACPI_MOVE_16_TO_16(destination, &temp16);
 			break;
 

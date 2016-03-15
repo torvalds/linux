@@ -45,6 +45,7 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 #include "adf_transport_internal.h"
 
 #define ADF_ARB_NUM 4
@@ -124,19 +125,12 @@ int adf_init_arb(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_init_arb);
 
-/**
- * adf_update_ring_arb() - update ring arbitration rgister
- * @accel_dev:  Pointer to ring data.
- *
- * Function enables or disables rings for/from arbitration.
- */
 void adf_update_ring_arb(struct adf_etr_ring_data *ring)
 {
 	WRITE_CSR_ARB_RINGSRVARBEN(ring->bank->csr_addr,
 				   ring->bank->bank_number,
 				   ring->bank->ring_mask & 0xFF);
 }
-EXPORT_SYMBOL_GPL(adf_update_ring_arb);
 
 void adf_exit_arb(struct adf_accel_dev *accel_dev)
 {

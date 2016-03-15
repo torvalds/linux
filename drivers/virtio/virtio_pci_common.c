@@ -296,7 +296,7 @@ void vp_del_vqs(struct virtio_device *vdev)
 static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
-			      const char *names[],
+			      const char * const names[],
 			      bool use_msix,
 			      bool per_vq_vectors)
 {
@@ -376,7 +376,7 @@ error_find:
 int vp_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 		struct virtqueue *vqs[],
 		vq_callback_t *callbacks[],
-		const char *names[])
+		const char * const names[])
 {
 	int err;
 
@@ -545,6 +545,7 @@ err_enable_device:
 static void virtio_pci_remove(struct pci_dev *pci_dev)
 {
 	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
+	struct device *dev = get_device(&vp_dev->vdev.dev);
 
 	unregister_virtio_device(&vp_dev->vdev);
 
@@ -554,6 +555,7 @@ static void virtio_pci_remove(struct pci_dev *pci_dev)
 		virtio_pci_modern_remove(vp_dev);
 
 	pci_disable_device(pci_dev);
+	put_device(dev);
 }
 
 static struct pci_driver virtio_pci_driver = {

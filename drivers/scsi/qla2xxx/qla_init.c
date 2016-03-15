@@ -1766,10 +1766,10 @@ qla2x00_alloc_outstanding_cmds(struct qla_hw_data *ha, struct req_que *req)
 	    (ql2xmultique_tag || ql2xmaxqueues > 1)))
 		req->num_outstanding_cmds = DEFAULT_OUTSTANDING_COMMANDS;
 	else {
-		if (ha->fw_xcb_count <= ha->fw_iocb_count)
-			req->num_outstanding_cmds = ha->fw_xcb_count;
+		if (ha->cur_fw_xcb_count <= ha->cur_fw_iocb_count)
+			req->num_outstanding_cmds = ha->cur_fw_xcb_count;
 		else
-			req->num_outstanding_cmds = ha->fw_iocb_count;
+			req->num_outstanding_cmds = ha->cur_fw_iocb_count;
 	}
 
 	req->outstanding_cmds = kzalloc(sizeof(srb_t *) *
@@ -1843,9 +1843,23 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 			ql_dbg(ql_dbg_init, vha, 0x00ca,
 			    "Starting firmware.\n");
 
+			if (ql2xexlogins)
+				ha->flags.exlogins_enabled = 1;
+
+			if (ql2xexchoffld)
+				ha->flags.exchoffld_enabled = 1;
+
 			rval = qla2x00_execute_fw(vha, srisc_address);
 			/* Retrieve firmware information. */
 			if (rval == QLA_SUCCESS) {
+				rval = qla2x00_set_exlogins_buffer(vha);
+				if (rval != QLA_SUCCESS)
+					goto failed;
+
+				rval = qla2x00_set_exchoffld_buffer(vha);
+				if (rval != QLA_SUCCESS)
+					goto failed;
+
 enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
 				if (IS_P3P_TYPE(ha))
@@ -1864,9 +1878,7 @@ enable_82xx_npiv:
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
-				qla2x00_get_resource_cnts(vha, NULL,
-				    &ha->fw_xcb_count, NULL, &ha->fw_iocb_count,
-				    &ha->max_npiv_vports, NULL);
+				qla2x00_get_resource_cnts(vha);
 
 				/*
 				 * Allocate the array of outstanding commands
@@ -2192,7 +2204,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	/* Clear outstanding commands array. */
 	for (que = 0; que < ha->max_req_queues; que++) {
 		req = ha->req_q_map[que];
-		if (!req)
+		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
 		req->out_ptr = (void *)(req->ring + req->length);
 		*req->out_ptr = 0;
@@ -2209,7 +2221,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 
 	for (que = 0; que < ha->max_rsp_queues; que++) {
 		rsp = ha->rsp_q_map[que];
-		if (!rsp)
+		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
 		rsp->in_ptr = (void *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
@@ -2248,7 +2260,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	if (IS_FWI2_CAPABLE(ha)) {
 		mid_init_cb->options = cpu_to_le16(BIT_1);
 		mid_init_cb->init_cb.execution_throttle =
-		    cpu_to_le16(ha->fw_xcb_count);
+		    cpu_to_le16(ha->cur_fw_xcb_count);
 		/* D-Port Status */
 		if (IS_DPORT_CAPABLE(ha))
 			mid_init_cb->init_cb.firmware_options_1 |=
@@ -3053,6 +3065,26 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			atomic_set(&vha->loop_state, LOOP_READY);
 			ql_dbg(ql_dbg_disc, vha, 0x2069,
 			    "LOOP READY.\n");
+
+			/*
+			 * Process any ATIO queue entries that came in
+			 * while we weren't online.
+			 */
+			if (qla_tgt_mode_enabled(vha)) {
+				if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
+					spin_lock_irqsave(&ha->tgt.atio_lock,
+					    flags);
+					qlt_24xx_process_atio_queue(vha, 0);
+					spin_unlock_irqrestore(
+					    &ha->tgt.atio_lock, flags);
+				} else {
+					spin_lock_irqsave(&ha->hardware_lock,
+					    flags);
+					qlt_24xx_process_atio_queue(vha, 1);
+					spin_unlock_irqrestore(
+					    &ha->hardware_lock, flags);
+				}
+			}
 		}
 	}
 
@@ -4907,7 +4939,6 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
-	unsigned long flags;
 
 	/* If firmware needs to be loaded */
 	if (qla2x00_isp_firmware(vha)) {
@@ -4928,17 +4959,6 @@ qla2x00_restart_isp(scsi_qla_host_t *vha)
 		if (!status) {
 			/* Issue a marker after FW becomes ready. */
 			qla2x00_marker(vha, req, rsp, 0, 0, MK_SYNC_ALL);
-
-			vha->flags.online = 1;
-
-			/*
-			 * Process any ATIO queue entries that came in
-			 * while we weren't online.
-			 */
-			spin_lock_irqsave(&ha->hardware_lock, flags);
-			if (qla_tgt_mode_enabled(vha))
-				qlt_24xx_process_atio_queue(vha);
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		}
@@ -4961,7 +4981,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 
 	for (i = 1; i < ha->max_rsp_queues; i++) {
 		rsp = ha->rsp_q_map[i];
-		if (rsp) {
+		if (rsp && test_bit(i, ha->rsp_qid_map)) {
 			rsp->options &= ~BIT_0;
 			ret = qla25xx_init_rsp_que(base_vha, rsp);
 			if (ret != QLA_SUCCESS)
@@ -4976,8 +4996,8 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 	}
 	for (i = 1; i < ha->max_req_queues; i++) {
 		req = ha->req_q_map[i];
-		if (req) {
-		/* Clear outstanding commands array. */
+		if (req && test_bit(i, ha->req_qid_map)) {
+			/* Clear outstanding commands array. */
 			req->options &= ~BIT_0;
 			ret = qla25xx_init_req_que(base_vha, req);
 			if (ret != QLA_SUCCESS)

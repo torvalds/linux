@@ -487,7 +487,7 @@ static int amdgpu_debugfs_ring_info(struct seq_file *m, void *data)
 	seq_printf(m, "rptr: 0x%08x [%5d]\n",
 		   rptr, rptr);
 
-	rptr_next = ~0;
+	rptr_next = le32_to_cpu(*ring->next_rptr_cpu_addr);
 
 	seq_printf(m, "driver's copy of the wptr: 0x%08x [%5d]\n",
 		   ring->wptr, ring->wptr);

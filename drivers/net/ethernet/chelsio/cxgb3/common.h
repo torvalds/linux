@@ -575,7 +575,7 @@ static inline int t3_mdio_write(struct cphy *phy, int mmd, int reg,
 
 /* Convenience initializer */
 static inline void cphy_init(struct cphy *phy, struct adapter *adapter,
-			     int phy_addr, struct cphy_ops *phy_ops,
+			     int phy_addr, const struct cphy_ops *phy_ops,
 			     const struct mdio_ops *mdio_ops,
 			      unsigned int caps, const char *desc)
 {

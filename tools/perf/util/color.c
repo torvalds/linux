@@ -24,7 +24,7 @@ int perf_config_colorbool(const char *var, const char *value, int stdout_is_tty)
  auto_color:
 	if (stdout_is_tty < 0)
 		stdout_is_tty = isatty(1);
-	if (stdout_is_tty || (pager_in_use() && pager_use_color)) {
+	if (stdout_is_tty || pager_in_use()) {
 		char *term = getenv("TERM");
 		if (term && strcmp(term, "dumb"))
 			return 1;

@@ -811,7 +811,7 @@ static int max77843_muic_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(max77843_muic_irqs); i++) {
 		struct max77843_muic_irq *muic_irq = &max77843_muic_irqs[i];
-		unsigned int virq = 0;
+		int virq = 0;
 
 		virq = regmap_irq_get_virq(max77843->irq_data_muic,
 				muic_irq->irq);

@@ -406,6 +406,7 @@ static struct apic __refdata apic_x2apic_uv_x = {
 
 	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
 
+	.send_IPI			= uv_send_IPI_one,
 	.send_IPI_mask			= uv_send_IPI_mask,
 	.send_IPI_mask_allbutself	= uv_send_IPI_mask_allbutself,
 	.send_IPI_allbutself		= uv_send_IPI_allbutself,
@@ -888,7 +889,10 @@ void __init uv_system_init(void)
 		return;
 	}
 	pr_info("UV: Found %s hub\n", hub);
-	map_low_mmrs();
+
+	/* We now only need to map the MMRs on UV1 */
+	if (is_uv1_hub())
+		map_low_mmrs();
 
 	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
 	m_val = m_n_config.s.m_skt;

@@ -52,6 +52,7 @@ config LEDS_AAT1290
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
 	depends on LEDS_CLASS
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  This option enables support for LEDs connected to the BCM6328
@@ -60,6 +61,7 @@ config LEDS_BCM6328
 config LEDS_BCM6358
 	tristate "LED Support for Broadcom BCM6358"
 	depends on LEDS_CLASS
+	depends on HAS_IOMEM
 	depends on OF
 	help
 	  This option enables support for LEDs connected to the BCM6358

@@ -152,7 +152,7 @@ static void lcdc_write(unsigned int val, unsigned int addr)
 
 struct da8xx_fb_par {
 	struct device		*dev;
-	resource_size_t p_palette_base;
+	dma_addr_t		p_palette_base;
 	unsigned char *v_palette_base;
 	dma_addr_t		vram_phys;
 	unsigned long		vram_size;
@@ -1428,7 +1428,7 @@ static int fb_probe(struct platform_device *device)
 
 	par->vram_virt = dma_alloc_coherent(NULL,
 					    par->vram_size,
-					    (resource_size_t *) &par->vram_phys,
+					    &par->vram_phys,
 					    GFP_KERNEL | GFP_DMA);
 	if (!par->vram_virt) {
 		dev_err(&device->dev,
@@ -1448,7 +1448,7 @@ static int fb_probe(struct platform_device *device)
 
 	/* allocate palette buffer */
 	par->v_palette_base = dma_zalloc_coherent(NULL, PALETTE_SIZE,
-						  (resource_size_t *)&par->p_palette_base,
+						  &par->p_palette_base,
 						  GFP_KERNEL | GFP_DMA);
 	if (!par->v_palette_base) {
 		dev_err(&device->dev,

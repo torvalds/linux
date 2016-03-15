@@ -15,6 +15,7 @@ of PMIC's from Qualcomm.
 		    "qcom,pm8917-mpp",
 		    "qcom,pm8921-mpp",
 		    "qcom,pm8941-mpp",
+		    "qcom,pm8994-mpp",
 		    "qcom,pma8084-mpp",
 
 - reg:

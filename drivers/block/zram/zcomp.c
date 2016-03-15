@@ -74,18 +74,18 @@ static void zcomp_strm_free(struct zcomp *comp, struct zcomp_strm *zstrm)
  * allocate new zcomp_strm structure with ->private initialized by
  * backend, return NULL on error
  */
-static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp)
+static struct zcomp_strm *zcomp_strm_alloc(struct zcomp *comp, gfp_t flags)
 {
-	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), GFP_KERNEL);
+	struct zcomp_strm *zstrm = kmalloc(sizeof(*zstrm), flags);
 	if (!zstrm)
 		return NULL;
 
-	zstrm->private = comp->backend->create();
+	zstrm->private = comp->backend->create(flags);
 	/*
 	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
 	 * case when compressed size is larger than the original one
 	 */
-	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+	zstrm->buffer = (void *)__get_free_pages(flags | __GFP_ZERO, 1);
 	if (!zstrm->private || !zstrm->buffer) {
 		zcomp_strm_free(comp, zstrm);
 		zstrm = NULL;
@@ -120,8 +120,16 @@ static struct zcomp_strm *zcomp_strm_multi_find(struct zcomp *comp)
 		/* allocate new zstrm stream */
 		zs->avail_strm++;
 		spin_unlock(&zs->strm_lock);
-
-		zstrm = zcomp_strm_alloc(comp);
+		/*
+		 * This function can be called in swapout/fs write path
+		 * so we can't use GFP_FS|IO. And it assumes we already
+		 * have at least one stream in zram initialization so we
+		 * don't do best effort to allocate more stream in here.
+		 * A default stream will work well without further multiple
+		 * streams. That's why we use NORETRY | NOWARN.
+		 */
+		zstrm = zcomp_strm_alloc(comp, GFP_NOIO | __GFP_NORETRY |
+					__GFP_NOWARN);
 		if (!zstrm) {
 			spin_lock(&zs->strm_lock);
 			zs->avail_strm--;
@@ -209,7 +217,7 @@ static int zcomp_strm_multi_create(struct zcomp *comp, int max_strm)
 	zs->max_strm = max_strm;
 	zs->avail_strm = 1;
 
-	zstrm = zcomp_strm_alloc(comp);
+	zstrm = zcomp_strm_alloc(comp, GFP_KERNEL);
 	if (!zstrm) {
 		kfree(zs);
 		return -ENOMEM;
@@ -259,7 +267,7 @@ static int zcomp_strm_single_create(struct zcomp *comp)
 
 	comp->stream = zs;
 	mutex_init(&zs->strm_lock);
-	zs->zstrm = zcomp_strm_alloc(comp);
+	zs->zstrm = zcomp_strm_alloc(comp, GFP_KERNEL);
 	if (!zs->zstrm) {
 		kfree(zs);
 		return -ENOMEM;

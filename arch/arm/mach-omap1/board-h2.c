@@ -42,7 +42,7 @@
 #include <linux/omap-dma.h>
 #include <mach/tc.h>
 #include <linux/platform_data/keypad-omap.h>
-#include <mach/flash.h>
+#include "flash.h"
 
 #include <mach/hardware.h>
 #include <mach/usb.h>

@@ -176,6 +176,7 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 {
 	struct nvkm_subdev *subdev = &clk->subdev;
 	struct nvkm_ram *ram = subdev->device->fb->ram;
+	struct nvkm_pci *pci = subdev->device->pci;
 	struct nvkm_pstate *pstate;
 	int ret, idx = 0;
 
@@ -186,6 +187,8 @@ nvkm_pstate_prog(struct nvkm_clk *clk, int pstatei)
 
 	nvkm_debug(subdev, "setting performance state %d\n", pstatei);
 	clk->pstate = pstatei;
+
+	nvkm_pcie_set_link(pci, pstate->pcie_speed, pstate->pcie_width);
 
 	if (ram && ram->func->calc) {
 		int khz = pstate->base.domain[nv_clk_src_mem];
@@ -330,6 +333,8 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 
 	pstate->pstate = perfE.pstate;
 	pstate->fanspeed = perfE.fanspeed;
+	pstate->pcie_speed = perfE.pcie_speed;
+	pstate->pcie_width = perfE.pcie_width;
 	cstate->voltage = perfE.voltage;
 	cstate->domain[nv_clk_src_core] = perfE.core;
 	cstate->domain[nv_clk_src_shader] = perfE.shader;

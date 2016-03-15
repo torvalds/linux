@@ -27,7 +27,7 @@
  * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -1197,7 +1197,7 @@ int lprocfs_wr_ping(struct file *file, const char __user *buffer,
 		return rc;
 
 	req = ptlrpc_prep_ping(obd->u.cli.cl_import);
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 	if (req == NULL)
 		return -ENOMEM;
 
@@ -1291,7 +1291,7 @@ int lprocfs_rd_pinger_recov(struct seq_file *m, void *n)
 		return rc;
 
 	seq_printf(m, "%d\n", !imp->imp_no_pinger_recover);
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return 0;
 }
@@ -1319,7 +1319,7 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 	spin_lock(&imp->imp_lock);
 	imp->imp_no_pinger_recover = !val;
 	spin_unlock(&imp->imp_lock);
-	LPROCFS_CLIMP_EXIT(obd);
+	up_read(&obd->u.cli.cl_sem);
 
 	return count;
 

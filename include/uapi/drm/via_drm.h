@@ -24,7 +24,7 @@
 #ifndef _VIA_DRM_H_
 #define _VIA_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /* WARNING: These defines must be the same as what the Xserver uses.
  * if you change them, you must change the defines in the Xserver.
@@ -33,9 +33,6 @@
 #ifndef _VIA_DEFINES_
 #define _VIA_DEFINES_
 
-#ifndef __KERNEL__
-#include "via_drmclient.h"
-#endif
 
 #define VIA_NR_SAREA_CLIPRECTS		8
 #define VIA_NR_XVMC_PORTS               10

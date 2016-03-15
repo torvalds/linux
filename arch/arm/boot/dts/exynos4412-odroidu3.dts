@@ -13,7 +13,6 @@
 
 /dts-v1/;
 #include "exynos4412-odroid-common.dtsi"
-#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Hardkernel ODROID-U3 board based on Exynos4412";

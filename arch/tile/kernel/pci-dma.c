@@ -583,6 +583,35 @@ struct dma_map_ops *gx_hybrid_pci_dma_map_ops;
 EXPORT_SYMBOL(gx_legacy_pci_dma_map_ops);
 EXPORT_SYMBOL(gx_hybrid_pci_dma_map_ops);
 
+int dma_set_mask(struct device *dev, u64 mask)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+
+	/*
+	 * For PCI devices with 64-bit DMA addressing capability, promote
+	 * the dma_ops to hybrid, with the consistent memory DMA space limited
+	 * to 32-bit. For 32-bit capable devices, limit the streaming DMA
+	 * address range to max_direct_dma_addr.
+	 */
+	if (dma_ops == gx_pci_dma_map_ops ||
+	    dma_ops == gx_hybrid_pci_dma_map_ops ||
+	    dma_ops == gx_legacy_pci_dma_map_ops) {
+		if (mask == DMA_BIT_MASK(64) &&
+		    dma_ops == gx_legacy_pci_dma_map_ops)
+			set_dma_ops(dev, gx_hybrid_pci_dma_map_ops);
+		else if (mask > dev->archdata.max_direct_dma_addr)
+			mask = dev->archdata.max_direct_dma_addr;
+	}
+
+	if (!dev->dma_mask || !dma_supported(dev, mask))
+		return -EIO;
+
+	*dev->dma_mask = mask;
+
+	return 0;
+}
+EXPORT_SYMBOL(dma_set_mask);
+
 #ifdef CONFIG_ARCH_HAS_DMA_SET_COHERENT_MASK
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {

@@ -149,20 +149,19 @@ static inline pending_ring_idx_t pending_index(unsigned i)
 	return i & (MAX_PENDING_REQS-1);
 }
 
-static int xenvif_rx_ring_slots_needed(struct xenvif *vif)
-{
-	if (vif->gso_mask)
-		return DIV_ROUND_UP(vif->dev->gso_max_size, XEN_PAGE_SIZE) + 1;
-	else
-		return DIV_ROUND_UP(vif->dev->mtu, XEN_PAGE_SIZE);
-}
-
 static bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue)
 {
 	RING_IDX prod, cons;
+	struct sk_buff *skb;
 	int needed;
 
-	needed = xenvif_rx_ring_slots_needed(queue->vif);
+	skb = skb_peek(&queue->rx_queue);
+	if (!skb)
+		return false;
+
+	needed = DIV_ROUND_UP(skb->len, XEN_PAGE_SIZE);
+	if (skb_is_gso(skb))
+		needed++;
 
 	do {
 		prod = queue->rx.sring->req_prod;
@@ -2005,8 +2004,7 @@ static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
 
 static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
-	return (!skb_queue_empty(&queue->rx_queue)
-		&& xenvif_rx_ring_slots_available(queue))
+	return xenvif_rx_ring_slots_available(queue)
 		|| (queue->vif->stall_timeout &&
 		    (xenvif_rx_queue_stalled(queue)
 		     || xenvif_rx_queue_ready(queue)))

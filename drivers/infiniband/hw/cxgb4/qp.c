@@ -933,11 +933,6 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	return err;
 }
 
-int c4iw_bind_mw(struct ib_qp *qp, struct ib_mw *mw, struct ib_mw_bind *mw_bind)
-{
-	return -ENOSYS;
-}
-
 static inline void build_term_codes(struct t4_cqe *err_cqe, u8 *layer_type,
 				    u8 *ecode)
 {

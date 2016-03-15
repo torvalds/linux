@@ -281,7 +281,8 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&magneto_snowball_mode>;
-				gpios = <&gpio5 5 0x4>; /* DRDY line */
+				interrupt-parent = <&gpio5>;
+				interrupts = <5 IRQ_TYPE_EDGE_RISING>; /* DRDY line */
 			};
 			l3g4200d@68 {
 				/* Gyroscope */
@@ -292,9 +293,9 @@
 				vddio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&gyro_snowball_mode>;
-				gpios = <&gpio5 6 0x4>; /* DRDY line */
 				interrupt-parent = <&gpio5>;
-				interrupts = <9 IRQ_TYPE_EDGE_RISING>; /* INT1 */
+				interrupts = <6 IRQ_TYPE_EDGE_RISING>, /* DRDY line */
+					     <9 IRQ_TYPE_EDGE_RISING>; /* INT1 */
 			};
 			lsp001wm@5c {
 				/* Barometer/pressure sensor */

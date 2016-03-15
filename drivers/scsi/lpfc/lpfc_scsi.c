@@ -3676,6 +3676,7 @@ static void
 lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		    struct lpfc_iocbq *rsp_iocb)
 {
+	struct lpfc_hba *phba = vport->phba;
 	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
 	struct fcp_cmnd *fcpcmd = lpfc_cmd->fcp_cmnd;
 	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
@@ -3685,6 +3686,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t *lp;
 	uint32_t host_status = DID_OK;
 	uint32_t rsplen = 0;
+	uint32_t fcpDl;
 	uint32_t logit = LOG_FCP | LOG_FCP_ERROR;
 
 
@@ -3755,13 +3757,14 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 			 fcprsp->rspInfo3);
 
 	scsi_set_resid(cmnd, 0);
+	fcpDl = be32_to_cpu(fcpcmd->fcpDl);
 	if (resp_info & RESID_UNDER) {
 		scsi_set_resid(cmnd, be32_to_cpu(fcprsp->rspResId));
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP_UNDER,
 				 "9025 FCP Read Underrun, expected %d, "
 				 "residual %d Data: x%x x%x x%x\n",
-				 be32_to_cpu(fcpcmd->fcpDl),
+				 fcpDl,
 				 scsi_get_resid(cmnd), fcpi_parm, cmnd->cmnd[0],
 				 cmnd->underflow);
 
@@ -3777,7 +3780,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 					 LOG_FCP | LOG_FCP_ERROR,
 					 "9026 FCP Read Check Error "
 					 "and Underrun Data: x%x x%x x%x x%x\n",
-					 be32_to_cpu(fcpcmd->fcpDl),
+					 fcpDl,
 					 scsi_get_resid(cmnd), fcpi_parm,
 					 cmnd->cmnd[0]);
 			scsi_set_resid(cmnd, scsi_bufflen(cmnd));
@@ -3812,13 +3815,25 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	 * Check SLI validation that all the transfer was actually done
 	 * (fcpi_parm should be zero). Apply check only to reads.
 	 */
-	} else if (fcpi_parm && (cmnd->sc_data_direction == DMA_FROM_DEVICE)) {
+	} else if (fcpi_parm) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
-				 "9029 FCP Read Check Error Data: "
+				 "9029 FCP %s Check Error xri x%x  Data: "
 				 "x%x x%x x%x x%x x%x\n",
-				 be32_to_cpu(fcpcmd->fcpDl),
-				 be32_to_cpu(fcprsp->rspResId),
+				 ((cmnd->sc_data_direction == DMA_FROM_DEVICE) ?
+				 "Read" : "Write"),
+				 ((phba->sli_rev == LPFC_SLI_REV4) ?
+				 lpfc_cmd->cur_iocbq.sli4_xritag :
+				 rsp_iocb->iocb.ulpContext),
+				 fcpDl, be32_to_cpu(fcprsp->rspResId),
 				 fcpi_parm, cmnd->cmnd[0], scsi_status);
+
+		/* There is some issue with the LPe12000 that causes it
+		 * to miscalculate the fcpi_parm and falsely trip this
+		 * recovery logic.  Detect this case and don't error when true.
+		 */
+		if (fcpi_parm > fcpDl)
+			goto out;
+
 		switch (scsi_status) {
 		case SAM_STAT_GOOD:
 		case SAM_STAT_CHECK_CONDITION:
@@ -3908,9 +3923,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	uint32_t logit = LOG_FCP;
 
 	/* Sanity check on return of outstanding command */
-	if (!(lpfc_cmd->pCmd))
-		return;
 	cmd = lpfc_cmd->pCmd;
+	if (!cmd)
+		return;
 	shost = cmd->device->host;
 
 	lpfc_cmd->result = (pIocbOut->iocb.un.ulpWord[4] & IOERR_PARAM_MASK);
@@ -4446,15 +4461,7 @@ lpfc_info(struct Scsi_Host *host)
 				 phba->Port);
 		}
 		len = strlen(lpfcinfobuf);
-		if (phba->sli_rev <= LPFC_SLI_REV3) {
-			link_speed = lpfc_sli_port_speed_get(phba);
-		} else {
-			if (phba->sli4_hba.link_state.logical_speed)
-				link_speed =
-				      phba->sli4_hba.link_state.logical_speed;
-			else
-				link_speed = phba->sli4_hba.link_state.speed;
-		}
+		link_speed = lpfc_sli_port_speed_get(phba);
 		if (link_speed != 0)
 			snprintf(lpfcinfobuf + len, 384-len,
 				 " Logical Link Speed: %d Mbps", link_speed);

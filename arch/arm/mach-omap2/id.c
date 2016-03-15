@@ -488,6 +488,7 @@ void __init omap3xxx_check_revision(void)
 		}
 		break;
 	case 0xb8f2:
+	case 0xb968:
 		switch (rev) {
 		case 0:
 		/* FALLTHROUGH */
@@ -511,7 +512,8 @@ void __init omap3xxx_check_revision(void)
 		/* Unknown default to latest silicon rev as default */
 		omap_revision = OMAP3630_REV_ES1_2;
 		cpu_rev = "1.2";
-		pr_warn("Warning: unknown chip type; assuming OMAP3630ES1.2\n");
+		pr_warn("Warning: unknown chip type: hawkeye %04x, assuming OMAP3630ES1.2\n",
+			hawkeye);
 	}
 	sprintf(soc_rev, "ES%s", cpu_rev);
 }

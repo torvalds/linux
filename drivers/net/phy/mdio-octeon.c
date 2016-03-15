@@ -113,7 +113,6 @@ struct octeon_mdiobus {
 	resource_size_t mdio_phys;
 	resource_size_t regsize;
 	enum octeon_mdiobus_mode mode;
-	int phy_irq[PHY_MAX_ADDR];
 };
 
 #ifdef CONFIG_CAVIUM_OCTEON_SOC
@@ -268,12 +267,13 @@ static int octeon_mdiobus_write(struct mii_bus *bus, int phy_id,
 static int octeon_mdiobus_probe(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
+	struct mii_bus *mii_bus;
 	struct resource *res_mem;
 	union cvmx_smix_en smi_en;
 	int err = -ENOENT;
 
-	bus = devm_kzalloc(&pdev->dev, sizeof(*bus), GFP_KERNEL);
-	if (!bus)
+	mii_bus = devm_mdiobus_alloc_size(&pdev->dev, sizeof(*bus));
+	if (!mii_bus)
 		return -ENOMEM;
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -282,6 +282,8 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	bus = mii_bus->priv;
+	bus->mii_bus = mii_bus;
 	bus->mdio_phys = res_mem->start;
 	bus->regsize = resource_size(res_mem);
 
@@ -298,16 +300,11 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	bus->mii_bus = mdiobus_alloc();
-	if (!bus->mii_bus)
-		goto fail;
-
 	smi_en.u64 = 0;
 	smi_en.s.en = 1;
 	oct_mdio_writeq(smi_en.u64, bus->register_base + SMI_EN);
 
 	bus->mii_bus->priv = bus;
-	bus->mii_bus->irq = bus->phy_irq;
 	bus->mii_bus->name = "mdio-octeon";
 	snprintf(bus->mii_bus->id, MII_BUS_ID_SIZE, "%llx", bus->register_base);
 	bus->mii_bus->parent = &pdev->dev;
@@ -326,7 +323,6 @@ static int octeon_mdiobus_probe(struct platform_device *pdev)
 	return 0;
 fail_register:
 	mdiobus_free(bus->mii_bus);
-fail:
 	smi_en.u64 = 0;
 	oct_mdio_writeq(smi_en.u64, bus->register_base + SMI_EN);
 	return err;

@@ -37,4 +37,14 @@ config EHEA
 	  To compile the driver as a module, choose M here. The module
 	  will be called ehea.
 
+config IBMVNIC
+	tristate "IBM Virtual NIC support"
+	depends on PPC_PSERIES
+	---help---
+	  This driver supports Virtual NIC adapters on IBM i and IBM System p
+	  systems.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called ibmvnic.
+
 endif # NET_VENDOR_IBM

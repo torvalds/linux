@@ -410,8 +410,6 @@ struct sdma_engine {
 	u64 idle_mask;
 	u64 progress_mask;
 	/* private: */
-	struct workqueue_struct *wq;
-	/* private: */
 	volatile __le64      *head_dma; /* DMA'ed by chip */
 	/* private: */
 	dma_addr_t            head_phys;
@@ -426,6 +424,8 @@ struct sdma_engine {
 	u32 sdma_mask;
 	/* private */
 	struct sdma_state state;
+	/* private */
+	int cpu;
 	/* private: */
 	u8 sdma_shift;
 	/* private: */
@@ -774,10 +774,13 @@ static inline int _sdma_txadd_daddr(
 	tx->tlen -= len;
 	/* special cases for last */
 	if (!tx->tlen) {
-		if (tx->packet_len & (sizeof(u32) - 1))
+		if (tx->packet_len & (sizeof(u32) - 1)) {
 			rval = _pad_sdma_tx_descs(dd, tx);
-		else
+			if (rval)
+				return rval;
+		} else {
 			_sdma_close_tx(dd, tx);
+		}
 	}
 	tx->num_desc++;
 	return rval;
@@ -990,7 +993,9 @@ static inline void sdma_iowait_schedule(
 	struct sdma_engine *sde,
 	struct iowait *wait)
 {
-	iowait_schedule(wait, sde->wq);
+	struct hfi1_pportdata *ppd = sde->dd->pport;
+
+	iowait_schedule(wait, ppd->hfi1_wq, sde->cpu);
 }
 
 /* for use by interrupt handling */

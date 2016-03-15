@@ -519,9 +519,9 @@ nla_put_failure:
 	return -1;
 }
 
-static int
-nfnl_compat_get(struct sock *nfnl, struct sk_buff *skb,
-		const struct nlmsghdr *nlh, const struct nlattr * const tb[])
+static int nfnl_compat_get(struct net *net, struct sock *nfnl,
+			   struct sk_buff *skb, const struct nlmsghdr *nlh,
+			   const struct nlattr * const tb[])
 {
 	int ret = 0, target;
 	struct nfgenmsg *nfmsg;

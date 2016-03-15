@@ -606,6 +606,8 @@ con3270_init(void)
 		return PTR_ERR(rp);
 
 	condev = kzalloc(sizeof(struct con3270), GFP_KERNEL | GFP_DMA);
+	if (!condev)
+		return -ENOMEM;
 	condev->view.dev = rp;
 
 	condev->read = raw3270_request_alloc(0);

@@ -723,14 +723,27 @@ EXPORT_SYMBOL(ib_sa_get_mcmember_rec);
 
 int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 			     struct ib_sa_mcmember_rec *rec,
+			     struct net_device *ndev,
+			     enum ib_gid_type gid_type,
 			     struct ib_ah_attr *ah_attr)
 {
 	int ret;
 	u16 gid_index;
 	u8 p;
 
-	ret = ib_find_cached_gid(device, &rec->port_gid,
-				 NULL, &p, &gid_index);
+	if (rdma_protocol_roce(device, port_num)) {
+		ret = ib_find_cached_gid_by_port(device, &rec->port_gid,
+						 gid_type, port_num,
+						 ndev,
+						 &gid_index);
+	} else if (rdma_protocol_ib(device, port_num)) {
+		ret = ib_find_cached_gid(device, &rec->port_gid,
+					 IB_GID_TYPE_IB, NULL, &p,
+					 &gid_index);
+	} else {
+		ret = -EINVAL;
+	}
+
 	if (ret)
 		return ret;
 

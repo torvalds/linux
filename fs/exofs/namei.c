@@ -111,6 +111,7 @@ static int exofs_symlink(struct inode *dir, struct dentry *dentry,
 	if (l > sizeof(oi->i_data)) {
 		/* slow symlink */
 		inode->i_op = &page_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &exofs_aops;
 		memset(oi->i_data, 0, sizeof(oi->i_data));
 

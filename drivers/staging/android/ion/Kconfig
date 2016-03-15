@@ -33,3 +33,10 @@ config ION_TEGRA
 	help
 	  Choose this option if you wish to use ion on an nVidia Tegra.
 
+config ION_HISI
+	tristate "Ion for Hisilicon"
+	depends on ARCH_HISI && ION
+	help
+	  Choose this option if you wish to use ion on Hisilicon Platform.
+
+source "drivers/staging/android/ion/hisilicon/Kconfig"

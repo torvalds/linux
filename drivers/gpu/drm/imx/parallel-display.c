@@ -148,23 +148,23 @@ static void imx_pd_encoder_disable(struct drm_encoder *encoder)
 	drm_panel_unprepare(imxpd->panel);
 }
 
-static struct drm_connector_funcs imx_pd_connector_funcs = {
+static const struct drm_connector_funcs imx_pd_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = imx_pd_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 };
 
-static struct drm_connector_helper_funcs imx_pd_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs imx_pd_connector_helper_funcs = {
 	.get_modes = imx_pd_connector_get_modes,
 	.best_encoder = imx_pd_connector_best_encoder,
 };
 
-static struct drm_encoder_funcs imx_pd_encoder_funcs = {
+static const struct drm_encoder_funcs imx_pd_encoder_funcs = {
 	.destroy = imx_drm_encoder_destroy,
 };
 
-static struct drm_encoder_helper_funcs imx_pd_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs imx_pd_encoder_helper_funcs = {
 	.dpms = imx_pd_encoder_dpms,
 	.mode_fixup = imx_pd_encoder_mode_fixup,
 	.prepare = imx_pd_encoder_prepare,
@@ -192,7 +192,7 @@ static int imx_pd_register(struct drm_device *drm,
 
 	drm_encoder_helper_add(&imxpd->encoder, &imx_pd_encoder_helper_funcs);
 	drm_encoder_init(drm, &imxpd->encoder, &imx_pd_encoder_funcs,
-			 DRM_MODE_ENCODER_NONE);
+			 DRM_MODE_ENCODER_NONE, NULL);
 
 	drm_connector_helper_add(&imxpd->connector,
 			&imx_pd_connector_helper_funcs);
@@ -203,8 +203,6 @@ static int imx_pd_register(struct drm_device *drm,
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
 	drm_mode_connector_attach_encoder(&imxpd->connector, &imxpd->encoder);
-
-	imxpd->connector.encoder = &imxpd->encoder;
 
 	return 0;
 }

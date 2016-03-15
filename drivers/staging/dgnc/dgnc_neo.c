@@ -1108,9 +1108,9 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 	 * On the other hand, if the UART IS in FIFO mode, then ask
 	 * the UART to give us an approximation of data it has RX'ed.
 	 */
-	if (!(ch->ch_flags & CH_FIFO_ENABLED))
+	if (!(ch->ch_flags & CH_FIFO_ENABLED)) {
 		total = 0;
-	else {
+	} else {
 		total = readb(&ch->ch_neo_uart->rfifo);
 
 		/*
@@ -1628,7 +1628,7 @@ static void neo_uart_init(struct channel_t *ch)
 
 	/* Clear out UART and FIFO */
 	readb(&ch->ch_neo_uart->txrx);
-	writeb((UART_FCR_ENABLE_FIFO|UART_FCR_CLEAR_RCVR|UART_FCR_CLEAR_XMIT), &ch->ch_neo_uart->isr_fcr);
+	writeb((UART_FCR_ENABLE_FIFO | UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT), &ch->ch_neo_uart->isr_fcr);
 	readb(&ch->ch_neo_uart->lsr);
 	readb(&ch->ch_neo_uart->msr);
 
@@ -1779,8 +1779,8 @@ static void neo_vpd(struct dgnc_board *brd)
 	/* Store the VPD into our buffer */
 	for (i = 0; i < NEO_VPD_IMAGESIZE; i++) {
 		a = neo_read_eeprom(brd->re_map_membase, i);
-		brd->vpd[i*2] = a & 0xff;
-		brd->vpd[(i*2)+1] = (a >> 8) & 0xff;
+		brd->vpd[i * 2] = a & 0xff;
+		brd->vpd[(i * 2) + 1] = (a >> 8) & 0xff;
 	}
 
 	if  (((brd->vpd[0x08] != 0x82)	   /* long resource name tag */

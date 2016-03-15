@@ -133,6 +133,21 @@ struct musb_hdrc_platform_data {
 	const void	*platform_ops;
 };
 
+enum musb_vbus_id_status {
+	MUSB_UNKNOWN = 0,
+	MUSB_ID_GROUND,
+	MUSB_ID_FLOAT,
+	MUSB_VBUS_VALID,
+	MUSB_VBUS_OFF,
+};
+
+#if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
+void musb_mailbox(enum musb_vbus_id_status status);
+#else
+static inline void musb_mailbox(enum musb_vbus_id_status status)
+{
+}
+#endif
 
 /* TUSB 6010 support */
 

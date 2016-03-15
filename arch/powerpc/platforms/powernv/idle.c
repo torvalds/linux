@@ -242,7 +242,7 @@ static int __init pnv_init_idle_states(void)
 	if (cpuidle_disable != IDLE_NO_OVERRIDE)
 		goto out;
 
-	if (!firmware_has_feature(FW_FEATURE_OPALv3))
+	if (!firmware_has_feature(FW_FEATURE_OPAL))
 		goto out;
 
 	power_mgt = of_find_node_by_path("/ibm,opal/power-mgt");

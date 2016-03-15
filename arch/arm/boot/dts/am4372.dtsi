@@ -30,6 +30,7 @@
 		serial5 = &uart5;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
+		spi0 = &qspi;
 	};
 
 	cpus {
@@ -72,7 +73,7 @@
 	global_timer: timer@48240200 {
 		compatible = "arm,cortex-a9-global-timer";
 		reg = <0x48240200 0x100>;
-		interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 11 IRQ_TYPE_EDGE_RISING>;
 		interrupt-parent = <&gic>;
 		clocks = <&mpu_periphclk>;
 	};
@@ -80,7 +81,7 @@
 	local_timer: timer@48240600 {
 		compatible = "arm,cortex-a9-twd-timer";
 		reg = <0x48240600 0x100>;
-		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 13 IRQ_TYPE_EDGE_RISING>;
 		interrupt-parent = <&gic>;
 		clocks = <&mpu_periphclk>;
 	};
@@ -171,6 +172,14 @@
 					mboxes = <&mailbox &mbox_wkupm3>;
 				};
 
+				edma_xbar: dma-router@f90 {
+					compatible = "ti,am335x-edma-crossbar";
+					reg = <0xf90 0x40>;
+					#dma-cells = <3>;
+					dma-requests = <64>;
+					dma-masters = <&edma>;
+				};
+
 				scm_clockdomains: clockdomains {
 				};
 			};
@@ -183,14 +192,46 @@
 		};
 
 		edma: edma@49000000 {
-			compatible = "ti,edma3";
-			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
-			reg =	<0x49000000 0x10000>,
-				<0x44e10f90 0x10>;
+			compatible = "ti,edma3-tpcc";
+			ti,hwmods = "tpcc";
+			reg =	<0x49000000 0x10000>;
+			reg-names = "edma3_cc";
 			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_ccint", "emda3_mperr",
+					  "edma3_ccerrint";
+			dma-requests = <64>;
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 5>,
+				   <&edma_tptc2 0>;
+
+			ti,edma-memcpy-channels = <32 33>;
+		};
+
+		edma_tptc0: tptc@49800000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc0";
+			reg =	<0x49800000 0x100000>;
+			interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc1: tptc@49900000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc1";
+			reg =	<0x49900000 0x100000>;
+			interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_tcerrint";
+		};
+
+		edma_tptc2: tptc@49a00000 {
+			compatible = "ti,edma3-tptc";
+			ti,hwmods = "tptc2";
+			reg =	<0x49a00000 0x100000>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "edma3_tcerrint";
 		};
 
 		uart0: serial@44e09000 {
@@ -249,6 +290,7 @@
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
 			mbox_wkupm3: wkup_m3 {
+				ti,mbox-send-noirq;
 				ti,mbox-tx = <0 0 0>;
 				ti,mbox-rx = <0 0 3>;
 			};
@@ -495,8 +537,8 @@
 			ti,hwmods = "mmc1";
 			ti,dual-volt;
 			ti,needs-special-reset;
-			dmas = <&edma 24
-				&edma 25>;
+			dmas = <&edma 24 0>,
+				<&edma 25 0>;
 			dma-names = "tx", "rx";
 			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -507,8 +549,8 @@
 			reg = <0x481d8000 0x1000>;
 			ti,hwmods = "mmc2";
 			ti,needs-special-reset;
-			dmas = <&edma 2
-				&edma 3>;
+			dmas = <&edma 2 0>,
+				<&edma 3 0>;
 			dma-names = "tx", "rx";
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -776,7 +818,7 @@
 			compatible = "ti,omap5-sham";
 			ti,hwmods = "sham";
 			reg = <0x53100000 0x300>;
-			dmas = <&edma 36>;
+			dmas = <&edma 36 0>;
 			dma-names = "rx";
 			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 		};
@@ -786,8 +828,8 @@
 			ti,hwmods = "aes";
 			reg = <0x53501000 0xa0>;
 			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma 6
-				&edma 5>;
+			dmas = <&edma 6 0>,
+				<&edma 5 0>;
 			dma-names = "tx", "rx";
 		};
 
@@ -796,8 +838,8 @@
 			ti,hwmods = "des";
 			reg = <0x53701000 0xa0>;
 			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-			dmas = <&edma 34
-				&edma 33>;
+			dmas = <&edma 34 0>,
+				<&edma 33 0>;
 			dma-names = "tx", "rx";
 		};
 
@@ -810,8 +852,8 @@
 			interrupts = <80>, <81>;
 			interrupt-names = "tx", "rx";
 			status = "disabled";
-			dmas = <&edma 8>,
-			       <&edma 9>;
+			dmas = <&edma 8 2>,
+			       <&edma 9 2>;
 			dma-names = "tx", "rx";
 		};
 
@@ -824,8 +866,8 @@
 			interrupts = <82>, <83>;
 			interrupt-names = "tx", "rx";
 			status = "disabled";
-			dmas = <&edma 10>,
-			       <&edma 11>;
+			dmas = <&edma 10 2>,
+			       <&edma 11 2>;
 			dma-names = "tx", "rx";
 		};
 
@@ -842,6 +884,8 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
+			dmas = <&edma 52>;
+			dma-names = "rxtx";
 			clocks = <&l3s_gclk>;
 			clock-names = "fck";
 			reg = <0x50000000 0x2000>;
@@ -963,7 +1007,9 @@
 
 		qspi: qspi@47900000 {
 			compatible = "ti,am4372-qspi";
-			reg = <0x47900000 0x100>;
+			reg = <0x47900000 0x100>,
+			      <0x30000000 0x4000000>;
+			reg-names = "qspi_base", "qspi_mmap";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "qspi";

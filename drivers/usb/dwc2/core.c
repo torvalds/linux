@@ -481,32 +481,19 @@ static void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
  * Do core a soft reset of the core.  Be careful with this because it
  * resets all the internal state machines of the core.
  */
-static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
+int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
-	u32 gusbcfg;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
-	/* Wait for AHB master IDLE state */
-	do {
-		usleep_range(20000, 40000);
-		greset = dwc2_readl(hsotg->regs + GRSTCTL);
-		if (++count > 50) {
-			dev_warn(hsotg->dev,
-				 "%s() HANG! AHB Idle GRSTCTL=%0x\n",
-				 __func__, greset);
-			return -EBUSY;
-		}
-	} while (!(greset & GRSTCTL_AHBIDLE));
-
 	/* Core Soft Reset */
-	count = 0;
+	greset = dwc2_readl(hsotg->regs + GRSTCTL);
 	greset |= GRSTCTL_CSFTRST;
 	dwc2_writel(greset, hsotg->regs + GRSTCTL);
 	do {
-		usleep_range(20000, 40000);
+		udelay(1);
 		greset = dwc2_readl(hsotg->regs + GRSTCTL);
 		if (++count > 50) {
 			dev_warn(hsotg->dev,
@@ -516,29 +503,146 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 		}
 	} while (greset & GRSTCTL_CSFTRST);
 
-	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
-		gusbcfg |= GUSBCFG_FORCEHOSTMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	} else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-		gusbcfg |= GUSBCFG_FORCEDEVMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	} else if (hsotg->dr_mode == USB_DR_MODE_OTG) {
-		gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
-		dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	}
+	/* Wait for AHB master IDLE state */
+	count = 0;
+	do {
+		udelay(1);
+		greset = dwc2_readl(hsotg->regs + GRSTCTL);
+		if (++count > 50) {
+			dev_warn(hsotg->dev,
+				 "%s() HANG! AHB Idle GRSTCTL=%0x\n",
+				 __func__, greset);
+			return -EBUSY;
+		}
+	} while (!(greset & GRSTCTL_AHBIDLE));
+
+	return 0;
+}
+
+/*
+ * Force the mode of the controller.
+ *
+ * Forcing the mode is needed for two cases:
+ *
+ * 1) If the dr_mode is set to either HOST or PERIPHERAL we force the
+ * controller to stay in a particular mode regardless of ID pin
+ * changes. We do this usually after a core reset.
+ *
+ * 2) During probe we want to read reset values of the hw
+ * configuration registers that are only available in either host or
+ * device mode. We may need to force the mode if the current mode does
+ * not allow us to access the register in the mode that we want.
+ *
+ * In either case it only makes sense to force the mode if the
+ * controller hardware is OTG capable.
+ *
+ * Checks are done in this function to determine whether doing a force
+ * would be valid or not.
+ *
+ * If a force is done, it requires a 25ms delay to take effect.
+ *
+ * Returns true if the mode was forced.
+ */
+static bool dwc2_force_mode(struct dwc2_hsotg *hsotg, bool host)
+{
+	u32 gusbcfg;
+	u32 set;
+	u32 clear;
+
+	dev_dbg(hsotg->dev, "Forcing mode to %s\n", host ? "host" : "device");
+
+	/*
+	 * Force mode has no effect if the hardware is not OTG.
+	 */
+	if (!dwc2_hw_is_otg(hsotg))
+		return false;
+
+	/*
+	 * If dr_mode is either peripheral or host only, there is no
+	 * need to ever force the mode to the opposite mode.
+	 */
+	if (WARN_ON(host && hsotg->dr_mode == USB_DR_MODE_PERIPHERAL))
+		return false;
+
+	if (WARN_ON(!host && hsotg->dr_mode == USB_DR_MODE_HOST))
+		return false;
+
+	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+
+	set = host ? GUSBCFG_FORCEHOSTMODE : GUSBCFG_FORCEDEVMODE;
+	clear = host ? GUSBCFG_FORCEDEVMODE : GUSBCFG_FORCEHOSTMODE;
+
+	gusbcfg &= ~clear;
+	gusbcfg |= set;
+	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
+
+	msleep(25);
+	return true;
+}
+
+/*
+ * Clears the force mode bits.
+ */
+static void dwc2_clear_force_mode(struct dwc2_hsotg *hsotg)
+{
+	u32 gusbcfg;
+
+	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+	gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
 
 	/*
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
 	 * not stay in host mode after a connector ID change!
 	 */
-	usleep_range(150000, 200000);
+	msleep(25);
+}
 
+/*
+ * Sets or clears force mode based on the dr_mode parameter.
+ */
+void dwc2_force_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	switch (hsotg->dr_mode) {
+	case USB_DR_MODE_HOST:
+		dwc2_force_mode(hsotg, true);
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		dwc2_force_mode(hsotg, false);
+		break;
+	case USB_DR_MODE_OTG:
+		dwc2_clear_force_mode(hsotg);
+		break;
+	default:
+		dev_warn(hsotg->dev, "%s() Invalid dr_mode=%d\n",
+			 __func__, hsotg->dr_mode);
+		break;
+	}
+
+	/*
+	 * NOTE: This is required for some rockchip soc based
+	 * platforms.
+	 */
+	msleep(50);
+}
+
+/*
+ * Do core a soft reset of the core.  Be careful with this because it
+ * resets all the internal state machines of the core.
+ *
+ * Additionally this will apply force mode as per the hsotg->dr_mode
+ * parameter.
+ */
+int dwc2_core_reset_and_force_dr_mode(struct dwc2_hsotg *hsotg)
+{
+	int retval;
+
+	retval = dwc2_core_reset(hsotg);
+	if (retval)
+		return retval;
+
+	dwc2_force_dr_mode(hsotg);
 	return 0;
 }
 
@@ -553,16 +657,20 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 	 */
 	if (select_phy) {
 		dev_dbg(hsotg->dev, "FS PHY selected\n");
-		usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-		usbcfg |= GUSBCFG_PHYSEL;
-		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
-		/* Reset after a PHY select */
-		retval = dwc2_core_reset(hsotg);
-		if (retval) {
-			dev_err(hsotg->dev, "%s() Reset failed, aborting",
-					__func__);
-			return retval;
+		usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+		if (!(usbcfg & GUSBCFG_PHYSEL)) {
+			usbcfg |= GUSBCFG_PHYSEL;
+			dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
+
+			/* Reset after a PHY select */
+			retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+
+			if (retval) {
+				dev_err(hsotg->dev,
+					"%s: Reset failed, aborting", __func__);
+				return retval;
+			}
 		}
 	}
 
@@ -597,13 +705,13 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 
 static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 {
-	u32 usbcfg;
+	u32 usbcfg, usbcfg_old;
 	int retval = 0;
 
 	if (!select_phy)
 		return 0;
 
-	usbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
+	usbcfg = usbcfg_old = dwc2_readl(hsotg->regs + GUSBCFG);
 
 	/*
 	 * HS PHY parameters. These parameters are preserved during soft reset
@@ -631,14 +739,16 @@ static int dwc2_hs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		break;
 	}
 
-	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
+	if (usbcfg != usbcfg_old) {
+		dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
-	/* Reset after setting the PHY parameters */
-	retval = dwc2_core_reset(hsotg);
-	if (retval) {
-		dev_err(hsotg->dev, "%s() Reset failed, aborting",
-				__func__);
-		return retval;
+		/* Reset after setting the PHY parameters */
+		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+		if (retval) {
+			dev_err(hsotg->dev,
+				"%s: Reset failed, aborting", __func__);
+			return retval;
+		}
 	}
 
 	return retval;
@@ -765,11 +875,10 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
  * dwc2_core_init() - Initializes the DWC_otg controller registers and
  * prepares the core for device mode or host mode operation
  *
- * @hsotg:      Programming view of the DWC_otg controller
- * @select_phy: If true then also set the Phy type
- * @irq:        If >= 0, the irq to register
+ * @hsotg:         Programming view of the DWC_otg controller
+ * @initial_setup: If true then this is the first init for this instance.
  */
-int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
+int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 {
 	u32 usbcfg, otgctl;
 	int retval;
@@ -791,18 +900,26 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 
 	dwc2_writel(usbcfg, hsotg->regs + GUSBCFG);
 
-	/* Reset the Controller */
-	retval = dwc2_core_reset(hsotg);
-	if (retval) {
-		dev_err(hsotg->dev, "%s(): Reset failed, aborting\n",
-				__func__);
-		return retval;
+	/*
+	 * Reset the Controller
+	 *
+	 * We only need to reset the controller if this is a re-init.
+	 * For the first init we know for sure that earlier code reset us (it
+	 * needed to in order to properly detect various parameters).
+	 */
+	if (!initial_setup) {
+		retval = dwc2_core_reset_and_force_dr_mode(hsotg);
+		if (retval) {
+			dev_err(hsotg->dev, "%s(): Reset failed, aborting\n",
+					__func__);
+			return retval;
+		}
 	}
 
 	/*
 	 * This needs to happen in FS mode before any other programming occurs
 	 */
-	retval = dwc2_phy_init(hsotg, select_phy);
+	retval = dwc2_phy_init(hsotg, initial_setup);
 	if (retval)
 		return retval;
 
@@ -1707,6 +1824,7 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	u32 hcchar;
 	u32 hctsiz = 0;
 	u16 num_packets;
+	u32 ec_mc;
 
 	if (dbg_hc(chan))
 		dev_vdbg(hsotg->dev, "%s()\n", __func__);
@@ -1743,6 +1861,13 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 
 		hctsiz |= chan->xfer_len << TSIZ_XFERSIZE_SHIFT &
 			  TSIZ_XFERSIZE_MASK;
+
+		/* For split set ec_mc for immediate retries */
+		if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
+		    chan->ep_type == USB_ENDPOINT_XFER_ISOC)
+			ec_mc = 3;
+		else
+			ec_mc = 1;
 	} else {
 		if (dbg_hc(chan))
 			dev_vdbg(hsotg->dev, "no split\n");
@@ -1805,6 +1930,9 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 
 		hctsiz |= chan->xfer_len << TSIZ_XFERSIZE_SHIFT &
 			  TSIZ_XFERSIZE_MASK;
+
+		/* The ec_mc gets the multi_count for non-split */
+		ec_mc = chan->multi_count;
 	}
 
 	chan->start_pkt_count = num_packets;
@@ -1855,8 +1983,7 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 
 	hcchar = dwc2_readl(hsotg->regs + HCCHAR(chan->hc_num));
 	hcchar &= ~HCCHAR_MULTICNT_MASK;
-	hcchar |= chan->multi_count << HCCHAR_MULTICNT_SHIFT &
-		  HCCHAR_MULTICNT_MASK;
+	hcchar |= (ec_mc << HCCHAR_MULTICNT_SHIFT) & HCCHAR_MULTICNT_MASK;
 	dwc2_hc_set_even_odd_frame(hsotg, chan, &hcchar);
 
 	if (hcchar & HCCHAR_CHDIS)
@@ -1905,7 +2032,6 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 				 struct dwc2_host_chan *chan)
 {
 	u32 hcchar;
-	u32 hc_dma;
 	u32 hctsiz = 0;
 
 	if (chan->do_ping)
@@ -1934,14 +2060,14 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 
 	dwc2_writel(hctsiz, hsotg->regs + HCTSIZ(chan->hc_num));
 
-	hc_dma = (u32)chan->desc_list_addr & HCDMA_DMA_ADDR_MASK;
+	dma_sync_single_for_device(hsotg->dev, chan->desc_list_addr,
+				   chan->desc_list_sz, DMA_TO_DEVICE);
 
-	/* Always start from first descriptor */
-	hc_dma &= ~HCDMA_CTD_MASK;
-	dwc2_writel(hc_dma, hsotg->regs + HCDMA(chan->hc_num));
+	dwc2_writel(chan->desc_list_addr, hsotg->regs + HCDMA(chan->hc_num));
+
 	if (dbg_hc(chan))
-		dev_vdbg(hsotg->dev, "Wrote %08x to HCDMA(%d)\n",
-			 hc_dma, chan->hc_num);
+		dev_vdbg(hsotg->dev, "Wrote %pad to HCDMA(%d)\n",
+			 &chan->desc_list_addr, chan->hc_num);
 
 	hcchar = dwc2_readl(hsotg->regs + HCCHAR(chan->hc_num));
 	hcchar &= ~HCCHAR_MULTICNT_MASK;
@@ -2485,6 +2611,29 @@ void dwc2_set_param_dma_desc_enable(struct dwc2_hsotg *hsotg, int val)
 	hsotg->core_params->dma_desc_enable = val;
 }
 
+void dwc2_set_param_dma_desc_fs_enable(struct dwc2_hsotg *hsotg, int val)
+{
+	int valid = 1;
+
+	if (val > 0 && (hsotg->core_params->dma_enable <= 0 ||
+			!hsotg->hw_params.dma_desc_enable))
+		valid = 0;
+	if (val < 0)
+		valid = 0;
+
+	if (!valid) {
+		if (val >= 0)
+			dev_err(hsotg->dev,
+				"%d invalid for dma_desc_fs_enable parameter. Check HW configuration.\n",
+				val);
+		val = (hsotg->core_params->dma_enable > 0 &&
+			hsotg->hw_params.dma_desc_enable);
+	}
+
+	hsotg->core_params->dma_desc_fs_enable = val;
+	dev_dbg(hsotg->dev, "Setting dma_desc_fs_enable to %d\n", val);
+}
+
 void dwc2_set_param_host_support_fs_ls_low_power(struct dwc2_hsotg *hsotg,
 						 int val)
 {
@@ -3016,6 +3165,7 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_otg_cap(hsotg, params->otg_cap);
 	dwc2_set_param_dma_enable(hsotg, params->dma_enable);
 	dwc2_set_param_dma_desc_enable(hsotg, params->dma_desc_enable);
+	dwc2_set_param_dma_desc_fs_enable(hsotg, params->dma_desc_fs_enable);
 	dwc2_set_param_host_support_fs_ls_low_power(hsotg,
 			params->host_support_fs_ls_low_power);
 	dwc2_set_param_enable_dynamic_fifo(hsotg,
@@ -3052,6 +3202,79 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_hibernation(hsotg, params->hibernation);
 }
 
+/*
+ * Forces either host or device mode if the controller is not
+ * currently in that mode.
+ *
+ * Returns true if the mode was forced.
+ */
+static bool dwc2_force_mode_if_needed(struct dwc2_hsotg *hsotg, bool host)
+{
+	if (host && dwc2_is_host_mode(hsotg))
+		return false;
+	else if (!host && dwc2_is_device_mode(hsotg))
+		return false;
+
+	return dwc2_force_mode(hsotg, host);
+}
+
+/*
+ * Gets host hardware parameters. Forces host mode if not currently in
+ * host mode. Should be called immediately after a core soft reset in
+ * order to get the reset values.
+ */
+static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	u32 gnptxfsiz;
+	u32 hptxfsiz;
+	bool forced;
+
+	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
+		return;
+
+	forced = dwc2_force_mode_if_needed(hsotg, true);
+
+	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
+	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
+	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
+	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
+
+	if (forced)
+		dwc2_clear_force_mode(hsotg);
+
+	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
+				       FIFOSIZE_DEPTH_SHIFT;
+	hw->host_perio_tx_fifo_size = (hptxfsiz & FIFOSIZE_DEPTH_MASK) >>
+				      FIFOSIZE_DEPTH_SHIFT;
+}
+
+/*
+ * Gets device hardware parameters. Forces device mode if not
+ * currently in device mode. Should be called immediately after a core
+ * soft reset in order to get the reset values.
+ */
+static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_hw_params *hw = &hsotg->hw_params;
+	bool forced;
+	u32 gnptxfsiz;
+
+	if (hsotg->dr_mode == USB_DR_MODE_HOST)
+		return;
+
+	forced = dwc2_force_mode_if_needed(hsotg, false);
+
+	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
+	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
+
+	if (forced)
+		dwc2_clear_force_mode(hsotg);
+
+	hw->dev_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
+				       FIFOSIZE_DEPTH_SHIFT;
+}
+
 /**
  * During device initialization, read various hardware configuration
  * registers and interpret the contents.
@@ -3061,8 +3284,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	unsigned width;
 	u32 hwcfg1, hwcfg2, hwcfg3, hwcfg4;
-	u32 hptxfsiz, grxfsiz, gnptxfsiz;
-	u32 gusbcfg;
+	u32 grxfsiz;
 
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
@@ -3094,20 +3316,16 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hwcfg4);
 	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
-	/* Force host mode to get HPTXFSIZ / GNPTXFSIZ exact power on value */
-	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
-	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
+	/*
+	 * Host specific hardware parameters. Reading these parameters
+	 * requires the controller to be in host mode. The mode will
+	 * be forced, if necessary, to read these values.
+	 */
+	dwc2_get_host_hwparams(hsotg);
+	dwc2_get_dev_hwparams(hsotg);
 
-	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
-	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
-	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
-	gusbcfg = dwc2_readl(hsotg->regs + GUSBCFG);
-	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
-	dwc2_writel(gusbcfg, hsotg->regs + GUSBCFG);
-	usleep_range(100000, 150000);
+	/* hwcfg1 */
+	hw->dev_ep_dirs = hwcfg1;
 
 	/* hwcfg2 */
 	hw->op_mode = (hwcfg2 & GHWCFG2_OP_MODE_MASK) >>
@@ -3163,10 +3381,6 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	/* fifo sizes */
 	hw->host_rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>
 				GRXFSIZ_DEPTH_SHIFT;
-	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
-				       FIFOSIZE_DEPTH_SHIFT;
-	hw->host_perio_tx_fifo_size = (hptxfsiz & FIFOSIZE_DEPTH_MASK) >>
-				      FIFOSIZE_DEPTH_SHIFT;
 
 	dev_dbg(hsotg->dev, "Detected values from hardware:\n");
 	dev_dbg(hsotg->dev, "  op_mode=%d\n",
@@ -3273,6 +3487,43 @@ void dwc2_disable_global_interrupts(struct dwc2_hsotg *hsotg)
 
 	ahbcfg &= ~GAHBCFG_GLBL_INTR_EN;
 	dwc2_writel(ahbcfg, hsotg->regs + GAHBCFG);
+}
+
+/* Returns the controller's GHWCFG2.OTG_MODE. */
+unsigned dwc2_op_mode(struct dwc2_hsotg *hsotg)
+{
+	u32 ghwcfg2 = dwc2_readl(hsotg->regs + GHWCFG2);
+
+	return (ghwcfg2 & GHWCFG2_OP_MODE_MASK) >>
+		GHWCFG2_OP_MODE_SHIFT;
+}
+
+/* Returns true if the controller is capable of DRD. */
+bool dwc2_hw_is_otg(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_HNP_SRP_CAPABLE) ||
+		(op_mode == GHWCFG2_OP_MODE_SRP_ONLY_CAPABLE) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_HNP_SRP_CAPABLE);
+}
+
+/* Returns true if the controller is host-only. */
+bool dwc2_hw_is_host(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_HOST) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_HOST);
+}
+
+/* Returns true if the controller is device-only. */
+bool dwc2_hw_is_device(struct dwc2_hsotg *hsotg)
+{
+	unsigned op_mode = dwc2_op_mode(hsotg);
+
+	return (op_mode == GHWCFG2_OP_MODE_SRP_CAPABLE_DEVICE) ||
+		(op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE);
 }
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG Core");

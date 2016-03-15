@@ -130,8 +130,6 @@ source "drivers/isdn/icn/Kconfig"
 
 source "drivers/isdn/pcbit/Kconfig"
 
-source "drivers/isdn/sc/Kconfig"
-
 source "drivers/isdn/act2000/Kconfig"
 
 endmenu

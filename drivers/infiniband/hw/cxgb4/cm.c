@@ -449,7 +449,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
 	struct c4iw_ep *ep = handle;
 
-	printk(KERN_ERR MOD "ARP failure duing connect\n");
+	printk(KERN_ERR MOD "ARP failure during connect\n");
 	kfree_skb(skb);
 	connect_reply_upcall(ep, -EHOSTUNREACH);
 	state_set(&ep->com, DEAD);
@@ -3271,6 +3271,12 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)
 				    &ep->com.mapped_local_addr;
 
+	if (ipv6_addr_type(&sin6->sin6_addr) != IPV6_ADDR_ANY) {
+		err = cxgb4_clip_get(ep->com.dev->rdev.lldi.ports[0],
+				     (const u32 *)&sin6->sin6_addr.s6_addr, 1);
+		if (err)
+			return err;
+	}
 	c4iw_init_wr_wait(&ep->com.wr_wait);
 	err = cxgb4_create_server6(ep->com.dev->rdev.lldi.ports[0],
 				   ep->stid, &sin6->sin6_addr,
@@ -3282,13 +3288,13 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 					  0, 0, __func__);
 	else if (err > 0)
 		err = net_xmit_errno(err);
-	if (err)
+	if (err) {
+		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
+				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
 		pr_err("cxgb4_create_server6/filter failed err %d stid %d laddr %pI6 lport %d\n",
 		       err, ep->stid,
 		       sin6->sin6_addr.s6_addr, ntohs(sin6->sin6_port));
-	else
-		cxgb4_clip_get(ep->com.dev->rdev.lldi.ports[0],
-			       (const u32 *)&sin6->sin6_addr.s6_addr, 1);
+	}
 	return err;
 }
 

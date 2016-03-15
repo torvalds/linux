@@ -185,7 +185,8 @@ unlock:
 static int batadv_iv_ogm_orig_del_if(struct batadv_orig_node *orig_node,
 				     int max_if_num, int del_if_num)
 {
-	int chunk_size,  ret = -ENOMEM, if_offset;
+	int ret = -ENOMEM;
+	size_t chunk_size, if_offset;
 	void *data_ptr = NULL;
 
 	spin_lock_bh(&orig_node->bat_iv.ogm_cnt_lock);
@@ -203,8 +204,9 @@ static int batadv_iv_ogm_orig_del_if(struct batadv_orig_node *orig_node,
 	memcpy(data_ptr, orig_node->bat_iv.bcast_own, del_if_num * chunk_size);
 
 	/* copy second part */
+	if_offset = (del_if_num + 1) * chunk_size;
 	memcpy((char *)data_ptr + del_if_num * chunk_size,
-	       orig_node->bat_iv.bcast_own + ((del_if_num + 1) * chunk_size),
+	       (uint8_t *)orig_node->bat_iv.bcast_own + if_offset,
 	       (max_if_num - del_if_num) * chunk_size);
 
 free_bcast_own:
@@ -361,7 +363,6 @@ batadv_iv_ogm_primary_iface_set(struct batadv_hard_iface *hard_iface)
 	unsigned char *ogm_buff = hard_iface->bat_iv.ogm_buff;
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)ogm_buff;
-	batadv_ogm_packet->flags = BATADV_PRIMARIES_FIRST_HOP;
 	batadv_ogm_packet->ttl = BATADV_TTL;
 }
 
@@ -842,8 +843,6 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 		   "Forwarding packet: tq: %i, ttl: %i\n",
 		   batadv_ogm_packet->tq, batadv_ogm_packet->ttl);
 
-	/* switch of primaries first hop flag when forwarding */
-	batadv_ogm_packet->flags &= ~BATADV_PRIMARIES_FIRST_HOP;
 	if (is_single_hop_neigh)
 		batadv_ogm_packet->flags |= BATADV_DIRECTLINK;
 	else
@@ -1379,6 +1378,7 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 				struct batadv_hard_iface *if_outgoing)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct batadv_hardif_neigh_node *hardif_neigh = NULL;
 	struct batadv_neigh_node *router = NULL;
 	struct batadv_neigh_node *router_router = NULL;
 	struct batadv_orig_node *orig_neigh_node;
@@ -1421,6 +1421,13 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "Drop packet: originator packet with tq equal 0\n");
 		goto out;
+	}
+
+	if (is_single_hop_neigh) {
+		hardif_neigh = batadv_hardif_neigh_get(if_incoming,
+						       ethhdr->h_source);
+		if (hardif_neigh)
+			hardif_neigh->last_seen = jiffies;
 	}
 
 	router = batadv_orig_router_get(orig_node, if_outgoing);
@@ -1557,6 +1564,8 @@ out:
 		batadv_neigh_node_free_ref(router_router);
 	if (orig_neigh_router)
 		batadv_neigh_node_free_ref(orig_neigh_router);
+	if (hardif_neigh)
+		batadv_hardif_neigh_free_ref(hardif_neigh);
 
 	kfree_skb(skb_priv);
 }
@@ -1862,6 +1871,58 @@ next:
 }
 
 /**
+ * batadv_iv_hardif_neigh_print - print a single hop neighbour node
+ * @seq: neighbour table seq_file struct
+ * @hardif_neigh: hardif neighbour information
+ */
+static void
+batadv_iv_hardif_neigh_print(struct seq_file *seq,
+			     struct batadv_hardif_neigh_node *hardif_neigh)
+{
+	int last_secs, last_msecs;
+
+	last_secs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen) / 1000;
+	last_msecs = jiffies_to_msecs(jiffies - hardif_neigh->last_seen) % 1000;
+
+	seq_printf(seq, "   %10s   %pM %4i.%03is\n",
+		   hardif_neigh->if_incoming->net_dev->name,
+		   hardif_neigh->addr, last_secs, last_msecs);
+}
+
+/**
+ * batadv_iv_ogm_neigh_print - print the single hop neighbour list
+ * @bat_priv: the bat priv with all the soft interface information
+ * @seq: neighbour table seq_file struct
+ */
+static void batadv_iv_neigh_print(struct batadv_priv *bat_priv,
+				  struct seq_file *seq)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct batadv_hard_iface *hard_iface;
+	int batman_count = 0;
+
+	seq_printf(seq, "   %10s        %-13s %s\n",
+		   "IF", "Neighbor", "last-seen");
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+		if (hard_iface->soft_iface != net_dev)
+			continue;
+
+		hlist_for_each_entry_rcu(hardif_neigh,
+					 &hard_iface->neigh_list, list) {
+			batadv_iv_hardif_neigh_print(seq, hardif_neigh);
+			batman_count++;
+		}
+	}
+	rcu_read_unlock();
+
+	if (batman_count == 0)
+		seq_puts(seq, "No batman nodes in range ...\n");
+}
+
+/**
  * batadv_iv_ogm_neigh_cmp - compare the metrics of two neighbors
  * @neigh1: the first neighbor object of the comparison
  * @if_outgoing1: outgoing interface for the first neighbor
@@ -1902,8 +1963,8 @@ out:
 }
 
 /**
- * batadv_iv_ogm_neigh_is_eob - check if neigh1 is equally good or better than
- *  neigh2 from the metric prospective
+ * batadv_iv_ogm_neigh_is_sob - check if neigh1 is similarly good or better
+ *  than neigh2 from the metric prospective
  * @neigh1: the first neighbor object of the comparison
  * @if_outgoing1: outgoing interface for the first neighbor
  * @neigh2: the second neighbor object of the comparison
@@ -1913,7 +1974,7 @@ out:
  * the metric via neigh2, false otherwise.
  */
 static bool
-batadv_iv_ogm_neigh_is_eob(struct batadv_neigh_node *neigh1,
+batadv_iv_ogm_neigh_is_sob(struct batadv_neigh_node *neigh1,
 			   struct batadv_hard_iface *if_outgoing1,
 			   struct batadv_neigh_node *neigh2,
 			   struct batadv_hard_iface *if_outgoing2)
@@ -1953,7 +2014,8 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	.bat_ogm_schedule = batadv_iv_ogm_schedule,
 	.bat_ogm_emit = batadv_iv_ogm_emit,
 	.bat_neigh_cmp = batadv_iv_ogm_neigh_cmp,
-	.bat_neigh_is_equiv_or_better = batadv_iv_ogm_neigh_is_eob,
+	.bat_neigh_is_similar_or_better = batadv_iv_ogm_neigh_is_sob,
+	.bat_neigh_print = batadv_iv_neigh_print,
 	.bat_orig_print = batadv_iv_ogm_orig_print,
 	.bat_orig_free = batadv_iv_ogm_orig_free,
 	.bat_orig_add_if = batadv_iv_ogm_orig_add_if,

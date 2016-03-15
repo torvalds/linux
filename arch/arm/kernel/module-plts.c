@@ -32,7 +32,7 @@ struct plt_entries {
 
 static bool in_init(const struct module *mod, u32 addr)
 {
-	return addr - (u32)mod->module_init < mod->init_size;
+	return addr - (u32)mod->init_layout.base < mod->init_layout.size;
 }
 
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val)

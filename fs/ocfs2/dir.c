@@ -4361,7 +4361,7 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 		mlog_errno(ret);
 		goto out;
 	}
-	mutex_lock(&dx_alloc_inode->i_mutex);
+	inode_lock(dx_alloc_inode);
 
 	ret = ocfs2_inode_lock(dx_alloc_inode, &dx_alloc_bh, 1);
 	if (ret) {
@@ -4410,7 +4410,7 @@ out_unlock:
 	ocfs2_inode_unlock(dx_alloc_inode, 1);
 
 out_mutex:
-	mutex_unlock(&dx_alloc_inode->i_mutex);
+	inode_unlock(dx_alloc_inode);
 	brelse(dx_alloc_bh);
 out:
 	iput(dx_alloc_inode);

@@ -1325,13 +1325,6 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 }
 EXPORT_SYMBOL(ieee80211_ie_split_ric);
 
-size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
-			  const u8 *ids, int n_ids, size_t offset)
-{
-	return ieee80211_ie_split_ric(ies, ielen, ids, n_ids, NULL, 0, offset);
-}
-EXPORT_SYMBOL(ieee80211_ie_split);
-
 bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum ieee80211_band *band)
 {
@@ -1619,120 +1612,6 @@ int cfg80211_check_combinations(struct wiphy *wiphy,
 	return 0;
 }
 EXPORT_SYMBOL(cfg80211_check_combinations);
-
-int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
-				 struct wireless_dev *wdev,
-				 enum nl80211_iftype iftype,
-				 struct ieee80211_channel *chan,
-				 enum cfg80211_chan_mode chanmode,
-				 u8 radar_detect)
-{
-	struct wireless_dev *wdev_iter;
-	int num[NUM_NL80211_IFTYPES];
-	struct ieee80211_channel
-			*used_channels[CFG80211_MAX_NUM_DIFFERENT_CHANNELS];
-	struct ieee80211_channel *ch;
-	enum cfg80211_chan_mode chmode;
-	int num_different_channels = 0;
-	int total = 1;
-	int i;
-
-	ASSERT_RTNL();
-
-	if (WARN_ON(hweight32(radar_detect) > 1))
-		return -EINVAL;
-
-	if (WARN_ON(iftype >= NUM_NL80211_IFTYPES))
-		return -EINVAL;
-
-	/* Always allow software iftypes */
-	if (rdev->wiphy.software_iftypes & BIT(iftype)) {
-		if (radar_detect)
-			return -EINVAL;
-		return 0;
-	}
-
-	memset(num, 0, sizeof(num));
-	memset(used_channels, 0, sizeof(used_channels));
-
-	num[iftype] = 1;
-
-	/* TODO: We'll probably not need this anymore, since this
-	 * should only be called with CHAN_MODE_UNDEFINED. There are
-	 * still a couple of pending calls where other chanmodes are
-	 * used, but we should get rid of them.
-	 */
-	switch (chanmode) {
-	case CHAN_MODE_UNDEFINED:
-		break;
-	case CHAN_MODE_SHARED:
-		WARN_ON(!chan);
-		used_channels[0] = chan;
-		num_different_channels++;
-		break;
-	case CHAN_MODE_EXCLUSIVE:
-		num_different_channels++;
-		break;
-	}
-
-	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
-		if (wdev_iter == wdev)
-			continue;
-		if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
-			if (!wdev_iter->p2p_started)
-				continue;
-		} else if (wdev_iter->netdev) {
-			if (!netif_running(wdev_iter->netdev))
-				continue;
-		} else {
-			WARN_ON(1);
-		}
-
-		if (rdev->wiphy.software_iftypes & BIT(wdev_iter->iftype))
-			continue;
-
-		/*
-		 * We may be holding the "wdev" mutex, but now need to lock
-		 * wdev_iter. This is OK because once we get here wdev_iter
-		 * is not wdev (tested above), but we need to use the nested
-		 * locking for lockdep.
-		 */
-		mutex_lock_nested(&wdev_iter->mtx, 1);
-		__acquire(wdev_iter->mtx);
-		cfg80211_get_chan_state(wdev_iter, &ch, &chmode, &radar_detect);
-		wdev_unlock(wdev_iter);
-
-		switch (chmode) {
-		case CHAN_MODE_UNDEFINED:
-			break;
-		case CHAN_MODE_SHARED:
-			for (i = 0; i < CFG80211_MAX_NUM_DIFFERENT_CHANNELS; i++)
-				if (!used_channels[i] || used_channels[i] == ch)
-					break;
-
-			if (i == CFG80211_MAX_NUM_DIFFERENT_CHANNELS)
-				return -EBUSY;
-
-			if (used_channels[i] == NULL) {
-				used_channels[i] = ch;
-				num_different_channels++;
-			}
-			break;
-		case CHAN_MODE_EXCLUSIVE:
-			num_different_channels++;
-			break;
-		}
-
-		num[wdev_iter->iftype]++;
-		total++;
-	}
-
-	if (total == 1 && !radar_detect)
-		return 0;
-
-	return cfg80211_check_combinations(&rdev->wiphy, num_different_channels,
-					   radar_detect, num);
-}
 
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 			   const u8 *rates, unsigned int n_rates,

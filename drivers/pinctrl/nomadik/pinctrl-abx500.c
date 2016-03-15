@@ -109,19 +109,10 @@ struct abx500_pinctrl {
 	int irq_cluster_size;
 };
 
-/**
- * to_abx500_pinctrl() - get the pointer to abx500_pinctrl
- * @chip:	Member of the structure abx500_pinctrl
- */
-static inline struct abx500_pinctrl *to_abx500_pinctrl(struct gpio_chip *chip)
-{
-	return container_of(chip, struct abx500_pinctrl, chip);
-}
-
 static int abx500_gpio_get_bit(struct gpio_chip *chip, u8 reg,
 			       unsigned offset, bool *bit)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	u8 pos = offset % 8;
 	u8 val;
 	int ret;
@@ -143,7 +134,7 @@ static int abx500_gpio_get_bit(struct gpio_chip *chip, u8 reg,
 static int abx500_gpio_set_bits(struct gpio_chip *chip, u8 reg,
 				unsigned offset, int val)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	u8 pos = offset % 8;
 	int ret;
 
@@ -164,7 +155,7 @@ static int abx500_gpio_set_bits(struct gpio_chip *chip, u8 reg,
  */
 static int abx500_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	bool bit;
 	bool is_out;
 	u8 gpio_offset = offset - 1;
@@ -192,7 +183,7 @@ out:
 
 static void abx500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	int ret;
 
 	ret = abx500_gpio_set_bits(chip, AB8500_GPIO_OUT1_REG, offset, val);
@@ -200,6 +191,7 @@ static void abx500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 		dev_err(pct->dev, "%s write failed (%d)\n", __func__, ret);
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int abx500_get_pull_updown(struct abx500_pinctrl *pct, int offset,
 				  enum abx500_gpio_pull_updown *pull_updown)
 {
@@ -235,6 +227,7 @@ out:
 
 	return ret;
 }
+#endif
 
 static int abx500_set_pull_updown(struct abx500_pinctrl *pct,
 				  int offset, enum abx500_gpio_pull_updown val)
@@ -272,7 +265,7 @@ out:
 
 static bool abx500_pullud_supported(struct gpio_chip *chip, unsigned gpio)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	struct pullud *pullud = pct->soc->pullud;
 
 	return (pullud &&
@@ -284,7 +277,7 @@ static int abx500_gpio_direction_output(struct gpio_chip *chip,
 					unsigned offset,
 					int val)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	unsigned gpio;
 	int ret;
 
@@ -332,7 +325,7 @@ static int abx500_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int abx500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	/* The AB8500 GPIO numbers are off by one */
 	int gpio = offset + 1;
 	int hwirq;
@@ -477,6 +470,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int abx500_get_mode(struct pinctrl_dev *pctldev, struct gpio_chip *chip,
 			  unsigned gpio)
 {
@@ -562,8 +556,6 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_DEBUG_FS
-
 #include <linux/seq_file.h>
 
 static void abx500_gpio_dbg_show_one(struct seq_file *s,
@@ -634,7 +626,7 @@ static void abx500_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	unsigned i;
 	unsigned gpio = chip->base;
-	struct abx500_pinctrl *pct = to_abx500_pinctrl(chip);
+	struct abx500_pinctrl *pct = gpiochip_get_data(chip);
 	struct pinctrl_dev *pctldev = pct->pctldev;
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
@@ -986,7 +978,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 		param = pinconf_to_config_param(configs[i]);
 		argument = pinconf_to_config_argument(configs[i]);
 
-		dev_dbg(chip->dev, "pin %d [%#lx]: %s %s\n",
+		dev_dbg(chip->parent, "pin %d [%#lx]: %s %s\n",
 			pin, configs[i],
 			(param == PIN_CONFIG_OUTPUT) ? "output " : "input",
 			(param == PIN_CONFIG_OUTPUT) ?
@@ -1077,7 +1069,8 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(chip->dev, "illegal configuration requested\n");
+			dev_err(chip->parent,
+				"illegal configuration requested\n");
 		}
 	} /* for each config */
 out:
@@ -1172,7 +1165,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->dev = &pdev->dev;
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
 	pct->chip = abx500gpio_chip;
-	pct->chip.dev = &pdev->dev;
+	pct->chip.parent = &pdev->dev;
 	pct->chip.base = -1; /* Dynamic allocation */
 
 	match = of_match_device(abx500_gpio_match, &pdev->dev);
@@ -1210,7 +1203,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->irq_cluster = pct->soc->gpio_irq_cluster;
 	pct->irq_cluster_size = pct->soc->ngpio_irq_cluster;
 
-	ret = gpiochip_add(&pct->chip);
+	ret = gpiochip_add_data(&pct->chip, pct);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
 		return ret;

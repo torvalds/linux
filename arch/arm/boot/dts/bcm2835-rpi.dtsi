@@ -1,5 +1,3 @@
-#include "bcm2835.dtsi"
-
 / {
 	memory {
 		reg = <0 0x10000000>;

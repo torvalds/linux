@@ -31,7 +31,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf-dma-contig.h>
-#include <media/timb_video.h>
+#include <linux/platform_data/media/timb_video.h>
 
 #define DRIVER_NAME			"timb-video"
 

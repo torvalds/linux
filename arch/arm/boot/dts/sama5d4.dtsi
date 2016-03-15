@@ -451,7 +451,7 @@
 					interrupt-parent = <&pmc>;
 					interrupts = <AT91_PMC_MCKRDY>;
 					clocks = <&clk32k>, <&main>, <&plladiv>, <&utmi>;
-					atmel,clk-output-range = <125000000 177000000>;
+					atmel,clk-output-range = <125000000 200000000>;
 					atmel,clk-divisors = <1 2 4 3>;
 				};
 
@@ -916,7 +916,7 @@
 			};
 
 			i2c0: i2c@f8014000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8014000 0x4000>;
 				interrupts = <32 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
@@ -935,7 +935,7 @@
 			};
 
 			i2c1: i2c@f8018000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8018000 0x4000>;
 				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
@@ -975,7 +975,7 @@
 			};
 
 			i2c2: i2c@f8024000 {
-				compatible = "atmel,at91sam9x5-i2c";
+				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8024000 0x4000>;
 				interrupts = <34 IRQ_TYPE_LEVEL_HIGH 6>;
 				dmas = <&dma1
@@ -1342,7 +1342,7 @@
 			dbgu: serial@fc069000 {
 				compatible = "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
 				reg = <0xfc069000 0x200>;
-				interrupts = <2 IRQ_TYPE_LEVEL_HIGH 7>;
+				interrupts = <45 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_dbgu>;
 				clocks = <&dbgu_clk>;
@@ -1669,15 +1669,23 @@
 					pinctrl_mmc0_clk_cmd_dat0: mmc0_clk_cmd_dat0 {
 						atmel,pins =
 							<AT91_PIOC 4 AT91_PERIPH_B AT91_PINCTRL_NONE	/* MCI0_CK, conflict with PCK1(ISI_MCK) */
-							 AT91_PIOC 5 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_CDB, conflict with NAND_D0 */
-							 AT91_PIOC 6 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DB0, conflict with NAND_D1 */
+							 AT91_PIOC 5 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_CDA, conflict with NAND_D0 */
+							 AT91_PIOC 6 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA0, conflict with NAND_D1 */
 							>;
 					};
 					pinctrl_mmc0_dat1_3: mmc0_dat1_3 {
 						atmel,pins =
-							<AT91_PIOC 7 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DB1, conflict with NAND_D2 */
-							 AT91_PIOC 8 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DB2, conflict with NAND_D3 */
-							 AT91_PIOC 9 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DB3, conflict with NAND_D4 */
+							<AT91_PIOC 7 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA1, conflict with NAND_D2 */
+							 AT91_PIOC 8 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA2, conflict with NAND_D3 */
+							 AT91_PIOC 9 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA3, conflict with NAND_D4 */
+							>;
+					};
+					pinctrl_mmc0_dat4_7: mmc0_dat4_7 {
+						atmel,pins =
+							<AT91_PIOC 10 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA4, conflict with NAND_D5 */
+							 AT91_PIOC 11 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA5, conflict with NAND_D6 */
+							 AT91_PIOC 12 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA6, conflict with NAND_D7 */
+							 AT91_PIOC 13 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* MCI0_DA7, conflict with NAND_OE */
 							>;
 					};
 				};

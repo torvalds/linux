@@ -301,6 +301,8 @@ static int map_get_value(struct battery_property_map *map, const char *key,
 	buf[MAX_KEYLENGTH-1] = '\0';
 
 	cr = strnlen(buf, MAX_KEYLENGTH) - 1;
+	if (cr < 0)
+		return def_val;
 	if (buf[cr] == '\n')
 		buf[cr] = '\0';
 

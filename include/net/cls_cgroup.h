@@ -41,13 +41,12 @@ static inline u32 task_cls_classid(struct task_struct *p)
 	return classid;
 }
 
-static inline void sock_update_classid(struct sock *sk)
+static inline void sock_update_classid(struct sock_cgroup_data *skcd)
 {
 	u32 classid;
 
 	classid = task_cls_classid(current);
-	if (classid != sk->sk_classid)
-		sk->sk_classid = classid;
+	sock_cgroup_set_classid(skcd, classid);
 }
 
 static inline u32 task_get_classid(const struct sk_buff *skb)
@@ -64,17 +63,17 @@ static inline u32 task_get_classid(const struct sk_buff *skb)
 	 * softirqs always disables bh.
 	 */
 	if (in_serving_softirq()) {
-		/* If there is an sk_classid we'll use that. */
+		/* If there is an sock_cgroup_classid we'll use that. */
 		if (!skb->sk)
 			return 0;
 
-		classid = skb->sk->sk_classid;
+		classid = sock_cgroup_classid(&skb->sk->sk_cgrp_data);
 	}
 
 	return classid;
 }
 #else /* !CONFIG_CGROUP_NET_CLASSID */
-static inline void sock_update_classid(struct sock *sk)
+static inline void sock_update_classid(struct sock_cgroup_data *skcd)
 {
 }
 

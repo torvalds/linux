@@ -122,7 +122,7 @@ Time, Waiting and Missing it
 ----------------------------
 
 GPUs do most everything asynchronously, so we have a need to time operations and
-wait for oustanding ones. This is really tricky business; at the moment none of
+wait for outstanding ones. This is really tricky business; at the moment none of
 the ioctls supported by the drm/i915 get this fully right, which means there's
 still tons more lessons to learn here.
 
@@ -146,7 +146,7 @@ still tons more lessons to learn here.
    ioctl restartable relative timeouts tend to be too coarse and can
    indefinitely extend your wait time due to rounding on each restart.
    Especially if your reference clock is something really slow like the display
-   frame counter. With a spec laywer hat on this isn't a bug since timeouts can
+   frame counter. With a spec lawyer hat on this isn't a bug since timeouts can
    always be extended - but users will surely hate you if their neat animations
    starts to stutter due to this.
 
@@ -176,7 +176,7 @@ entails its own little set of pitfalls:
 
  * Ensure that you have sufficient insulation between different clients. By
    default pick a private per-fd namespace which forces any sharing to be done
-   explictly. Only go with a more global per-device namespace if the objects
+   explicitly. Only go with a more global per-device namespace if the objects
    are truly device-unique. One counterexample in the drm modeset interfaces is
    that the per-device modeset objects like connectors share a namespace with
    framebuffer objects, which mostly are not shared at all. A separate

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -337,8 +337,8 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 			 * need to be unregistered when they are unloaded, and slots in the
 			 * root table list should be reused when empty.
 			 */
-			if (acpi_gbl_root_table_list.tables[i].
-			    flags & ACPI_TABLE_IS_LOADED) {
+			if (acpi_gbl_root_table_list.tables[i].flags &
+			    ACPI_TABLE_IS_LOADED) {
 
 				/* Table is still loaded, this is an error */
 

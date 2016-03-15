@@ -115,14 +115,17 @@ The "bat0" interface can be used like any  other  regular  inter-
 face.  It needs an IP address which can be either statically con-
 figured or dynamically (by using DHCP or similar services):
 
-# NodeA: ifconfig bat0 192.168.0.1
-# NodeB: ifconfig bat0 192.168.0.2
+# NodeA: ip link set up dev bat0
+# NodeA: ip addr add 192.168.0.1/24 dev bat0
+
+# NodeB: ip link set up dev bat0
+# NodeB: ip addr add 192.168.0.2/24 dev bat0
 # NodeB: ping 192.168.0.1
 
 Note:  In  order to avoid problems remove all IP addresses previ-
 ously assigned to interfaces now used by batman advanced, e.g.
 
-# ifconfig eth0 0.0.0.0
+# ip addr flush dev eth0
 
 
 LOGGING/DEBUGGING

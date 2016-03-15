@@ -73,6 +73,15 @@ static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 }
 #endif
 
+#ifdef CONFIG_HOTPLUG_CPU
+int dlpar_cpu(struct pseries_hp_errorlog *hp_elog);
+#else
+static inline int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 /* PCI root bridge prepare function override for pseries */
 struct pci_host_bridge;
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge);

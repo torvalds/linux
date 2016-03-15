@@ -50,9 +50,9 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
-static int map_xdr(struct svcxprt_rdma *xprt,
-		   struct xdr_buf *xdr,
-		   struct svc_rdma_req_map *vec)
+int svc_rdma_map_xdr(struct svcxprt_rdma *xprt,
+		     struct xdr_buf *xdr,
+		     struct svc_rdma_req_map *vec)
 {
 	int sge_no;
 	u32 sge_bytes;
@@ -62,7 +62,7 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 
 	if (xdr->len !=
 	    (xdr->head[0].iov_len + xdr->page_len + xdr->tail[0].iov_len)) {
-		pr_err("svcrdma: map_xdr: XDR buffer length error\n");
+		pr_err("svcrdma: %s: XDR buffer length error\n", __func__);
 		return -EIO;
 	}
 
@@ -97,9 +97,9 @@ static int map_xdr(struct svcxprt_rdma *xprt,
 		sge_no++;
 	}
 
-	dprintk("svcrdma: map_xdr: sge_no %d page_no %d "
+	dprintk("svcrdma: %s: sge_no %d page_no %d "
 		"page_base %u page_len %u head_len %zu tail_len %zu\n",
-		sge_no, page_no, xdr->page_base, xdr->page_len,
+		__func__, sge_no, page_no, xdr->page_base, xdr->page_len,
 		xdr->head[0].iov_len, xdr->tail[0].iov_len);
 
 	vec->count = sge_no;
@@ -265,7 +265,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 					 sge[sge_no].addr))
 			goto err;
 		atomic_inc(&xprt->sc_dma_used);
-		sge[sge_no].lkey = xprt->sc_dma_lkey;
+		sge[sge_no].lkey = xprt->sc_pd->local_dma_lkey;
 		ctxt->count++;
 		sge_off = 0;
 		sge_no++;
@@ -465,7 +465,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	int ret;
 
 	/* Post a recv buffer to handle another request. */
-	ret = svc_rdma_post_recv(rdma);
+	ret = svc_rdma_post_recv(rdma, GFP_KERNEL);
 	if (ret) {
 		printk(KERN_INFO
 		       "svcrdma: could not post a receive buffer, err=%d."
@@ -480,7 +480,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	ctxt->count = 1;
 
 	/* Prepare the SGE for the RPCRDMA Header */
-	ctxt->sge[0].lkey = rdma->sc_dma_lkey;
+	ctxt->sge[0].lkey = rdma->sc_pd->local_dma_lkey;
 	ctxt->sge[0].length = svc_rdma_xdr_get_reply_hdr_len(rdma_resp);
 	ctxt->sge[0].addr =
 	    ib_dma_map_page(rdma->sc_cm_id->device, page, 0,
@@ -504,7 +504,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 					 ctxt->sge[sge_no].addr))
 			goto err;
 		atomic_inc(&rdma->sc_dma_used);
-		ctxt->sge[sge_no].lkey = rdma->sc_dma_lkey;
+		ctxt->sge[sge_no].lkey = rdma->sc_pd->local_dma_lkey;
 		ctxt->sge[sge_no].length = sge_bytes;
 	}
 	if (byte_count != 0) {
@@ -591,14 +591,17 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	/* Build an req vec for the XDR */
 	ctxt = svc_rdma_get_context(rdma);
 	ctxt->direction = DMA_TO_DEVICE;
-	vec = svc_rdma_get_req_map();
-	ret = map_xdr(rdma, &rqstp->rq_res, vec);
+	vec = svc_rdma_get_req_map(rdma);
+	ret = svc_rdma_map_xdr(rdma, &rqstp->rq_res, vec);
 	if (ret)
 		goto err0;
 	inline_bytes = rqstp->rq_res.len;
 
 	/* Create the RDMA response header */
-	res_page = alloc_page(GFP_KERNEL | __GFP_NOFAIL);
+	ret = -ENOMEM;
+	res_page = alloc_page(GFP_KERNEL);
+	if (!res_page)
+		goto err0;
 	rdma_resp = page_address(res_page);
 	reply_ary = svc_rdma_get_reply_array(rdma_argp);
 	if (reply_ary)
@@ -630,14 +633,14 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 
 	ret = send_reply(rdma, rqstp, res_page, rdma_resp, ctxt, vec,
 			 inline_bytes);
-	svc_rdma_put_req_map(vec);
+	svc_rdma_put_req_map(rdma, vec);
 	dprintk("svcrdma: send_reply returns %d\n", ret);
 	return ret;
 
  err1:
 	put_page(res_page);
  err0:
-	svc_rdma_put_req_map(vec);
+	svc_rdma_put_req_map(rdma, vec);
 	svc_rdma_put_context(ctxt, 0);
 	return ret;
 }

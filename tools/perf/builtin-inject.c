@@ -18,7 +18,7 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 
 #include <linux/list.h>
 

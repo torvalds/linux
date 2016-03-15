@@ -687,7 +687,7 @@ EXPORT_SYMBOL(cl_lock_mutex_get);
  *
  * \see cl_lock_mutex_get()
  */
-int cl_lock_mutex_try(const struct lu_env *env, struct cl_lock *lock)
+static int cl_lock_mutex_try(const struct lu_env *env, struct cl_lock *lock)
 {
 	int result;
 
@@ -705,7 +705,6 @@ int cl_lock_mutex_try(const struct lu_env *env, struct cl_lock *lock)
 		result = -EBUSY;
 	return result;
 }
-EXPORT_SYMBOL(cl_lock_mutex_try);
 
 /**
  {* Unlocks cl_lock object.

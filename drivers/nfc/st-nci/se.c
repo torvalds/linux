@@ -331,7 +331,7 @@ static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 
 	switch (event) {
 	case ST_NCI_EVT_CONNECTIVITY:
-
+		r = nfc_se_connectivity(ndev->nfc_dev, host);
 	break;
 	case ST_NCI_EVT_TRANSACTION:
 		/* According to specification etsi 102 622
@@ -391,7 +391,6 @@ void st_nci_hci_event_received(struct nci_dev *ndev, u8 pipe,
 	}
 }
 EXPORT_SYMBOL_GPL(st_nci_hci_event_received);
-
 
 void st_nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe, u8 cmd,
 			       struct sk_buff *skb)

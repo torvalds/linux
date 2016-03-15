@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -159,7 +159,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 {
 	acpi_status status;
 	struct acpi_namespace_node *node;
-	char *node_name;
+	const char *node_name;
 
 	/* Parameter validation */
 
@@ -238,7 +238,6 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 				    struct acpi_pnp_device_id *source,
 				    char *string_area)
 {
-
 	/* Create the destination PNP_DEVICE_ID */
 
 	dest->string = string_area;
@@ -263,10 +262,17 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *              namespace node and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
- * For Device and Processor objects, run the Device _HID, _UID, _CID, _SUB,
- * _CLS, _STA, _ADR, _sx_w, and _sx_d methods.
+ * For Device and Processor objects, run the Device _HID, _UID, _CID, _STA,
+ * _CLS, _ADR, _sx_w, and _sx_d methods.
  *
  * Note: Allocates the return buffer, must be freed by the caller.
+ *
+ * Note: This interface is intended to be used during the initial device
+ * discovery namespace traversal. Therefore, no complex methods can be
+ * executed, especially those that access operation regions. Therefore, do
+ * not add any additional methods that could cause problems in this area.
+ * this was the fate of the _SUB method which was found to cause such
+ * problems and was removed (11/2015).
  *
  ******************************************************************************/
 
@@ -279,7 +285,6 @@ acpi_get_object_info(acpi_handle handle,
 	struct acpi_pnp_device_id_list *cid_list = NULL;
 	struct acpi_pnp_device_id *hid = NULL;
 	struct acpi_pnp_device_id *uid = NULL;
-	struct acpi_pnp_device_id *sub = NULL;
 	struct acpi_pnp_device_id *cls = NULL;
 	char *next_id_string;
 	acpi_object_type type;
@@ -325,7 +330,7 @@ acpi_get_object_info(acpi_handle handle,
 	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
 		 * Get extra info for ACPI Device/Processor objects only:
-		 * Run the Device _HID, _UID, _SUB, _CID, and _CLS methods.
+		 * Run the Device _HID, _UID, _CLS, and _CID methods.
 		 *
 		 * Note: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
@@ -346,14 +351,6 @@ acpi_get_object_info(acpi_handle handle,
 		if (ACPI_SUCCESS(status)) {
 			info_size += uid->length;
 			valid |= ACPI_VALID_UID;
-		}
-
-		/* Execute the Device._SUB method */
-
-		status = acpi_ut_execute_SUB(node, &sub);
-		if (ACPI_SUCCESS(status)) {
-			info_size += sub->length;
-			valid |= ACPI_VALID_SUB;
 		}
 
 		/* Execute the Device._CID method */
@@ -456,9 +453,8 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	/*
-	 * Copy the HID, UID, SUB, and CIDs to the return buffer.
-	 * The variable-length strings are copied to the reserved area
-	 * at the end of the buffer.
+	 * Copy the HID, UID, and CIDs to the return buffer. The variable-length
+	 * strings are copied to the reserved area at the end of the buffer.
 	 *
 	 * For HID and CID, check if the ID is a PCI Root Bridge.
 	 */
@@ -474,11 +470,6 @@ acpi_get_object_info(acpi_handle handle,
 	if (uid) {
 		next_id_string = acpi_ns_copy_device_id(&info->unique_id,
 							uid, next_id_string);
-	}
-
-	if (sub) {
-		next_id_string = acpi_ns_copy_device_id(&info->subsystem_id,
-							sub, next_id_string);
 	}
 
 	if (cid_list) {
@@ -521,9 +512,6 @@ cleanup:
 	}
 	if (uid) {
 		ACPI_FREE(uid);
-	}
-	if (sub) {
-		ACPI_FREE(sub);
 	}
 	if (cid_list) {
 		ACPI_FREE(cid_list);
@@ -591,6 +579,7 @@ acpi_status acpi_install_method(u8 *buffer)
 	parser_state.aml += acpi_ps_get_opcode_size(opcode);
 	parser_state.pkg_end = acpi_ps_get_next_package_end(&parser_state);
 	path = acpi_ps_get_next_namestring(&parser_state);
+
 	method_flags = *parser_state.aml++;
 	aml_start = parser_state.aml;
 	aml_length = ACPI_PTR_DIFF(parser_state.pkg_end, aml_start);

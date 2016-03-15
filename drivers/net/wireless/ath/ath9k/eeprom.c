@@ -138,6 +138,80 @@ bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 	return ret;
 }
 
+int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
+{
+	u16 magic;
+	u16 *eepdata;
+	int i;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+		ath_err(common, "Reading Magic # failed\n");
+		return -EIO;
+	}
+
+	*swap_needed = false;
+	if (swab16(magic) == AR5416_EEPROM_MAGIC) {
+		if (ah->ah_flags & AH_NO_EEP_SWAP) {
+			ath_info(common,
+				 "Ignoring endianness difference in EEPROM magic bytes.\n");
+		} else {
+			*swap_needed = true;
+		}
+	} else if (magic != AR5416_EEPROM_MAGIC) {
+		if (ath9k_hw_use_flash(ah))
+			return 0;
+
+		ath_err(common,
+			"Invalid EEPROM Magic (0x%04x).\n", magic);
+		return -EINVAL;
+	}
+
+	eepdata = (u16 *)(&ah->eeprom);
+
+	if (*swap_needed) {
+		ath_dbg(common, EEPROM,
+			"EEPROM Endianness is not native.. Changing.\n");
+
+		for (i = 0; i < size; i++)
+			eepdata[i] = swab16(eepdata[i]);
+	}
+
+	return 0;
+}
+
+bool ath9k_hw_nvram_validate_checksum(struct ath_hw *ah, int size)
+{
+	u32 i, sum = 0;
+	u16 *eepdata = (u16 *)(&ah->eeprom);
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	for (i = 0; i < size; i++)
+		sum ^= eepdata[i];
+
+	if (sum != 0xffff) {
+		ath_err(common, "Bad EEPROM checksum 0x%x\n", sum);
+		return false;
+	}
+
+	return true;
+}
+
+bool ath9k_hw_nvram_check_version(struct ath_hw *ah, int version, int minrev)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (ah->eep_ops->get_eeprom_ver(ah) != version ||
+	    ah->eep_ops->get_eeprom_rev(ah) < minrev) {
+		ath_err(common, "Bad EEPROM VER 0x%04x or REV 0x%04x\n",
+			ah->eep_ops->get_eeprom_ver(ah),
+			ah->eep_ops->get_eeprom_rev(ah));
+		return false;
+	}
+
+	return true;
+}
+
 void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,
 			     u8 *pVpdList, u16 numIntercepts,
 			     u8 *pRetVpdList)

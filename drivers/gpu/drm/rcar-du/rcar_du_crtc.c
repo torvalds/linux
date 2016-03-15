@@ -613,7 +613,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
 					&rgrp->planes[index % 2].plane,
-					NULL, &crtc_funcs);
+					NULL, &crtc_funcs, NULL);
 	if (ret < 0)
 		return ret;
 

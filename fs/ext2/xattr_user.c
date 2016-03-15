@@ -10,23 +10,10 @@
 #include "ext2.h"
 #include "xattr.h"
 
-static size_t
-ext2_xattr_user_list(const struct xattr_handler *handler,
-		     struct dentry *dentry, char *list, size_t list_size,
-		     const char *name, size_t name_len)
+static bool
+ext2_xattr_user_list(struct dentry *dentry)
 {
-	const size_t prefix_len = XATTR_USER_PREFIX_LEN;
-	const size_t total_len = prefix_len + name_len + 1;
-
-	if (!test_opt(dentry->d_sb, XATTR_USER))
-		return 0;
-
-	if (list && total_len <= list_size) {
-		memcpy(list, XATTR_USER_PREFIX, prefix_len);
-		memcpy(list+prefix_len, name, name_len);
-		list[prefix_len + name_len] = '\0';
-	}
-	return total_len;
+	return test_opt(dentry->d_sb, XATTR_USER);
 }
 
 static int
@@ -34,8 +21,6 @@ ext2_xattr_user_get(const struct xattr_handler *handler,
 		    struct dentry *dentry, const char *name,
 		    void *buffer, size_t size)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (!test_opt(dentry->d_sb, XATTR_USER))
 		return -EOPNOTSUPP;
 	return ext2_xattr_get(d_inode(dentry), EXT2_XATTR_INDEX_USER,
@@ -47,8 +32,6 @@ ext2_xattr_user_set(const struct xattr_handler *handler,
 		    struct dentry *dentry, const char *name,
 		    const void *value, size_t size, int flags)
 {
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
 	if (!test_opt(dentry->d_sb, XATTR_USER))
 		return -EOPNOTSUPP;
 

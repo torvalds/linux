@@ -44,8 +44,6 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 	return &dma_direct_ops;
 }
 
-#include <asm-generic/dma-mapping-common.h>
-
 static inline void __dma_sync(unsigned long paddr,
 			      size_t size, enum dma_data_direction direction)
 {

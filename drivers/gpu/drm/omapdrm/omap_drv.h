@@ -36,11 +36,7 @@
 
 #define MODULE_NAME     "omapdrm"
 
-/* max # of mapper-id's that can be assigned.. todo, come up with a better
- * (but still inexpensive) way to store/access per-buffer mapper private
- * data..
- */
-#define MAX_MAPPERS 2
+struct omap_drm_usergart;
 
 /* parameters which describe (unrotated) coordinates of scanout within a fb: */
 struct omap_drm_window {
@@ -97,6 +93,7 @@ struct omap_drm_private {
 	/* list of GEM objects: */
 	struct list_head obj_list;
 
+	struct omap_drm_usergart *usergart;
 	bool has_dmm;
 
 	/* properties: */
@@ -138,8 +135,18 @@ void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
 void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
+#else
+static inline struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
+{
+	return NULL;
+}
+static inline void omap_fbdev_free(struct drm_device *dev)
+{
+}
+#endif
 
 struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
@@ -172,9 +179,9 @@ void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
 		uint32_t max_formats, enum omap_color_mode supported_modes);
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
+		struct drm_file *file, const struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
+		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
@@ -248,7 +255,7 @@ struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 
 static inline int objects_lookup(struct drm_device *dev,
 		struct drm_file *filp, uint32_t pixel_format,
-		struct drm_gem_object **bos, uint32_t *handles)
+		struct drm_gem_object **bos, const uint32_t *handles)
 {
 	int i, n = drm_format_num_planes(pixel_format);
 

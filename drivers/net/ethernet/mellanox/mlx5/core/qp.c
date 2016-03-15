@@ -36,6 +36,7 @@
 #include <linux/mlx5/cmd.h>
 #include <linux/mlx5/qp.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/transobj.h>
 
 #include "mlx5_core.h"
 
@@ -67,6 +68,52 @@ void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common)
 		complete(&common->free);
 }
 
+static u64 qp_allowed_event_types(void)
+{
+	u64 mask;
+
+	mask = BIT(MLX5_EVENT_TYPE_PATH_MIG) |
+	       BIT(MLX5_EVENT_TYPE_COMM_EST) |
+	       BIT(MLX5_EVENT_TYPE_SQ_DRAINED) |
+	       BIT(MLX5_EVENT_TYPE_SRQ_LAST_WQE) |
+	       BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR) |
+	       BIT(MLX5_EVENT_TYPE_PATH_MIG_FAILED) |
+	       BIT(MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR) |
+	       BIT(MLX5_EVENT_TYPE_WQ_ACCESS_ERROR);
+
+	return mask;
+}
+
+static u64 rq_allowed_event_types(void)
+{
+	u64 mask;
+
+	mask = BIT(MLX5_EVENT_TYPE_SRQ_LAST_WQE) |
+	       BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR);
+
+	return mask;
+}
+
+static u64 sq_allowed_event_types(void)
+{
+	return BIT(MLX5_EVENT_TYPE_WQ_CATAS_ERROR);
+}
+
+static bool is_event_type_allowed(int rsc_type, int event_type)
+{
+	switch (rsc_type) {
+	case MLX5_EVENT_QUEUE_TYPE_QP:
+		return BIT(event_type) & qp_allowed_event_types();
+	case MLX5_EVENT_QUEUE_TYPE_RQ:
+		return BIT(event_type) & rq_allowed_event_types();
+	case MLX5_EVENT_QUEUE_TYPE_SQ:
+		return BIT(event_type) & sq_allowed_event_types();
+	default:
+		WARN(1, "Event arrived for unknown resource type");
+		return false;
+	}
+}
+
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 {
 	struct mlx5_core_rsc_common *common = mlx5_get_rsc(dev, rsn);
@@ -75,8 +122,16 @@ void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 	if (!common)
 		return;
 
+	if (!is_event_type_allowed((rsn >> MLX5_USER_INDEX_LEN), event_type)) {
+		mlx5_core_warn(dev, "event 0x%.2x is not allowed on resource 0x%.8x\n",
+			       event_type, rsn);
+		return;
+	}
+
 	switch (common->res) {
 	case MLX5_RES_QP:
+	case MLX5_RES_RQ:
+	case MLX5_RES_SQ:
 		qp = (struct mlx5_core_qp *)common;
 		qp->event(qp, event_type);
 		break;
@@ -177,26 +232,55 @@ void mlx5_eq_pagefault(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 }
 #endif
 
+static int create_qprqsq_common(struct mlx5_core_dev *dev,
+				struct mlx5_core_qp *qp,
+				int rsc_type)
+{
+	struct mlx5_qp_table *table = &dev->priv.qp_table;
+	int err;
+
+	qp->common.res = rsc_type;
+	spin_lock_irq(&table->lock);
+	err = radix_tree_insert(&table->tree,
+				qp->qpn | (rsc_type << MLX5_USER_INDEX_LEN),
+				qp);
+	spin_unlock_irq(&table->lock);
+	if (err)
+		return err;
+
+	atomic_set(&qp->common.refcount, 1);
+	init_completion(&qp->common.free);
+	qp->pid = current->pid;
+
+	return 0;
+}
+
+static void destroy_qprqsq_common(struct mlx5_core_dev *dev,
+				  struct mlx5_core_qp *qp)
+{
+	struct mlx5_qp_table *table = &dev->priv.qp_table;
+	unsigned long flags;
+
+	spin_lock_irqsave(&table->lock, flags);
+	radix_tree_delete(&table->tree,
+			  qp->qpn | (qp->common.res << MLX5_USER_INDEX_LEN));
+	spin_unlock_irqrestore(&table->lock, flags);
+	mlx5_core_put_rsc((struct mlx5_core_rsc_common *)qp);
+	wait_for_completion(&qp->common.free);
+}
+
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			struct mlx5_core_qp *qp,
 			struct mlx5_create_qp_mbox_in *in,
 			int inlen)
 {
-	struct mlx5_qp_table *table = &dev->priv.qp_table;
 	struct mlx5_create_qp_mbox_out out;
 	struct mlx5_destroy_qp_mbox_in din;
 	struct mlx5_destroy_qp_mbox_out dout;
 	int err;
-	void *qpc;
 
 	memset(&out, 0, sizeof(out));
 	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_CREATE_QP);
-
-	if (dev->issi) {
-		qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
-		/* 0xffffff means we ask to work with cqe version 0 */
-		MLX5_SET(qpc, qpc, user_index, 0xffffff);
-	}
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
 	if (err) {
@@ -213,24 +297,16 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	qp->qpn = be32_to_cpu(out.qpn) & 0xffffff;
 	mlx5_core_dbg(dev, "qpn = 0x%x\n", qp->qpn);
 
-	qp->common.res = MLX5_RES_QP;
-	spin_lock_irq(&table->lock);
-	err = radix_tree_insert(&table->tree, qp->qpn, qp);
-	spin_unlock_irq(&table->lock);
-	if (err) {
-		mlx5_core_warn(dev, "err %d\n", err);
+	err = create_qprqsq_common(dev, qp, MLX5_RES_QP);
+	if (err)
 		goto err_cmd;
-	}
 
 	err = mlx5_debug_qp_add(dev, qp);
 	if (err)
 		mlx5_core_dbg(dev, "failed adding QP 0x%x to debug file system\n",
 			      qp->qpn);
 
-	qp->pid = current->pid;
-	atomic_set(&qp->common.refcount, 1);
 	atomic_inc(&dev->num_qps);
-	init_completion(&qp->common.free);
 
 	return 0;
 
@@ -250,18 +326,11 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 {
 	struct mlx5_destroy_qp_mbox_in in;
 	struct mlx5_destroy_qp_mbox_out out;
-	struct mlx5_qp_table *table = &dev->priv.qp_table;
-	unsigned long flags;
 	int err;
 
 	mlx5_debug_qp_remove(dev, qp);
 
-	spin_lock_irqsave(&table->lock, flags);
-	radix_tree_delete(&table->tree, qp->qpn);
-	spin_unlock_irqrestore(&table->lock, flags);
-
-	mlx5_core_put_rsc((struct mlx5_core_rsc_common *)qp);
-	wait_for_completion(&qp->common.free);
+	destroy_qprqsq_common(dev, qp);
 
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));
@@ -279,59 +348,15 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mlx5_core_destroy_qp);
 
-int mlx5_core_qp_modify(struct mlx5_core_dev *dev, enum mlx5_qp_state cur_state,
-			enum mlx5_qp_state new_state,
+int mlx5_core_qp_modify(struct mlx5_core_dev *dev, u16 operation,
 			struct mlx5_modify_qp_mbox_in *in, int sqd_event,
 			struct mlx5_core_qp *qp)
 {
-	static const u16 optab[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE] = {
-		[MLX5_QP_STATE_RST] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_RST2INIT_QP,
-		},
-		[MLX5_QP_STATE_INIT]  = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_INIT]	= MLX5_CMD_OP_INIT2INIT_QP,
-			[MLX5_QP_STATE_RTR]	= MLX5_CMD_OP_INIT2RTR_QP,
-		},
-		[MLX5_QP_STATE_RTR]   = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTR2RTS_QP,
-		},
-		[MLX5_QP_STATE_RTS]   = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_RTS2RTS_QP,
-		},
-		[MLX5_QP_STATE_SQD] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-		},
-		[MLX5_QP_STATE_SQER] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-			[MLX5_QP_STATE_RTS]	= MLX5_CMD_OP_SQERR2RTS_QP,
-		},
-		[MLX5_QP_STATE_ERR] = {
-			[MLX5_QP_STATE_RST]	= MLX5_CMD_OP_2RST_QP,
-			[MLX5_QP_STATE_ERR]	= MLX5_CMD_OP_2ERR_QP,
-		}
-	};
-
 	struct mlx5_modify_qp_mbox_out out;
 	int err = 0;
-	u16 op;
-
-	if (cur_state >= MLX5_QP_NUM_STATE || new_state >= MLX5_QP_NUM_STATE ||
-	    !optab[cur_state][new_state])
-		return -EINVAL;
 
 	memset(&out, 0, sizeof(out));
-	op = optab[cur_state][new_state];
-	in->hdr.opcode = cpu_to_be16(op);
+	in->hdr.opcode = cpu_to_be16(operation);
 	in->qpn = cpu_to_be32(qp->qpn);
 	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
 	if (err)
@@ -449,3 +474,67 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
 }
 EXPORT_SYMBOL_GPL(mlx5_core_page_fault_resume);
 #endif
+
+int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
+				struct mlx5_core_qp *rq)
+{
+	int err;
+	u32 rqn;
+
+	err = mlx5_core_create_rq(dev, in, inlen, &rqn);
+	if (err)
+		return err;
+
+	rq->qpn = rqn;
+	err = create_qprqsq_common(dev, rq, MLX5_RES_RQ);
+	if (err)
+		goto err_destroy_rq;
+
+	return 0;
+
+err_destroy_rq:
+	mlx5_core_destroy_rq(dev, rq->qpn);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_create_rq_tracked);
+
+void mlx5_core_destroy_rq_tracked(struct mlx5_core_dev *dev,
+				  struct mlx5_core_qp *rq)
+{
+	destroy_qprqsq_common(dev, rq);
+	mlx5_core_destroy_rq(dev, rq->qpn);
+}
+EXPORT_SYMBOL(mlx5_core_destroy_rq_tracked);
+
+int mlx5_core_create_sq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
+				struct mlx5_core_qp *sq)
+{
+	int err;
+	u32 sqn;
+
+	err = mlx5_core_create_sq(dev, in, inlen, &sqn);
+	if (err)
+		return err;
+
+	sq->qpn = sqn;
+	err = create_qprqsq_common(dev, sq, MLX5_RES_SQ);
+	if (err)
+		goto err_destroy_sq;
+
+	return 0;
+
+err_destroy_sq:
+	mlx5_core_destroy_sq(dev, sq->qpn);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_core_create_sq_tracked);
+
+void mlx5_core_destroy_sq_tracked(struct mlx5_core_dev *dev,
+				  struct mlx5_core_qp *sq)
+{
+	destroy_qprqsq_common(dev, sq);
+	mlx5_core_destroy_sq(dev, sq->qpn);
+}
+EXPORT_SYMBOL(mlx5_core_destroy_sq_tracked);

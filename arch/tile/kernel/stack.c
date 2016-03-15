@@ -78,8 +78,7 @@ static bool read_memory_func(void *result, unsigned long address,
 /* Return a pt_regs pointer for a valid fault handler frame */
 static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 {
-	const char *fault = NULL;  /* happy compiler */
-	char fault_buf[64];
+	char fault[64];
 	unsigned long sp = kbt->it.sp;
 	struct pt_regs *p;
 
@@ -90,14 +89,14 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 	if (!in_kernel_stack(kbt, sp + C_ABI_SAVE_AREA_SIZE + PTREGS_SIZE-1))
 		return NULL;
 	p = (struct pt_regs *)(sp + C_ABI_SAVE_AREA_SIZE);
-	if (p->faultnum == INT_SWINT_1 || p->faultnum == INT_SWINT_1_SIGRETURN)
-		fault = "syscall";
-	else {
-		if (kbt->verbose) {     /* else we aren't going to use it */
-			snprintf(fault_buf, sizeof(fault_buf),
+	if (kbt->verbose) {     /* else we aren't going to use it */
+		if (p->faultnum == INT_SWINT_1 ||
+		    p->faultnum == INT_SWINT_1_SIGRETURN)
+			snprintf(fault, sizeof(fault),
+				 "syscall %ld", p->regs[TREG_SYSCALL_NR]);
+		else
+			snprintf(fault, sizeof(fault),
 				 "interrupt %ld", p->faultnum);
-			fault = fault_buf;
-		}
 	}
 	if (EX1_PL(p->ex1) == KERNEL_PL &&
 	    __kernel_text_address(p->pc) &&

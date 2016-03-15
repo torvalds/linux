@@ -42,7 +42,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	spin_lock_init(&ctx->sste_lock);
 	ctx->afu = afu;
 	ctx->master = master;
-	ctx->pid = NULL; /* Set in start work ioctl */
+	ctx->pid = ctx->glpid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
 	ctx->mapping = mapping;
 
@@ -97,6 +97,12 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	ctx->pe = i;
 	ctx->elem = &ctx->afu->spa[i];
 	ctx->pe_inserted = false;
+
+	/*
+	 * take a ref on the afu so that it stays alive at-least till
+	 * this context is reclaimed inside reclaim_ctx.
+	 */
+	cxl_afu_get(afu);
 	return 0;
 }
 
@@ -211,7 +217,11 @@ int __detach_context(struct cxl_context *ctx)
 	WARN_ON(cxl_detach_process(ctx) &&
 		cxl_adapter_link_ok(ctx->afu->adapter));
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
+
+	/* release the reference to the group leader and mm handling pid */
 	put_pid(ctx->pid);
+	put_pid(ctx->glpid);
+
 	cxl_ctx_put();
 	return 0;
 }
@@ -277,6 +287,9 @@ static void reclaim_ctx(struct rcu_head *rcu)
 
 	if (ctx->irq_bitmap)
 		kfree(ctx->irq_bitmap);
+
+	/* Drop ref to the afu device taken during cxl_context_init */
+	cxl_afu_put(ctx->afu);
 
 	kfree(ctx);
 }

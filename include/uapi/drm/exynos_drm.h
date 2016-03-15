@@ -15,7 +15,7 @@
 #ifndef _UAPI_EXYNOS_DRM_H_
 #define _UAPI_EXYNOS_DRM_H_
 
-#include <drm/drm.h>
+#include "drm.h"
 
 /**
  * User-desired buffer creation information structure.
@@ -27,7 +27,7 @@
  *	- this handle will be set by gem module of kernel side.
  */
 struct drm_exynos_gem_create {
-	uint64_t size;
+	__u64 size;
 	unsigned int flags;
 	unsigned int handle;
 };
@@ -44,7 +44,7 @@ struct drm_exynos_gem_create {
 struct drm_exynos_gem_info {
 	unsigned int handle;
 	unsigned int flags;
-	uint64_t size;
+	__u64 size;
 };
 
 /**
@@ -58,7 +58,7 @@ struct drm_exynos_gem_info {
 struct drm_exynos_vidi_connection {
 	unsigned int connection;
 	unsigned int extensions;
-	uint64_t edid;
+	__u64 edid;
 };
 
 /* memory type definitions. */

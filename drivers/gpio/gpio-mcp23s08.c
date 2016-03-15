@@ -269,7 +269,7 @@ static const struct mcp23s08_ops mcp23s17_ops = {
 
 static int mcp23s08_direction_input(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	int status;
 
 	mutex_lock(&mcp->lock);
@@ -281,7 +281,7 @@ static int mcp23s08_direction_input(struct gpio_chip *chip, unsigned offset)
 
 static int mcp23s08_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	int status;
 
 	mutex_lock(&mcp->lock);
@@ -312,7 +312,7 @@ static int __mcp23s08_set(struct mcp23s08 *mcp, unsigned mask, int value)
 
 static void mcp23s08_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	unsigned mask = 1 << offset;
 
 	mutex_lock(&mcp->lock);
@@ -323,7 +323,7 @@ static void mcp23s08_set(struct gpio_chip *chip, unsigned offset, int value)
 static int
 mcp23s08_direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcp23s08	*mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	unsigned mask = 1 << offset;
 	int status;
 
@@ -377,7 +377,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 
 static int mcp23s08_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcp23s08 *mcp = container_of(chip, struct mcp23s08, chip);
+	struct mcp23s08 *mcp = gpiochip_get_data(chip);
 
 	return irq_find_mapping(mcp->irq_domain, offset);
 }
@@ -446,7 +446,7 @@ static int mcp23s08_irq_reqres(struct irq_data *data)
 	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
 
 	if (gpiochip_lock_as_irq(&mcp->chip, data->hwirq)) {
-		dev_err(mcp->chip.dev,
+		dev_err(mcp->chip.parent,
 			"unable to lock HW IRQ %lu for IRQ usage\n",
 			data->hwirq);
 		return -EINVAL;
@@ -481,7 +481,8 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 
 	mutex_init(&mcp->irq_lock);
 
-	mcp->irq_domain = irq_domain_add_linear(chip->dev->of_node, chip->ngpio,
+	mcp->irq_domain = irq_domain_add_linear(chip->parent->of_node,
+						chip->ngpio,
 						&irq_domain_simple_ops, mcp);
 	if (!mcp->irq_domain)
 		return -ENODEV;
@@ -491,10 +492,11 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 	else
 		irqflags |= IRQF_TRIGGER_LOW;
 
-	err = devm_request_threaded_irq(chip->dev, mcp->irq, NULL, mcp23s08_irq,
-					irqflags, dev_name(chip->dev), mcp);
+	err = devm_request_threaded_irq(chip->parent, mcp->irq, NULL,
+					mcp23s08_irq,
+					irqflags, dev_name(chip->parent), mcp);
 	if (err != 0) {
-		dev_err(chip->dev, "unable to request IRQ#%d: %d\n",
+		dev_err(chip->parent, "unable to request IRQ#%d: %d\n",
 			mcp->irq, err);
 		return err;
 	}
@@ -542,7 +544,7 @@ static void mcp23s08_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	int		t;
 	unsigned	mask;
 
-	mcp = container_of(chip, struct mcp23s08, chip);
+	mcp = gpiochip_get_data(chip);
 
 	/* NOTE: we only handle one bank for now ... */
 	bank = '0' + ((mcp->addr >> 1) & 0x7);
@@ -638,7 +640,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 
 	mcp->chip.base = pdata->base;
 	mcp->chip.can_sleep = true;
-	mcp->chip.dev = dev;
+	mcp->chip.parent = dev;
 	mcp->chip.owner = THIS_MODULE;
 
 	/* verify MCP_IOCON.SEQOP = 0, so sequential reads work,
@@ -652,7 +654,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->irq_controller = pdata->irq_controller;
 	if (mcp->irq && mcp->irq_controller) {
 		mcp->irq_active_high =
-			of_property_read_bool(mcp->chip.dev->of_node,
+			of_property_read_bool(mcp->chip.parent->of_node,
 					      "microchip,irq-active-high");
 
 		if (type == MCP_TYPE_017)
@@ -702,7 +704,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 			goto fail;
 	}
 
-	status = gpiochip_add(&mcp->chip);
+	status = gpiochip_add_data(&mcp->chip, mcp);
 	if (status < 0)
 		goto fail;
 

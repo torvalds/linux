@@ -29,7 +29,7 @@
 
 #include <asm/io.h>
 #if IS_ENABLED(CONFIG_UCC_GETH)
-#include <asm/ucc.h>	/* for ucc_set_qe_mux_mii_mng() */
+#include <soc/fsl/qe/ucc.h>
 #endif
 
 #include "gianfar.h"
@@ -69,7 +69,6 @@ struct fsl_pq_mdio {
 struct fsl_pq_mdio_priv {
 	void __iomem *map;
 	struct fsl_pq_mii __iomem *regs;
-	int irqs[PHY_MAX_ADDR];
 };
 
 /*
@@ -401,7 +400,6 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 	new_bus->read = &fsl_pq_mdio_read;
 	new_bus->write = &fsl_pq_mdio_write;
 	new_bus->reset = &fsl_pq_mdio_reset;
-	new_bus->irq = priv->irqs;
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err < 0) {

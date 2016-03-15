@@ -46,6 +46,13 @@ config WATCHDOG_NOWAYOUT
 	  get killed. If you say Y here, the watchdog cannot be stopped once
 	  it has been started.
 
+config WATCHDOG_SYSFS
+	bool "Read different watchdog information through sysfs"
+	default n
+	help
+	  Say Y here if you want to enable watchdog device status read through
+	  sysfs attributes.
+
 #
 # General Watchdog drivers
 #
@@ -135,6 +142,17 @@ config MENF21BMC_WATCHDOG
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_wdt.
 
+config TANGOX_WATCHDOG
+	tristate "Sigma Designs SMP86xx/SMP87xx watchdog"
+	select WATCHDOG_CORE
+	depends on ARCH_TANGO || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Support for the watchdog in Sigma Designs SMP86xx (tango3)
+	  and SMP87xx (tango4) family chips.
+
+	  This driver can be built as a module. The module name is tangox_wdt.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
@@ -161,6 +179,17 @@ config XILINX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called of_xilinx_wdt.
 
+config ZIIRAVE_WATCHDOG
+	tristate "Zodiac RAVE Watchdog Timer"
+	depends on I2C
+	select WATCHDOG_CORE
+	help
+	  Watchdog driver for the Zodiac Aerospace RAVE Switch Watchdog
+	  Processor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ziirave_wdt.
+
 # ALPHA Architecture
 
 # ARM Architecture
@@ -172,6 +201,16 @@ config ARM_SP805_WATCHDOG
 	help
 	  ARM Primecell SP805 Watchdog timer. This will reboot your system when
 	  the timeout is reached.
+
+config ASM9260_WATCHDOG
+	tristate "Alphascale ASM9260 watchdog"
+	depends on MACH_ASM9260
+	depends on OF
+	select WATCHDOG_CORE
+	select RESET_CONTROLLER
+	help
+	  Watchdog timer embedded into Alphascale asm9260 chips. This will reboot your
+	  system when the timeout is reached.
 
 config AT91RM9200_WATCHDOG
 	tristate "AT91RM9200 watchdog"
@@ -426,6 +465,16 @@ config NUC900_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called nuc900_wdt.
 
+config TS4800_WATCHDOG
+	tristate "TS-4800 Watchdog"
+	depends on HAS_IOMEM && OF
+	select WATCHDOG_CORE
+	select MFD_SYSCON
+	help
+	  Technologic Systems TS-4800 has watchdog timer implemented in
+	  an external FPGA. Say Y here if you want to support for the
+	  watchdog timer on TS-4800 board.
+
 config TS72XX_WATCHDOG
 	tristate "TS-72XX SBC Watchdog"
 	depends on MACH_TS72XX
@@ -570,6 +619,7 @@ config DIGICOLOR_WATCHDOG
 config LPC18XX_WATCHDOG
 	tristate "LPC18xx/43xx Watchdog"
 	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -577,6 +627,16 @@ config LPC18XX_WATCHDOG
 	  processors.
 	  To compile this driver as a module, choose M here: the
 	  module will be called lpc18xx_wdt.
+
+config ATLAS7_WATCHDOG
+	tristate "CSRatlas7 watchdog"
+	depends on ARCH_ATLAS7
+	help
+	  Say Y here to include Watchdog timer support for the watchdog
+	  existing on the CSRatlas7 series platforms.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atlas7_wdt.
 
 # AVR32 Architecture
 
@@ -1316,6 +1376,7 @@ config BCM_KONA_WDT_DEBUG
 config BCM7038_WDT
 	tristate "BCM7038 Watchdog"
 	select WATCHDOG_CORE
+	depends on HAS_IOMEM
 	help
 	 Watchdog driver for the built-in hardware in Broadcom 7038 SoCs.
 
@@ -1325,6 +1386,7 @@ config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"
 	depends on HAS_IOMEM
 	depends on METAG || MIPS || COMPILE_TEST
+	select WATCHDOG_CORE
 	help
 	  Driver for Imagination Technologies PowerDown Controller
 	  Watchdog Timer.
@@ -1344,6 +1406,13 @@ config RALINK_WDT
 	depends on RALINK
 	help
 	  Hardware driver for the Ralink SoC Watchdog Timer.
+
+config MT7621_WDT
+	tristate "Mediatek SoC watchdog"
+	select WATCHDOG_CORE
+	depends on SOC_MT7620 || SOC_MT7621
+	help
+	  Hardware driver for the Mediatek/Ralink MT7621/8 SoC Watchdog Timer.
 
 # PARISC Architecture
 
@@ -1499,6 +1568,17 @@ config WATCHDOG_RIO
 	  Say Y here to support the hardware watchdog capability on Sun RIO
 	  machines.  The watchdog timeout period is normally one minute but
 	  can be changed with a boot-time parameter.
+
+config WATCHDOG_SUN4V
+	tristate "Sun4v Watchdog support"
+	select WATCHDOG_CORE
+	depends on SPARC64
+	help
+	  Say Y here to support the hypervisor watchdog capability embedded
+	  in the SPARC sun4v architecture.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sun4v_wdt.
 
 # XTENSA Architecture
 

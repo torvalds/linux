@@ -275,6 +275,40 @@ static u32 exc_vector_base(struct kvm_vcpu *vcpu)
 		return vbar;
 }
 
+/*
+ * Switch to an exception mode, updating both CPSR and SPSR. Follow
+ * the logic described in AArch32.EnterMode() from the ARMv8 ARM.
+ */
+static void kvm_update_psr(struct kvm_vcpu *vcpu, unsigned long mode)
+{
+	unsigned long cpsr = *vcpu_cpsr(vcpu);
+	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
+
+	*vcpu_cpsr(vcpu) = (cpsr & ~MODE_MASK) | mode;
+
+	switch (mode) {
+	case FIQ_MODE:
+		*vcpu_cpsr(vcpu) |= PSR_F_BIT;
+		/* Fall through */
+	case ABT_MODE:
+	case IRQ_MODE:
+		*vcpu_cpsr(vcpu) |= PSR_A_BIT;
+		/* Fall through */
+	default:
+		*vcpu_cpsr(vcpu) |= PSR_I_BIT;
+	}
+
+	*vcpu_cpsr(vcpu) &= ~(PSR_IT_MASK | PSR_J_BIT | PSR_E_BIT | PSR_T_BIT);
+
+	if (sctlr & SCTLR_TE)
+		*vcpu_cpsr(vcpu) |= PSR_T_BIT;
+	if (sctlr & SCTLR_EE)
+		*vcpu_cpsr(vcpu) |= PSR_E_BIT;
+
+	/* Note: These now point to the mode banked copies */
+	*vcpu_spsr(vcpu) = cpsr;
+}
+
 /**
  * kvm_inject_undefined - inject an undefined exception into the guest
  * @vcpu: The VCPU to receive the undefined exception
@@ -286,29 +320,13 @@ static u32 exc_vector_base(struct kvm_vcpu *vcpu)
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
-	unsigned long new_lr_value;
-	unsigned long new_spsr_value;
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset = 4;
 	u32 return_offset = (is_thumb) ? 2 : 4;
 
-	new_spsr_value = cpsr;
-	new_lr_value = *vcpu_pc(vcpu) - return_offset;
-
-	*vcpu_cpsr(vcpu) = (cpsr & ~MODE_MASK) | UND_MODE;
-	*vcpu_cpsr(vcpu) |= PSR_I_BIT;
-	*vcpu_cpsr(vcpu) &= ~(PSR_IT_MASK | PSR_J_BIT | PSR_E_BIT | PSR_T_BIT);
-
-	if (sctlr & SCTLR_TE)
-		*vcpu_cpsr(vcpu) |= PSR_T_BIT;
-	if (sctlr & SCTLR_EE)
-		*vcpu_cpsr(vcpu) |= PSR_E_BIT;
-
-	/* Note: These now point to UND banked copies */
-	*vcpu_spsr(vcpu) = cpsr;
-	*vcpu_reg(vcpu, 14) = new_lr_value;
+	kvm_update_psr(vcpu, UND_MODE);
+	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) - return_offset;
 
 	/* Branch to exception vector */
 	*vcpu_pc(vcpu) = exc_vector_base(vcpu) + vect_offset;
@@ -320,30 +338,14 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
  */
 static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
 {
-	unsigned long new_lr_value;
-	unsigned long new_spsr_value;
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset;
 	u32 return_offset = (is_thumb) ? 4 : 0;
 	bool is_lpae;
 
-	new_spsr_value = cpsr;
-	new_lr_value = *vcpu_pc(vcpu) + return_offset;
-
-	*vcpu_cpsr(vcpu) = (cpsr & ~MODE_MASK) | ABT_MODE;
-	*vcpu_cpsr(vcpu) |= PSR_I_BIT | PSR_A_BIT;
-	*vcpu_cpsr(vcpu) &= ~(PSR_IT_MASK | PSR_J_BIT | PSR_E_BIT | PSR_T_BIT);
-
-	if (sctlr & SCTLR_TE)
-		*vcpu_cpsr(vcpu) |= PSR_T_BIT;
-	if (sctlr & SCTLR_EE)
-		*vcpu_cpsr(vcpu) |= PSR_E_BIT;
-
-	/* Note: These now point to ABT banked copies */
-	*vcpu_spsr(vcpu) = cpsr;
-	*vcpu_reg(vcpu, 14) = new_lr_value;
+	kvm_update_psr(vcpu, ABT_MODE);
+	*vcpu_reg(vcpu, 14) = *vcpu_pc(vcpu) + return_offset;
 
 	if (is_pabt)
 		vect_offset = 12;

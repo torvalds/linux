@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <uapi/linux/elf.h>
 
-#include <asm/cpu-info.h>
 #include <asm/current.h>
 
 /* ELF header e_flags defines. */
@@ -44,6 +43,7 @@
 #define EF_MIPS_OPTIONS_FIRST	0x00000080
 #define EF_MIPS_32BITMODE	0x00000100
 #define EF_MIPS_FP64		0x00000200
+#define EF_MIPS_NAN2008		0x00000400
 #define EF_MIPS_ABI		0x0000f000
 #define EF_MIPS_ARCH		0xf0000000
 
@@ -227,7 +227,7 @@ struct mips_elf_abiflags_v0 {
 	int __res = 1;							\
 	struct elfhdr *__h = (hdr);					\
 									\
-	if (__h->e_machine != EM_MIPS)					\
+	if (!mips_elf_check_machine(__h))				\
 		__res = 0;						\
 	if (__h->e_ident[EI_CLASS] != ELFCLASS32)			\
 		__res = 0;						\
@@ -258,7 +258,7 @@ struct mips_elf_abiflags_v0 {
 	int __res = 1;							\
 	struct elfhdr *__h = (hdr);					\
 									\
-	if (__h->e_machine != EM_MIPS)					\
+	if (!mips_elf_check_machine(__h))				\
 		__res = 0;						\
 	if (__h->e_ident[EI_CLASS] != ELFCLASS64)			\
 		__res = 0;						\
@@ -285,6 +285,11 @@ struct mips_elf_abiflags_v0 {
 
 #endif /* !defined(ELF_ARCH) */
 
+#define mips_elf_check_machine(x) ((x)->e_machine == EM_MIPS)
+
+#define vmcore_elf32_check_arch mips_elf_check_machine
+#define vmcore_elf64_check_arch mips_elf_check_machine
+
 struct mips_abi;
 
 extern struct mips_abi mips_abi;
@@ -305,7 +310,7 @@ do {									\
 									\
 	current->thread.abi = &mips_abi;				\
 									\
-	current->thread.fpu.fcr31 = boot_cpu_data.fpu_csr31;		\
+	mips_set_personality_nan(state);				\
 } while (0)
 
 #endif /* CONFIG_32BIT */
@@ -367,7 +372,7 @@ do {									\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
-	current->thread.fpu.fcr31 = boot_cpu_data.fpu_csr31;		\
+	mips_set_personality_nan(state);				\
 									\
 	p = personality(current->personality);				\
 	if (p != PER_LINUX32 && p != PER_LINUX)				\
@@ -432,6 +437,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 
 struct arch_elf_state {
+	int nan_2008;
 	int fp_abi;
 	int interp_fp_abi;
 	int overall_fp_mode;
@@ -440,17 +446,23 @@ struct arch_elf_state {
 #define MIPS_ABI_FP_UNKNOWN	(-1)	/* Unknown FP ABI (kernel internal) */
 
 #define INIT_ARCH_ELF_STATE {			\
+	.nan_2008 = -1,				\
 	.fp_abi = MIPS_ABI_FP_UNKNOWN,		\
 	.interp_fp_abi = MIPS_ABI_FP_UNKNOWN,	\
 	.overall_fp_mode = -1,			\
 }
 
+/* Whether to accept legacy-NaN and 2008-NaN user binaries.  */
+extern bool mips_use_nan_legacy;
+extern bool mips_use_nan_2008;
+
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 			    bool is_interp, struct arch_elf_state *state);
 
-extern int arch_check_elf(void *ehdr, bool has_interpreter,
+extern int arch_check_elf(void *ehdr, bool has_interpreter, void *interp_ehdr,
 			  struct arch_elf_state *state);
 
+extern void mips_set_personality_nan(struct arch_elf_state *state);
 extern void mips_set_personality_fp(struct arch_elf_state *state);
 
 #endif /* _ASM_ELF_H */

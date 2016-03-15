@@ -22,6 +22,14 @@ if IIO_BUFFER
 	source "drivers/iio/buffer/Kconfig"
 endif # IIO_BUFFER
 
+config IIO_CONFIGFS
+	tristate "Enable IIO configuration via configfs"
+	select CONFIGFS_FS
+	help
+	  This allows configuring various IIO bits through configfs
+	  (e.g. software triggers). For more info see
+	  Documentation/iio/iio_configfs.txt.
+
 config IIO_TRIGGER
 	bool "Enable triggered sampling support"
 	help
@@ -38,6 +46,14 @@ config IIO_CONSUMERS_PER_TRIGGER
 	This value controls the maximum number of consumers that a
 	given trigger may handle. Default is 2.
 
+config IIO_SW_TRIGGER
+	tristate "Enable software triggers support"
+	select IIO_CONFIGFS
+	help
+	 Provides IIO core support for software triggers. A software
+	 trigger can be created via configfs or directly by a driver
+	 using the API provided.
+
 config IIO_TRIGGERED_EVENT
 	tristate
 	select IIO_TRIGGER
@@ -50,8 +66,10 @@ source "drivers/iio/amplifiers/Kconfig"
 source "drivers/iio/chemical/Kconfig"
 source "drivers/iio/common/Kconfig"
 source "drivers/iio/dac/Kconfig"
+source "drivers/iio/dummy/Kconfig"
 source "drivers/iio/frequency/Kconfig"
 source "drivers/iio/gyro/Kconfig"
+source "drivers/iio/health/Kconfig"
 source "drivers/iio/humidity/Kconfig"
 source "drivers/iio/imu/Kconfig"
 source "drivers/iio/light/Kconfig"

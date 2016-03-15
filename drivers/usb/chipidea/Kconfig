@@ -37,9 +37,4 @@ config USB_CHIPIDEA_HOST
 	  Say Y here to enable host controller functionality of the
 	  ChipIdea driver.
 
-config USB_CHIPIDEA_DEBUG
-	bool "ChipIdea driver debug"
-	help
-	  Say Y here to enable debugging output of the ChipIdea driver.
-
 endif

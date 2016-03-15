@@ -391,6 +391,8 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 4>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <8>;
 			gpmc,num-waitpins = <4>;
 			ti,hwmods = "gpmc";

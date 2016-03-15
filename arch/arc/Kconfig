@@ -12,8 +12,6 @@ config ARC
 	select BUILDTIME_EXTABLE_SORT
 	select COMMON_CLK
 	select CLONE_BACKWARDS
-	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
-	select DEVTMPFS if !INITRAMFS_SOURCE=""
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
@@ -72,9 +70,6 @@ config GENERIC_HWEIGHT
 config STACKTRACE_SUPPORT
 	def_bool y
 	select STACKTRACE
-
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
 
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	def_bool y
@@ -278,14 +273,6 @@ config ARC_DCCM_BASE
 	default "0xA0000000"
 	depends on ARC_HAS_DCCM
 
-config ARC_HAS_HW_MPY
-	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
-	default y
-	help
-	  Influences how gcc generates code for MPY operations.
-	  If enabled, MPYxx insns are generated, provided by Standard/XMAC
-	  Multipler. Otherwise software multipy lib is used
-
 choice
 	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
@@ -338,6 +325,19 @@ config ARC_PAGE_SIZE_16K
 config ARC_PAGE_SIZE_4K
 	bool "4KB"
 	depends on ARC_MMU_V3 || ARC_MMU_V4
+
+endchoice
+
+choice
+	prompt "MMU Super Page Size"
+	depends on ISA_ARCV2 && TRANSPARENT_HUGEPAGE
+	default ARC_HUGEPAGE_2M
+
+config ARC_HUGEPAGE_2M
+	bool "2MB"
+
+config ARC_HUGEPAGE_16M
+	bool "16MB"
 
 endchoice
 
@@ -413,7 +413,7 @@ config ARC_HAS_RTC
 	default n
 	depends on !SMP
 
-config ARC_HAS_GRTC
+config ARC_HAS_GFRC
 	bool "SMP synchronized 64-bit cycle counter"
 	default y
 	depends on SMP
@@ -532,14 +532,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
-if SMP
-
-config ARC_IPI_DBG
-	bool "Debug Inter Core interrupts"
-	default n
-
-endif
-
 endif
 
 config ARC_UBOOT_SUPPORT
@@ -569,6 +561,12 @@ endmenu
 endmenu	 # "ARC Architecture Configuration"
 
 source "mm/Kconfig"
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "12" if ARC_HUGEPAGE_16M
+	default "11"
+
 source "net/Kconfig"
 source "drivers/Kconfig"
 source "fs/Kconfig"

@@ -319,6 +319,17 @@
 			interrupts = <0 208 0>;
 		};
 
+		blsp_i2c8: i2c@f9964000 {
+			status = "disabled";
+			compatible = "qcom,i2c-qup-v2.1.1";
+			reg = <0xf9964000 0x1000>;
+			interrupts = <0 102 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_BLSP2_QUP2_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		blsp_i2c11: i2c@f9967000 {
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";

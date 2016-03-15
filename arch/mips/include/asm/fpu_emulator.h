@@ -79,7 +79,7 @@ int mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 /*
  * Break instruction with special math emu break code set
  */
-#define BREAK_MATH (0x0000000d | (BRK_MEMU << 16))
+#define BREAK_MATH(micromips) (((micromips) ? 0x7 : 0xd) | (BRK_MEMU << 16))
 
 #define SIGNALLING_NAN 0x7ff800007ff80000LL
 

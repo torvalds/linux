@@ -62,6 +62,7 @@ static inline uint xlog_get_client_id(__be32 i)
 #define XLOG_STATE_CALLBACK  0x0020 /* Callback functions now */
 #define XLOG_STATE_DIRTY     0x0040 /* Dirty IC log, not ready for ACTIVE status*/
 #define XLOG_STATE_IOERROR   0x0080 /* IO error happened in sync'ing log */
+#define XLOG_STATE_IOABORT   0x0100 /* force abort on I/O completion (debug) */
 #define XLOG_STATE_ALL	     0x7FFF /* All possible valid flags */
 #define XLOG_STATE_NOTUSED   0x8000 /* This IC log not being used */
 
@@ -410,6 +411,8 @@ struct xlog {
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
 	void			*l_iclog_bak[XLOG_MAX_ICLOGS];
+	/* log record crc error injection factor */
+	uint32_t		l_badcrc_factor;
 #endif
 
 };

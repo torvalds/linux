@@ -446,7 +446,8 @@ static long vfio_pci_ioctl(void *device_data,
 		info.num_regions = VFIO_PCI_NUM_REGIONS;
 		info.num_irqs = VFIO_PCI_NUM_IRQS;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		return copy_to_user((void __user *)arg, &info, minsz) ?
+			-EFAULT : 0;
 
 	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
 		struct pci_dev *pdev = vdev->pdev;
@@ -520,7 +521,8 @@ static long vfio_pci_ioctl(void *device_data,
 			return -EINVAL;
 		}
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		return copy_to_user((void __user *)arg, &info, minsz) ?
+			-EFAULT : 0;
 
 	} else if (cmd == VFIO_DEVICE_GET_IRQ_INFO) {
 		struct vfio_irq_info info;
@@ -555,7 +557,8 @@ static long vfio_pci_ioctl(void *device_data,
 		else
 			info.flags |= VFIO_IRQ_INFO_NORESIZE;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		return copy_to_user((void __user *)arg, &info, minsz) ?
+			-EFAULT : 0;
 
 	} else if (cmd == VFIO_DEVICE_SET_IRQS) {
 		struct vfio_irq_set hdr;
@@ -940,13 +943,13 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pdev->hdr_type != PCI_HEADER_TYPE_NORMAL)
 		return -EINVAL;
 
-	group = iommu_group_get(&pdev->dev);
+	group = vfio_iommu_group_get(&pdev->dev);
 	if (!group)
 		return -EINVAL;
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 	if (!vdev) {
-		iommu_group_put(group);
+		vfio_iommu_group_put(group, &pdev->dev);
 		return -ENOMEM;
 	}
 
@@ -957,7 +960,7 @@ static int vfio_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = vfio_add_group_dev(&pdev->dev, &vfio_pci_ops, vdev);
 	if (ret) {
-		iommu_group_put(group);
+		vfio_iommu_group_put(group, &pdev->dev);
 		kfree(vdev);
 		return ret;
 	}
@@ -993,7 +996,7 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	if (!vdev)
 		return;
 
-	iommu_group_put(pdev->dev.iommu_group);
+	vfio_iommu_group_put(pdev->dev.iommu_group, &pdev->dev);
 	kfree(vdev);
 
 	if (vfio_pci_is_vga(pdev)) {

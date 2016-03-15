@@ -13,6 +13,11 @@
 
 #define PIM_NULL_REGISTER	cpu_to_be32(0x40000000)
 
+static inline bool ipmr_pimsm_enabled(void)
+{
+	return IS_BUILTIN(CONFIG_IP_PIMSM_V1) || IS_BUILTIN(CONFIG_IP_PIMSM_V2);
+}
+
 /* PIMv2 register message header layout (ietf-draft-idmr-pimvsm-v2-00.ps */
 struct pimreghdr
 {

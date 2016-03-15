@@ -583,6 +583,8 @@ static void set_updater_desc(struct pxad_desc_sw *sw_desc,
 		(PXA_DCMD_LENGTH & sizeof(u32));
 	if (flags & DMA_PREP_INTERRUPT)
 		updater->dcmd |= PXA_DCMD_ENDIRQEN;
+	if (sw_desc->cyclic)
+		sw_desc->hw_desc[sw_desc->nb_desc - 2]->ddadr = sw_desc->first;
 }
 
 static bool is_desc_completed(struct virt_dma_desc *vd)
@@ -673,6 +675,10 @@ static irqreturn_t pxad_chan_handler(int irq, void *dev_id)
 		dev_dbg(&chan->vc.chan.dev->device,
 			"%s(): checking txd %p[%x]: completed=%d\n",
 			__func__, vd, vd->tx.cookie, is_desc_completed(vd));
+		if (to_pxad_sw_desc(vd)->cyclic) {
+			vchan_cyclic_callback(vd);
+			break;
+		}
 		if (is_desc_completed(vd)) {
 			list_del(&vd->node);
 			vchan_cookie_complete(vd);
@@ -1080,7 +1086,7 @@ pxad_prep_dma_cyclic(struct dma_chan *dchan,
 		return NULL;
 
 	pxad_get_config(chan, dir, &dcmd, &dsadr, &dtadr);
-	dcmd |= PXA_DCMD_ENDIRQEN | (PXA_DCMD_LENGTH | period_len);
+	dcmd |= PXA_DCMD_ENDIRQEN | (PXA_DCMD_LENGTH & period_len);
 	dev_dbg(&chan->vc.chan.dev->device,
 		"%s(): buf_addr=0x%lx len=%zu period=%zu dir=%d flags=%lx\n",
 		__func__, (unsigned long)buf_addr, len, period_len, dir, flags);
@@ -1414,6 +1420,7 @@ static int pxad_probe(struct platform_device *op)
 	pdev->slave.dst_addr_widths = widths;
 	pdev->slave.directions = BIT(DMA_MEM_TO_DEV) | BIT(DMA_DEV_TO_MEM);
 	pdev->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
+	pdev->slave.descriptor_reuse = true;
 
 	pdev->slave.dev = &op->dev;
 	ret = pxad_init_dmadev(op, pdev, dma_channels);

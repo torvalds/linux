@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -358,8 +358,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * If the Region Address and Length have not been previously evaluated,
-		 * evaluate them now and save the results.
+		 * If the Region Address and Length have not been previously
+		 * evaluated, evaluate them now and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_region_arguments(obj_desc);
@@ -454,8 +454,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * Copy the table from the buffer because the buffer could be modified
-		 * or even deleted in the future
+		 * Copy the table from the buffer because the buffer could be
+		 * modified or even deleted in the future
 		 */
 		table = ACPI_ALLOCATE(length);
 		if (!table) {

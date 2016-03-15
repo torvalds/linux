@@ -83,6 +83,8 @@ struct rdma_dev_addr {
 	int bound_dev_if;
 	enum rdma_transport_type transport;
 	struct net *net;
+	enum rdma_network_type network;
+	int hoplimit;
 };
 
 /**
@@ -91,8 +93,8 @@ struct rdma_dev_addr {
  *
  * The dev_addr->net field must be initialized.
  */
-int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr,
-		      u16 *vlan_id);
+int rdma_translate_ip(const struct sockaddr *addr,
+		      struct rdma_dev_addr *dev_addr, u16 *vlan_id);
 
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
@@ -117,6 +119,10 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 				     struct rdma_dev_addr *addr, void *context),
 		    void *context);
 
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
@@ -125,8 +131,10 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 int rdma_addr_size(struct sockaddr *addr);
 
 int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id);
-int rdma_addr_find_dmac_by_grh(const union ib_gid *sgid, const union ib_gid *dgid,
-			       u8 *smac, u16 *vlan_id, int if_index);
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *smac, u16 *vlan_id, int *if_index,
+				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {

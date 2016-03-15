@@ -116,7 +116,7 @@ static void enable_all_hw_wp(struct kvm_vcpu *vcpu)
 	if (*cr9 & PER_EVENT_STORE && *cr9 & PER_CONTROL_ALTERATION) {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr10 = 0;
-		*cr11 = PSW_ADDR_INSN;
+		*cr11 = -1UL;
 	} else {
 		*cr9 &= ~PER_CONTROL_ALTERATION;
 		*cr9 |= PER_EVENT_STORE;
@@ -159,7 +159,7 @@ void kvm_s390_patch_guest_per_regs(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->gcr[0] &= ~0x800ul;
 		vcpu->arch.sie_block->gcr[9] |= PER_EVENT_IFETCH;
 		vcpu->arch.sie_block->gcr[10] = 0;
-		vcpu->arch.sie_block->gcr[11] = PSW_ADDR_INSN;
+		vcpu->arch.sie_block->gcr[11] = -1UL;
 	}
 
 	if (guestdbg_hw_bp_enabled(vcpu)) {

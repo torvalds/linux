@@ -38,7 +38,7 @@ static void led_heartbeat_function(unsigned long data)
 	unsigned long delay = 0;
 
 	if (unlikely(panic_heartbeats)) {
-		led_set_brightness(led_cdev, LED_OFF);
+		led_set_brightness_nosleep(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -81,7 +81,7 @@ static void led_heartbeat_function(unsigned long data)
 		break;
 	}
 
-	led_set_brightness_async(led_cdev, brightness);
+	led_set_brightness_nosleep(led_cdev, brightness);
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 

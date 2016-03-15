@@ -14,8 +14,9 @@
 #include <dt-bindings/clock/mt8173-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/mt8173-power.h>
-#include <dt-bindings/reset-controller/mt8173-resets.h>
+#include <dt-bindings/reset/mt8173-resets.h>
 #include "mt8173-pinfunc.h"
 
 / {
@@ -95,7 +96,7 @@
 	};
 
 	psci {
-		compatible = "arm,psci";
+		compatible = "arm,psci-1.0", "arm,psci-0.2", "arm,psci";
 		method = "smc";
 		cpu_suspend   = <0x84000001>;
 		cpu_off	      = <0x84000002>;
@@ -245,6 +246,15 @@
 			compatible = "mediatek,mt8173-wdt",
 				     "mediatek,mt6589-wdt";
 			reg = <0 0x10007000 0 0x100>;
+		};
+
+		timer: timer@10008000 {
+			compatible = "mediatek,mt8173-timer",
+				     "mediatek,mt6577-timer";
+			reg = <0 0x10008000 0 0x1000>;
+			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&infracfg CLK_INFRA_CLK_13M>,
+				 <&topckgen CLK_TOP_RTC_SEL>;
 		};
 
 		pwrap: pwrap@1000d000 {
@@ -510,10 +520,73 @@
 			status = "disabled";
 		};
 
+		usb30: usb@11270000 {
+			compatible = "mediatek,mt8173-xhci";
+			reg = <0 0x11270000 0 0x1000>,
+			      <0 0x11280700 0 0x0100>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+			power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+			clocks = <&topckgen CLK_TOP_USB30_SEL>,
+				 <&pericfg CLK_PERI_USB0>,
+				 <&pericfg CLK_PERI_USB1>;
+			clock-names = "sys_ck",
+				      "wakeup_deb_p0",
+				      "wakeup_deb_p1";
+			phys = <&phy_port0 PHY_TYPE_USB3>,
+			       <&phy_port1 PHY_TYPE_USB2>;
+			mediatek,syscon-wakeup = <&pericfg>;
+			status = "okay";
+		};
+
+		u3phy: usb-phy@11290000 {
+			compatible = "mediatek,mt8173-u3phy";
+			reg = <0 0x11290000 0 0x800>;
+			clocks = <&apmixedsys CLK_APMIXED_REF2USB_TX>;
+			clock-names = "u3phya_ref";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+			status = "okay";
+
+			phy_port0: port@11290800 {
+				reg = <0 0x11290800 0 0x800>;
+				#phy-cells = <1>;
+				status = "okay";
+			};
+
+			phy_port1: port@11291000 {
+				reg = <0 0x11291000 0 0x800>;
+				#phy-cells = <1>;
+				status = "okay";
+			};
+		};
+
 		mmsys: clock-controller@14000000 {
 			compatible = "mediatek,mt8173-mmsys", "syscon";
 			reg = <0 0x14000000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		pwm0: pwm@1401e000 {
+			compatible = "mediatek,mt8173-disp-pwm",
+				     "mediatek,mt6595-disp-pwm";
+			reg = <0 0x1401e000 0 0x1000>;
+			#pwm-cells = <2>;
+			clocks = <&mmsys CLK_MM_DISP_PWM026M>,
+				 <&mmsys CLK_MM_DISP_PWM0MM>;
+			clock-names = "main", "mm";
+			status = "disabled";
+		};
+
+		pwm1: pwm@1401f000 {
+			compatible = "mediatek,mt8173-disp-pwm",
+				     "mediatek,mt6595-disp-pwm";
+			reg = <0 0x1401f000 0 0x1000>;
+			#pwm-cells = <2>;
+			clocks = <&mmsys CLK_MM_DISP_PWM126M>,
+				 <&mmsys CLK_MM_DISP_PWM1MM>;
+			clock-names = "main", "mm";
+			status = "disabled";
 		};
 
 		imgsys: clock-controller@15000000 {

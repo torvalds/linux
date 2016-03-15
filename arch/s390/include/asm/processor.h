@@ -18,12 +18,14 @@
 #define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 #define CIF_FPU			3	/* restore FPU registers */
 #define CIF_IGNORE_IRQ		4	/* ignore interrupt (for udelay) */
+#define CIF_ENABLED_WAIT	5	/* in enabled wait state */
 
 #define _CIF_MCCK_PENDING	_BITUL(CIF_MCCK_PENDING)
 #define _CIF_ASCE		_BITUL(CIF_ASCE)
 #define _CIF_NOHZ_DELAY		_BITUL(CIF_NOHZ_DELAY)
 #define _CIF_FPU		_BITUL(CIF_FPU)
 #define _CIF_IGNORE_IRQ		_BITUL(CIF_IGNORE_IRQ)
+#define _CIF_ENABLED_WAIT	_BITUL(CIF_ENABLED_WAIT)
 
 #ifndef __ASSEMBLY__
 
@@ -50,6 +52,16 @@ static inline void clear_cpu_flag(int flag)
 static inline int test_cpu_flag(int flag)
 {
 	return !!(S390_lowcore.cpu_flags & (1UL << flag));
+}
+
+/*
+ * Test CIF flag of another CPU. The caller needs to ensure that
+ * CPU hotplug can not happen, e.g. by disabling preemption.
+ */
+static inline int test_cpu_flag_of(int flag, int cpu)
+{
+	struct lowcore *lc = lowcore_ptr[cpu];
+	return !!(lc->cpu_flags & (1UL << flag));
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
@@ -154,14 +166,14 @@ extern __vector128 init_task_fpu_regs[__NUM_VXRS];
  */
 #define start_thread(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_EA | PSW_MASK_BA;	\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
 	execve_tail();							\
 } while (0)
 
 #define start_thread31(regs, new_psw, new_stackp) do {			\
 	regs->psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
-	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+	regs->psw.addr	= new_psw;					\
 	regs->gprs[15]	= new_stackp;					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
 	execve_tail();							\

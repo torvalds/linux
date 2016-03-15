@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -507,9 +507,6 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 	acpi_adr_space_type space_id;
 	struct acpi_namespace_node *node;
 	acpi_status status;
-	struct acpi_namespace_node *method_node;
-	acpi_name *reg_name_ptr = (acpi_name *) METHOD_NAME__REG;
-	union acpi_operand_object *region_obj2;
 
 	ACPI_FUNCTION_TRACE_U32(ev_initialize_region, acpi_ns_locked);
 
@@ -521,38 +518,15 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	region_obj2 = acpi_ns_get_secondary_object(region_obj);
-	if (!region_obj2) {
-		return_ACPI_STATUS(AE_NOT_EXIST);
-	}
+	acpi_ev_associate_reg_method(region_obj);
+	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
 
 	node = region_obj->region.node->parent;
 	space_id = region_obj->region.space_id;
 
-	/* Setup defaults */
-
-	region_obj->region.handler = NULL;
-	region_obj2->extra.method_REG = NULL;
-	region_obj->common.flags &= ~(AOPOBJ_SETUP_COMPLETE);
-	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
-
-	/* Find any "_REG" method associated with this region definition */
-
-	status =
-	    acpi_ns_search_one_scope(*reg_name_ptr, node, ACPI_TYPE_METHOD,
-				     &method_node);
-	if (ACPI_SUCCESS(status)) {
-		/*
-		 * The _REG method is optional and there can be only one per region
-		 * definition. This will be executed when the handler is attached
-		 * or removed
-		 */
-		region_obj2->extra.method_REG = method_node;
-	}
-
 	/*
 	 * The following loop depends upon the root Node having no parent
-	 * ie: acpi_gbl_root_node->parent_entry being set to NULL
+	 * ie: acpi_gbl_root_node->Parent being set to NULL
 	 */
 	while (node) {
 
@@ -566,18 +540,10 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 
 			switch (node->type) {
 			case ACPI_TYPE_DEVICE:
-
-				handler_obj = obj_desc->device.handler;
-				break;
-
 			case ACPI_TYPE_PROCESSOR:
-
-				handler_obj = obj_desc->processor.handler;
-				break;
-
 			case ACPI_TYPE_THERMAL:
 
-				handler_obj = obj_desc->thermal_zone.handler;
+				handler_obj = obj_desc->common_notify.handler;
 				break;
 
 			case ACPI_TYPE_METHOD:
@@ -602,60 +568,49 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				break;
 			}
 
-			while (handler_obj) {
+			handler_obj =
+			    acpi_ev_find_region_handler(space_id, handler_obj);
+			if (handler_obj) {
 
-				/* Is this handler of the correct type? */
+				/* Found correct handler */
 
-				if (handler_obj->address_space.space_id ==
-				    space_id) {
+				ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+						  "Found handler %p for region %p in obj %p\n",
+						  handler_obj, region_obj,
+						  obj_desc));
 
-					/* Found correct handler */
-
-					ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-							  "Found handler %p for region %p in obj %p\n",
-							  handler_obj,
+				status =
+				    acpi_ev_attach_region(handler_obj,
 							  region_obj,
-							  obj_desc));
+							  acpi_ns_locked);
 
+				/*
+				 * Tell all users that this region is usable by
+				 * running the _REG method
+				 */
+				if (acpi_ns_locked) {
 					status =
-					    acpi_ev_attach_region(handler_obj,
-								  region_obj,
-								  acpi_ns_locked);
-
-					/*
-					 * Tell all users that this region is usable by
-					 * running the _REG method
-					 */
-					if (acpi_ns_locked) {
-						status =
-						    acpi_ut_release_mutex
-						    (ACPI_MTX_NAMESPACE);
-						if (ACPI_FAILURE(status)) {
-							return_ACPI_STATUS
-							    (status);
-						}
+					    acpi_ut_release_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(status)) {
+						return_ACPI_STATUS(status);
 					}
-
-					status =
-					    acpi_ev_execute_reg_method
-					    (region_obj, ACPI_REG_CONNECT);
-
-					if (acpi_ns_locked) {
-						status =
-						    acpi_ut_acquire_mutex
-						    (ACPI_MTX_NAMESPACE);
-						if (ACPI_FAILURE(status)) {
-							return_ACPI_STATUS
-							    (status);
-						}
-					}
-
-					return_ACPI_STATUS(AE_OK);
 				}
 
-				/* Try next handler in the list */
+				status =
+				    acpi_ev_execute_reg_method(region_obj,
+							       ACPI_REG_CONNECT);
 
-				handler_obj = handler_obj->address_space.next;
+				if (acpi_ns_locked) {
+					status =
+					    acpi_ut_acquire_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(status)) {
+						return_ACPI_STATUS(status);
+					}
+				}
+
+				return_ACPI_STATUS(AE_OK);
 			}
 		}
 

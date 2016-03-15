@@ -45,4 +45,4 @@
 	};
 };
 
-/include/ "t1042si-post.dtsi"
+#include "t1042si-post.dtsi"

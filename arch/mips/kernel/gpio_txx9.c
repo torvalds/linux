@@ -21,7 +21,7 @@ static struct txx9_pio_reg __iomem *txx9_pioptr;
 
 static int txx9_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
-	return __raw_readl(&txx9_pioptr->din) & (1 << offset);
+	return !!(__raw_readl(&txx9_pioptr->din) & (1 << offset));
 }
 
 static void txx9_gpio_set_raw(unsigned int offset, int value)

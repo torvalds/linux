@@ -6,6 +6,7 @@ config ARCH_UNIPHIER
 	select ARM_GIC
 	select HAVE_ARM_SCU
 	select HAVE_ARM_TWD if SMP
+	select PINCTRL
 	help
 	  Support for UniPhier SoC family developed by Socionext Inc.
 	  (formerly, System LSI Business Division of Panasonic Corporation)

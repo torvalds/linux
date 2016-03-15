@@ -25,7 +25,9 @@
 #include <asm/fpu/api.h>
 #include <asm/isc.h>
 
-#define KVM_MAX_VCPUS 64
+#define KVM_S390_BSCA_CPU_SLOTS 64
+#define KVM_S390_ESCA_CPU_SLOTS 248
+#define KVM_MAX_VCPUS KVM_S390_ESCA_CPU_SLOTS
 #define KVM_USER_MEM_SLOTS 32
 
 /*
@@ -37,12 +39,41 @@
 #define KVM_IRQCHIP_NUM_PINS 4096
 #define KVM_HALT_POLL_NS_DEFAULT 0
 
+/* s390-specific vcpu->requests bit members */
+#define KVM_REQ_ENABLE_IBS         8
+#define KVM_REQ_DISABLE_IBS        9
+
 #define SIGP_CTRL_C		0x80
 #define SIGP_CTRL_SCN_MASK	0x3f
 
-struct sca_entry {
+union bsca_sigp_ctrl {
+	__u8 value;
+	struct {
+		__u8 c : 1;
+		__u8 r : 1;
+		__u8 scn : 6;
+	};
+} __packed;
+
+union esca_sigp_ctrl {
+	__u16 value;
+	struct {
+		__u8 c : 1;
+		__u8 reserved: 7;
+		__u8 scn;
+	};
+} __packed;
+
+struct esca_entry {
+	union esca_sigp_ctrl sigp_ctrl;
+	__u16   reserved1[3];
+	__u64   sda;
+	__u64   reserved2[6];
+} __packed;
+
+struct bsca_entry {
 	__u8	reserved0;
-	__u8	sigp_ctrl;
+	union bsca_sigp_ctrl	sigp_ctrl;
 	__u16	reserved[3];
 	__u64	sda;
 	__u64	reserved2[2];
@@ -57,13 +88,21 @@ union ipte_control {
 	};
 };
 
-struct sca_block {
+struct bsca_block {
 	union ipte_control ipte_control;
 	__u64	reserved[5];
 	__u64	mcn;
 	__u64	reserved2;
-	struct sca_entry cpu[64];
+	struct bsca_entry cpu[KVM_S390_BSCA_CPU_SLOTS];
 } __attribute__((packed));
+
+struct esca_block {
+	union ipte_control ipte_control;
+	__u64   reserved1[7];
+	__u64   mcn[4];
+	__u64   reserved2[20];
+	struct esca_entry cpu[KVM_S390_ESCA_CPU_SLOTS];
+} __packed;
 
 #define CPUSTAT_STOPPED    0x80000000
 #define CPUSTAT_WAIT       0x10000000
@@ -182,7 +221,8 @@ struct kvm_s390_sie_block {
 	__u64	pp;			/* 0x01de */
 	__u8	reserved1e6[2];		/* 0x01e6 */
 	__u64	itdba;			/* 0x01e8 */
-	__u8	reserved1f0[16];	/* 0x01f0 */
+	__u64   riccbd;			/* 0x01f0 */
+	__u8    reserved1f8[8];		/* 0x01f8 */
 } __attribute__((packed));
 
 struct kvm_s390_itdb {
@@ -506,7 +546,6 @@ struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
 	unsigned int      host_acrs[NUM_ACRS];
 	struct fpu	  host_fpregs;
-	struct fpu	  guest_fpregs;
 	struct kvm_s390_local_interrupt local_int;
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
@@ -585,11 +624,14 @@ struct kvm_s390_crypto_cb {
 };
 
 struct kvm_arch{
-	struct sca_block *sca;
+	void *sca;
+	int use_esca;
+	rwlock_t sca_lock;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct kvm_device *flic;
 	struct gmap *gmap;
+	unsigned long mem_limit;
 	int css_support;
 	int use_irqchip;
 	int use_cmma;

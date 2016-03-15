@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,6 +150,8 @@
  */
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
 
 /*
  * OSL interfaces used by utilities

@@ -64,7 +64,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main";
 
 		prcm: prcm@48180000 {
 			compatible = "ti,dm816-prcm";
@@ -180,6 +179,8 @@
 			#address-cells = <2>;
 			#size-cells = <1>;
 			interrupts = <100>;
+			dmas = <&edma 52>;
+			dma-names = "rxtx";
 			gpmc,num-cs = <6>;
 			gpmc,num-waitpins = <2>;
 		};
@@ -225,6 +226,13 @@
 				ti,mbox-tx = <3 0 0>;
 				ti,mbox-rx = <0 0 0>;
 			};
+		};
+
+		spinbox: spinbox@480ca000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x480ca000 0x2000>;
+			ti,hwmods = "spinbox";
+			#hwlock-cells = <1>;
 		};
 
 		mdio: mdio@4a100800 {
@@ -323,6 +331,7 @@
 			reg = <0x48044000 0x2000>;
 			interrupts = <92>;
 			ti,hwmods = "timer4";
+			ti,timer-pwm;
 		};
 
 		timer5: timer@48046000 {
@@ -330,6 +339,7 @@
 			reg = <0x48046000 0x2000>;
 			interrupts = <93>;
 			ti,hwmods = "timer5";
+			ti,timer-pwm;
 		};
 
 		timer6: timer@48048000 {
@@ -337,6 +347,7 @@
 			reg = <0x48048000 0x2000>;
 			interrupts = <94>;
 			ti,hwmods = "timer6";
+			ti,timer-pwm;
 		};
 
 		timer7: timer@4804a000 {
@@ -344,6 +355,7 @@
 			reg = <0x4804a000 0x2000>;
 			interrupts = <95>;
 			ti,hwmods = "timer7";
+			ti,timer-pwm;
 		};
 
 		uart1: uart@48020000 {

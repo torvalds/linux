@@ -62,4 +62,4 @@ static int __init omap2xxx_common_look_up_clks_for_reset(void)
 
 	return 0;
 }
-omap_core_initcall(omap2xxx_common_look_up_clks_for_reset);
+omap_postcore_initcall(omap2xxx_common_look_up_clks_for_reset);

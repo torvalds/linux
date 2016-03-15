@@ -163,7 +163,7 @@ static void spufs_prune_dir(struct dentry *dir)
 {
 	struct dentry *dentry, *tmp;
 
-	mutex_lock(&d_inode(dir)->i_mutex);
+	inode_lock(d_inode(dir));
 	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
 		spin_lock(&dentry->d_lock);
 		if (simple_positive(dentry)) {
@@ -180,7 +180,7 @@ static void spufs_prune_dir(struct dentry *dir)
 		}
 	}
 	shrink_dcache_parent(dir);
-	mutex_unlock(&d_inode(dir)->i_mutex);
+	inode_unlock(d_inode(dir));
 }
 
 /* Caller must hold parent->i_mutex */
@@ -225,9 +225,9 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	parent = d_inode(dir->d_parent);
 	ctx = SPUFS_I(d_inode(dir))->i_ctx;
 
-	mutex_lock_nested(&parent->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(parent, I_MUTEX_PARENT);
 	ret = spufs_rmdir(parent, dir);
-	mutex_unlock(&parent->i_mutex);
+	inode_unlock(parent);
 	WARN_ON(ret);
 
 	return dcache_dir_close(inode, file);
@@ -270,7 +270,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	dget(dentry);
 	inc_nlink(dir);
@@ -291,7 +291,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 	if (ret)
 		spufs_rmdir(dir, dentry);
 
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	return ret;
 }
@@ -767,7 +767,7 @@ static int __init spufs_init(void)
 	ret = -ENOMEM;
 	spufs_inode_cache = kmem_cache_create("spufs_inode_cache",
 			sizeof(struct spufs_inode_info), 0,
-			SLAB_HWCACHE_ALIGN, spufs_init_once);
+			SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT, spufs_init_once);
 
 	if (!spufs_inode_cache)
 		goto out;

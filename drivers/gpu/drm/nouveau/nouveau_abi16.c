@@ -25,6 +25,8 @@
 #include <nvif/driver.h>
 #include <nvif/ioctl.h>
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
 #include "nouveau_drm.h"
@@ -87,18 +89,18 @@ nouveau_abi16_swclass(struct nouveau_drm *drm)
 {
 	switch (drm->device.info.family) {
 	case NV_DEVICE_INFO_V0_TNT:
-		return NVIF_IOCTL_NEW_V0_SW_NV04;
+		return NVIF_CLASS_SW_NV04;
 	case NV_DEVICE_INFO_V0_CELSIUS:
 	case NV_DEVICE_INFO_V0_KELVIN:
 	case NV_DEVICE_INFO_V0_RANKINE:
 	case NV_DEVICE_INFO_V0_CURIE:
-		return NVIF_IOCTL_NEW_V0_SW_NV10;
+		return NVIF_CLASS_SW_NV10;
 	case NV_DEVICE_INFO_V0_TESLA:
-		return NVIF_IOCTL_NEW_V0_SW_NV50;
+		return NVIF_CLASS_SW_NV50;
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
-		return NVIF_IOCTL_NEW_V0_SW_GF100;
+		return NVIF_CLASS_SW_GF100;
 	}
 
 	return 0x0000;
@@ -355,9 +357,9 @@ nouveau_abi16_usif(struct drm_file *file_priv, void *data, u32 size)
 	} *args = data;
 	struct nouveau_abi16_chan *chan;
 	struct nouveau_abi16 *abi16;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, true)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
 		switch (args->v0.type) {
 		case NVIF_IOCTL_V0_NEW:
 		case NVIF_IOCTL_V0_MTHD:
@@ -433,10 +435,10 @@ nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS)
 		/* nvsw: compatibility with older 0x*6e class identifier */
 		for (i = 0; !oclass && i < ret; i++) {
 			switch (sclass[i].oclass) {
-			case NVIF_IOCTL_NEW_V0_SW_NV04:
-			case NVIF_IOCTL_NEW_V0_SW_NV10:
-			case NVIF_IOCTL_NEW_V0_SW_NV50:
-			case NVIF_IOCTL_NEW_V0_SW_GF100:
+			case NVIF_CLASS_SW_NV04:
+			case NVIF_CLASS_SW_NV10:
+			case NVIF_CLASS_SW_NV50:
+			case NVIF_CLASS_SW_GF100:
 				oclass = sclass[i].oclass;
 				break;
 			default:

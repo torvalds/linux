@@ -425,7 +425,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	}
 	local_bh_disable();
 	for (i = 0; i < net->ct.htable_size; i++) {
-		spin_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
+		nf_conntrack_lock(&nf_conntrack_locks[i % CONNTRACK_LOCKS]);
 		if (i < net->ct.htable_size) {
 			hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
 				unhelp(h, me);

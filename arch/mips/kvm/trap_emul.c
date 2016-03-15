@@ -16,7 +16,6 @@
 
 #include <linux/kvm_host.h>
 
-#include "opcode.h"
 #include "interrupt.h"
 
 static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)

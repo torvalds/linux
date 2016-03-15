@@ -19,7 +19,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-image-sizes.h>
-#include <media/ov7670.h>
+#include <media/i2c/ov7670.h>
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>

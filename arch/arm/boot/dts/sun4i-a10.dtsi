@@ -66,7 +66,7 @@
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
-				 <&ahb_gates 44>;
+				 <&ahb_gates 44>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -75,7 +75,8 @@
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-hdmi";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
-				 <&ahb_gates 44>, <&ahb_gates 46>;
+				 <&ahb_gates 44>, <&ahb_gates 46>,
+				 <&dram_gates 25>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -84,7 +85,8 @@
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>,
-				 <&ahb_gates 46>;
+				 <&ahb_gates 46>, <&dram_gates 25>,
+				 <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -93,7 +95,8 @@
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-tve0";
 			clocks = <&pll5 1>, <&ahb_gates 34>, <&ahb_gates 36>,
-				 <&ahb_gates 44>, <&ahb_gates 46>;
+				 <&ahb_gates 44>, <&ahb_gates 46>,
+				 <&dram_gates 25>, <&dram_gates 26>;
 			status = "disabled";
 		};
 	};
@@ -490,6 +493,40 @@
 			reg = <0x01c200d4 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "spi3";
+		};
+
+		dram_gates: clk@01c20100 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-dram-gates-clk";
+			reg = <0x01c20100 0x4>;
+			clocks = <&pll5 0>;
+			clock-indices = <0>,
+					<1>, <2>,
+					<3>,
+					<4>,
+					<5>, <6>,
+					<15>,
+					<24>, <25>,
+					<26>, <27>,
+					<28>, <29>;
+			clock-output-names = "dram_ve",
+					     "dram_csi0", "dram_csi1",
+					     "dram_ts",
+					     "dram_tvd",
+					     "dram_tve0", "dram_tve1",
+					     "dram_output",
+					     "dram_de_fe1", "dram_de_fe0",
+					     "dram_de_be0", "dram_de_be1",
+					     "dram_de_mp", "dram_ace";
+		};
+
+		ve_clk: clk@01c2013c {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-ve-clk";
+			reg = <0x01c2013c 0x4>;
+			clocks = <&pll4>;
+			clock-output-names = "ve";
 		};
 
 		codec_clk: clk@01c20140 {

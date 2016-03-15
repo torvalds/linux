@@ -34,9 +34,9 @@ config EMAC_ROCKCHIP
 	select ARC_EMAC_CORE
 	depends on OF_IRQ && OF_NET && REGULATOR && HAS_DMA
 	---help---
-	  Support for Rockchip RK3066/RK3188 EMAC ethernet controllers.
+	  Support for Rockchip RK3036/RK3066/RK3188 EMAC ethernet controllers.
 	  This selects Rockchip SoC glue layer support for the
-	  emac device driver. This driver is used for RK3066/RK3188
+	  emac device driver. This driver is used for RK3036/RK3066/RK3188
 	  EMAC ethernet controller.
 
 endif # NET_VENDOR_ARC

@@ -162,6 +162,27 @@ static int rcu_torture_writer_state;
 #define RTWS_SYNC		7
 #define RTWS_STUTTER		8
 #define RTWS_STOPPING		9
+static const char * const rcu_torture_writer_state_names[] = {
+	"RTWS_FIXED_DELAY",
+	"RTWS_DELAY",
+	"RTWS_REPLACE",
+	"RTWS_DEF_FREE",
+	"RTWS_EXP_SYNC",
+	"RTWS_COND_GET",
+	"RTWS_COND_SYNC",
+	"RTWS_SYNC",
+	"RTWS_STUTTER",
+	"RTWS_STOPPING",
+};
+
+static const char *rcu_torture_writer_state_getname(void)
+{
+	unsigned int i = READ_ONCE(rcu_torture_writer_state);
+
+	if (i >= ARRAY_SIZE(rcu_torture_writer_state_names))
+		return "???";
+	return rcu_torture_writer_state_names[i];
+}
 
 #if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
 #define RCUTORTURE_RUNNABLE_INIT 1
@@ -1307,7 +1328,8 @@ rcu_torture_stats_print(void)
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
-		pr_alert("??? Writer stall state %d g%lu c%lu f%#x\n",
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x\n",
+			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
 			 gpnum, completed, flags);
 		show_rcu_gp_kthreads();

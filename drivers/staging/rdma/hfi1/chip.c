@@ -63,6 +63,7 @@
 #include "pio.h"
 #include "sdma.h"
 #include "eprom.h"
+#include "efivar.h"
 
 #define NUM_IB_PORTS 1
 
@@ -121,8 +122,8 @@ struct flag_table {
 #define SEC_SC_HALTED		0x4	/* per-context only */
 #define SEC_SPC_FREEZE		0x8	/* per-HFI only */
 
-#define VL15CTXT                  1
 #define MIN_KERNEL_KCTXTS         2
+#define FIRST_KERNEL_KCTXT        1
 #define NUM_MAP_REGS             32
 
 /* Bit offset into the GUID which carries HFI id information */
@@ -663,7 +664,7 @@ static struct flag_table egress_err_info_flags[] = {
  */
 #define SES(name) SEND_ERR_STATUS_SEND_##name##_ERR_SMASK
 static struct flag_table send_err_status_flags[] = {
-/* 0*/	FLAG_ENTRY0("SDmaRpyTagErr", SES(CSR_PARITY)),
+/* 0*/	FLAG_ENTRY0("SendCsrParityErr", SES(CSR_PARITY)),
 /* 1*/	FLAG_ENTRY0("SendCsrReadBadAddrErr", SES(CSR_READ_BAD_ADDR)),
 /* 2*/	FLAG_ENTRY0("SendCsrWriteBadAddrErr", SES(CSR_WRITE_BAD_ADDR))
 };
@@ -1417,6 +1418,17 @@ static u64 access_sw_link_up_cnt(const struct cntr_entry *entry, void *context,
 	return read_write_sw(ppd->dd, &ppd->link_up, mode, data);
 }
 
+static u64 access_sw_unknown_frame_cnt(const struct cntr_entry *entry,
+				       void *context, int vl, int mode,
+				       u64 data)
+{
+	struct hfi1_pportdata *ppd = (struct hfi1_pportdata *)context;
+
+	if (vl != CNTR_INVALID_VL)
+		return 0;
+	return read_write_sw(ppd->dd, &ppd->unknown_frame_count, mode, data);
+}
+
 static u64 access_sw_xmit_discards(const struct cntr_entry *entry,
 				    void *context, int vl, int mode, u64 data)
 {
@@ -1538,6 +1550,2336 @@ static u64 access_sw_send_schedule(const struct cntr_entry *entry,
 	return dd->verbs_dev.n_send_schedule;
 }
 
+/* Software counters for the error status bits within MISC_ERR_STATUS */
+static u64 access_misc_pll_lock_fail_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[12];
+}
+
+static u64 access_misc_mbist_fail_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[11];
+}
+
+static u64 access_misc_invalid_eep_cmd_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[10];
+}
+
+static u64 access_misc_efuse_done_parity_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[9];
+}
+
+static u64 access_misc_efuse_write_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[8];
+}
+
+static u64 access_misc_efuse_read_bad_addr_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[7];
+}
+
+static u64 access_misc_efuse_csr_parity_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[6];
+}
+
+static u64 access_misc_fw_auth_failed_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[5];
+}
+
+static u64 access_misc_key_mismatch_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[4];
+}
+
+static u64 access_misc_sbus_write_failed_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[3];
+}
+
+static u64 access_misc_csr_write_bad_addr_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[2];
+}
+
+static u64 access_misc_csr_read_bad_addr_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[1];
+}
+
+static u64 access_misc_csr_parity_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->misc_err_status_cnt[0];
+}
+
+/*
+ * Software counter for the aggregate of
+ * individual CceErrStatus counters
+ */
+static u64 access_sw_cce_err_status_aggregated_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_cce_err_status_aggregate;
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within CceErrStatus
+ */
+static u64 access_cce_msix_csr_parity_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[40];
+}
+
+static u64 access_cce_int_map_unc_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[39];
+}
+
+static u64 access_cce_int_map_cor_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[38];
+}
+
+static u64 access_cce_msix_table_unc_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[37];
+}
+
+static u64 access_cce_msix_table_cor_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[36];
+}
+
+static u64 access_cce_rxdma_conv_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[35];
+}
+
+static u64 access_cce_rcpl_async_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[34];
+}
+
+static u64 access_cce_seg_write_bad_addr_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[33];
+}
+
+static u64 access_cce_seg_read_bad_addr_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl, int mode,
+						u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[32];
+}
+
+static u64 access_la_triggered_cnt(const struct cntr_entry *entry,
+				   void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[31];
+}
+
+static u64 access_cce_trgt_cpl_timeout_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[30];
+}
+
+static u64 access_pcic_receive_parity_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[29];
+}
+
+static u64 access_pcic_transmit_back_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[28];
+}
+
+static u64 access_pcic_transmit_front_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[27];
+}
+
+static u64 access_pcic_cpl_dat_q_unc_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[26];
+}
+
+static u64 access_pcic_cpl_hd_q_unc_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[25];
+}
+
+static u64 access_pcic_post_dat_q_unc_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[24];
+}
+
+static u64 access_pcic_post_hd_q_unc_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[23];
+}
+
+static u64 access_pcic_retry_sot_mem_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[22];
+}
+
+static u64 access_pcic_retry_mem_unc_err(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[21];
+}
+
+static u64 access_pcic_n_post_dat_q_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[20];
+}
+
+static u64 access_pcic_n_post_h_q_parity_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[19];
+}
+
+static u64 access_pcic_cpl_dat_q_cor_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[18];
+}
+
+static u64 access_pcic_cpl_hd_q_cor_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[17];
+}
+
+static u64 access_pcic_post_dat_q_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[16];
+}
+
+static u64 access_pcic_post_hd_q_cor_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[15];
+}
+
+static u64 access_pcic_retry_sot_mem_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[14];
+}
+
+static u64 access_pcic_retry_mem_cor_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[13];
+}
+
+static u64 access_cce_cli1_async_fifo_dbg_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[12];
+}
+
+static u64 access_cce_cli1_async_fifo_rxdma_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[11];
+}
+
+static u64 access_cce_cli1_async_fifo_sdma_hd_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[10];
+}
+
+static u64 access_cce_cl1_async_fifo_pio_crdt_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[9];
+}
+
+static u64 access_cce_cli2_async_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[8];
+}
+
+static u64 access_cce_csr_cfg_bus_parity_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[7];
+}
+
+static u64 access_cce_cli0_async_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[6];
+}
+
+static u64 access_cce_rspd_data_parity_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[5];
+}
+
+static u64 access_cce_trgt_access_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[4];
+}
+
+static u64 access_cce_trgt_async_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[3];
+}
+
+static u64 access_cce_csr_write_bad_addr_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[2];
+}
+
+static u64 access_cce_csr_read_bad_addr_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[1];
+}
+
+static u64 access_ccs_csr_parity_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->cce_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within RcvErrStatus
+ */
+static u64 access_rx_csr_parity_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[63];
+}
+
+static u64 access_rx_csr_write_bad_addr_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[62];
+}
+
+static u64 access_rx_csr_read_bad_addr_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[61];
+}
+
+static u64 access_rx_dma_csr_unc_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[60];
+}
+
+static u64 access_rx_dma_dq_fsm_encoding_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[59];
+}
+
+static u64 access_rx_dma_eq_fsm_encoding_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[58];
+}
+
+static u64 access_rx_dma_csr_parity_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[57];
+}
+
+static u64 access_rx_rbuf_data_cor_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[56];
+}
+
+static u64 access_rx_rbuf_data_unc_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[55];
+}
+
+static u64 access_rx_dma_data_fifo_rd_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[54];
+}
+
+static u64 access_rx_dma_data_fifo_rd_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[53];
+}
+
+static u64 access_rx_dma_hdr_fifo_rd_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[52];
+}
+
+static u64 access_rx_dma_hdr_fifo_rd_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[51];
+}
+
+static u64 access_rx_rbuf_desc_part2_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[50];
+}
+
+static u64 access_rx_rbuf_desc_part2_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[49];
+}
+
+static u64 access_rx_rbuf_desc_part1_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[48];
+}
+
+static u64 access_rx_rbuf_desc_part1_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[47];
+}
+
+static u64 access_rx_hq_intr_fsm_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[46];
+}
+
+static u64 access_rx_hq_intr_csr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[45];
+}
+
+static u64 access_rx_lookup_csr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[44];
+}
+
+static u64 access_rx_lookup_rcv_array_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[43];
+}
+
+static u64 access_rx_lookup_rcv_array_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[42];
+}
+
+static u64 access_rx_lookup_des_part2_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[41];
+}
+
+static u64 access_rx_lookup_des_part1_unc_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[40];
+}
+
+static u64 access_rx_lookup_des_part1_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[39];
+}
+
+static u64 access_rx_rbuf_next_free_buf_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[38];
+}
+
+static u64 access_rx_rbuf_next_free_buf_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[37];
+}
+
+static u64 access_rbuf_fl_init_wr_addr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[36];
+}
+
+static u64 access_rx_rbuf_fl_initdone_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[35];
+}
+
+static u64 access_rx_rbuf_fl_write_addr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[34];
+}
+
+static u64 access_rx_rbuf_fl_rd_addr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[33];
+}
+
+static u64 access_rx_rbuf_empty_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[32];
+}
+
+static u64 access_rx_rbuf_full_err_cnt(const struct cntr_entry *entry,
+				       void *context, int vl, int mode,
+				       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[31];
+}
+
+static u64 access_rbuf_bad_lookup_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[30];
+}
+
+static u64 access_rbuf_ctx_id_parity_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[29];
+}
+
+static u64 access_rbuf_csr_qeopdw_parity_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[28];
+}
+
+static u64 access_rx_rbuf_csr_q_num_of_pkt_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[27];
+}
+
+static u64 access_rx_rbuf_csr_q_t1_ptr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[26];
+}
+
+static u64 access_rx_rbuf_csr_q_hd_ptr_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[25];
+}
+
+static u64 access_rx_rbuf_csr_q_vld_bit_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[24];
+}
+
+static u64 access_rx_rbuf_csr_q_next_buf_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[23];
+}
+
+static u64 access_rx_rbuf_csr_q_ent_cnt_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[22];
+}
+
+static u64 access_rx_rbuf_csr_q_head_buf_num_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[21];
+}
+
+static u64 access_rx_rbuf_block_list_read_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[20];
+}
+
+static u64 access_rx_rbuf_block_list_read_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[19];
+}
+
+static u64 access_rx_rbuf_lookup_des_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[18];
+}
+
+static u64 access_rx_rbuf_lookup_des_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[17];
+}
+
+static u64 access_rx_rbuf_lookup_des_reg_unc_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[16];
+}
+
+static u64 access_rx_rbuf_lookup_des_reg_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[15];
+}
+
+static u64 access_rx_rbuf_free_list_cor_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[14];
+}
+
+static u64 access_rx_rbuf_free_list_unc_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[13];
+}
+
+static u64 access_rx_rcv_fsm_encoding_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[12];
+}
+
+static u64 access_rx_dma_flag_cor_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[11];
+}
+
+static u64 access_rx_dma_flag_unc_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[10];
+}
+
+static u64 access_rx_dc_sop_eop_parity_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[9];
+}
+
+static u64 access_rx_rcv_csr_parity_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[8];
+}
+
+static u64 access_rx_rcv_qp_map_table_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[7];
+}
+
+static u64 access_rx_rcv_qp_map_table_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[6];
+}
+
+static u64 access_rx_rcv_data_cor_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[5];
+}
+
+static u64 access_rx_rcv_data_unc_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[4];
+}
+
+static u64 access_rx_rcv_hdr_cor_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[3];
+}
+
+static u64 access_rx_rcv_hdr_unc_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[2];
+}
+
+static u64 access_rx_dc_intf_parity_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[1];
+}
+
+static u64 access_rx_dma_csr_cor_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->rcv_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendPioErrStatus
+ */
+static u64 access_pio_pec_sop_head_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[35];
+}
+
+static u64 access_pio_pcc_sop_head_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[34];
+}
+
+static u64 access_pio_last_returned_cnt_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[33];
+}
+
+static u64 access_pio_current_free_cnt_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[32];
+}
+
+static u64 access_pio_reserved_31_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[31];
+}
+
+static u64 access_pio_reserved_30_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[30];
+}
+
+static u64 access_pio_ppmc_sop_len_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[29];
+}
+
+static u64 access_pio_ppmc_bqc_mem_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[28];
+}
+
+static u64 access_pio_vl_fifo_parity_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[27];
+}
+
+static u64 access_pio_vlf_sop_parity_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[26];
+}
+
+static u64 access_pio_vlf_v1_len_parity_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[25];
+}
+
+static u64 access_pio_block_qw_count_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[24];
+}
+
+static u64 access_pio_write_qw_valid_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[23];
+}
+
+static u64 access_pio_state_machine_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[22];
+}
+
+static u64 access_pio_write_data_parity_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[21];
+}
+
+static u64 access_pio_host_addr_mem_cor_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[20];
+}
+
+static u64 access_pio_host_addr_mem_unc_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[19];
+}
+
+static u64 access_pio_pkt_evict_sm_or_arb_sm_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[18];
+}
+
+static u64 access_pio_init_sm_in_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[17];
+}
+
+static u64 access_pio_ppmc_pbl_fifo_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[16];
+}
+
+static u64 access_pio_credit_ret_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[15];
+}
+
+static u64 access_pio_v1_len_mem_bank1_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[14];
+}
+
+static u64 access_pio_v1_len_mem_bank0_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[13];
+}
+
+static u64 access_pio_v1_len_mem_bank1_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[12];
+}
+
+static u64 access_pio_v1_len_mem_bank0_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[11];
+}
+
+static u64 access_pio_sm_pkt_reset_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[10];
+}
+
+static u64 access_pio_pkt_evict_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[9];
+}
+
+static u64 access_pio_sbrdctrl_crrel_fifo_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[8];
+}
+
+static u64 access_pio_sbrdctl_crrel_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[7];
+}
+
+static u64 access_pio_pec_fifo_parity_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[6];
+}
+
+static u64 access_pio_pcc_fifo_parity_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[5];
+}
+
+static u64 access_pio_sb_mem_fifo1_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[4];
+}
+
+static u64 access_pio_sb_mem_fifo0_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[3];
+}
+
+static u64 access_pio_csr_parity_err_cnt(const struct cntr_entry *entry,
+					 void *context, int vl, int mode,
+					 u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[2];
+}
+
+static u64 access_pio_write_addr_parity_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[1];
+}
+
+static u64 access_pio_write_bad_ctxt_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_pio_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendDmaErrStatus
+ */
+static u64 access_sdma_pcie_req_tracking_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_dma_err_status_cnt[3];
+}
+
+static u64 access_sdma_pcie_req_tracking_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_dma_err_status_cnt[2];
+}
+
+static u64 access_sdma_csr_parity_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_dma_err_status_cnt[1];
+}
+
+static u64 access_sdma_rpy_tag_err_cnt(const struct cntr_entry *entry,
+				       void *context, int vl, int mode,
+				       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_dma_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendEgressErrStatus
+ */
+static u64 access_tx_read_pio_memory_csr_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[63];
+}
+
+static u64 access_tx_read_sdma_memory_csr_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[62];
+}
+
+static u64 access_tx_egress_fifo_cor_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[61];
+}
+
+static u64 access_tx_read_pio_memory_cor_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[60];
+}
+
+static u64 access_tx_read_sdma_memory_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[59];
+}
+
+static u64 access_tx_sb_hdr_cor_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[58];
+}
+
+static u64 access_tx_credit_overrun_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[57];
+}
+
+static u64 access_tx_launch_fifo8_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[56];
+}
+
+static u64 access_tx_launch_fifo7_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[55];
+}
+
+static u64 access_tx_launch_fifo6_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[54];
+}
+
+static u64 access_tx_launch_fifo5_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[53];
+}
+
+static u64 access_tx_launch_fifo4_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[52];
+}
+
+static u64 access_tx_launch_fifo3_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[51];
+}
+
+static u64 access_tx_launch_fifo2_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[50];
+}
+
+static u64 access_tx_launch_fifo1_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[49];
+}
+
+static u64 access_tx_launch_fifo0_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[48];
+}
+
+static u64 access_tx_credit_return_vl_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[47];
+}
+
+static u64 access_tx_hcrc_insertion_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[46];
+}
+
+static u64 access_tx_egress_fifo_unc_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[45];
+}
+
+static u64 access_tx_read_pio_memory_unc_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[44];
+}
+
+static u64 access_tx_read_sdma_memory_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[43];
+}
+
+static u64 access_tx_sb_hdr_unc_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[42];
+}
+
+static u64 access_tx_credit_return_partiy_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[41];
+}
+
+static u64 access_tx_launch_fifo8_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[40];
+}
+
+static u64 access_tx_launch_fifo7_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[39];
+}
+
+static u64 access_tx_launch_fifo6_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[38];
+}
+
+static u64 access_tx_launch_fifo5_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[37];
+}
+
+static u64 access_tx_launch_fifo4_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[36];
+}
+
+static u64 access_tx_launch_fifo3_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[35];
+}
+
+static u64 access_tx_launch_fifo2_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[34];
+}
+
+static u64 access_tx_launch_fifo1_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[33];
+}
+
+static u64 access_tx_launch_fifo0_unc_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[32];
+}
+
+static u64 access_tx_sdma15_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[31];
+}
+
+static u64 access_tx_sdma14_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[30];
+}
+
+static u64 access_tx_sdma13_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[29];
+}
+
+static u64 access_tx_sdma12_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[28];
+}
+
+static u64 access_tx_sdma11_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[27];
+}
+
+static u64 access_tx_sdma10_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[26];
+}
+
+static u64 access_tx_sdma9_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[25];
+}
+
+static u64 access_tx_sdma8_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[24];
+}
+
+static u64 access_tx_sdma7_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[23];
+}
+
+static u64 access_tx_sdma6_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[22];
+}
+
+static u64 access_tx_sdma5_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[21];
+}
+
+static u64 access_tx_sdma4_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[20];
+}
+
+static u64 access_tx_sdma3_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[19];
+}
+
+static u64 access_tx_sdma2_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[18];
+}
+
+static u64 access_tx_sdma1_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[17];
+}
+
+static u64 access_tx_sdma0_disallowed_packet_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[16];
+}
+
+static u64 access_tx_config_parity_err_cnt(const struct cntr_entry *entry,
+					   void *context, int vl, int mode,
+					   u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[15];
+}
+
+static u64 access_tx_sbrd_ctl_csr_parity_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[14];
+}
+
+static u64 access_tx_launch_csr_parity_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[13];
+}
+
+static u64 access_tx_illegal_vl_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[12];
+}
+
+static u64 access_tx_sbrd_ctl_state_machine_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[11];
+}
+
+static u64 access_egress_reserved_10_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[10];
+}
+
+static u64 access_egress_reserved_9_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[9];
+}
+
+static u64 access_tx_sdma_launch_intf_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[8];
+}
+
+static u64 access_tx_pio_launch_intf_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[7];
+}
+
+static u64 access_egress_reserved_6_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[6];
+}
+
+static u64 access_tx_incorrect_link_state_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[5];
+}
+
+static u64 access_tx_linkdown_err_cnt(const struct cntr_entry *entry,
+				      void *context, int vl, int mode,
+				      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[4];
+}
+
+static u64 access_tx_egress_fifi_underrun_or_parity_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[3];
+}
+
+static u64 access_egress_reserved_2_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[2];
+}
+
+static u64 access_tx_pkt_integrity_mem_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[1];
+}
+
+static u64 access_tx_pkt_integrity_mem_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_egress_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendErrStatus
+ */
+static u64 access_send_csr_write_bad_addr_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_err_status_cnt[2];
+}
+
+static u64 access_send_csr_read_bad_addr_err_cnt(const struct cntr_entry *entry,
+						 void *context, int vl,
+						 int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_err_status_cnt[1];
+}
+
+static u64 access_send_csr_parity_cnt(const struct cntr_entry *entry,
+				      void *context, int vl, int mode,
+				      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->send_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendCtxtErrStatus
+ */
+static u64 access_pio_write_out_of_bounds_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_ctxt_err_status_cnt[4];
+}
+
+static u64 access_pio_write_overflow_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_ctxt_err_status_cnt[3];
+}
+
+static u64 access_pio_write_crosses_boundary_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_ctxt_err_status_cnt[2];
+}
+
+static u64 access_pio_disallowed_packet_err_cnt(const struct cntr_entry *entry,
+						void *context, int vl,
+						int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_ctxt_err_status_cnt[1];
+}
+
+static u64 access_pio_inconsistent_sop_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl, int mode,
+					       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_ctxt_err_status_cnt[0];
+}
+
+/*
+ * Software counters corresponding to each of the
+ * error status bits within SendDmaEngErrStatus
+ */
+static u64 access_sdma_header_request_fifo_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[23];
+}
+
+static u64 access_sdma_header_storage_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[22];
+}
+
+static u64 access_sdma_packet_tracking_cor_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[21];
+}
+
+static u64 access_sdma_assembly_cor_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[20];
+}
+
+static u64 access_sdma_desc_table_cor_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[19];
+}
+
+static u64 access_sdma_header_request_fifo_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[18];
+}
+
+static u64 access_sdma_header_storage_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[17];
+}
+
+static u64 access_sdma_packet_tracking_unc_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[16];
+}
+
+static u64 access_sdma_assembly_unc_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[15];
+}
+
+static u64 access_sdma_desc_table_unc_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[14];
+}
+
+static u64 access_sdma_timeout_err_cnt(const struct cntr_entry *entry,
+				       void *context, int vl, int mode,
+				       u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[13];
+}
+
+static u64 access_sdma_header_length_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[12];
+}
+
+static u64 access_sdma_header_address_err_cnt(const struct cntr_entry *entry,
+					      void *context, int vl, int mode,
+					      u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[11];
+}
+
+static u64 access_sdma_header_select_err_cnt(const struct cntr_entry *entry,
+					     void *context, int vl, int mode,
+					     u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[10];
+}
+
+static u64 access_sdma_reserved_9_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[9];
+}
+
+static u64 access_sdma_packet_desc_overflow_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[8];
+}
+
+static u64 access_sdma_length_mismatch_err_cnt(const struct cntr_entry *entry,
+					       void *context, int vl,
+					       int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[7];
+}
+
+static u64 access_sdma_halt_err_cnt(const struct cntr_entry *entry,
+				    void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[6];
+}
+
+static u64 access_sdma_mem_read_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[5];
+}
+
+static u64 access_sdma_first_desc_err_cnt(const struct cntr_entry *entry,
+					  void *context, int vl, int mode,
+					  u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[4];
+}
+
+static u64 access_sdma_tail_out_of_bounds_err_cnt(
+				const struct cntr_entry *entry,
+				void *context, int vl, int mode, u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[3];
+}
+
+static u64 access_sdma_too_long_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[2];
+}
+
+static u64 access_sdma_gen_mismatch_err_cnt(const struct cntr_entry *entry,
+					    void *context, int vl, int mode,
+					    u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[1];
+}
+
+static u64 access_sdma_wrong_dw_err_cnt(const struct cntr_entry *entry,
+					void *context, int vl, int mode,
+					u64 data)
+{
+	struct hfi1_devdata *dd = (struct hfi1_devdata *)context;
+
+	return dd->sw_send_dma_eng_err_status_cnt[0];
+}
+
 #define def_access_sw_cpu(cntr) \
 static u64 access_sw_cpu_##cntr(const struct cntr_entry *entry,		      \
 			      void *context, int vl, int mode, u64 data)      \
@@ -1586,8 +3928,6 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			CNTR_NORMAL),
 [C_RX_TID_FLGMS] = RXE32_DEV_CNTR_ELEM(RxTidFLGMs,
 			RCV_TID_FLOW_GEN_MISMATCH_CNT,
-			CNTR_NORMAL),
-[C_RX_CTX_RHQS] = RXE32_DEV_CNTR_ELEM(RxCtxRHQS, RCV_CONTEXT_RHQ_STALL,
 			CNTR_NORMAL),
 [C_RX_CTX_EGRS] = RXE32_DEV_CNTR_ELEM(RxCtxEgrS, RCV_CONTEXT_EGR_STALL,
 			CNTR_NORMAL),
@@ -1730,6 +4070,794 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_kmem_wait),
 [C_SW_SEND_SCHED] = CNTR_ELEM("SendSched", 0, 0, CNTR_NORMAL,
 			    access_sw_send_schedule),
+/* MISC_ERR_STATUS */
+[C_MISC_PLL_LOCK_FAIL_ERR] = CNTR_ELEM("MISC_PLL_LOCK_FAIL_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_pll_lock_fail_err_cnt),
+[C_MISC_MBIST_FAIL_ERR] = CNTR_ELEM("MISC_MBIST_FAIL_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_mbist_fail_err_cnt),
+[C_MISC_INVALID_EEP_CMD_ERR] = CNTR_ELEM("MISC_INVALID_EEP_CMD_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_invalid_eep_cmd_err_cnt),
+[C_MISC_EFUSE_DONE_PARITY_ERR] = CNTR_ELEM("MISC_EFUSE_DONE_PARITY_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_efuse_done_parity_err_cnt),
+[C_MISC_EFUSE_WRITE_ERR] = CNTR_ELEM("MISC_EFUSE_WRITE_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_efuse_write_err_cnt),
+[C_MISC_EFUSE_READ_BAD_ADDR_ERR] = CNTR_ELEM("MISC_EFUSE_READ_BAD_ADDR_ERR", 0,
+				0, CNTR_NORMAL,
+				access_misc_efuse_read_bad_addr_err_cnt),
+[C_MISC_EFUSE_CSR_PARITY_ERR] = CNTR_ELEM("MISC_EFUSE_CSR_PARITY_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_efuse_csr_parity_err_cnt),
+[C_MISC_FW_AUTH_FAILED_ERR] = CNTR_ELEM("MISC_FW_AUTH_FAILED_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_fw_auth_failed_err_cnt),
+[C_MISC_KEY_MISMATCH_ERR] = CNTR_ELEM("MISC_KEY_MISMATCH_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_key_mismatch_err_cnt),
+[C_MISC_SBUS_WRITE_FAILED_ERR] = CNTR_ELEM("MISC_SBUS_WRITE_FAILED_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_sbus_write_failed_err_cnt),
+[C_MISC_CSR_WRITE_BAD_ADDR_ERR] = CNTR_ELEM("MISC_CSR_WRITE_BAD_ADDR_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_csr_write_bad_addr_err_cnt),
+[C_MISC_CSR_READ_BAD_ADDR_ERR] = CNTR_ELEM("MISC_CSR_READ_BAD_ADDR_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_csr_read_bad_addr_err_cnt),
+[C_MISC_CSR_PARITY_ERR] = CNTR_ELEM("MISC_CSR_PARITY_ERR", 0, 0,
+				CNTR_NORMAL,
+				access_misc_csr_parity_err_cnt),
+/* CceErrStatus */
+[C_CCE_ERR_STATUS_AGGREGATED_CNT] = CNTR_ELEM("CceErrStatusAggregatedCnt", 0, 0,
+				CNTR_NORMAL,
+				access_sw_cce_err_status_aggregated_cnt),
+[C_CCE_MSIX_CSR_PARITY_ERR] = CNTR_ELEM("CceMsixCsrParityErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_msix_csr_parity_err_cnt),
+[C_CCE_INT_MAP_UNC_ERR] = CNTR_ELEM("CceIntMapUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_int_map_unc_err_cnt),
+[C_CCE_INT_MAP_COR_ERR] = CNTR_ELEM("CceIntMapCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_int_map_cor_err_cnt),
+[C_CCE_MSIX_TABLE_UNC_ERR] = CNTR_ELEM("CceMsixTableUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_msix_table_unc_err_cnt),
+[C_CCE_MSIX_TABLE_COR_ERR] = CNTR_ELEM("CceMsixTableCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_msix_table_cor_err_cnt),
+[C_CCE_RXDMA_CONV_FIFO_PARITY_ERR] = CNTR_ELEM("CceRxdmaConvFifoParityErr", 0,
+				0, CNTR_NORMAL,
+				access_cce_rxdma_conv_fifo_parity_err_cnt),
+[C_CCE_RCPL_ASYNC_FIFO_PARITY_ERR] = CNTR_ELEM("CceRcplAsyncFifoParityErr", 0,
+				0, CNTR_NORMAL,
+				access_cce_rcpl_async_fifo_parity_err_cnt),
+[C_CCE_SEG_WRITE_BAD_ADDR_ERR] = CNTR_ELEM("CceSegWriteBadAddrErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_seg_write_bad_addr_err_cnt),
+[C_CCE_SEG_READ_BAD_ADDR_ERR] = CNTR_ELEM("CceSegReadBadAddrErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_seg_read_bad_addr_err_cnt),
+[C_LA_TRIGGERED] = CNTR_ELEM("Cce LATriggered", 0, 0,
+				CNTR_NORMAL,
+				access_la_triggered_cnt),
+[C_CCE_TRGT_CPL_TIMEOUT_ERR] = CNTR_ELEM("CceTrgtCplTimeoutErr", 0, 0,
+				CNTR_NORMAL,
+				access_cce_trgt_cpl_timeout_err_cnt),
+[C_PCIC_RECEIVE_PARITY_ERR] = CNTR_ELEM("PcicReceiveParityErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_receive_parity_err_cnt),
+[C_PCIC_TRANSMIT_BACK_PARITY_ERR] = CNTR_ELEM("PcicTransmitBackParityErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_transmit_back_parity_err_cnt),
+[C_PCIC_TRANSMIT_FRONT_PARITY_ERR] = CNTR_ELEM("PcicTransmitFrontParityErr", 0,
+				0, CNTR_NORMAL,
+				access_pcic_transmit_front_parity_err_cnt),
+[C_PCIC_CPL_DAT_Q_UNC_ERR] = CNTR_ELEM("PcicCplDatQUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_cpl_dat_q_unc_err_cnt),
+[C_PCIC_CPL_HD_Q_UNC_ERR] = CNTR_ELEM("PcicCplHdQUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_cpl_hd_q_unc_err_cnt),
+[C_PCIC_POST_DAT_Q_UNC_ERR] = CNTR_ELEM("PcicPostDatQUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_post_dat_q_unc_err_cnt),
+[C_PCIC_POST_HD_Q_UNC_ERR] = CNTR_ELEM("PcicPostHdQUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_post_hd_q_unc_err_cnt),
+[C_PCIC_RETRY_SOT_MEM_UNC_ERR] = CNTR_ELEM("PcicRetrySotMemUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_retry_sot_mem_unc_err_cnt),
+[C_PCIC_RETRY_MEM_UNC_ERR] = CNTR_ELEM("PcicRetryMemUncErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_retry_mem_unc_err),
+[C_PCIC_N_POST_DAT_Q_PARITY_ERR] = CNTR_ELEM("PcicNPostDatQParityErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_n_post_dat_q_parity_err_cnt),
+[C_PCIC_N_POST_H_Q_PARITY_ERR] = CNTR_ELEM("PcicNPostHQParityErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_n_post_h_q_parity_err_cnt),
+[C_PCIC_CPL_DAT_Q_COR_ERR] = CNTR_ELEM("PcicCplDatQCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_cpl_dat_q_cor_err_cnt),
+[C_PCIC_CPL_HD_Q_COR_ERR] = CNTR_ELEM("PcicCplHdQCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_cpl_hd_q_cor_err_cnt),
+[C_PCIC_POST_DAT_Q_COR_ERR] = CNTR_ELEM("PcicPostDatQCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_post_dat_q_cor_err_cnt),
+[C_PCIC_POST_HD_Q_COR_ERR] = CNTR_ELEM("PcicPostHdQCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_post_hd_q_cor_err_cnt),
+[C_PCIC_RETRY_SOT_MEM_COR_ERR] = CNTR_ELEM("PcicRetrySotMemCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_retry_sot_mem_cor_err_cnt),
+[C_PCIC_RETRY_MEM_COR_ERR] = CNTR_ELEM("PcicRetryMemCorErr", 0, 0,
+				CNTR_NORMAL,
+				access_pcic_retry_mem_cor_err_cnt),
+[C_CCE_CLI1_ASYNC_FIFO_DBG_PARITY_ERR] = CNTR_ELEM(
+				"CceCli1AsyncFifoDbgParityError", 0, 0,
+				CNTR_NORMAL,
+				access_cce_cli1_async_fifo_dbg_parity_err_cnt),
+[C_CCE_CLI1_ASYNC_FIFO_RXDMA_PARITY_ERR] = CNTR_ELEM(
+				"CceCli1AsyncFifoRxdmaParityError", 0, 0,
+				CNTR_NORMAL,
+				access_cce_cli1_async_fifo_rxdma_parity_err_cnt
+				),
+[C_CCE_CLI1_ASYNC_FIFO_SDMA_HD_PARITY_ERR] = CNTR_ELEM(
+			"CceCli1AsyncFifoSdmaHdParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_cli1_async_fifo_sdma_hd_parity_err_cnt),
+[C_CCE_CLI1_ASYNC_FIFO_PIO_CRDT_PARITY_ERR] = CNTR_ELEM(
+			"CceCli1AsyncFifoPioCrdtParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_cl1_async_fifo_pio_crdt_parity_err_cnt),
+[C_CCE_CLI2_ASYNC_FIFO_PARITY_ERR] = CNTR_ELEM("CceCli2AsyncFifoParityErr", 0,
+			0, CNTR_NORMAL,
+			access_cce_cli2_async_fifo_parity_err_cnt),
+[C_CCE_CSR_CFG_BUS_PARITY_ERR] = CNTR_ELEM("CceCsrCfgBusParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_csr_cfg_bus_parity_err_cnt),
+[C_CCE_CLI0_ASYNC_FIFO_PARTIY_ERR] = CNTR_ELEM("CceCli0AsyncFifoParityErr", 0,
+			0, CNTR_NORMAL,
+			access_cce_cli0_async_fifo_parity_err_cnt),
+[C_CCE_RSPD_DATA_PARITY_ERR] = CNTR_ELEM("CceRspdDataParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_rspd_data_parity_err_cnt),
+[C_CCE_TRGT_ACCESS_ERR] = CNTR_ELEM("CceTrgtAccessErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_trgt_access_err_cnt),
+[C_CCE_TRGT_ASYNC_FIFO_PARITY_ERR] = CNTR_ELEM("CceTrgtAsyncFifoParityErr", 0,
+			0, CNTR_NORMAL,
+			access_cce_trgt_async_fifo_parity_err_cnt),
+[C_CCE_CSR_WRITE_BAD_ADDR_ERR] = CNTR_ELEM("CceCsrWriteBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_csr_write_bad_addr_err_cnt),
+[C_CCE_CSR_READ_BAD_ADDR_ERR] = CNTR_ELEM("CceCsrReadBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_cce_csr_read_bad_addr_err_cnt),
+[C_CCE_CSR_PARITY_ERR] = CNTR_ELEM("CceCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_ccs_csr_parity_err_cnt),
+
+/* RcvErrStatus */
+[C_RX_CSR_PARITY_ERR] = CNTR_ELEM("RxCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_csr_parity_err_cnt),
+[C_RX_CSR_WRITE_BAD_ADDR_ERR] = CNTR_ELEM("RxCsrWriteBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_csr_write_bad_addr_err_cnt),
+[C_RX_CSR_READ_BAD_ADDR_ERR] = CNTR_ELEM("RxCsrReadBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_csr_read_bad_addr_err_cnt),
+[C_RX_DMA_CSR_UNC_ERR] = CNTR_ELEM("RxDmaCsrUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_csr_unc_err_cnt),
+[C_RX_DMA_DQ_FSM_ENCODING_ERR] = CNTR_ELEM("RxDmaDqFsmEncodingErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_dq_fsm_encoding_err_cnt),
+[C_RX_DMA_EQ_FSM_ENCODING_ERR] = CNTR_ELEM("RxDmaEqFsmEncodingErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_eq_fsm_encoding_err_cnt),
+[C_RX_DMA_CSR_PARITY_ERR] = CNTR_ELEM("RxDmaCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_csr_parity_err_cnt),
+[C_RX_RBUF_DATA_COR_ERR] = CNTR_ELEM("RxRbufDataCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_data_cor_err_cnt),
+[C_RX_RBUF_DATA_UNC_ERR] = CNTR_ELEM("RxRbufDataUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_data_unc_err_cnt),
+[C_RX_DMA_DATA_FIFO_RD_COR_ERR] = CNTR_ELEM("RxDmaDataFifoRdCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_data_fifo_rd_cor_err_cnt),
+[C_RX_DMA_DATA_FIFO_RD_UNC_ERR] = CNTR_ELEM("RxDmaDataFifoRdUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_data_fifo_rd_unc_err_cnt),
+[C_RX_DMA_HDR_FIFO_RD_COR_ERR] = CNTR_ELEM("RxDmaHdrFifoRdCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_hdr_fifo_rd_cor_err_cnt),
+[C_RX_DMA_HDR_FIFO_RD_UNC_ERR] = CNTR_ELEM("RxDmaHdrFifoRdUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_hdr_fifo_rd_unc_err_cnt),
+[C_RX_RBUF_DESC_PART2_COR_ERR] = CNTR_ELEM("RxRbufDescPart2CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_desc_part2_cor_err_cnt),
+[C_RX_RBUF_DESC_PART2_UNC_ERR] = CNTR_ELEM("RxRbufDescPart2UncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_desc_part2_unc_err_cnt),
+[C_RX_RBUF_DESC_PART1_COR_ERR] = CNTR_ELEM("RxRbufDescPart1CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_desc_part1_cor_err_cnt),
+[C_RX_RBUF_DESC_PART1_UNC_ERR] = CNTR_ELEM("RxRbufDescPart1UncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_desc_part1_unc_err_cnt),
+[C_RX_HQ_INTR_FSM_ERR] = CNTR_ELEM("RxHqIntrFsmErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_hq_intr_fsm_err_cnt),
+[C_RX_HQ_INTR_CSR_PARITY_ERR] = CNTR_ELEM("RxHqIntrCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_hq_intr_csr_parity_err_cnt),
+[C_RX_LOOKUP_CSR_PARITY_ERR] = CNTR_ELEM("RxLookupCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_lookup_csr_parity_err_cnt),
+[C_RX_LOOKUP_RCV_ARRAY_COR_ERR] = CNTR_ELEM("RxLookupRcvArrayCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_lookup_rcv_array_cor_err_cnt),
+[C_RX_LOOKUP_RCV_ARRAY_UNC_ERR] = CNTR_ELEM("RxLookupRcvArrayUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_lookup_rcv_array_unc_err_cnt),
+[C_RX_LOOKUP_DES_PART2_PARITY_ERR] = CNTR_ELEM("RxLookupDesPart2ParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_lookup_des_part2_parity_err_cnt),
+[C_RX_LOOKUP_DES_PART1_UNC_COR_ERR] = CNTR_ELEM("RxLookupDesPart1UncCorErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_lookup_des_part1_unc_cor_err_cnt),
+[C_RX_LOOKUP_DES_PART1_UNC_ERR] = CNTR_ELEM("RxLookupDesPart1UncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_lookup_des_part1_unc_err_cnt),
+[C_RX_RBUF_NEXT_FREE_BUF_COR_ERR] = CNTR_ELEM("RxRbufNextFreeBufCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_next_free_buf_cor_err_cnt),
+[C_RX_RBUF_NEXT_FREE_BUF_UNC_ERR] = CNTR_ELEM("RxRbufNextFreeBufUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_next_free_buf_unc_err_cnt),
+[C_RX_RBUF_FL_INIT_WR_ADDR_PARITY_ERR] = CNTR_ELEM(
+			"RxRbufFlInitWrAddrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rbuf_fl_init_wr_addr_parity_err_cnt),
+[C_RX_RBUF_FL_INITDONE_PARITY_ERR] = CNTR_ELEM("RxRbufFlInitdoneParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_fl_initdone_parity_err_cnt),
+[C_RX_RBUF_FL_WRITE_ADDR_PARITY_ERR] = CNTR_ELEM("RxRbufFlWrAddrParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_fl_write_addr_parity_err_cnt),
+[C_RX_RBUF_FL_RD_ADDR_PARITY_ERR] = CNTR_ELEM("RxRbufFlRdAddrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_fl_rd_addr_parity_err_cnt),
+[C_RX_RBUF_EMPTY_ERR] = CNTR_ELEM("RxRbufEmptyErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_empty_err_cnt),
+[C_RX_RBUF_FULL_ERR] = CNTR_ELEM("RxRbufFullErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_full_err_cnt),
+[C_RX_RBUF_BAD_LOOKUP_ERR] = CNTR_ELEM("RxRBufBadLookupErr", 0, 0,
+			CNTR_NORMAL,
+			access_rbuf_bad_lookup_err_cnt),
+[C_RX_RBUF_CTX_ID_PARITY_ERR] = CNTR_ELEM("RxRbufCtxIdParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rbuf_ctx_id_parity_err_cnt),
+[C_RX_RBUF_CSR_QEOPDW_PARITY_ERR] = CNTR_ELEM("RxRbufCsrQEOPDWParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rbuf_csr_qeopdw_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_NUM_OF_PKT_PARITY_ERR] = CNTR_ELEM(
+			"RxRbufCsrQNumOfPktParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_csr_q_num_of_pkt_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_T1_PTR_PARITY_ERR] = CNTR_ELEM(
+			"RxRbufCsrQTlPtrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_csr_q_t1_ptr_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_HD_PTR_PARITY_ERR] = CNTR_ELEM("RxRbufCsrQHdPtrParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_csr_q_hd_ptr_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_VLD_BIT_PARITY_ERR] = CNTR_ELEM("RxRbufCsrQVldBitParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_csr_q_vld_bit_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_NEXT_BUF_PARITY_ERR] = CNTR_ELEM("RxRbufCsrQNextBufParityErr",
+			0, 0, CNTR_NORMAL,
+			access_rx_rbuf_csr_q_next_buf_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_ENT_CNT_PARITY_ERR] = CNTR_ELEM("RxRbufCsrQEntCntParityErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_csr_q_ent_cnt_parity_err_cnt),
+[C_RX_RBUF_CSR_Q_HEAD_BUF_NUM_PARITY_ERR] = CNTR_ELEM(
+			"RxRbufCsrQHeadBufNumParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_csr_q_head_buf_num_parity_err_cnt),
+[C_RX_RBUF_BLOCK_LIST_READ_COR_ERR] = CNTR_ELEM("RxRbufBlockListReadCorErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_block_list_read_cor_err_cnt),
+[C_RX_RBUF_BLOCK_LIST_READ_UNC_ERR] = CNTR_ELEM("RxRbufBlockListReadUncErr", 0,
+			0, CNTR_NORMAL,
+			access_rx_rbuf_block_list_read_unc_err_cnt),
+[C_RX_RBUF_LOOKUP_DES_COR_ERR] = CNTR_ELEM("RxRbufLookupDesCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_lookup_des_cor_err_cnt),
+[C_RX_RBUF_LOOKUP_DES_UNC_ERR] = CNTR_ELEM("RxRbufLookupDesUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_lookup_des_unc_err_cnt),
+[C_RX_RBUF_LOOKUP_DES_REG_UNC_COR_ERR] = CNTR_ELEM(
+			"RxRbufLookupDesRegUncCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_lookup_des_reg_unc_cor_err_cnt),
+[C_RX_RBUF_LOOKUP_DES_REG_UNC_ERR] = CNTR_ELEM("RxRbufLookupDesRegUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_lookup_des_reg_unc_err_cnt),
+[C_RX_RBUF_FREE_LIST_COR_ERR] = CNTR_ELEM("RxRbufFreeListCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_free_list_cor_err_cnt),
+[C_RX_RBUF_FREE_LIST_UNC_ERR] = CNTR_ELEM("RxRbufFreeListUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rbuf_free_list_unc_err_cnt),
+[C_RX_RCV_FSM_ENCODING_ERR] = CNTR_ELEM("RxRcvFsmEncodingErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_fsm_encoding_err_cnt),
+[C_RX_DMA_FLAG_COR_ERR] = CNTR_ELEM("RxDmaFlagCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_flag_cor_err_cnt),
+[C_RX_DMA_FLAG_UNC_ERR] = CNTR_ELEM("RxDmaFlagUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_flag_unc_err_cnt),
+[C_RX_DC_SOP_EOP_PARITY_ERR] = CNTR_ELEM("RxDcSopEopParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dc_sop_eop_parity_err_cnt),
+[C_RX_RCV_CSR_PARITY_ERR] = CNTR_ELEM("RxRcvCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_csr_parity_err_cnt),
+[C_RX_RCV_QP_MAP_TABLE_COR_ERR] = CNTR_ELEM("RxRcvQpMapTableCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_qp_map_table_cor_err_cnt),
+[C_RX_RCV_QP_MAP_TABLE_UNC_ERR] = CNTR_ELEM("RxRcvQpMapTableUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_qp_map_table_unc_err_cnt),
+[C_RX_RCV_DATA_COR_ERR] = CNTR_ELEM("RxRcvDataCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_data_cor_err_cnt),
+[C_RX_RCV_DATA_UNC_ERR] = CNTR_ELEM("RxRcvDataUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_data_unc_err_cnt),
+[C_RX_RCV_HDR_COR_ERR] = CNTR_ELEM("RxRcvHdrCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_hdr_cor_err_cnt),
+[C_RX_RCV_HDR_UNC_ERR] = CNTR_ELEM("RxRcvHdrUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_rcv_hdr_unc_err_cnt),
+[C_RX_DC_INTF_PARITY_ERR] = CNTR_ELEM("RxDcIntfParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dc_intf_parity_err_cnt),
+[C_RX_DMA_CSR_COR_ERR] = CNTR_ELEM("RxDmaCsrCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_rx_dma_csr_cor_err_cnt),
+/* SendPioErrStatus */
+[C_PIO_PEC_SOP_HEAD_PARITY_ERR] = CNTR_ELEM("PioPecSopHeadParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pec_sop_head_parity_err_cnt),
+[C_PIO_PCC_SOP_HEAD_PARITY_ERR] = CNTR_ELEM("PioPccSopHeadParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pcc_sop_head_parity_err_cnt),
+[C_PIO_LAST_RETURNED_CNT_PARITY_ERR] = CNTR_ELEM("PioLastReturnedCntParityErr",
+			0, 0, CNTR_NORMAL,
+			access_pio_last_returned_cnt_parity_err_cnt),
+[C_PIO_CURRENT_FREE_CNT_PARITY_ERR] = CNTR_ELEM("PioCurrentFreeCntParityErr", 0,
+			0, CNTR_NORMAL,
+			access_pio_current_free_cnt_parity_err_cnt),
+[C_PIO_RSVD_31_ERR] = CNTR_ELEM("Pio Reserved 31", 0, 0,
+			CNTR_NORMAL,
+			access_pio_reserved_31_err_cnt),
+[C_PIO_RSVD_30_ERR] = CNTR_ELEM("Pio Reserved 30", 0, 0,
+			CNTR_NORMAL,
+			access_pio_reserved_30_err_cnt),
+[C_PIO_PPMC_SOP_LEN_ERR] = CNTR_ELEM("PioPpmcSopLenErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_ppmc_sop_len_err_cnt),
+[C_PIO_PPMC_BQC_MEM_PARITY_ERR] = CNTR_ELEM("PioPpmcBqcMemParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_ppmc_bqc_mem_parity_err_cnt),
+[C_PIO_VL_FIFO_PARITY_ERR] = CNTR_ELEM("PioVlFifoParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_vl_fifo_parity_err_cnt),
+[C_PIO_VLF_SOP_PARITY_ERR] = CNTR_ELEM("PioVlfSopParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_vlf_sop_parity_err_cnt),
+[C_PIO_VLF_V1_LEN_PARITY_ERR] = CNTR_ELEM("PioVlfVlLenParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_vlf_v1_len_parity_err_cnt),
+[C_PIO_BLOCK_QW_COUNT_PARITY_ERR] = CNTR_ELEM("PioBlockQwCountParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_block_qw_count_parity_err_cnt),
+[C_PIO_WRITE_QW_VALID_PARITY_ERR] = CNTR_ELEM("PioWriteQwValidParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_qw_valid_parity_err_cnt),
+[C_PIO_STATE_MACHINE_ERR] = CNTR_ELEM("PioStateMachineErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_state_machine_err_cnt),
+[C_PIO_WRITE_DATA_PARITY_ERR] = CNTR_ELEM("PioWriteDataParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_data_parity_err_cnt),
+[C_PIO_HOST_ADDR_MEM_COR_ERR] = CNTR_ELEM("PioHostAddrMemCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_host_addr_mem_cor_err_cnt),
+[C_PIO_HOST_ADDR_MEM_UNC_ERR] = CNTR_ELEM("PioHostAddrMemUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_host_addr_mem_unc_err_cnt),
+[C_PIO_PKT_EVICT_SM_OR_ARM_SM_ERR] = CNTR_ELEM("PioPktEvictSmOrArbSmErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pkt_evict_sm_or_arb_sm_err_cnt),
+[C_PIO_INIT_SM_IN_ERR] = CNTR_ELEM("PioInitSmInErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_init_sm_in_err_cnt),
+[C_PIO_PPMC_PBL_FIFO_ERR] = CNTR_ELEM("PioPpmcPblFifoErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_ppmc_pbl_fifo_err_cnt),
+[C_PIO_CREDIT_RET_FIFO_PARITY_ERR] = CNTR_ELEM("PioCreditRetFifoParityErr", 0,
+			0, CNTR_NORMAL,
+			access_pio_credit_ret_fifo_parity_err_cnt),
+[C_PIO_V1_LEN_MEM_BANK1_COR_ERR] = CNTR_ELEM("PioVlLenMemBank1CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_v1_len_mem_bank1_cor_err_cnt),
+[C_PIO_V1_LEN_MEM_BANK0_COR_ERR] = CNTR_ELEM("PioVlLenMemBank0CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_v1_len_mem_bank0_cor_err_cnt),
+[C_PIO_V1_LEN_MEM_BANK1_UNC_ERR] = CNTR_ELEM("PioVlLenMemBank1UncErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_v1_len_mem_bank1_unc_err_cnt),
+[C_PIO_V1_LEN_MEM_BANK0_UNC_ERR] = CNTR_ELEM("PioVlLenMemBank0UncErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_v1_len_mem_bank0_unc_err_cnt),
+[C_PIO_SM_PKT_RESET_PARITY_ERR] = CNTR_ELEM("PioSmPktResetParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_sm_pkt_reset_parity_err_cnt),
+[C_PIO_PKT_EVICT_FIFO_PARITY_ERR] = CNTR_ELEM("PioPktEvictFifoParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pkt_evict_fifo_parity_err_cnt),
+[C_PIO_SBRDCTRL_CRREL_FIFO_PARITY_ERR] = CNTR_ELEM(
+			"PioSbrdctrlCrrelFifoParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_sbrdctrl_crrel_fifo_parity_err_cnt),
+[C_PIO_SBRDCTL_CRREL_PARITY_ERR] = CNTR_ELEM("PioSbrdctlCrrelParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_sbrdctl_crrel_parity_err_cnt),
+[C_PIO_PEC_FIFO_PARITY_ERR] = CNTR_ELEM("PioPecFifoParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pec_fifo_parity_err_cnt),
+[C_PIO_PCC_FIFO_PARITY_ERR] = CNTR_ELEM("PioPccFifoParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_pcc_fifo_parity_err_cnt),
+[C_PIO_SB_MEM_FIFO1_ERR] = CNTR_ELEM("PioSbMemFifo1Err", 0, 0,
+			CNTR_NORMAL,
+			access_pio_sb_mem_fifo1_err_cnt),
+[C_PIO_SB_MEM_FIFO0_ERR] = CNTR_ELEM("PioSbMemFifo0Err", 0, 0,
+			CNTR_NORMAL,
+			access_pio_sb_mem_fifo0_err_cnt),
+[C_PIO_CSR_PARITY_ERR] = CNTR_ELEM("PioCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_csr_parity_err_cnt),
+[C_PIO_WRITE_ADDR_PARITY_ERR] = CNTR_ELEM("PioWriteAddrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_addr_parity_err_cnt),
+[C_PIO_WRITE_BAD_CTXT_ERR] = CNTR_ELEM("PioWriteBadCtxtErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_bad_ctxt_err_cnt),
+/* SendDmaErrStatus */
+[C_SDMA_PCIE_REQ_TRACKING_COR_ERR] = CNTR_ELEM("SDmaPcieReqTrackingCorErr", 0,
+			0, CNTR_NORMAL,
+			access_sdma_pcie_req_tracking_cor_err_cnt),
+[C_SDMA_PCIE_REQ_TRACKING_UNC_ERR] = CNTR_ELEM("SDmaPcieReqTrackingUncErr", 0,
+			0, CNTR_NORMAL,
+			access_sdma_pcie_req_tracking_unc_err_cnt),
+[C_SDMA_CSR_PARITY_ERR] = CNTR_ELEM("SDmaCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_csr_parity_err_cnt),
+[C_SDMA_RPY_TAG_ERR] = CNTR_ELEM("SDmaRpyTagErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_rpy_tag_err_cnt),
+/* SendEgressErrStatus */
+[C_TX_READ_PIO_MEMORY_CSR_UNC_ERR] = CNTR_ELEM("TxReadPioMemoryCsrUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_read_pio_memory_csr_unc_err_cnt),
+[C_TX_READ_SDMA_MEMORY_CSR_UNC_ERR] = CNTR_ELEM("TxReadSdmaMemoryCsrUncErr", 0,
+			0, CNTR_NORMAL,
+			access_tx_read_sdma_memory_csr_err_cnt),
+[C_TX_EGRESS_FIFO_COR_ERR] = CNTR_ELEM("TxEgressFifoCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_egress_fifo_cor_err_cnt),
+[C_TX_READ_PIO_MEMORY_COR_ERR] = CNTR_ELEM("TxReadPioMemoryCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_read_pio_memory_cor_err_cnt),
+[C_TX_READ_SDMA_MEMORY_COR_ERR] = CNTR_ELEM("TxReadSdmaMemoryCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_read_sdma_memory_cor_err_cnt),
+[C_TX_SB_HDR_COR_ERR] = CNTR_ELEM("TxSbHdrCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_sb_hdr_cor_err_cnt),
+[C_TX_CREDIT_OVERRUN_ERR] = CNTR_ELEM("TxCreditOverrunErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_credit_overrun_err_cnt),
+[C_TX_LAUNCH_FIFO8_COR_ERR] = CNTR_ELEM("TxLaunchFifo8CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo8_cor_err_cnt),
+[C_TX_LAUNCH_FIFO7_COR_ERR] = CNTR_ELEM("TxLaunchFifo7CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo7_cor_err_cnt),
+[C_TX_LAUNCH_FIFO6_COR_ERR] = CNTR_ELEM("TxLaunchFifo6CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo6_cor_err_cnt),
+[C_TX_LAUNCH_FIFO5_COR_ERR] = CNTR_ELEM("TxLaunchFifo5CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo5_cor_err_cnt),
+[C_TX_LAUNCH_FIFO4_COR_ERR] = CNTR_ELEM("TxLaunchFifo4CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo4_cor_err_cnt),
+[C_TX_LAUNCH_FIFO3_COR_ERR] = CNTR_ELEM("TxLaunchFifo3CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo3_cor_err_cnt),
+[C_TX_LAUNCH_FIFO2_COR_ERR] = CNTR_ELEM("TxLaunchFifo2CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo2_cor_err_cnt),
+[C_TX_LAUNCH_FIFO1_COR_ERR] = CNTR_ELEM("TxLaunchFifo1CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo1_cor_err_cnt),
+[C_TX_LAUNCH_FIFO0_COR_ERR] = CNTR_ELEM("TxLaunchFifo0CorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_fifo0_cor_err_cnt),
+[C_TX_CREDIT_RETURN_VL_ERR] = CNTR_ELEM("TxCreditReturnVLErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_credit_return_vl_err_cnt),
+[C_TX_HCRC_INSERTION_ERR] = CNTR_ELEM("TxHcrcInsertionErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_hcrc_insertion_err_cnt),
+[C_TX_EGRESS_FIFI_UNC_ERR] = CNTR_ELEM("TxEgressFifoUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_egress_fifo_unc_err_cnt),
+[C_TX_READ_PIO_MEMORY_UNC_ERR] = CNTR_ELEM("TxReadPioMemoryUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_read_pio_memory_unc_err_cnt),
+[C_TX_READ_SDMA_MEMORY_UNC_ERR] = CNTR_ELEM("TxReadSdmaMemoryUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_read_sdma_memory_unc_err_cnt),
+[C_TX_SB_HDR_UNC_ERR] = CNTR_ELEM("TxSbHdrUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_sb_hdr_unc_err_cnt),
+[C_TX_CREDIT_RETURN_PARITY_ERR] = CNTR_ELEM("TxCreditReturnParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_credit_return_partiy_err_cnt),
+[C_TX_LAUNCH_FIFO8_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo8UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo8_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO7_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo7UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo7_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO6_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo6UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo6_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO5_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo5UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo5_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO4_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo4UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo4_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO3_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo3UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo3_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO2_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo2UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo2_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO1_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo1UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo1_unc_or_parity_err_cnt),
+[C_TX_LAUNCH_FIFO0_UNC_OR_PARITY_ERR] = CNTR_ELEM("TxLaunchFifo0UncOrParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_launch_fifo0_unc_or_parity_err_cnt),
+[C_TX_SDMA15_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma15DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma15_disallowed_packet_err_cnt),
+[C_TX_SDMA14_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma14DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma14_disallowed_packet_err_cnt),
+[C_TX_SDMA13_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma13DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma13_disallowed_packet_err_cnt),
+[C_TX_SDMA12_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma12DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma12_disallowed_packet_err_cnt),
+[C_TX_SDMA11_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma11DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma11_disallowed_packet_err_cnt),
+[C_TX_SDMA10_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma10DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma10_disallowed_packet_err_cnt),
+[C_TX_SDMA9_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma9DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma9_disallowed_packet_err_cnt),
+[C_TX_SDMA8_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma8DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma8_disallowed_packet_err_cnt),
+[C_TX_SDMA7_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma7DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma7_disallowed_packet_err_cnt),
+[C_TX_SDMA6_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma6DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma6_disallowed_packet_err_cnt),
+[C_TX_SDMA5_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma5DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma5_disallowed_packet_err_cnt),
+[C_TX_SDMA4_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma4DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma4_disallowed_packet_err_cnt),
+[C_TX_SDMA3_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma3DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma3_disallowed_packet_err_cnt),
+[C_TX_SDMA2_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma2DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma2_disallowed_packet_err_cnt),
+[C_TX_SDMA1_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma1DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma1_disallowed_packet_err_cnt),
+[C_TX_SDMA0_DISALLOWED_PACKET_ERR] = CNTR_ELEM("TxSdma0DisallowedPacketErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma0_disallowed_packet_err_cnt),
+[C_TX_CONFIG_PARITY_ERR] = CNTR_ELEM("TxConfigParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_config_parity_err_cnt),
+[C_TX_SBRD_CTL_CSR_PARITY_ERR] = CNTR_ELEM("TxSbrdCtlCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_sbrd_ctl_csr_parity_err_cnt),
+[C_TX_LAUNCH_CSR_PARITY_ERR] = CNTR_ELEM("TxLaunchCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_launch_csr_parity_err_cnt),
+[C_TX_ILLEGAL_CL_ERR] = CNTR_ELEM("TxIllegalVLErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_illegal_vl_err_cnt),
+[C_TX_SBRD_CTL_STATE_MACHINE_PARITY_ERR] = CNTR_ELEM(
+			"TxSbrdCtlStateMachineParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_sbrd_ctl_state_machine_parity_err_cnt),
+[C_TX_RESERVED_10] = CNTR_ELEM("Tx Egress Reserved 10", 0, 0,
+			CNTR_NORMAL,
+			access_egress_reserved_10_err_cnt),
+[C_TX_RESERVED_9] = CNTR_ELEM("Tx Egress Reserved 9", 0, 0,
+			CNTR_NORMAL,
+			access_egress_reserved_9_err_cnt),
+[C_TX_SDMA_LAUNCH_INTF_PARITY_ERR] = CNTR_ELEM("TxSdmaLaunchIntfParityErr",
+			0, 0, CNTR_NORMAL,
+			access_tx_sdma_launch_intf_parity_err_cnt),
+[C_TX_PIO_LAUNCH_INTF_PARITY_ERR] = CNTR_ELEM("TxPioLaunchIntfParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_pio_launch_intf_parity_err_cnt),
+[C_TX_RESERVED_6] = CNTR_ELEM("Tx Egress Reserved 6", 0, 0,
+			CNTR_NORMAL,
+			access_egress_reserved_6_err_cnt),
+[C_TX_INCORRECT_LINK_STATE_ERR] = CNTR_ELEM("TxIncorrectLinkStateErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_incorrect_link_state_err_cnt),
+[C_TX_LINK_DOWN_ERR] = CNTR_ELEM("TxLinkdownErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_linkdown_err_cnt),
+[C_TX_EGRESS_FIFO_UNDERRUN_OR_PARITY_ERR] = CNTR_ELEM(
+			"EgressFifoUnderrunOrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_egress_fifi_underrun_or_parity_err_cnt),
+[C_TX_RESERVED_2] = CNTR_ELEM("Tx Egress Reserved 2", 0, 0,
+			CNTR_NORMAL,
+			access_egress_reserved_2_err_cnt),
+[C_TX_PKT_INTEGRITY_MEM_UNC_ERR] = CNTR_ELEM("TxPktIntegrityMemUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_pkt_integrity_mem_unc_err_cnt),
+[C_TX_PKT_INTEGRITY_MEM_COR_ERR] = CNTR_ELEM("TxPktIntegrityMemCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_tx_pkt_integrity_mem_cor_err_cnt),
+/* SendErrStatus */
+[C_SEND_CSR_WRITE_BAD_ADDR_ERR] = CNTR_ELEM("SendCsrWriteBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_send_csr_write_bad_addr_err_cnt),
+[C_SEND_CSR_READ_BAD_ADD_ERR] = CNTR_ELEM("SendCsrReadBadAddrErr", 0, 0,
+			CNTR_NORMAL,
+			access_send_csr_read_bad_addr_err_cnt),
+[C_SEND_CSR_PARITY_ERR] = CNTR_ELEM("SendCsrParityErr", 0, 0,
+			CNTR_NORMAL,
+			access_send_csr_parity_cnt),
+/* SendCtxtErrStatus */
+[C_PIO_WRITE_OUT_OF_BOUNDS_ERR] = CNTR_ELEM("PioWriteOutOfBoundsErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_out_of_bounds_err_cnt),
+[C_PIO_WRITE_OVERFLOW_ERR] = CNTR_ELEM("PioWriteOverflowErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_write_overflow_err_cnt),
+[C_PIO_WRITE_CROSSES_BOUNDARY_ERR] = CNTR_ELEM("PioWriteCrossesBoundaryErr",
+			0, 0, CNTR_NORMAL,
+			access_pio_write_crosses_boundary_err_cnt),
+[C_PIO_DISALLOWED_PACKET_ERR] = CNTR_ELEM("PioDisallowedPacketErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_disallowed_packet_err_cnt),
+[C_PIO_INCONSISTENT_SOP_ERR] = CNTR_ELEM("PioInconsistentSopErr", 0, 0,
+			CNTR_NORMAL,
+			access_pio_inconsistent_sop_err_cnt),
+/* SendDmaEngErrStatus */
+[C_SDMA_HEADER_REQUEST_FIFO_COR_ERR] = CNTR_ELEM("SDmaHeaderRequestFifoCorErr",
+			0, 0, CNTR_NORMAL,
+			access_sdma_header_request_fifo_cor_err_cnt),
+[C_SDMA_HEADER_STORAGE_COR_ERR] = CNTR_ELEM("SDmaHeaderStorageCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_header_storage_cor_err_cnt),
+[C_SDMA_PACKET_TRACKING_COR_ERR] = CNTR_ELEM("SDmaPacketTrackingCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_packet_tracking_cor_err_cnt),
+[C_SDMA_ASSEMBLY_COR_ERR] = CNTR_ELEM("SDmaAssemblyCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_assembly_cor_err_cnt),
+[C_SDMA_DESC_TABLE_COR_ERR] = CNTR_ELEM("SDmaDescTableCorErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_desc_table_cor_err_cnt),
+[C_SDMA_HEADER_REQUEST_FIFO_UNC_ERR] = CNTR_ELEM("SDmaHeaderRequestFifoUncErr",
+			0, 0, CNTR_NORMAL,
+			access_sdma_header_request_fifo_unc_err_cnt),
+[C_SDMA_HEADER_STORAGE_UNC_ERR] = CNTR_ELEM("SDmaHeaderStorageUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_header_storage_unc_err_cnt),
+[C_SDMA_PACKET_TRACKING_UNC_ERR] = CNTR_ELEM("SDmaPacketTrackingUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_packet_tracking_unc_err_cnt),
+[C_SDMA_ASSEMBLY_UNC_ERR] = CNTR_ELEM("SDmaAssemblyUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_assembly_unc_err_cnt),
+[C_SDMA_DESC_TABLE_UNC_ERR] = CNTR_ELEM("SDmaDescTableUncErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_desc_table_unc_err_cnt),
+[C_SDMA_TIMEOUT_ERR] = CNTR_ELEM("SDmaTimeoutErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_timeout_err_cnt),
+[C_SDMA_HEADER_LENGTH_ERR] = CNTR_ELEM("SDmaHeaderLengthErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_header_length_err_cnt),
+[C_SDMA_HEADER_ADDRESS_ERR] = CNTR_ELEM("SDmaHeaderAddressErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_header_address_err_cnt),
+[C_SDMA_HEADER_SELECT_ERR] = CNTR_ELEM("SDmaHeaderSelectErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_header_select_err_cnt),
+[C_SMDA_RESERVED_9] = CNTR_ELEM("SDma Reserved 9", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_reserved_9_err_cnt),
+[C_SDMA_PACKET_DESC_OVERFLOW_ERR] = CNTR_ELEM("SDmaPacketDescOverflowErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_packet_desc_overflow_err_cnt),
+[C_SDMA_LENGTH_MISMATCH_ERR] = CNTR_ELEM("SDmaLengthMismatchErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_length_mismatch_err_cnt),
+[C_SDMA_HALT_ERR] = CNTR_ELEM("SDmaHaltErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_halt_err_cnt),
+[C_SDMA_MEM_READ_ERR] = CNTR_ELEM("SDmaMemReadErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_mem_read_err_cnt),
+[C_SDMA_FIRST_DESC_ERR] = CNTR_ELEM("SDmaFirstDescErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_first_desc_err_cnt),
+[C_SDMA_TAIL_OUT_OF_BOUNDS_ERR] = CNTR_ELEM("SDmaTailOutOfBoundsErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_tail_out_of_bounds_err_cnt),
+[C_SDMA_TOO_LONG_ERR] = CNTR_ELEM("SDmaTooLongErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_too_long_err_cnt),
+[C_SDMA_GEN_MISMATCH_ERR] = CNTR_ELEM("SDmaGenMismatchErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_gen_mismatch_err_cnt),
+[C_SDMA_WRONG_DW_ERR] = CNTR_ELEM("SDmaWrongDwErr", 0, 0,
+			CNTR_NORMAL,
+			access_sdma_wrong_dw_err_cnt),
 };
 
 static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
@@ -1762,6 +4890,8 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 			access_sw_link_dn_cnt),
 [C_SW_LINK_UP] = CNTR_ELEM("SwLinkUp", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			access_sw_link_up_cnt),
+[C_SW_UNKNOWN_FRAME] = CNTR_ELEM("UnknownFrame", 0, 0, CNTR_NORMAL,
+				 access_sw_unknown_frame_cnt),
 [C_SW_XMIT_DSCD] = CNTR_ELEM("XmitDscd", 0, 0, CNTR_SYNTH | CNTR_32BIT,
 			access_sw_xmit_discards),
 [C_SW_XMIT_DSCD_VL] = CNTR_ELEM("XmitDscdVl", 0, 0,
@@ -1873,13 +5003,6 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 
 /* ======================================================================== */
 
-/* return true if this is chip revision revision a0 */
-int is_a0(struct hfi1_devdata *dd)
-{
-	return ((dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT)
-			& CCE_REVISION_CHIP_REV_MINOR_MASK) == 0;
-}
-
 /* return true if this is chip revision revision a */
 int is_ax(struct hfi1_devdata *dd)
 {
@@ -1895,7 +5018,7 @@ int is_bx(struct hfi1_devdata *dd)
 	u8 chip_rev_minor =
 		dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
-	return !!(chip_rev_minor & 0x10);
+	return (chip_rev_minor & 0xF0) == 0x10;
 }
 
 /*
@@ -2182,6 +5305,7 @@ static char *send_err_status_string(char *buf, int buf_len, u64 flags)
 static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	/*
 	 * For most these errors, there is nothing that can be done except
@@ -2190,12 +5314,19 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	dd_dev_info(dd, "CCE Error: %s\n",
 		cce_err_status_string(buf, sizeof(buf), reg));
 
-	if ((reg & CCE_ERR_STATUS_CCE_CLI2_ASYNC_FIFO_PARITY_ERR_SMASK)
-			&& is_a0(dd)
-			&& (dd->icode != ICODE_FUNCTIONAL_SIMULATOR)) {
+	if ((reg & CCE_ERR_STATUS_CCE_CLI2_ASYNC_FIFO_PARITY_ERR_SMASK) &&
+	    is_ax(dd) && (dd->icode != ICODE_FUNCTIONAL_SIMULATOR)) {
 		/* this error requires a manual drop into SPC freeze mode */
 		/* then a fix up */
 		start_freeze_handling(dd->pport, FREEZE_SELF);
+	}
+
+	for (i = 0; i < NUM_CCE_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i)) {
+			incr_cntr64(&dd->cce_err_status_cnt[i]);
+			/* maintain a counter over all cce_err_status errors */
+			incr_cntr64(&dd->sw_cce_err_status_aggregate);
+		}
 	}
 }
 
@@ -2241,6 +5372,7 @@ static void free_rcverr(struct hfi1_devdata *dd)
 static void handle_rxe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	dd_dev_info(dd, "Receive Error: %s\n",
 		rxe_err_status_string(buf, sizeof(buf), reg));
@@ -2252,41 +5384,63 @@ static void handle_rxe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		 * Freeze mode recovery is disabled for the errors
 		 * in RXE_FREEZE_ABORT_MASK
 		 */
-		if (is_a0(dd) && (reg & RXE_FREEZE_ABORT_MASK))
+		if (is_ax(dd) && (reg & RXE_FREEZE_ABORT_MASK))
 			flags = FREEZE_ABORT;
 
 		start_freeze_handling(dd->pport, flags);
+	}
+
+	for (i = 0; i < NUM_RCV_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->rcv_err_status_cnt[i]);
 	}
 }
 
 static void handle_misc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	dd_dev_info(dd, "Misc Error: %s",
 		misc_err_status_string(buf, sizeof(buf), reg));
+	for (i = 0; i < NUM_MISC_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->misc_err_status_cnt[i]);
+	}
 }
 
 static void handle_pio_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	dd_dev_info(dd, "PIO Error: %s\n",
 		pio_err_status_string(buf, sizeof(buf), reg));
 
 	if (reg & ALL_PIO_FREEZE_ERR)
 		start_freeze_handling(dd->pport, 0);
+
+	for (i = 0; i < NUM_SEND_PIO_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->send_pio_err_status_cnt[i]);
+	}
 }
 
 static void handle_sdma_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	dd_dev_info(dd, "SDMA Error: %s\n",
 		sdma_err_status_string(buf, sizeof(buf), reg));
 
 	if (reg & ALL_SDMA_FREEZE_ERR)
 		start_freeze_handling(dd->pport, 0);
+
+	for (i = 0; i < NUM_SEND_DMA_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->send_dma_err_status_cnt[i]);
+	}
 }
 
 static void count_port_inactive(struct hfi1_devdata *dd)
@@ -2352,10 +5506,11 @@ static void handle_egress_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	u64 reg_copy = reg, handled = 0;
 	char buf[96];
+	int i = 0;
 
 	if (reg & ALL_TXE_EGRESS_FREEZE_ERR)
 		start_freeze_handling(dd->pport, 0);
-	if (is_a0(dd) && (reg &
+	if (is_ax(dd) && (reg &
 		    SEND_EGRESS_ERR_STATUS_TX_CREDIT_RETURN_VL_ERR_SMASK)
 		    && (dd->icode != ICODE_FUNCTIONAL_SIMULATOR))
 		start_freeze_handling(dd->pport, 0);
@@ -2383,15 +5538,25 @@ static void handle_egress_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 	if (reg)
 		dd_dev_info(dd, "Egress Error: %s\n",
 			egress_err_status_string(buf, sizeof(buf), reg));
+
+	for (i = 0; i < NUM_SEND_EGRESS_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->send_egress_err_status_cnt[i]);
+	}
 }
 
 static void handle_txe_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 {
 	char buf[96];
+	int i = 0;
 
 	dd_dev_info(dd, "Send Error: %s\n",
 		send_err_status_string(buf, sizeof(buf), reg));
 
+	for (i = 0; i < NUM_SEND_ERR_STATUS_COUNTERS; i++) {
+		if (reg & (1ull << i))
+			incr_cntr64(&dd->send_err_status_cnt[i]);
+	}
 }
 
 /*
@@ -2483,6 +5648,7 @@ static void is_sendctxt_err_int(struct hfi1_devdata *dd,
 	char flags[96];
 	u64 status;
 	u32 sw_index;
+	int i = 0;
 
 	sw_index = dd->hw_to_sw[hw_context];
 	if (sw_index >= dd->num_send_contexts) {
@@ -2516,12 +5682,23 @@ static void is_sendctxt_err_int(struct hfi1_devdata *dd,
 	 */
 	if (sc->type != SC_USER)
 		queue_work(dd->pport->hfi1_wq, &sc->halt_work);
+
+	/*
+	 * Update the counters for the corresponding status bits.
+	 * Note that these particular counters are aggregated over all
+	 * 160 contexts.
+	 */
+	for (i = 0; i < NUM_SEND_CTXT_ERR_STATUS_COUNTERS; i++) {
+		if (status & (1ull << i))
+			incr_cntr64(&dd->sw_ctxt_err_status_cnt[i]);
+	}
 }
 
 static void handle_sdma_eng_err(struct hfi1_devdata *dd,
 				unsigned int source, u64 status)
 {
 	struct sdma_engine *sde;
+	int i = 0;
 
 	sde = &dd->per_sdma[source];
 #ifdef CONFIG_SDMA_VERBOSITY
@@ -2531,6 +5708,16 @@ static void handle_sdma_eng_err(struct hfi1_devdata *dd,
 		   sde->this_idx, source, (unsigned long long)status);
 #endif
 	sdma_engine_error(sde, status);
+
+	/*
+	* Update the counters for the corresponding status bits.
+	* Note that these particular counters are aggregated over
+	* all 16 DMA engines.
+	*/
+	for (i = 0; i < NUM_SEND_DMA_ENG_ERR_STATUS_COUNTERS; i++) {
+		if (status & (1ull << i))
+			incr_cntr64(&dd->sw_send_dma_eng_err_status_cnt[i]);
+	}
 }
 
 /*
@@ -3050,7 +6237,7 @@ static void adjust_lcb_for_fpga_serdes(struct hfi1_devdata *dd)
 	/* else this is _p */
 
 	version = emulator_rev(dd);
-	if (!is_a0(dd))
+	if (!is_ax(dd))
 		version = 0x2d;	/* all B0 use 0x2d or higher settings */
 
 	if (version <= 0x12) {
@@ -3313,7 +6500,6 @@ void handle_freeze(struct work_struct *work)
 	struct hfi1_devdata *dd = ppd->dd;
 
 	/* wait for freeze indicators on all affected blocks */
-	dd_dev_info(dd, "Entering SPC freeze\n");
 	wait_for_freeze_status(dd, 1);
 
 	/* SPC is now frozen */
@@ -3336,7 +6522,7 @@ void handle_freeze(struct work_struct *work)
 	write_csr(dd, CCE_CTRL, CCE_CTRL_SPC_UNFREEZE_SMASK);
 	wait_for_freeze_status(dd, 0);
 
-	if (is_a0(dd)) {
+	if (is_ax(dd)) {
 		write_csr(dd, CCE_CTRL, CCE_CTRL_SPC_FREEZE_SMASK);
 		wait_for_freeze_status(dd, 1);
 		write_csr(dd, CCE_CTRL, CCE_CTRL_SPC_UNFREEZE_SMASK);
@@ -3371,7 +6557,6 @@ void handle_freeze(struct work_struct *work)
 	wake_up(&dd->event_queue);
 
 	/* no longer frozen */
-	dd_dev_err(dd, "Exiting SPC freeze\n");
 }
 
 /*
@@ -3542,10 +6727,10 @@ static void add_full_mgmt_pkey(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 
-	/* Sanity check - ppd->pkeys[2] should be 0 */
-	if (ppd->pkeys[2] != 0)
-		dd_dev_err(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
-			   __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
+	/* Sanity check - ppd->pkeys[2] should be 0, or already initalized */
+	if (!((ppd->pkeys[2] == 0) || (ppd->pkeys[2] == FULL_MGMT_P_KEY)))
+		dd_dev_warn(dd, "%s pkey[2] already set to 0x%x, resetting it to 0x%x\n",
+			    __func__, ppd->pkeys[2], FULL_MGMT_P_KEY);
 	ppd->pkeys[2] = FULL_MGMT_P_KEY;
 	(void)hfi1_set_ib_cfg(ppd, HFI1_IB_CFG_PKEYS, 0);
 }
@@ -3864,7 +7049,7 @@ void handle_verify_cap(struct work_struct *work)
 	 *	REPLAY_BUF_MBE_SMASK
 	 *	FLIT_INPUT_BUF_MBE_SMASK
 	 */
-	if (is_a0(dd)) {			/* fixed in B0 */
+	if (is_ax(dd)) {			/* fixed in B0 */
 		reg = read_csr(dd, DC_LCB_CFG_LINK_KILL_EN);
 		reg |= DC_LCB_CFG_LINK_KILL_EN_REPLAY_BUF_MBE_SMASK
 			| DC_LCB_CFG_LINK_KILL_EN_FLIT_INPUT_BUF_MBE_SMASK;
@@ -3907,18 +7092,32 @@ void handle_verify_cap(struct work_struct *work)
  */
 void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 {
-	int skip = 1;
 	int do_bounce = 0;
-	u16 lwde = ppd->link_width_downgrade_enabled;
+	int tries;
+	u16 lwde;
 	u16 tx, rx;
 
+	/* use the hls lock to avoid a race with actual link up */
+	tries = 0;
+retry:
 	mutex_lock(&ppd->hls_lock);
 	/* only apply if the link is up */
-	if (ppd->host_link_state & HLS_UP)
-		skip = 0;
-	mutex_unlock(&ppd->hls_lock);
-	if (skip)
-		return;
+	if (!(ppd->host_link_state & HLS_UP)) {
+		/* still going up..wait and retry */
+		if (ppd->host_link_state & HLS_GOING_UP) {
+			if (++tries < 1000) {
+				mutex_unlock(&ppd->hls_lock);
+				usleep_range(100, 120); /* arbitrary */
+				goto retry;
+			}
+			dd_dev_err(ppd->dd,
+				   "%s: giving up waiting for link state change\n",
+				   __func__);
+		}
+		goto done;
+	}
+
+	lwde = ppd->link_width_downgrade_enabled;
 
 	if (refresh_widths) {
 		get_link_widths(ppd->dd, &tx, &rx);
@@ -3955,6 +7154,9 @@ void apply_link_downgrade_policy(struct hfi1_pportdata *ppd, int refresh_widths)
 			ppd->link_width_downgrade_rx_active);
 		do_bounce = 1;
 	}
+
+done:
+	mutex_unlock(&ppd->hls_lock);
 
 	if (do_bounce) {
 		set_link_down_reason(ppd, OPA_LINKDOWN_REASON_WIDTH_POLICY, 0,
@@ -4045,6 +7247,11 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 						err & FAILED_LNI));
 			}
 			err &= ~(u64)FAILED_LNI;
+		}
+		/* unknown frames can happen durning LNI, just count */
+		if (err & UNKNOWN_FRAME) {
+			ppd->unknown_frame_count++;
+			err &= ~(u64)UNKNOWN_FRAME;
 		}
 		if (err) {
 			/* report remaining errors, but do not do anything */
@@ -4774,13 +7981,25 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 addr, u64 *data)
  */
 static int write_lcb_via_8051(struct hfi1_devdata *dd, u32 addr, u64 data)
 {
+	u32 regno;
+	int ret;
 
-	if (acquire_lcb_access(dd, 0) == 0) {
-		write_csr(dd, addr, data);
-		release_lcb_access(dd, 0);
-		return 0;
+	if (dd->icode == ICODE_FUNCTIONAL_SIMULATOR ||
+	    (dd->dc8051_ver < dc8051_ver(0, 20))) {
+		if (acquire_lcb_access(dd, 0) == 0) {
+			write_csr(dd, addr, data);
+			release_lcb_access(dd, 0);
+			return 0;
+		}
+		return -EBUSY;
 	}
-	return -EBUSY;
+
+	/* register is an index of LCB registers: (offset - base) / 8 */
+	regno = (addr - DC_LCB_CFG_RUN) >> 3;
+	ret = do_8051_command(dd, HCMD_WRITE_LCB_CSR, regno, &data);
+	if (ret != HCMD_SUCCESS)
+		return -EBUSY;
+	return 0;
 }
 
 /*
@@ -4860,6 +8079,26 @@ static int do_8051_command(
 	 * If there is no timeout, then the 8051 command interface is
 	 * waiting for a command.
 	 */
+
+	/*
+	 * When writing a LCB CSR, out_data contains the full value to
+	 * to be written, while in_data contains the relative LCB
+	 * address in 7:0.  Do the work here, rather than the caller,
+	 * of distrubting the write data to where it needs to go:
+	 *
+	 * Write data
+	 *   39:00 -> in_data[47:8]
+	 *   47:40 -> DC8051_CFG_EXT_DEV_0.RETURN_CODE
+	 *   63:48 -> DC8051_CFG_EXT_DEV_0.RSP_DATA
+	 */
+	if (type == HCMD_WRITE_LCB_CSR) {
+		in_data |= ((*out_data) & 0xffffffffffull) << 8;
+		reg = ((((*out_data) >> 40) & 0xff) <<
+				DC_DC8051_CFG_EXT_DEV_0_RETURN_CODE_SHIFT)
+		      | ((((*out_data) >> 48) & 0xffff) <<
+				DC_DC8051_CFG_EXT_DEV_0_RSP_DATA_SHIFT);
+		write_csr(dd, DC_DC8051_CFG_EXT_DEV_0, reg);
+	}
 
 	/*
 	 * Do two writes: the first to stabilize the type and req_data, the
@@ -5856,6 +9095,23 @@ void init_qsfp(struct hfi1_pportdata *ppd)
 	}
 }
 
+/*
+ * Do a one-time initialize of the LCB block.
+ */
+static void init_lcb(struct hfi1_devdata *dd)
+{
+	/* the DC has been reset earlier in the driver load */
+
+	/* set LCB for cclk loopback on the port */
+	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x01);
+	write_csr(dd, DC_LCB_CFG_LANE_WIDTH, 0x00);
+	write_csr(dd, DC_LCB_CFG_REINIT_AS_SLAVE, 0x00);
+	write_csr(dd, DC_LCB_CFG_CNT_FOR_SKIP_STALL, 0x110);
+	write_csr(dd, DC_LCB_CFG_CLK_CNTR, 0x08);
+	write_csr(dd, DC_LCB_CFG_LOOPBACK, 0x02);
+	write_csr(dd, DC_LCB_CFG_TX_FIFOS_RESET, 0x00);
+}
+
 int bringup_serdes(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -5876,6 +9132,9 @@ int bringup_serdes(struct hfi1_pportdata *ppd)
 	ppd->link_enabled = 1;
 	/* Set linkinit_reason on power up per OPA spec */
 	ppd->linkinit_reason = OPA_LINKINIT_REASON_LINKUP;
+
+	/* one-time init of the LCB */
+	init_lcb(dd);
 
 	if (loopback) {
 		ret = init_loopback(dd);
@@ -6148,7 +9407,8 @@ u32 lrh_max_header_bytes(struct hfi1_devdata *dd)
 static void set_send_length(struct hfi1_pportdata *ppd)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	u32 max_hb = lrh_max_header_bytes(dd), maxvlmtu = 0, dcmtu;
+	u32 max_hb = lrh_max_header_bytes(dd), dcmtu;
+	u32 maxvlmtu = dd->vld[15].mtu;
 	u64 len1 = 0, len2 = (((dd->vld[15].mtu + max_hb) >> 2)
 			      & SEND_LEN_CHECK1_LEN_VL15_MASK) <<
 		SEND_LEN_CHECK1_LEN_VL15_SHIFT;
@@ -6319,9 +9579,10 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 	 * depending on how the link went down.  The 8051 firmware
 	 * will observe the needed wait time and only move to ready
 	 * when that is completed.  The largest of the quiet timeouts
-	 * is 2.5s, so wait that long and then a bit more.
+	 * is 6s, so wait that long and then at least 0.5s more for
+	 * other transitions, and another 0.5s for a buffer.
 	 */
-	ret = wait_fm_ready(dd, 3000);
+	ret = wait_fm_ready(dd, 7000);
 	if (ret) {
 		dd_dev_err(dd,
 			"After going offline, timed out waiting for the 8051 to become ready to accept host requests\n");
@@ -7235,8 +10496,7 @@ static int set_buffer_control(struct hfi1_devdata *dd,
 		new_bc->vl[i].shared = 0;
 	}
 	new_total += be16_to_cpu(new_bc->overall_shared_limit);
-	if (new_total > (u32)dd->link_credits)
-		return -EINVAL;
+
 	/* fetch the current values */
 	get_buffer_control(dd, &cur_bc, &cur_total);
 
@@ -7282,8 +10542,8 @@ static int set_buffer_control(struct hfi1_devdata *dd,
 	 */
 	use_all_mask = 0;
 	if ((be16_to_cpu(new_bc->overall_shared_limit) <
-				be16_to_cpu(cur_bc.overall_shared_limit))
-			|| (is_a0(dd) && any_shared_limit_changing)) {
+	     be16_to_cpu(cur_bc.overall_shared_limit)) ||
+	    (is_ax(dd) && any_shared_limit_changing)) {
 		set_global_shared(dd, 0);
 		cur_bc.overall_shared_limit = 0;
 		use_all_mask = 1;
@@ -7457,7 +10717,7 @@ int fm_set_table(struct hfi1_pportdata *ppd, int which, void *t)
  */
 static int disable_data_vls(struct hfi1_devdata *dd)
 {
-	if (is_a0(dd))
+	if (is_ax(dd))
 		return 1;
 
 	pio_send_control(dd, PSC_DATA_VL_DISABLE);
@@ -7475,7 +10735,7 @@ static int disable_data_vls(struct hfi1_devdata *dd)
  */
 int open_fill_data_vls(struct hfi1_devdata *dd)
 {
-	if (is_a0(dd))
+	if (is_ax(dd))
 		return 1;
 
 	pio_send_control(dd, PSC_DATA_VL_ENABLE);
@@ -7748,11 +11008,22 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 					& RCV_TID_CTRL_TID_BASE_INDEX_MASK)
 				<< RCV_TID_CTRL_TID_BASE_INDEX_SHIFT);
 		write_kctxt_csr(dd, ctxt, RCV_TID_CTRL, reg);
-		if (ctxt == VL15CTXT)
-			write_csr(dd, RCV_VL15, VL15CTXT);
+		if (ctxt == HFI1_CTRL_CTXT)
+			write_csr(dd, RCV_VL15, HFI1_CTRL_CTXT);
 	}
 	if (op & HFI1_RCVCTRL_CTXT_DIS) {
 		write_csr(dd, RCV_VL15, 0);
+		/*
+		 * When receive context is being disabled turn on tail
+		 * update with a dummy tail address and then disable
+		 * receive context.
+		 */
+		if (dd->rcvhdrtail_dummy_physaddr) {
+			write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
+					dd->rcvhdrtail_dummy_physaddr);
+			rcvctrl |= RCV_CTXT_CTRL_TAIL_UPD_SMASK;
+		}
+
 		rcvctrl &= ~RCV_CTXT_CTRL_ENABLE_SMASK;
 	}
 	if (op & HFI1_RCVCTRL_INTRAVAIL_ENB)
@@ -7822,10 +11093,11 @@ void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
 	if (op & (HFI1_RCVCTRL_TAILUPD_DIS | HFI1_RCVCTRL_CTXT_DIS))
 		/*
 		 * If the context has been disabled and the Tail Update has
-		 * been cleared, clear the RCV_HDR_TAIL_ADDR CSR so
-		 * it doesn't contain an address that is invalid.
+		 * been cleared, set the RCV_HDR_TAIL_ADDR CSR to dummy address
+		 * so it doesn't contain an address that is invalid.
 		 */
-		write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR, 0);
+		write_kctxt_csr(dd, ctxt, RCV_HDR_TAIL_ADDR,
+				dd->rcvhdrtail_dummy_physaddr);
 }
 
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, loff_t pos, char **namep,
@@ -8785,7 +12057,7 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 	/* turn off interrupts */
 	if (dd->num_msix_entries) {
 		/* MSI-X */
-		hfi1_nomsix(dd);
+		pci_disable_msix(dd->pcidev);
 	} else {
 		/* INTx */
 		disable_intx(dd->pcidev);
@@ -8840,18 +12112,12 @@ static void remap_sdma_interrupts(struct hfi1_devdata *dd,
 		msix_intr);
 }
 
-static void remap_receive_available_interrupt(struct hfi1_devdata *dd,
-					      int rx, int msix_intr)
-{
-	remap_intr(dd, IS_RCVAVAIL_START + rx, msix_intr);
-}
-
 static int request_intx_irq(struct hfi1_devdata *dd)
 {
 	int ret;
 
-	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME"_%d",
-		dd->unit);
+	snprintf(dd->intx_name, sizeof(dd->intx_name), DRIVER_NAME "_%d",
+		 dd->unit);
 	ret = request_irq(dd->pcidev->irq, general_interrupt,
 				  IRQF_SHARED, dd->intx_name, dd);
 	if (ret)
@@ -8870,7 +12136,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 	int first_general, last_general;
 	int first_sdma, last_sdma;
 	int first_rx, last_rx;
-	int first_cpu, restart_cpu, curr_cpu;
+	int first_cpu, curr_cpu;
 	int rcv_cpu, sdma_cpu;
 	int i, ret = 0, possible;
 	int ht;
@@ -8909,22 +12175,19 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			topology_sibling_cpumask(cpumask_first(local_mask)));
 	for (i = possible/ht; i < possible; i++)
 		cpumask_clear_cpu(i, def);
-	/* reset possible */
-	possible = cpumask_weight(def);
 	/* def now has full cores on chosen node*/
 	first_cpu = cpumask_first(def);
 	if (nr_cpu_ids >= first_cpu)
 		first_cpu++;
-	restart_cpu = first_cpu;
-	curr_cpu = restart_cpu;
+	curr_cpu = first_cpu;
 
-	for (i = first_cpu; i < dd->n_krcv_queues + first_cpu; i++) {
+	/*  One context is reserved as control context */
+	for (i = first_cpu; i < dd->n_krcv_queues + first_cpu - 1; i++) {
 		cpumask_clear_cpu(curr_cpu, def);
 		cpumask_set_cpu(curr_cpu, rcv);
-		if (curr_cpu >= possible)
-			curr_cpu = restart_cpu;
-		else
-			curr_cpu++;
+		curr_cpu = cpumask_next(curr_cpu, def);
+		if (curr_cpu >= nr_cpu_ids)
+			break;
 	}
 	/* def mask has non-rcv, rcv has recv mask */
 	rcv_cpu = cpumask_first(rcv);
@@ -8953,7 +12216,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			handler = general_interrupt;
 			arg = dd;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d", dd->unit);
+				 DRIVER_NAME "_%d", dd->unit);
 			err_info = "general";
 		} else if (first_sdma <= i && i < last_sdma) {
 			idx = i - first_sdma;
@@ -8961,7 +12224,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			handler = sdma_interrupt;
 			arg = sde;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d sdma%d", dd->unit, idx);
+				 DRIVER_NAME "_%d sdma%d", dd->unit, idx);
 			err_info = "sdma";
 			remap_sdma_interrupts(dd, idx, i);
 		} else if (first_rx <= i && i < last_rx) {
@@ -8981,9 +12244,9 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			thread = receive_context_thread;
 			arg = rcd;
 			snprintf(me->name, sizeof(me->name),
-				DRIVER_NAME"_%d kctxt%d", dd->unit, idx);
+				 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 			err_info = "receive context";
-			remap_receive_available_interrupt(dd, idx, i);
+			remap_intr(dd, IS_RCVAVAIL_START + idx, i);
 		} else {
 			/* not in our expected range - complain, then
 			   ignore it */
@@ -9018,17 +12281,26 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 		if (handler == sdma_interrupt) {
 			dd_dev_info(dd, "sdma engine %d cpu %d\n",
 				sde->this_idx, sdma_cpu);
+			sde->cpu = sdma_cpu;
 			cpumask_set_cpu(sdma_cpu, dd->msix_entries[i].mask);
 			sdma_cpu = cpumask_next(sdma_cpu, def);
 			if (sdma_cpu >= nr_cpu_ids)
 				sdma_cpu = cpumask_first(def);
 		} else if (handler == receive_context_interrupt) {
-			dd_dev_info(dd, "rcv ctxt %d cpu %d\n",
-				rcd->ctxt, rcv_cpu);
-			cpumask_set_cpu(rcv_cpu, dd->msix_entries[i].mask);
-			rcv_cpu = cpumask_next(rcv_cpu, rcv);
-			if (rcv_cpu >= nr_cpu_ids)
-				rcv_cpu = cpumask_first(rcv);
+			dd_dev_info(dd, "rcv ctxt %d cpu %d\n", rcd->ctxt,
+				    (rcd->ctxt == HFI1_CTRL_CTXT) ?
+					    cpumask_first(def) : rcv_cpu);
+			if (rcd->ctxt == HFI1_CTRL_CTXT) {
+				/* map to first default */
+				cpumask_set_cpu(cpumask_first(def),
+						dd->msix_entries[i].mask);
+			} else {
+				cpumask_set_cpu(rcv_cpu,
+						dd->msix_entries[i].mask);
+				rcv_cpu = cpumask_next(rcv_cpu, rcv);
+				if (rcv_cpu >= nr_cpu_ids)
+					rcv_cpu = cpumask_first(rcv);
+			}
 		} else {
 			/* otherwise first def */
 			dd_dev_info(dd, "%s cpu %d\n",
@@ -9153,7 +12425,6 @@ fail:
 static int set_up_context_variables(struct hfi1_devdata *dd)
 {
 	int num_kernel_contexts;
-	int num_user_contexts;
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
@@ -9161,11 +12432,18 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	/*
 	 * Kernel contexts: (to be fixed later):
 	 * - min or 2 or 1 context/numa
-	 * - Context 0 - default/errors
-	 * - Context 1 - VL15
+	 * - Context 0 - control context (VL15/multicast/error)
+	 * - Context 1 - default context
 	 */
 	if (n_krcvqs)
-		num_kernel_contexts = n_krcvqs + MIN_KERNEL_KCTXTS;
+		/*
+		 * Don't count context 0 in n_krcvqs since
+		 * is isn't used for normal verbs traffic.
+		 *
+		 * krcvqs will reflect number of kernel
+		 * receive contexts above 0.
+		 */
+		num_kernel_contexts = n_krcvqs + MIN_KERNEL_KCTXTS - 1;
 	else
 		num_kernel_contexts = num_online_nodes();
 	num_kernel_contexts =
@@ -9183,12 +12461,10 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	}
 	/*
 	 * User contexts: (to be fixed later)
-	 *	- set to num_rcv_contexts if non-zero
-	 *	- default to 1 user context per CPU
+	 *	- default to 1 user context per CPU if num_user_contexts is
+	 *	  negative
 	 */
-	if (num_rcv_contexts)
-		num_user_contexts = num_rcv_contexts;
-	else
+	if (num_user_contexts < 0)
 		num_user_contexts = num_online_cpus();
 
 	total_contexts = num_kernel_contexts + num_user_contexts;
@@ -9455,7 +12731,7 @@ static void reset_asic_csrs(struct hfi1_devdata *dd)
 	/* We might want to retain this state across FLR if we ever use it */
 	write_csr(dd, ASIC_CFG_DRV_STR, 0);
 
-	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0);
+	/* ASIC_CFG_THERM_POLL_EN leave alone */
 	/* ASIC_STS_THERM read-only */
 	/* ASIC_CFG_RESET leave alone */
 
@@ -9906,7 +13182,7 @@ static void init_chip(struct hfi1_devdata *dd)
 		/* restore command and BARs */
 		restore_pci_variables(dd);
 
-		if (is_a0(dd)) {
+		if (is_ax(dd)) {
 			dd_dev_info(dd, "Resetting CSRs with FLR\n");
 			hfi1_pcie_flr(dd);
 			restore_pci_variables(dd);
@@ -9925,23 +13201,20 @@ static void init_chip(struct hfi1_devdata *dd)
 	write_csr(dd, CCE_DC_CTRL, 0);
 
 	/* Set the LED off */
-	if (is_a0(dd))
+	if (is_ax(dd))
 		setextled(dd, 0);
 	/*
 	 * Clear the QSFP reset.
-	 * A0 leaves the out lines floating on power on, then on an FLR
-	 * enforces a 0 on all out pins.  The driver does not touch
+	 * An FLR enforces a 0 on all out pins. The driver does not touch
 	 * ASIC_QSFPn_OUT otherwise.  This leaves RESET_N low and
-	 * anything  plugged constantly in reset, if it pays attention
+	 * anything plugged constantly in reset, if it pays attention
 	 * to RESET_N.
-	 * A prime example of this is SiPh. For now, set all pins high.
+	 * Prime examples of this are optical cables. Set all pins high.
 	 * I2CCLK and I2CDAT will change per direction, and INT_N and
 	 * MODPRS_N are input only and their value is ignored.
 	 */
-	if (is_a0(dd)) {
-		write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
-		write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
-	}
+	write_csr(dd, ASIC_QSFP1_OUT, 0x1f);
+	write_csr(dd, ASIC_QSFP2_OUT, 0x1f);
 }
 
 static void init_early_variables(struct hfi1_devdata *dd)
@@ -9951,7 +13224,7 @@ static void init_early_variables(struct hfi1_devdata *dd)
 	/* assign link credit variables */
 	dd->vau = CM_VAU;
 	dd->link_credits = CM_GLOBAL_CREDITS;
-	if (is_a0(dd))
+	if (is_ax(dd))
 		dd->link_credits--;
 	dd->vcu = cu_to_vcu(hfi1_cu);
 	/* enough room for 8 MAD packets plus header - 17K */
@@ -10017,12 +13290,6 @@ static void init_qpmap_table(struct hfi1_devdata *dd,
 	u64 ctxt = first_ctxt;
 
 	for (i = 0; i < 256;) {
-		if (ctxt == VL15CTXT) {
-			ctxt++;
-			if (ctxt > last_ctxt)
-				ctxt = first_ctxt;
-			continue;
-		}
 		reg |= ctxt << (8 * (i % 8));
 		i++;
 		ctxt++;
@@ -10065,7 +13332,7 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 	unsigned qpns_per_vl, ctxt, i, qpn, n = 1, m;
 	u64 *rsmmap;
 	u64 reg;
-	u8  rxcontext = is_a0(dd) ? 0 : 0xff;  /* 0 is default if a0 ver. */
+	u8  rxcontext = is_ax(dd) ? 0 : 0xff;  /* 0 is default if a0 ver. */
 
 	/* validate */
 	if (dd->n_krcv_queues <= MIN_KERNEL_KCTXTS ||
@@ -10087,6 +13354,8 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 	if (num_vls * qpns_per_vl > dd->chip_rcv_contexts)
 		goto bail;
 	rsmmap = kmalloc_array(NUM_MAP_REGS, sizeof(u64), GFP_KERNEL);
+	if (!rsmmap)
+		goto bail;
 	memset(rsmmap, rxcontext, NUM_MAP_REGS * sizeof(u64));
 	/* init the local copy of the table */
 	for (i = 0, ctxt = first_ctxt; i < num_vls; i++) {
@@ -10135,19 +13404,13 @@ static void init_qos(struct hfi1_devdata *dd, u32 first_ctxt)
 	/* Enable RSM */
 	add_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 	kfree(rsmmap);
-	/* map everything else (non-VL15) to context 0 */
-	init_qpmap_table(
-		dd,
-		0,
-		0);
+	/* map everything else to first context */
+	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, MIN_KERNEL_KCTXTS - 1);
 	dd->qos_shift = n + 1;
 	return;
 bail:
 	dd->qos_shift = 1;
-	init_qpmap_table(
-		dd,
-		dd->n_krcv_queues > MIN_KERNEL_KCTXTS ? MIN_KERNEL_KCTXTS : 0,
-		dd->n_krcv_queues - 1);
+	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, dd->n_krcv_queues - 1);
 }
 
 static void init_rxe(struct hfi1_devdata *dd)
@@ -10276,7 +13539,7 @@ int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey)
 	 * Enable send-side J_KEY integrity check, unless this is A0 h/w
 	 * (due to A0 erratum).
 	 */
-	if (!is_a0(dd)) {
+	if (!is_ax(dd)) {
 		reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
 		reg |= SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 		write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
@@ -10309,7 +13572,7 @@ int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt)
 	 * This check would not have been enabled for A0 h/w, see
 	 * set_ctxt_jkey().
 	 */
-	if (!is_a0(dd)) {
+	if (!is_ax(dd)) {
 		reg = read_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE);
 		reg &= ~SEND_CTXT_CHECK_ENABLE_CHECK_JOB_KEY_SMASK;
 		write_kctxt_csr(dd, sctxt, SEND_CTXT_CHECK_ENABLE, reg);
@@ -10416,6 +13679,32 @@ static void asic_should_init(struct hfi1_devdata *dd)
 	if (!peer || !(peer->flags & HFI1_DO_INIT_ASIC))
 		dd->flags |= HFI1_DO_INIT_ASIC;
 	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+}
+
+/*
+ * Set dd->boardname.  Use a generic name if a name is not returned from
+ * EFI variable space.
+ *
+ * Return 0 on success, -ENOMEM if space could not be allocated.
+ */
+static int obtain_boardname(struct hfi1_devdata *dd)
+{
+	/* generic board description */
+	const char generic[] =
+		"Intel Omni-Path Host Fabric Interface Adapter 100 Series";
+	unsigned long size;
+	int ret;
+
+	ret = read_hfi1_efi_var(dd, "description", &size,
+				(void **)&dd->boardname);
+	if (ret) {
+		dd_dev_err(dd, "Board description not found\n");
+		/* use generic description */
+		dd->boardname = kstrdup(generic, GFP_KERNEL);
+		if (!dd->boardname)
+			return -ENOMEM;
+	}
+	return 0;
 }
 
 /**
@@ -10554,9 +13843,9 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	/* insure num_vls isn't larger than number of sdma engines */
 	if (HFI1_CAP_IS_KSET(SDMA) && num_vls > dd->chip_sdma_engines) {
 		dd_dev_err(dd, "num_vls %u too large, using %u VLs\n",
-				num_vls, HFI1_MAX_VLS_SUPPORTED);
-		ppd->vls_supported = num_vls = HFI1_MAX_VLS_SUPPORTED;
-		ppd->vls_operational = ppd->vls_supported;
+			   num_vls, dd->chip_sdma_engines);
+		num_vls = dd->chip_sdma_engines;
+		ppd->vls_supported = dd->chip_sdma_engines;
 	}
 
 	/*
@@ -10615,18 +13904,13 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 
 	parse_platform_config(dd);
 
-	/* add board names as they are defined */
-	dd->boardname = kmalloc(64, GFP_KERNEL);
-	if (!dd->boardname)
+	ret = obtain_boardname(dd);
+	if (ret)
 		goto bail_cleanup;
-	snprintf(dd->boardname, 64, "Board ID 0x%llx",
-		 dd->revision >> CCE_REVISION_BOARD_ID_LOWER_NIBBLE_SHIFT
-		    & CCE_REVISION_BOARD_ID_LOWER_NIBBLE_MASK);
 
 	snprintf(dd->boardversion, BOARD_VERS_MAX,
-		 "ChipABI %u.%u, %s, ChipRev %u.%u, SW Compat %llu\n",
+		 "ChipABI %u.%u, ChipRev %u.%u, SW Compat %llu\n",
 		 HFI1_CHIP_VERS_MAJ, HFI1_CHIP_VERS_MIN,
-		 dd->boardname,
 		 (u32)dd->majrev,
 		 (u32)dd->minrev,
 		 (dd->revision >> CCE_REVISION_SW_SHIFT)
@@ -10803,7 +14087,9 @@ static int thermal_init(struct hfi1_devdata *dd)
 
 	acquire_hw_mutex(dd);
 	dd_dev_info(dd, "Initializing thermal sensor\n");
-
+	/* Disable polling of thermal readings */
+	write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x0);
+	msleep(100);
 	/* Thermal Sensor Initialization */
 	/*    Step 1: Reset the Thermal SBus Receiver */
 	ret = sbus_request_slow(dd, SBUS_THERMAL, 0x0,

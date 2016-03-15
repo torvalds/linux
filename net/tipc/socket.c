@@ -673,7 +673,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct net *net = sock_net(sk);
 	struct tipc_msg *mhdr = &tsk->phdr;
-	struct sk_buff_head *pktchain = &sk->sk_write_queue;
+	struct sk_buff_head pktchain;
 	struct iov_iter save = msg->msg_iter;
 	uint mtu;
 	int rc;
@@ -687,14 +687,16 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_name_seq *seq,
 	msg_set_nameupper(mhdr, seq->upper);
 	msg_set_hdr_sz(mhdr, MCAST_H_SIZE);
 
+	skb_queue_head_init(&pktchain);
+
 new_mtu:
 	mtu = tipc_bcast_get_mtu(net);
-	rc = tipc_msg_build(mhdr, msg, 0, dsz, mtu, pktchain);
+	rc = tipc_msg_build(mhdr, msg, 0, dsz, mtu, &pktchain);
 	if (unlikely(rc < 0))
 		return rc;
 
 	do {
-		rc = tipc_bcast_xmit(net, pktchain);
+		rc = tipc_bcast_xmit(net, &pktchain);
 		if (likely(!rc))
 			return dsz;
 
@@ -704,7 +706,7 @@ new_mtu:
 			if (!rc)
 				continue;
 		}
-		__skb_queue_purge(pktchain);
+		__skb_queue_purge(&pktchain);
 		if (rc == -EMSGSIZE) {
 			msg->msg_iter = save;
 			goto new_mtu;
@@ -863,7 +865,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 	struct net *net = sock_net(sk);
 	struct tipc_msg *mhdr = &tsk->phdr;
 	u32 dnode, dport;
-	struct sk_buff_head *pktchain = &sk->sk_write_queue;
+	struct sk_buff_head pktchain;
 	struct sk_buff *skb;
 	struct tipc_name_seq *seq;
 	struct iov_iter save;
@@ -924,17 +926,18 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dsz)
 		msg_set_hdr_sz(mhdr, BASIC_H_SIZE);
 	}
 
+	skb_queue_head_init(&pktchain);
 	save = m->msg_iter;
 new_mtu:
 	mtu = tipc_node_get_mtu(net, dnode, tsk->portid);
-	rc = tipc_msg_build(mhdr, m, 0, dsz, mtu, pktchain);
+	rc = tipc_msg_build(mhdr, m, 0, dsz, mtu, &pktchain);
 	if (rc < 0)
 		return rc;
 
 	do {
-		skb = skb_peek(pktchain);
+		skb = skb_peek(&pktchain);
 		TIPC_SKB_CB(skb)->wakeup_pending = tsk->link_cong;
-		rc = tipc_node_xmit(net, pktchain, dnode, tsk->portid);
+		rc = tipc_node_xmit(net, &pktchain, dnode, tsk->portid);
 		if (likely(!rc)) {
 			if (sock->state != SS_READY)
 				sock->state = SS_CONNECTING;
@@ -946,7 +949,7 @@ new_mtu:
 			if (!rc)
 				continue;
 		}
-		__skb_queue_purge(pktchain);
+		__skb_queue_purge(&pktchain);
 		if (rc == -EMSGSIZE) {
 			m->msg_iter = save;
 			goto new_mtu;
@@ -1016,7 +1019,7 @@ static int __tipc_send_stream(struct socket *sock, struct msghdr *m, size_t dsz)
 	struct net *net = sock_net(sk);
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_msg *mhdr = &tsk->phdr;
-	struct sk_buff_head *pktchain = &sk->sk_write_queue;
+	struct sk_buff_head pktchain;
 	DECLARE_SOCKADDR(struct sockaddr_tipc *, dest, m->msg_name);
 	u32 portid = tsk->portid;
 	int rc = -EINVAL;
@@ -1044,17 +1047,19 @@ static int __tipc_send_stream(struct socket *sock, struct msghdr *m, size_t dsz)
 
 	timeo = sock_sndtimeo(sk, m->msg_flags & MSG_DONTWAIT);
 	dnode = tsk_peer_node(tsk);
+	skb_queue_head_init(&pktchain);
 
 next:
 	save = m->msg_iter;
 	mtu = tsk->max_pkt;
 	send = min_t(uint, dsz - sent, TIPC_MAX_USER_MSG_SIZE);
-	rc = tipc_msg_build(mhdr, m, sent, send, mtu, pktchain);
+	rc = tipc_msg_build(mhdr, m, sent, send, mtu, &pktchain);
 	if (unlikely(rc < 0))
 		return rc;
+
 	do {
 		if (likely(!tsk_conn_cong(tsk))) {
-			rc = tipc_node_xmit(net, pktchain, dnode, portid);
+			rc = tipc_node_xmit(net, &pktchain, dnode, portid);
 			if (likely(!rc)) {
 				tsk->sent_unacked++;
 				sent += send;
@@ -1063,7 +1068,7 @@ next:
 				goto next;
 			}
 			if (rc == -EMSGSIZE) {
-				__skb_queue_purge(pktchain);
+				__skb_queue_purge(&pktchain);
 				tsk->max_pkt = tipc_node_get_mtu(net, dnode,
 								 portid);
 				m->msg_iter = save;
@@ -1077,7 +1082,7 @@ next:
 		rc = tipc_wait_for_sndpkt(sock, &timeo);
 	} while (!rc);
 
-	__skb_queue_purge(pktchain);
+	__skb_queue_purge(&pktchain);
 	return sent ? sent : rc;
 }
 
@@ -1491,7 +1496,7 @@ static void tipc_write_space(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
 						POLLWRNORM | POLLWRBAND);
 	rcu_read_unlock();
@@ -1508,7 +1513,7 @@ static void tipc_data_ready(struct sock *sk)
 
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
-	if (wq_has_sleeper(wq))
+	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
 						POLLRDNORM | POLLRDBAND);
 	rcu_read_unlock();

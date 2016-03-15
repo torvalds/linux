@@ -725,11 +725,8 @@ static ssize_t lio_target_nacl_cmdsn_depth_store(struct config_item *item,
 
 	if (iscsit_get_tpg(tpg) < 0)
 		return -EINVAL;
-	/*
-	 * iscsit_tpg_set_initiator_node_queue_depth() assumes force=1
-	 */
-	ret = iscsit_tpg_set_initiator_node_queue_depth(tpg,
-				config_item_name(acl_ci), cmdsn_depth, 1);
+
+	ret = core_tpg_set_initiator_node_queue_depth(se_nacl, cmdsn_depth);
 
 	pr_debug("LIO_Target_ConfigFS: %s/%s Set CmdSN Window: %u for"
 		"InitiatorName: %s\n", config_item_name(wwn_ci),
@@ -1593,28 +1590,30 @@ static int lio_tpg_check_prot_fabric_only(
 }
 
 /*
- * Called with spin_lock_bh(struct se_portal_group->session_lock) held..
- *
- * Also, this function calls iscsit_inc_session_usage_count() on the
+ * This function calls iscsit_inc_session_usage_count() on the
  * struct iscsi_session in question.
  */
 static int lio_tpg_shutdown_session(struct se_session *se_sess)
 {
 	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
+	struct se_portal_group *se_tpg = &sess->tpg->tpg_se_tpg;
 
+	spin_lock_bh(&se_tpg->session_lock);
 	spin_lock(&sess->conn_lock);
 	if (atomic_read(&sess->session_fall_back_to_erl0) ||
 	    atomic_read(&sess->session_logout) ||
 	    (sess->time2retain_timer_flags & ISCSI_TF_EXPIRED)) {
 		spin_unlock(&sess->conn_lock);
+		spin_unlock_bh(&se_tpg->session_lock);
 		return 0;
 	}
 	atomic_set(&sess->session_reinstatement, 1);
 	spin_unlock(&sess->conn_lock);
 
 	iscsit_stop_time2retain_timer(sess);
-	iscsit_stop_session(sess, 1, 1);
+	spin_unlock_bh(&se_tpg->session_lock);
 
+	iscsit_stop_session(sess, 1, 1);
 	return 1;
 }
 

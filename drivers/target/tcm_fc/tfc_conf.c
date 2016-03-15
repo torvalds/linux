@@ -171,9 +171,31 @@ static ssize_t ft_nacl_node_name_store(struct config_item *item,
 CONFIGFS_ATTR(ft_nacl_, node_name);
 CONFIGFS_ATTR(ft_nacl_, port_name);
 
+static ssize_t ft_nacl_tag_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%s", acl_to_nacl(item)->acl_tag);
+}
+
+static ssize_t ft_nacl_tag_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	int ret;
+
+	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
+
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+CONFIGFS_ATTR(ft_nacl_, tag);
+
 static struct configfs_attribute *ft_nacl_base_attrs[] = {
 	&ft_nacl_attr_port_name,
 	&ft_nacl_attr_node_name,
+	&ft_nacl_attr_tag,
 	NULL,
 };
 
@@ -196,31 +218,6 @@ static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 
 	acl->node_auth.port_name = wwpn;
 	return 0;
-}
-
-struct ft_node_acl *ft_acl_get(struct ft_tpg *tpg, struct fc_rport_priv *rdata)
-{
-	struct ft_node_acl *found = NULL;
-	struct ft_node_acl *acl;
-	struct se_portal_group *se_tpg = &tpg->se_tpg;
-	struct se_node_acl *se_acl;
-
-	mutex_lock(&se_tpg->acl_node_mutex);
-	list_for_each_entry(se_acl, &se_tpg->acl_node_list, acl_list) {
-		acl = container_of(se_acl, struct ft_node_acl, se_node_acl);
-		pr_debug("acl %p port_name %llx\n",
-			acl, (unsigned long long)acl->node_auth.port_name);
-		if (acl->node_auth.port_name == rdata->ids.port_name ||
-		    acl->node_auth.node_name == rdata->ids.node_name) {
-			pr_debug("acl %p port_name %llx matched\n", acl,
-				    (unsigned long long)rdata->ids.port_name);
-			found = acl;
-			/* XXX need to hold onto ACL */
-			break;
-		}
-	}
-	mutex_unlock(&se_tpg->acl_node_mutex);
-	return found;
 }
 
 /*

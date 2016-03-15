@@ -34,7 +34,8 @@ config ARCH_DAVINCI_DA830
 	bool "DA830/OMAP-L137/AM17x based system"
 	depends on !ARCH_DAVINCI_DMx || AUTO_ZRELADDR
 	select ARCH_DAVINCI_DA8XX
-	select CPU_DCACHE_WRITETHROUGH # needed on silicon revs 1.0, 1.1
+	# needed on silicon revs 1.0, 1.1:
+	select CPU_DCACHE_WRITETHROUGH if !CPU_DCACHE_DISABLE
 	select CP_INTC
 
 config ARCH_DAVINCI_DA850

@@ -1,4 +1,4 @@
-Wolfson Arizona class audio SoCs
+Cirrus Logic/Wolfson Microelectronics Arizona class audio SoCs
 
 These devices are audio SoCs with extensive digital capabilites and a range
 of analogue I/O.
@@ -6,12 +6,14 @@ of analogue I/O.
 Required properties:
 
   - compatible : One of the following chip-specific strings:
+        "cirrus,cs47l24"
         "wlf,wm5102"
         "wlf,wm5110"
         "wlf,wm8280"
         "wlf,wm8997"
         "wlf,wm8998"
         "wlf,wm1814"
+        "wlf,wm1831"
 
   - reg : I2C slave address when connected using I2C, chip select number when
     using SPI.
@@ -24,7 +26,7 @@ Required properties:
   - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
     The first cell is the IRQ number.
     The second cell is the flags, encoded as the trigger masks from
-    Documentation/devicetree/bindings/interrupts.txt
+    Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
   - gpio-controller : Indicates this device is a GPIO controller.
   - #gpio-cells : Must be 2. The first cell is the pin number and the
@@ -41,9 +43,20 @@ Required properties:
 
   - SPKVDD-supply : Speaker driver power supply (wm8997)
 
+  - DCVDD-supply : Main power supply (cs47l24, wm1831)
+
+  - MICVDD-supply : Microphone power supply (cs47l24, wm1831)
+
 Optional properties:
 
   - wlf,reset : GPIO specifier for the GPIO controlling /RESET
+
+  - clocks: Should reference the clocks supplied on MCLK1 and MCLK2
+  - clock-names: Should contains two strings:
+      "mclk1" for the clock supplied on MCLK1, recommended to be a high
+      quality audio reference clock
+      "mclk2" for the clock supplied on MCLK2, recommended to be an always on
+      32k clock
 
   - wlf,gpio-defaults : A list of GPIO configuration register values. Defines
     for the appropriate values can found in <dt-bindings/mfd/arizona.txt>. If
@@ -59,6 +72,12 @@ Optional properties:
     that have not been specified are set to 0 by default. Entries are:
     <IN1, IN2, IN3, IN4> (wm5102, wm5110, wm8280, wm8997)
     <IN1A, IN2A, IN1B, IN2B> (wm8998, wm1814)
+  - wlf,out-mono : A list of boolean values indicating whether each output is
+    mono or stereo. Position within the list indicates the output affected
+    (eg. First entry in the list corresponds to output 1). A non-zero value
+    indicates a mono output. If present, the number of values should be less
+    than or equal to the number of outputs, if less values are supplied the
+    additional outputs will be treated as stereo.
 
   - wlf,dmic-ref : DMIC reference voltage source for each input, can be
     selected from either MICVDD or one of the MICBIAS's, defines
@@ -69,6 +88,7 @@ Optional properties:
   - DCVDD-supply, MICVDD-supply : Power supplies, only need to be specified if
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
+    (wm5102, wm5110, wm8280, wm8997, wm8998, wm1814)
 
 Also see child specific device properties:
   Regulator - ../regulator/arizona-regulator.txt

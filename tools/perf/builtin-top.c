@@ -34,7 +34,7 @@
 #include "util/top.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/cpumap.h"
 #include "util/xyarray.h"
@@ -175,42 +175,40 @@ static void perf_top__record_precise_ip(struct perf_top *top,
 					int counter, u64 ip)
 {
 	struct annotation *notes;
-	struct symbol *sym;
+	struct symbol *sym = he->ms.sym;
 	int err = 0;
 
-	if (he == NULL || he->ms.sym == NULL ||
-	    ((top->sym_filter_entry == NULL ||
-	      top->sym_filter_entry->ms.sym != he->ms.sym) && use_browser != 1))
+	if (sym == NULL || (use_browser == 0 &&
+			    (top->sym_filter_entry == NULL ||
+			     top->sym_filter_entry->ms.sym != sym)))
 		return;
 
-	sym = he->ms.sym;
 	notes = symbol__annotation(sym);
 
 	if (pthread_mutex_trylock(&notes->lock))
 		return;
 
-	ip = he->ms.map->map_ip(he->ms.map, ip);
-
-	if (ui__has_annotation())
-		err = hist_entry__inc_addr_samples(he, counter, ip);
+	err = hist_entry__inc_addr_samples(he, counter, ip);
 
 	pthread_mutex_unlock(&notes->lock);
 
-	/*
-	 * This function is now called with he->hists->lock held.
-	 * Release it before going to sleep.
-	 */
-	pthread_mutex_unlock(&he->hists->lock);
+	if (unlikely(err)) {
+		/*
+		 * This function is now called with he->hists->lock held.
+		 * Release it before going to sleep.
+		 */
+		pthread_mutex_unlock(&he->hists->lock);
 
-	if (err == -ERANGE && !he->ms.map->erange_warned)
-		ui__warn_map_erange(he->ms.map, sym, ip);
-	else if (err == -ENOMEM) {
-		pr_err("Not enough memory for annotating '%s' symbol!\n",
-		       sym->name);
-		sleep(1);
+		if (err == -ERANGE && !he->ms.map->erange_warned)
+			ui__warn_map_erange(he->ms.map, sym, ip);
+		else if (err == -ENOMEM) {
+			pr_err("Not enough memory for annotating '%s' symbol!\n",
+			       sym->name);
+			sleep(1);
+		}
+
+		pthread_mutex_lock(&he->hists->lock);
 	}
-
-	pthread_mutex_lock(&he->hists->lock);
 }
 
 static void perf_top__show_details(struct perf_top *top)
@@ -687,14 +685,8 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
 
-	if (sort__has_sym && single) {
-		u64 ip = al->addr;
-
-		if (al->map)
-			ip = al->map->unmap_ip(al->map, ip);
-
-		perf_top__record_precise_ip(top, he, evsel->idx, ip);
-	}
+	if (sort__has_sym && single)
+		perf_top__record_precise_ip(top, he, evsel->idx, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
 		     !(top->record_opts.branch_stack & PERF_SAMPLE_BRANCH_ANY));
@@ -964,7 +956,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (perf_session__register_idle_thread(top->session) == NULL)
+	if (perf_session__register_idle_thread(top->session) < 0)
 		goto out_delete;
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
@@ -1218,6 +1210,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('j', "branch-filter", &opts->branch_stack,
 		     "branch filter mask", "branch stack filter modes",
 		     parse_branch_stack),
+	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
+		    "Show raw trace event output (do not use print fmt or plugins)"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1239,11 +1233,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (argc)
 		usage_with_options(top_usage, options);
 
+	if (!top.evlist->nr_entries &&
+	    perf_evlist__add_default(top.evlist) < 0) {
+		pr_err("Not enough memory for event selector list\n");
+		goto out_delete_evlist;
+	}
+
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
 	sort__need_collapse = 1;
 
-	if (setup_sorting() < 0) {
+	if (setup_sorting(top.evlist) < 0) {
 		if (sort_order)
 			parse_options_usage(top_usage, options, "s", 1);
 		if (field_order)
@@ -1279,12 +1279,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (target__none(target))
 		target->system_wide = true;
 
-	if (perf_evlist__create_maps(top.evlist, target) < 0)
-		usage_with_options(top_usage, options);
-
-	if (!top.evlist->nr_entries &&
-	    perf_evlist__add_default(top.evlist) < 0) {
-		ui__error("Not enough memory for event selector list\n");
+	if (perf_evlist__create_maps(top.evlist, target) < 0) {
+		ui__error("Couldn't create thread/CPU maps: %s\n",
+			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;
 	}
 

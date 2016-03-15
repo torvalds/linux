@@ -72,8 +72,7 @@ void coda_sysctl_clean(void);
 } while (0)
 
 
-#define CODA_FREE(ptr,size) \
-    do { if (size < PAGE_SIZE) kfree((ptr)); else vfree((ptr)); } while (0)
+#define CODA_FREE(ptr, size) kvfree((ptr))
 
 /* inode to cnode access functions */
 

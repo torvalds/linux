@@ -120,9 +120,9 @@ struct hfi1_packet;
 
 #define HFI1_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
-#define IB_BTH_REQ_ACK		(1 << 31)
-#define IB_BTH_SOLICITED	(1 << 23)
-#define IB_BTH_MIG_REQ		(1 << 22)
+#define IB_BTH_REQ_ACK		BIT(31)
+#define IB_BTH_SOLICITED	BIT(23)
+#define IB_BTH_MIG_REQ		BIT(22)
 
 #define IB_GRH_VERSION		6
 #define IB_GRH_VERSION_MASK	0xF
@@ -441,7 +441,8 @@ struct hfi1_qp {
 	struct hfi1_swqe *s_wq;  /* send work queue */
 	struct hfi1_mmap_info *ip;
 	struct ahg_ib_header *s_hdr;     /* next packet header to send */
-	u8 s_sc;			/* SC[0..4] for next packet */
+	/* sc for UC/RC QPs - based on ah for UD */
+	u8 s_sc;
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
 	enum ib_mtu path_mtu;
@@ -489,6 +490,7 @@ struct hfi1_qp {
 	u32 r_psn;              /* expected rcv packet sequence number */
 	u32 r_msn;              /* message sequence number */
 
+	u8 r_adefered;         /* number of acks defered */
 	u8 r_state;             /* opcode of last packet received */
 	u8 r_flags;
 	u8 r_head_ack_queue;    /* index into s_ack_queue[] */
@@ -544,6 +546,16 @@ struct hfi1_qp {
 };
 
 /*
+ * This structure is used to hold commonly lookedup and computed values during
+ * the send engine progress.
+ */
+struct hfi1_pkt_state {
+	struct hfi1_ibdev *dev;
+	struct hfi1_ibport *ibp;
+	struct hfi1_pportdata *ppd;
+};
+
+/*
  * Atomic bit definitions for r_aflags.
  */
 #define HFI1_R_WRID_VALID        0
@@ -552,11 +564,13 @@ struct hfi1_qp {
 /*
  * Bit definitions for r_flags.
  */
-#define HFI1_R_REUSE_SGE 0x01
-#define HFI1_R_RDMAR_SEQ 0x02
-#define HFI1_R_RSP_NAK   0x04
-#define HFI1_R_RSP_SEND  0x08
-#define HFI1_R_COMM_EST  0x10
+#define HFI1_R_REUSE_SGE       0x01
+#define HFI1_R_RDMAR_SEQ       0x02
+/* defer ack until end of interrupt session */
+#define HFI1_R_RSP_DEFERED_ACK 0x04
+/* relay ack to send engine */
+#define HFI1_R_RSP_SEND        0x08
+#define HFI1_R_COMM_EST        0x10
 
 /*
  * Bit definitions for s_flags.
@@ -846,9 +860,8 @@ static inline int hfi1_send_ok(struct hfi1_qp *qp)
 /*
  * This must be called with s_lock held.
  */
-void hfi1_schedule_send(struct hfi1_qp *qp);
 void hfi1_bad_pqkey(struct hfi1_ibport *ibp, __be16 trap_num, u32 key, u32 sl,
-		    u32 qp1, u32 qp2, __be16 lid1, __be16 lid2);
+		    u32 qp1, u32 qp2, u16 lid1, u16 lid2);
 void hfi1_cap_mask_chg(struct hfi1_ibport *ibp);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);
@@ -927,8 +940,7 @@ int hfi1_mcast_tree_empty(struct hfi1_ibport *ibp);
 struct verbs_txreq;
 void hfi1_put_txreq(struct verbs_txreq *tx);
 
-int hfi1_verbs_send(struct hfi1_qp *qp, struct ahg_ib_header *ahdr,
-		    u32 hdrwords, struct hfi1_sge_state *ss, u32 len);
+int hfi1_verbs_send(struct hfi1_qp *qp, struct hfi1_pkt_state *ps);
 
 void hfi1_copy_sge(struct hfi1_sge_state *ss, void *data, u32 length,
 		   int release);
@@ -1012,10 +1024,6 @@ int hfi1_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 
 struct ib_mr *hfi1_get_dma_mr(struct ib_pd *pd, int acc);
 
-struct ib_mr *hfi1_reg_phys_mr(struct ib_pd *pd,
-			       struct ib_phys_buf *buffer_list,
-			       int num_phys_buf, int acc, u64 *iova_start);
-
 struct ib_mr *hfi1_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			       u64 virt_addr, int mr_access_flags,
 			       struct ib_udata *udata);
@@ -1069,8 +1077,6 @@ int hfi1_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 int hfi1_get_rwqe(struct hfi1_qp *qp, int wr_id_only);
 
-void hfi1_migrate_qp(struct hfi1_qp *qp);
-
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_ib_header *hdr,
 		       int has_grh, struct hfi1_qp *qp, u32 bth0);
 
@@ -1101,13 +1107,11 @@ void hfi1_ib_rcv(struct hfi1_packet *packet);
 
 unsigned hfi1_get_npkeys(struct hfi1_devdata *);
 
-int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct ahg_ib_header *hdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc);
+int hfi1_verbs_send_dma(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc);
 
-int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct ahg_ib_header *hdr,
-			u32 hdrwords, struct hfi1_sge_state *ss, u32 len,
-			u32 plen, u32 dwords, u64 pbc);
+int hfi1_verbs_send_pio(struct hfi1_qp *qp, struct hfi1_pkt_state *ps,
+			u64 pbc);
 
 struct send_context *qp_to_send_context(struct hfi1_qp *qp, u8 sc5);
 

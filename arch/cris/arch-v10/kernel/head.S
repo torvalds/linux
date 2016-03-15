@@ -5,6 +5,8 @@
  *
  */
 
+#include <linux/init.h>
+
 #define ASSEMBLER_MACROS_ONLY
 /* The IO_* macros use the ## token concatenation operator, so
    -traditional must not be used when assembling this file.  */
@@ -25,7 +27,7 @@
 	.globl	romfs_in_flash
 	.globl  swapper_pg_dir
 
-	.text
+	__HEAD
 
 	;; This is the entry point of the kernel. We are in supervisor mode.
 	;; 0x00000000 if Flash, 0x40004000 if DRAM
@@ -159,7 +161,7 @@ _inflash0:
 
 	;; Put this in a suitable section where we can reclaim storage
 	;; after init.
-	.section ".init.text", "ax"
+	__INIT
 _inflash:
 #ifdef CONFIG_ETRAX_ETHERNET
 	;; Start MII clock to make sure it is running when tranceiver is reset

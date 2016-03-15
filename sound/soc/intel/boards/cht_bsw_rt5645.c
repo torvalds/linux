@@ -47,12 +47,9 @@ struct cht_mc_private {
 
 static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
 {
-	int i;
+	struct snd_soc_pcm_runtime *rtd;
 
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_pcm_runtime *rtd;
-
-		rtd = card->rtd + i;
+	list_for_each_entry(rtd, &card->rtd_list, list) {
 		if (!strncmp(rtd->codec_dai->name, CHT_CODEC_DAI,
 			     strlen(CHT_CODEC_DAI)))
 			return rtd->codec_dai;
@@ -263,6 +260,18 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.dpcm_capture = 1,
 		.ops = &cht_aif1_ops,
 	},
+	[MERR_DPCM_DEEP_BUFFER] = {
+		.name = "Deep-Buffer Audio Port",
+		.stream_name = "Deep-Buffer Audio",
+		.cpu_dai_name = "deepbuffer-cpu-dai",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.platform_name = "sst-mfld-platform",
+		.nonatomic = true,
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.ops = &cht_aif1_ops,
+	},
 	[MERR_DPCM_COMPR] = {
 		.name = "Compressed Port",
 		.stream_name = "Compress",
@@ -358,8 +367,12 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	}
 	card->dev = &pdev->dev;
 	sprintf(codec_name, "i2c-%s:00", drv->acpi_card->codec_id);
+
 	/* set correct codec name */
-	strcpy((char *)card->dai_link[2].codec_name, codec_name);
+	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++)
+		if (!strcmp(card->dai_link[i].codec_name, "i2c-10EC5645:00"))
+			card->dai_link[i].codec_name = kstrdup(codec_name, GFP_KERNEL);
+
 	snd_soc_card_set_drvdata(card, drv);
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret_val) {

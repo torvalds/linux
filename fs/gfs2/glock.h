@@ -79,15 +79,15 @@ enum {
  * requested had acquired and released the lock.
  */
 
-#define LM_FLAG_TRY		0x00000001
-#define LM_FLAG_TRY_1CB		0x00000002
-#define LM_FLAG_NOEXP		0x00000004
-#define LM_FLAG_ANY		0x00000008
-#define LM_FLAG_PRIORITY	0x00000010
-#define GL_ASYNC		0x00000040
-#define GL_EXACT		0x00000080
-#define GL_SKIP			0x00000100
-#define GL_NOCACHE		0x00000400
+#define LM_FLAG_TRY		0x0001
+#define LM_FLAG_TRY_1CB		0x0002
+#define LM_FLAG_NOEXP		0x0004
+#define LM_FLAG_ANY		0x0008
+#define LM_FLAG_PRIORITY	0x0010
+#define GL_ASYNC		0x0040
+#define GL_EXACT		0x0080
+#define GL_SKIP			0x0100
+#define GL_NOCACHE		0x0400
   
 /*
  * lm_async_cb return flags
@@ -183,8 +183,8 @@ extern int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 			  int create, struct gfs2_glock **glp);
 extern void gfs2_glock_put(struct gfs2_glock *gl);
 extern void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
-			     unsigned flags, struct gfs2_holder *gh);
-extern void gfs2_holder_reinit(unsigned int state, unsigned flags,
+			     u16 flags, struct gfs2_holder *gh);
+extern void gfs2_holder_reinit(unsigned int state, u16 flags,
 			       struct gfs2_holder *gh);
 extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
@@ -195,7 +195,7 @@ extern void gfs2_glock_dq_wait(struct gfs2_holder *gh);
 extern void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
 			     const struct gfs2_glock_operations *glops,
-			     unsigned int state, int flags,
+			     unsigned int state, u16 flags,
 			     struct gfs2_holder *gh);
 extern int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
@@ -215,7 +215,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
  */
 
 static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
-				     unsigned int state, int flags,
+				     unsigned int state, u16 flags,
 				     struct gfs2_holder *gh)
 {
 	int error;

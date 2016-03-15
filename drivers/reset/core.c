@@ -30,7 +30,6 @@ static LIST_HEAD(reset_controller_list);
  */
 struct reset_control {
 	struct reset_controller_dev *rcdev;
-	struct device *dev;
 	unsigned int id;
 };
 
@@ -95,7 +94,7 @@ int reset_control_reset(struct reset_control *rstc)
 	if (rstc->rcdev->ops->reset)
 		return rstc->rcdev->ops->reset(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_reset);
 
@@ -108,7 +107,7 @@ int reset_control_assert(struct reset_control *rstc)
 	if (rstc->rcdev->ops->assert)
 		return rstc->rcdev->ops->assert(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_assert);
 
@@ -121,7 +120,7 @@ int reset_control_deassert(struct reset_control *rstc)
 	if (rstc->rcdev->ops->deassert)
 		return rstc->rcdev->ops->deassert(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
@@ -136,32 +135,29 @@ int reset_control_status(struct reset_control *rstc)
 	if (rstc->rcdev->ops->status)
 		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
 
-	return -ENOSYS;
+	return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(reset_control_status);
 
 /**
- * of_reset_control_get - Lookup and obtain a reference to a reset controller.
+ * of_reset_control_get_by_index - Lookup and obtain a reference to a reset
+ * controller by index.
  * @node: device to be reset by the controller
- * @id: reset line name
+ * @index: index of the reset controller
  *
- * Returns a struct reset_control or IS_ERR() condition containing errno.
- *
- * Use of id names is optional.
+ * This is to be used to perform a list of resets for a device or power domain
+ * in whatever order. Returns a struct reset_control or IS_ERR() condition
+ * containing errno.
  */
-struct reset_control *of_reset_control_get(struct device_node *node,
-					   const char *id)
+struct reset_control *of_reset_control_get_by_index(struct device_node *node,
+					   int index)
 {
 	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
 	struct reset_controller_dev *r, *rcdev;
 	struct of_phandle_args args;
-	int index = 0;
 	int rstc_id;
 	int ret;
 
-	if (id)
-		index = of_property_match_string(node,
-						 "reset-names", id);
 	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
 					 index, &args);
 	if (ret)
@@ -202,6 +198,30 @@ struct reset_control *of_reset_control_get(struct device_node *node,
 
 	return rstc;
 }
+EXPORT_SYMBOL_GPL(of_reset_control_get_by_index);
+
+/**
+ * of_reset_control_get - Lookup and obtain a reference to a reset controller.
+ * @node: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * Use of id names is optional.
+ */
+struct reset_control *of_reset_control_get(struct device_node *node,
+					   const char *id)
+{
+	int index = 0;
+
+	if (id) {
+		index = of_property_match_string(node,
+						 "reset-names", id);
+		if (index < 0)
+			return ERR_PTR(-ENOENT);
+	}
+	return of_reset_control_get_by_index(node, index);
+}
 EXPORT_SYMBOL_GPL(of_reset_control_get);
 
 /**
@@ -215,16 +235,10 @@ EXPORT_SYMBOL_GPL(of_reset_control_get);
  */
 struct reset_control *reset_control_get(struct device *dev, const char *id)
 {
-	struct reset_control *rstc;
-
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
-	rstc = of_reset_control_get(dev->of_node, id);
-	if (!IS_ERR(rstc))
-		rstc->dev = dev;
-
-	return rstc;
+	return of_reset_control_get(dev->of_node, id);
 }
 EXPORT_SYMBOL_GPL(reset_control_get);
 

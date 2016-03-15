@@ -16,7 +16,7 @@
 #include <linux/device.h>
 
 enum of_gpio_flags;
-
+enum gpiod_flags;
 struct acpi_device;
 
 /**
@@ -26,7 +26,8 @@ struct acpi_device;
  */
 struct acpi_gpio_info {
 	bool gpioint;
-	bool active_low;
+	int polarity;
+	int triggering;
 };
 
 /* gpio suffixes used for ACPI and device tree lookup */

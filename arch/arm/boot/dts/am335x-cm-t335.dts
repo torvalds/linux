@@ -1,0 +1,396 @@
+/*
+ * am335x-cm-t335.dts - Device Tree file for Compulab CM-T335
+ *
+ * Copyright (C) 2014 - 2015 CompuLab Ltd. - http://www.compulab.co.il/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+
+#include "am33xx.dtsi"
+
+/ {
+	model = "CompuLab CM-T335";
+	compatible = "compulab,cm-t335", "ti,am33xx";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x8000000>;	/* 128 MB */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_led_pins>;
+		led@0 {
+			label = "cm_t335:green";
+			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;	/* gpio2_0 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	/* regulator for mmc */
+	vmmc_fixed: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc_fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ecap0 0 50000 0>;
+		brightness-levels = <0 51 53 56 62 75 101 152 255>;
+		default-brightness-level = <8>;
+	};
+};
+
+&am33xx_pinmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&bluetooth_pins>;
+
+	i2c0_pins: pinmux_i2c0_pins {
+		pinctrl-single,pins = <
+			/* i2c0_sda.i2c0_sda */
+			AM33XX_IOPAD(0x988, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* i2c0_scl.i2c0_scl */
+			AM33XX_IOPAD(0x98c, PIN_INPUT_PULLUP | MUX_MODE0)
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			/* uart0_ctsn.i2c1_sda */
+			AM33XX_IOPAD(0x968, PIN_INPUT_PULLUP | MUX_MODE2)
+			/* uart0_rtsn.i2c1_scl */
+			AM33XX_IOPAD(0x96c, PIN_INPUT_PULLUP | MUX_MODE2)
+		>;
+	};
+
+	gpio_led_pins: pinmux_gpio_led_pins {
+		pinctrl-single,pins = <
+			/* gpmc_csn3.gpio2_0 */
+			AM33XX_IOPAD(0x888, PIN_OUTPUT | MUX_MODE7)
+		>;
+	};
+
+	nandflash_pins: pinmux_nandflash_pins {
+		pinctrl-single,pins = <
+			/* gpmc_ad0.gpmc_ad0 */
+			AM33XX_IOPAD(0x800, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad1.gpmc_ad1 */
+			AM33XX_IOPAD(0x804, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad2.gpmc_ad2 */
+			AM33XX_IOPAD(0x808, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad3.gpmc_ad3 */
+			AM33XX_IOPAD(0x80c, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad4.gpmc_ad4 */
+			AM33XX_IOPAD(0x810, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad5.gpmc_ad5 */
+			AM33XX_IOPAD(0x814, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad6.gpmc_ad6 */
+			AM33XX_IOPAD(0x818, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_ad7.gpmc_ad7 */
+			AM33XX_IOPAD(0x81c, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_wait0.gpmc_wait0 */
+			AM33XX_IOPAD(0x870, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* gpmc_wpn.gpio0_30 */
+			AM33XX_IOPAD(0x874, PIN_INPUT_PULLUP | MUX_MODE7)
+			/* gpmc_csn0.gpmc_csn0  */
+			AM33XX_IOPAD(0x87c, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_advn_ale.gpmc_advn_ale */
+			AM33XX_IOPAD(0x890, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_oen_ren.gpmc_oen_ren */
+			AM33XX_IOPAD(0x894, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_wen.gpmc_wen */
+			AM33XX_IOPAD(0x898, PIN_OUTPUT | MUX_MODE0)
+			/* gpmc_ben0_cle.gpmc_ben0_cle */
+			AM33XX_IOPAD(0x89c, PIN_OUTPUT | MUX_MODE0)
+		>;
+	};
+
+	uart0_pins: pinmux_uart0_pins {
+		pinctrl-single,pins = <
+			/* uart0_rxd.uart0_rxd */
+			AM33XX_IOPAD(0x970, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* uart0_txd.uart0_txd */
+			AM33XX_IOPAD(0x974, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	uart1_pins: pinmux_uart1_pins {
+		pinctrl-single,pins = <
+			/* uart1_ctsn.uart1_ctsn */
+			AM33XX_IOPAD(0x978, PIN_INPUT | MUX_MODE0)
+			/* uart1_rtsn.uart1_rtsn */
+			AM33XX_IOPAD(0x97C, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+			/* uart1_rxd.uart1_rxd */
+			AM33XX_IOPAD(0x980, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* uart1_txd.uart1_txd */
+			AM33XX_IOPAD(0x984, PIN_OUTPUT_PULLDOWN | MUX_MODE0)
+		>;
+	};
+
+	ecap0_pins: pinmux_ecap0_pins {
+		pinctrl-single,pins = <
+			/* eCAP0_in_PWM0_out.eCAP0_in_PWM0_out MODE0 */
+			AM33XX_IOPAD(0x964, 0x0)
+		>;
+	};
+
+	cpsw_default: cpsw_default {
+		pinctrl-single,pins = <
+			/* Slave 1 */
+			/* mii1_tx_en.rgmii1_tctl */
+			AM33XX_IOPAD(0x914, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxdv.rgmii1_rctl */
+			AM33XX_IOPAD(0x918, PIN_INPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_txd3.rgmii1_td3 */
+			AM33XX_IOPAD(0x91c, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_txd2.rgmii1_td2 */
+			AM33XX_IOPAD(0x920, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_txd1.rgmii1_td1 */
+			AM33XX_IOPAD(0x924, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_txd0.rgmii1_td0 */
+			AM33XX_IOPAD(0x928, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_txclk.rgmii1_tclk */
+			AM33XX_IOPAD(0x92c, PIN_OUTPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxclk.rgmii1_rclk */
+			AM33XX_IOPAD(0x930, PIN_INPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxd3.rgmii1_rd3 */
+			AM33XX_IOPAD(0x934, PIN_INPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxd2.rgmii1_rd2 */
+			AM33XX_IOPAD(0x938, PIN_INPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxd1.rgmii1_rd1 */
+			AM33XX_IOPAD(0x93c, PIN_INPUT_PULLDOWN | MUX_MODE2)
+			/* mii1_rxd0.rgmii1_rd0 */
+			AM33XX_IOPAD(0x940, PIN_INPUT_PULLDOWN | MUX_MODE2)
+		>;
+	};
+
+	cpsw_sleep: cpsw_sleep {
+		pinctrl-single,pins = <
+			/* Slave 1 reset value */
+			AM33XX_IOPAD(0x914, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x918, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x91c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x920, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x924, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x928, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x92c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x930, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x934, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x938, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x93c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x940, PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	davinci_mdio_default: davinci_mdio_default {
+		pinctrl-single,pins = <
+			/* mdio_data.mdio_data */
+			AM33XX_IOPAD(0x948, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)
+			/* mdio_clk.mdio_clk */
+			AM33XX_IOPAD(0x94c, PIN_OUTPUT_PULLUP | MUX_MODE0)
+		>;
+	};
+
+	davinci_mdio_sleep: davinci_mdio_sleep {
+		pinctrl-single,pins = <
+			/* MDIO reset value */
+			AM33XX_IOPAD(0x948, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM33XX_IOPAD(0x94c, PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	mmc1_pins: pinmux_mmc1_pins {
+		pinctrl-single,pins = <
+			/* mmc0_dat3.mmc0_dat3 */
+			AM33XX_IOPAD(0x8f0, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat2.mmc0_dat2 */
+			AM33XX_IOPAD(0x8f4, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat1.mmc0_dat1 */
+			AM33XX_IOPAD(0x8f8, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_dat0.mmc0_dat0 */
+			AM33XX_IOPAD(0x8fc, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_clk.mmc0_clk */
+			AM33XX_IOPAD(0x900, PIN_INPUT_PULLUP | MUX_MODE0)
+			/* mmc0_cmd.mmc0_cmd */
+			AM33XX_IOPAD(0x904, PIN_INPUT_PULLUP | MUX_MODE0)
+		>;
+	};
+
+	/* wl1271 bluetooth */
+	bluetooth_pins: pinmux_bluetooth_pins {
+		pinctrl-single,pins = <
+			/* XDMA_EVENT_INTR0.gpio0_19 - bluetooth enable */
+			AM33XX_IOPAD(0x9b0, PIN_OUTPUT_PULLUP | MUX_MODE7)
+		>;
+	};
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+
+	status = "okay";
+};
+
+/* WLS1271 bluetooth */
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+
+status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+	/* CM-T335 board EEPROM */
+	eeprom: 24c02@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+	/* Real Time Clock */
+	ext_rtc: em3027@56 {
+		compatible = "emmicro,em3027";
+		reg = <0x56>;
+	};
+};
+
+&usb {
+	status = "okay";
+};
+
+&usb_ctrl_mod {
+	status = "okay";
+};
+
+&usb0_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&cppi41dma  {
+	status = "okay";
+};
+
+&epwmss0 {
+	status = "okay";
+
+	ecap0: ecap@48300100 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap0_pins>;
+	};
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nandflash_pins>;
+	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
+	nand@0,0 {
+		reg = <0 0 0>; /* CS0, offset 0 */
+		ti,nand-ecc-opt = "bch8";
+		ti,elm-id = <&elm>;
+		nand-bus-width = <8>;
+		gpmc,device-width = <1>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-on-ns = <0>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wait-on-read = "true";
+		gpmc,wait-on-write = "true";
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		/* MTD partition table */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "spl";
+			reg = <0x00000000 0x00200000>;
+		};
+		partition@1 {
+			label = "uboot";
+			reg = <0x00200000 0x00100000>;
+		};
+		partition@2 {
+			label = "uboot environment";
+			reg = <0x00300000 0x00100000>;
+		};
+		partition@3 {
+			label = "dtb";
+			reg = <0x00400000 0x00100000>;
+		};
+		partition@4 {
+			label = "splash";
+			reg = <0x00500000 0x00400000>;
+		};
+		partition@5 {
+			label = "linux";
+			reg = <0x00900000 0x00600000>;
+		};
+		partition@6 {
+			label = "rootfs";
+			reg = <0x00F00000 0>;
+		};
+	};
+};
+
+&elm {
+	status = "okay";
+};
+
+&mac {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cpsw_default>;
+	pinctrl-1 = <&cpsw_sleep>;
+	slaves = <1>;
+	status = "okay";
+};
+
+&davinci_mdio {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&davinci_mdio_default>;
+	pinctrl-1 = <&davinci_mdio_sleep>;
+	status = "okay";
+};
+
+&cpsw_emac0 {
+	phy_id = <&davinci_mdio>, <0>;
+	phy-mode = "rgmii-txid";
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vmmc_fixed>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins>;
+};

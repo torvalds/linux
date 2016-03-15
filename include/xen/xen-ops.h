@@ -5,6 +5,7 @@
 #include <linux/notifier.h>
 #include <linux/efi.h>
 #include <asm/xen/interface.h>
+#include <xen/interface/vcpu.h>
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
 
@@ -17,6 +18,10 @@ void xen_arch_suspend(void);
 
 void xen_resume_notifier_register(struct notifier_block *nb);
 void xen_resume_notifier_unregister(struct notifier_block *nb);
+
+bool xen_vcpu_stolen(int vcpu);
+void xen_setup_runstate_info(int cpu);
+void xen_get_runstate_snapshot(struct vcpu_runstate_info *res);
 
 int xen_setup_shutdown_event(void);
 

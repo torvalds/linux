@@ -151,6 +151,7 @@ struct inode *efs_iget(struct super_block *super, unsigned long ino)
 			break;
 		case S_IFLNK:
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_data.a_ops = &efs_symlink_aops;
 			break;
 		case S_IFCHR:

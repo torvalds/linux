@@ -264,7 +264,7 @@ static int powernv_idle_probe(void)
 	if (cpuidle_disable != IDLE_NO_OVERRIDE)
 		return -ENODEV;
 
-	if (firmware_has_feature(FW_FEATURE_OPALv3)) {
+	if (firmware_has_feature(FW_FEATURE_OPAL)) {
 		cpuidle_state_table = powernv_states;
 		/* Device tree can indicate more idle states */
 		max_idle_state = powernv_add_idle_states();

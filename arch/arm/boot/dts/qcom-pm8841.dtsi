@@ -3,14 +3,14 @@
 
 &spmi_bus {
 
-	usid4: pm8841@4 {
-		compatible = "qcom,spmi-pmic";
+	pm8841_0: pm8841@4 {
+		compatible = "qcom,pm8841", "qcom,spmi-pmic";
 		reg = <0x4 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		pm8841_mpps: mpps@a000 {
-			compatible = "qcom,pm8841-mpp";
+			compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
 			reg = <0xa000 0x400>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -27,8 +27,8 @@
 		};
 	};
 
-	usid5: pm8841@5 {
-		compatible = "qcom,spmi-pmic";
+	pm8841_1: pm8841@5 {
+		compatible = "qcom,pm8841", "qcom,spmi-pmic";
 		reg = <0x5 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;

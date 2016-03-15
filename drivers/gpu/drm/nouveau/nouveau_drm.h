@@ -164,7 +164,7 @@ struct nouveau_drm {
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;
-	struct nouveau_sysfs *sysfs;
+	struct nouveau_debugfs *debugfs;
 
 	/* display power reference */
 	bool have_disp_power_ref;

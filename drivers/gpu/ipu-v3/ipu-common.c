@@ -1050,6 +1050,17 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		const struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
+		struct device_node *of_node;
+
+		/* Associate subdevice with the corresponding port node */
+		of_node = of_graph_get_port_by_id(dev->of_node, i);
+		if (!of_node) {
+			dev_info(dev,
+				 "no port@%d node in %s, not using %s%d\n",
+				 i, dev->of_node->full_name,
+				 (i / 2) ? "DI" : "CSI", i % 2);
+			continue;
+		}
 
 		pdev = platform_device_alloc(reg->name, id++);
 		if (!pdev) {
@@ -1057,16 +1068,8 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 			goto err_register;
 		}
 
+		pdev->dev.of_node = of_node;
 		pdev->dev.parent = dev;
-
-		/* Associate subdevice with the corresponding port node */
-		pdev->dev.of_node = of_graph_get_port_by_id(dev->of_node, i);
-		if (!pdev->dev.of_node) {
-			dev_err(dev, "missing port@%d node in %s\n", i,
-				dev->of_node->full_name);
-			ret = -ENODEV;
-			goto err_register;
-		}
 
 		ret = platform_device_add_data(pdev, &reg->pdata,
 					       sizeof(reg->pdata));
@@ -1289,10 +1292,6 @@ static int ipu_probe(struct platform_device *pdev)
 	ipu->irq_sync = irq_sync;
 	ipu->irq_err = irq_err;
 
-	ret = ipu_irq_init(ipu);
-	if (ret)
-		goto out_failed_irq;
-
 	ret = device_reset(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
@@ -1301,6 +1300,10 @@ static int ipu_probe(struct platform_device *pdev)
 	ret = ipu_memory_reset(ipu);
 	if (ret)
 		goto out_failed_reset;
+
+	ret = ipu_irq_init(ipu);
+	if (ret)
+		goto out_failed_irq;
 
 	/* Set MCU_T to divide MCU access window into 2 */
 	ipu_cm_write(ipu, 0x00400000L | (IPU_MCU_T_DEFAULT << 18),
@@ -1324,9 +1327,9 @@ static int ipu_probe(struct platform_device *pdev)
 failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
-out_failed_reset:
 	ipu_irq_exit(ipu);
 out_failed_irq:
+out_failed_reset:
 	clk_disable_unprepare(ipu->clk);
 	return ret;
 }

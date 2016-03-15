@@ -133,6 +133,17 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
+int uverbs_dealloc_mw(struct ib_mw *mw)
+{
+	struct ib_pd *pd = mw->pd;
+	int ret;
+
+	ret = mw->device->dealloc_mw(mw);
+	if (!ret)
+		atomic_dec(&pd->usecnt);
+	return ret;
+}
+
 static void ib_uverbs_release_dev(struct kobject *kobj)
 {
 	struct ib_uverbs_device *dev =
@@ -224,7 +235,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 		struct ib_mw *mw = uobj->object;
 
 		idr_remove_uobj(&ib_uverbs_mw_idr, uobj);
-		ib_dealloc_mw(mw);
+		uverbs_dealloc_mw(mw);
 		kfree(uobj);
 	}
 

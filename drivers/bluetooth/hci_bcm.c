@@ -472,7 +472,7 @@ static int bcm_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	bt_dev_dbg(hu->hdev, "hu %p skb %p", hu, skb);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 	skb_queue_tail(&bcm->txq, skb);
 
 	return 0;
@@ -814,8 +814,16 @@ static const struct hci_uart_proto bcm_proto = {
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id bcm_acpi_match[] = {
+	{ "BCM2E1A", 0 },
 	{ "BCM2E39", 0 },
+	{ "BCM2E3A", 0 },
+	{ "BCM2E3D", 0 },
+	{ "BCM2E3F", 0 },
+	{ "BCM2E40", 0 },
+	{ "BCM2E64", 0 },
+	{ "BCM2E65", 0 },
 	{ "BCM2E67", 0 },
+	{ "BCM2E7B", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);

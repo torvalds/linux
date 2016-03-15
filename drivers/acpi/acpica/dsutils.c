@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,9 +245,9 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			 * we will use the return value
 			 */
 			if ((walk_state->control_state->common.state ==
-			     ACPI_CONTROL_PREDICATE_EXECUTING)
-			    && (walk_state->control_state->control.
-				predicate_op == op)) {
+			     ACPI_CONTROL_PREDICATE_EXECUTING) &&
+			    (walk_state->control_state->control.predicate_op ==
+			     op)) {
 				goto result_used;
 			}
 			break;
@@ -481,10 +481,9 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 
 		/* Get the entire name string from the AML stream */
 
-		status =
-		    acpi_ex_get_name_string(ACPI_TYPE_ANY,
-					    arg->common.value.buffer,
-					    &name_string, &name_length);
+		status = acpi_ex_get_name_string(ACPI_TYPE_ANY,
+						 arg->common.value.buffer,
+						 &name_string, &name_length);
 
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -503,9 +502,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		 */
 		if ((walk_state->deferred_node) &&
 		    (walk_state->deferred_node->type == ACPI_TYPE_BUFFER_FIELD)
-		    && (arg_index ==
-			(u32) ((walk_state->opcode ==
-				AML_CREATE_FIELD_OP) ? 3 : 2))) {
+		    && (arg_index == (u32)
+			((walk_state->opcode == AML_CREATE_FIELD_OP) ? 3 : 2))) {
 			obj_desc =
 			    ACPI_CAST_PTR(union acpi_operand_object,
 					  walk_state->deferred_node);
@@ -522,9 +520,10 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			op_info =
 			    acpi_ps_get_opcode_info(parent_op->common.
 						    aml_opcode);
-			if ((op_info->flags & AML_NSNODE)
-			    && (parent_op->common.aml_opcode !=
-				AML_INT_METHODCALL_OP)
+
+			if ((op_info->flags & AML_NSNODE) &&
+			    (parent_op->common.aml_opcode !=
+			     AML_INT_METHODCALL_OP)
 			    && (parent_op->common.aml_opcode != AML_REGION_OP)
 			    && (parent_op->common.aml_opcode !=
 				AML_INT_NAMEPATH_OP)) {
@@ -605,8 +604,8 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
-		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-				   (obj_desc, walk_state));
+
+		acpi_db_display_argument_object(obj_desc, walk_state);
 	} else {
 		/* Check for null name case */
 
@@ -633,15 +632,16 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(AE_NOT_IMPLEMENTED);
 		}
 
-		if ((op_info->flags & AML_HAS_RETVAL)
-		    || (arg->common.flags & ACPI_PARSEOP_IN_STACK)) {
+		if ((op_info->flags & AML_HAS_RETVAL) ||
+		    (arg->common.flags & ACPI_PARSEOP_IN_STACK)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 					  "Argument previously created, already stacked\n"));
 
-			ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-					   (walk_state->
-					    operands[walk_state->num_operands -
-						     1], walk_state));
+			acpi_db_display_argument_object(walk_state->
+							operands[walk_state->
+								 num_operands -
+								 1],
+							walk_state);
 
 			/*
 			 * Use value that was already previously returned
@@ -685,8 +685,7 @@ acpi_ds_create_operand(struct acpi_walk_state *walk_state,
 			return_ACPI_STATUS(status);
 		}
 
-		ACPI_DEBUGGER_EXEC(acpi_db_display_argument_object
-				   (obj_desc, walk_state));
+		acpi_db_display_argument_object(obj_desc, walk_state);
 	}
 
 	return_ACPI_STATUS(AE_OK);

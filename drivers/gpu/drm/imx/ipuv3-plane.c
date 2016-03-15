@@ -42,6 +42,7 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YVU420,
+	DRM_FORMAT_RGB565,
 };
 
 int ipu_plane_irq(struct ipu_plane *ipu_plane)
@@ -401,7 +402,8 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 
 	ret = drm_universal_plane_init(dev, &ipu_plane->base, possible_crtcs,
 				       &ipu_plane_funcs, ipu_plane_formats,
-				       ARRAY_SIZE(ipu_plane_formats), type);
+				       ARRAY_SIZE(ipu_plane_formats), type,
+				       NULL);
 	if (ret) {
 		DRM_ERROR("failed to initialize plane\n");
 		kfree(ipu_plane);

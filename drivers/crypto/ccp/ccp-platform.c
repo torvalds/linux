@@ -35,8 +35,7 @@ struct ccp_platform {
 static int ccp_get_irq(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	ret = platform_get_irq(pdev, 0);
@@ -78,8 +77,7 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 static struct resource *ccp_find_mmio_area(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *ior;
 
 	ior = platform_get_resource(pdev, IORESOURCE_MEM, 0);

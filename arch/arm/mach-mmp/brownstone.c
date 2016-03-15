@@ -22,10 +22,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/addr-map.h>
-#include <mach/mfp-mmp2.h>
-#include <mach/mmp2.h>
-#include <mach/irqs.h>
+#include "addr-map.h"
+#include "mfp-mmp2.h"
+#include "mmp2.h"
+#include "irqs.h"
 
 #include "common.h"
 

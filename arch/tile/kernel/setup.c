@@ -882,7 +882,7 @@ static int __init node_neighbors(int node, int cpu,
 
 static void __init setup_numa_mapping(void)
 {
-	int distance[MAX_NUMNODES][NR_CPUS];
+	u8 distance[MAX_NUMNODES][NR_CPUS];
 	HV_Coord coord;
 	int cpu, node, cpus, i, x, y;
 	int num_nodes = num_online_nodes();

@@ -19,6 +19,29 @@ static int epoll_pwait_loop(void)
 	return 0;
 }
 
+#ifdef HAVE_BPF_PROLOGUE
+
+static int llseek_loop(void)
+{
+	int fds[2], i;
+
+	fds[0] = open("/dev/null", O_RDONLY);
+	fds[1] = open("/dev/null", O_RDWR);
+
+	if (fds[0] < 0 || fds[1] < 0)
+		return -1;
+
+	for (i = 0; i < NR_ITERS; i++) {
+		lseek(fds[i % 2], i, (i / 2) % 2 ? SEEK_CUR : SEEK_SET);
+		lseek(fds[(i + 1) % 2], i, (i / 2) % 2 ? SEEK_CUR : SEEK_SET);
+	}
+	close(fds[0]);
+	close(fds[1]);
+	return 0;
+}
+
+#endif
+
 static struct {
 	enum test_llvm__testcase prog_id;
 	const char *desc;
@@ -37,6 +60,17 @@ static struct {
 		&epoll_pwait_loop,
 		(NR_ITERS + 1) / 2,
 	},
+#ifdef HAVE_BPF_PROLOGUE
+	{
+		LLVM_TESTCASE_BPF_PROLOGUE,
+		"Test BPF prologue generation",
+		"[bpf_prologue_test]",
+		"fix kbuild first",
+		"check your vmlinux setting?",
+		&llseek_loop,
+		(NR_ITERS + 1) / 4,
+	},
+#endif
 };
 
 static int do_test(struct bpf_object *obj, int (*func)(void),
@@ -68,8 +102,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	err = parse_events_load_bpf_obj(&parse_evlist, &parse_evlist.list, obj);
 	if (err || list_empty(&parse_evlist.list)) {
 		pr_debug("Failed to add events selected by BPF\n");
-		if (!err)
-			return TEST_FAIL;
+		return TEST_FAIL;
 	}
 
 	snprintf(pid, sizeof(pid), "%d", getpid());
@@ -123,8 +156,10 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		}
 	}
 
-	if (count != expect)
+	if (count != expect) {
 		pr_debug("BPF filter result incorrect\n");
+		goto out_delete_evlist;
+	}
 
 	ret = TEST_OK;
 
@@ -146,7 +181,7 @@ prepare_bpf(void *obj_buf, size_t obj_buf_sz, const char *name)
 	return obj;
 }
 
-static int __test__bpf(int index)
+static int __test__bpf(int idx)
 {
 	int ret;
 	void *obj_buf;
@@ -154,54 +189,72 @@ static int __test__bpf(int index)
 	struct bpf_object *obj;
 
 	ret = test_llvm__fetch_bpf_obj(&obj_buf, &obj_buf_sz,
-				       bpf_testcase_table[index].prog_id,
+				       bpf_testcase_table[idx].prog_id,
 				       true);
 	if (ret != TEST_OK || !obj_buf || !obj_buf_sz) {
 		pr_debug("Unable to get BPF object, %s\n",
-			 bpf_testcase_table[index].msg_compile_fail);
-		if (index == 0)
+			 bpf_testcase_table[idx].msg_compile_fail);
+		if (idx == 0)
 			return TEST_SKIP;
 		else
 			return TEST_FAIL;
 	}
 
 	obj = prepare_bpf(obj_buf, obj_buf_sz,
-			  bpf_testcase_table[index].name);
+			  bpf_testcase_table[idx].name);
 	if (!obj) {
 		ret = TEST_FAIL;
 		goto out;
 	}
 
 	ret = do_test(obj,
-		      bpf_testcase_table[index].target_func,
-		      bpf_testcase_table[index].expect_result);
+		      bpf_testcase_table[idx].target_func,
+		      bpf_testcase_table[idx].expect_result);
 out:
 	bpf__clear();
 	return ret;
 }
 
-int test__bpf(void)
+int test__bpf_subtest_get_nr(void)
 {
-	unsigned int i;
+	return (int)ARRAY_SIZE(bpf_testcase_table);
+}
+
+const char *test__bpf_subtest_get_desc(int i)
+{
+	if (i < 0 || i >= (int)ARRAY_SIZE(bpf_testcase_table))
+		return NULL;
+	return bpf_testcase_table[i].desc;
+}
+
+int test__bpf(int i)
+{
 	int err;
+
+	if (i < 0 || i >= (int)ARRAY_SIZE(bpf_testcase_table))
+		return TEST_FAIL;
 
 	if (geteuid() != 0) {
 		pr_debug("Only root can run BPF test\n");
 		return TEST_SKIP;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(bpf_testcase_table); i++) {
-		err = __test__bpf(i);
-
-		if (err != TEST_OK)
-			return err;
-	}
-
-	return TEST_OK;
+	err = __test__bpf(i);
+	return err;
 }
 
 #else
-int test__bpf(void)
+int test__bpf_subtest_get_nr(void)
+{
+	return 0;
+}
+
+const char *test__bpf_subtest_get_desc(int i __maybe_unused)
+{
+	return NULL;
+}
+
+int test__bpf(int i __maybe_unused)
 {
 	pr_debug("Skip BPF test because BPF support is not compiled\n");
 	return TEST_SKIP;

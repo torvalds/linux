@@ -99,6 +99,55 @@ static const struct mlxsw_reg_info mlxsw_reg_spad = {
  */
 MLXSW_ITEM_BUF(reg, spad, base_mac, 0x02, 6);
 
+/* SMID - Switch Multicast ID
+ * --------------------------
+ * The MID record maps from a MID (Multicast ID), which is a unique identifier
+ * of the multicast group within the stacking domain, into a list of local
+ * ports into which the packet is replicated.
+ */
+#define MLXSW_REG_SMID_ID 0x2007
+#define MLXSW_REG_SMID_LEN 0x240
+
+static const struct mlxsw_reg_info mlxsw_reg_smid = {
+	.id = MLXSW_REG_SMID_ID,
+	.len = MLXSW_REG_SMID_LEN,
+};
+
+/* reg_smid_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid, swid, 0x00, 24, 8);
+
+/* reg_smid_mid
+ * Multicast identifier - global identifier that represents the multicast group
+ * across all devices.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smid, mid, 0x00, 0, 16);
+
+/* reg_smid_port
+ * Local port memebership (1 bit per port).
+ * Access: RW
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid, port, 0x20, 0x20, 1);
+
+/* reg_smid_port_mask
+ * Local port mask (1 bit per port).
+ * Access: W
+ */
+MLXSW_ITEM_BIT_ARRAY(reg, smid, port_mask, 0x220, 0x20, 1);
+
+static inline void mlxsw_reg_smid_pack(char *payload, u16 mid,
+				       u8 port, bool set)
+{
+	MLXSW_REG_ZERO(smid, payload);
+	mlxsw_reg_smid_swid_set(payload, 0);
+	mlxsw_reg_smid_mid_set(payload, mid);
+	mlxsw_reg_smid_port_set(payload, port, set);
+	mlxsw_reg_smid_port_mask_set(payload, port, 1);
+}
+
 /* SSPR - Switch System Port Record Register
  * -----------------------------------------
  * Configures the system port to local port mapping.
@@ -286,6 +335,8 @@ MLXSW_ITEM32_INDEXED(reg, sfd, rec_swid, MLXSW_REG_SFD_BASE_LEN, 24, 8,
 
 enum mlxsw_reg_sfd_rec_type {
 	MLXSW_REG_SFD_REC_TYPE_UNICAST = 0x0,
+	MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG = 0x1,
+	MLXSW_REG_SFD_REC_TYPE_MULTICAST = 0x2,
 };
 
 /* reg_sfd_rec_type
@@ -376,34 +427,142 @@ MLXSW_ITEM32_INDEXED(reg, sfd, uc_fid_vid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_system_port, MLXSW_REG_SFD_BASE_LEN, 0, 16,
 		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
 
-static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
-					 enum mlxsw_reg_sfd_rec_policy policy,
-					 const char *mac, u16 vid,
-					 enum mlxsw_reg_sfd_rec_action action,
-					 u8 local_port)
+static inline void mlxsw_reg_sfd_rec_pack(char *payload, int rec_index,
+					  enum mlxsw_reg_sfd_rec_type rec_type,
+					  const char *mac,
+					  enum mlxsw_reg_sfd_rec_action action)
 {
 	u8 num_rec = mlxsw_reg_sfd_num_rec_get(payload);
 
 	if (rec_index >= num_rec)
 		mlxsw_reg_sfd_num_rec_set(payload, rec_index + 1);
 	mlxsw_reg_sfd_rec_swid_set(payload, rec_index, 0);
-	mlxsw_reg_sfd_rec_type_set(payload, rec_index,
-				   MLXSW_REG_SFD_REC_TYPE_UNICAST);
-	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
+	mlxsw_reg_sfd_rec_type_set(payload, rec_index, rec_type);
 	mlxsw_reg_sfd_rec_mac_memcpy_to(payload, rec_index, mac);
-	mlxsw_reg_sfd_uc_sub_port_set(payload, rec_index, 0);
-	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, vid);
 	mlxsw_reg_sfd_rec_action_set(payload, rec_index, action);
+}
+
+static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
+					 enum mlxsw_reg_sfd_rec_policy policy,
+					 const char *mac, u16 fid_vid,
+					 enum mlxsw_reg_sfd_rec_action action,
+					 u8 local_port)
+{
+	mlxsw_reg_sfd_rec_pack(payload, rec_index,
+			       MLXSW_REG_SFD_REC_TYPE_UNICAST, mac, action);
+	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
+	mlxsw_reg_sfd_uc_sub_port_set(payload, rec_index, 0);
+	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, fid_vid);
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
 static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
-					   char *mac, u16 *p_vid,
+					   char *mac, u16 *p_fid_vid,
 					   u8 *p_local_port)
 {
 	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
-	*p_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
+	*p_fid_vid = mlxsw_reg_sfd_uc_fid_vid_get(payload, rec_index);
 	*p_local_port = mlxsw_reg_sfd_uc_system_port_get(payload, rec_index);
+}
+
+/* reg_sfd_uc_lag_sub_port
+ * LAG sub port.
+ * Must be 0 if multichannel VEPA is not enabled.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_uc_lag_fid_vid
+ * Filtering ID or VLAN ID
+ * For SwitchX and SwitchX-2:
+ * - Dynamic entries (policy 2,3) use FID
+ * - Static entries (policy 0) use VID
+ * - When independent learning is configured, VID=FID
+ * For Spectrum: use FID for both Dynamic and Static entries.
+ * VID should not be used.
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_fid_vid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_uc_lag_lag_vid
+ * Indicates VID in case of vFIDs. Reserved for FIDs.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_lag_vid, MLXSW_REG_SFD_BASE_LEN, 16, 12,
+		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+/* reg_sfd_uc_lag_lag_id
+ * LAG Identifier - pointer into the LAG descriptor table.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_lag_id, MLXSW_REG_SFD_BASE_LEN, 0, 10,
+		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+static inline void
+mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
+			  enum mlxsw_reg_sfd_rec_policy policy,
+			  const char *mac, u16 fid_vid,
+			  enum mlxsw_reg_sfd_rec_action action, u16 lag_vid,
+			  u16 lag_id)
+{
+	mlxsw_reg_sfd_rec_pack(payload, rec_index,
+			       MLXSW_REG_SFD_REC_TYPE_UNICAST_LAG,
+			       mac, action);
+	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
+	mlxsw_reg_sfd_uc_lag_sub_port_set(payload, rec_index, 0);
+	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, fid_vid);
+	mlxsw_reg_sfd_uc_lag_lag_vid_set(payload, rec_index, lag_vid);
+	mlxsw_reg_sfd_uc_lag_lag_id_set(payload, rec_index, lag_id);
+}
+
+static inline void mlxsw_reg_sfd_uc_lag_unpack(char *payload, int rec_index,
+					       char *mac, u16 *p_vid,
+					       u16 *p_lag_id)
+{
+	mlxsw_reg_sfd_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_vid = mlxsw_reg_sfd_uc_lag_fid_vid_get(payload, rec_index);
+	*p_lag_id = mlxsw_reg_sfd_uc_lag_lag_id_get(payload, rec_index);
+}
+
+/* reg_sfd_mc_pgi
+ *
+ * Multicast port group index - index into the port group table.
+ * Value 0x1FFF indicates the pgi should point to the MID entry.
+ * For Spectrum this value must be set to 0x1FFF
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, mc_pgi, MLXSW_REG_SFD_BASE_LEN, 16, 13,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_mc_fid_vid
+ *
+ * Filtering ID or VLAN ID
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, mc_fid_vid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
+		     MLXSW_REG_SFD_REC_LEN, 0x08, false);
+
+/* reg_sfd_mc_mid
+ *
+ * Multicast identifier - global identifier that represents the multicast
+ * group across all devices.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sfd, mc_mid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
+		     MLXSW_REG_SFD_REC_LEN, 0x0C, false);
+
+static inline void
+mlxsw_reg_sfd_mc_pack(char *payload, int rec_index,
+		      const char *mac, u16 fid_vid,
+		      enum mlxsw_reg_sfd_rec_action action, u16 mid)
+{
+	mlxsw_reg_sfd_rec_pack(payload, rec_index,
+			       MLXSW_REG_SFD_REC_TYPE_MULTICAST, mac, action);
+	mlxsw_reg_sfd_mc_pgi_set(payload, rec_index, 0x1FFF);
+	mlxsw_reg_sfd_mc_fid_vid_set(payload, rec_index, fid_vid);
+	mlxsw_reg_sfd_mc_mid_set(payload, rec_index, mid);
 }
 
 /* SFN - Switch FDB Notification Register
@@ -456,8 +615,12 @@ MLXSW_ITEM32_INDEXED(reg, sfn, rec_swid, MLXSW_REG_SFN_BASE_LEN, 24, 8,
 enum mlxsw_reg_sfn_rec_type {
 	/* MAC addresses learned on a regular port. */
 	MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC = 0x5,
-	/* Aged-out MAC address on a regular port */
+	/* MAC addresses learned on a LAG port. */
+	MLXSW_REG_SFN_REC_TYPE_LEARNED_MAC_LAG = 0x6,
+	/* Aged-out MAC address on a regular port. */
 	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC = 0x7,
+	/* Aged-out MAC address on a LAG port. */
+	MLXSW_REG_SFN_REC_TYPE_AGED_OUT_MAC_LAG = 0x8,
 };
 
 /* reg_sfn_rec_type
@@ -503,6 +666,22 @@ static inline void mlxsw_reg_sfn_mac_unpack(char *payload, int rec_index,
 	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
 	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
 	*p_local_port = mlxsw_reg_sfn_mac_system_port_get(payload, rec_index);
+}
+
+/* reg_sfn_mac_lag_lag_id
+ * LAG ID (pointer into the LAG descriptor table).
+ * Access: RO
+ */
+MLXSW_ITEM32_INDEXED(reg, sfn, mac_lag_lag_id, MLXSW_REG_SFN_BASE_LEN, 0, 10,
+		     MLXSW_REG_SFN_REC_LEN, 0x0C, false);
+
+static inline void mlxsw_reg_sfn_mac_lag_unpack(char *payload, int rec_index,
+						char *mac, u16 *p_vid,
+						u16 *p_lag_id)
+{
+	mlxsw_reg_sfn_rec_mac_memcpy_from(payload, rec_index, mac);
+	*p_vid = mlxsw_reg_sfn_mac_fid_get(payload, rec_index);
+	*p_lag_id = mlxsw_reg_sfn_mac_lag_lag_id_get(payload, rec_index);
 }
 
 /* SPMS - Switch Port MSTP/RSTP State Register
@@ -694,6 +873,62 @@ static inline void mlxsw_reg_spvm_pack(char *payload, u8 local_port,
 	}
 }
 
+/* SPAFT - Switch Port Acceptable Frame Types
+ * ------------------------------------------
+ * The Switch Port Acceptable Frame Types register configures the frame
+ * admittance of the port.
+ */
+#define MLXSW_REG_SPAFT_ID 0x2010
+#define MLXSW_REG_SPAFT_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_spaft = {
+	.id = MLXSW_REG_SPAFT_ID,
+	.len = MLXSW_REG_SPAFT_LEN,
+};
+
+/* reg_spaft_local_port
+ * Local port number.
+ * Access: Index
+ *
+ * Note: CPU port is not supported (all tag types are allowed).
+ */
+MLXSW_ITEM32(reg, spaft, local_port, 0x00, 16, 8);
+
+/* reg_spaft_sub_port
+ * Virtual port within the physical port.
+ * Should be set to 0 when virtual ports are not enabled on the port.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, sub_port, 0x00, 8, 8);
+
+/* reg_spaft_allow_untagged
+ * When set, untagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_untagged, 0x04, 31, 1);
+
+/* reg_spaft_allow_prio_tagged
+ * When set, priority tagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_prio_tagged, 0x04, 30, 1);
+
+/* reg_spaft_allow_tagged
+ * When set, tagged frames on the ingress are allowed (default).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spaft, allow_tagged, 0x04, 29, 1);
+
+static inline void mlxsw_reg_spaft_pack(char *payload, u8 local_port,
+					bool allow_untagged)
+{
+	MLXSW_REG_ZERO(spaft, payload);
+	mlxsw_reg_spaft_local_port_set(payload, local_port);
+	mlxsw_reg_spaft_allow_untagged_set(payload, allow_untagged);
+	mlxsw_reg_spaft_allow_prio_tagged_set(payload, true);
+	mlxsw_reg_spaft_allow_tagged_set(payload, true);
+}
+
 /* SFGC - Switch Flooding Group Configuration
  * ------------------------------------------
  * The following register controls the association of flooding tables and MIDs
@@ -863,6 +1098,379 @@ static inline void mlxsw_reg_sftr_pack(char *payload,
 	mlxsw_reg_sftr_range_set(payload, range);
 	mlxsw_reg_sftr_port_set(payload, port, set);
 	mlxsw_reg_sftr_port_mask_set(payload, port, 1);
+}
+
+/* SFDF - Switch Filtering DB Flush
+ * --------------------------------
+ * The switch filtering DB flush register is used to flush the FDB.
+ * Note that FDB notifications are flushed as well.
+ */
+#define MLXSW_REG_SFDF_ID 0x2013
+#define MLXSW_REG_SFDF_LEN 0x14
+
+static const struct mlxsw_reg_info mlxsw_reg_sfdf = {
+	.id = MLXSW_REG_SFDF_ID,
+	.len = MLXSW_REG_SFDF_LEN,
+};
+
+/* reg_sfdf_swid
+ * Switch partition ID.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sfdf, swid, 0x00, 24, 8);
+
+enum mlxsw_reg_sfdf_flush_type {
+	MLXSW_REG_SFDF_FLUSH_PER_SWID,
+	MLXSW_REG_SFDF_FLUSH_PER_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_PORT,
+	MLXSW_REG_SFDF_FLUSH_PER_PORT_AND_FID,
+	MLXSW_REG_SFDF_FLUSH_PER_LAG,
+	MLXSW_REG_SFDF_FLUSH_PER_LAG_AND_FID,
+};
+
+/* reg_sfdf_flush_type
+ * Flush type.
+ * 0 - All SWID dynamic entries are flushed.
+ * 1 - All FID dynamic entries are flushed.
+ * 2 - All dynamic entries pointing to port are flushed.
+ * 3 - All FID dynamic entries pointing to port are flushed.
+ * 4 - All dynamic entries pointing to LAG are flushed.
+ * 5 - All FID dynamic entries pointing to LAG are flushed.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, flush_type, 0x04, 28, 4);
+
+/* reg_sfdf_flush_static
+ * Static.
+ * 0 - Flush only dynamic entries.
+ * 1 - Flush both dynamic and static entries.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, flush_static, 0x04, 24, 1);
+
+static inline void mlxsw_reg_sfdf_pack(char *payload,
+				       enum mlxsw_reg_sfdf_flush_type type)
+{
+	MLXSW_REG_ZERO(sfdf, payload);
+	mlxsw_reg_sfdf_flush_type_set(payload, type);
+	mlxsw_reg_sfdf_flush_static_set(payload, true);
+}
+
+/* reg_sfdf_fid
+ * FID to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, fid, 0x0C, 0, 16);
+
+/* reg_sfdf_system_port
+ * Port to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, system_port, 0x0C, 0, 16);
+
+/* reg_sfdf_port_fid_system_port
+ * Port to flush, pointed to by FID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, port_fid_system_port, 0x08, 0, 16);
+
+/* reg_sfdf_lag_id
+ * LAG ID to flush.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, lag_id, 0x0C, 0, 10);
+
+/* reg_sfdf_lag_fid_lag_id
+ * LAG ID to flush, pointed to by FID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sfdf, lag_fid_lag_id, 0x08, 0, 10);
+
+/* SLDR - Switch LAG Descriptor Register
+ * -----------------------------------------
+ * The switch LAG descriptor register is populated by LAG descriptors.
+ * Each LAG descriptor is indexed by lag_id. The LAG ID runs from 0 to
+ * max_lag-1.
+ */
+#define MLXSW_REG_SLDR_ID 0x2014
+#define MLXSW_REG_SLDR_LEN 0x0C /* counting in only one port in list */
+
+static const struct mlxsw_reg_info mlxsw_reg_sldr = {
+	.id = MLXSW_REG_SLDR_ID,
+	.len = MLXSW_REG_SLDR_LEN,
+};
+
+enum mlxsw_reg_sldr_op {
+	/* Indicates a creation of a new LAG-ID, lag_id must be valid */
+	MLXSW_REG_SLDR_OP_LAG_CREATE,
+	MLXSW_REG_SLDR_OP_LAG_DESTROY,
+	/* Ports that appear in the list have the Distributor enabled */
+	MLXSW_REG_SLDR_OP_LAG_ADD_PORT_LIST,
+	/* Removes ports from the disributor list */
+	MLXSW_REG_SLDR_OP_LAG_REMOVE_PORT_LIST,
+};
+
+/* reg_sldr_op
+ * Operation.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sldr, op, 0x00, 29, 3);
+
+/* reg_sldr_lag_id
+ * LAG identifier. The lag_id is the index into the LAG descriptor table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sldr, lag_id, 0x00, 0, 10);
+
+static inline void mlxsw_reg_sldr_lag_create_pack(char *payload, u8 lag_id)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_CREATE);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+}
+
+static inline void mlxsw_reg_sldr_lag_destroy_pack(char *payload, u8 lag_id)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_DESTROY);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+}
+
+/* reg_sldr_num_ports
+ * The number of member ports of the LAG.
+ * Reserved for Create / Destroy operations
+ * For Add / Remove operations - indicates the number of ports in the list.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sldr, num_ports, 0x04, 24, 8);
+
+/* reg_sldr_system_port
+ * System port.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, sldr, system_port, 0x08, 0, 16, 4, 0, false);
+
+static inline void mlxsw_reg_sldr_lag_add_port_pack(char *payload, u8 lag_id,
+						    u8 local_port)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_ADD_PORT_LIST);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+	mlxsw_reg_sldr_num_ports_set(payload, 1);
+	mlxsw_reg_sldr_system_port_set(payload, 0, local_port);
+}
+
+static inline void mlxsw_reg_sldr_lag_remove_port_pack(char *payload, u8 lag_id,
+						       u8 local_port)
+{
+	MLXSW_REG_ZERO(sldr, payload);
+	mlxsw_reg_sldr_op_set(payload, MLXSW_REG_SLDR_OP_LAG_REMOVE_PORT_LIST);
+	mlxsw_reg_sldr_lag_id_set(payload, lag_id);
+	mlxsw_reg_sldr_num_ports_set(payload, 1);
+	mlxsw_reg_sldr_system_port_set(payload, 0, local_port);
+}
+
+/* SLCR - Switch LAG Configuration 2 Register
+ * -------------------------------------------
+ * The Switch LAG Configuration register is used for configuring the
+ * LAG properties of the switch.
+ */
+#define MLXSW_REG_SLCR_ID 0x2015
+#define MLXSW_REG_SLCR_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_slcr = {
+	.id = MLXSW_REG_SLCR_ID,
+	.len = MLXSW_REG_SLCR_LEN,
+};
+
+enum mlxsw_reg_slcr_pp {
+	/* Global Configuration (for all ports) */
+	MLXSW_REG_SLCR_PP_GLOBAL,
+	/* Per port configuration, based on local_port field */
+	MLXSW_REG_SLCR_PP_PER_PORT,
+};
+
+/* reg_slcr_pp
+ * Per Port Configuration
+ * Note: Reading at Global mode results in reading port 1 configuration.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcr, pp, 0x00, 24, 1);
+
+/* reg_slcr_local_port
+ * Local port number
+ * Supported from CPU port
+ * Not supported from router port
+ * Reserved when pp = Global Configuration
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcr, local_port, 0x00, 16, 8);
+
+enum mlxsw_reg_slcr_type {
+	MLXSW_REG_SLCR_TYPE_CRC, /* default */
+	MLXSW_REG_SLCR_TYPE_XOR,
+	MLXSW_REG_SLCR_TYPE_RANDOM,
+};
+
+/* reg_slcr_type
+ * Hash type
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, type, 0x00, 0, 4);
+
+/* Ingress port */
+#define MLXSW_REG_SLCR_LAG_HASH_IN_PORT		BIT(0)
+/* SMAC - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC_IP		BIT(1)
+/* SMAC - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP	BIT(2)
+#define MLXSW_REG_SLCR_LAG_HASH_SMAC \
+	(MLXSW_REG_SLCR_LAG_HASH_SMAC_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP)
+/* DMAC - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC_IP		BIT(3)
+/* DMAC - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP	BIT(4)
+#define MLXSW_REG_SLCR_LAG_HASH_DMAC \
+	(MLXSW_REG_SLCR_LAG_HASH_DMAC_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP)
+/* Ethertype - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP	BIT(5)
+/* Ethertype - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP	BIT(6)
+#define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE \
+	(MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP)
+/* VLAN ID - for IPv4 and IPv6 packets */
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID_IP	BIT(7)
+/* VLAN ID - for non-IP packets */
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID_NONIP	BIT(8)
+#define MLXSW_REG_SLCR_LAG_HASH_VLANID \
+	(MLXSW_REG_SLCR_LAG_HASH_VLANID_IP | \
+	 MLXSW_REG_SLCR_LAG_HASH_VLANID_NONIP)
+/* Source IP address (can be IPv4 or IPv6) */
+#define MLXSW_REG_SLCR_LAG_HASH_SIP		BIT(9)
+/* Destination IP address (can be IPv4 or IPv6) */
+#define MLXSW_REG_SLCR_LAG_HASH_DIP		BIT(10)
+/* TCP/UDP source port */
+#define MLXSW_REG_SLCR_LAG_HASH_SPORT		BIT(11)
+/* TCP/UDP destination port*/
+#define MLXSW_REG_SLCR_LAG_HASH_DPORT		BIT(12)
+/* IPv4 Protocol/IPv6 Next Header */
+#define MLXSW_REG_SLCR_LAG_HASH_IPPROTO		BIT(13)
+/* IPv6 Flow label */
+#define MLXSW_REG_SLCR_LAG_HASH_FLOWLABEL	BIT(14)
+/* SID - FCoE source ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_SID	BIT(15)
+/* DID - FCoE destination ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_DID	BIT(16)
+/* OXID - FCoE originator exchange ID */
+#define MLXSW_REG_SLCR_LAG_HASH_FCOE_OXID	BIT(17)
+/* Destination QP number - for RoCE packets */
+#define MLXSW_REG_SLCR_LAG_HASH_ROCE_DQP	BIT(19)
+
+/* reg_slcr_lag_hash
+ * LAG hashing configuration. This is a bitmask, in which each set
+ * bit includes the corresponding item in the LAG hash calculation.
+ * The default lag_hash contains SMAC, DMAC, VLANID and
+ * Ethertype (for all packet types).
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcr, lag_hash, 0x04, 0, 20);
+
+static inline void mlxsw_reg_slcr_pack(char *payload, u16 lag_hash)
+{
+	MLXSW_REG_ZERO(slcr, payload);
+	mlxsw_reg_slcr_pp_set(payload, MLXSW_REG_SLCR_PP_GLOBAL);
+	mlxsw_reg_slcr_type_set(payload, MLXSW_REG_SLCR_TYPE_XOR);
+	mlxsw_reg_slcr_lag_hash_set(payload, lag_hash);
+}
+
+/* SLCOR - Switch LAG Collector Register
+ * -------------------------------------
+ * The Switch LAG Collector register controls the Local Port membership
+ * in a LAG and enablement of the collector.
+ */
+#define MLXSW_REG_SLCOR_ID 0x2016
+#define MLXSW_REG_SLCOR_LEN 0x10
+
+static const struct mlxsw_reg_info mlxsw_reg_slcor = {
+	.id = MLXSW_REG_SLCOR_ID,
+	.len = MLXSW_REG_SLCOR_LEN,
+};
+
+enum mlxsw_reg_slcor_col {
+	/* Port is added with collector disabled */
+	MLXSW_REG_SLCOR_COL_LAG_ADD_PORT,
+	MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED,
+	MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_DISABLED,
+	MLXSW_REG_SLCOR_COL_LAG_REMOVE_PORT,
+};
+
+/* reg_slcor_col
+ * Collector configuration
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcor, col, 0x00, 30, 2);
+
+/* reg_slcor_local_port
+ * Local port number
+ * Not supported for CPU port
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcor, local_port, 0x00, 16, 8);
+
+/* reg_slcor_lag_id
+ * LAG Identifier. Index into the LAG descriptor table.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, slcor, lag_id, 0x00, 0, 10);
+
+/* reg_slcor_port_index
+ * Port index in the LAG list. Only valid on Add Port to LAG col.
+ * Valid range is from 0 to cap_max_lag_members-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, slcor, port_index, 0x04, 0, 10);
+
+static inline void mlxsw_reg_slcor_pack(char *payload,
+					u8 local_port, u16 lag_id,
+					enum mlxsw_reg_slcor_col col)
+{
+	MLXSW_REG_ZERO(slcor, payload);
+	mlxsw_reg_slcor_col_set(payload, col);
+	mlxsw_reg_slcor_local_port_set(payload, local_port);
+	mlxsw_reg_slcor_lag_id_set(payload, lag_id);
+}
+
+static inline void mlxsw_reg_slcor_port_add_pack(char *payload,
+						 u8 local_port, u16 lag_id,
+						 u8 port_index)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_ADD_PORT);
+	mlxsw_reg_slcor_port_index_set(payload, port_index);
+}
+
+static inline void mlxsw_reg_slcor_port_remove_pack(char *payload,
+						    u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_REMOVE_PORT);
+}
+
+static inline void mlxsw_reg_slcor_col_enable_pack(char *payload,
+						   u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
+}
+
+static inline void mlxsw_reg_slcor_col_disable_pack(char *payload,
+						    u8 local_port, u16 lag_id)
+{
+	mlxsw_reg_slcor_pack(payload, local_port, lag_id,
+			     MLXSW_REG_SLCOR_COL_LAG_COLLECTOR_ENABLED);
 }
 
 /* SPMLR - Switch Port MAC Learning Register
@@ -1235,20 +1843,20 @@ MLXSW_ITEM32(reg, pmlp, width, 0x00, 0, 8);
  * Module number.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0x00, false);
 
 /* reg_pmlp_tx_lane
  * Tx Lane. When rxtx field is cleared, this field is used for Rx as well.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 2, 0x04, 16, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 2, 0x04, 0x00, false);
 
 /* reg_pmlp_rx_lane
  * Rx Lane. When rxtx field is cleared, this field is ignored and Rx lane is
  * equal to Tx lane.
  * Access: RW
  */
-MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 2, 0x04, 24, false);
+MLXSW_ITEM32_INDEXED(reg, pmlp, rx_lane, 0x04, 24, 2, 0x04, 0x00, false);
 
 static inline void mlxsw_reg_pmlp_pack(char *payload, u8 local_port)
 {
@@ -2087,6 +2695,284 @@ static inline void mlxsw_reg_hpkt_pack(char *payload, u8 action, u16 trap_id)
 	mlxsw_reg_hpkt_ctrl_set(payload, MLXSW_REG_HPKT_CTRL_PACKET_DEFAULT);
 }
 
+/* MFCR - Management Fan Control Register
+ * --------------------------------------
+ * This register controls the settings of the Fan Speed PWM mechanism.
+ */
+#define MLXSW_REG_MFCR_ID 0x9001
+#define MLXSW_REG_MFCR_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfcr = {
+	.id = MLXSW_REG_MFCR_ID,
+	.len = MLXSW_REG_MFCR_LEN,
+};
+
+enum mlxsw_reg_mfcr_pwm_frequency {
+	MLXSW_REG_MFCR_PWM_FEQ_11HZ = 0x00,
+	MLXSW_REG_MFCR_PWM_FEQ_14_7HZ = 0x01,
+	MLXSW_REG_MFCR_PWM_FEQ_22_1HZ = 0x02,
+	MLXSW_REG_MFCR_PWM_FEQ_1_4KHZ = 0x40,
+	MLXSW_REG_MFCR_PWM_FEQ_5KHZ = 0x41,
+	MLXSW_REG_MFCR_PWM_FEQ_20KHZ = 0x42,
+	MLXSW_REG_MFCR_PWM_FEQ_22_5KHZ = 0x43,
+	MLXSW_REG_MFCR_PWM_FEQ_25KHZ = 0x44,
+};
+
+/* reg_mfcr_pwm_frequency
+ * Controls the frequency of the PWM signal.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfcr, pwm_frequency, 0x00, 0, 6);
+
+#define MLXSW_MFCR_TACHOS_MAX 10
+
+/* reg_mfcr_tacho_active
+ * Indicates which of the tachometer is active (bit per tachometer).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfcr, tacho_active, 0x04, 16, MLXSW_MFCR_TACHOS_MAX);
+
+#define MLXSW_MFCR_PWMS_MAX 5
+
+/* reg_mfcr_pwm_active
+ * Indicates which of the PWM control is active (bit per PWM).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfcr, pwm_active, 0x04, 0, MLXSW_MFCR_PWMS_MAX);
+
+static inline void
+mlxsw_reg_mfcr_pack(char *payload,
+		    enum mlxsw_reg_mfcr_pwm_frequency pwm_frequency)
+{
+	MLXSW_REG_ZERO(mfcr, payload);
+	mlxsw_reg_mfcr_pwm_frequency_set(payload, pwm_frequency);
+}
+
+static inline void
+mlxsw_reg_mfcr_unpack(char *payload,
+		      enum mlxsw_reg_mfcr_pwm_frequency *p_pwm_frequency,
+		      u16 *p_tacho_active, u8 *p_pwm_active)
+{
+	*p_pwm_frequency = mlxsw_reg_mfcr_pwm_frequency_get(payload);
+	*p_tacho_active = mlxsw_reg_mfcr_tacho_active_get(payload);
+	*p_pwm_active = mlxsw_reg_mfcr_pwm_active_get(payload);
+}
+
+/* MFSC - Management Fan Speed Control Register
+ * --------------------------------------------
+ * This register controls the settings of the Fan Speed PWM mechanism.
+ */
+#define MLXSW_REG_MFSC_ID 0x9002
+#define MLXSW_REG_MFSC_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfsc = {
+	.id = MLXSW_REG_MFSC_ID,
+	.len = MLXSW_REG_MFSC_LEN,
+};
+
+/* reg_mfsc_pwm
+ * Fan pwm to control / monitor.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mfsc, pwm, 0x00, 24, 3);
+
+/* reg_mfsc_pwm_duty_cycle
+ * Controls the duty cycle of the PWM. Value range from 0..255 to
+ * represent duty cycle of 0%...100%.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mfsc, pwm_duty_cycle, 0x04, 0, 8);
+
+static inline void mlxsw_reg_mfsc_pack(char *payload, u8 pwm,
+				       u8 pwm_duty_cycle)
+{
+	MLXSW_REG_ZERO(mfsc, payload);
+	mlxsw_reg_mfsc_pwm_set(payload, pwm);
+	mlxsw_reg_mfsc_pwm_duty_cycle_set(payload, pwm_duty_cycle);
+}
+
+/* MFSM - Management Fan Speed Measurement
+ * ---------------------------------------
+ * This register controls the settings of the Tacho measurements and
+ * enables reading the Tachometer measurements.
+ */
+#define MLXSW_REG_MFSM_ID 0x9003
+#define MLXSW_REG_MFSM_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mfsm = {
+	.id = MLXSW_REG_MFSM_ID,
+	.len = MLXSW_REG_MFSM_LEN,
+};
+
+/* reg_mfsm_tacho
+ * Fan tachometer index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mfsm, tacho, 0x00, 24, 4);
+
+/* reg_mfsm_rpm
+ * Fan speed (round per minute).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mfsm, rpm, 0x04, 0, 16);
+
+static inline void mlxsw_reg_mfsm_pack(char *payload, u8 tacho)
+{
+	MLXSW_REG_ZERO(mfsm, payload);
+	mlxsw_reg_mfsm_tacho_set(payload, tacho);
+}
+
+/* MTCAP - Management Temperature Capabilities
+ * -------------------------------------------
+ * This register exposes the capabilities of the device and
+ * system temperature sensing.
+ */
+#define MLXSW_REG_MTCAP_ID 0x9009
+#define MLXSW_REG_MTCAP_LEN 0x08
+
+static const struct mlxsw_reg_info mlxsw_reg_mtcap = {
+	.id = MLXSW_REG_MTCAP_ID,
+	.len = MLXSW_REG_MTCAP_LEN,
+};
+
+/* reg_mtcap_sensor_count
+ * Number of sensors supported by the device.
+ * This includes the QSFP module sensors (if exists in the QSFP module).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
+
+/* MTMP - Management Temperature
+ * -----------------------------
+ * This register controls the settings of the temperature measurements
+ * and enables reading the temperature measurements. Note that temperature
+ * is in 0.125 degrees Celsius.
+ */
+#define MLXSW_REG_MTMP_ID 0x900A
+#define MLXSW_REG_MTMP_LEN 0x20
+
+static const struct mlxsw_reg_info mlxsw_reg_mtmp = {
+	.id = MLXSW_REG_MTMP_ID,
+	.len = MLXSW_REG_MTMP_LEN,
+};
+
+/* reg_mtmp_sensor_index
+ * Sensors index to access.
+ * 64-127 of sensor_index are mapped to the SFP+/QSFP modules sequentially
+ * (module 0 is mapped to sensor_index 64).
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 7);
+
+/* Convert to milli degrees Celsius */
+#define MLXSW_REG_MTMP_TEMP_TO_MC(val) (val * 125)
+
+/* reg_mtmp_temperature
+ * Temperature reading from the sensor. Reading is in 0.125 Celsius
+ * degrees units.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, temperature, 0x04, 0, 16);
+
+/* reg_mtmp_mte
+ * Max Temperature Enable - enables measuring the max temperature on a sensor.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtmp, mte, 0x08, 31, 1);
+
+/* reg_mtmp_mtr
+ * Max Temperature Reset - clears the value of the max temperature register.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mtmp, mtr, 0x08, 30, 1);
+
+/* reg_mtmp_max_temperature
+ * The highest measured temperature from the sensor.
+ * When the bit mte is cleared, the field max_temperature is reserved.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
+
+#define MLXSW_REG_MTMP_SENSOR_NAME_SIZE 8
+
+/* reg_mtmp_sensor_name
+ * Sensor Name
+ * Access: RO
+ */
+MLXSW_ITEM_BUF(reg, mtmp, sensor_name, 0x18, MLXSW_REG_MTMP_SENSOR_NAME_SIZE);
+
+static inline void mlxsw_reg_mtmp_pack(char *payload, u8 sensor_index,
+				       bool max_temp_enable,
+				       bool max_temp_reset)
+{
+	MLXSW_REG_ZERO(mtmp, payload);
+	mlxsw_reg_mtmp_sensor_index_set(payload, sensor_index);
+	mlxsw_reg_mtmp_mte_set(payload, max_temp_enable);
+	mlxsw_reg_mtmp_mtr_set(payload, max_temp_reset);
+}
+
+static inline void mlxsw_reg_mtmp_unpack(char *payload, unsigned int *p_temp,
+					 unsigned int *p_max_temp,
+					 char *sensor_name)
+{
+	u16 temp;
+
+	if (p_temp) {
+		temp = mlxsw_reg_mtmp_temperature_get(payload);
+		*p_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (p_max_temp) {
+		temp = mlxsw_reg_mtmp_max_temperature_get(payload);
+		*p_max_temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
+	}
+	if (sensor_name)
+		mlxsw_reg_mtmp_sensor_name_memcpy_from(payload, sensor_name);
+}
+
+/* MLCR - Management LED Control Register
+ * --------------------------------------
+ * Controls the system LEDs.
+ */
+#define MLXSW_REG_MLCR_ID 0x902B
+#define MLXSW_REG_MLCR_LEN 0x0C
+
+static const struct mlxsw_reg_info mlxsw_reg_mlcr = {
+	.id = MLXSW_REG_MLCR_ID,
+	.len = MLXSW_REG_MLCR_LEN,
+};
+
+/* reg_mlcr_local_port
+ * Local port number.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mlcr, local_port, 0x00, 16, 8);
+
+#define MLXSW_REG_MLCR_DURATION_MAX 0xFFFF
+
+/* reg_mlcr_beacon_duration
+ * Duration of the beacon to be active, in seconds.
+ * 0x0 - Will turn off the beacon.
+ * 0xFFFF - Will turn on the beacon until explicitly turned off.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mlcr, beacon_duration, 0x04, 0, 16);
+
+/* reg_mlcr_beacon_remain
+ * Remaining duration of the beacon, in seconds.
+ * 0xFFFF indicates an infinite amount of time.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mlcr, beacon_remain, 0x08, 0, 16);
+
+static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
+				       bool active)
+{
+	MLXSW_REG_ZERO(mlcr, payload);
+	mlxsw_reg_mlcr_local_port_set(payload, local_port);
+	mlxsw_reg_mlcr_beacon_duration_set(payload, active ?
+					   MLXSW_REG_MLCR_DURATION_MAX : 0);
+}
+
 /* SBPR - Shared Buffer Pools Register
  * -----------------------------------
  * The SBPR configures and retrieves the shared buffer pools and configuration.
@@ -2357,6 +3243,8 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SGCR";
 	case MLXSW_REG_SPAD_ID:
 		return "SPAD";
+	case MLXSW_REG_SMID_ID:
+		return "SMID";
 	case MLXSW_REG_SSPR_ID:
 		return "SSPR";
 	case MLXSW_REG_SFDAT_ID:
@@ -2371,10 +3259,20 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "SPVID";
 	case MLXSW_REG_SPVM_ID:
 		return "SPVM";
+	case MLXSW_REG_SPAFT_ID:
+		return "SPAFT";
 	case MLXSW_REG_SFGC_ID:
 		return "SFGC";
 	case MLXSW_REG_SFTR_ID:
 		return "SFTR";
+	case MLXSW_REG_SFDF_ID:
+		return "SFDF";
+	case MLXSW_REG_SLDR_ID:
+		return "SLDR";
+	case MLXSW_REG_SLCR_ID:
+		return "SLCR";
+	case MLXSW_REG_SLCOR_ID:
+		return "SLCOR";
 	case MLXSW_REG_SPMLR_ID:
 		return "SPMLR";
 	case MLXSW_REG_SVFA_ID:
@@ -2405,6 +3303,18 @@ static inline const char *mlxsw_reg_id_str(u16 reg_id)
 		return "HTGT";
 	case MLXSW_REG_HPKT_ID:
 		return "HPKT";
+	case MLXSW_REG_MFCR_ID:
+		return "MFCR";
+	case MLXSW_REG_MFSC_ID:
+		return "MFSC";
+	case MLXSW_REG_MFSM_ID:
+		return "MFSM";
+	case MLXSW_REG_MTCAP_ID:
+		return "MTCAP";
+	case MLXSW_REG_MTMP_ID:
+		return "MTMP";
+	case MLXSW_REG_MLCR_ID:
+		return "MLCR";
 	case MLXSW_REG_SBPR_ID:
 		return "SBPR";
 	case MLXSW_REG_SBCM_ID:

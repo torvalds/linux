@@ -150,12 +150,14 @@ static inline void iowait_init(
  * iowait_schedule() - initialize wait structure
  * @wait: wait struct to schedule
  * @wq: workqueue for schedule
+ * @cpu: cpu
  */
 static inline void iowait_schedule(
 	struct iowait *wait,
-	struct workqueue_struct *wq)
+	struct workqueue_struct *wq,
+	int cpu)
 {
-	queue_work(wq, &wait->iowork);
+	queue_work_on(cpu, wq, &wait->iowork);
 }
 
 /**

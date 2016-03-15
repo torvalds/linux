@@ -18,7 +18,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/devices.h>
+#include "devices.h"
 #include <mach/regs-gpio.h>
 #include <mach/gpio-ks8695.h>
 #include "generic.h"

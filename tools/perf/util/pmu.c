@@ -220,6 +220,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 	alias->scale = 1.0;
 	alias->unit[0] = '\0';
 	alias->per_pkg = false;
+	alias->snapshot = false;
 
 	ret = parse_events_terms(&alias->terms, val);
 	if (ret) {

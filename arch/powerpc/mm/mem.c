@@ -560,11 +560,11 @@ subsys_initcall(add_system_ram_resources);
  */
 int devmem_is_allowed(unsigned long pfn)
 {
+	if (page_is_rtas_user_buf(pfn))
+		return 1;
 	if (iomem_is_exclusive(PFN_PHYS(pfn)))
 		return 0;
 	if (!page_is_ram(pfn))
-		return 1;
-	if (page_is_rtas_user_buf(pfn))
 		return 1;
 	return 0;
 }

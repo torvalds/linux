@@ -174,7 +174,7 @@ void __init mac_init_IRQ(void)
 		oss_register_interrupts();
 	else
 		via_register_interrupts();
-	if (psc_present)
+	if (psc)
 		psc_register_interrupts();
 	if (baboon_present)
 		baboon_register_interrupts();
@@ -212,7 +212,7 @@ void mac_irq_enable(struct irq_data *data)
 	case 4:
 	case 5:
 	case 6:
-		if (psc_present)
+		if (psc)
 			psc_irq_enable(irq);
 		else if (oss_present)
 			oss_irq_enable(irq);
@@ -242,7 +242,7 @@ void mac_irq_disable(struct irq_data *data)
 	case 4:
 	case 5:
 	case 6:
-		if (psc_present)
+		if (psc)
 			psc_irq_disable(irq);
 		else if (oss_present)
 			oss_irq_disable(irq);

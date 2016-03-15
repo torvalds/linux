@@ -764,6 +764,7 @@ ENTRY(psw_idle)
 	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+16(%r15)
 .Lpsw_idle_stcctm:
 #endif
+	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
 	STCK	__CLOCK_IDLE_ENTER(%r2)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 .Lpsw_idle_lpsw:
@@ -1146,6 +1147,7 @@ cleanup_critical:
 	.quad	.Lio_done - 4
 
 .Lcleanup_idle:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_ENABLED_WAIT
 	# copy interrupt clock & cpu timer
 	mvc	__CLOCK_IDLE_EXIT(8,%r2),__LC_INT_CLOCK
 	mvc	__TIMER_IDLE_EXIT(8,%r2),__LC_ASYNC_ENTER_TIMER

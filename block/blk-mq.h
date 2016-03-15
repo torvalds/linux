@@ -96,8 +96,7 @@ static inline void blk_mq_put_ctx(struct blk_mq_ctx *ctx)
 struct blk_mq_alloc_data {
 	/* input parameter */
 	struct request_queue *q;
-	gfp_t gfp;
-	bool reserved;
+	unsigned int flags;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;
@@ -105,13 +104,11 @@ struct blk_mq_alloc_data {
 };
 
 static inline void blk_mq_set_alloc_data(struct blk_mq_alloc_data *data,
-		struct request_queue *q, gfp_t gfp, bool reserved,
-		struct blk_mq_ctx *ctx,
-		struct blk_mq_hw_ctx *hctx)
+		struct request_queue *q, unsigned int flags,
+		struct blk_mq_ctx *ctx, struct blk_mq_hw_ctx *hctx)
 {
 	data->q = q;
-	data->gfp = gfp;
-	data->reserved = reserved;
+	data->flags = flags;
 	data->ctx = ctx;
 	data->hctx = hctx;
 }

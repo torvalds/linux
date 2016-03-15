@@ -300,6 +300,10 @@ static int arch_build_bp_info(struct perf_event *bp)
 			return -EINVAL;
 		if (bp->attr.bp_addr & (bp->attr.bp_len - 1))
 			return -EINVAL;
+
+		if (!boot_cpu_has(X86_FEATURE_BPEXT))
+			return -EOPNOTSUPP;
+
 		/*
 		 * It's impossible to use a range breakpoint to fake out
 		 * user vs kernel detection because bp_len - 1 can't
@@ -307,8 +311,6 @@ static int arch_build_bp_info(struct perf_event *bp)
 		 * breakpoints, then we'll have to check for kprobe-blacklisted
 		 * addresses anywhere in the range.
 		 */
-		if (!cpu_has_bpext)
-			return -EOPNOTSUPP;
 		info->mask = bp->attr.bp_len - 1;
 		info->len = X86_BREAKPOINT_LEN_1;
 	}

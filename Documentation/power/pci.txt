@@ -999,7 +999,7 @@ from its probe routine to make runtime PM work for the device.
 
 It is important to remember that the driver's runtime_suspend() callback
 may be executed right after the usage counter has been decremented, because
-user space may already have cuased the pm_runtime_allow() helper function
+user space may already have caused the pm_runtime_allow() helper function
 unblocking the runtime PM of the device to run via sysfs, so the driver must
 be prepared to cope with that.
 

@@ -2267,7 +2267,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (rc)
 		return rc;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2292,7 +2292,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	free_xid(xid);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return rc;
 }
 
@@ -2309,7 +2309,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (rc)
 		return rc;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2326,7 +2326,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	free_xid(xid);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return rc;
 }
 
@@ -2672,7 +2672,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	 * with a brlock that prevents writing.
 	 */
 	down_read(&cinode->lock_sem);
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 
 	rc = generic_write_checks(iocb, from);
 	if (rc <= 0)
@@ -2685,7 +2685,7 @@ cifs_writev(struct kiocb *iocb, struct iov_iter *from)
 	else
 		rc = -EACCES;
 out:
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 
 	if (rc > 0) {
 		ssize_t err = generic_write_sync(file, iocb->ki_pos - rc, rc);
@@ -3391,13 +3391,13 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 	 * should have access to this page, we're safe to simply set
 	 * PG_locked without checking it first.
 	 */
-	__set_page_locked(page);
+	__SetPageLocked(page);
 	rc = add_to_page_cache_locked(page, mapping,
 				      page->index, gfp);
 
 	/* give up if we can't stick it in the cache */
 	if (rc) {
-		__clear_page_locked(page);
+		__ClearPageLocked(page);
 		return rc;
 	}
 
@@ -3418,9 +3418,9 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
 		if (*bytes + PAGE_CACHE_SIZE > rsize)
 			break;
 
-		__set_page_locked(page);
+		__SetPageLocked(page);
 		if (add_to_page_cache_locked(page, mapping, page->index, gfp)) {
-			__clear_page_locked(page);
+			__ClearPageLocked(page);
 			break;
 		}
 		list_move_tail(&page->lru, tmplist);

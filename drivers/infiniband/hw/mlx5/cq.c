@@ -154,9 +154,6 @@ static void handle_good_req(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 		wc->byte_len  = 8;
 		break;
-	case MLX5_OPCODE_BIND_MW:
-		wc->opcode    = IB_WC_BIND_MW;
-		break;
 	case MLX5_OPCODE_UMR:
 		wc->opcode = get_umr_comp(wq, idx);
 		break;
@@ -171,6 +168,7 @@ enum {
 static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 			     struct mlx5_ib_qp *qp)
 {
+	enum rdma_link_layer ll = rdma_port_get_link_layer(qp->ibqp.device, 1);
 	struct mlx5_ib_dev *dev = to_mdev(qp->ibqp.device);
 	struct mlx5_ib_srq *srq;
 	struct mlx5_ib_wq *wq;
@@ -236,6 +234,22 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	} else {
 		wc->pkey_index = 0;
 	}
+
+	if (ll != IB_LINK_LAYER_ETHERNET)
+		return;
+
+	switch (wc->sl & 0x3) {
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_GRH:
+		wc->network_hdr_type = RDMA_NETWORK_IB;
+		break;
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_IPV6:
+		wc->network_hdr_type = RDMA_NETWORK_IPV6;
+		break;
+	case MLX5_CQE_ROCE_L3_HEADER_TYPE_IPV4:
+		wc->network_hdr_type = RDMA_NETWORK_IPV4;
+		break;
+	}
+	wc->wc_flags |= IB_WC_WITH_NETWORK_HDR_TYPE;
 }
 
 static void dump_cqe(struct mlx5_ib_dev *dev, struct mlx5_err_cqe *cqe)
@@ -756,15 +770,15 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	int uninitialized_var(index);
 	int uninitialized_var(inlen);
 	int cqe_size;
-	int irqn;
+	unsigned int irqn;
 	int eqn;
 	int err;
 
-	if (attr->flags)
-		return ERR_PTR(-EINVAL);
-
 	if (entries < 0)
 		return ERR_PTR(-EINVAL);
+
+	if (check_cq_create_flags(attr->flags))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)))
@@ -779,6 +793,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&cq->lock);
 	cq->resize_buf = NULL;
 	cq->resize_umem = NULL;
+	cq->create_flags = attr->flags;
 
 	if (context) {
 		err = create_cq_user(dev, udata, context, cq, entries,
@@ -796,6 +811,10 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	cq->cqe_size = cqe_size;
 	cqb->ctx.cqe_sz_flags = cqe_sz_to_mlx_sz(cqe_size) << 5;
+
+	if (cq->create_flags & IB_CQ_FLAGS_IGNORE_OVERRUN)
+		cqb->ctx.cqe_sz_flags |= (1 << 1);
+
 	cqb->ctx.log_sz_usr_page = cpu_to_be32((ilog2(entries) << 24) | index);
 	err = mlx5_vector2eqn(dev->mdev, vector, &eqn, &irqn);
 	if (err)

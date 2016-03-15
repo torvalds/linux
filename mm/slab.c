@@ -2275,7 +2275,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 
 	err = setup_cpu_cache(cachep, gfp);
 	if (err) {
-		__kmem_cache_shutdown(cachep);
+		__kmem_cache_release(cachep);
 		return err;
 	}
 
@@ -2414,12 +2414,13 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
 
 int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
+	return __kmem_cache_shrink(cachep, false);
+}
+
+void __kmem_cache_release(struct kmem_cache *cachep)
+{
 	int i;
 	struct kmem_cache_node *n;
-	int rc = __kmem_cache_shrink(cachep, false);
-
-	if (rc)
-		return rc;
 
 	free_percpu(cachep->cpu_cache);
 
@@ -2430,7 +2431,6 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
 		kfree(n);
 		cachep->node[i] = NULL;
 	}
-	return 0;
 }
 
 /*
@@ -2756,6 +2756,21 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 #define cache_free_debugcheck(x,objp,z) (objp)
 #endif
 
+static struct page *get_first_slab(struct kmem_cache_node *n)
+{
+	struct page *page;
+
+	page = list_first_entry_or_null(&n->slabs_partial,
+			struct page, lru);
+	if (!page) {
+		n->free_touched = 1;
+		page = list_first_entry_or_null(&n->slabs_free,
+				struct page, lru);
+	}
+
+	return page;
+}
+
 static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags,
 							bool force_refill)
 {
@@ -2791,18 +2806,12 @@ retry:
 	}
 
 	while (batchcount > 0) {
-		struct list_head *entry;
 		struct page *page;
 		/* Get slab alloc is to come from. */
-		entry = n->slabs_partial.next;
-		if (entry == &n->slabs_partial) {
-			n->free_touched = 1;
-			entry = n->slabs_free.next;
-			if (entry == &n->slabs_free)
-				goto must_grow;
-		}
+		page = get_first_slab(n);
+		if (!page)
+			goto must_grow;
 
-		page = list_entry(entry, struct page, lru);
 		check_spinlock_acquired(cachep);
 
 		/*
@@ -3085,7 +3094,6 @@ retry:
 static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 				int nodeid)
 {
-	struct list_head *entry;
 	struct page *page;
 	struct kmem_cache_node *n;
 	void *obj;
@@ -3098,15 +3106,10 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 retry:
 	check_irq_off();
 	spin_lock(&n->list_lock);
-	entry = n->slabs_partial.next;
-	if (entry == &n->slabs_partial) {
-		n->free_touched = 1;
-		entry = n->slabs_free.next;
-		if (entry == &n->slabs_free)
-			goto must_grow;
-	}
+	page = get_first_slab(n);
+	if (!page)
+		goto must_grow;
 
-	page = list_entry(entry, struct page, lru);
 	check_spinlock_acquired_node(cachep, nodeid);
 
 	STATS_INC_NODEALLOCS(cachep);
@@ -3338,17 +3341,12 @@ free_done:
 #if STATS
 	{
 		int i = 0;
-		struct list_head *p;
+		struct page *page;
 
-		p = n->slabs_free.next;
-		while (p != &(n->slabs_free)) {
-			struct page *page;
-
-			page = list_entry(p, struct page, lru);
+		list_for_each_entry(page, &n->slabs_free, lru) {
 			BUG_ON(page->active);
 
 			i++;
-			p = p->next;
 		}
 		STATS_SET_FREEABLE(cachep, i);
 	}

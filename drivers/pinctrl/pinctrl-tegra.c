@@ -217,6 +217,7 @@ static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0) {
 			pinctrl_utils_dt_free_map(pctldev, *map,
 				*num_maps);
+			of_node_put(np);
 			return ret;
 		}
 	}

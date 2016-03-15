@@ -78,6 +78,7 @@ struct iss_ipipeif_device {
 struct iss_device;
 
 int omap4iss_ipipeif_init(struct iss_device *iss);
+int omap4iss_ipipeif_create_links(struct iss_device *iss);
 void omap4iss_ipipeif_cleanup(struct iss_device *iss);
 int omap4iss_ipipeif_register_entities(struct iss_ipipeif_device *ipipeif,
 				       struct v4l2_device *vdev);

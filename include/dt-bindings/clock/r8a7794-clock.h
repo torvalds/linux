@@ -79,6 +79,7 @@
 #define R8A7794_CLK_SCIF2		19
 #define R8A7794_CLK_SCIF1		20
 #define R8A7794_CLK_SCIF0		21
+#define R8A7794_CLK_DU0			24
 
 /* MSTP8 */
 #define R8A7794_CLK_VIN1		10

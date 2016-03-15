@@ -294,9 +294,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 	return vmw_ldu_commit_list(dev_priv);
 }
 
-static struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
-	.save = vmw_du_crtc_save,
-	.restore = vmw_du_crtc_restore,
+static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.cursor_set2 = vmw_du_crtc_cursor_set2,
 	.cursor_move = vmw_du_crtc_cursor_move,
 	.gamma_set = vmw_du_crtc_gamma_set,
@@ -314,7 +312,7 @@ static void vmw_ldu_encoder_destroy(struct drm_encoder *encoder)
 	vmw_ldu_destroy(vmw_encoder_to_ldu(encoder));
 }
 
-static struct drm_encoder_funcs vmw_legacy_encoder_funcs = {
+static const struct drm_encoder_funcs vmw_legacy_encoder_funcs = {
 	.destroy = vmw_ldu_encoder_destroy,
 };
 
@@ -327,10 +325,8 @@ static void vmw_ldu_connector_destroy(struct drm_connector *connector)
 	vmw_ldu_destroy(vmw_connector_to_ldu(connector));
 }
 
-static struct drm_connector_funcs vmw_legacy_connector_funcs = {
+static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
-	.save = vmw_du_connector_save,
-	.restore = vmw_du_connector_restore,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
 	.set_property = vmw_du_connector_set_property,
@@ -367,7 +363,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	connector->status = vmw_du_connector_detect(connector, true);
 
 	drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
-			 DRM_MODE_ENCODER_VIRTUAL);
+			 DRM_MODE_ENCODER_VIRTUAL, NULL);
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;

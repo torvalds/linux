@@ -71,14 +71,14 @@ void batadv_frag_purge_orig(struct batadv_orig_node *orig_node,
 
 	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
 		chain = &orig_node->fragments[i];
-		spin_lock_bh(&orig_node->fragments[i].lock);
+		spin_lock_bh(&chain->lock);
 
 		if (!check_cb || check_cb(chain)) {
-			batadv_frag_clear_chain(&orig_node->fragments[i].head);
-			orig_node->fragments[i].size = 0;
+			batadv_frag_clear_chain(&chain->head);
+			chain->size = 0;
 		}
 
-		spin_unlock_bh(&orig_node->fragments[i].lock);
+		spin_unlock_bh(&chain->lock);
 	}
 }
 

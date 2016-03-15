@@ -270,7 +270,7 @@ extern u32 omap_read_auxcoreboot0(void);
 
 extern void omap4_cpu_die(unsigned int cpu);
 
-extern struct smp_operations omap4_smp_ops;
+extern const struct smp_operations omap4_smp_ops;
 
 extern void omap5_secondary_startup(void);
 extern void omap5_secondary_hyp_startup(void);

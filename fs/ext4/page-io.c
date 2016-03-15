@@ -52,9 +52,8 @@ void ext4_exit_pageio(void)
  */
 static void buffer_io_error(struct buffer_head *bh)
 {
-	char b[BDEVNAME_SIZE];
-	printk_ratelimited(KERN_ERR "Buffer I/O error on device %s, logical block %llu\n",
-			bdevname(bh->b_bdev, b),
+	printk_ratelimited(KERN_ERR "Buffer I/O error on device %pg, logical block %llu\n",
+		       bh->b_bdev,
 			(unsigned long long)bh->b_blocknr);
 }
 

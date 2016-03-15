@@ -207,6 +207,9 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 	u8 clk_cfg, reg;
 	int i;
 
+	/* Default to lowest clock configuration */
+	clk_cfg = SPI_CLK_0_391MHZ;
+
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
 		if (t->speed_hz >= bcm63xx_spi_freq_table[i][0]) {
@@ -214,10 +217,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 			break;
 		}
 	}
-
-	/* No matching configuration found, default to lowest */
-	if (i == SPI_CLK_MASK)
-		clk_cfg = SPI_CLK_0_391MHZ;
 
 	/* clear existing clock configuration bits of the register */
 	reg = bcm_spi_readb(bs, SPI_CLK_CFG);

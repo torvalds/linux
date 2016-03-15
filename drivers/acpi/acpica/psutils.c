@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -175,8 +175,8 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 	ACPI_FUNCTION_NAME(ps_free_op);
 
 	if (op->common.aml_opcode == AML_INT_RETURN_VALUE_OP) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n",
-				  op));
+		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
+				  "Free retval op: %p\n", op));
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {

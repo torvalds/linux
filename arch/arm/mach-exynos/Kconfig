@@ -8,7 +8,8 @@
 # Configuration options for the EXYNOS4
 
 menuconfig ARCH_EXYNOS
-	bool "Samsung EXYNOS" if ARCH_MULTI_V7
+	bool "Samsung EXYNOS"
+	depends on ARCH_MULTI_V7
 	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_REQUIRE_GPIOLIB
@@ -27,6 +28,10 @@ menuconfig ARCH_EXYNOS
 	select SRAM
 	select THERMAL
 	select MFD_SYSCON
+	select CLKSRC_EXYNOS_MCT
+	select POWER_RESET
+	select POWER_RESET_SYSCON
+	select POWER_RESET_SYSCON_POWEROFF
 	help
 	  Support for SAMSUNG EXYNOS SoCs (EXYNOS4/5)
 

@@ -118,7 +118,7 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 				return 0;
 			}
 			if (size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
-				netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
+				netdev_dbg(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 					   size);
 				return 0;
 			}

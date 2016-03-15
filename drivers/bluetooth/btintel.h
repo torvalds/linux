@@ -72,6 +72,8 @@ struct intel_secure_send_result {
 #if IS_ENABLED(CONFIG_BT_INTEL)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
+int btintel_enter_mfg(struct hci_dev *hdev);
+int btintel_exit_mfg(struct hci_dev *hdev, bool reset, bool patched);
 int btintel_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int btintel_set_diag(struct hci_dev *hdev, bool enable);
 int btintel_set_diag_mfg(struct hci_dev *hdev, bool enable);
@@ -83,6 +85,7 @@ int btintel_secure_send(struct hci_dev *hdev, u8 fragment_type, u32 plen,
 int btintel_load_ddc_config(struct hci_dev *hdev, const char *ddc_name);
 int btintel_set_event_mask(struct hci_dev *hdev, bool debug);
 int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug);
+int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver);
 
 struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 				   u16 opcode_write);
@@ -90,6 +93,16 @@ struct regmap *btintel_regmap_init(struct hci_dev *hdev, u16 opcode_read,
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_enter_mfg(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_exit_mfg(struct hci_dev *hdev, bool reset, bool patched)
 {
 	return -EOPNOTSUPP;
 }
@@ -136,6 +149,12 @@ static inline int btintel_set_event_mask(struct hci_dev *hdev, bool debug)
 }
 
 static inline int btintel_set_event_mask_mfg(struct hci_dev *hdev, bool debug)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_read_version(struct hci_dev *hdev,
+				       struct intel_version *ver)
 {
 	return -EOPNOTSUPP;
 }

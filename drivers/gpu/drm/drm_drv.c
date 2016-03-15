@@ -44,10 +44,6 @@ MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
-MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
-MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
-
 module_param_named(debug, drm_debug, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
@@ -633,8 +629,17 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		}
 	}
 
+	if (parent) {
+		ret = drm_dev_set_unique(dev, dev_name(parent));
+		if (ret)
+			goto err_setunique;
+	}
+
 	return dev;
 
+err_setunique:
+	if (drm_core_check_feature(dev, DRIVER_GEM))
+		drm_gem_destroy(dev);
 err_ctxbitmap:
 	drm_legacy_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
@@ -797,23 +802,18 @@ EXPORT_SYMBOL(drm_dev_unregister);
 /**
  * drm_dev_set_unique - Set the unique name of a DRM device
  * @dev: device of which to set the unique name
- * @fmt: format string for unique name
+ * @name: unique name
  *
- * Sets the unique name of a DRM device using the specified format string and
- * a variable list of arguments. Drivers can use this at driver probe time if
- * the unique name of the devices they drive is static.
+ * Sets the unique name of a DRM device using the specified string. Drivers
+ * can use this at driver probe time if the unique name of the devices they
+ * drive is static.
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int drm_dev_set_unique(struct drm_device *dev, const char *fmt, ...)
+int drm_dev_set_unique(struct drm_device *dev, const char *name)
 {
-	va_list ap;
-
 	kfree(dev->unique);
-
-	va_start(ap, fmt);
-	dev->unique = kvasprintf(GFP_KERNEL, fmt, ap);
-	va_end(ap);
+	dev->unique = kstrdup(name, GFP_KERNEL);
 
 	return dev->unique ? 0 : -ENOMEM;
 }

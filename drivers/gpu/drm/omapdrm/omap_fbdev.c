@@ -295,6 +295,10 @@ fini:
 	drm_fb_helper_fini(helper);
 fail:
 	kfree(fbdev);
+
+	dev_warn(dev->dev, "omap_fbdev_init failed\n");
+	/* well, limp along without an fbdev.. maybe X11 will work? */
+
 	return NULL;
 }
 

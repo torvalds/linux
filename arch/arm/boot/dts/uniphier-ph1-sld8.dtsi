@@ -42,7 +42,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/include/ "skeleton.dtsi"
+/include/ "uniphier-common32.dtsi"
 
 / {
 	compatible = "socionext,ph1-sld8";
@@ -78,188 +78,104 @@
 			clock-frequency = <100000000>;
 		};
 	};
+};
 
-	soc {
-		compatible = "simple-bus";
+&soc {
+	l2: l2-cache@500c0000 {
+		compatible = "socionext,uniphier-system-cache";
+		reg = <0x500c0000 0x2000>, <0x503c0100 0x4>, <0x506c0000 0x400>;
+		interrupts = <0 174 4>, <0 175 4>;
+		cache-unified;
+		cache-size = <(256 * 1024)>;
+		cache-sets = <256>;
+		cache-line-size = <128>;
+		cache-level = <2>;
+	};
+
+	i2c0: i2c@58400000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58400000 0x40>;
 		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-		interrupt-parent = <&intc>;
+		#size-cells = <0>;
+		interrupts = <0 41 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c0>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
 
-		extbus: extbus {
-			compatible = "simple-bus";
-			#address-cells = <2>;
-			#size-cells = <1>;
-		};
+	i2c1: i2c@58480000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58480000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 42 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
 
-		l2: l2-cache@500c0000 {
-			compatible = "socionext,uniphier-system-cache";
-			reg = <0x500c0000 0x2000>, <0x503c0100 0x4>,
-			      <0x506c0000 0x400>;
-			interrupts = <0 174 4>, <0 175 4>;
-			cache-unified;
-			cache-size = <(256 * 1024)>;
-			cache-sets = <256>;
-			cache-line-size = <128>;
-			cache-level = <2>;
-		};
+	/* chip-internal connection for DMD */
+	i2c2: i2c@58500000 {
+		compatible = "socionext,uniphier-i2c";
+		reg = <0x58500000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 43 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <400000>;
+	};
 
-		serial0: serial@54006800 {
-			compatible = "socionext,uniphier-uart";
-			status = "disabled";
-			reg = <0x54006800 0x40>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_uart0>;
-			interrupts = <0 33 4>;
-			clocks = <&uart_clk>;
-			fifo-size = <64>;
-		};
+	i2c3: i2c@58580000 {
+		compatible = "socionext,uniphier-i2c";
+		status = "disabled";
+		reg = <0x58580000 0x40>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupts = <0 44 1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c3>;
+		clocks = <&iobus_clk>;
+		clock-frequency = <100000>;
+	};
 
-		serial1: serial@54006900 {
-			compatible = "socionext,uniphier-uart";
-			status = "disabled";
-			reg = <0x54006900 0x40>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_uart1>;
-			interrupts = <0 35 4>;
-			clocks = <&uart_clk>;
-			fifo-size = <64>;
-		};
+	usb0: usb@5a800100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a800100 0x100>;
+		interrupts = <0 80 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0>;
+	};
 
-		serial2: serial@54006a00 {
-			compatible = "socionext,uniphier-uart";
-			status = "disabled";
-			reg = <0x54006a00 0x40>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_uart2>;
-			interrupts = <0 37 4>;
-			clocks = <&uart_clk>;
-			fifo-size = <64>;
-		};
+	usb1: usb@5a810100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a810100 0x100>;
+		interrupts = <0 81 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb1>;
+	};
 
-		serial3: serial@54006b00 {
-			compatible = "socionext,uniphier-uart";
-			status = "disabled";
-			reg = <0x54006b00 0x40>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_uart3>;
-			interrupts = <0 29 4>;
-			clocks = <&uart_clk>;
-			fifo-size = <64>;
-		};
-
-		i2c0: i2c@58400000 {
-			compatible = "socionext,uniphier-i2c";
-			status = "disabled";
-			reg = <0x58400000 0x40>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_i2c0>;
-			interrupts = <0 41 1>;
-			clocks = <&iobus_clk>;
-			clock-frequency = <100000>;
-		};
-
-		i2c1: i2c@58480000 {
-			compatible = "socionext,uniphier-i2c";
-			status = "disabled";
-			reg = <0x58480000 0x40>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_i2c1>;
-			interrupts = <0 42 1>;
-			clocks = <&iobus_clk>;
-			clock-frequency = <100000>;
-		};
-
-		/* chip-internal connection for DMD */
-		i2c2: i2c@58500000 {
-			compatible = "socionext,uniphier-i2c";
-			reg = <0x58500000 0x40>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_i2c2>;
-			interrupts = <0 43 1>;
-			clocks = <&iobus_clk>;
-			clock-frequency = <400000>;
-		};
-
-		i2c3: i2c@58580000 {
-			compatible = "socionext,uniphier-i2c";
-			status = "disabled";
-			reg = <0x58580000 0x40>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_i2c3>;
-			interrupts = <0 44 1>;
-			clocks = <&iobus_clk>;
-			clock-frequency = <100000>;
-		};
-
-		system-bus-controller@58c00000 {
-			compatible = "socionext,uniphier-system-bus-controller";
-			reg = <0x58c00000 0x400>, <0x59800000 0x2000>;
-		};
-
-		usb0: usb@5a800100 {
-			compatible = "socionext,uniphier-ehci", "generic-ehci";
-			status = "disabled";
-			reg = <0x5a800100 0x100>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usb0>;
-			interrupts = <0 80 4>;
-		};
-
-		usb1: usb@5a810100 {
-			compatible = "socionext,uniphier-ehci", "generic-ehci";
-			status = "disabled";
-			reg = <0x5a810100 0x100>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usb1>;
-			interrupts = <0 81 4>;
-		};
-
-		usb2: usb@5a820100 {
-			compatible = "socionext,uniphier-ehci", "generic-ehci";
-			status = "disabled";
-			reg = <0x5a820100 0x100>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_usb2>;
-			interrupts = <0 82 4>;
-		};
-
-		pinctrl: pinctrl@5f801000 {
-			compatible = "socionext,ph1-sld8-pinctrl",
-				     "syscon";
-			reg = <0x5f801000 0xe00>;
-		};
-
-		timer@60000200 {
-			compatible = "arm,cortex-a9-global-timer";
-			reg = <0x60000200 0x20>;
-			interrupts = <1 11 0x104>;
-			clocks = <&arm_timer_clk>;
-		};
-
-		timer@60000600 {
-			compatible = "arm,cortex-a9-twd-timer";
-			reg = <0x60000600 0x20>;
-			interrupts = <1 13 0x104>;
-			clocks = <&arm_timer_clk>;
-		};
-
-		intc: interrupt-controller@60001000 {
-			compatible = "arm,cortex-a9-gic";
-			#interrupt-cells = <3>;
-			interrupt-controller;
-			reg = <0x60001000 0x1000>,
-			      <0x60000100 0x100>;
-		};
+	usb2: usb@5a820100 {
+		compatible = "socionext,uniphier-ehci", "generic-ehci";
+		status = "disabled";
+		reg = <0x5a820100 0x100>;
+		interrupts = <0 82 4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb2>;
 	};
 };
 
-/include/ "uniphier-pinctrl.dtsi"
+&serial3 {
+	interrupts = <0 29 4>;
+};
+
+&pinctrl {
+	compatible = "socionext,ph1-sld8-pinctrl", "syscon";
+};

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -879,9 +879,8 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	ACPI_FUNCTION_TRACE(acpi_install_gpe_handler);
 
-	status =
-	    acpi_ev_install_gpe_handler(gpe_device, gpe_number, type, FALSE,
-					address, context);
+	status = acpi_ev_install_gpe_handler(gpe_device, gpe_number, type,
+					     FALSE, address, context);
 
 	return_ACPI_STATUS(status);
 }
@@ -914,8 +913,8 @@ acpi_install_gpe_raw_handler(acpi_handle gpe_device,
 
 	ACPI_FUNCTION_TRACE(acpi_install_gpe_raw_handler);
 
-	status = acpi_ev_install_gpe_handler(gpe_device, gpe_number, type, TRUE,
-					     address, context);
+	status = acpi_ev_install_gpe_handler(gpe_device, gpe_number, type,
+					     TRUE, address, context);
 
 	return_ACPI_STATUS(status);
 }

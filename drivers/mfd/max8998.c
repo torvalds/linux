@@ -274,7 +274,7 @@ MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
 static int max8998_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -284,7 +284,7 @@ static int max8998_suspend(struct device *dev)
 
 static int max8998_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max8998_dev *max8998 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -344,7 +344,7 @@ static struct max8998_reg_dump max8998_dump[] = {
 /* Save registers before hibernation */
 static int max8998_freeze(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)
@@ -357,7 +357,7 @@ static int max8998_freeze(struct device *dev)
 /* Restore registers after hibernation */
 static int max8998_restore(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(max8998_dump); i++)

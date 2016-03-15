@@ -1,6 +1,4 @@
 #define PSEUDO_DMA
-#define UNSAFE  /* Not unsafe for PAS16 -- use it */
-#define PDEBUG 0
 
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver
@@ -71,14 +69,10 @@
  
 #include <linux/module.h>
 
-#include <linux/signal.h>
-#include <linux/proc_fs.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <linux/blkdev.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/stat.h>
 #include <linux/init.h>
 
 #include <scsi/scsi_host.h>
@@ -87,8 +81,8 @@
 #include "NCR5380.h"
 
 
-static unsigned short pas16_addr = 0;
-static int pas16_irq = 0;
+static unsigned short pas16_addr;
+static int pas16_irq;
  
 
 static const int scsi_irq_translate[] =
@@ -146,22 +140,6 @@ static const unsigned short  pas16_offset[ 8 ] =
 		    * START_DMA_INITIATOR_RECEIVE_REG wo
 		    */
     };
-/*----------------------------------------------------------------*/
-/* the following will set the monitor border color (useful to find
- where something crashed or gets stuck at */
-/* 1 = blue
- 2 = green
- 3 = cyan
- 4 = red
- 5 = magenta
- 6 = yellow
- 7 = white
-*/
-#if 1
-#define rtrc(i) {inb(0x3da); outb(0x31, 0x3c0); outb((i), 0x3c0);}
-#else
-#define rtrc(i) {}
-#endif
 
 
 /*
@@ -205,7 +183,7 @@ static void __init
 	outb( 0x01, io_port + P_TIMEOUT_STATUS_REG_OFFSET );   /* Reset TC */
 	outb( 0x01, io_port + WAIT_STATE );   /* 1 Wait state */
 
-	NCR5380_read( RESET_PARITY_INTERRUPT_REG );
+	inb(io_port + pas16_offset[RESET_PARITY_INTERRUPT_REG]);
 
 	/* Set the SCSI interrupt pointer without mucking up the sound
 	 * interrupt pointer in the same byte.
@@ -280,13 +258,13 @@ static int __init
      * put in an additional test to try to weed them out.
      */
 
-    outb( 0x01, io_port + WAIT_STATE ); 	/* 1 Wait state */
-    NCR5380_write( MODE_REG, 0x20 );		/* Is it really SCSI? */
-    if( NCR5380_read( MODE_REG ) != 0x20 )	/* Write to a reg.    */
-	return 0;				/* and try to read    */
-    NCR5380_write( MODE_REG, 0x00 );		/* it back.	      */
-    if( NCR5380_read( MODE_REG ) != 0x00 )
-	return 0;
+	outb(0x01, io_port + WAIT_STATE);             /* 1 Wait state */
+	outb(0x20, io_port + pas16_offset[MODE_REG]); /* Is it really SCSI? */
+	if (inb(io_port + pas16_offset[MODE_REG]) != 0x20) /* Write to a reg. */
+		return 0;                                  /* and try to read */
+	outb(0x00, io_port + pas16_offset[MODE_REG]);      /* it back. */
+	if (inb(io_port + pas16_offset[MODE_REG]) != 0x00)
+		return 0;
 
     return 1;
 }
@@ -305,7 +283,7 @@ static int __init
 
 static int __init pas16_setup(char *str)
 {
-    static int commandline_current = 0;
+	static int commandline_current;
     int i;
     int ints[10];
 
@@ -344,8 +322,8 @@ __setup("pas16=", pas16_setup);
 
 static int __init pas16_detect(struct scsi_host_template *tpnt)
 {
-    static int current_override = 0;
-    static unsigned short current_base = 0;
+	static int current_override;
+	static unsigned short current_base;
     struct Scsi_Host *instance;
     unsigned short io_port;
     int  count;
@@ -377,34 +355,32 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	}
 	else
 	    for (; !io_port && (current_base < NO_BASES); ++current_base) {
-#if (PDEBUG & PDEBUG_INIT)
-    printk("scsi-pas16 : probing io_port %04x\n", (unsigned int) bases[current_base].io_port);
-#endif
+		dprintk(NDEBUG_INIT, "pas16: probing io_port 0x%04x\n",
+		        (unsigned int)bases[current_base].io_port);
 		if ( !bases[current_base].noauto &&
 		     pas16_hw_detect( current_base ) ){
 			io_port = bases[current_base].io_port;
 			init_board( io_port, default_irqs[ current_base ], 0 ); 
-#if (PDEBUG & PDEBUG_INIT)
-			printk("scsi-pas16 : detected board.\n");
-#endif
+			dprintk(NDEBUG_INIT, "pas16: detected board\n");
 		}
     }
 
-
-#if defined(PDEBUG) && (PDEBUG & PDEBUG_INIT)
-	printk("scsi-pas16 : io_port = %04x\n", (unsigned int) io_port);
-#endif
+	dprintk(NDEBUG_INIT, "pas16: io_port = 0x%04x\n",
+	        (unsigned int)io_port);
 
 	if (!io_port)
 	    break;
 
 	instance = scsi_register (tpnt, sizeof(struct NCR5380_hostdata));
 	if(instance == NULL)
-		break;
+		goto out;
 		
 	instance->io_port = io_port;
 
-	NCR5380_init(instance, 0);
+	if (NCR5380_init(instance, 0))
+		goto out_unregister;
+
+	NCR5380_maybe_reset_bus(instance);
 
 	if (overrides[current_override].irq != IRQ_AUTO)
 	    instance->irq = overrides[current_override].irq;
@@ -431,14 +407,18 @@ static int __init pas16_detect(struct scsi_host_template *tpnt)
 	    outb( (inb(io_port + IO_CONFIG_3) & 0x0f), io_port + IO_CONFIG_3 );
 	}
 
-#if defined(PDEBUG) && (PDEBUG & PDEBUG_INIT)
-	printk("scsi%d : irq = %d\n", instance->host_no, instance->irq);
-#endif
+	dprintk(NDEBUG_INIT, "scsi%d : irq = %d\n",
+	        instance->host_no, instance->irq);
 
 	++current_override;
 	++count;
     }
     return count;
+
+out_unregister:
+	scsi_unregister(instance);
+out:
+	return count;
 }
 
 /*
@@ -561,29 +541,29 @@ static int pas16_release(struct Scsi_Host *shost)
 	if (shost->irq != NO_IRQ)
 		free_irq(shost->irq, shost);
 	NCR5380_exit(shost);
-	if (shost->io_port && shost->n_io_port)
-		release_region(shost->io_port, shost->n_io_port);
 	scsi_unregister(shost);
 	return 0;
 }
 
 static struct scsi_host_template driver_template = {
-	.name           = "Pro Audio Spectrum-16 SCSI",
-	.detect         = pas16_detect,
-	.release        = pas16_release,
-	.proc_name      = "pas16",
-	.show_info      = pas16_show_info,
-	.write_info     = pas16_write_info,
-	.info           = pas16_info,
-	.queuecommand   = pas16_queue_command,
-	.eh_abort_handler = pas16_abort,
-	.eh_bus_reset_handler = pas16_bus_reset,
-	.bios_param     = pas16_biosparam, 
-	.can_queue      = CAN_QUEUE,
-	.this_id        = 7,
-	.sg_tablesize   = SG_ALL,
-	.cmd_per_lun    = CMD_PER_LUN,
-	.use_clustering = DISABLE_CLUSTERING,
+	.name			= "Pro Audio Spectrum-16 SCSI",
+	.detect			= pas16_detect,
+	.release		= pas16_release,
+	.proc_name		= "pas16",
+	.show_info		= pas16_show_info,
+	.write_info		= pas16_write_info,
+	.info			= pas16_info,
+	.queuecommand		= pas16_queue_command,
+	.eh_abort_handler	= pas16_abort,
+	.eh_bus_reset_handler	= pas16_bus_reset,
+	.bios_param		= pas16_biosparam,
+	.can_queue		= 32,
+	.this_id		= 7,
+	.sg_tablesize		= SG_ALL,
+	.cmd_per_lun		= 2,
+	.use_clustering		= DISABLE_CLUSTERING,
+	.cmd_size		= NCR5380_CMD_SIZE,
+	.max_sectors		= 128,
 };
 #include "scsi_module.c"
 

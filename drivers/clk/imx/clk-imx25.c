@@ -96,13 +96,11 @@ static struct clk ** const uart_clks[] __initconst = {
 	NULL
 };
 
-static int __init __mx25_clocks_init(unsigned long osc_rate,
-				     void __iomem *ccm_base)
+static int __init __mx25_clocks_init(void __iomem *ccm_base)
 {
 	BUG_ON(!ccm_base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-	clk[osc] = imx_clk_fixed("osc", osc_rate);
 	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX25, "mpll", "osc", ccm(CCM_MPCTL));
 	clk[upll] = imx_clk_pllv1(IMX_PLLV1_IMX25, "upll", "osc", ccm(CCM_UPCTL));
 	clk[mpll_cpu_3_4] = imx_clk_fixed_factor("mpll_cpu_3_4", "mpll", 3, 4);
@@ -250,22 +248,10 @@ static int __init __mx25_clocks_init(unsigned long osc_rate,
 
 static void __init mx25_clocks_init_dt(struct device_node *np)
 {
-	struct device_node *refnp;
-	unsigned long osc_rate = 24000000;
 	void __iomem *ccm;
 
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(refnp, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(refnp, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(refnp, "fsl,imx-osc"))
-			osc_rate = rate;
-	}
-
 	ccm = of_iomap(np, 0);
-	__mx25_clocks_init(osc_rate, ccm);
+	__mx25_clocks_init(ccm);
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);

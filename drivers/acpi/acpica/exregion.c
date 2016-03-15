@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2016, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -392,7 +392,8 @@ acpi_ex_pci_config_space_handler(u32 function,
 	pci_register = (u16) (u32) address;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			  "Pci-Config %u (%u) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+			  "Pci-Config %u (%u) Seg(%04x) Bus(%04x) "
+			  "Dev(%04x) Func(%04x) Reg(%04x)\n",
 			  function, bit_width, pci_id->segment, pci_id->bus,
 			  pci_id->device, pci_id->function, pci_register));
 
@@ -400,14 +401,16 @@ acpi_ex_pci_config_space_handler(u32 function,
 	case ACPI_READ:
 
 		*value = 0;
-		status = acpi_os_read_pci_configuration(pci_id, pci_register,
-							value, bit_width);
+		status =
+		    acpi_os_read_pci_configuration(pci_id, pci_register, value,
+						   bit_width);
 		break;
 
 	case ACPI_WRITE:
 
-		status = acpi_os_write_pci_configuration(pci_id, pci_register,
-							 *value, bit_width);
+		status =
+		    acpi_os_write_pci_configuration(pci_id, pci_register,
+						    *value, bit_width);
 		break;
 
 	default:

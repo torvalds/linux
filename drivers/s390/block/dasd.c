@@ -2556,8 +2556,12 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 		return;
 	}
 
-	/* if device ist stopped do not fetch new requests */
-	if (basedev->stopped)
+	/*
+	 * if device is stopped do not fetch new requests
+	 * except failfast is active which will let requests fail
+	 * immediately in __dasd_block_start_head()
+	 */
+	if (basedev->stopped && !(basedev->features & DASD_FEATURE_FAILFAST))
 		return;
 
 	/* Now we try to fetch requests from the request queue */
@@ -3031,6 +3035,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, block->request_queue);
+	block->request_queue->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(block->request_queue,
 				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);

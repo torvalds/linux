@@ -166,8 +166,13 @@ struct htt_data_tx_desc {
 	__le16 len;
 	__le16 id;
 	__le32 frags_paddr;
-	__le16 peerid;
-	__le16 freq;
+	union {
+		__le32 peerid;
+		struct {
+			__le16 peerid;
+			__le16 freq;
+		} __packed offchan_tx;
+	} __packed;
 	u8 prefetch[0]; /* start of frame, for FW classification engine */
 } __packed;
 
@@ -1597,6 +1602,10 @@ void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt, bool limit_mgmt_desc);
 int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb);
 void ath10k_htt_tx_free_msdu_id(struct ath10k_htt *htt, u16 msdu_id);
 int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *);
-int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *);
+int ath10k_htt_tx(struct ath10k_htt *htt,
+		  enum ath10k_hw_txrx_mode txmode,
+		  struct sk_buff *msdu);
+void ath10k_htt_rx_pktlog_completion_handler(struct ath10k *ar,
+					     struct sk_buff *skb);
 
 #endif

@@ -64,6 +64,7 @@ static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 	/* Start DC channel and DI after IDMAC */
 	ipu_dc_enable_channel(ipu_crtc->dc);
 	ipu_di_enable(ipu_crtc->di);
+	drm_crtc_vblank_on(&ipu_crtc->base);
 
 	ipu_crtc->enabled = 1;
 }
@@ -80,6 +81,7 @@ static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 	ipu_di_disable(ipu_crtc->di);
 	ipu_plane_disable(ipu_crtc->plane[0]);
 	ipu_dc_disable(ipu);
+	drm_crtc_vblank_off(&ipu_crtc->base);
 
 	ipu_crtc->enabled = 0;
 }
@@ -270,7 +272,7 @@ static void ipu_crtc_commit(struct drm_crtc *crtc)
 	ipu_fb_enable(ipu_crtc);
 }
 
-static struct drm_crtc_helper_funcs ipu_helper_funcs = {
+static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.dpms = ipu_crtc_dpms,
 	.mode_fixup = ipu_crtc_mode_fixup,
 	.mode_set = ipu_crtc_mode_set,

@@ -71,10 +71,9 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	u32 val;
 	unsigned long flags = 0;
 
-	if (mux->table)
+	if (mux->table) {
 		index = mux->table[index];
-
-	else {
+	} else {
 		if (mux->flags & CLK_MUX_INDEX_BIT)
 			index = 1 << index;
 

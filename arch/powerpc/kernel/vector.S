@@ -29,22 +29,8 @@ _GLOBAL(do_load_up_transact_altivec)
 	addi	r10,r3,THREAD_TRANSACT_VRSTATE
 	REST_32VRS(0,r4,r10)
 
-	/* Disable VEC again. */
-	MTMSRD(r6)
-	isync
-
 	blr
 #endif
-
-/*
- * Enable use of VMX/Altivec for the caller.
- */
-_GLOBAL(vec_enable)
-	mfmsr	r3
-	oris	r3,r3,MSR_VEC@h
-	MTMSRD(r3)
-	isync
-	blr
 
 /*
  * Load state from memory into VMX registers including VSCR.
@@ -84,39 +70,6 @@ _GLOBAL(load_up_altivec)
 	MTMSRD(r5)			/* enable use of AltiVec now */
 	isync
 
-/*
- * For SMP, we don't do lazy VMX switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_altvec in switch_to.
- * VRSAVE isn't dealt with here, that is done in the normal context
- * switch code. Note that we could rely on vrsave value to eventually
- * avoid saving all of the VREGs here...
- */
-#ifndef CONFIG_SMP
-	LOAD_REG_ADDRBASE(r3, last_task_used_altivec)
-	toreal(r3)
-	PPC_LL	r4,ADDROFF(last_task_used_altivec)(r3)
-	PPC_LCMPI	0,r4,0
-	beq	1f
-
-	/* Save VMX state to last_task_used_altivec's THREAD struct */
-	toreal(r4)
-	addi	r4,r4,THREAD
-	addi	r6,r4,THREAD_VRSTATE
-	SAVE_32VRS(0,r5,r6)
-	mfvscr	v0
-	li	r10,VRSTATE_VSCR
-	stvx	v0,r10,r6
-	/* Disable VMX for last_task_used_altivec */
-	PPC_LL	r5,PT_REGS(r4)
-	toreal(r5)
-	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r10,MSR_VEC@h
-	andc	r4,r4,r10
-	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-
 	/* Hack: if we get an altivec unavailable trap with VRSAVE
 	 * set to all zeros, we assume this is a broken application
 	 * that fails to set it properly, and thus we switch it to
@@ -145,39 +98,15 @@ _GLOBAL(load_up_altivec)
 	lvx	v0,r10,r6
 	mtvscr	v0
 	REST_32VRS(0,r4,r6)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_altivec to 'current' */
-	subi	r4,r5,THREAD		/* Back to 'current' */
-	fromreal(r4)
-	PPC_STL	r4,ADDROFF(last_task_used_altivec)(r3)
-#endif /* CONFIG_SMP */
 	/* restore registers and return */
 	blr
 
-_GLOBAL(giveup_altivec_notask)
-	mfmsr	r3
-	andis.	r4,r3,MSR_VEC@h
-	bnelr				/* Already enabled? */
-	oris	r3,r3,MSR_VEC@h
-	SYNC
-	MTMSRD(r3)			/* enable use of VMX now */
-	isync
-	blr
-
 /*
- * giveup_altivec(tsk)
+ * __giveup_altivec(tsk)
  * Disable VMX for the task given as the argument,
  * and save the vector registers in its thread_struct.
- * Enables the VMX for use in the kernel on return.
  */
-_GLOBAL(giveup_altivec)
-	mfmsr	r5
-	oris	r5,r5,MSR_VEC@h
-	SYNC
-	MTMSRD(r5)			/* enable use of VMX now */
-	isync
-	PPC_LCMPI	0,r3,0
-	beqlr				/* if no previous owner, done */
+_GLOBAL(__giveup_altivec)
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	PPC_LL	r7,THREAD_VRSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)
@@ -203,11 +132,6 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_VSX)
 	andc	r4,r4,r3		/* disable FP for previous task */
 	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	LOAD_REG_ADDRBASE(r4,last_task_used_altivec)
-	PPC_STL	r5,ADDROFF(last_task_used_altivec)(r4)
-#endif /* CONFIG_SMP */
 	blr
 
 #ifdef CONFIG_VSX
@@ -230,20 +154,6 @@ _GLOBAL(load_up_vsx)
 	andis.	r5,r12,MSR_VEC@h
 	beql+	load_up_altivec		/* skip if already loaded */
 
-#ifndef CONFIG_SMP
-	ld	r3,last_task_used_vsx@got(r2)
-	ld	r4,0(r3)
-	cmpdi	0,r4,0
-	beq	1f
-	/* Disable VSX for last_task_used_vsx */
-	addi	r4,r4,THREAD
-	ld	r5,PT_REGS(r4)
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	lis	r6,MSR_VSX@h
-	andc	r6,r4,r6
-	std	r6,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
 	ld	r4,PACACURRENT(r13)
 	addi	r4,r4,THREAD		/* Get THREAD */
 	li	r6,1
@@ -251,27 +161,14 @@ _GLOBAL(load_up_vsx)
 	/* enable use of VSX after return */
 	oris	r12,r12,MSR_VSX@h
 	std	r12,_MSR(r1)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_vsx to 'current' */
-	ld	r4,PACACURRENT(r13)
-	std	r4,0(r3)
-#endif /* CONFIG_SMP */
 	b	fast_exception_return
 
 /*
  * __giveup_vsx(tsk)
  * Disable VSX for the task given as the argument.
  * Does NOT save vsx registers.
- * Enables the VSX for use in the kernel on return.
  */
 _GLOBAL(__giveup_vsx)
-	mfmsr	r5
-	oris	r5,r5,MSR_VSX@h
-	mtmsrd	r5			/* enable use of VSX now */
-	isync
-
-	cmpdi	0,r3,0
-	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD		/* want THREAD of task */
 	ld	r5,PT_REGS(r3)
 	cmpdi	0,r5,0
@@ -281,11 +178,6 @@ _GLOBAL(__giveup_vsx)
 	andc	r4,r4,r3		/* disable VSX for previous task */
 	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	ld	r4,last_task_used_vsx@got(r2)
-	std	r5,0(r4)
-#endif /* CONFIG_SMP */
 	blr
 
 #endif /* CONFIG_VSX */

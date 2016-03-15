@@ -1267,13 +1267,6 @@ static int __init numa_parse_mdesc(void)
 	int i, j, err, count;
 	u64 node;
 
-	/* Some sane defaults for numa latency values */
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		for (j = 0; j < MAX_NUMNODES; j++)
-			numa_latency[i][j] = (i == j) ?
-				LOCAL_DISTANCE : REMOTE_DISTANCE;
-	}
-
 	node = mdesc_node_by_name(md, MDESC_NODE_NULL, "latency-groups");
 	if (node == MDESC_NODE_NULL) {
 		mdesc_release(md);
@@ -1369,9 +1362,17 @@ static int __init numa_parse_sun4u(void)
 
 static int __init bootmem_init_numa(void)
 {
+	int i, j;
 	int err = -1;
 
 	numadbg("bootmem_init_numa()\n");
+
+	/* Some sane defaults for numa latency values */
+	for (i = 0; i < MAX_NUMNODES; i++) {
+		for (j = 0; j < MAX_NUMNODES; j++)
+			numa_latency[i][j] = (i == j) ?
+				LOCAL_DISTANCE : REMOTE_DISTANCE;
+	}
 
 	if (numa_enabled) {
 		if (tlb_type == hypervisor)

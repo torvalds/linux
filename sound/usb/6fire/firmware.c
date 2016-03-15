@@ -350,7 +350,7 @@ static int usb6fire_fw_check(struct usb_interface *intf, const u8 *version)
 		if (!memcmp(version, known_fw_versions + i, 2))
 			return 0;
 
-	dev_err(&intf->dev, "invalid fimware version in device: %4ph. "
+	dev_err(&intf->dev, "invalid firmware version in device: %4ph. "
 			"please reconnect to power. if this failure "
 			"still happens, check your firmware installation.",
 			version);

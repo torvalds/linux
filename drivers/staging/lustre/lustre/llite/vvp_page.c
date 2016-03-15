@@ -27,7 +27,7 @@
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -428,7 +428,7 @@ static void vvp_transient_page_verify(const struct cl_page *page)
 {
 	struct inode *inode = ccc_object_inode(page->cp_obj);
 
-	LASSERT(!mutex_trylock(&inode->i_mutex));
+	LASSERT(!inode_trylock(inode));
 }
 
 static int vvp_transient_page_own(const struct lu_env *env,
@@ -480,9 +480,9 @@ static int vvp_transient_page_is_vmlocked(const struct lu_env *env,
 	struct inode    *inode = ccc_object_inode(slice->cpl_obj);
 	int	locked;
 
-	locked = !mutex_trylock(&inode->i_mutex);
+	locked = !inode_trylock(inode);
 	if (!locked)
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 	return locked ? -EBUSY : -ENODATA;
 }
 
@@ -502,7 +502,7 @@ static void vvp_transient_page_fini(const struct lu_env *env,
 	struct ccc_object *clobj = cl2ccc(clp->cp_obj);
 
 	vvp_page_fini_common(cp);
-	LASSERT(!mutex_trylock(&clobj->cob_inode->i_mutex));
+	LASSERT(!inode_trylock(clobj->cob_inode));
 	clobj->cob_transient_pages--;
 }
 
@@ -548,7 +548,7 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	} else {
 		struct ccc_object *clobj = cl2ccc(obj);
 
-		LASSERT(!mutex_trylock(&clobj->cob_inode->i_mutex));
+		LASSERT(!inode_trylock(clobj->cob_inode));
 		cl_page_slice_add(page, &cpg->cpg_cl, obj,
 				&vvp_transient_page_ops);
 		clobj->cob_transient_pages++;

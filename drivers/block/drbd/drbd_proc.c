@@ -245,9 +245,9 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	char wp;
 
 	static char write_ordering_chars[] = {
-		[WO_none] = 'n',
-		[WO_drain_io] = 'd',
-		[WO_bdev_flush] = 'f',
+		[WO_NONE] = 'n',
+		[WO_DRAIN_IO] = 'd',
+		[WO_BDEV_FLUSH] = 'f',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",

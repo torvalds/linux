@@ -14,6 +14,7 @@
 
 #include <drm/drm.h>
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -35,11 +36,6 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
 
-#define VOP_REG(off, _mask, s) \
-		{.offset = off, \
-		 .mask = _mask, \
-		 .shift = s,}
-
 #define __REG_SET_RELAXED(x, off, mask, shift, v) \
 		vop_mask_write_relaxed(x, off, (mask) << shift, (v) << shift)
 #define __REG_SET_NORMAL(x, off, mask, shift, v) \
@@ -47,13 +43,36 @@
 
 #define REG_SET(x, base, reg, v, mode) \
 		__REG_SET_##mode(x, base + reg.offset, reg.mask, reg.shift, v)
+#define REG_SET_MASK(x, base, reg, mask, v, mode) \
+		__REG_SET_##mode(x, base + reg.offset, mask, reg.shift, v)
 
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->name, v, RELAXED)
 #define VOP_SCL_SET(x, win, name, v) \
 		REG_SET(x, win->base, win->phy->scl->name, v, RELAXED)
+#define VOP_SCL_SET_EXT(x, win, name, v) \
+		REG_SET(x, win->base, win->phy->scl->ext->name, v, RELAXED)
 #define VOP_CTRL_SET(x, name, v) \
 		REG_SET(x, 0, (x)->data->ctrl->name, v, NORMAL)
+
+#define VOP_INTR_GET(vop, name) \
+		vop_read_reg(vop, 0, &vop->data->ctrl->name)
+
+#define VOP_INTR_SET(vop, name, mask, v) \
+		REG_SET_MASK(vop, 0, vop->data->intr->name, mask, v, NORMAL)
+#define VOP_INTR_SET_TYPE(vop, name, type, v) \
+	do { \
+		int i, reg = 0, mask = 0; \
+		for (i = 0; i < vop->data->intr->nintrs; i++) { \
+			if (vop->data->intr->intrs[i] & type) { \
+				reg |= (v) << i; \
+				mask |= 1 << i; \
+			} \
+		} \
+		VOP_INTR_SET(vop, name, mask, reg); \
+	} while (0)
+#define VOP_INTR_GET_TYPE(vop, name, type) \
+		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
 #define VOP_WIN_GET(x, win, name) \
 		vop_read_reg(x, win->base, &win->phy->name)
@@ -63,12 +82,15 @@
 
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
+#define to_vop_plane_state(x) container_of(x, struct vop_plane_state, base)
 
-struct vop_win_state {
-	struct list_head head;
-	struct drm_framebuffer *fb;
+struct vop_plane_state {
+	struct drm_plane_state base;
+	int format;
+	struct drm_rect src;
+	struct drm_rect dest;
 	dma_addr_t yrgb_mst;
-	struct drm_pending_vblank_event *event;
+	bool enable;
 };
 
 struct vop_win {
@@ -76,8 +98,7 @@ struct vop_win {
 	const struct vop_win_data *data;
 	struct vop *vop;
 
-	struct list_head pending;
-	struct vop_win_state *active;
+	struct vop_plane_state state;
 };
 
 struct vop {
@@ -86,13 +107,12 @@ struct vop {
 	struct drm_device *drm_dev;
 	bool is_enabled;
 
-	int connector_type;
-	int connector_out_mode;
-
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
 	struct completion dsp_hold_completion;
+	struct completion wait_update_complete;
+	struct drm_pending_vblank_event *event;
 
 	const struct vop_data *data;
 
@@ -119,262 +139,8 @@ struct vop {
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
 
-	int pipe;
-
 	struct vop_win win[];
 };
-
-enum vop_data_format {
-	VOP_FMT_ARGB8888 = 0,
-	VOP_FMT_RGB888,
-	VOP_FMT_RGB565,
-	VOP_FMT_YUV420SP = 4,
-	VOP_FMT_YUV422SP,
-	VOP_FMT_YUV444SP,
-};
-
-struct vop_reg_data {
-	uint32_t offset;
-	uint32_t value;
-};
-
-struct vop_reg {
-	uint32_t offset;
-	uint32_t shift;
-	uint32_t mask;
-};
-
-struct vop_ctrl {
-	struct vop_reg standby;
-	struct vop_reg data_blank;
-	struct vop_reg gate_en;
-	struct vop_reg mmu_en;
-	struct vop_reg rgb_en;
-	struct vop_reg edp_en;
-	struct vop_reg hdmi_en;
-	struct vop_reg mipi_en;
-	struct vop_reg out_mode;
-	struct vop_reg dither_down;
-	struct vop_reg dither_up;
-	struct vop_reg pin_pol;
-
-	struct vop_reg htotal_pw;
-	struct vop_reg hact_st_end;
-	struct vop_reg vtotal_pw;
-	struct vop_reg vact_st_end;
-	struct vop_reg hpost_st_end;
-	struct vop_reg vpost_st_end;
-};
-
-struct vop_scl_regs {
-	struct vop_reg cbcr_vsd_mode;
-	struct vop_reg cbcr_vsu_mode;
-	struct vop_reg cbcr_hsd_mode;
-	struct vop_reg cbcr_ver_scl_mode;
-	struct vop_reg cbcr_hor_scl_mode;
-	struct vop_reg yrgb_vsd_mode;
-	struct vop_reg yrgb_vsu_mode;
-	struct vop_reg yrgb_hsd_mode;
-	struct vop_reg yrgb_ver_scl_mode;
-	struct vop_reg yrgb_hor_scl_mode;
-	struct vop_reg line_load_mode;
-	struct vop_reg cbcr_axi_gather_num;
-	struct vop_reg yrgb_axi_gather_num;
-	struct vop_reg vsd_cbcr_gt2;
-	struct vop_reg vsd_cbcr_gt4;
-	struct vop_reg vsd_yrgb_gt2;
-	struct vop_reg vsd_yrgb_gt4;
-	struct vop_reg bic_coe_sel;
-	struct vop_reg cbcr_axi_gather_en;
-	struct vop_reg yrgb_axi_gather_en;
-
-	struct vop_reg lb_mode;
-	struct vop_reg scale_yrgb_x;
-	struct vop_reg scale_yrgb_y;
-	struct vop_reg scale_cbcr_x;
-	struct vop_reg scale_cbcr_y;
-};
-
-struct vop_win_phy {
-	const struct vop_scl_regs *scl;
-	const uint32_t *data_formats;
-	uint32_t nformats;
-
-	struct vop_reg enable;
-	struct vop_reg format;
-	struct vop_reg rb_swap;
-	struct vop_reg act_info;
-	struct vop_reg dsp_info;
-	struct vop_reg dsp_st;
-	struct vop_reg yrgb_mst;
-	struct vop_reg uv_mst;
-	struct vop_reg yrgb_vir;
-	struct vop_reg uv_vir;
-
-	struct vop_reg dst_alpha_ctl;
-	struct vop_reg src_alpha_ctl;
-};
-
-struct vop_win_data {
-	uint32_t base;
-	const struct vop_win_phy *phy;
-	enum drm_plane_type type;
-};
-
-struct vop_data {
-	const struct vop_reg_data *init_table;
-	unsigned int table_size;
-	const struct vop_ctrl *ctrl;
-	const struct vop_win_data *win;
-	unsigned int win_size;
-};
-
-static const uint32_t formats_01[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_BGR888,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_BGR565,
-	DRM_FORMAT_NV12,
-	DRM_FORMAT_NV16,
-	DRM_FORMAT_NV24,
-};
-
-static const uint32_t formats_234[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_BGR888,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_BGR565,
-};
-
-static const struct vop_scl_regs win_full_scl = {
-	.cbcr_vsd_mode = VOP_REG(WIN0_CTRL1, 0x1, 31),
-	.cbcr_vsu_mode = VOP_REG(WIN0_CTRL1, 0x1, 30),
-	.cbcr_hsd_mode = VOP_REG(WIN0_CTRL1, 0x3, 28),
-	.cbcr_ver_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 26),
-	.cbcr_hor_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 24),
-	.yrgb_vsd_mode = VOP_REG(WIN0_CTRL1, 0x1, 23),
-	.yrgb_vsu_mode = VOP_REG(WIN0_CTRL1, 0x1, 22),
-	.yrgb_hsd_mode = VOP_REG(WIN0_CTRL1, 0x3, 20),
-	.yrgb_ver_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 18),
-	.yrgb_hor_scl_mode = VOP_REG(WIN0_CTRL1, 0x3, 16),
-	.line_load_mode = VOP_REG(WIN0_CTRL1, 0x1, 15),
-	.cbcr_axi_gather_num = VOP_REG(WIN0_CTRL1, 0x7, 12),
-	.yrgb_axi_gather_num = VOP_REG(WIN0_CTRL1, 0xf, 8),
-	.vsd_cbcr_gt2 = VOP_REG(WIN0_CTRL1, 0x1, 7),
-	.vsd_cbcr_gt4 = VOP_REG(WIN0_CTRL1, 0x1, 6),
-	.vsd_yrgb_gt2 = VOP_REG(WIN0_CTRL1, 0x1, 5),
-	.vsd_yrgb_gt4 = VOP_REG(WIN0_CTRL1, 0x1, 4),
-	.bic_coe_sel = VOP_REG(WIN0_CTRL1, 0x3, 2),
-	.cbcr_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 1),
-	.yrgb_axi_gather_en = VOP_REG(WIN0_CTRL1, 0x1, 0),
-	.lb_mode = VOP_REG(WIN0_CTRL0, 0x7, 5),
-	.scale_yrgb_x = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 0x0),
-	.scale_yrgb_y = VOP_REG(WIN0_SCL_FACTOR_YRGB, 0xffff, 16),
-	.scale_cbcr_x = VOP_REG(WIN0_SCL_FACTOR_CBR, 0xffff, 0x0),
-	.scale_cbcr_y = VOP_REG(WIN0_SCL_FACTOR_CBR, 0xffff, 16),
-};
-
-static const struct vop_win_phy win01_data = {
-	.scl = &win_full_scl,
-	.data_formats = formats_01,
-	.nformats = ARRAY_SIZE(formats_01),
-	.enable = VOP_REG(WIN0_CTRL0, 0x1, 0),
-	.format = VOP_REG(WIN0_CTRL0, 0x7, 1),
-	.rb_swap = VOP_REG(WIN0_CTRL0, 0x1, 12),
-	.act_info = VOP_REG(WIN0_ACT_INFO, 0x1fff1fff, 0),
-	.dsp_info = VOP_REG(WIN0_DSP_INFO, 0x0fff0fff, 0),
-	.dsp_st = VOP_REG(WIN0_DSP_ST, 0x1fff1fff, 0),
-	.yrgb_mst = VOP_REG(WIN0_YRGB_MST, 0xffffffff, 0),
-	.uv_mst = VOP_REG(WIN0_CBR_MST, 0xffffffff, 0),
-	.yrgb_vir = VOP_REG(WIN0_VIR, 0x3fff, 0),
-	.uv_vir = VOP_REG(WIN0_VIR, 0x3fff, 16),
-	.src_alpha_ctl = VOP_REG(WIN0_SRC_ALPHA_CTRL, 0xff, 0),
-	.dst_alpha_ctl = VOP_REG(WIN0_DST_ALPHA_CTRL, 0xff, 0),
-};
-
-static const struct vop_win_phy win23_data = {
-	.data_formats = formats_234,
-	.nformats = ARRAY_SIZE(formats_234),
-	.enable = VOP_REG(WIN2_CTRL0, 0x1, 0),
-	.format = VOP_REG(WIN2_CTRL0, 0x7, 1),
-	.rb_swap = VOP_REG(WIN2_CTRL0, 0x1, 12),
-	.dsp_info = VOP_REG(WIN2_DSP_INFO0, 0x0fff0fff, 0),
-	.dsp_st = VOP_REG(WIN2_DSP_ST0, 0x1fff1fff, 0),
-	.yrgb_mst = VOP_REG(WIN2_MST0, 0xffffffff, 0),
-	.yrgb_vir = VOP_REG(WIN2_VIR0_1, 0x1fff, 0),
-	.src_alpha_ctl = VOP_REG(WIN2_SRC_ALPHA_CTRL, 0xff, 0),
-	.dst_alpha_ctl = VOP_REG(WIN2_DST_ALPHA_CTRL, 0xff, 0),
-};
-
-static const struct vop_ctrl ctrl_data = {
-	.standby = VOP_REG(SYS_CTRL, 0x1, 22),
-	.gate_en = VOP_REG(SYS_CTRL, 0x1, 23),
-	.mmu_en = VOP_REG(SYS_CTRL, 0x1, 20),
-	.rgb_en = VOP_REG(SYS_CTRL, 0x1, 12),
-	.hdmi_en = VOP_REG(SYS_CTRL, 0x1, 13),
-	.edp_en = VOP_REG(SYS_CTRL, 0x1, 14),
-	.mipi_en = VOP_REG(SYS_CTRL, 0x1, 15),
-	.dither_down = VOP_REG(DSP_CTRL1, 0xf, 1),
-	.dither_up = VOP_REG(DSP_CTRL1, 0x1, 6),
-	.data_blank = VOP_REG(DSP_CTRL0, 0x1, 19),
-	.out_mode = VOP_REG(DSP_CTRL0, 0xf, 0),
-	.pin_pol = VOP_REG(DSP_CTRL0, 0xf, 4),
-	.htotal_pw = VOP_REG(DSP_HTOTAL_HS_END, 0x1fff1fff, 0),
-	.hact_st_end = VOP_REG(DSP_HACT_ST_END, 0x1fff1fff, 0),
-	.vtotal_pw = VOP_REG(DSP_VTOTAL_VS_END, 0x1fff1fff, 0),
-	.vact_st_end = VOP_REG(DSP_VACT_ST_END, 0x1fff1fff, 0),
-	.hpost_st_end = VOP_REG(POST_DSP_HACT_INFO, 0x1fff1fff, 0),
-	.vpost_st_end = VOP_REG(POST_DSP_VACT_INFO, 0x1fff1fff, 0),
-};
-
-static const struct vop_reg_data vop_init_reg_table[] = {
-	{SYS_CTRL, 0x00c00000},
-	{DSP_CTRL0, 0x00000000},
-	{WIN0_CTRL0, 0x00000080},
-	{WIN1_CTRL0, 0x00000080},
-	/* TODO: Win2/3 support multiple area function, but we haven't found
-	 * a suitable way to use it yet, so let's just use them as other windows
-	 * with only area 0 enabled.
-	 */
-	{WIN2_CTRL0, 0x00000010},
-	{WIN3_CTRL0, 0x00000010},
-};
-
-/*
- * Note: rk3288 has a dedicated 'cursor' window, however, that window requires
- * special support to get alpha blending working.  For now, just use overlay
- * window 3 for the drm cursor.
- *
- */
-static const struct vop_win_data rk3288_vop_win_data[] = {
-	{ .base = 0x00, .phy = &win01_data, .type = DRM_PLANE_TYPE_PRIMARY },
-	{ .base = 0x40, .phy = &win01_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x00, .phy = &win23_data, .type = DRM_PLANE_TYPE_OVERLAY },
-	{ .base = 0x50, .phy = &win23_data, .type = DRM_PLANE_TYPE_CURSOR },
-};
-
-static const struct vop_data rk3288_vop = {
-	.init_table = vop_init_reg_table,
-	.table_size = ARRAY_SIZE(vop_init_reg_table),
-	.ctrl = &ctrl_data,
-	.win = rk3288_vop_win_data,
-	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
-};
-
-static const struct of_device_id vop_driver_dt_match[] = {
-	{ .compatible = "rockchip,rk3288-vop",
-	  .data = &rk3288_vop },
-	{},
-};
-MODULE_DEVICE_TABLE(of, vop_driver_dt_match);
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -391,11 +157,6 @@ static inline uint32_t vop_read_reg(struct vop *vop, uint32_t base,
 				    const struct vop_reg *reg)
 {
 	return (vop_readl(vop, base + reg->offset) >> reg->shift) & reg->mask;
-}
-
-static inline void vop_cfg_done(struct vop *vop)
-{
-	writel(0x01, vop->regs + REG_CFG_DONE);
 }
 
 static inline void vop_mask_write(struct vop *vop, uint32_t offset,
@@ -420,6 +181,25 @@ static inline void vop_mask_write_relaxed(struct vop *vop, uint32_t offset,
 		writel_relaxed(cached_val, vop->regs + offset);
 		vop->regsbak[offset >> 2] = cached_val;
 	}
+}
+
+static inline uint32_t vop_get_intr_type(struct vop *vop,
+					 const struct vop_reg *reg, int type)
+{
+	uint32_t i, ret = 0;
+	uint32_t regs = vop_read_reg(vop, 0, reg);
+
+	for (i = 0; i < vop->data->intr->nintrs; i++) {
+		if ((type & vop->data->intr->intrs[i]) && (regs & 1 << i))
+			ret |= vop->data->intr->intrs[i];
+	}
+
+	return ret;
+}
+
+static inline void vop_cfg_done(struct vop *vop)
+{
+	VOP_CTRL_SET(vop, cfg_done, 1);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -537,6 +317,20 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 		return;
 	}
 
+	if (!win->phy->scl->ext) {
+		VOP_SCL_SET(vop, win, scale_yrgb_x,
+			    scl_cal_scale2(src_w, dst_w));
+		VOP_SCL_SET(vop, win, scale_yrgb_y,
+			    scl_cal_scale2(src_h, dst_h));
+		if (is_yuv) {
+			VOP_SCL_SET(vop, win, scale_cbcr_x,
+				    scl_cal_scale2(src_w, dst_w));
+			VOP_SCL_SET(vop, win, scale_cbcr_y,
+				    scl_cal_scale2(src_h, dst_h));
+		}
+		return;
+	}
+
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
 	yrgb_ver_scl_mode = scl_get_scl_mode(src_h, dst_h);
 
@@ -554,7 +348,7 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 			lb_mode = scl_vop_cal_lb_mode(src_w, false);
 	}
 
-	VOP_SCL_SET(vop, win, lb_mode, lb_mode);
+	VOP_SCL_SET_EXT(vop, win, lb_mode, lb_mode);
 	if (lb_mode == LB_RGB_3840X2) {
 		if (yrgb_ver_scl_mode != SCALE_NONE) {
 			DRM_ERROR("ERROR : not allow yrgb ver scale\n");
@@ -578,14 +372,14 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 				false, vsu_mode, &vskiplines);
 	VOP_SCL_SET(vop, win, scale_yrgb_y, val);
 
-	VOP_SCL_SET(vop, win, vsd_yrgb_gt4, vskiplines == 4);
-	VOP_SCL_SET(vop, win, vsd_yrgb_gt2, vskiplines == 2);
+	VOP_SCL_SET_EXT(vop, win, vsd_yrgb_gt4, vskiplines == 4);
+	VOP_SCL_SET_EXT(vop, win, vsd_yrgb_gt2, vskiplines == 2);
 
-	VOP_SCL_SET(vop, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
-	VOP_SCL_SET(vop, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
-	VOP_SCL_SET(vop, win, yrgb_hsd_mode, SCALE_DOWN_BIL);
-	VOP_SCL_SET(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
-	VOP_SCL_SET(vop, win, yrgb_vsu_mode, vsu_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
+	VOP_SCL_SET_EXT(vop, win, yrgb_hsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET_EXT(vop, win, yrgb_vsd_mode, SCALE_DOWN_BIL);
+	VOP_SCL_SET_EXT(vop, win, yrgb_vsu_mode, vsu_mode);
 	if (is_yuv) {
 		val = scl_vop_cal_scale(cbcr_hor_scl_mode, cbcr_src_w,
 					dst_w, true, 0, NULL);
@@ -594,13 +388,13 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 					dst_h, false, vsu_mode, &vskiplines);
 		VOP_SCL_SET(vop, win, scale_cbcr_y, val);
 
-		VOP_SCL_SET(vop, win, vsd_cbcr_gt4, vskiplines == 4);
-		VOP_SCL_SET(vop, win, vsd_cbcr_gt2, vskiplines == 2);
-		VOP_SCL_SET(vop, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
-		VOP_SCL_SET(vop, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
-		VOP_SCL_SET(vop, win, cbcr_hsd_mode, SCALE_DOWN_BIL);
-		VOP_SCL_SET(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
-		VOP_SCL_SET(vop, win, cbcr_vsu_mode, vsu_mode);
+		VOP_SCL_SET_EXT(vop, win, vsd_cbcr_gt4, vskiplines == 4);
+		VOP_SCL_SET_EXT(vop, win, vsd_cbcr_gt2, vskiplines == 2);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
+		VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
+		VOP_SCL_SET_EXT(vop, win, cbcr_hsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET_EXT(vop, win, cbcr_vsd_mode, SCALE_DOWN_BIL);
+		VOP_SCL_SET_EXT(vop, win, cbcr_vsu_mode, vsu_mode);
 	}
 }
 
@@ -613,8 +407,7 @@ static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
-	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
-		       DSP_HOLD_VALID_INTR_EN(1));
+	VOP_INTR_SET_TYPE(vop, enable, DSP_HOLD_VALID_INTR, 1);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
@@ -628,8 +421,7 @@ static void vop_dsp_hold_valid_irq_disable(struct vop *vop)
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
-	vop_mask_write(vop, INTR_CTRL0, DSP_HOLD_VALID_INTR_MASK,
-		       DSP_HOLD_VALID_INTR_EN(0));
+	VOP_INTR_SET_TYPE(vop, enable, DSP_HOLD_VALID_INTR, 0);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
@@ -692,7 +484,7 @@ static void vop_enable(struct drm_crtc *crtc)
 
 	enable_irq(vop->irq);
 
-	drm_vblank_on(vop->drm_dev, vop->pipe);
+	drm_crtc_vblank_on(crtc);
 
 	return;
 
@@ -704,14 +496,14 @@ err_disable_hclk:
 	clk_disable(vop->hclk);
 }
 
-static void vop_disable(struct drm_crtc *crtc)
+static void vop_crtc_disable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
 
 	if (!vop->is_enabled)
 		return;
 
-	drm_vblank_off(crtc->dev, vop->pipe);
+	drm_crtc_vblank_off(crtc);
 
 	/*
 	 * Vop standby will take effect at end of current frame,
@@ -748,224 +540,188 @@ static void vop_disable(struct drm_crtc *crtc)
 	pm_runtime_put(vop->dev);
 }
 
-/*
- * Caller must hold vsync_mutex.
- */
-static struct drm_framebuffer *vop_win_last_pending_fb(struct vop_win *vop_win)
+static void vop_plane_destroy(struct drm_plane *plane)
 {
-	struct vop_win_state *last;
-	struct vop_win_state *active = vop_win->active;
-
-	if (list_empty(&vop_win->pending))
-		return active ? active->fb : NULL;
-
-	last = list_last_entry(&vop_win->pending, struct vop_win_state, head);
-	return last ? last->fb : NULL;
+	drm_plane_cleanup(plane);
 }
 
-/*
- * Caller must hold vsync_mutex.
- */
-static int vop_win_queue_fb(struct vop_win *vop_win,
-			    struct drm_framebuffer *fb, dma_addr_t yrgb_mst,
-			    struct drm_pending_vblank_event *event)
+static int vop_plane_atomic_check(struct drm_plane *plane,
+			   struct drm_plane_state *state)
 {
-	struct vop_win_state *state;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return -ENOMEM;
-
-	state->fb = fb;
-	state->yrgb_mst = yrgb_mst;
-	state->event = event;
-
-	list_add_tail(&state->head, &vop_win->pending);
-
-	return 0;
-}
-
-static int vop_update_plane_event(struct drm_plane *plane,
-				  struct drm_crtc *crtc,
-				  struct drm_framebuffer *fb, int crtc_x,
-				  int crtc_y, unsigned int crtc_w,
-				  unsigned int crtc_h, uint32_t src_x,
-				  uint32_t src_y, uint32_t src_w,
-				  uint32_t src_h,
-				  struct drm_pending_vblank_event *event)
-{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_framebuffer *fb = state->fb;
 	struct vop_win *vop_win = to_vop_win(plane);
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	const struct vop_win_data *win = vop_win->data;
-	struct vop *vop = to_vop(crtc);
-	struct drm_gem_object *obj;
-	struct rockchip_gem_object *rk_obj;
-	struct drm_gem_object *uv_obj;
-	struct rockchip_gem_object *rk_uv_obj;
-	unsigned long offset;
-	unsigned int actual_w;
-	unsigned int actual_h;
-	unsigned int dsp_stx;
-	unsigned int dsp_sty;
-	unsigned int y_vir_stride;
-	unsigned int uv_vir_stride = 0;
-	dma_addr_t yrgb_mst;
-	dma_addr_t uv_mst = 0;
-	enum vop_data_format format;
-	uint32_t val;
-	bool is_alpha;
-	bool rb_swap;
-	bool is_yuv;
 	bool visible;
 	int ret;
-	struct drm_rect dest = {
-		.x1 = crtc_x,
-		.y1 = crtc_y,
-		.x2 = crtc_x + crtc_w,
-		.y2 = crtc_y + crtc_h,
-	};
-	struct drm_rect src = {
-		/* 16.16 fixed point */
-		.x1 = src_x,
-		.y1 = src_y,
-		.x2 = src_x + src_w,
-		.y2 = src_y + src_h,
-	};
-	const struct drm_rect clip = {
-		.x2 = crtc->mode.hdisplay,
-		.y2 = crtc->mode.vdisplay,
-	};
-	bool can_position = plane->type != DRM_PLANE_TYPE_PRIMARY;
+	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_rect *src = &vop_plane_state->src;
+	struct drm_rect clip;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
 					DRM_PLANE_HELPER_NO_SCALING;
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    &src, &dest, &clip,
+	crtc = crtc ? crtc : plane->state->crtc;
+	/*
+	 * Both crtc or plane->state->crtc can be null.
+	 */
+	if (!crtc || !fb)
+		goto out_disable;
+	src->x1 = state->src_x;
+	src->y1 = state->src_y;
+	src->x2 = state->src_x + state->src_w;
+	src->y2 = state->src_y + state->src_h;
+	dest->x1 = state->crtc_x;
+	dest->y1 = state->crtc_y;
+	dest->x2 = state->crtc_x + state->crtc_w;
+	dest->y2 = state->crtc_y + state->crtc_h;
+
+	clip.x1 = 0;
+	clip.y1 = 0;
+	clip.x2 = crtc->mode.hdisplay;
+	clip.y2 = crtc->mode.vdisplay;
+
+	ret = drm_plane_helper_check_update(plane, crtc, state->fb,
+					    src, dest, &clip,
 					    min_scale,
 					    max_scale,
-					    can_position, false, &visible);
+					    true, true, &visible);
 	if (ret)
 		return ret;
 
 	if (!visible)
-		return 0;
+		goto out_disable;
 
-	is_alpha = is_alpha_support(fb->pixel_format);
-	rb_swap = has_rb_swapped(fb->pixel_format);
-	is_yuv = is_yuv_support(fb->pixel_format);
+	vop_plane_state->format = vop_convert_format(fb->pixel_format);
+	if (vop_plane_state->format < 0)
+		return vop_plane_state->format;
 
-	format = vop_convert_format(fb->pixel_format);
-	if (format < 0)
-		return format;
+	/*
+	 * Src.x1 can be odd when do clip, but yuv plane start point
+	 * need align with 2 pixel.
+	 */
+	if (is_yuv_support(fb->pixel_format) && ((src->x1 >> 16) % 2))
+		return -EINVAL;
+
+	vop_plane_state->enable = true;
+
+	return 0;
+
+out_disable:
+	vop_plane_state->enable = false;
+	return 0;
+}
+
+static void vop_plane_atomic_disable(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
+{
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(old_state);
+	struct vop_win *vop_win = to_vop_win(plane);
+	const struct vop_win_data *win = vop_win->data;
+	struct vop *vop = to_vop(old_state->crtc);
+
+	if (!old_state->crtc)
+		return;
+
+	spin_lock(&vop->reg_lock);
+
+	VOP_WIN_SET(vop, win, enable, 0);
+
+	spin_unlock(&vop->reg_lock);
+
+	vop_plane_state->enable = false;
+}
+
+static void vop_plane_atomic_update(struct drm_plane *plane,
+		struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = plane->state;
+	struct drm_crtc *crtc = state->crtc;
+	struct vop_win *vop_win = to_vop_win(plane);
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
+	const struct vop_win_data *win = vop_win->data;
+	struct vop *vop = to_vop(state->crtc);
+	struct drm_framebuffer *fb = state->fb;
+	unsigned int actual_w, actual_h;
+	unsigned int dsp_stx, dsp_sty;
+	uint32_t act_info, dsp_info, dsp_st;
+	struct drm_rect *src = &vop_plane_state->src;
+	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_gem_object *obj, *uv_obj;
+	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
+	unsigned long offset;
+	dma_addr_t dma_addr;
+	uint32_t val;
+	bool rb_swap;
+
+	/*
+	 * can't update plane when vop is disabled.
+	 */
+	if (!crtc)
+		return;
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	if (!vop_plane_state->enable) {
+		vop_plane_atomic_disable(plane, old_state);
+		return;
+	}
 
 	obj = rockchip_fb_get_gem_obj(fb, 0);
-	if (!obj) {
-		DRM_ERROR("fail to get rockchip gem object from framebuffer\n");
-		return -EINVAL;
-	}
-
 	rk_obj = to_rockchip_obj(obj);
 
-	if (is_yuv) {
-		/*
-		 * Src.x1 can be odd when do clip, but yuv plane start point
-		 * need align with 2 pixel.
-		 */
-		val = (src.x1 >> 16) % 2;
-		src.x1 += val << 16;
-		src.x2 += val << 16;
-	}
+	actual_w = drm_rect_width(src) >> 16;
+	actual_h = drm_rect_height(src) >> 16;
+	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
 
-	actual_w = (src.x2 - src.x1) >> 16;
-	actual_h = (src.y2 - src.y1) >> 16;
+	dsp_info = (drm_rect_height(dest) - 1) << 16;
+	dsp_info |= (drm_rect_width(dest) - 1) & 0xffff;
 
-	dsp_stx = dest.x1 + crtc->mode.htotal - crtc->mode.hsync_start;
-	dsp_sty = dest.y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_stx = dest->x1 + crtc->mode.htotal - crtc->mode.hsync_start;
+	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
-	offset = (src.x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
-	offset += (src.y1 >> 16) * fb->pitches[0];
+	offset = (src->x1 >> 16) * drm_format_plane_cpp(fb->pixel_format, 0);
+	offset += (src->y1 >> 16) * fb->pitches[0];
+	vop_plane_state->yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
 
-	yrgb_mst = rk_obj->dma_addr + offset + fb->offsets[0];
-	y_vir_stride = fb->pitches[0] >> 2;
+	spin_lock(&vop->reg_lock);
 
-	if (is_yuv) {
+	VOP_WIN_SET(vop, win, format, vop_plane_state->format);
+	VOP_WIN_SET(vop, win, yrgb_vir, fb->pitches[0] >> 2);
+	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
+	if (is_yuv_support(fb->pixel_format)) {
 		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
 		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
 		int bpp = drm_format_plane_cpp(fb->pixel_format, 1);
 
 		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
-		if (!uv_obj) {
-			DRM_ERROR("fail to get uv object from framebuffer\n");
-			return -EINVAL;
-		}
 		rk_uv_obj = to_rockchip_obj(uv_obj);
-		uv_vir_stride = fb->pitches[1] >> 2;
 
-		offset = (src.x1 >> 16) * bpp / hsub;
-		offset += (src.y1 >> 16) * fb->pitches[1] / vsub;
+		offset = (src->x1 >> 16) * bpp / hsub;
+		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		uv_mst = rk_uv_obj->dma_addr + offset + fb->offsets[1];
-	}
-
-	/*
-	 * If this plane update changes the plane's framebuffer, (or more
-	 * precisely, if this update has a different framebuffer than the last
-	 * update), enqueue it so we can track when it completes.
-	 *
-	 * Only when we discover that this update has completed, can we
-	 * unreference any previous framebuffers.
-	 */
-	mutex_lock(&vop->vsync_mutex);
-	if (fb != vop_win_last_pending_fb(vop_win)) {
-		ret = drm_vblank_get(plane->dev, vop->pipe);
-		if (ret) {
-			DRM_ERROR("failed to get vblank, %d\n", ret);
-			mutex_unlock(&vop->vsync_mutex);
-			return ret;
-		}
-
-		drm_framebuffer_reference(fb);
-
-		ret = vop_win_queue_fb(vop_win, fb, yrgb_mst, event);
-		if (ret) {
-			drm_vblank_put(plane->dev, vop->pipe);
-			mutex_unlock(&vop->vsync_mutex);
-			return ret;
-		}
-
-		vop->vsync_work_pending = true;
-	}
-	mutex_unlock(&vop->vsync_mutex);
-
-	spin_lock(&vop->reg_lock);
-
-	VOP_WIN_SET(vop, win, format, format);
-	VOP_WIN_SET(vop, win, yrgb_vir, y_vir_stride);
-	VOP_WIN_SET(vop, win, yrgb_mst, yrgb_mst);
-	if (is_yuv) {
-		VOP_WIN_SET(vop, win, uv_vir, uv_vir_stride);
-		VOP_WIN_SET(vop, win, uv_mst, uv_mst);
+		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
+		VOP_WIN_SET(vop, win, uv_vir, fb->pitches[1] >> 2);
+		VOP_WIN_SET(vop, win, uv_mst, dma_addr);
 	}
 
 	if (win->phy->scl)
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
-				    dest.x2 - dest.x1, dest.y2 - dest.y1,
+				    drm_rect_width(dest), drm_rect_height(dest),
 				    fb->pixel_format);
 
-	val = (actual_h - 1) << 16;
-	val |= (actual_w - 1) & 0xffff;
-	VOP_WIN_SET(vop, win, act_info, val);
+	VOP_WIN_SET(vop, win, act_info, act_info);
+	VOP_WIN_SET(vop, win, dsp_info, dsp_info);
+	VOP_WIN_SET(vop, win, dsp_st, dsp_st);
 
-	val = (dest.y2 - dest.y1 - 1) << 16;
-	val |= (dest.x2 - dest.x1 - 1) & 0xffff;
-	VOP_WIN_SET(vop, win, dsp_info, val);
-	val = dsp_sty << 16;
-	val |= dsp_stx & 0xffff;
-	VOP_WIN_SET(vop, win, dsp_st, val);
+	rb_swap = has_rb_swapped(fb->pixel_format);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
-	if (is_alpha) {
+	if (is_alpha_support(fb->pixel_format)) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |
@@ -979,86 +735,70 @@ static int vop_update_plane_event(struct drm_plane *plane,
 	}
 
 	VOP_WIN_SET(vop, win, enable, 1);
-
-	vop_cfg_done(vop);
 	spin_unlock(&vop->reg_lock);
-
-	return 0;
 }
 
-static int vop_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
-			    struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-			    unsigned int crtc_w, unsigned int crtc_h,
-			    uint32_t src_x, uint32_t src_y, uint32_t src_w,
-			    uint32_t src_h)
+static const struct drm_plane_helper_funcs plane_helper_funcs = {
+	.atomic_check = vop_plane_atomic_check,
+	.atomic_update = vop_plane_atomic_update,
+	.atomic_disable = vop_plane_atomic_disable,
+};
+
+void vop_atomic_plane_reset(struct drm_plane *plane)
 {
-	return vop_update_plane_event(plane, crtc, fb, crtc_x, crtc_y, crtc_w,
-				      crtc_h, src_x, src_y, src_w, src_h,
-				      NULL);
+	struct vop_plane_state *vop_plane_state =
+					to_vop_plane_state(plane->state);
+
+	if (plane->state && plane->state->fb)
+		drm_framebuffer_unreference(plane->state->fb);
+
+	kfree(vop_plane_state);
+	vop_plane_state = kzalloc(sizeof(*vop_plane_state), GFP_KERNEL);
+	if (!vop_plane_state)
+		return;
+
+	plane->state = &vop_plane_state->base;
+	plane->state->plane = plane;
 }
 
-static int vop_update_primary_plane(struct drm_crtc *crtc,
-				    struct drm_pending_vblank_event *event)
+struct drm_plane_state *
+vop_atomic_plane_duplicate_state(struct drm_plane *plane)
 {
-	unsigned int crtc_w, crtc_h;
+	struct vop_plane_state *old_vop_plane_state;
+	struct vop_plane_state *vop_plane_state;
 
-	crtc_w = crtc->primary->fb->width - crtc->x;
-	crtc_h = crtc->primary->fb->height - crtc->y;
+	if (WARN_ON(!plane->state))
+		return NULL;
 
-	return vop_update_plane_event(crtc->primary, crtc, crtc->primary->fb,
-				      0, 0, crtc_w, crtc_h, crtc->x << 16,
-				      crtc->y << 16, crtc_w << 16,
-				      crtc_h << 16, event);
+	old_vop_plane_state = to_vop_plane_state(plane->state);
+	vop_plane_state = kmemdup(old_vop_plane_state,
+				  sizeof(*vop_plane_state), GFP_KERNEL);
+	if (!vop_plane_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane,
+						  &vop_plane_state->base);
+
+	return &vop_plane_state->base;
 }
 
-static int vop_disable_plane(struct drm_plane *plane)
+static void vop_atomic_plane_destroy_state(struct drm_plane *plane,
+					   struct drm_plane_state *state)
 {
-	struct vop_win *vop_win = to_vop_win(plane);
-	const struct vop_win_data *win = vop_win->data;
-	struct vop *vop;
-	int ret;
+	struct vop_plane_state *vop_state = to_vop_plane_state(state);
 
-	if (!plane->crtc)
-		return 0;
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 
-	vop = to_vop(plane->crtc);
-
-	ret = drm_vblank_get(plane->dev, vop->pipe);
-	if (ret) {
-		DRM_ERROR("failed to get vblank, %d\n", ret);
-		return ret;
-	}
-
-	mutex_lock(&vop->vsync_mutex);
-
-	ret = vop_win_queue_fb(vop_win, NULL, 0, NULL);
-	if (ret) {
-		drm_vblank_put(plane->dev, vop->pipe);
-		mutex_unlock(&vop->vsync_mutex);
-		return ret;
-	}
-
-	vop->vsync_work_pending = true;
-	mutex_unlock(&vop->vsync_mutex);
-
-	spin_lock(&vop->reg_lock);
-	VOP_WIN_SET(vop, win, enable, 0);
-	vop_cfg_done(vop);
-	spin_unlock(&vop->reg_lock);
-
-	return 0;
-}
-
-static void vop_plane_destroy(struct drm_plane *plane)
-{
-	vop_disable_plane(plane);
-	drm_plane_cleanup(plane);
+	kfree(vop_state);
 }
 
 static const struct drm_plane_funcs vop_plane_funcs = {
-	.update_plane = vop_update_plane,
-	.disable_plane = vop_disable_plane,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy = vop_plane_destroy,
+	.reset = vop_atomic_plane_reset,
+	.atomic_duplicate_state = vop_atomic_plane_duplicate_state,
+	.atomic_destroy_state = vop_atomic_plane_destroy_state,
 };
 
 int rockchip_drm_crtc_mode_config(struct drm_crtc *crtc,
@@ -1067,8 +807,27 @@ int rockchip_drm_crtc_mode_config(struct drm_crtc *crtc,
 {
 	struct vop *vop = to_vop(crtc);
 
-	vop->connector_type = connector_type;
-	vop->connector_out_mode = out_mode;
+	if (WARN_ON(!vop->is_enabled))
+		return -EINVAL;
+
+	switch (connector_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+		VOP_CTRL_SET(vop, rgb_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_eDP:
+		VOP_CTRL_SET(vop, edp_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_HDMIA:
+		VOP_CTRL_SET(vop, hdmi_en, 1);
+		break;
+	case DRM_MODE_CONNECTOR_DSI:
+		VOP_CTRL_SET(vop, mipi_en, 1);
+		break;
+	default:
+		DRM_ERROR("unsupport connector_type[%d]\n", connector_type);
+		return -EINVAL;
+	};
+	VOP_CTRL_SET(vop, out_mode, out_mode);
 
 	return 0;
 }
@@ -1079,12 +838,12 @@ static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (!vop->is_enabled)
+	if (WARN_ON(!vop->is_enabled))
 		return -EPERM;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
 
-	vop_mask_write(vop, INTR_CTRL0, FS_INTR_MASK, FS_INTR_EN(1));
+	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 1);
 
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
@@ -1096,76 +855,49 @@ static void vop_crtc_disable_vblank(struct drm_crtc *crtc)
 	struct vop *vop = to_vop(crtc);
 	unsigned long flags;
 
-	if (!vop->is_enabled)
+	if (WARN_ON(!vop->is_enabled))
 		return;
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
-	vop_mask_write(vop, INTR_CTRL0, FS_INTR_MASK, FS_INTR_EN(0));
+
+	VOP_INTR_SET_TYPE(vop, enable, FS_INTR, 0);
+
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
+}
+
+static void vop_crtc_wait_for_update(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+
+	reinit_completion(&vop->wait_update_complete);
+	WARN_ON(!wait_for_completion_timeout(&vop->wait_update_complete, 100));
 }
 
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
+	.wait_for_update = vop_crtc_wait_for_update,
 };
-
-static void vop_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	DRM_DEBUG_KMS("crtc[%d] mode[%d]\n", crtc->base.id, mode);
-
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		vop_enable(crtc);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		vop_disable(crtc);
-		break;
-	default:
-		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
-		break;
-	}
-}
-
-static void vop_crtc_prepare(struct drm_crtc *crtc)
-{
-	vop_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-}
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 				const struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	struct vop *vop = to_vop(crtc);
+
 	if (adjusted_mode->htotal == 0 || adjusted_mode->vtotal == 0)
 		return false;
+
+	adjusted_mode->clock =
+		clk_round_rate(vop->dclk, mode->clock * 1000) / 1000;
 
 	return true;
 }
 
-static int vop_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-				  struct drm_framebuffer *old_fb)
-{
-	int ret;
-
-	crtc->x = x;
-	crtc->y = y;
-
-	ret = vop_update_primary_plane(crtc, NULL);
-	if (ret < 0) {
-		DRM_ERROR("fail to update plane\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int vop_crtc_mode_set(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode,
-			     int x, int y, struct drm_framebuffer *fb)
+static void vop_crtc_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	u16 hsync_len = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
 	u16 hdisplay = adjusted_mode->hdisplay;
 	u16 htotal = adjusted_mode->htotal;
@@ -1176,32 +908,44 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	u16 vsync_len = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
 	u16 vact_st = adjusted_mode->vtotal - adjusted_mode->vsync_start;
 	u16 vact_end = vact_st + vdisplay;
-	int ret, ret_clk;
 	uint32_t val;
 
+	vop_enable(crtc);
 	/*
-	 * disable dclk to stop frame scan, so that we can safe config mode and
-	 * enable iommu.
+	 * If dclk rate is zero, mean that scanout is stop,
+	 * we don't need wait any more.
 	 */
-	clk_disable(vop->dclk);
+	if (clk_get_rate(vop->dclk)) {
+		/*
+		 * Rk3288 vop timing register is immediately, when configure
+		 * display timing on display time, may cause tearing.
+		 *
+		 * Vop standby will take effect at end of current frame,
+		 * if dsp hold valid irq happen, it means standby complete.
+		 *
+		 * mode set:
+		 *    standby and wait complete --> |----
+		 *                                  | display time
+		 *                                  |----
+		 *                                  |---> dsp hold irq
+		 *     configure display timing --> |
+		 *         standby exit             |
+		 *                                  | new frame start.
+		 */
 
-	switch (vop->connector_type) {
-	case DRM_MODE_CONNECTOR_LVDS:
-		VOP_CTRL_SET(vop, rgb_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_eDP:
-		VOP_CTRL_SET(vop, edp_en, 1);
-		break;
-	case DRM_MODE_CONNECTOR_HDMIA:
-		VOP_CTRL_SET(vop, hdmi_en, 1);
-		break;
-	default:
-		DRM_ERROR("unsupport connector_type[%d]\n",
-			  vop->connector_type);
-		ret = -EINVAL;
-		goto out;
-	};
-	VOP_CTRL_SET(vop, out_mode, vop->connector_out_mode);
+		reinit_completion(&vop->dsp_hold_completion);
+		vop_dsp_hold_valid_irq_enable(vop);
+
+		spin_lock(&vop->reg_lock);
+
+		VOP_CTRL_SET(vop, standby, 1);
+
+		spin_unlock(&vop->reg_lock);
+
+		wait_for_completion(&vop->dsp_hold_completion);
+
+		vop_dsp_hold_valid_irq_disable(vop);
+	}
 
 	val = 0x8;
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : 1;
@@ -1220,83 +964,46 @@ static int vop_crtc_mode_set(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, vact_st_end, val);
 	VOP_CTRL_SET(vop, vpost_st_end, val);
 
-	ret = vop_crtc_mode_set_base(crtc, x, y, fb);
-	if (ret)
-		goto out;
-
-	/*
-	 * reset dclk, take all mode config affect, so the clk would run in
-	 * correct frame.
-	 */
-	reset_control_assert(vop->dclk_rst);
-	usleep_range(10, 20);
-	reset_control_deassert(vop->dclk_rst);
-
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
-out:
-	ret_clk = clk_enable(vop->dclk);
-	if (ret_clk < 0) {
-		dev_err(vop->dev, "failed to enable dclk - %d\n", ret_clk);
-		return ret_clk;
-	}
 
-	return ret;
+	VOP_CTRL_SET(vop, standby, 0);
 }
 
-static void vop_crtc_commit(struct drm_crtc *crtc)
+static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
 {
+	struct vop *vop = to_vop(crtc);
+
+	if (WARN_ON(!vop->is_enabled))
+		return;
+
+	spin_lock(&vop->reg_lock);
+
+	vop_cfg_done(vop);
+
+	spin_unlock(&vop->reg_lock);
+}
+
+static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
+				  struct drm_crtc_state *old_crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+
+	if (crtc->state->event) {
+		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
+
+		vop->event = crtc->state->event;
+		crtc->state->event = NULL;
+	}
 }
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
-	.dpms = vop_crtc_dpms,
-	.prepare = vop_crtc_prepare,
+	.enable = vop_crtc_enable,
+	.disable = vop_crtc_disable,
 	.mode_fixup = vop_crtc_mode_fixup,
-	.mode_set = vop_crtc_mode_set,
-	.mode_set_base = vop_crtc_mode_set_base,
-	.commit = vop_crtc_commit,
+	.atomic_flush = vop_crtc_atomic_flush,
+	.atomic_begin = vop_crtc_atomic_begin,
 };
-
-static int vop_crtc_page_flip(struct drm_crtc *crtc,
-			      struct drm_framebuffer *fb,
-			      struct drm_pending_vblank_event *event,
-			      uint32_t page_flip_flags)
-{
-	struct vop *vop = to_vop(crtc);
-	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	int ret;
-
-	/* when the page flip is requested, crtc should be on */
-	if (!vop->is_enabled) {
-		DRM_DEBUG("page flip request rejected because crtc is off.\n");
-		return 0;
-	}
-
-	crtc->primary->fb = fb;
-
-	ret = vop_update_primary_plane(crtc, event);
-	if (ret)
-		crtc->primary->fb = old_fb;
-
-	return ret;
-}
-
-static void vop_win_state_complete(struct vop_win *vop_win,
-				   struct vop_win_state *state)
-{
-	struct vop *vop = vop_win->vop;
-	struct drm_crtc *crtc = &vop->crtc;
-	struct drm_device *drm = crtc->dev;
-	unsigned long flags;
-
-	if (state->event) {
-		spin_lock_irqsave(&drm->event_lock, flags);
-		drm_crtc_send_vblank_event(crtc, state->event);
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-	}
-
-	list_del(&state->head);
-	drm_vblank_put(crtc->dev, vop->pipe);
-}
 
 static void vop_crtc_destroy(struct drm_crtc *crtc)
 {
@@ -1304,127 +1011,72 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_funcs vop_crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
-	.page_flip = vop_crtc_page_flip,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
+	.reset = drm_atomic_helper_crtc_reset,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
-static bool vop_win_state_is_active(struct vop_win *vop_win,
-				    struct vop_win_state *state)
+static bool vop_win_pending_is_complete(struct vop_win *vop_win)
 {
-	bool active = false;
+	struct drm_plane *plane = &vop_win->base;
+	struct vop_plane_state *state = to_vop_plane_state(plane->state);
+	dma_addr_t yrgb_mst;
 
-	if (state->fb) {
-		dma_addr_t yrgb_mst;
+	if (!state->enable)
+		return VOP_WIN_GET(vop_win->vop, vop_win->data, enable) == 0;
 
-		/* check yrgb_mst to tell if pending_fb is now front */
-		yrgb_mst = VOP_WIN_GET_YRGBADDR(vop_win->vop, vop_win->data);
+	yrgb_mst = VOP_WIN_GET_YRGBADDR(vop_win->vop, vop_win->data);
 
-		active = (yrgb_mst == state->yrgb_mst);
-	} else {
-		bool enabled;
+	return yrgb_mst == state->yrgb_mst;
+}
 
-		/* if enable bit is clear, plane is now disabled */
-		enabled = VOP_WIN_GET(vop_win->vop, vop_win->data, enable);
+static void vop_handle_vblank(struct vop *vop)
+{
+	struct drm_device *drm = vop->drm_dev;
+	struct drm_crtc *crtc = &vop->crtc;
+	unsigned long flags;
+	int i;
 
-		active = (enabled == 0);
+	for (i = 0; i < vop->data->win_size; i++) {
+		if (!vop_win_pending_is_complete(&vop->win[i]))
+			return;
 	}
 
-	return active;
-}
+	if (vop->event) {
+		spin_lock_irqsave(&drm->event_lock, flags);
 
-static void vop_win_state_destroy(struct vop_win_state *state)
-{
-	struct drm_framebuffer *fb = state->fb;
+		drm_crtc_send_vblank_event(crtc, vop->event);
+		drm_crtc_vblank_put(crtc);
+		vop->event = NULL;
 
-	if (fb)
-		drm_framebuffer_unreference(fb);
-
-	kfree(state);
-}
-
-static void vop_win_update_state(struct vop_win *vop_win)
-{
-	struct vop_win_state *state, *n, *new_active = NULL;
-
-	/* Check if any pending states are now active */
-	list_for_each_entry(state, &vop_win->pending, head)
-		if (vop_win_state_is_active(vop_win, state)) {
-			new_active = state;
-			break;
-		}
-
-	if (!new_active)
-		return;
-
-	/*
-	 * Destroy any 'skipped' pending states - states that were queued
-	 * before the newly active state.
-	 */
-	list_for_each_entry_safe(state, n, &vop_win->pending, head) {
-		if (state == new_active)
-			break;
-		vop_win_state_complete(vop_win, state);
-		vop_win_state_destroy(state);
+		spin_unlock_irqrestore(&drm->event_lock, flags);
 	}
-
-	vop_win_state_complete(vop_win, new_active);
-
-	if (vop_win->active)
-		vop_win_state_destroy(vop_win->active);
-	vop_win->active = new_active;
-}
-
-static bool vop_win_has_pending_state(struct vop_win *vop_win)
-{
-	return !list_empty(&vop_win->pending);
-}
-
-static irqreturn_t vop_isr_thread(int irq, void *data)
-{
-	struct vop *vop = data;
-	const struct vop_data *vop_data = vop->data;
-	unsigned int i;
-
-	mutex_lock(&vop->vsync_mutex);
-
-	if (!vop->vsync_work_pending)
-		goto done;
-
-	vop->vsync_work_pending = false;
-
-	for (i = 0; i < vop_data->win_size; i++) {
-		struct vop_win *vop_win = &vop->win[i];
-
-		vop_win_update_state(vop_win);
-		if (vop_win_has_pending_state(vop_win))
-			vop->vsync_work_pending = true;
-	}
-
-done:
-	mutex_unlock(&vop->vsync_mutex);
-
-	return IRQ_HANDLED;
+	if (!completion_done(&vop->wait_update_complete))
+		complete(&vop->wait_update_complete);
 }
 
 static irqreturn_t vop_isr(int irq, void *data)
 {
 	struct vop *vop = data;
-	uint32_t intr0_reg, active_irqs;
+	struct drm_crtc *crtc = &vop->crtc;
+	uint32_t active_irqs;
 	unsigned long flags;
 	int ret = IRQ_NONE;
 
 	/*
-	 * INTR_CTRL0 register has interrupt status, enable and clear bits, we
+	 * interrupt register has interrupt status, enable and clear bits, we
 	 * must hold irq_lock to avoid a race with enable/disable_vblank().
 	*/
 	spin_lock_irqsave(&vop->irq_lock, flags);
-	intr0_reg = vop_readl(vop, INTR_CTRL0);
-	active_irqs = intr0_reg & INTR_MASK;
+
+	active_irqs = VOP_INTR_GET_TYPE(vop, status, INTR_MASK);
 	/* Clear all active interrupt sources */
 	if (active_irqs)
-		vop_writel(vop, INTR_CTRL0,
-			   intr0_reg | (active_irqs << INTR_CLR_SHIFT));
+		VOP_INTR_SET_TYPE(vop, clear, active_irqs, 1);
+
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 
 	/* This is expected for vop iommu irqs, since the irq is shared */
@@ -1438,9 +1090,10 @@ static irqreturn_t vop_isr(int irq, void *data)
 	}
 
 	if (active_irqs & FS_INTR) {
-		drm_handle_vblank(vop->drm_dev, vop->pipe);
+		drm_crtc_handle_vblank(crtc);
+		vop_handle_vblank(vop);
 		active_irqs &= ~FS_INTR;
-		ret = (vop->vsync_work_pending) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
+		ret = IRQ_HANDLED;
 	}
 
 	/* Unhandled irqs are spurious. */
@@ -1478,13 +1131,14 @@ static int vop_create_crtc(struct vop *vop)
 					       0, &vop_plane_funcs,
 					       win_data->phy->data_formats,
 					       win_data->phy->nformats,
-					       win_data->type);
+					       win_data->type, NULL);
 		if (ret) {
 			DRM_ERROR("failed to initialize plane\n");
 			goto err_cleanup_planes;
 		}
 
 		plane = &vop_win->base;
+		drm_plane_helper_add(plane, &plane_helper_funcs);
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			primary = plane;
 		else if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -1492,7 +1146,7 @@ static int vop_create_crtc(struct vop *vop)
 	}
 
 	ret = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
-					&vop_crtc_funcs);
+					&vop_crtc_funcs, NULL);
 	if (ret)
 		return ret;
 
@@ -1515,11 +1169,12 @@ static int vop_create_crtc(struct vop *vop)
 					       &vop_plane_funcs,
 					       win_data->phy->data_formats,
 					       win_data->phy->nformats,
-					       win_data->type);
+					       win_data->type, NULL);
 		if (ret) {
 			DRM_ERROR("failed to initialize overlay plane\n");
 			goto err_cleanup_crtc;
 		}
+		drm_plane_helper_add(&vop_win->base, &plane_helper_funcs);
 	}
 
 	port = of_get_child_by_name(dev->of_node, "port");
@@ -1530,9 +1185,9 @@ static int vop_create_crtc(struct vop *vop)
 	}
 
 	init_completion(&vop->dsp_hold_completion);
+	init_completion(&vop->wait_update_complete);
 	crtc->port = port;
-	vop->pipe = drm_crtc_index(crtc);
-	rockchip_register_crtc_funcs(drm_dev, &private_crtc_funcs, vop->pipe);
+	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
 	return 0;
 
@@ -1548,7 +1203,7 @@ static void vop_destroy_crtc(struct vop *vop)
 {
 	struct drm_crtc *crtc = &vop->crtc;
 
-	rockchip_unregister_crtc_funcs(vop->drm_dev, vop->pipe);
+	rockchip_unregister_crtc_funcs(crtc);
 	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
 }
@@ -1664,14 +1319,12 @@ static void vop_win_init(struct vop *vop)
 
 		vop_win->data = win_data;
 		vop_win->vop = vop;
-		INIT_LIST_HEAD(&vop_win->pending);
 	}
 }
 
 static int vop_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	const struct of_device_id *of_id;
 	const struct vop_data *vop_data;
 	struct drm_device *drm_dev = data;
 	struct vop *vop;
@@ -1679,8 +1332,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	size_t alloc_size;
 	int ret, irq;
 
-	of_id = of_match_device(vop_driver_dt_match, dev);
-	vop_data = of_id->data;
+	vop_data = of_device_get_match_data(dev);
 	if (!vop_data)
 		return -ENODEV;
 
@@ -1725,8 +1377,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	mutex_init(&vop->vsync_mutex);
 
-	ret = devm_request_threaded_irq(dev, vop->irq, vop_isr, vop_isr_thread,
-					IRQF_SHARED, dev_name(dev), vop);
+	ret = devm_request_irq(dev, vop->irq, vop_isr,
+			       IRQF_SHARED, dev_name(dev), vop);
 	if (ret)
 		return ret;
 
@@ -1749,42 +1401,8 @@ static void vop_unbind(struct device *dev, struct device *master, void *data)
 	vop_destroy_crtc(vop);
 }
 
-static const struct component_ops vop_component_ops = {
+const struct component_ops vop_component_ops = {
 	.bind = vop_bind,
 	.unbind = vop_unbind,
 };
-
-static int vop_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-
-	if (!dev->of_node) {
-		dev_err(dev, "can't find vop devices\n");
-		return -ENODEV;
-	}
-
-	return component_add(dev, &vop_component_ops);
-}
-
-static int vop_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &vop_component_ops);
-
-	return 0;
-}
-
-struct platform_driver vop_platform_driver = {
-	.probe = vop_probe,
-	.remove = vop_remove,
-	.driver = {
-		.name = "rockchip-vop",
-		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(vop_driver_dt_match),
-	},
-};
-
-module_platform_driver(vop_platform_driver);
-
-MODULE_AUTHOR("Mark Yao <mark.yao@rock-chips.com>");
-MODULE_DESCRIPTION("ROCKCHIP VOP Driver");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_GPL(vop_component_ops);

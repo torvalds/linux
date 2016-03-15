@@ -198,7 +198,7 @@ video4linux-list@redhat.com on 17 Oct 2002
 <constant>V4L2_STD_ATSC_16_VSB</constant> are U.S. terrestrial digital
 TV standards. Presently the V4L2 API does not support digital TV. See
 also the Linux DVB API at <ulink
-url="http://linuxtv.org">http://linuxtv.org</ulink>.</para>
+url="https://linuxtv.org">https://linuxtv.org</ulink>.</para>
 <para><programlisting>
 #define V4L2_STD_PAL_BG         (V4L2_STD_PAL_B         |\
 				 V4L2_STD_PAL_B1        |\

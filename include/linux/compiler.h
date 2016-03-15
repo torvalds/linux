@@ -144,7 +144,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  */
 #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
 #define __trace_if(cond) \
-	if (__builtin_constant_p((cond)) ? !!(cond) :			\
+	if (__builtin_constant_p(!!(cond)) ? !!(cond) :			\
 	({								\
 		int ______r;						\
 		static struct ftrace_branch_data			\
@@ -298,6 +298,23 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	__write_once_size(&(x), __u.__c, sizeof(x));	\
 	__u.__val;					\
 })
+
+/**
+ * smp_cond_acquire() - Spin wait for cond with ACQUIRE ordering
+ * @cond: boolean expression to wait for
+ *
+ * Equivalent to using smp_load_acquire() on the condition variable but employs
+ * the control dependency of the wait to reduce the barrier on many platforms.
+ *
+ * The control dependency provides a LOAD->STORE order, the additional RMB
+ * provides LOAD->LOAD order, together they provide LOAD->{LOAD,STORE} order,
+ * aka. ACQUIRE.
+ */
+#define smp_cond_acquire(cond)	do {		\
+	while (!(cond))				\
+		cpu_relax();			\
+	smp_rmb(); /* ctrl + rmb := acquire */	\
+} while (0)
 
 #endif /* __KERNEL__ */
 

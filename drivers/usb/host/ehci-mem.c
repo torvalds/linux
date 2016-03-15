@@ -128,21 +128,13 @@ static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 	ehci->dummy = NULL;
 
 	/* DMA consistent memory and pools */
-	if (ehci->qtd_pool)
-		dma_pool_destroy (ehci->qtd_pool);
+	dma_pool_destroy(ehci->qtd_pool);
 	ehci->qtd_pool = NULL;
-
-	if (ehci->qh_pool) {
-		dma_pool_destroy (ehci->qh_pool);
-		ehci->qh_pool = NULL;
-	}
-
-	if (ehci->itd_pool)
-		dma_pool_destroy (ehci->itd_pool);
+	dma_pool_destroy(ehci->qh_pool);
+	ehci->qh_pool = NULL;
+	dma_pool_destroy(ehci->itd_pool);
 	ehci->itd_pool = NULL;
-
-	if (ehci->sitd_pool)
-		dma_pool_destroy (ehci->sitd_pool);
+	dma_pool_destroy(ehci->sitd_pool);
 	ehci->sitd_pool = NULL;
 
 	if (ehci->periodic)

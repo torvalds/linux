@@ -41,6 +41,7 @@
 		ethernet1 = &cpsw_emac1;
 		d_can0 = &dcan1;
 		d_can1 = &dcan2;
+		spi0 = &qspi;
 	};
 
 	timer {
@@ -1153,8 +1154,10 @@
 
 		qspi: qspi@4b300000 {
 			compatible = "ti,dra7xxx-qspi";
-			reg = <0x4b300000 0x100>;
-			reg-names = "qspi_base";
+			reg = <0x4b300000 0x100>,
+			      <0x5c000000 0x4000000>;
+			reg-names = "qspi_base", "qspi_mmap";
+			syscon-chipselects = <&scm_conf 0x558>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "qspi";
@@ -1497,6 +1500,16 @@
 			       0x48485200 0x2E00>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			/*
+			 * Do not allow gating of cpsw clock as workaround
+			 * for errata i877. Keeping internal clock disabled
+			 * causes the device switching characteristics
+			 * to degrade over time and eventually fail to meet
+			 * the data manual delay time/skew specs.
+			 */
+			ti,no-idle;
+
 			/*
 			 * rx_thresh_pend
 			 * rx_pend

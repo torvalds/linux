@@ -2586,7 +2586,7 @@ fc_rport_final_delete(struct work_struct *work)
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
-	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
+	scsi_host_put(shost);			/* for fc_host->rport list */
 	put_device(dev);			/* for self-reference */
 }
 
@@ -2650,7 +2650,7 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	else
 		rport->scsi_target_id = -1;
 	list_add_tail(&rport->peers, &fc_host->rports);
-	get_device(&shost->shost_gendev);	/* for fc_host->rport list */
+	scsi_host_get(shost);			/* for fc_host->rport list */
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
@@ -2685,7 +2685,7 @@ delete_rport:
 	transport_destroy_device(dev);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_del(&rport->peers);
-	put_device(&shost->shost_gendev);	/* for fc_host->rport list */
+	scsi_host_put(shost);			/* for fc_host->rport list */
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(dev->parent);
 	kfree(rport);
@@ -3383,7 +3383,7 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	fc_host->npiv_vports_inuse++;
 	vport->number = fc_host->next_vport_number++;
 	list_add_tail(&vport->peers, &fc_host->vports);
-	get_device(&shost->shost_gendev);	/* for fc_host->vport list */
+	scsi_host_get(shost);			/* for fc_host->vport list */
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
@@ -3441,7 +3441,7 @@ delete_vport:
 	transport_destroy_device(dev);
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_del(&vport->peers);
-	put_device(&shost->shost_gendev);	/* for fc_host->vport list */
+	scsi_host_put(shost);			/* for fc_host->vport list */
 	fc_host->npiv_vports_inuse--;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(dev->parent);
@@ -3504,7 +3504,7 @@ fc_vport_terminate(struct fc_vport *vport)
 		vport->flags |= FC_VPORT_DELETED;
 		list_del(&vport->peers);
 		fc_host->npiv_vports_inuse--;
-		put_device(&shost->shost_gendev);  /* for fc_host->vport list */
+		scsi_host_put(shost);		/* for fc_host->vport list */
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 

@@ -99,6 +99,7 @@ struct snd_card {
 	char driver[16];		/* driver name */
 	char shortname[32];		/* short name of this soundcard */
 	char longname[80];		/* name of this soundcard */
+	char irq_descr[32];		/* Interrupt description */
 	char mixername[80];		/* mixer name */
 	char components[128];		/* card components delimited with
 								space */

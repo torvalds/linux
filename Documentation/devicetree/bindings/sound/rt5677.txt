@@ -18,7 +18,7 @@ Required properties:
 Optional properties:
 
 - realtek,pow-ldo2-gpio : The GPIO that controls the CODEC's POW_LDO2 pin.
-- realtek,reset-gpio : The GPIO that controls the CODEC's RESET pin.
+- realtek,reset-gpio : The GPIO that controls the CODEC's RESET pin. Active low.
 
 - realtek,in1-differential
 - realtek,in2-differential

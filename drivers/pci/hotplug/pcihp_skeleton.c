@@ -52,11 +52,11 @@ static LIST_HEAD(slot_list);
 	do {							\
 		if (debug)					\
 			printk(KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg);		\
+				MY_NAME, ## arg);		\
 	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
+#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME, ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME, ## arg)
 
 /* local variables */
 static bool debug;
@@ -72,14 +72,14 @@ MODULE_LICENSE("GPL");
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
-static int enable_slot		(struct hotplug_slot *slot);
-static int disable_slot		(struct hotplug_slot *slot);
-static int set_attention_status (struct hotplug_slot *slot, u8 value);
-static int hardware_test	(struct hotplug_slot *slot, u32 value);
-static int get_power_status	(struct hotplug_slot *slot, u8 *value);
-static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
-static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
-static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
+static int enable_slot(struct hotplug_slot *slot);
+static int disable_slot(struct hotplug_slot *slot);
+static int set_attention_status(struct hotplug_slot *slot, u8 value);
+static int hardware_test(struct hotplug_slot *slot, u32 value);
+static int get_power_status(struct hotplug_slot *slot, u8 *value);
+static int get_attention_status(struct hotplug_slot *slot, u8 *value);
+static int get_latch_status(struct hotplug_slot *slot, u8 *value);
+static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
 static struct hotplug_slot_ops skel_hotplug_slot_ops = {
 	.enable_slot =		enable_slot,
@@ -321,17 +321,14 @@ error:
 
 static void __exit cleanup_slots(void)
 {
-	struct list_head *tmp;
-	struct list_head *next;
-	struct slot *slot;
+	struct slot *slot, *next;
 
 	/*
 	 * Unregister all of our slots with the pci_hotplug subsystem.
 	 * Memory will be freed in release_slot() callback after slot's
 	 * lifespan is finished.
 	 */
-	list_for_each_safe(tmp, next, &slot_list) {
-		slot = list_entry(tmp, struct slot, slot_list);
+	list_for_each_entry_safe(slot, next, &slot_list, slot_list) {
 		list_del(&slot->slot_list);
 		pci_hp_deregister(slot->hotplug_slot);
 	}

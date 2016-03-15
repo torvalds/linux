@@ -178,41 +178,6 @@ static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 	INIT_LIST_HEAD(&pci->link);
 }
 
-#if 0
-/* Older code, but might use in the future */
-
-/*
- * edac_pci_find()
- * 	Search for an edac_pci_ctl_info structure whose index is 'idx'
- *
- * If found, return a pointer to the structure
- * Else return NULL.
- *
- * Caller must hold pci_ctls_mutex.
- */
-struct edac_pci_ctl_info *edac_pci_find(int idx)
-{
-	struct list_head *item;
-	struct edac_pci_ctl_info *pci;
-
-	/* Iterage over list, looking for exact match of ID */
-	list_for_each(item, &edac_pci_list) {
-		pci = list_entry(item, struct edac_pci_ctl_info, link);
-
-		if (pci->pci_idx >= idx) {
-			if (pci->pci_idx == idx)
-				return pci;
-
-			/* not on list, so terminate early */
-			break;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(edac_pci_find);
-#endif
-
 /*
  * edac_pci_workq_function()
  *
@@ -244,7 +209,7 @@ static void edac_pci_workq_function(struct work_struct *work_req)
 			delay = msecs_to_jiffies(msec);
 
 		/* Reschedule only if we are in POLL mode */
-		queue_delayed_work(edac_workqueue, &pci->work, delay);
+		edac_queue_work(&pci->work, delay);
 	}
 
 	mutex_unlock(&edac_pci_ctls_mutex);
@@ -264,8 +229,8 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
 	edac_dbg(0, "\n");
 
 	INIT_DELAYED_WORK(&pci->work, edac_pci_workq_function);
-	queue_delayed_work(edac_workqueue, &pci->work,
-			msecs_to_jiffies(edac_pci_get_poll_msec()));
+
+	edac_queue_work(&pci->work, msecs_to_jiffies(edac_pci_get_poll_msec()));
 }
 
 /*
@@ -274,37 +239,12 @@ static void edac_pci_workq_setup(struct edac_pci_ctl_info *pci,
  */
 static void edac_pci_workq_teardown(struct edac_pci_ctl_info *pci)
 {
-	int status;
-
 	edac_dbg(0, "\n");
 
-	status = cancel_delayed_work(&pci->work);
-	if (status == 0)
-		flush_workqueue(edac_workqueue);
+	pci->op_state = OP_OFFLINE;
+
+	edac_stop_work(&pci->work);
 }
-
-/*
- * edac_pci_reset_delay_period
- *
- *	called with a new period value for the workq period
- *	a) stop current workq timer
- *	b) restart workq timer with new value
- */
-void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
-				 unsigned long value)
-{
-	edac_dbg(0, "\n");
-
-	edac_pci_workq_teardown(pci);
-
-	/* need to lock for the setup */
-	mutex_lock(&edac_pci_ctls_mutex);
-
-	edac_pci_workq_setup(pci, value);
-
-	mutex_unlock(&edac_pci_ctls_mutex);
-}
-EXPORT_SYMBOL_GPL(edac_pci_reset_delay_period);
 
 /*
  * edac_pci_alloc_index: Allocate a unique PCI index number

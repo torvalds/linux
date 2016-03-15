@@ -737,14 +737,22 @@ config COMEDI_ADL_PCI9118
 	  called adl_pci9118.
 
 config COMEDI_ADV_PCI1710
-	tristate "Advantech PCI-171x, PCI-1720 and PCI-1731 support"
+	tristate "Advantech PCI-171x and PCI-1731 support"
 	select COMEDI_8254
 	---help---
 	  Enable support for Advantech PCI-1710, PCI-1710HG, PCI-1711,
-	  PCI-1713, PCI-1720 and PCI-1731
+	  PCI-1713 and PCI-1731
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci1710.
+
+config COMEDI_ADV_PCI1720
+	tristate "Advantech PCI-1720 support"
+	---help---
+	  Enable support for Advantech PCI-1720 Analog Output board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adv_pci1720.
 
 config COMEDI_ADV_PCI1723
 	tristate "Advantech PCI-1723 support"
@@ -764,6 +772,14 @@ config COMEDI_ADV_PCI1724
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci1724.
 
+config COMEDI_ADV_PCI1760
+	tristate "Advantech PCI-1760 support"
+	---help---
+	  Enable support for Advantech PCI-1760 board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called adv_pci1760.
+
 config COMEDI_ADV_PCI_DIO
 	tristate "Advantech PCI DIO card support"
 	select COMEDI_8254
@@ -771,8 +787,8 @@ config COMEDI_ADV_PCI_DIO
 	---help---
 	  Enable support for Advantech PCI DIO cards
 	  PCI-1730, PCI-1733, PCI-1734, PCI-1735U, PCI-1736UP, PCI-1739U,
-	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756,
-	  PCI-1760 and PCI-1762
+	  PCI-1750, PCI-1751, PCI-1752, PCI-1753/E, PCI-1754, PCI-1756 and
+	  PCI-1762
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci_dio.

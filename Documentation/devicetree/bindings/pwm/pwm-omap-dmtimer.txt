@@ -1,0 +1,18 @@
+* OMAP PWM for dual-mode timers
+
+Required properties:
+- compatible: Shall contain "ti,omap-dmtimer-pwm".
+- ti,timers: phandle to PWM capable OMAP timer. See arm/omap/timer.txt for info
+  about these timers.
+- #pwm-cells: Should be 3. See pwm.txt in this directory for a description of
+  the cells format.
+
+Optional properties:
+- ti,prescaler: Should be a value between 0 and 7, see the timers datasheet
+
+Example:
+	pwm9: dmtimer-pwm@9 {
+		compatible = "ti,omap-dmtimer-pwm";
+		ti,timers = <&timer9>;
+		#pwm-cells = <3>;
+	};

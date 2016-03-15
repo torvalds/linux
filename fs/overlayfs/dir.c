@@ -167,7 +167,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	struct dentry *newdentry;
 	int err;
 
-	mutex_lock_nested(&udir->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(udir, I_MUTEX_PARENT);
 	newdentry = lookup_one_len(dentry->d_name.name, upperdir,
 				   dentry->d_name.len);
 	err = PTR_ERR(newdentry);
@@ -185,7 +185,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 out_dput:
 	dput(newdentry);
 out_unlock:
-	mutex_unlock(&udir->i_mutex);
+	inode_unlock(udir);
 	return err;
 }
 
@@ -258,9 +258,9 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (err)
 		goto out_cleanup;
 
-	mutex_lock(&opaquedir->d_inode->i_mutex);
+	inode_lock(opaquedir->d_inode);
 	err = ovl_set_attr(opaquedir, &stat);
-	mutex_unlock(&opaquedir->d_inode->i_mutex);
+	inode_unlock(opaquedir->d_inode);
 	if (err)
 		goto out_cleanup;
 
@@ -599,7 +599,7 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 	struct dentry *upper = ovl_dentry_upper(dentry);
 	int err;
 
-	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	inode_lock_nested(dir, I_MUTEX_PARENT);
 	err = -ESTALE;
 	if (upper->d_parent == upperdir) {
 		/* Don't let d_delete() think it can reset d_inode */
@@ -618,8 +618,9 @@ static int ovl_remove_upper(struct dentry *dentry, bool is_dir)
 	 * sole user of this dentry.  Too tricky...  Just unhash for
 	 * now.
 	 */
-	d_drop(dentry);
-	mutex_unlock(&dir->i_mutex);
+	if (!err)
+		d_drop(dentry);
+	inode_unlock(dir);
 
 	return err;
 }
@@ -903,6 +904,13 @@ static int ovl_rename2(struct inode *olddir, struct dentry *old,
 	if (!overwrite && new_is_dir && !old_opaque && new_opaque)
 		ovl_remove_opaque(newdentry);
 
+	/*
+	 * Old dentry now lives in different location. Dentries in
+	 * lowerstack are stale. We cannot drop them here because
+	 * access to them is lockless. This could be only pure upper
+	 * or opaque directory - numlower is zero. Or upper non-dir
+	 * entry - its pureness is tracked by flag opaque.
+	 */
 	if (old_opaque != new_opaque) {
 		ovl_dentry_set_opaque(old, new_opaque);
 		if (!overwrite)

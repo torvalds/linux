@@ -4,7 +4,7 @@ config ARM_AMBA
 if ARM_AMBA
 
 config TEGRA_AHB
-	bool "Enable AHB driver for NVIDIA Tegra SoCs"
+	bool
 	default y if ARCH_TEGRA
 	help
 	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,

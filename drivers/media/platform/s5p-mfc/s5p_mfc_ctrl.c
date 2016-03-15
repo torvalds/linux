@@ -319,7 +319,7 @@ void s5p_mfc_deinit_hw(struct s5p_mfc_dev *dev)
 	s5p_mfc_clock_on();
 
 	s5p_mfc_reset(dev);
-	s5p_mfc_hw_call_void(dev->mfc_ops, release_dev_context_buffer, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, release_dev_context_buffer, dev);
 
 	s5p_mfc_clock_off();
 }
@@ -468,7 +468,7 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	}
 
 	set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	if (s5p_mfc_wait_for_done_ctx(ctx,
 		S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 0)) {
 		/* Error or timeout */
@@ -482,9 +482,9 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 err_free_desc_buf:
 	if (ctx->type == MFCINST_DECODER)
-		s5p_mfc_hw_call_void(dev->mfc_ops, release_dec_desc_buffer, ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
 err_free_inst_buf:
-	s5p_mfc_hw_call_void(dev->mfc_ops, release_instance_buffer, ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
 err:
 	return ret;
 }
@@ -493,17 +493,17 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 {
 	ctx->state = MFCINST_RETURN_INST;
 	set_work_bit_irqsave(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	/* Wait until instance is returned or timeout occurred */
 	if (s5p_mfc_wait_for_done_ctx(ctx,
 				S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET, 0))
 		mfc_err("Err returning instance\n");
 
 	/* Free resources */
-	s5p_mfc_hw_call_void(dev->mfc_ops, release_codec_buffers, ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, release_instance_buffer, ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers, ctx);
+	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
 	if (ctx->type == MFCINST_DECODER)
-		s5p_mfc_hw_call_void(dev->mfc_ops, release_dec_desc_buffer, ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
 
 	ctx->inst_no = MFC_NO_INSTANCE_SET;
 	ctx->state = MFCINST_FREE;

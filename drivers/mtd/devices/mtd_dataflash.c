@@ -624,7 +624,6 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 {
 	struct dataflash		*priv;
 	struct mtd_info			*device;
-	struct mtd_part_parser_data	ppdata;
 	struct flash_platform_data	*pdata = dev_get_platdata(&spi->dev);
 	char				*otp_tag = "";
 	int				err = 0;
@@ -656,6 +655,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 	device->priv = priv;
 
 	device->dev.parent = &spi->dev;
+	mtd_set_of_node(device, spi->dev.of_node);
 
 	if (revision >= 'c')
 		otp_tag = otp_setup(device, revision);
@@ -665,8 +665,7 @@ static int add_dataflash_otp(struct spi_device *spi, char *name, int nr_pages,
 			pagesize, otp_tag);
 	spi_set_drvdata(spi, priv);
 
-	ppdata.of_node = spi->dev.of_node;
-	err = mtd_device_parse_register(device, NULL, &ppdata,
+	err = mtd_device_register(device,
 			pdata ? pdata->parts : NULL,
 			pdata ? pdata->nr_parts : 0);
 

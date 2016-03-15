@@ -89,6 +89,7 @@ struct i2s_dai {
 	struct s3c_dma_params dma_playback;
 	struct s3c_dma_params dma_capture;
 	struct s3c_dma_params idma_playback;
+	dma_filter_fn filter;
 	u32	quirks;
 	u32	suspend_i2smod;
 	u32	suspend_i2scon;
@@ -480,10 +481,11 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 	unsigned int cdcon_mask = 1 << i2s_regs->cdclkcon_off;
 	unsigned int rsrc_mask = 1 << i2s_regs->rclksrc_off;
 	u32 mod, mask, val = 0;
+	unsigned long flags;
 
-	spin_lock(i2s->lock);
+	spin_lock_irqsave(i2s->lock, flags);
 	mod = readl(i2s->addr + I2SMOD);
-	spin_unlock(i2s->lock);
+	spin_unlock_irqrestore(i2s->lock, flags);
 
 	switch (clk_id) {
 	case SAMSUNG_I2S_OPCLK:
@@ -574,11 +576,11 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	spin_lock(i2s->lock);
+	spin_lock_irqsave(i2s->lock, flags);
 	mod = readl(i2s->addr + I2SMOD);
 	mod = (mod & ~mask) | val;
 	writel(mod, i2s->addr + I2SMOD);
-	spin_unlock(i2s->lock);
+	spin_unlock_irqrestore(i2s->lock, flags);
 
 	return 0;
 }
@@ -589,6 +591,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 	struct i2s_dai *i2s = to_info(dai);
 	int lrp_shift, sdf_shift, sdf_mask, lrp_rlow, mod_slave;
 	u32 mod, tmp = 0;
+	unsigned long flags;
 
 	lrp_shift = i2s->variant_regs->lrp_off;
 	sdf_shift = i2s->variant_regs->sdf_off;
@@ -648,7 +651,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	spin_lock(i2s->lock);
+	spin_lock_irqsave(i2s->lock, flags);
 	mod = readl(i2s->addr + I2SMOD);
 	/*
 	 * Don't change the I2S mode if any controller is active on this
@@ -656,7 +659,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 	 */
 	if (any_active(i2s) &&
 		((mod & (sdf_mask | lrp_rlow | mod_slave)) != tmp)) {
-		spin_unlock(i2s->lock);
+		spin_unlock_irqrestore(i2s->lock, flags);
 		dev_err(&i2s->pdev->dev,
 				"%s:%d Other DAI busy\n", __func__, __LINE__);
 		return -EAGAIN;
@@ -665,7 +668,7 @@ static int i2s_set_fmt(struct snd_soc_dai *dai,
 	mod &= ~(sdf_mask | lrp_rlow | mod_slave);
 	mod |= tmp;
 	writel(mod, i2s->addr + I2SMOD);
-	spin_unlock(i2s->lock);
+	spin_unlock_irqrestore(i2s->lock, flags);
 
 	return 0;
 }
@@ -675,6 +678,7 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct i2s_dai *i2s = to_info(dai);
 	u32 mod, mask = 0, val = 0;
+	unsigned long flags;
 
 	if (!is_secondary(i2s))
 		mask |= (MOD_DC2_EN | MOD_DC1_EN);
@@ -743,11 +747,11 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	spin_lock(i2s->lock);
+	spin_lock_irqsave(i2s->lock, flags);
 	mod = readl(i2s->addr + I2SMOD);
 	mod = (mod & ~mask) | val;
 	writel(mod, i2s->addr + I2SMOD);
-	spin_unlock(i2s->lock);
+	spin_unlock_irqrestore(i2s->lock, flags);
 
 	samsung_asoc_init_dma_data(dai, &i2s->dma_playback, &i2s->dma_capture);
 
@@ -1244,7 +1248,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		if (ret != 0)
 			return ret;
 
-		return samsung_asoc_dma_platform_register(&pdev->dev);
+		return samsung_asoc_dma_platform_register(&pdev->dev,
+							  sec_dai->filter);
 	}
 
 	pri_dai = i2s_alloc_dai(pdev, false);
@@ -1257,26 +1262,14 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	pri_dai->lock = &pri_dai->spinlock;
 
 	if (!np) {
-		res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-		if (!res) {
-			dev_err(&pdev->dev,
-				"Unable to get I2S-TX dma resource\n");
-			return -ENXIO;
-		}
-		pri_dai->dma_playback.channel = res->start;
-
-		res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (!res) {
-			dev_err(&pdev->dev,
-				"Unable to get I2S-RX dma resource\n");
-			return -ENXIO;
-		}
-		pri_dai->dma_capture.channel = res->start;
-
 		if (i2s_pdata == NULL) {
 			dev_err(&pdev->dev, "Can't work without s3c_audio_pdata\n");
 			return -EINVAL;
 		}
+
+		pri_dai->dma_playback.slave = i2s_pdata->dma_playback;
+		pri_dai->dma_capture.slave = i2s_pdata->dma_capture;
+		pri_dai->filter = i2s_pdata->dma_filter;
 
 		if (&i2s_pdata->type)
 			i2s_cfg = &i2s_pdata->type.i2s;
@@ -1339,9 +1332,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		sec_dai->dma_playback.ch_name = "tx-sec";
 
 		if (!np) {
-			res = platform_get_resource(pdev, IORESOURCE_DMA, 2);
-			if (res)
-				sec_dai->dma_playback.channel = res->start;
+			sec_dai->dma_playback.slave = i2s_pdata->dma_play_sec;
+			sec_dai->filter = i2s_pdata->dma_filter;
 		}
 
 		sec_dai->dma_playback.dma_size = 4;
@@ -1364,7 +1356,7 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = samsung_asoc_dma_platform_register(&pdev->dev);
+	ret = samsung_asoc_dma_platform_register(&pdev->dev, pri_dai->filter);
 	if (ret != 0)
 		return ret;
 

@@ -410,7 +410,8 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats), type);
+					       ARRAY_SIZE(formats), type,
+					       NULL);
 		if (ret < 0)
 			return ret;
 

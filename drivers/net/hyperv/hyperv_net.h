@@ -124,37 +124,22 @@ struct ndis_tcp_ip_checksum_info;
 /*
  * Represent netvsc packet which contains 1 RNDIS and 1 ethernet frame
  * within the RNDIS
+ *
+ * The size of this structure is less than 48 bytes and we can now
+ * place this structure in the skb->cb field.
  */
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
-	u32 status;
+	u8 cp_partial; /* partial copy into send buffer */
 
-	bool is_data_pkt;
-	bool xmit_more; /* from skb */
-	bool cp_partial; /* partial copy into send buffer */
-
-	u16 vlan_tci;
+	u8 rmsg_size; /* RNDIS header and PPI size */
+	u8 rmsg_pgcnt; /* page count of RNDIS header and PPI */
+	u8 page_buf_cnt;
 
 	u16 q_idx;
-	struct vmbus_channel *channel;
-
-	u64 send_completion_tid;
-	void *send_completion_ctx;
-	void (*send_completion)(void *context);
-
 	u32 send_buf_index;
 
-	/* This points to the memory after page_buf */
-	struct rndis_message *rndis_msg;
-
-	u32 rmsg_size; /* RNDIS header and PPI size */
-	u32 rmsg_pgcnt; /* page count of RNDIS header and PPI */
-
 	u32 total_data_buflen;
-	/* Points to the send/receive buffer where the ethernet frame is */
-	void *data;
-	u32 page_buf_cnt;
-	struct hv_page_buffer *page_buf;
 };
 
 struct netvsc_device_info {
@@ -177,7 +162,6 @@ struct rndis_device {
 
 	enum rndis_device_state state;
 	bool link_state;
-	bool link_change;
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
@@ -188,16 +172,22 @@ struct rndis_device {
 
 
 /* Interface */
+struct rndis_message;
 int netvsc_device_add(struct hv_device *device, void *additional_info);
 int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
-		struct hv_netvsc_packet *packet);
+		struct hv_netvsc_packet *packet,
+		struct rndis_message *rndis_msg,
+		struct hv_page_buffer **page_buffer,
+		struct sk_buff *skb);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);
-void netvsc_xmit_completion(void *context);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
-			struct ndis_tcp_ip_checksum_info *csum_info);
+			void **data,
+			struct ndis_tcp_ip_checksum_info *csum_info,
+			struct vmbus_channel *channel,
+			u16 vlan_tci);
 void netvsc_channel_cb(void *context);
 int rndis_filter_open(struct hv_device *dev);
 int rndis_filter_close(struct hv_device *dev);
@@ -205,11 +195,12 @@ int rndis_filter_device_add(struct hv_device *dev,
 			void *additional_info);
 void rndis_filter_device_remove(struct hv_device *dev);
 int rndis_filter_receive(struct hv_device *dev,
-			struct hv_netvsc_packet *pkt);
+			struct hv_netvsc_packet *pkt,
+			void **data,
+			struct vmbus_channel *channel);
 
 int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter);
 int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac);
-
 
 #define NVSP_INVALID_PROTOCOL_VERSION	((u32)0xFFFFFFFF)
 
@@ -633,7 +624,7 @@ struct nvsp_message {
 #define RNDIS_PKT_ALIGN_DEFAULT 8
 
 struct multi_send_data {
-	spinlock_t lock; /* protect struct multi_send_data */
+	struct sk_buff *skb; /* skb containing the pkt */
 	struct hv_netvsc_packet *pkt; /* netvsc pkt pending */
 	u32 count; /* counter of batched packets */
 };
@@ -644,11 +635,24 @@ struct netvsc_stats {
 	struct u64_stats_sync syncp;
 };
 
+struct netvsc_reconfig {
+	struct list_head list;
+	u32 event;
+};
+
 /* The context of the netvsc device  */
 struct net_device_context {
 	/* point back to our device context */
 	struct hv_device *device_ctx;
+	/* reconfigure work */
 	struct delayed_work dwork;
+	/* last reconfig time */
+	unsigned long last_reconfig;
+	/* reconfig events */
+	struct list_head reconfig_events;
+	/* list protection */
+	spinlock_t lock;
+
 	struct work_struct work;
 	u32 msg_enable; /* debug level */
 
@@ -1259,6 +1263,5 @@ struct rndis_message {
 #define TRANSPORT_INFO_IPV4_UDP ((INFO_IPV4 << 16) | INFO_UDP)
 #define TRANSPORT_INFO_IPV6_TCP ((INFO_IPV6 << 16) | INFO_TCP)
 #define TRANSPORT_INFO_IPV6_UDP ((INFO_IPV6 << 16) | INFO_UDP)
-
 
 #endif /* _HYPERV_NET_H */

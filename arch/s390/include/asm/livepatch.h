@@ -37,7 +37,7 @@ static inline void klp_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 	regs->psw.addr = ip;
 }
 #else
-#error Live patching support is disabled; check CONFIG_LIVEPATCH
+#error Include linux/livepatch.h, not asm/livepatch.h
 #endif
 
 #endif

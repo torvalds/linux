@@ -24,7 +24,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/context_tracking.h>
 
-struct static_key context_tracking_enabled = STATIC_KEY_INIT_FALSE;
+DEFINE_STATIC_KEY_FALSE(context_tracking_enabled);
 EXPORT_SYMBOL_GPL(context_tracking_enabled);
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
@@ -191,7 +191,7 @@ void __init context_tracking_cpu_set(int cpu)
 
 	if (!per_cpu(context_tracking.active, cpu)) {
 		per_cpu(context_tracking.active, cpu) = true;
-		static_key_slow_inc(&context_tracking_enabled);
+		static_branch_inc(&context_tracking_enabled);
 	}
 
 	if (initialized)

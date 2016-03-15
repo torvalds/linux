@@ -36,10 +36,6 @@
 
 #define ATH79_SYS_TYPE_LEN	64
 
-#define AR71XX_BASE_FREQ	40000000
-#define AR724X_BASE_FREQ	5000000
-#define AR913X_BASE_FREQ	5000000
-
 static char ath79_sys_type[ATH79_SYS_TYPE_LEN];
 
 static void ath79_restart(char *command)
@@ -272,15 +268,10 @@ void __init device_tree_init(void)
 	unflatten_and_copy_device_tree();
 }
 
-static void __init ath79_generic_init(void)
-{
-	/* Nothing to do */
-}
-
 MIPS_MACHINE(ATH79_MACH_GENERIC,
 	     "Generic",
 	     "Generic AR71XX/AR724X/AR913X based board",
-	     ath79_generic_init);
+	     NULL);
 
 MIPS_MACHINE(ATH79_MACH_GENERIC_OF,
 	     "DTB",

@@ -21,14 +21,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
-#include <media/soc_mediabus.h>
+#include <media/drv-intf/soc_mediabus.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -137,6 +136,11 @@
 #define VIN_MAX_HEIGHT		2048
 
 #define TIMEOUT_MS		100
+
+#define RCAR_VIN_HSYNC_ACTIVE_LOW	(1 << 0)
+#define RCAR_VIN_VSYNC_ACTIVE_LOW	(1 << 1)
+#define RCAR_VIN_BT601			(1 << 2)
+#define RCAR_VIN_BT656			(1 << 3)
 
 enum chip_id {
 	RCAR_GEN2,
@@ -527,45 +531,13 @@ struct rcar_vin_cam {
  * required
  */
 static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
-				   const void *parg,
 				   unsigned int *count,
 				   unsigned int *num_planes,
 				   unsigned int sizes[], void *alloc_ctxs[])
 {
-	const struct v4l2_format *fmt = parg;
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct rcar_vin_priv *priv = ici->priv;
-
-	if (fmt) {
-		const struct soc_camera_format_xlate *xlate;
-		unsigned int bytes_per_line;
-		int ret;
-
-		if (fmt->fmt.pix.sizeimage < icd->sizeimage)
-			return -EINVAL;
-
-		xlate = soc_camera_xlate_by_fourcc(icd,
-						   fmt->fmt.pix.pixelformat);
-		if (!xlate)
-			return -EINVAL;
-		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-					      xlate->host_fmt);
-		if (ret < 0)
-			return ret;
-
-		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
-
-		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
-					  fmt->fmt.pix.height);
-		if (ret < 0)
-			return ret;
-
-		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
-	} else {
-		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		sizes[0] = icd->sizeimage;
-	}
 
 	alloc_ctxs[0] = priv->alloc_ctx;
 
@@ -576,13 +548,17 @@ static int rcar_vin_videobuf_setup(struct vb2_queue *vq,
 		*count = 2;
 	priv->vb_count = *count;
 
-	*num_planes = 1;
-
 	/* Number of hardware slots */
 	if (is_continuous_transfer(priv))
 		priv->nr_hw_slots = MAX_BUFFER_NUM;
 	else
 		priv->nr_hw_slots = 1;
+
+	if (*num_planes)
+		return sizes[0] < icd->sizeimage ? -EINVAL : 0;
+
+	sizes[0] = icd->sizeimage;
+	*num_planes = 1;
 
 	dev_dbg(icd->parent, "count=%d, size=%u\n", *count, sizes[0]);
 
@@ -912,7 +888,7 @@ static irqreturn_t rcar_vin_irq(int irq, void *data)
 
 		priv->queue_buf[slot]->field = priv->field;
 		priv->queue_buf[slot]->sequence = priv->sequence++;
-		v4l2_get_timestamp(&priv->queue_buf[slot]->timestamp);
+		priv->queue_buf[slot]->vb2_buf.timestamp = ktime_get_ns();
 		vb2_buffer_done(&priv->queue_buf[slot]->vb2_buf,
 				VB2_BUF_STATE_DONE);
 		priv->queue_buf[slot] = NULL;
@@ -1853,63 +1829,43 @@ static const struct of_device_id rcar_vin_of_table[] = {
 MODULE_DEVICE_TABLE(of, rcar_vin_of_table);
 #endif
 
-static struct platform_device_id rcar_vin_id_table[] = {
-	{ "r8a7779-vin",  RCAR_H1 },
-	{ "r8a7778-vin",  RCAR_M1 },
-	{ "uPD35004-vin", RCAR_E1 },
-	{},
-};
-MODULE_DEVICE_TABLE(platform, rcar_vin_id_table);
-
 static int rcar_vin_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match = NULL;
 	struct rcar_vin_priv *priv;
+	struct v4l2_of_endpoint ep;
+	struct device_node *np;
 	struct resource *mem;
-	struct rcar_vin_platform_data *pdata;
 	unsigned int pdata_flags;
 	int irq, ret;
 
-	if (pdev->dev.of_node) {
-		struct v4l2_of_endpoint ep;
-		struct device_node *np;
+	match = of_match_device(of_match_ptr(rcar_vin_of_table), &pdev->dev);
 
-		match = of_match_device(of_match_ptr(rcar_vin_of_table),
-					&pdev->dev);
-
-		np = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
-		if (!np) {
-			dev_err(&pdev->dev, "could not find endpoint\n");
-			return -EINVAL;
-		}
-
-		ret = v4l2_of_parse_endpoint(np, &ep);
-		if (ret) {
-			dev_err(&pdev->dev, "could not parse endpoint\n");
-			return ret;
-		}
-
-		if (ep.bus_type == V4L2_MBUS_BT656)
-			pdata_flags = RCAR_VIN_BT656;
-		else {
-			pdata_flags = 0;
-			if (ep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-				pdata_flags |= RCAR_VIN_HSYNC_ACTIVE_LOW;
-			if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-				pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
-		}
-
-		of_node_put(np);
-
-		dev_dbg(&pdev->dev, "pdata_flags = %08x\n", pdata_flags);
-	} else {
-		pdata = pdev->dev.platform_data;
-		if (!pdata || !pdata->flags) {
-			dev_err(&pdev->dev, "platform data not set\n");
-			return -EINVAL;
-		}
-		pdata_flags = pdata->flags;
+	np = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
+	if (!np) {
+		dev_err(&pdev->dev, "could not find endpoint\n");
+		return -EINVAL;
 	}
+
+	ret = v4l2_of_parse_endpoint(np, &ep);
+	if (ret) {
+		dev_err(&pdev->dev, "could not parse endpoint\n");
+		return ret;
+	}
+
+	if (ep.bus_type == V4L2_MBUS_BT656)
+		pdata_flags = RCAR_VIN_BT656;
+	else {
+		pdata_flags = 0;
+		if (ep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+			pdata_flags |= RCAR_VIN_HSYNC_ACTIVE_LOW;
+		if (ep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+			pdata_flags |= RCAR_VIN_VSYNC_ACTIVE_LOW;
+	}
+
+	of_node_put(np);
+
+	dev_dbg(&pdev->dev, "pdata_flags = %08x\n", pdata_flags);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (mem == NULL)
@@ -1992,7 +1948,6 @@ static struct platform_driver rcar_vin_driver = {
 		.name		= DRV_NAME,
 		.of_match_table	= of_match_ptr(rcar_vin_of_table),
 	},
-	.id_table	= rcar_vin_id_table,
 };
 
 module_platform_driver(rcar_vin_driver);

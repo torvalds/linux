@@ -11,19 +11,20 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	compatible = "nxp,lpc3220";
 	interrupt-parent = <&mic>;
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0x0>;
 		};
 	};
 
@@ -31,7 +32,8 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		ranges = <0x20000000 0x20000000 0x30000000>;
+		ranges = <0x20000000 0x20000000 0x30000000>,
+			 <0xe0000000 0xe0000000 0x04000000>;
 
 		/*
 		 * Enable either SLC or MLC
@@ -49,30 +51,46 @@
 			status = "disabled";
 		};
 
-		dma@31000000 {
+		dma: dma@31000000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0x31000000 0x1000>;
 			interrupts = <0x1c 0>;
 		};
 
-		/*
-		 * Enable either ohci or usbd (gadget)!
-		 */
-		ohci@31020000 {
-			compatible = "nxp,ohci-nxp", "usb-ohci";
-			reg = <0x31020000 0x300>;
-			interrupts = <0x3b 0>;
-			status = "disabled";
+		usb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0x0 0x31020000 0x00001000>;
+
+			/*
+			 * Enable either ohci or usbd (gadget)!
+			 */
+			ohci: ohci@0 {
+				compatible = "nxp,ohci-nxp", "usb-ohci";
+				reg = <0x0 0x300>;
+				interrupts = <0x3b 0>;
+				status = "disabled";
+			};
+
+			usbd: usbd@0 {
+				compatible = "nxp,lpc3220-udc";
+				reg = <0x0 0x300>;
+				interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
+				status = "disabled";
+			};
+
+			i2cusb: i2c@300 {
+				compatible = "nxp,pnx-i2c";
+				reg = <0x300 0x100>;
+				interrupts = <0x3f 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				pnx,timeout = <0x64>;
+			};
 		};
 
-		usbd@31020000 {
-			compatible = "nxp,lpc3220-udc";
-			reg = <0x31020000 0x300>;
-			interrupts = <0x3d 0>, <0x3e 0>, <0x3c 0>, <0x3a 0>;
-			status = "disabled";
-		};
-
-		clcd@31040000 {
+		clcd: clcd@31040000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x31040000 0x1000>;
 			interrupts = <0x0e 0>;
@@ -83,6 +101,19 @@
 			compatible = "nxp,lpc-eth";
 			reg = <0x31060000 0x1000>;
 			interrupts = <0x1d 0>;
+		};
+
+		emc: memory-controller@31080000 {
+			compatible = "arm,pl175", "arm,primecell";
+			reg = <0x31080000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ranges = <0 0xe0000000 0x01000000>,
+				 <1 0xe1000000 0x01000000>,
+				 <2 0xe2000000 0x01000000>,
+				 <3 0xe3000000 0x01000000>;
+			status = "disabled";
 		};
 
 		apb {
@@ -118,7 +149,7 @@
 				reg = <0x20094000 0x1000>;
 			};
 
-			sd@20098000 {
+			sd: sd@20098000 {
 				compatible = "arm,pl18x", "arm,primecell";
 				reg = <0x20098000 0x1000>;
 				interrupts = <0x0f 0>, <0x0d 0>;
@@ -192,15 +223,6 @@
 				status = "disabled";
 				#pwm-cells = <2>;
 			};
-
-			i2cusb: i2c@31020300 {
-				compatible = "nxp,pnx-i2c";
-				reg = <0x31020300 0x100>;
-				interrupts = <0x3f 0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				pnx,timeout = <0x64>;
-			};
 		};
 
 		fab {
@@ -243,7 +265,7 @@
 				status = "disabled";
 			};
 
-			rtc@40024000 {
+			rtc: rtc@40024000 {
 				compatible = "nxp,lpc3220-rtc";
 				reg = <0x40024000 0x1000>;
 				interrupts = <0x34 0>;
@@ -256,9 +278,29 @@
 				#gpio-cells = <3>; /* bank, pin, flags */
 			};
 
-			watchdog@4003C000 {
+			timer4: timer@4002C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4002C000 0x1000>;
+				interrupts = <0x3 0>;
+				status = "disabled";
+			};
+
+			timer5: timer@40030000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40030000 0x1000>;
+				interrupts = <0x4 0>;
+				status = "disabled";
+			};
+
+			watchdog: watchdog@4003C000 {
 				compatible = "nxp,pnx4008-wdt";
 				reg = <0x4003C000 0x1000>;
+			};
+
+			timer0: timer@40044000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40044000 0x1000>;
+				interrupts = <0x10 0>;
 			};
 
 			/*
@@ -268,30 +310,56 @@
 			 * them
 			 */
 
-			adc@40048000 {
+			adc: adc@40048000 {
 				compatible = "nxp,lpc3220-adc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
 				status = "disabled";
 			};
 
-			tsc@40048000 {
+			tsc: tsc@40048000 {
 				compatible = "nxp,lpc3220-tsc";
 				reg = <0x40048000 0x1000>;
 				interrupts = <0x27 0>;
 				status = "disabled";
 			};
 
-			key@40050000 {
+			timer1: timer@4004C000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x4004C000 0x1000>;
+				interrupts = <0x11 0>;
+			};
+
+			key: key@40050000 {
 				compatible = "nxp,lpc3220-key";
 				reg = <0x40050000 0x1000>;
 				interrupts = <54 0>;
 				status = "disabled";
 			};
 
-			pwm: pwm@4005C000 {
+			timer2: timer@40058000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40058000 0x1000>;
+				interrupts = <0x12 0>;
+				status = "disabled";
+			};
+
+			pwm1: pwm@4005C000 {
 				compatible = "nxp,lpc3220-pwm";
-				reg = <0x4005C000 0x8>;
+				reg = <0x4005C000 0x4>;
+				status = "disabled";
+			};
+
+			pwm2: pwm@4005C004 {
+				compatible = "nxp,lpc3220-pwm";
+				reg = <0x4005C004 0x4>;
+				status = "disabled";
+			};
+
+			timer3: timer@40060000 {
+				compatible = "nxp,lpc3220-timer";
+				reg = <0x40060000 0x1000>;
+				interrupts = <0x13 0>;
 				status = "disabled";
 			};
 		};

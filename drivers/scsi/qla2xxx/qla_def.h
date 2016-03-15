@@ -259,7 +259,7 @@
 #define LOOP_DOWN_TIME			255	/* 240 */
 #define	LOOP_DOWN_RESET			(LOOP_DOWN_TIME - 30)
 
-#define DEFAULT_OUTSTANDING_COMMANDS	1024
+#define DEFAULT_OUTSTANDING_COMMANDS	4096
 #define MIN_OUTSTANDING_COMMANDS	128
 
 /* ISP request and response entry counts (37-65535) */
@@ -267,11 +267,13 @@
 #define REQUEST_ENTRY_CNT_2200		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_24XX		2048	/* Number of request entries. */
 #define REQUEST_ENTRY_CNT_83XX		8192	/* Number of request entries. */
+#define RESPONSE_ENTRY_CNT_83XX		4096	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2100		64	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_2300		512	/* Number of response entries.*/
 #define RESPONSE_ENTRY_CNT_MQ		128	/* Number of response entries.*/
 #define ATIO_ENTRY_CNT_24XX		4096	/* Number of ATIO entries. */
 #define RESPONSE_ENTRY_CNT_FX00		256     /* Number of response entries.*/
+#define EXTENDED_EXCH_ENTRY_CNT		32768   /* Entries for offload case */
 
 struct req_que;
 struct qla_tgt_sess;
@@ -309,6 +311,14 @@ struct srb_cmd {
 /* To identify if a srb is of T10-CRC type. @sp => srb_t pointer */
 #define IS_PROT_IO(sp)	(sp->flags & SRB_CRC_CTX_DSD_VALID)
 
+struct els_logo_payload {
+	uint8_t opcode;
+	uint8_t rsvd[3];
+	uint8_t s_id[3];
+	uint8_t rsvd1[1];
+	uint8_t wwpn[WWN_SIZE];
+};
+
 /*
  * SRB extensions.
  */
@@ -321,6 +331,15 @@ struct srb_iocb {
 #define SRB_LOGIN_SKIP_PRLI	BIT_2
 			uint16_t data[2];
 		} logio;
+		struct {
+#define ELS_DCMD_TIMEOUT 20
+#define ELS_DCMD_LOGO 0x5
+			uint32_t flags;
+			uint32_t els_cmd;
+			struct completion comp;
+			struct els_logo_payload *els_logo_pyld;
+			dma_addr_t els_logo_pyld_dma;
+		} els_logo;
 		struct {
 			/*
 			 * Values for flags field below are as
@@ -382,7 +401,7 @@ struct srb_iocb {
 #define SRB_FXIOCB_DCMD	10
 #define SRB_FXIOCB_BCMD	11
 #define SRB_ABT_CMD	12
-
+#define SRB_ELS_DCMD	13
 
 typedef struct srb {
 	atomic_t ref_count;
@@ -891,6 +910,7 @@ struct mbx_cmd_32 {
 #define MBC_DISABLE_VI			0x24	/* Disable VI operation. */
 #define MBC_ENABLE_VI			0x25	/* Enable VI operation. */
 #define MBC_GET_FIRMWARE_OPTION		0x28	/* Get Firmware Options. */
+#define MBC_GET_MEM_OFFLOAD_CNTRL_STAT	0x34	/* Memory Offload ctrl/Stat*/
 #define MBC_SET_FIRMWARE_OPTION		0x38	/* Set Firmware Options. */
 #define MBC_LOOP_PORT_BYPASS		0x40	/* Loop Port Bypass. */
 #define MBC_LOOP_PORT_ENABLE		0x41	/* Loop Port Enable. */
@@ -2695,11 +2715,16 @@ struct isp_operations {
 
 struct scsi_qla_host;
 
+
+#define QLA83XX_RSPQ_MSIX_ENTRY_NUMBER 1 /* refer to qla83xx_msix_entries */
+
 struct qla_msix_entry {
 	int have_irq;
 	uint32_t vector;
 	uint16_t entry;
 	struct rsp_que *rsp;
+	struct irq_affinity_notify irq_notify;
+	int cpuid;
 };
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
@@ -2910,12 +2935,15 @@ struct qlt_hw_data {
 	uint32_t num_qfull_cmds_dropped;
 	spinlock_t q_full_lock;
 	uint32_t leak_exchg_thresh_hold;
+	spinlock_t sess_lock;
+	int rspq_vector_cpuid;
+	spinlock_t atio_lock ____cacheline_aligned;
 };
 
 #define MAX_QFULL_CMDS_ALLOC	8192
 #define Q_FULL_THRESH_HOLD_PERCENT 90
 #define Q_FULL_THRESH_HOLD(ha) \
-	((ha->fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
+	((ha->cur_fw_xcb_count/100) * Q_FULL_THRESH_HOLD_PERCENT)
 
 #define LEAK_EXCHG_THRESH_HOLD_PERCENT 75	/* 75 percent */
 
@@ -2962,10 +2990,12 @@ struct qla_hw_data {
 		uint32_t	isp82xx_no_md_cap:1;
 		uint32_t	host_shutting_down:1;
 		uint32_t	idc_compl_status:1;
-
 		uint32_t        mr_reset_hdlr_active:1;
 		uint32_t        mr_intr_valid:1;
+
 		uint32_t	fawwpn_enabled:1;
+		uint32_t	exlogins_enabled:1;
+		uint32_t	exchoffld_enabled:1;
 		/* 35 bits */
 	} flags;
 
@@ -3237,6 +3267,21 @@ struct qla_hw_data {
 	void		*async_pd;
 	dma_addr_t	async_pd_dma;
 
+#define ENABLE_EXTENDED_LOGIN	BIT_7
+
+	/* Extended Logins  */
+	void		*exlogin_buf;
+	dma_addr_t	exlogin_buf_dma;
+	int		exlogin_size;
+
+#define ENABLE_EXCHANGE_OFFLD	BIT_2
+
+	/* Exchange Offload */
+	void		*exchoffld_buf;
+	dma_addr_t	exchoffld_buf_dma;
+	int		exchoffld_size;
+	int 		exchoffld_count;
+
 	void		*swl;
 
 	/* These are used by mailbox operations. */
@@ -3279,8 +3324,14 @@ struct qla_hw_data {
 #define RISC_START_ADDRESS_2100 0x1000
 #define RISC_START_ADDRESS_2300 0x800
 #define RISC_START_ADDRESS_2400 0x100000
-	uint16_t	fw_xcb_count;
-	uint16_t	fw_iocb_count;
+
+	uint16_t	orig_fw_tgt_xcb_count;
+	uint16_t	cur_fw_tgt_xcb_count;
+	uint16_t	orig_fw_xcb_count;
+	uint16_t	cur_fw_xcb_count;
+	uint16_t	orig_fw_iocb_count;
+	uint16_t	cur_fw_iocb_count;
+	uint16_t	fw_max_fcf_count;
 
 	uint32_t	fw_shared_ram_start;
 	uint32_t	fw_shared_ram_end;
@@ -3323,6 +3374,9 @@ struct qla_hw_data {
 	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
+	struct dentry *dfs_tgt_counters;
+	struct dentry *dfs_fw_resource_cnt;
+
 	dma_addr_t	fce_dma;
 	void		*fce;
 	uint32_t	fce_bufs;
@@ -3480,6 +3534,18 @@ struct qla_hw_data {
 	int	allow_cna_fw_dump;
 };
 
+struct qla_tgt_counters {
+	uint64_t qla_core_sbt_cmd;
+	uint64_t core_qla_que_buf;
+	uint64_t qla_core_ret_ctio;
+	uint64_t core_qla_snd_status;
+	uint64_t qla_core_ret_sta_ctio;
+	uint64_t core_qla_free_cmd;
+	uint64_t num_q_full_sent;
+	uint64_t num_alloc_iocb_failed;
+	uint64_t num_term_xchg_sent;
+};
+
 /*
  * Qlogic scsi host structure
  */
@@ -3595,6 +3661,10 @@ typedef struct scsi_qla_host {
 	atomic_t		generation_tick;
 	/* Time when global fcport update has been scheduled */
 	int			total_fcport_update_gen;
+	/* List of pending LOGOs, protected by tgt_mutex */
+	struct list_head	logo_list;
+	/* List of pending PLOGI acks, protected by hw lock */
+	struct list_head	plogi_ack_list;
 
 	uint32_t	vp_abort_cnt;
 
@@ -3632,6 +3702,7 @@ typedef struct scsi_qla_host {
 
 	atomic_t	vref_count;
 	struct qla8044_reset_template reset_tmplt;
+	struct qla_tgt_counters tgt_counters;
 } scsi_qla_host_t;
 
 #define SET_VP_IDX	1

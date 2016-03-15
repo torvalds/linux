@@ -418,7 +418,7 @@ err_new_queue:
 static int vp_modern_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			      struct virtqueue *vqs[],
 			      vq_callback_t *callbacks[],
-			      const char *names[])
+			      const char * const names[])
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
@@ -679,7 +679,7 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 
 	pci_read_config_dword(pci_dev,
 			      notify + offsetof(struct virtio_pci_notify_cap,
-						cap.length),
+						cap.offset),
 			      &notify_offset);
 
 	/* We don't know how many VQs we'll map, ahead of the time.

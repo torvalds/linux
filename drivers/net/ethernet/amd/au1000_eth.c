@@ -344,9 +344,6 @@ static void au1000_mdio_write(struct net_device *dev, int phy_addr,
 
 static int au1000_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	/* WARNING: bus->phy_map[phy_addr].attached_dev == dev does
-	 * _NOT_ hold (e.g. when PHY is accessed through other MAC's MII bus)
-	 */
 	struct net_device *const dev = bus->priv;
 
 	/* make sure the MAC associated with this
@@ -502,7 +499,7 @@ static int au1000_mii_probe(struct net_device *dev)
 		BUG_ON(aup->mac_id < 0 || aup->mac_id > 1);
 
 		if (aup->phy_addr)
-			phydev = aup->mii_bus->phy_map[aup->phy_addr];
+			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
 		else
 			netdev_info(dev, "using PHY-less setup\n");
 		return 0;
@@ -512,8 +509,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	 * on the current MAC's MII bus
 	 */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++)
-		if (aup->mii_bus->phy_map[phy_addr]) {
-			phydev = aup->mii_bus->phy_map[phy_addr];
+		if (mdiobus_get_phy(aup->mii_bus, aup->phy_addr)) {
+			phydev = mdiobus_get_phy(aup->mii_bus, aup->phy_addr);
 			if (!aup->phy_search_highest_addr)
 				/* break out with first one found */
 				break;
@@ -531,7 +528,8 @@ static int au1000_mii_probe(struct net_device *dev)
 			 */
 			for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
 				struct phy_device *const tmp_phydev =
-					aup->mii_bus->phy_map[phy_addr];
+					mdiobus_get_phy(aup->mii_bus,
+							phy_addr);
 
 				if (aup->mac_id == 1)
 					break;
@@ -558,7 +556,7 @@ static int au1000_mii_probe(struct net_device *dev)
 	/* now we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
+	phydev = phy_connect(dev, phydev_name(phydev),
 			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -583,9 +581,7 @@ static int au1000_mii_probe(struct net_device *dev)
 	aup->old_duplex = -1;
 	aup->phy_dev = phydev;
 
-	netdev_info(dev, "attached PHY driver [%s] "
-	       "(mii_bus:phy_addr=%s, irq=%d)\n",
-	       phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
+	phy_attached_info(phydev);
 
 	return 0;
 }
@@ -1293,14 +1289,7 @@ static int au1000_probe(struct platform_device *pdev)
 	aup->mii_bus->name = "au1000_eth_mii";
 	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		pdev->name, aup->mac_id);
-	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (aup->mii_bus->irq == NULL) {
-		err = -ENOMEM;
-		goto err_out;
-	}
 
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		aup->mii_bus->irq[i] = PHY_POLL;
 	/* if known, set corresponding PHY IRQs */
 	if (aup->phy_static_config)
 		if (aup->phy_irq && aup->phy_busid == aup->mac_id)

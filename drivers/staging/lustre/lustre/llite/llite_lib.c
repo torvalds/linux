@@ -27,7 +27,7 @@
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2011, 2012, Intel Corporation.
+ * Copyright (c) 2011, 2015, Intel Corporation.
  */
 /*
  * This file is part of Lustre, http://www.lustre.org/
@@ -1277,7 +1277,7 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		return -ENOMEM;
 
 	if (!S_ISDIR(inode->i_mode))
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 	memcpy(&op_data->op_attr, attr, sizeof(*attr));
 
@@ -1358,7 +1358,7 @@ out:
 	ll_finish_md_op_data(op_data);
 
 	if (!S_ISDIR(inode->i_mode)) {
-		mutex_lock(&inode->i_mutex);
+		inode_lock(inode);
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
 			inode_dio_wait(inode);
 	}

@@ -439,6 +439,7 @@ struct ehci_qh {
 	unsigned		dequeue_during_giveback:1;
 	unsigned		exception:1;	/* got a fault, or an unlink
 						   was requested */
+	unsigned		should_be_inactive:1;
 };
 
 /*-------------------------------------------------------------------------*/

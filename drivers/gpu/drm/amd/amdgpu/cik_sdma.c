@@ -885,7 +885,7 @@ static void cik_enable_sdma_mgcg(struct amdgpu_device *adev,
 {
 	u32 orig, data;
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_SDMA_MGCG)) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_MGCG)) {
 		WREG32(mmSDMA0_CLK_CTRL + SDMA0_REGISTER_OFFSET, 0x00000100);
 		WREG32(mmSDMA0_CLK_CTRL + SDMA1_REGISTER_OFFSET, 0x00000100);
 	} else {
@@ -906,7 +906,7 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 {
 	u32 orig, data;
 
-	if (enable && (adev->cg_flags & AMDGPU_CG_SUPPORT_SDMA_LS)) {
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_SDMA_LS)) {
 		orig = data = RREG32(mmSDMA0_POWER_CNTL + SDMA0_REGISTER_OFFSET);
 		data |= 0x100;
 		if (orig != data)

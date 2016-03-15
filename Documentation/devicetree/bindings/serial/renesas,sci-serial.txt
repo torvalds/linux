@@ -2,7 +2,7 @@
 
 Required properties:
 
-  - compatible: Must contain one of the following:
+  - compatible: Must contain one or more of the following:
 
     - "renesas,scif-r7s72100" for R7S72100 (RZ/A1H) SCIF compatible UART.
     - "renesas,scifa-r8a73a4" for R8A73A4 (R-Mobile APE6) SCIFA compatible UART.
@@ -15,10 +15,14 @@ Required properties:
     - "renesas,scifa-r8a7790" for R8A7790 (R-Car H2) SCIFA compatible UART.
     - "renesas,scifb-r8a7790" for R8A7790 (R-Car H2) SCIFB compatible UART.
     - "renesas,hscif-r8a7790" for R8A7790 (R-Car H2) HSCIF compatible UART.
-    - "renesas,scif-r8a7791" for R8A7791 (R-Car M2) SCIF compatible UART.
-    - "renesas,scifa-r8a7791" for R8A7791 (R-Car M2) SCIFA compatible UART.
-    - "renesas,scifb-r8a7791" for R8A7791 (R-Car M2) SCIFB compatible UART.
-    - "renesas,hscif-r8a7791" for R8A7791 (R-Car M2) HSCIF compatible UART.
+    - "renesas,scif-r8a7791" for R8A7791 (R-Car M2-W) SCIF compatible UART.
+    - "renesas,scifa-r8a7791" for R8A7791 (R-Car M2-W) SCIFA compatible UART.
+    - "renesas,scifb-r8a7791" for R8A7791 (R-Car M2-W) SCIFB compatible UART.
+    - "renesas,hscif-r8a7791" for R8A7791 (R-Car M2-W) HSCIF compatible UART.
+    - "renesas,scif-r8a7793" for R8A7793 (R-Car M2-N) SCIF compatible UART.
+    - "renesas,scifa-r8a7793" for R8A7793 (R-Car M2-N) SCIFA compatible UART.
+    - "renesas,scifb-r8a7793" for R8A7793 (R-Car M2-N) SCIFB compatible UART.
+    - "renesas,hscif-r8a7793" for R8A7793 (R-Car M2-N) HSCIF compatible UART.
     - "renesas,scif-r8a7794" for R8A7794 (R-Car E2) SCIF compatible UART.
     - "renesas,scifa-r8a7794" for R8A7794 (R-Car E2) SCIFA compatible UART.
     - "renesas,scifb-r8a7794" for R8A7794 (R-Car E2) SCIFB compatible UART.
@@ -27,6 +31,14 @@ Required properties:
     - "renesas,hscif-r8a7795" for R8A7795 (R-Car H3) HSCIF compatible UART.
     - "renesas,scifa-sh73a0" for SH73A0 (SH-Mobile AG5) SCIFA compatible UART.
     - "renesas,scifb-sh73a0" for SH73A0 (SH-Mobile AG5) SCIFB compatible UART.
+    - "renesas,rcar-gen1-scif" for R-Car Gen1 SCIF compatible UART,
+    - "renesas,rcar-gen2-scif" for R-Car Gen2 SCIF compatible UART,
+    - "renesas,rcar-gen3-scif" for R-Car Gen3 SCIF compatible UART,
+    - "renesas,rcar-gen2-scifa" for R-Car Gen2 SCIFA compatible UART,
+    - "renesas,rcar-gen2-scifb" for R-Car Gen2 SCIFB compatible UART,
+    - "renesas,rcar-gen1-hscif" for R-Car Gen1 HSCIF compatible UART,
+    - "renesas,rcar-gen2-hscif" for R-Car Gen2 HSCIF compatible UART,
+    - "renesas,rcar-gen3-hscif" for R-Car Gen3 HSCIF compatible UART,
     - "renesas,scif" for generic SCIF compatible UART.
     - "renesas,scifa" for generic SCIFA compatible UART.
     - "renesas,scifb" for generic SCIFB compatible UART.
@@ -34,15 +46,26 @@ Required properties:
     - "renesas,sci" for generic SCI compatible UART.
 
     When compatible with the generic version, nodes must list the
-    SoC-specific version corresponding to the platform first followed by the
-    generic version.
+    SoC-specific version corresponding to the platform first, followed by the
+    family-specific and/or generic versions.
 
   - reg: Base address and length of the I/O registers used by the UART.
   - interrupts: Must contain an interrupt-specifier for the SCIx interrupt.
 
   - clocks: Must contain a phandle and clock-specifier pair for each entry
     in clock-names.
-  - clock-names: Must contain "sci_ick" for the SCIx UART interface clock.
+  - clock-names: Must contain "fck" for the SCIx UART functional clock.
+    Apart from the divided functional clock, there may be other possible
+    sources for the sampling clock, depending on SCIx variant.
+    On (H)SCI(F) and some SCIFA, an additional clock may be specified:
+      - "hsck" for the optional external clock input (on HSCIF),
+      - "sck" for the optional external clock input (on other variants).
+    On UARTs equipped with a Baud Rate Generator for External Clock (BRG)
+    (some SCIF and HSCIF), additional clocks may be specified:
+      - "brg_int" for the optional internal clock source for the frequency
+	divider (typically the (AXI or SHwy) bus clock),
+      - "scif_clk" for the optional external clock source for the frequency
+	divider (SCIF_CLK).
 
 Note: Each enabled SCIx UART should have an alias correctly numbered in the
 "aliases" node.
@@ -58,12 +81,13 @@ Example:
 	};
 
 	scifa0: serial@e6c40000 {
-		compatible = "renesas,scifa-r8a7790", "renesas,scifa";
+		compatible = "renesas,scifa-r8a7790",
+			     "renesas,rcar-gen2-scifa", "renesas,scifa";
 		reg = <0 0xe6c40000 0 64>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 144 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp2_clks R8A7790_CLK_SCIFA0>;
-		clock-names = "sci_ick";
+		clock-names = "fck";
 		dmas = <&dmac0 0x21>, <&dmac0 0x22>;
 		dma-names = "tx", "rx";
 	};

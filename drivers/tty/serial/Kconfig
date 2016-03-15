@@ -115,6 +115,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
+	depends on HAS_DMA
 	depends on ARCH_AT91 || AVR32 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -571,9 +572,11 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	tristate "IMX serial port support"
+	depends on HAS_DMA
 	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
@@ -1044,7 +1047,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_MSM
-	bool "MSM on-chip serial port support"
+	tristate "MSM on-chip serial port support"
 	depends on ARCH_QCOM
 	select SERIAL_CORE
 
@@ -1094,16 +1097,6 @@ config SERIAL_NETX_CONSOLE
 	  If you have enabled the serial port on the Hilscher NetX SoC
 	  you can make it the console by answering Y to this option.
 
-config SERIAL_OF_PLATFORM
-	tristate "Serial port on Open Firmware platform bus"
-	depends on OF
-	depends on SERIAL_8250 || SERIAL_OF_PLATFORM_NWPSERIAL
-	help
-	  If you have a PowerPC based system that has serial ports
-	  on a platform specific bus, you should enable this option.
-	  Currently, only 8250 compatible ports are supported, but
-	  others can easily be added.
-
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
 	depends on ARCH_OMAP2PLUS
@@ -1130,23 +1123,6 @@ config SERIAL_OMAP_CONSOLE
 	  "console=ttyOx". (Try "man bootparam" or see the documentation of
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
-
-config SERIAL_OF_PLATFORM_NWPSERIAL
-	tristate "NWP serial port driver"
-	depends on PPC_DCR
-	select SERIAL_OF_PLATFORM
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_CORE
-	help
-	  This driver supports the cell network processor nwp serial
-	  device.
-
-config SERIAL_OF_PLATFORM_NWPSERIAL_CONSOLE
-	bool "Console on NWP serial port"
-	depends on SERIAL_OF_PLATFORM_NWPSERIAL=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Support for Console on the NWP serial ports.
 
 config SERIAL_LANTIQ
 	bool "Lantiq serial driver"
@@ -1409,8 +1385,9 @@ config SERIAL_PCH_UART_CONSOLE
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_MXS_AUART
-	depends on ARCH_MXS || COMPILE_TEST
 	tristate "MXS AUART support"
+	depends on HAS_DMA
+	depends on ARCH_MXS || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help

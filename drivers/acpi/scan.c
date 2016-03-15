@@ -39,7 +39,7 @@ static const char *dummy_hid = "device";
 
 static LIST_HEAD(acpi_dep_list);
 static DEFINE_MUTEX(acpi_dep_list_lock);
-static LIST_HEAD(acpi_bus_id_list);
+LIST_HEAD(acpi_bus_id_list);
 static DEFINE_MUTEX(acpi_scan_lock);
 static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -50,12 +50,6 @@ struct acpi_dep_data {
 	struct list_head node;
 	acpi_handle master;
 	acpi_handle slave;
-};
-
-struct acpi_device_bus_id{
-	char bus_id[15];
-	unsigned int instance_no;
-	struct list_head node;
 };
 
 void acpi_scan_lock_acquire(void)
@@ -471,9 +465,23 @@ static void acpi_device_release(struct device *dev)
 
 static void acpi_device_del(struct acpi_device *device)
 {
+	struct acpi_device_bus_id *acpi_device_bus_id;
+
 	mutex_lock(&acpi_device_lock);
 	if (device->parent)
 		list_del(&device->node);
+
+	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
+		if (!strcmp(acpi_device_bus_id->bus_id,
+			    acpi_device_hid(device))) {
+			if (acpi_device_bus_id->instance_no > 0)
+				acpi_device_bus_id->instance_no--;
+			else {
+				list_del(&acpi_device_bus_id->node);
+				kfree(acpi_device_bus_id);
+			}
+			break;
+		}
 
 	list_del(&device->wakeup_list);
 	mutex_unlock(&acpi_device_lock);
@@ -1461,7 +1469,7 @@ static int acpi_bus_type_and_status(acpi_handle handle, int *type,
 		*type = ACPI_BUS_TYPE_DEVICE;
 		status = acpi_bus_get_status_handle(handle, sta);
 		if (ACPI_FAILURE(status))
-			return -ENODEV;
+			*sta = 0;
 		break;
 	case ACPI_TYPE_PROCESSOR:
 		*type = ACPI_BUS_TYPE_PROCESSOR;

@@ -293,6 +293,24 @@ static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
 	.enable = mdp5_encoder_enable,
 };
 
+int mdp5_encoder_get_linecount(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf.num;
+
+	return mdp5_read(mdp5_kms, REG_MDP5_INTF_LINE_COUNT(intf));
+}
+
+u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_kms *mdp5_kms = get_kms(encoder);
+	int intf = mdp5_encoder->intf.num;
+
+	return mdp5_read(mdp5_kms, REG_MDP5_INTF_FRAME_COUNT(intf));
+}
+
 int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 					struct drm_encoder *slave_encoder)
 {
@@ -354,7 +372,7 @@ struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 
 	spin_lock_init(&mdp5_encoder->intf_lock);
 
-	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type);
+	drm_encoder_init(dev, encoder, &mdp5_encoder_funcs, enc_type, NULL);
 
 	drm_encoder_helper_add(encoder, &mdp5_encoder_helper_funcs);
 

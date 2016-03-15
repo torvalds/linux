@@ -781,7 +781,8 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 
 	port->irq = irq_of_parse_and_map(node, 0);
 	err = devm_request_irq(dev, port->irq, xilinx_pcie_intr_handler,
-			       IRQF_SHARED, "xilinx-pcie", port);
+			       IRQF_SHARED | IRQF_NO_THREAD,
+			       "xilinx-pcie", port);
 	if (err) {
 		dev_err(dev, "unable to request irq %d\n", port->irq);
 		return err;

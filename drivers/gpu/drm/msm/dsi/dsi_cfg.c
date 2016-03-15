@@ -13,9 +13,26 @@
 
 #include "dsi_cfg.h"
 
-/* DSI v2 has not been supported by now */
-static const struct msm_dsi_config dsi_v2_cfg = {
+static const char * const dsi_v2_bus_clk_names[] = {
+	"core_mmss_clk", "iface_clk", "bus_clk",
+};
+
+static const struct msm_dsi_config apq8064_dsi_cfg = {
 	.io_offset = 0,
+	.reg_cfg = {
+		.num = 3,
+		.regs = {
+			{"vdda", 1200000, 1200000, 100000, 100},
+			{"avdd", 3000000, 3000000, 110000, 100},
+			{"vddio", 1800000, 1800000, 100000, 100},
+		},
+	},
+	.bus_clk_names = dsi_v2_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_v2_bus_clk_names),
+};
+
+static const char * const dsi_6g_bus_clk_names[] = {
+	"mdp_core_clk", "iface_clk", "bus_clk", "core_mmss_clk",
 };
 
 static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
@@ -29,6 +46,12 @@ static const struct msm_dsi_config msm8974_apq8084_dsi_cfg = {
 			{"vddio", 1800000, 1800000, 100000, 100},
 		},
 	},
+	.bus_clk_names = dsi_6g_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_6g_bus_clk_names),
+};
+
+static const char * const dsi_8916_bus_clk_names[] = {
+	"mdp_core_clk", "iface_clk", "bus_clk",
 };
 
 static const struct msm_dsi_config msm8916_dsi_cfg = {
@@ -42,6 +65,8 @@ static const struct msm_dsi_config msm8916_dsi_cfg = {
 			{"vddio", 1800000, 1800000, 100000, 100},
 		},
 	},
+	.bus_clk_names = dsi_8916_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_8916_bus_clk_names),
 };
 
 static const struct msm_dsi_config msm8994_dsi_cfg = {
@@ -57,11 +82,13 @@ static const struct msm_dsi_config msm8994_dsi_cfg = {
 			{"lab_reg", -1, -1, -1, -1},
 			{"ibb_reg", -1, -1, -1, -1},
 		},
-	}
+	},
+	.bus_clk_names = dsi_6g_bus_clk_names,
+	.num_bus_clks = ARRAY_SIZE(dsi_6g_bus_clk_names),
 };
 
 static const struct msm_dsi_cfg_handler dsi_cfg_handlers[] = {
-	{MSM_DSI_VER_MAJOR_V2, U32_MAX, &dsi_v2_cfg},
+	{MSM_DSI_VER_MAJOR_V2, MSM_DSI_V2_VER_MINOR_8064, &apq8064_dsi_cfg},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_0,
 						&msm8974_apq8084_dsi_cfg},
 	{MSM_DSI_VER_MAJOR_6G, MSM_DSI_6G_VER_MINOR_V1_1,

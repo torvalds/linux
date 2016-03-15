@@ -1,7 +1,8 @@
 /*
  * Device Tree file for Buffalo Linkstation LS-WTGL
  *
- * Copyright (C) 2015, Roger Shimizu <rogershimizu@gmail.com>
+ * Copyright (C) 2015, 2016
+ * Roger Shimizu <rogershimizu@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -69,8 +70,6 @@
 
 		internal-regs {
 			pinctrl: pinctrl@10000 {
-				pinctrl-0 = <&pmx_usb_power &pmx_power_hdd
-					&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
 				pinctrl-names = "default";
 
 				pmx_led_power: pmx-leds {
@@ -162,6 +161,7 @@
 		led@1 {
 			label = "lswtgl:blue:power";
 			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
 		};
 
 		led@2 {
@@ -188,7 +188,7 @@
 				3250 1
 				5000 0>;
 
-		alarm-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
 	};
 
 	restart_poweroff {
@@ -224,6 +224,37 @@
 			regulator-always-on;
 			regulator-boot-on;
 			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+	devbus,keep-config;
+
+	flash@0 {
+		compatible = "jedec-flash";
+		reg = <0 0x40000>;
+		bank-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			header@0 {
+				reg = <0 0x30000>;
+				read-only;
+			};
+
+			uboot@30000 {
+				reg = <0x30000 0xF000>;
+				read-only;
+			};
+
+			uboot_env@3F000 {
+				reg = <0x3F000 0x1000>;
+			};
 		};
 	};
 };

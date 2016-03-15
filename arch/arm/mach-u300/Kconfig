@@ -1,6 +1,6 @@
 menuconfig ARCH_U300
-	bool "ST-Ericsson U300 Series" if ARCH_MULTI_V5
-	depends on MMU
+	bool "ST-Ericsson U300 Series"
+	depends on ARCH_MULTI_V5 && MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC

@@ -1043,28 +1043,6 @@ static int qeth_l3_default_setassparms_cb(struct qeth_card *card,
 	return 0;
 }
 
-static struct qeth_cmd_buffer *qeth_l3_get_setassparms_cmd(
-	struct qeth_card *card, enum qeth_ipa_funcs ipa_func, __u16 cmd_code,
-	__u16 len, enum qeth_prot_versions prot)
-{
-	struct qeth_cmd_buffer *iob;
-	struct qeth_ipa_cmd *cmd;
-
-	QETH_CARD_TEXT(card, 4, "getasscm");
-	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETASSPARMS, prot);
-
-	if (iob) {
-		cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-		cmd->data.setassparms.hdr.assist_no = ipa_func;
-		cmd->data.setassparms.hdr.length = 8 + len;
-		cmd->data.setassparms.hdr.command_code = cmd_code;
-		cmd->data.setassparms.hdr.return_code = 0;
-		cmd->data.setassparms.hdr.seq_no = 0;
-	}
-
-	return iob;
-}
-
 #ifdef CONFIG_QETH_IPV6
 static int qeth_l3_send_simple_setassparms_ipv6(struct qeth_card *card,
 		enum qeth_ipa_funcs ipa_func, __u16 cmd_code)
@@ -1073,7 +1051,7 @@ static int qeth_l3_send_simple_setassparms_ipv6(struct qeth_card *card,
 	struct qeth_cmd_buffer *iob;
 
 	QETH_CARD_TEXT(card, 4, "simassp6");
-	iob = qeth_l3_get_setassparms_cmd(card, ipa_func, cmd_code,
+	iob = qeth_get_setassparms_cmd(card, ipa_func, cmd_code,
 				       0, QETH_PROT_IPV6);
 	if (!iob)
 		return -ENOMEM;
@@ -2344,10 +2322,11 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 
 	QETH_CARD_TEXT_(card, 3, "qarpipv%i", prot);
 
-	iob = qeth_l3_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
-			IPA_CMD_ASS_ARP_QUERY_INFO,
-			sizeof(struct qeth_arp_query_data) - sizeof(char),
-			prot);
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
+				       IPA_CMD_ASS_ARP_QUERY_INFO,
+				       sizeof(struct qeth_arp_query_data)
+						- sizeof(char),
+				       prot);
 	if (!iob)
 		return -ENOMEM;
 	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
@@ -2439,7 +2418,7 @@ static int qeth_l3_arp_add_entry(struct qeth_card *card,
 		return -EOPNOTSUPP;
 	}
 
-	iob = qeth_l3_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
 				       IPA_CMD_ASS_ARP_ADD_ENTRY,
 				       sizeof(struct qeth_arp_cache_entry),
 				       QETH_PROT_IPV4);
@@ -2480,7 +2459,7 @@ static int qeth_l3_arp_remove_entry(struct qeth_card *card,
 		return -EOPNOTSUPP;
 	}
 	memcpy(buf, entry, 12);
-	iob = qeth_l3_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
+	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
 				       IPA_CMD_ASS_ARP_REMOVE_ENTRY,
 				       12,
 				       QETH_PROT_IPV4);
@@ -2818,7 +2797,7 @@ static inline int qeth_l3_tso_elements(struct sk_buff *skb)
 {
 	unsigned long tcpd = (unsigned long)tcp_hdr(skb) +
 		tcp_hdr(skb)->doff * 4;
-	int tcpd_len = skb->len - (tcpd - (unsigned long)skb->data);
+	int tcpd_len = skb_headlen(skb) - (tcpd - (unsigned long)skb->data);
 	int elements = PFN_UP(tcpd + tcpd_len - 1) - PFN_DOWN(tcpd);
 
 	elements += qeth_get_elements_for_frags(skb);
@@ -3220,6 +3199,7 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
 	netif_napi_add(card->dev, &card->napi, qeth_l3_poll, QETH_NAPI_WEIGHT);
+	netif_carrier_off(card->dev);
 	return register_netdev(card->dev);
 }
 

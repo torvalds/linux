@@ -26,7 +26,7 @@
 
 extern struct mutex uuid_mutex;
 
-#define BTRFS_STRIPE_LEN	(64 * 1024)
+#define BTRFS_STRIPE_LEN	SZ_64K
 
 struct buffer_head;
 struct btrfs_pending_bios {
@@ -566,6 +566,5 @@ static inline void unlock_chunks(struct btrfs_root *root)
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
-void btrfs_close_one_device(struct btrfs_device *device);
 
 #endif

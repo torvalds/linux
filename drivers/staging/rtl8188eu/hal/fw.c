@@ -58,43 +58,31 @@ static void _rtl88e_fw_block_write(struct adapter *adapt,
 				   const u8 *buffer, u32 size)
 {
 	u32 blk_sz = sizeof(u32);
-	u8 *buf_ptr = (u8 *)buffer;
-	u32 *pu4BytePtr = (u32 *)buffer;
-	u32 i, offset, blk_cnt, remain;
+	const u8 *byte_buffer;
+	const u32 *dword_buffer = (u32 *)buffer;
+	u32 i, write_address, blk_cnt, remain;
 
 	blk_cnt = size / blk_sz;
 	remain = size % blk_sz;
 
-	for (i = 0; i < blk_cnt; i++) {
-		offset = i * blk_sz;
-		usb_write32(adapt, (FW_8192C_START_ADDRESS + offset),
-				*(pu4BytePtr + i));
-	}
+	write_address = FW_8192C_START_ADDRESS;
 
-	if (remain) {
-		offset = blk_cnt * blk_sz;
-		buf_ptr += offset;
-		for (i = 0; i < remain; i++) {
-			usb_write8(adapt, (FW_8192C_START_ADDRESS +
-						 offset + i), *(buf_ptr + i));
-		}
-	}
+	for (i = 0; i < blk_cnt; i++, write_address += blk_sz)
+		usb_write32(adapt, write_address, dword_buffer[i]);
+
+	byte_buffer = buffer + blk_cnt * blk_sz;
+	for (i = 0; i < remain; i++, write_address++)
+		usb_write8(adapt, write_address, byte_buffer[i]);
 }
 
 static void _rtl88e_fill_dummy(u8 *pfwbuf, u32 *pfwlen)
 {
-	u32 fwlen = *pfwlen;
-	u8 remain = (u8)(fwlen % 4);
+	u32 i;
 
-	remain = (remain == 0) ? 0 : (4 - remain);
+	for (i = *pfwlen; i < roundup(*pfwlen, 4); i++)
+		pfwbuf[i] = 0;
 
-	while (remain > 0) {
-		pfwbuf[fwlen] = 0;
-		fwlen++;
-		remain--;
-	}
-
-	*pfwlen = fwlen;
+	*pfwlen = i;
 }
 
 static void _rtl88e_fw_page_write(struct adapter *adapt,

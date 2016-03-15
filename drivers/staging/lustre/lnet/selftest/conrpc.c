@@ -612,8 +612,8 @@ lstcon_sesrpc_prep(lstcon_node_t *nd, int transop,
 		msrq = &(*crpc)->crp_rpc->crpc_reqstmsg.msg_body.mksn_reqst;
 		msrq->mksn_sid     = console_session.ses_id;
 		msrq->mksn_force   = console_session.ses_force;
-		strncpy(msrq->mksn_name, console_session.ses_name,
-			strlen(console_session.ses_name));
+		strlcpy(msrq->mksn_name, console_session.ses_name,
+			sizeof(msrq->mksn_name));
 		break;
 
 	case LST_TRANS_SESEND:

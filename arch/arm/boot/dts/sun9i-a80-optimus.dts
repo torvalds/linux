@@ -65,7 +65,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_optimus>;
+		pinctrl-0 = <&led_pins_optimus>, <&led_r_pins_optimus>;
 
 		/* The LED names match those found on the board */
 
@@ -74,7 +74,10 @@
 			gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>;
 		};
 
-		/* led3 is on PM15, in R_PIO */
+		led3 {
+			label = "optimus:led3:usr";
+			gpios = <&r_pio 1 15 GPIO_ACTIVE_HIGH>; /* PM15 */
+		};
 
 		led4 {
 			label = "optimus:led4:usr";
@@ -177,6 +180,23 @@
 &reg_usb1_vbus {
 	pinctrl-0 = <&usb1_vbus_pin_optimus>;
 	gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	status = "okay";
+};
+
+&r_ir {
+	status = "okay";
+};
+
+&r_pio {
+	led_r_pins_optimus: led-pins@1 {
+		allwinner,pins = "PM15";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+};
+
+&r_rsb {
 	status = "okay";
 };
 

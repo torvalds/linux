@@ -1288,7 +1288,7 @@ static irqreturn_t vpe_irq(int irq_vpe, void *data)
 	d_vb = ctx->dst_vb;
 
 	d_vb->flags = s_vb->flags;
-	d_vb->timestamp = s_vb->timestamp;
+	d_vb->vb2_buf.timestamp = s_vb->vb2_buf.timestamp;
 
 	if (s_vb->flags & V4L2_BUF_FLAG_TIMECODE)
 		d_vb->timecode = s_vb->timecode;
@@ -1796,7 +1796,6 @@ static const struct v4l2_ioctl_ops vpe_ioctl_ops = {
  * Queue operations
  */
 static int vpe_queue_setup(struct vb2_queue *vq,
-			   const void *parg,
 			   unsigned int *nbuffers, unsigned int *nplanes,
 			   unsigned int sizes[], void *alloc_ctxs[])
 {

@@ -24,12 +24,14 @@ config X86
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_MMIO_FLUSH
 	select ARCH_HAS_SG_CHAIN
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_MIGHT_HAVE_ACPI_PDC		if ACPI
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -82,6 +84,8 @@ config X86
 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_KMEMCHECK
+	select HAVE_ARCH_MMAP_RND_BITS		if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
 	select HAVE_ARCH_TRACEHOOK
@@ -96,7 +100,6 @@ config X86
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_API_DEBUG
-	select HAVE_DMA_ATTRS
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
@@ -177,11 +180,22 @@ config LOCKDEP_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
-config HAVE_LATENCYTOP_SUPPORT
-	def_bool y
-
 config MMU
 	def_bool y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 28 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 32 if 64BIT
+	default 16
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	default 16
 
 config SBUS
 	bool
@@ -349,6 +363,17 @@ config X86_FEATURE_NAMES
 
 	  If in doubt, say Y.
 
+config X86_FAST_FEATURE_TESTS
+	bool "Fast CPU feature tests" if EMBEDDED
+	default y
+	---help---
+	  Some fast-paths in the kernel depend on the capabilities of the CPU.
+	  Say Y here for the kernel to patch in the appropriate code at runtime
+	  based on the capabilities of the CPU. The infrastructure for patching
+	  code at runtime takes up some additional space; space-constrained
+	  embedded systems may wish to say N here to produce smaller, slightly
+	  slower code.
+
 config X86_X2APIC
 	bool "Support x2apic"
 	depends on X86_LOCAL_APIC && X86_64 && (IRQ_REMAP || HYPERVISOR_GUEST)
@@ -450,6 +475,7 @@ config X86_UV
 	depends on X86_64
 	depends on X86_EXTENDED_PLATFORM
 	depends on NUMA
+	depends on EFI
 	depends on X86_X2APIC
 	depends on PCI
 	---help---
@@ -484,11 +510,10 @@ config X86_INTEL_CE
 
 config X86_INTEL_MID
 	bool "Intel MID platform support"
-	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
 	depends on X86_PLATFORM_DEVICES
 	depends on PCI
-	depends on PCI_GOANY
+	depends on X86_64 || (PCI_GOANY && X86_32)
 	depends on X86_IO_APIC
 	select SFI
 	select I2C
@@ -523,9 +548,10 @@ config X86_INTEL_QUARK
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
-	depends on ACPI
+	depends on X86 && ACPI
 	select COMMON_CLK
 	select PINCTRL
+	select IOSF_MBI
 	---help---
 	  Select to build support for Intel Low Power Subsystem such as
 	  found on Intel Lynxpoint PCH. Selecting this option enables
@@ -687,6 +713,14 @@ config PARAVIRT_SPINLOCKS
 
 	  If you are unsure how to answer this question, answer Y.
 
+config QUEUED_LOCK_STAT
+	bool "Paravirt queued spinlock statistics"
+	depends on PARAVIRT_SPINLOCKS && DEBUG_FS && QUEUED_SPINLOCKS
+	---help---
+	  Enable the collection of statistical data on the slowpath
+	  behavior of paravirtualized queued spinlocks and report
+	  them on debugfs.
+
 source "arch/x86/xen/Kconfig"
 
 config KVM_GUEST
@@ -744,8 +778,8 @@ config HPET_TIMER
 	  HPET is the next generation timer replacing legacy 8254s.
 	  The HPET provides a stable time base on SMP
 	  systems, unlike the TSC, but it is more expensive to access,
-	  as it is off-chip.  You can find the HPET spec at
-	  <http://www.intel.com/hardwaredesign/hpetspec_1.pdf>.
+	  as it is off-chip.  The interface used is documented
+	  in the HPET spec, revision 1.
 
 	  You can safely choose Y here.  However, HPET will only be
 	  activated if the platform and the BIOS support this feature.
@@ -2664,6 +2698,19 @@ config X86_DMA_REMAP
 config PMC_ATOM
 	def_bool y
         depends on PCI
+
+config VMD
+	depends on PCI_MSI
+	tristate "Volume Management Device Driver"
+	default N
+	---help---
+	  Adds support for the Intel Volume Management Device (VMD). VMD is a
+	  secondary PCI host bridge that allows PCI Express root ports,
+	  and devices attached to them, to be removed from the default
+	  PCI domain and placed within the VMD domain. This provides
+	  more bus resources than are otherwise possible with a
+	  single domain. If you know your system provides one of these and
+	  has devices attached to it, say Y; if you are not sure, say N.
 
 source "net/Kconfig"
 

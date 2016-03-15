@@ -25,7 +25,6 @@
 */
 #ifndef DRBD_H
 #define DRBD_H
-#include <linux/connector.h>
 #include <asm/types.h>
 
 #ifdef __KERNEL__
@@ -52,7 +51,7 @@
 #endif
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.4.5"
+#define REL_VERSION "8.4.6"
 #define API_VERSION 1
 #define PRO_VERSION_MIN 86
 #define PRO_VERSION_MAX 101
@@ -339,6 +338,8 @@ enum drbd_state_rv {
 #define MDF_AL_CLEAN		(1 << 7)
 #define MDF_AL_DISABLED		(1 << 8)
 
+#define MAX_PEERS 32
+
 enum drbd_uuid_index {
 	UI_CURRENT,
 	UI_BITMAP,
@@ -349,13 +350,34 @@ enum drbd_uuid_index {
 	UI_EXTENDED_SIZE   /* Everything. */
 };
 
+#define HISTORY_UUIDS MAX_PEERS
+
 enum drbd_timeout_flag {
 	UT_DEFAULT      = 0,
 	UT_DEGRADED     = 1,
 	UT_PEER_OUTDATED = 2,
 };
 
+enum drbd_notification_type {
+	NOTIFY_EXISTS,
+	NOTIFY_CREATE,
+	NOTIFY_CHANGE,
+	NOTIFY_DESTROY,
+	NOTIFY_CALL,
+	NOTIFY_RESPONSE,
+
+	NOTIFY_CONTINUES = 0x8000,
+	NOTIFY_FLAGS = NOTIFY_CONTINUES,
+};
+
 #define UUID_JUST_CREATED ((__u64)4)
+
+enum write_ordering_e {
+	WO_NONE,
+	WO_DRAIN_IO,
+	WO_BDEV_FLUSH,
+	WO_BIO_BARRIER
+};
 
 /* magic numbers used in meta data and network packets */
 #define DRBD_MAGIC 0x83740267

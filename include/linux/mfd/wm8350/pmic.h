@@ -715,7 +715,6 @@ struct wm8350_led_platform_data {
 
 struct wm8350_led {
 	struct platform_device *pdev;
-	struct mutex mutex;
 	struct work_struct work;
 	spinlock_t value_lock;
 	enum led_brightness value;

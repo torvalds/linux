@@ -111,6 +111,12 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	int dir_has_error = 0;
 	struct ext4_str fname_crypto_str = {.name = NULL, .len = 0};
 
+	if (ext4_encrypted_inode(inode)) {
+		err = ext4_get_encryption_info(inode);
+		if (err && err != -ENOKEY)
+			return err;
+	}
+
 	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(file, ctx);
 		if (err != ERR_BAD_DX_DIR) {
@@ -157,8 +163,11 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					index, 1);
 			file->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
 			bh = ext4_bread(NULL, inode, map.m_lblk, 0);
-			if (IS_ERR(bh))
-				return PTR_ERR(bh);
+			if (IS_ERR(bh)) {
+				err = PTR_ERR(bh);
+				bh = NULL;
+				goto errout;
+			}
 		}
 
 		if (!bh) {

@@ -609,7 +609,7 @@ static const struct iio_chan_spec ad7192_channels[] = {
 
 static int ad7192_probe(struct spi_device *spi)
 {
-	const struct ad7192_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7192_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;

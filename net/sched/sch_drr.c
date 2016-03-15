@@ -403,6 +403,8 @@ static struct sk_buff *drr_dequeue(struct Qdisc *sch)
 		if (len <= cl->deficit) {
 			cl->deficit -= len;
 			skb = qdisc_dequeue_peeked(cl->qdisc);
+			if (unlikely(skb == NULL))
+				goto out;
 			if (cl->qdisc->q.qlen == 0)
 				list_del(&cl->alist);
 

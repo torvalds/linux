@@ -190,4 +190,8 @@ struct nes_qp {
 	u8                    pau_state;
 	__u64                 nesuqp_addr;
 };
+
+struct ib_mr *nes_reg_phys_mr(struct ib_pd *ib_pd,
+		u64 addr, u64 size, int acc, u64 *iova_start);
+
 #endif			/* NES_VERBS_H */

@@ -13,16 +13,18 @@ SECTIONS
 	{
 		*(.rodata)
 	}
+        . = ALIGN(0x4) ;
         .data :
 
         {
+        . = ALIGN(0x4) ;
         __sdata = . ;
         ___data_start = . ;
                 *(.data.*)
 	}
+        . = ALIGN(0x4) ;
         .bss :
         {
-        . = ALIGN(0x4) ;
         __sbss = . ;
                 *(.bss*)
         . = ALIGN(0x4) ;

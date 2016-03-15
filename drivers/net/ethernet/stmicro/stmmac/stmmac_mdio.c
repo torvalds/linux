@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-
+#include <linux/of_mdio.h>
 #include <asm/io.h>
 
 #include "stmmac.h"
@@ -196,25 +196,28 @@ int stmmac_mdio_register(struct net_device *ndev)
 {
 	int err = 0;
 	struct mii_bus *new_bus;
-	int *irqlist;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	int addr, found;
+	struct device_node *mdio_node = priv->plat->mdio_node;
 
 	if (!mdio_bus_data)
 		return 0;
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		if (mdio_node) {
+			netdev_dbg(ndev, "FOUND MDIO subnode\n");
+		} else {
+			netdev_warn(ndev, "No MDIO subnode found\n");
+		}
+	}
 
 	new_bus = mdiobus_alloc();
 	if (new_bus == NULL)
 		return -ENOMEM;
 
-	if (mdio_bus_data->irqs) {
-		irqlist = mdio_bus_data->irqs;
-	} else {
-		for (addr = 0; addr < PHY_MAX_ADDR; addr++)
-			priv->mii_irq[addr] = PHY_POLL;
-		irqlist = priv->mii_irq;
-	}
+	if (mdio_bus_data->irqs)
+		memcpy(new_bus->irq, mdio_bus_data, sizeof(new_bus->irq));
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node)
@@ -228,10 +231,13 @@ int stmmac_mdio_register(struct net_device *ndev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
-	new_bus->irq = irqlist;
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
-	err = mdiobus_register(new_bus);
+
+	if (mdio_node)
+		err = of_mdiobus_register(new_bus, mdio_node);
+	else
+		err = mdiobus_register(new_bus);
 	if (err != 0) {
 		pr_err("%s: Cannot register as MDIO bus\n", new_bus->name);
 		goto bus_register_fail;
@@ -239,7 +245,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		struct phy_device *phydev = new_bus->phy_map[addr];
+		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 		if (phydev) {
 			int act = 0;
 			char irq_num[4];
@@ -251,7 +257,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 			 */
 			if ((mdio_bus_data->irqs == NULL) &&
 			    (mdio_bus_data->probed_phy_irq > 0)) {
-				irqlist[addr] = mdio_bus_data->probed_phy_irq;
+				new_bus->irq[addr] =
+					mdio_bus_data->probed_phy_irq;
 				phydev->irq = mdio_bus_data->probed_phy_irq;
 			}
 
@@ -278,13 +285,13 @@ int stmmac_mdio_register(struct net_device *ndev)
 			}
 			pr_info("%s: PHY ID %08x at %d IRQ %s (%s)%s\n",
 				ndev->name, phydev->phy_id, addr,
-				irq_str, dev_name(&phydev->dev),
+				irq_str, phydev_name(phydev),
 				act ? " active" : "");
 			found = 1;
 		}
 	}
 
-	if (!found) {
+	if (!found && !mdio_node) {
 		pr_warn("%s: No PHY found\n", ndev->name);
 		mdiobus_unregister(new_bus);
 		mdiobus_free(new_bus);

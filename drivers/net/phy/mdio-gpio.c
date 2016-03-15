@@ -159,7 +159,7 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 
 	new_bus->phy_mask = pdata->phy_mask;
 	new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
-	new_bus->irq = pdata->irqs;
+	memcpy(new_bus->irq, pdata->irqs, sizeof(new_bus->irq));
 	new_bus->parent = dev;
 
 	if (new_bus->phy_mask == ~0)

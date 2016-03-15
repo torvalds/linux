@@ -92,7 +92,6 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 	bus->read = temac_mdio_read;
 	bus->write = temac_mdio_write;
 	bus->parent = lp->dev;
-	bus->irq = lp->mdio_irqs; /* preallocated IRQ table */
 
 	lp->mii_bus = bus;
 
@@ -114,7 +113,6 @@ int temac_mdio_setup(struct temac_local *lp, struct device_node *np)
 void temac_mdio_teardown(struct temac_local *lp)
 {
 	mdiobus_unregister(lp->mii_bus);
-	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
 	lp->mii_bus = NULL;
 }

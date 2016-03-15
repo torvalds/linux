@@ -34,6 +34,8 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_host.h>
 
+#include <scsi/scsi_transport_sas.h>
+
 struct ses_device {
 	unsigned char *page1;
 	unsigned char *page1_types;
@@ -579,31 +581,15 @@ static void ses_enclosure_data_process(struct enclosure_device *edev,
 static void ses_match_to_enclosure(struct enclosure_device *edev,
 				   struct scsi_device *sdev)
 {
-	unsigned char *desc;
 	struct efd efd = {
 		.addr = 0,
 	};
 
 	ses_enclosure_data_process(edev, to_scsi_device(edev->edev.parent), 0);
 
-	if (!sdev->vpd_pg83_len)
-		return;
+	if (is_sas_attached(sdev))
+		efd.addr = sas_get_address(sdev);
 
-	desc = sdev->vpd_pg83 + 4;
-	while (desc < sdev->vpd_pg83 + sdev->vpd_pg83_len) {
-		enum scsi_protocol proto = desc[0] >> 4;
-		u8 code_set = desc[0] & 0x0f;
-		u8 piv = desc[1] & 0x80;
-		u8 assoc = (desc[1] & 0x30) >> 4;
-		u8 type = desc[1] & 0x0f;
-		u8 len = desc[3];
-
-		if (piv && code_set == 1 && assoc == 1
-		    && proto == SCSI_PROTOCOL_SAS && type == 3 && len == 8)
-			efd.addr = get_unaligned_be64(&desc[4]);
-
-		desc += len + 4;
-	}
 	if (efd.addr) {
 		efd.dev = &sdev->sdev_gendev;
 

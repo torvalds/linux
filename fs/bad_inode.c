@@ -192,7 +192,7 @@ EXPORT_SYMBOL(make_bad_inode);
  *	Returns true if the inode in question has been marked as bad.
  */
  
-int is_bad_inode(struct inode *inode)
+bool is_bad_inode(struct inode *inode)
 {
 	return (inode->i_op == &bad_inode_ops);	
 }

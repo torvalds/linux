@@ -1608,6 +1608,27 @@ bail:
 	return;
 }
 
+static inline void rc_defered_ack(struct hfi1_ctxtdata *rcd,
+				  struct hfi1_qp *qp)
+{
+	if (list_empty(&qp->rspwait)) {
+		qp->r_flags |= HFI1_R_RSP_DEFERED_ACK;
+		atomic_inc(&qp->refcount);
+		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
+	}
+}
+
+static inline void rc_cancel_ack(struct hfi1_qp *qp)
+{
+	qp->r_adefered = 0;
+	if (list_empty(&qp->rspwait))
+		return;
+	list_del_init(&qp->rspwait);
+	qp->r_flags &= ~HFI1_R_RSP_DEFERED_ACK;
+	if (atomic_dec_and_test(&qp->refcount))
+		wake_up(&qp->wait);
+}
+
 /**
  * rc_rcv_error - process an incoming duplicate or error RC packet
  * @ohdr: the other headers for this packet
@@ -1650,11 +1671,7 @@ static noinline int rc_rcv_error(struct hfi1_other_headers *ohdr, void *data,
 			 * in the receive queue have been processed.
 			 * Otherwise, we end up propagating congestion.
 			 */
-			if (list_empty(&qp->rspwait)) {
-				qp->r_flags |= HFI1_R_RSP_NAK;
-				atomic_inc(&qp->refcount);
-				list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-			}
+			rc_defered_ack(rcd, qp);
 		}
 		goto done;
 	}
@@ -1978,7 +1995,7 @@ void hfi1_rc_rcv(struct hfi1_packet *packet)
 	}
 
 	psn = be32_to_cpu(ohdr->bth[2]);
-	opcode = bth0 >> 24;
+	opcode = (bth0 >> 24) & 0xff;
 
 	/*
 	 * Process responses (ACKs) before anything else.  Note that the
@@ -2329,19 +2346,29 @@ send_last:
 	qp->r_ack_psn = psn;
 	qp->r_nak_state = 0;
 	/* Send an ACK if requested or required. */
-	if (psn & (1 << 31))
-		goto send_ack;
+	if (psn & IB_BTH_REQ_ACK) {
+		if (packet->numpkt == 0) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		if (qp->r_adefered >= HFI1_PSN_CREDIT) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		if (unlikely(is_fecn)) {
+			rc_cancel_ack(qp);
+			goto send_ack;
+		}
+		qp->r_adefered++;
+		rc_defered_ack(rcd, qp);
+	}
 	return;
 
 rnr_nak:
 	qp->r_nak_state = IB_RNR_NAK | qp->r_min_rnr_timer;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue RNR NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_op_err:
@@ -2349,11 +2376,7 @@ nack_op_err:
 	qp->r_nak_state = IB_NAK_REMOTE_OPERATIONAL_ERROR;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_inv_unlck:
@@ -2363,11 +2386,7 @@ nack_inv:
 	qp->r_nak_state = IB_NAK_INVALID_REQUEST;
 	qp->r_ack_psn = qp->r_psn;
 	/* Queue NAK for later */
-	if (list_empty(&qp->rspwait)) {
-		qp->r_flags |= HFI1_R_RSP_NAK;
-		atomic_inc(&qp->refcount);
-		list_add_tail(&qp->rspwait, &rcd->qp_wait_list);
-	}
+	rc_defered_ack(rcd, qp);
 	return;
 
 nack_acc_unlck:
@@ -2391,19 +2410,19 @@ void hfi1_rc_hdrerr(
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	int diff;
 	u32 opcode;
-	u32 psn;
+	u32 psn, bth0;
 
 	/* Check for GRH */
 	ohdr = &hdr->u.oth;
 	if (has_grh)
 		ohdr = &hdr->u.l.oth;
 
-	opcode = be32_to_cpu(ohdr->bth[0]);
-	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, opcode))
+	bth0 = be32_to_cpu(ohdr->bth[0]);
+	if (hfi1_ruc_check_hdr(ibp, hdr, has_grh, qp, bth0))
 		return;
 
 	psn = be32_to_cpu(ohdr->bth[2]);
-	opcode >>= 24;
+	opcode = (bth0 >> 24) & 0xff;
 
 	/* Only deal with RDMA Writes for now */
 	if (opcode < IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
@@ -2421,13 +2440,7 @@ void hfi1_rc_hdrerr(
 			 * Otherwise, we end up
 			 * propagating congestion.
 			 */
-			if (list_empty(&qp->rspwait)) {
-				qp->r_flags |= HFI1_R_RSP_NAK;
-				atomic_inc(&qp->refcount);
-				list_add_tail(
-					&qp->rspwait,
-					&rcd->qp_wait_list);
-				}
+			rc_defered_ack(rcd, qp);
 		} /* Out of sequence NAK */
 	} /* QP Request NAKs */
 }

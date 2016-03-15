@@ -15,6 +15,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/mdio.h>
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 #include <linux/if_bridge.h>
@@ -997,7 +998,7 @@ static int dsa_slave_phy_connect(struct dsa_slave_priv *p,
 {
 	struct dsa_switch *ds = p->parent;
 
-	p->phy = ds->slave_mii_bus->phy_map[addr];
+	p->phy = mdiobus_get_phy(ds->slave_mii_bus, addr);
 	if (!p->phy) {
 		netdev_err(slave_dev, "no phy at %d\n", addr);
 		return -ENODEV;
@@ -1080,10 +1081,9 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 			netdev_err(slave_dev, "failed to connect to port %d: %d\n", p->port, ret);
 			return ret;
 		}
-	} else {
-		netdev_info(slave_dev, "attached PHY at address %d [%s]\n",
-			    p->phy->addr, p->phy->drv->name);
 	}
+
+	phy_attached_info(p->phy);
 
 	return 0;
 }
@@ -1189,19 +1189,11 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ret = dsa_slave_phy_setup(p, slave_dev);
-	if (ret) {
-		netdev_err(master, "error %d setting up slave phy\n", ret);
-		free_netdev(slave_dev);
-		return ret;
-	}
-
 	ds->ports[port] = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		phy_disconnect(p->phy);
 		ds->ports[port] = NULL;
 		free_netdev(slave_dev);
 		return ret;
@@ -1209,7 +1201,26 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 
 	netif_carrier_off(slave_dev);
 
+	ret = dsa_slave_phy_setup(p, slave_dev);
+	if (ret) {
+		netdev_err(master, "error %d setting up slave phy\n", ret);
+		unregister_netdev(slave_dev);
+		free_netdev(slave_dev);
+		return ret;
+	}
+
 	return 0;
+}
+
+void dsa_slave_destroy(struct net_device *slave_dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(slave_dev);
+
+	netif_carrier_off(slave_dev);
+	if (p->phy)
+		phy_disconnect(p->phy);
+	unregister_netdev(slave_dev);
+	free_netdev(slave_dev);
 }
 
 static bool dsa_slave_dev_check(struct net_device *dev)

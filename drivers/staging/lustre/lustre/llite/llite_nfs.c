@@ -245,9 +245,9 @@ static int ll_get_name(struct dentry *dentry, char *name,
 		goto out;
 	}
 
-	mutex_lock(&dir->i_mutex);
+	inode_lock(dir);
 	rc = ll_dir_read(dir, &lgd.ctx);
-	mutex_unlock(&dir->i_mutex);
+	inode_unlock(dir);
 	if (!rc && !lgd.lgd_found)
 		rc = -ENOENT;
 out:

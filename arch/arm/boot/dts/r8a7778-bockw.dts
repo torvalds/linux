@@ -28,8 +28,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC0,115200 ignore_loglevel ip=dhcp root=/dev/nfs rw";
-		stdout-path = &scif0;
+		bootargs = "ignore_loglevel ip=dhcp root=/dev/nfs rw";
+		stdout-path = "serial0:115200n8";
 	};
 
 	memory {
@@ -137,9 +137,13 @@
 	};
 
 	sdhi0_pins: sd0 {
-		renesas,groups = "sdhi0_data4", "sdhi0_ctrl",
-				  "sdhi0_cd";
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl";
 		renesas,function = "sdhi0";
+	};
+	sdhi0_pup_pins: sd0_pup {
+		renesas,groups = "sdhi0_cd", "sdhi0_wp";
+		renesas,function = "sdhi0";
+		bias-pull-up;
 	};
 
 	hspi0_pins: hspi0 {
@@ -168,8 +172,13 @@
 	};
 };
 
+&rcar_sound {
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+};
+
 &sdhi0 {
-	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-0 = <&sdhi0_pins>, <&sdhi0_pup_pins>;
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
@@ -184,16 +193,20 @@
 	status = "okay";
 
 	flash: flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "spansion,s25fl008k", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <104000000>;
 		m25p,fast-read;
 
-		partition@0 {
-			label = "data(spi)";
-			reg = <0x00000000 0x00100000>;
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "data(spi)";
+				reg = <0x00000000 0x00100000>;
+			};
 		};
 	};
 };

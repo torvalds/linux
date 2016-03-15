@@ -614,6 +614,7 @@ enum {
 	CS4208_MAC_AUTO,
 	CS4208_MBA6,
 	CS4208_MBP11,
+	CS4208_MACMINI,
 	CS4208_GPIO0,
 };
 
@@ -621,6 +622,7 @@ static const struct hda_model_fixup cs4208_models[] = {
 	{ .id = CS4208_GPIO0, .name = "gpio0" },
 	{ .id = CS4208_MBA6, .name = "mba6" },
 	{ .id = CS4208_MBP11, .name = "mbp11" },
+	{ .id = CS4208_MACMINI, .name = "macmini" },
 	{}
 };
 
@@ -632,6 +634,7 @@ static const struct snd_pci_quirk cs4208_fixup_tbl[] = {
 /* codec SSID matching */
 static const struct snd_pci_quirk cs4208_mac_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x5e00, "MacBookPro 11,2", CS4208_MBP11),
+	SND_PCI_QUIRK(0x106b, 0x6c00, "MacMini 7,1", CS4208_MACMINI),
 	SND_PCI_QUIRK(0x106b, 0x7100, "MacBookAir 6,1", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7200, "MacBookAir 6,2", CS4208_MBA6),
 	SND_PCI_QUIRK(0x106b, 0x7b00, "MacBookPro 12,1", CS4208_MBP11),
@@ -664,6 +667,24 @@ static void cs4208_fixup_mac(struct hda_codec *codec,
 	if (codec->fixup_id == HDA_FIXUP_ID_NOT_SET)
 		codec->fixup_id = CS4208_GPIO0; /* default fixup */
 	snd_hda_apply_fixup(codec, action);
+}
+
+/* MacMini 7,1 has the inverted jack detection */
+static void cs4208_fixup_macmini(struct hda_codec *codec,
+				 const struct hda_fixup *fix, int action)
+{
+	static const struct hda_pintbl pincfgs[] = {
+		{ 0x18, 0x00ab9150 }, /* mic (audio-in) jack: disable detect */
+		{ 0x21, 0x004be140 }, /* SPDIF: disable detect */
+		{ }
+	};
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		/* HP pin (0x10) has an inverted detection */
+		codec->inv_jack_detect = 1;
+		/* disable the bogus Mic and SPDIF jack detections */
+		snd_hda_apply_pincfgs(codec, pincfgs);
+	}
 }
 
 static int cs4208_spdif_sw_put(struct snd_kcontrol *kcontrol,
@@ -706,6 +727,12 @@ static const struct hda_fixup cs4208_fixups[] = {
 	[CS4208_MBP11] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = cs4208_fixup_spdif_switch,
+		.chained = true,
+		.chain_id = CS4208_GPIO0,
+	},
+	[CS4208_MACMINI] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs4208_fixup_macmini,
 		.chained = true,
 		.chain_id = CS4208_GPIO0,
 	},

@@ -89,6 +89,7 @@ struct btmrvl_adapter {
 	wait_queue_head_t event_hs_wait_q;
 	u8 cmd_complete;
 	bool is_suspended;
+	bool is_suspending;
 };
 
 struct btmrvl_private {

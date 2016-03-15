@@ -1837,27 +1837,6 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 }
 
 /*
- * prism2sta_ev_rx
- *
- * Handles the Rx event.
- *
- * Arguments:
- *	wlandev		wlan device structure
- *
- * Returns:
- *	nothing
- *
- * Side effects:
- *
- * Call context:
- *	interrupt
- */
-void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
-{
-	p80211netdev_rx(wlandev, skb);
-}
-
-/*
  * prism2sta_ev_alloc
  *
  * Handles the Alloc event.

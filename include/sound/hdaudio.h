@@ -343,7 +343,7 @@ void snd_hdac_bus_enter_link_reset(struct hdac_bus *bus);
 void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus);
 
 void snd_hdac_bus_update_rirb(struct hdac_bus *bus);
-void snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
+int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,
 						struct hdac_stream *));
 

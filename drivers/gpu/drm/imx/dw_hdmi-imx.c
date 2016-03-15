@@ -137,7 +137,7 @@ static void dw_hdmi_imx_encoder_prepare(struct drm_encoder *encoder)
 	imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_RGB888_1X24);
 }
 
-static struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
+static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.mode_fixup = dw_hdmi_imx_encoder_mode_fixup,
 	.mode_set   = dw_hdmi_imx_encoder_mode_set,
 	.prepare    = dw_hdmi_imx_encoder_prepare,
@@ -145,7 +145,7 @@ static struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.disable    = dw_hdmi_imx_encoder_disable,
 };
 
-static struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
+static const struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -251,7 +251,7 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_imx_encoder_helper_funcs);
 	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS);
+			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	return dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
 }
