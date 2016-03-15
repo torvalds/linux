@@ -783,6 +783,11 @@ struct dlm_deref_lockres
 	u8 name[O2NM_MAX_NAME_LEN];
 };
 
+enum {
+	DLM_DEREF_RESPONSE_DONE = 0,
+	DLM_DEREF_RESPONSE_INPROG = 1,
+};
+
 struct dlm_deref_lockres_done {
 	u32 pad1;
 	u16 pad2;

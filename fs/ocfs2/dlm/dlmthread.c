@@ -202,6 +202,13 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		dlm->purge_count--;
 	}
 
+	if (!master && ret != 0) {
+		mlog(0, "%s: deref %.*s in progress or master goes down\n",
+			dlm->name, res->lockname.len, res->lockname.name);
+		spin_unlock(&res->spinlock);
+		return;
+	}
+
 	if (!__dlm_lockres_unused(res)) {
 		mlog(ML_ERROR, "%s: res %.*s in use after deref\n",
 		     dlm->name, res->lockname.len, res->lockname.name);

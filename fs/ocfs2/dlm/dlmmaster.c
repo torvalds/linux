@@ -2278,7 +2278,7 @@ int dlm_drop_lockres_ref(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 		dlm_print_one_lock_resource(res);
 		BUG();
 	}
-	return ret;
+	return ret ? ret : r;
 }
 
 int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -2345,7 +2345,7 @@ int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 		     	res->lockname.len, res->lockname.name, node);
 			dlm_print_one_lock_resource(res);
 		}
-		ret = 0;
+		ret = DLM_DEREF_RESPONSE_DONE;
 		goto done;
 	}
 
@@ -2365,7 +2365,7 @@ int dlm_deref_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	spin_unlock(&dlm->work_lock);
 
 	queue_work(dlm->dlm_worker, &dlm->dispatched_work);
-	return 0;
+	return DLM_DEREF_RESPONSE_INPROG;
 
 done:
 	if (res)
@@ -2510,6 +2510,8 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
 		cleared = 1;
 	}
 	spin_unlock(&res->spinlock);
+
+	dlm_drop_lockres_ref_done(dlm, res, node);
 
 	if (cleared) {
 		mlog(0, "%s:%.*s node %u ref dropped in dispatch\n",
