@@ -77,6 +77,9 @@ static struct {
 #define memhp_lock_acquire()      lock_map_acquire(&mem_hotplug.dep_map)
 #define memhp_lock_release()      lock_map_release(&mem_hotplug.dep_map)
 
+bool memhp_auto_online;
+EXPORT_SYMBOL_GPL(memhp_auto_online);
+
 void get_online_mems(void)
 {
 	might_sleep();
@@ -1261,8 +1264,13 @@ int zone_for_memory(int nid, u64 start, u64 size, int zone_default,
 	return zone_default;
 }
 
+static int online_memory_block(struct memory_block *mem, void *arg)
+{
+	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
+}
+
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-int __ref add_memory_resource(int nid, struct resource *res)
+int __ref add_memory_resource(int nid, struct resource *res, bool online)
 {
 	u64 start, size;
 	pg_data_t *pgdat = NULL;
@@ -1322,6 +1330,11 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	/* create new memmap entry */
 	firmware_map_add_hotplug(start, start + size, "System RAM");
 
+	/* online pages if requested */
+	if (online)
+		walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1),
+				  NULL, online_memory_block);
+
 	goto out;
 
 error:
@@ -1345,7 +1358,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
-	ret = add_memory_resource(nid, res);
+	ret = add_memory_resource(nid, res, memhp_auto_online);
 	if (ret < 0)
 		release_memory_resource(res);
 	return ret;
