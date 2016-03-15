@@ -41,6 +41,7 @@
 #include <asm/ptrace.h>
 #include <asm/hw_irq.h>
 #include <asm/cputhreads.h>
+#include <asm/ppc-opcode.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -207,12 +208,12 @@ _GLOBAL(book3e_start_thread)
 	/* If the thread id is invalid, just exit. */
 	b	13f
 10:
-	mttmr	TMRN_IMSR0, r5
-	mttmr	TMRN_INIA0, r4
+	MTTMR(TMRN_IMSR0, 5)
+	MTTMR(TMRN_INIA0, 4)
 	b	12f
 11:
-	mttmr	TMRN_IMSR1, r5
-	mttmr	TMRN_INIA1, r4
+	MTTMR(TMRN_IMSR1, 5)
+	MTTMR(TMRN_INIA1, 4)
 12:
 	isync
 	li	r6, 1
