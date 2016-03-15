@@ -150,11 +150,6 @@ static u32 pending_base;
 static u32 tcp_session;
 static u32 pending_acks;
 
-static inline int init_tcp_tracking(void)
-{
-	return 0;
-}
-
 static inline int add_tcp_session(u32 src_prt, u32 dst_prt, u32 seq)
 {
 	if (tcp_session < 2 * MAX_TCP_SESSION) {
@@ -1440,7 +1435,6 @@ int wilc_wlan_init(struct net_device *dev)
 		ret = -EIO;
 		goto _fail_;
 	}
-	init_tcp_tracking();
 
 	return 1;
 
