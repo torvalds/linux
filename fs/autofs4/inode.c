@@ -327,7 +327,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	 */
 	s->s_root = root;
 	return 0;
-	
+
 	/*
 	 * Failure ... clean up.
 	 */
