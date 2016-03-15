@@ -328,6 +328,8 @@ static int skl_free(struct hdac_ext_bus *ebus)
 
 	snd_hdac_ext_bus_exit(ebus);
 
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		snd_hdac_i915_exit(&ebus->bus);
 	return 0;
 }
 
@@ -719,9 +721,6 @@ static void skl_remove(struct pci_dev *pci)
 
 	if (skl->tplg)
 		release_firmware(skl->tplg);
-
-	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
-		snd_hdac_i915_exit(&ebus->bus);
 
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
