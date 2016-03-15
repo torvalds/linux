@@ -365,11 +365,6 @@ void __init rockchip_clk_of_add_provider(struct device_node *np,
 		pr_err("%s: could not register clk provider\n", __func__);
 }
 
-struct regmap *rockchip_clk_get_grf(struct rockchip_clk_provider *ctx)
-{
-	return ctx->grf;
-}
-
 void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
 			     struct clk *clk, unsigned int id)
 {
