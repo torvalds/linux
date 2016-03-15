@@ -484,14 +484,6 @@ static void bxt_enable_dsi_pll(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
-	val = I915_READ(BXT_DSI_PLL_ENABLE);
-
-	if (val & BXT_DSI_PLL_DO_ENABLE) {
-		WARN(1, "DSI PLL already enabled. Disabling it.\n");
-		val &= ~BXT_DSI_PLL_DO_ENABLE;
-		I915_WRITE(BXT_DSI_PLL_ENABLE, val);
-	}
-
 	/* Configure PLL vales */
 	if (!bxt_configure_dsi_pll(encoder)) {
 		DRM_ERROR("Configure DSI PLL failed, abort PLL enable\n");

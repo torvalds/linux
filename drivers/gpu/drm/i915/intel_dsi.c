@@ -505,7 +505,13 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	DRM_DEBUG_KMS("\n");
 
+	/*
+	 * The BIOS may leave the PLL in a wonky state where it doesn't
+	 * lock. It needs to be fully powered down to fix it.
+	 */
+	intel_disable_dsi_pll(encoder);
 	intel_enable_dsi_pll(encoder);
+
 	intel_dsi_prepare(encoder);
 
 	/* Panel Enable over CRC PMIC */
