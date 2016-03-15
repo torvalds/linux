@@ -125,7 +125,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
 #elif defined(CONFIG_SLUB_DEBUG)
 #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-			  SLAB_TRACE | SLAB_DEBUG_FREE)
+			  SLAB_TRACE | SLAB_CONSISTENCY_CHECKS)
 #else
 #define SLAB_DEBUG_FLAGS (0)
 #endif
@@ -311,7 +311,8 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	 * to not do even the assignment. In that case, slab_equal_or_root
 	 * will also be a constant.
 	 */
-	if (!memcg_kmem_enabled() && !unlikely(s->flags & SLAB_DEBUG_FREE))
+	if (!memcg_kmem_enabled() &&
+	    !unlikely(s->flags & SLAB_CONSISTENCY_CHECKS))
 		return s;
 
 	page = virt_to_head_page(x);

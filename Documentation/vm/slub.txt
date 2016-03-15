@@ -35,8 +35,8 @@ slub_debug=<Debug-Options>,<slab name>
 				Enable options only for select slabs
 
 Possible debug options are
-	F		Sanity checks on (enables SLAB_DEBUG_FREE. Sorry
-			SLAB legacy issues)
+	F		Sanity checks on (enables SLAB_DEBUG_CONSISTENCY_CHECKS
+			Sorry SLAB legacy issues)
 	Z		Red zoning
 	P		Poisoning (object and padding)
 	U		User tracking (free and alloc)
