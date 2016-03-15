@@ -71,11 +71,14 @@ static inline void clear_page_poison(struct page *page)
 	__clear_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
 }
 
-static inline bool page_poison(struct page *page)
+bool page_is_poisoned(struct page *page)
 {
 	struct page_ext *page_ext;
 
 	page_ext = lookup_page_ext(page);
+	if (!page_ext)
+		return false;
+
 	return test_bit(PAGE_EXT_DEBUG_POISON, &page_ext->flags);
 }
 
@@ -137,7 +140,7 @@ static void unpoison_page(struct page *page)
 {
 	void *addr;
 
-	if (!page_poison(page))
+	if (!page_is_poisoned(page))
 		return;
 
 	addr = kmap_atomic(page);
