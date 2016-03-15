@@ -5,6 +5,7 @@ Required properties:
    "rockchip,rk2928-pwm": found on RK29XX,RK3066 and RK3188 SoCs
    "rockchip,rk3288-pwm": found on RK3288 SoC
    "rockchip,vop-pwm": found integrated in VOP on RK3288 SoC
+   "rockchip,rk3399-pwm", "rockchip,rk3288-pwm": found on RK3399 SoC
  - reg: physical base address and length of the controller's registers
  - clocks: phandle and clock specifier of the PWM reference clock
  - #pwm-cells: must be 2 (rk2928) or 3 (rk3288). See pwm.txt in this directory
