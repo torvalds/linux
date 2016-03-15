@@ -667,7 +667,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	enum intel_display_power_domain power_domain;
 	enum port port;
-	bool ret;
+	bool active = false;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -675,38 +675,39 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = false;
-
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		i915_reg_t ctrl_reg = IS_BROXTON(dev) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
-		u32 dpi_enabled, func;
-
-		func = I915_READ(MIPI_DSI_FUNC_PRG(port));
-		dpi_enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
+		bool enabled = I915_READ(ctrl_reg) & DPI_ENABLE;
 
 		/* Due to some hardware limitations on BYT, MIPI Port C DPI
 		 * Enable bit does not get set. To check whether DSI Port C
 		 * was enabled in BIOS, check the Pipe B enable bit
 		 */
 		if (IS_VALLEYVIEW(dev) && port == PORT_C)
-			dpi_enabled = I915_READ(PIPECONF(PIPE_B)) &
-							PIPECONF_ENABLE;
+			enabled = I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 
-		if (dpi_enabled || (func & CMD_MODE_DATA_WIDTH_MASK)) {
-			if (I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY) {
-				*pipe = port == PORT_A ? PIPE_A : PIPE_B;
-				ret = true;
-
-				goto out;
-			}
+		/* Try command mode if video mode not enabled */
+		if (!enabled) {
+			u32 tmp = I915_READ(MIPI_DSI_FUNC_PRG(port));
+			enabled = tmp & CMD_MODE_DATA_WIDTH_MASK;
 		}
+
+		if (!enabled)
+			continue;
+
+		if (!(I915_READ(MIPI_DEVICE_READY(port)) & DEVICE_READY))
+			continue;
+
+		*pipe = port == PORT_A ? PIPE_A : PIPE_B;
+		active = true;
+		break;
 	}
-out:
+
 	intel_display_power_put(dev_priv, power_domain);
 
-	return ret;
+	return active;
 }
 
 static void intel_dsi_get_config(struct intel_encoder *encoder,
