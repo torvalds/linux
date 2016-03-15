@@ -66,12 +66,14 @@ static void vnet_get_drvinfo(struct net_device *dev,
 static u32 vnet_get_msglevel(struct net_device *dev)
 {
 	struct vnet *vp = netdev_priv(dev);
+
 	return vp->msg_enable;
 }
 
 static void vnet_set_msglevel(struct net_device *dev, u32 value)
 {
 	struct vnet *vp = netdev_priv(dev);
+
 	vp->msg_enable = value;
 }
 
@@ -359,7 +361,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	INIT_LIST_HEAD(&port->list);
 
 	switch_port = 0;
-	if (mdesc_get_property(hp, vdev->mp, "switch-port", NULL) != NULL)
+	if (mdesc_get_property(hp, vdev->mp, "switch-port", NULL))
 		switch_port = 1;
 	port->switch_port = switch_port;
 	port->tso = true;
@@ -403,7 +405,6 @@ static int vnet_port_remove(struct vio_dev *vdev)
 	struct vnet_port *port = dev_get_drvdata(&vdev->dev);
 
 	if (port) {
-
 		del_timer_sync(&port->vio.timer);
 
 		napi_disable(&port->napi);
@@ -421,7 +422,6 @@ static int vnet_port_remove(struct vio_dev *vdev)
 		dev_set_drvdata(&vdev->dev, NULL);
 
 		kfree(port);
-
 	}
 	return 0;
 }
