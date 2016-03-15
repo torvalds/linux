@@ -1001,7 +1001,7 @@ static struct tvp514x_decoder tvp514x_dev = {
 static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
-	struct tvp514x_platform_data *pdata;
+	struct tvp514x_platform_data *pdata = NULL;
 	struct v4l2_of_endpoint bus_cfg;
 	struct device_node *endpoint;
 	unsigned int flags;
@@ -1013,11 +1013,13 @@ tvp514x_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	if (v4l2_of_parse_endpoint(endpoint, &bus_cfg))
+		goto done;
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
 	flags = bus_cfg.bus.parallel.flags;
 
 	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)

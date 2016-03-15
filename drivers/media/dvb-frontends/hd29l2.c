@@ -560,11 +560,11 @@ static int hd29l2_get_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static int hd29l2_get_frontend(struct dvb_frontend *fe)
+static int hd29l2_get_frontend(struct dvb_frontend *fe,
+			       struct dtv_frontend_properties *c)
 {
 	int ret;
 	struct hd29l2_priv *priv = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 buf[3];
 	u32 if_ctl;
 	char *str_constellation, *str_code_rate, *str_constellation_code_rate,

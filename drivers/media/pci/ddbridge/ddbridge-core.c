@@ -690,7 +690,7 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 	struct stv090x_config *feconf = type ? &stv0900_aa : &stv0900;
 	struct stv6110x_config *tunerconf = (input->nr & 1) ?
 		&stv6110b : &stv6110a;
-	struct stv6110x_devctl *ctl;
+	const struct stv6110x_devctl *ctl;
 
 	ctl = dvb_attach(stv6110x_attach, input->fe, tunerconf, i2c);
 	if (!ctl) {

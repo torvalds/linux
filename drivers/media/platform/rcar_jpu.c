@@ -1613,6 +1613,7 @@ static const struct of_device_id jpu_dt_ids[] = {
 	{ .compatible = "renesas,jpu-r8a7791" }, /* M2-W */
 	{ .compatible = "renesas,jpu-r8a7792" }, /* V2H */
 	{ .compatible = "renesas,jpu-r8a7793" }, /* M2-N */
+	{ .compatible = "renesas,rcar-gen2-jpu" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, jpu_dt_ids);

@@ -146,8 +146,8 @@ static void mx3_cam_dma_done(void *arg)
 	struct idmac_channel *ichannel = to_idmac_chan(chan);
 	struct mx3_camera_dev *mx3_cam = ichannel->client;
 
-	dev_dbg(chan->device->dev, "callback cookie %d, active DMA 0x%08x\n",
-		desc->txd.cookie, mx3_cam->active ? sg_dma_address(&mx3_cam->active->sg) : 0);
+	dev_dbg(chan->device->dev, "callback cookie %d, active DMA %pad\n",
+		desc->txd.cookie, mx3_cam->active ? &sg_dma_address(&mx3_cam->active->sg) : NULL);
 
 	spin_lock(&mx3_cam->lock);
 	if (mx3_cam->active) {
@@ -314,8 +314,8 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	spin_unlock_irq(&mx3_cam->lock);
 
 	cookie = txd->tx_submit(txd);
-	dev_dbg(icd->parent, "Submitted cookie %d DMA 0x%08x\n",
-		cookie, sg_dma_address(&buf->sg));
+	dev_dbg(icd->parent, "Submitted cookie %d DMA %pad\n",
+		cookie, &sg_dma_address(&buf->sg));
 
 	if (cookie >= 0)
 		return;
@@ -344,8 +344,8 @@ static void mx3_videobuf_release(struct vb2_buffer *vb)
 	unsigned long flags;
 
 	dev_dbg(icd->parent,
-		"Release%s DMA 0x%08x, queue %sempty\n",
-		mx3_cam->active == buf ? " active" : "", sg_dma_address(&buf->sg),
+		"Release%s DMA %pad, queue %sempty\n",
+		mx3_cam->active == buf ? " active" : "", &sg_dma_address(&buf->sg),
 		list_empty(&buf->queue) ? "" : "not ");
 
 	spin_lock_irqsave(&mx3_cam->lock, flags);

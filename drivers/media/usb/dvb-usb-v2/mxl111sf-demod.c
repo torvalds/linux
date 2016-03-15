@@ -507,9 +507,9 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe)
+static int mxl111sf_demod_get_frontend(struct dvb_frontend *fe,
+				       struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 
 	mxl_dbg("()");
