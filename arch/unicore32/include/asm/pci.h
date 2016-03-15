@@ -13,7 +13,6 @@
 #define __UNICORE_PCI_H__
 
 #ifdef __KERNEL__
-#include <asm-generic/pci-dma-compat.h>
 #include <asm-generic/pci.h>
 #include <mach/hardware.h> /* for PCIBIOS_MIN_* */
 

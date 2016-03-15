@@ -2431,8 +2431,6 @@ config PCI_CNB20LE_QUIRK
 
 	  You should say N unless you know you need this.
 
-source "drivers/pci/pcie/Kconfig"
-
 source "drivers/pci/Kconfig"
 
 # x86_64 have no ISA slots, but can have ISA-style DMA.
@@ -2587,8 +2585,6 @@ config AMD_NB
 	depends on CPU_SUP_AMD && PCI
 
 source "drivers/pcmcia/Kconfig"
-
-source "drivers/pci/hotplug/Kconfig"
 
 config RAPIDIO
 	tristate "RapidIO support"

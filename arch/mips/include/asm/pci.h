@@ -124,9 +124,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 
 #endif /* __KERNEL__ */
 
-/* implement the pci_ DMA API in terms of the generic device dma_ one */
-#include <asm-generic/pci-dma-compat.h>
-
 /* Do platform specific device initialization at pci_enable_device() time */
 extern int pcibios_plat_dev_init(struct pci_dev *dev);
 
