@@ -946,10 +946,8 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	blksz = BIT(12);
 
 	dma_buffer = kmalloc(blksz, GFP_KERNEL);
-	if (!dma_buffer) {
-		ret = -EIO;
-		goto _fail_1;
-	}
+	if (!dma_buffer)
+		return -EIO;
 
 	offset = 0;
 	do {
@@ -986,8 +984,6 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 _fail_:
 
 	kfree(dma_buffer);
-
-_fail_1:
 
 	return (ret < 0) ? ret : 0;
 }
