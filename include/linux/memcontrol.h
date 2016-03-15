@@ -89,6 +89,10 @@ enum mem_cgroup_events_target {
 };
 
 #ifdef CONFIG_MEMCG
+
+#define MEM_CGROUP_ID_SHIFT	16
+#define MEM_CGROUP_ID_MAX	USHRT_MAX
+
 struct mem_cgroup_stat_cpu {
 	long count[MEMCG_NR_STAT];
 	unsigned long events[MEMCG_NR_EVENTS];
@@ -265,6 +269,11 @@ struct mem_cgroup {
 
 extern struct mem_cgroup *root_mem_cgroup;
 
+static inline bool mem_cgroup_disabled(void)
+{
+	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+}
+
 /**
  * mem_cgroup_events - count memory events against a cgroup
  * @memcg: the memory cgroup
@@ -312,6 +321,28 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
 				   struct mem_cgroup_reclaim_cookie *);
 void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
 
+static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
+{
+	if (mem_cgroup_disabled())
+		return 0;
+
+	return memcg->css.id;
+}
+
+/**
+ * mem_cgroup_from_id - look up a memcg from an id
+ * @id: the id to look up
+ *
+ * Caller must hold rcu_read_lock() and use css_tryget() as necessary.
+ */
+static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+{
+	struct cgroup_subsys_state *css;
+
+	css = css_from_id(id, &memory_cgrp_subsys);
+	return mem_cgroup_from_css(css);
+}
+
 /**
  * parent_mem_cgroup - find the accounting parent of a memcg
  * @memcg: memcg whose parent to find
@@ -352,11 +383,6 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
 
 struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
 ino_t page_cgroup_ino(struct page *page);
-
-static inline bool mem_cgroup_disabled(void)
-{
-	return !cgroup_subsys_enabled(memory_cgrp_subsys);
-}
 
 static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 {
@@ -502,7 +528,16 @@ void mem_cgroup_split_huge_fixup(struct page *head);
 #endif
 
 #else /* CONFIG_MEMCG */
+
+#define MEM_CGROUP_ID_SHIFT	0
+#define MEM_CGROUP_ID_MAX	0
+
 struct mem_cgroup;
+
+static inline bool mem_cgroup_disabled(void)
+{
+	return true;
+}
 
 static inline void mem_cgroup_events(struct mem_cgroup *memcg,
 				     enum mem_cgroup_events_index idx,
@@ -586,9 +621,16 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
 {
 }
 
-static inline bool mem_cgroup_disabled(void)
+static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 {
-	return true;
+	return 0;
+}
+
+static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+{
+	WARN_ON_ONCE(id);
+	/* XXX: This should always return root_mem_cgroup */
+	return NULL;
 }
 
 static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
