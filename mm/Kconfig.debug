@@ -16,8 +16,8 @@ config DEBUG_PAGEALLOC
 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	---help---
 	  Unmap pages from the kernel linear mapping after free_pages().
-	  This results in a large slowdown, but helps to find certain types
-	  of memory corruption.
+	  Depending on runtime enablement, this results in a small or large
+	  slowdown, but helps to find certain types of memory corruption.
 
 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify
@@ -25,6 +25,20 @@ config DEBUG_PAGEALLOC
 	  this option cannot be enabled in combination with hibernation as
 	  that would result in incorrect warnings of memory corruption after
 	  a resume because free pages are not saved to the suspend image.
+
+	  By default this option will have a small overhead, e.g. by not
+	  allowing the kernel mapping to be backed by large pages on some
+	  architectures. Even bigger overhead comes when the debugging is
+	  enabled by DEBUG_PAGEALLOC_ENABLE_DEFAULT or the debug_pagealloc
+	  command line parameter.
+
+config DEBUG_PAGEALLOC_ENABLE_DEFAULT
+	bool "Enable debug page memory allocations by default?"
+	default n
+	depends on DEBUG_PAGEALLOC
+	---help---
+	  Enable debug page memory allocations by default? This value
+	  can be overridden by debug_pagealloc=off|on.
 
 config PAGE_POISONING
 	bool
