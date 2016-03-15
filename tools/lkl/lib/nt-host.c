@@ -79,6 +79,13 @@ static void thread_exit(void)
 	ExitThread(0);
 }
 
+static int thread_join(lkl_thread_t tid)
+{
+	/* TODO: error handling */
+	WaitForSingleObject(tid, INFINITE);
+	return 0;
+}
+
 static int tls_alloc(unsigned int *key)
 {
 	*key = TlsAlloc();
@@ -202,6 +209,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_create = thread_create,
 	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
+	.thread_join = thread_join,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,

@@ -684,6 +684,24 @@ static int test_syscall_thread(char *str, int len)
 	return TEST_SUCCESS;
 }
 
+void thread_quit_immediately(void *unused)
+{
+}
+
+static int test_join(char *str, int len)
+{
+	lkl_thread_t tid = lkl_host_ops.thread_create(thread_quit_immediately, NULL);
+	int ret = lkl_host_ops.thread_join(tid);
+
+	if (ret == 0) {
+		snprintf(str, len, "joined %ld", tid);
+		return TEST_SUCCESS;
+	} else {
+		snprintf(str, len, "failed joining %ld", tid);
+		return TEST_FAILURE;
+	}
+}
+
 static struct cl_option *find_short_opt(char name)
 {
 	struct cl_option *opt;
@@ -792,6 +810,7 @@ int main(int argc, char **argv)
 	TEST(semaphore);
 	TEST(gettid);
 	TEST(syscall_thread);
+	TEST(join);
 
 	lkl_sys_halt();
 

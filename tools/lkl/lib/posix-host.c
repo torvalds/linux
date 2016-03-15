@@ -199,6 +199,14 @@ static void thread_exit(void)
 	pthread_exit(NULL);
 }
 
+static int thread_join(lkl_thread_t tid)
+{
+	if (WARN_PTHREAD(pthread_join(tid, NULL)))
+		return -1;
+	else
+		return 0;
+}
+
 static int tls_alloc(unsigned int *key)
 {
 	return pthread_key_create((pthread_key_t*)key, NULL);
@@ -218,7 +226,6 @@ static void *tls_get(unsigned int key)
 {
 	return pthread_getspecific(key);
 }
-
 
 static unsigned long long time_ns(void)
 {
@@ -286,6 +293,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.thread_create = thread_create,
 	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
+	.thread_join = thread_join,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
 	.sem_up = sem_up,
