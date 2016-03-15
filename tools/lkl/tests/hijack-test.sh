@@ -16,6 +16,7 @@ work_dir=$(mktemp -d)
 
 # And make sure we clean up when we're done
 function clear_work_dir {
+    test -f ${VDESWITCH}.pid && kill $(cat ${VDESWITCH}.pid)
     rm -rf ${work_dir}
     sudo ip link set dev lkl_ptt0 down &> /dev/null || true
     sudo ip tuntap del dev lkl_ptt0 mode tap &> /dev/null || true
@@ -55,7 +56,7 @@ echo "$ans" | grep "0x0"        # lo's dev_id
 
 echo "== TAP tests =="
 if [ ! -c /dev/net/tun ]; then
-    echo "WARNING: missing /dev/net/tun, skipping TAP tests ."
+    echo "WARNING: missing /dev/net/tun, skipping TAP and VDE tests."
     exit 0
 fi
 
@@ -78,6 +79,45 @@ echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
 
 # Copy ping so we're allowed to run it under LKL
 cp `which ping` .
+
+# Make sure we can ping the host from inside LKL
+${hijack_script} ./ping 192.168.13.1 -c 1
+rm ./ping
+
+# Now let's check that the host can see LKL.
+sudo arp -d 192.168.13.2
+sudo ping -i 0.01 -c 65 192.168.13.2 &
+${hijack_script} sleep 3
+
+echo "== VDE tests =="
+if [ ! -x "$(which vde_switch)" ]; then
+    echo "WARNING: Cannot find a vde_switch executable, skipping VDE tests."
+    exit 0
+fi
+VDESWITCH=${work_dir}/vde_switch
+
+export LKL_HIJACK_NET_IFTYPE=vde
+export LKL_HIJACK_NET_IFPARAMS=${VDESWITCH}
+export LKL_HIJACK_NET_IP=192.168.13.2
+export LKL_HIJACK_NET_NETMASK_LEN=24
+
+sudo ip link set dev lkl_ptt0 down &> /dev/null || true
+sudo ip link del dev lkl_ptt0 &> /dev/null || true
+sudo ip tuntap add dev lkl_ptt0 mode tap user $USER
+sudo ip link set dev lkl_ptt0 up
+sudo ip addr add dev lkl_ptt0 192.168.13.1/24
+
+sleep 2
+vde_switch -d -t lkl_ptt0 -s ${VDESWITCH} -p ${VDESWITCH}.pid
+
+# Make sure our device has the addresses we expect
+addr=$(LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
+echo "$addr" | grep eth0
+echo "$addr" | grep 192.168.13.2
+echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
+
+# Copy ping so we're allowed to run it under LKL
+cp $(which ping) .
 
 # Make sure we can ping the host from inside LKL
 ${hijack_script} ./ping 192.168.13.1 -c 1

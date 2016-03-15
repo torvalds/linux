@@ -165,10 +165,14 @@ hijack_init(void)
 		nd = lkl_netdev_tap_create(tap);
 	}
 
-	if (!nd && iftype && ifparams && (strncmp(iftype, "tap", 3) == 0))
-		nd = lkl_netdev_tap_create(ifparams);
-	else if (!tap && iftype && ifparams && (strncmp(iftype, "dpdk", 4) == 0))
-		nd = lkl_netdev_dpdk_create(ifparams);
+	if (!nd && iftype && ifparams) {
+		if ((strcmp(iftype, "tap") == 0))
+			nd = lkl_netdev_tap_create(ifparams);
+		else if (strcmp(iftype, "dpdk") == 0)
+			nd = lkl_netdev_dpdk_create(ifparams);
+		else if (strcmp(iftype, "vde") == 0)
+			nd = lkl_netdev_vde_create(ifparams);
+	}
 
 	if (nd) {
 		ret = parse_mac_str(mac_str, mac);

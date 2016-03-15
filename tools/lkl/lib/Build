@@ -1,4 +1,5 @@
 CFLAGS_posix-host.o += -D_FILE_OFFSET_BITS=64
+CFLAGS_virtio_net_vde.o += $(shell pkg-config --cflags vdeplug)
 
 lkl-y += fs.o
 lkl-y += iomem.o
@@ -11,3 +12,4 @@ lkl-y += virtio.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net.o
 lkl-$(CONFIG_AUTO_LKL_POSIX_HOST) += virtio_net_tap.o
 lkl-$(CONFIG_AUTO_LKL_VIRTIO_NET_DPDK) += virtio_net_dpdk.o
+lkl-$(CONFIG_AUTO_LKL_VIRTIO_NET_VDE) += virtio_net_vde.o
