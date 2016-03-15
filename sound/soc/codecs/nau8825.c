@@ -1069,6 +1069,37 @@ static int nau8825_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 	return 0;
 }
 
+static int nau8825_mclk_prepare(struct nau8825 *nau8825, unsigned int freq)
+{
+	int ret = 0;
+
+	nau8825->mclk = devm_clk_get(nau8825->dev, "mclk");
+	if (IS_ERR(nau8825->mclk)) {
+		dev_info(nau8825->dev, "No 'mclk' clock found, assume MCLK is managed externally");
+		return 0;
+	}
+
+	if (!nau8825->mclk_freq) {
+		ret = clk_prepare_enable(nau8825->mclk);
+		if (ret) {
+			dev_err(nau8825->dev, "Unable to prepare codec mclk\n");
+			return ret;
+		}
+	}
+
+	if (nau8825->mclk_freq != freq) {
+		freq = clk_round_rate(nau8825->mclk, freq);
+		ret = clk_set_rate(nau8825->mclk, freq);
+		if (ret) {
+			dev_err(nau8825->dev, "Unable to set mclk rate\n");
+			return ret;
+		}
+		nau8825->mclk_freq = freq;
+	}
+
+	return 0;
+}
+
 static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 	unsigned int freq)
 {
@@ -1080,29 +1111,9 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_MCLK);
 		regmap_update_bits(regmap, NAU8825_REG_FLL6, NAU8825_DCO_EN, 0);
-
-		/* We selected MCLK source but the clock itself managed externally */
-		if (!nau8825->mclk)
-			break;
-
-		if (!nau8825->mclk_freq) {
-			ret = clk_prepare_enable(nau8825->mclk);
-			if (ret) {
-				dev_err(nau8825->dev, "Unable to prepare codec mclk\n");
-				return ret;
-			}
-		}
-
-		if (nau8825->mclk_freq != freq) {
-			nau8825->mclk_freq = freq;
-
-			freq = clk_round_rate(nau8825->mclk, freq);
-			ret = clk_set_rate(nau8825->mclk, freq);
-			if (ret) {
-				dev_err(nau8825->dev, "Unable to set mclk rate\n");
-				return ret;
-			}
-		}
+		ret = nau8825_mclk_prepare(nau8825, freq);
+		if (ret)
+			return ret;
 
 		break;
 	case NAU8825_CLK_INTERNAL:
@@ -1110,7 +1121,32 @@ static int nau8825_configure_sysclk(struct nau8825 *nau8825, int clk_id,
 			NAU8825_DCO_EN);
 		regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
 			NAU8825_CLK_SRC_MASK, NAU8825_CLK_SRC_VCO);
+		if (nau8825->mclk_freq) {
+			clk_disable_unprepare(nau8825->mclk);
+			nau8825->mclk_freq = 0;
+		}
 
+		break;
+	case NAU8825_CLK_FLL_MCLK:
+		regmap_update_bits(regmap, NAU8825_REG_FLL3,
+			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_MCLK);
+		ret = nau8825_mclk_prepare(nau8825, freq);
+		if (ret)
+			return ret;
+
+		break;
+	case NAU8825_CLK_FLL_BLK:
+		regmap_update_bits(regmap, NAU8825_REG_FLL3,
+			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_BLK);
+		if (nau8825->mclk_freq) {
+			clk_disable_unprepare(nau8825->mclk);
+			nau8825->mclk_freq = 0;
+		}
+
+		break;
+	case NAU8825_CLK_FLL_FS:
+		regmap_update_bits(regmap, NAU8825_REG_FLL3,
+			NAU8825_FLL_CLK_SRC_MASK, NAU8825_FLL_CLK_SRC_FS);
 		if (nau8825->mclk_freq) {
 			clk_disable_unprepare(nau8825->mclk);
 			nau8825->mclk_freq = 0;
