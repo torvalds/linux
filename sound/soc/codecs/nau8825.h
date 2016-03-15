@@ -123,15 +123,18 @@
 #define NAU8825_FLL_REF_DIV_MASK		(0x3 << 10)
 
 /* FLL5 (0x08) */
-#define NAU8825_FLL_FILTER_SW_MASK		(0x1 << 14)
+#define NAU8825_FLL_PDB_DAC_EN		(0x1 << 15)
+#define NAU8825_FLL_LOOP_FTR_EN		(0x1 << 14)
+#define NAU8825_FLL_CLK_SW_MASK		(0x1 << 13)
+#define NAU8825_FLL_CLK_SW_N2			(0x1 << 13)
+#define NAU8825_FLL_CLK_SW_REF		(0x0 << 13)
+#define NAU8825_FLL_FTR_SW_MASK		(0x1 << 12)
+#define NAU8825_FLL_FTR_SW_ACCU		(0x1 << 12)
+#define NAU8825_FLL_FTR_SW_FILTER		(0x0 << 12)
 
 /* FLL6 (0x9) */
-#define NAU8825_DCO_EN_MASK			(0x1 << 15)
 #define NAU8825_DCO_EN				(0x1 << 15)
-#define NAU8825_DCO_DIS				(0x0 << 15)
-#define NAU8825_SDM_EN_MASK			(0x1 << 14)
 #define NAU8825_SDM_EN				(0x1 << 14)
-#define NAU8825_SDM_DIS				(0x0 << 14)
 
 /* HSD_CTRL (0xc) */
 #define NAU8825_HSD_AUTO_MODE	(1 << 6)

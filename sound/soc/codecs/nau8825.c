@@ -31,7 +31,7 @@
 #include "nau8825.h"
 
 #define NAU_FREF_MAX 13500000
-#define NAU_FVCO_MAX 100000000
+#define NAU_FVCO_MAX 124000000
 #define NAU_FVCO_MIN 90000000
 
 struct nau8825_fll {
@@ -973,8 +973,8 @@ static int nau8825_codec_probe(struct snd_soc_codec *codec)
 static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 		struct nau8825_fll *fll_param)
 {
-	u64 fvco;
-	unsigned int fref, i;
+	u64 fvco, fvco_max;
+	unsigned int fref, i, fvco_sel;
 
 	/* Ensure the reference clock frequency (FREF) is <= 13.5MHz by dividing
 	 * freq_in by 1, 2, 4, or 8 using FLL pre-scalar.
@@ -999,18 +999,23 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	fll_param->ratio = fll_ratio[i].val;
 
 	/* Calculate the frequency of DCO (FDCO) given freq_out = 256 * Fs.
-	 * FDCO must be within the 90MHz - 100MHz or the FFL cannot be
+	 * FDCO must be within the 90MHz - 124MHz or the FFL cannot be
 	 * guaranteed across the full range of operation.
 	 * FDCO = freq_out * 2 * mclk_src_scaling
 	 */
+	fvco_max = 0;
+	fvco_sel = ARRAY_SIZE(mclk_src_scaling);
 	for (i = 0; i < ARRAY_SIZE(mclk_src_scaling); i++) {
 		fvco = 256 * fs * 2 * mclk_src_scaling[i].param;
-		if (NAU_FVCO_MIN < fvco && fvco < NAU_FVCO_MAX)
-			break;
+		if (fvco > NAU_FVCO_MIN && fvco < NAU_FVCO_MAX &&
+			fvco_max < fvco) {
+			fvco_max = fvco;
+			fvco_sel = i;
+		}
 	}
-	if (i == ARRAY_SIZE(mclk_src_scaling))
+	if (ARRAY_SIZE(mclk_src_scaling) == fvco_sel)
 		return -EINVAL;
-	fll_param->mclk_src = mclk_src_scaling[i].val;
+	fll_param->mclk_src = mclk_src_scaling[fvco_sel].val;
 
 	/* Calculate the FLL 10-bit integer input and the FLL 16-bit fractional
 	 * input based on FDCO, FREF and FLL ratio.
@@ -1025,7 +1030,8 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 		struct nau8825_fll *fll_param)
 {
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_CLK_DIVIDER,
-		NAU8825_CLK_MCLK_SRC_MASK, fll_param->mclk_src);
+		NAU8825_CLK_SRC_MASK | NAU8825_CLK_MCLK_SRC_MASK,
+		NAU8825_CLK_SRC_MCLK | fll_param->mclk_src);
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL1,
 			NAU8825_FLL_RATIO_MASK, fll_param->ratio);
 	/* FLL 16-bit fractional input */
@@ -1038,10 +1044,25 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 			NAU8825_FLL_REF_DIV_MASK, fll_param->clk_ref_div);
 	/* select divided VCO input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
-			NAU8825_FLL_FILTER_SW_MASK, 0x0000);
-	/* FLL sigma delta modulator enable */
-	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
-			NAU8825_SDM_EN_MASK, NAU8825_SDM_EN);
+		NAU8825_FLL_CLK_SW_MASK, NAU8825_FLL_CLK_SW_REF);
+	/* Disable free-running mode */
+	regmap_update_bits(nau8825->regmap,
+		NAU8825_REG_FLL6, NAU8825_DCO_EN, 0);
+	if (fll_param->fll_frac) {
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
+			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
+			NAU8825_FLL_FTR_SW_MASK,
+			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
+			NAU8825_FLL_FTR_SW_FILTER);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL6,
+			NAU8825_SDM_EN, NAU8825_SDM_EN);
+	} else {
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL5,
+			NAU8825_FLL_PDB_DAC_EN | NAU8825_FLL_LOOP_FTR_EN |
+			NAU8825_FLL_FTR_SW_MASK, NAU8825_FLL_FTR_SW_ACCU);
+		regmap_update_bits(nau8825->regmap,
+			NAU8825_REG_FLL6, NAU8825_SDM_EN, 0);
+	}
 }
 
 /* freq_out must be 256*Fs in order to achieve the best performance */
