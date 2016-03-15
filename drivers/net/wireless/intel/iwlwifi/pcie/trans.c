@@ -1695,6 +1695,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	}
 
 	free_percpu(trans_pcie->tso_hdr_page);
+	mutex_destroy(&trans_pcie->mutex);
 	iwl_trans_free(trans);
 }
 

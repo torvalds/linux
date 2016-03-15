@@ -782,6 +782,9 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_mvm_tof_clean(mvm);
 
+	mutex_destroy(&mvm->mutex);
+	mutex_destroy(&mvm->d0i3_suspend_mutex);
+
 	ieee80211_free_hw(mvm->hw);
 }
 
