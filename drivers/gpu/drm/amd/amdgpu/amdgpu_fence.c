@@ -355,14 +355,20 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
  * for the requested ring.
  *
  * @ring: ring to init the fence driver on
+ * @num_hw_submission: number of entries on the hardware queue
  *
  * Init the fence driver for the requested ring (all asics).
  * Helper function for amdgpu_fence_driver_init().
  */
-int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
+int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
+				  unsigned num_hw_submission)
 {
 	long timeout;
 	int r;
+
+	/* Check that num_hw_submission is a power of two */
+	if ((num_hw_submission & (num_hw_submission - 1)) != 0)
+		return -EINVAL;
 
 	ring->fence_drv.cpu_addr = NULL;
 	ring->fence_drv.gpu_addr = 0;
@@ -387,7 +393,7 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 	}
 	r = amd_sched_init(&ring->sched, &amdgpu_sched_ops,
-			   amdgpu_sched_hw_submission,
+			   num_hw_submission,
 			   timeout, ring->name);
 	if (r) {
 		DRM_ERROR("Failed to create scheduler on ring %s.\n",

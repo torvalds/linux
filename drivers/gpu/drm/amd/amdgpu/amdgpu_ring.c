@@ -236,7 +236,8 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring);
+		r = amdgpu_fence_driver_init_ring(ring,
+			amdgpu_sched_hw_submission);
 		if (r)
 			return r;
 	}
