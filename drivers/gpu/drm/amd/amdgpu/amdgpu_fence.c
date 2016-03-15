@@ -638,10 +638,31 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	return true;
 }
 
-static void amdgpu_fence_release(struct fence *f)
+/**
+ * amdgpu_fence_free - free up the fence memory
+ *
+ * @rcu: RCU callback head
+ *
+ * Free up the fence memory after the RCU grace period.
+ */
+static void amdgpu_fence_free(struct rcu_head *rcu)
 {
+	struct fence *f = container_of(rcu, struct fence, rcu);
 	struct amdgpu_fence *fence = to_amdgpu_fence(f);
 	kmem_cache_free(amdgpu_fence_slab, fence);
+}
+
+/**
+ * amdgpu_fence_release - callback that fence can be freed
+ *
+ * @fence: fence
+ *
+ * This function is called when the reference count becomes zero.
+ * It just RCU schedules freeing up the fence.
+ */
+static void amdgpu_fence_release(struct fence *f)
+{
+	call_rcu(&f->rcu, amdgpu_fence_free);
 }
 
 static const struct fence_ops amdgpu_fence_ops = {
