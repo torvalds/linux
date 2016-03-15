@@ -105,6 +105,7 @@ static const struct cpg_core_clk r8a7796_core_clks[] __initconst = {
 
 	DEF_DIV6P1("canfd",     R8A7796_CLK_CANFD, CLK_PLL1_DIV4, 0x244),
 	DEF_DIV6P1("csi0",      R8A7796_CLK_CSI0,  CLK_PLL1_DIV4, 0x00c),
+	DEF_DIV6P1("mso",       R8A7796_CLK_MSO,   CLK_PLL1_DIV4, 0x014),
 
 	DEF_DIV6_RO("osc",      R8A7796_CLK_OSC,   CLK_EXTAL, CPG_RCKCR,  8),
 	DEF_DIV6_RO("r_int",    CLK_RINT,          CLK_EXTAL, CPG_RCKCR, 32),
@@ -118,6 +119,10 @@ static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
 	DEF_MOD("scif3",		 204,	R8A7796_CLK_S3D4),
 	DEF_MOD("scif1",		 206,	R8A7796_CLK_S3D4),
 	DEF_MOD("scif0",		 207,	R8A7796_CLK_S3D4),
+	DEF_MOD("msiof3",		 208,	R8A7796_CLK_MSO),
+	DEF_MOD("msiof2",		 209,	R8A7796_CLK_MSO),
+	DEF_MOD("msiof1",		 210,	R8A7796_CLK_MSO),
+	DEF_MOD("msiof0",		 211,	R8A7796_CLK_MSO),
 	DEF_MOD("sys-dmac2",		 217,	R8A7796_CLK_S0D3),
 	DEF_MOD("sys-dmac1",		 218,	R8A7796_CLK_S0D3),
 	DEF_MOD("sys-dmac0",		 219,	R8A7796_CLK_S0D3),
