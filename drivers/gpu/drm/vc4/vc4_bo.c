@@ -398,9 +398,8 @@ int vc4_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_pgoff = 0;
 
-	ret = dma_mmap_writecombine(bo->base.base.dev->dev, vma,
-				    bo->base.vaddr, bo->base.paddr,
-				    vma->vm_end - vma->vm_start);
+	ret = dma_mmap_wc(bo->base.base.dev->dev, vma, bo->base.vaddr,
+			  bo->base.paddr, vma->vm_end - vma->vm_start);
 	if (ret)
 		drm_gem_vm_close(vma);
 

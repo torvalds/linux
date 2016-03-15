@@ -6,6 +6,7 @@
 #include <inttypes.h>
 
 #include "symbol.h"
+#include "demangle-java.h"
 #include "machine.h"
 #include "vdso.h"
 #include <symbol/kallsyms.h>
@@ -1077,6 +1078,8 @@ new_symbol:
 				demangle_flags = DMGL_PARAMS | DMGL_ANSI;
 
 			demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+			if (demangled == NULL)
+				demangled = java_demangle_sym(elf_name, JAVA_DEMANGLE_NORET);
 			if (demangled != NULL)
 				elf_name = demangled;
 		}

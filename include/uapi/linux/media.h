@@ -120,7 +120,7 @@ struct media_device_info {
 
 #define MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN	MEDIA_ENT_F_OLD_SUBDEV_BASE
 
-#ifndef __KERNEL__
+#if !defined(__KERNEL__) || defined(__NEED_MEDIA_LEGACY_API)
 
 /*
  * Legacy symbols used to avoid userspace compilation breakages
@@ -132,6 +132,10 @@ struct media_device_info {
 #define MEDIA_ENT_TYPE_SHIFT		16
 #define MEDIA_ENT_TYPE_MASK		0x00ff0000
 #define MEDIA_ENT_SUBTYPE_MASK		0x0000ffff
+
+/* End of the old subdev reserved numberspace */
+#define MEDIA_ENT_T_DEVNODE_UNKNOWN	(MEDIA_ENT_T_DEVNODE | \
+					 MEDIA_ENT_SUBTYPE_MASK)
 
 #define MEDIA_ENT_T_DEVNODE		MEDIA_ENT_F_OLD_BASE
 #define MEDIA_ENT_T_DEVNODE_V4L		MEDIA_ENT_F_IO_V4L

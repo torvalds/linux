@@ -182,8 +182,6 @@ extern void update_cpu_load_nohz(int active);
 static inline void update_cpu_load_nohz(int active) { }
 #endif
 
-extern unsigned long get_parent_ip(unsigned long addr);
-
 extern void dump_cpu_task(int cpu);
 
 struct seq_file;
@@ -719,6 +717,10 @@ struct signal_struct {
 	/* Earliest-expiration cache. */
 	struct task_cputime cputime_expires;
 
+#ifdef CONFIG_NO_HZ_FULL
+	unsigned long tick_dep_mask;
+#endif
+
 	struct list_head cpu_timers[3];
 
 	struct pid *tty_old_pgrp;
@@ -919,6 +921,10 @@ static inline int sched_info_on(void)
 	return 0;
 #endif
 }
+
+#ifdef CONFIG_SCHEDSTATS
+void force_schedstat_enabled(void);
+#endif
 
 enum cpu_idle_type {
 	CPU_IDLE,
@@ -1289,6 +1295,8 @@ struct sched_rt_entity {
 	unsigned long timeout;
 	unsigned long watchdog_stamp;
 	unsigned int time_slice;
+	unsigned short on_rq;
+	unsigned short on_list;
 
 	struct sched_rt_entity *back;
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -1329,10 +1337,6 @@ struct sched_dl_entity {
 	 * task has to wait for a replenishment to be performed at the
 	 * next firing of dl_timer.
 	 *
-	 * @dl_new tells if a new instance arrived. If so we must
-	 * start executing it with full runtime and reset its absolute
-	 * deadline;
-	 *
 	 * @dl_boosted tells if we are boosted due to DI. If so we are
 	 * outside bandwidth enforcement mechanism (but only until we
 	 * exit the critical section);
@@ -1340,7 +1344,7 @@ struct sched_dl_entity {
 	 * @dl_yielded tells if task gave up the cpu before consuming
 	 * all its available runtime during the last job.
 	 */
-	int dl_throttled, dl_new, dl_boosted, dl_yielded;
+	int dl_throttled, dl_boosted, dl_yielded;
 
 	/*
 	 * Bandwidth enforcement timer. Each -deadline task has its
@@ -1541,6 +1545,10 @@ struct task_struct {
 		/* Task runs in kernelspace in a CPU with VTIME active */
 		VTIME_SYS,
 	} vtime_snap_whence;
+#endif
+
+#ifdef CONFIG_NO_HZ_FULL
+	unsigned long tick_dep_mask;
 #endif
 	unsigned long nvcsw, nivcsw; /* context switch counts */
 	u64 start_time;		/* monotonic time in nsec */
@@ -2356,10 +2364,7 @@ static inline void wake_up_nohz_cpu(int cpu) { }
 #endif
 
 #ifdef CONFIG_NO_HZ_FULL
-extern bool sched_can_stop_tick(void);
 extern u64 scheduler_tick_max_deferment(void);
-#else
-static inline bool sched_can_stop_tick(void) { return false; }
 #endif
 
 #ifdef CONFIG_SCHED_AUTOGROUP

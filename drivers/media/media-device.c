@@ -20,6 +20,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* We need to access legacy defines from linux/media.h */
+#define __NEED_MEDIA_LEGACY_API
+
 #include <linux/compat.h>
 #include <linux/export.h>
 #include <linux/idr.h>
@@ -115,6 +118,26 @@ static long media_device_enum_entities(struct media_device *mdev,
 	u_ent.group_id = 0;		/* Unused */
 	u_ent.pads = ent->num_pads;
 	u_ent.links = ent->num_links - ent->num_backlinks;
+
+	/*
+	 * Workaround for a bug at media-ctl <= v1.10 that makes it to
+	 * do the wrong thing if the entity function doesn't belong to
+	 * either MEDIA_ENT_F_OLD_BASE or MEDIA_ENT_F_OLD_SUBDEV_BASE
+	 * Ranges.
+	 *
+	 * Non-subdevices are expected to be at the MEDIA_ENT_F_OLD_BASE,
+	 * or, otherwise, will be silently ignored by media-ctl when
+	 * printing the graphviz diagram. So, map them into the devnode
+	 * old range.
+	 */
+	if (ent->function < MEDIA_ENT_F_OLD_BASE ||
+	    ent->function > MEDIA_ENT_T_DEVNODE_UNKNOWN) {
+		if (is_media_entity_v4l2_subdev(ent))
+			u_ent.type = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
+		else if (ent->function != MEDIA_ENT_F_IO_V4L)
+			u_ent.type = MEDIA_ENT_T_DEVNODE_UNKNOWN;
+	}
+
 	memcpy(&u_ent.raw, &ent->info, sizeof(ent->info));
 	if (copy_to_user(uent, &u_ent, sizeof(u_ent)))
 		return -EFAULT;

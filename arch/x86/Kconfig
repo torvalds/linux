@@ -303,6 +303,9 @@ config ARCH_SUPPORTS_UPROBES
 config FIX_EARLYCON_MEM
 	def_bool y
 
+config DEBUG_RODATA
+	def_bool y
+
 config PGTABLE_LEVELS
 	int
 	default 4 if X86_64

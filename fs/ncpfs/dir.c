@@ -633,7 +633,7 @@ ncp_fill_cache(struct file *file, struct dir_context *ctx,
 				d_rehash(newdent);
 		} else {
 			spin_lock(&dentry->d_lock);
-			NCP_FINFO(inode)->flags &= ~NCPI_DIR_CACHE;
+			NCP_FINFO(dir)->flags &= ~NCPI_DIR_CACHE;
 			spin_unlock(&dentry->d_lock);
 		}
 	} else {

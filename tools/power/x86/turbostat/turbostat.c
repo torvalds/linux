@@ -1970,7 +1970,7 @@ int has_config_tdp(unsigned int family, unsigned int model)
 }
 
 static void
-dump_cstate_pstate_config_info(family, model)
+dump_cstate_pstate_config_info(unsigned int family, unsigned int model)
 {
 	if (!do_nhm_platform_info)
 		return;
@@ -2142,7 +2142,7 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 #define	RAPL_POWER_GRANULARITY	0x7FFF	/* 15 bit power granularity */
 #define	RAPL_TIME_GRANULARITY	0x3F /* 6 bit time granularity */
 
-double get_tdp(model)
+double get_tdp(unsigned int model)
 {
 	unsigned long long msr;
 
@@ -2256,7 +2256,7 @@ void rapl_probe(unsigned int family, unsigned int model)
 	return;
 }
 
-void perf_limit_reasons_probe(family, model)
+void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
 		return;
@@ -2792,7 +2792,7 @@ void process_cpuid()
 	perf_limit_reasons_probe(family, model);
 
 	if (debug)
-		dump_cstate_pstate_config_info();
+		dump_cstate_pstate_config_info(family, model);
 
 	if (has_skl_msrs(family, model))
 		calculate_tsc_tweak();
