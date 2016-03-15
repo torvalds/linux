@@ -438,7 +438,7 @@ static void quirk_amd_nl_class(struct pci_dev *pdev)
 	u32 class = pdev->class;
 
 	/* Use "USB Device (not host controller)" class */
-	pdev->class = (PCI_CLASS_SERIAL_USB << 8) | 0xfe;
+	pdev->class = PCI_CLASS_SERIAL_USB_DEVICE;
 	dev_info(&pdev->dev, "PCI class overridden (%#08x -> %#08x) so dwc3 driver can claim this instead of xhci\n",
 		 class, pdev->class);
 }
