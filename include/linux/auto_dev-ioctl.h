@@ -125,7 +125,6 @@ static inline void init_autofs_dev_ioctl(struct autofs_dev_ioctl *in)
 	in->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
 	in->size = sizeof(struct autofs_dev_ioctl);
 	in->ioctlfd = -1;
-	return;
 }
 
 /*

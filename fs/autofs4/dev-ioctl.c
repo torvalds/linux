@@ -72,8 +72,8 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
 {
 	int err = 0;
 
-	if ((AUTOFS_DEV_IOCTL_VERSION_MAJOR != param->ver_major) ||
-	    (AUTOFS_DEV_IOCTL_VERSION_MINOR < param->ver_minor)) {
+	if ((param->ver_major != AUTOFS_DEV_IOCTL_VERSION_MAJOR) ||
+	    (param->ver_minor > AUTOFS_DEV_IOCTL_VERSION_MINOR)) {
 		AUTOFS_WARN("ioctl control interface version mismatch: "
 		     "kernel(%u.%u), user(%u.%u), cmd(%d)",
 		     AUTOFS_DEV_IOCTL_VERSION_MAJOR,
@@ -93,7 +93,8 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
  * Copy parameter control struct, including a possible path allocated
  * at the end of the struct.
  */
-static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
+static struct autofs_dev_ioctl *
+		copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
 {
 	struct autofs_dev_ioctl tmp, *res;
 
@@ -116,7 +117,6 @@ static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *i
 static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
 {
 	kfree(param);
-	return;
 }
 
 /*
@@ -197,7 +197,9 @@ static int find_autofs_mount(const char *pathname,
 			     void *data)
 {
 	struct path path;
-	int err = kern_path_mountpoint(AT_FDCWD, pathname, &path, 0);
+	int err;
+
+	err = kern_path_mountpoint(AT_FDCWD, pathname, &path, 0);
 	if (err)
 		return err;
 	err = -ENOENT;
@@ -225,6 +227,7 @@ static int test_by_dev(struct path *path, void *p)
 static int test_by_type(struct path *path, void *p)
 {
 	struct autofs_info *ino = autofs4_dentry_ino(path->dentry);
+
 	return ino && ino->sbi->type & *(unsigned *)p;
 }
 
@@ -456,8 +459,10 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 		err = 0;
 		autofs4_expire_wait(path.dentry, 0);
 		spin_lock(&sbi->fs_lock);
-		param->requester.uid = from_kuid_munged(current_user_ns(), ino->uid);
-		param->requester.gid = from_kgid_munged(current_user_ns(), ino->gid);
+		param->requester.uid =
+			from_kuid_munged(current_user_ns(), ino->uid);
+		param->requester.gid =
+			from_kgid_munged(current_user_ns(), ino->gid);
 		spin_unlock(&sbi->fs_lock);
 	}
 	path_put(&path);
@@ -619,7 +624,8 @@ static ioctl_fn lookup_dev_ioctl(unsigned int cmd)
 }
 
 /* ioctl dispatcher */
-static int _autofs_dev_ioctl(unsigned int command, struct autofs_dev_ioctl __user *user)
+static int _autofs_dev_ioctl(unsigned int command,
+			     struct autofs_dev_ioctl __user *user)
 {
 	struct autofs_dev_ioctl *param;
 	struct file *fp;
@@ -711,6 +717,7 @@ out:
 static long autofs_dev_ioctl(struct file *file, uint command, ulong u)
 {
 	int err;
+
 	err = _autofs_dev_ioctl(command, (struct autofs_dev_ioctl __user *) u);
 	return (long) err;
 }
@@ -733,8 +740,8 @@ static const struct file_operations _dev_ioctl_fops = {
 
 static struct miscdevice _autofs_dev_ioctl_misc = {
 	.minor		= AUTOFS_MINOR,
-	.name  		= AUTOFS_DEVICE_NAME,
-	.fops  		= &_dev_ioctl_fops
+	.name		= AUTOFS_DEVICE_NAME,
+	.fops		= &_dev_ioctl_fops
 };
 
 MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
@@ -757,6 +764,5 @@ int __init autofs_dev_ioctl_init(void)
 void autofs_dev_ioctl_exit(void)
 {
 	misc_deregister(&_autofs_dev_ioctl_misc);
-	return;
 }
 

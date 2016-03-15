@@ -1,15 +1,11 @@
-/* -*- c -*- --------------------------------------------------------------- *
- *
- * linux/fs/autofs/inode.c
- *
- *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
- *  Copyright 2005-2006 Ian Kent <raven@themaw.net>
+/*
+ * Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
+ * Copyright 2005-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
  * option, any later version, incorporated herein by reference.
- *
- * ------------------------------------------------------------------------- */
+ */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -24,7 +20,9 @@
 
 struct autofs_info *autofs4_new_ino(struct autofs_sb_info *sbi)
 {
-	struct autofs_info *ino = kzalloc(sizeof(*ino), GFP_KERNEL);
+	struct autofs_info *ino;
+
+	ino = kzalloc(sizeof(*ino), GFP_KERNEL);
 	if (ino) {
 		INIT_LIST_HEAD(&ino->active);
 		INIT_LIST_HEAD(&ino->expiring);
@@ -152,6 +150,7 @@ static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
+
 		if (!*p)
 			continue;
 
@@ -209,9 +208,9 @@ static int parse_options(char *options, int *pipefd, kuid_t *uid, kgid_t *gid,
 
 int autofs4_fill_super(struct super_block *s, void *data, int silent)
 {
-	struct inode * root_inode;
-	struct dentry * root;
-	struct file * pipe;
+	struct inode *root_inode;
+	struct dentry *root;
+	struct file *pipe;
 	int pipefd;
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
@@ -222,7 +221,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
-	DPRINTK("starting up, sbi = %p",sbi);
+	DPRINTK("starting up, sbi = %p", sbi);
 
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;

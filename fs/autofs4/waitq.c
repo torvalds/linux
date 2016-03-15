@@ -1,15 +1,11 @@
-/* -*- c -*- --------------------------------------------------------------- *
- *
- * linux/fs/autofs/waitq.c
- *
- *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
- *  Copyright 2001-2006 Ian Kent <raven@themaw.net>
+/*
+ * Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
+ * Copyright 2001-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
  * option, any later version, incorporated herein by reference.
- *
- * ------------------------------------------------------------------------- */
+ */
 
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -18,7 +14,8 @@
 #include "autofs_i.h"
 
 /* We make this a static variable rather than a part of the superblock; it
-   is better if we don't reassign numbers easily even across filesystems */
+ * is better if we don't reassign numbers easily even across filesystems
+ */
 static autofs_wqt_t autofs4_next_wait_queue = 1;
 
 /* These are the signals we allow interrupting a pending mount */
@@ -69,17 +66,19 @@ static int autofs4_write(struct autofs_sb_info *sbi,
 	set_fs(KERNEL_DS);
 
 	mutex_lock(&sbi->pipe_mutex);
-	while (bytes &&
-	       (wr = __vfs_write(file,data,bytes,&file->f_pos)) > 0) {
+	wr = __vfs_write(file, data, bytes, &file->f_pos);
+	while (bytes && wr) {
 		data += wr;
 		bytes -= wr;
+		wr = __vfs_write(file, data, bytes, &file->f_pos);
 	}
 	mutex_unlock(&sbi->pipe_mutex);
 
 	set_fs(fs);
 
 	/* Keep the currently executing process from receiving a
-	   SIGPIPE unless it was already supposed to get one */
+	 * SIGPIPE unless it was already supposed to get one
+	 */
 	if (wr == -EPIPE && !sigpipe) {
 		spin_lock_irqsave(&current->sighand->siglock, flags);
 		sigdelset(&current->pending.signal, SIGPIPE);
@@ -103,9 +102,10 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	size_t pktsz;
 
 	DPRINTK("wait id = 0x%08lx, name = %.*s, type=%d",
-		(unsigned long) wq->wait_queue_token, wq->name.len, wq->name.name, type);
+		(unsigned long) wq->wait_queue_token,
+		wq->name.len, wq->name.name, type);
 
-	memset(&pkt,0,sizeof pkt); /* For security reasons */
+	memset(&pkt, 0, sizeof(pkt)); /* For security reasons */
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
@@ -126,7 +126,8 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	}
 	case autofs_ptype_expire_multi:
 	{
-		struct autofs_packet_expire_multi *ep = &pkt.v4_pkt.expire_multi;
+		struct autofs_packet_expire_multi *ep =
+					&pkt.v4_pkt.expire_multi;
 
 		pktsz = sizeof(*ep);
 
@@ -231,7 +232,7 @@ autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
 		if (wq->name.hash == qstr->hash &&
 		    wq->name.len == qstr->len &&
 		    wq->name.name &&
-			 !memcmp(wq->name.name, qstr->name, qstr->len))
+		    !memcmp(wq->name.name, qstr->name, qstr->len))
 			break;
 	}
 	return wq;
@@ -248,7 +249,7 @@ autofs4_find_wait(struct autofs_sb_info *sbi, struct qstr *qstr)
 static int validate_request(struct autofs_wait_queue **wait,
 			    struct autofs_sb_info *sbi,
 			    struct qstr *qstr,
-			    struct dentry*dentry, enum autofs_notify notify)
+			    struct dentry *dentry, enum autofs_notify notify)
 {
 	struct autofs_wait_queue *wq;
 	struct autofs_info *ino;
@@ -322,8 +323,10 @@ static int validate_request(struct autofs_wait_queue **wait,
 		 * continue on and create a new request.
 		 */
 		if (!IS_ROOT(dentry)) {
-			if (d_really_is_positive(dentry) && d_unhashed(dentry)) {
+			if (d_unhashed(dentry) &&
+			    d_really_is_positive(dentry)) {
 				struct dentry *parent = dentry->d_parent;
+
 				new = d_lookup(parent, &dentry->d_name);
 				if (new)
 					dentry = new;
@@ -340,8 +343,8 @@ static int validate_request(struct autofs_wait_queue **wait,
 	return 1;
 }
 
-int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
-		enum autofs_notify notify)
+int autofs4_wait(struct autofs_sb_info *sbi,
+		 struct dentry *dentry, enum autofs_notify notify)
 {
 	struct autofs_wait_queue *wq;
 	struct qstr qstr;
@@ -411,7 +414,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 
 	if (!wq) {
 		/* Create a new wait queue */
-		wq = kmalloc(sizeof(struct autofs_wait_queue),GFP_KERNEL);
+		wq = kmalloc(sizeof(struct autofs_wait_queue), GFP_KERNEL);
 		if (!wq) {
 			kfree(qstr.name);
 			mutex_unlock(&sbi->wq_mutex);
@@ -454,7 +457,9 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
-		/* autofs4_notify_daemon() may block; it will unlock ->wq_mutex */
+		/*
+		 * autofs4_notify_daemon() may block; it will unlock ->wq_mutex
+		 */
 		autofs4_notify_daemon(sbi, wq, type);
 	} else {
 		wq->wait_ctr++;
