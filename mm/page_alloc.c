@@ -4508,54 +4508,51 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		/*
-		 * There can be holes in boot-time mem_map[]s
-		 * handed to this function.  They do not
-		 * exist on hotplugged memory.
+		 * There can be holes in boot-time mem_map[]s handed to this
+		 * function.  They do not exist on hotplugged memory.
 		 */
-		if (context == MEMMAP_EARLY) {
-			if (!early_pfn_valid(pfn))
-				continue;
-			if (!early_pfn_in_nid(pfn, nid))
-				continue;
-			if (!update_defer_init(pgdat, pfn, end_pfn,
-						&nr_initialised))
-				break;
+		if (context != MEMMAP_EARLY)
+			goto not_early;
+
+		if (!early_pfn_valid(pfn))
+			continue;
+		if (!early_pfn_in_nid(pfn, nid))
+			continue;
+		if (!update_defer_init(pgdat, pfn, end_pfn, &nr_initialised))
+			break;
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-			/*
-			 * if not mirrored_kernelcore and ZONE_MOVABLE exists,
-			 * range from zone_movable_pfn[nid] to end of each node
-			 * should be ZONE_MOVABLE not ZONE_NORMAL. skip it.
-			 */
-			if (!mirrored_kernelcore && zone_movable_pfn[nid])
-				if (zone == ZONE_NORMAL &&
-				    pfn >= zone_movable_pfn[nid])
-					continue;
+		/*
+		 * If not mirrored_kernelcore and ZONE_MOVABLE exists, range
+		 * from zone_movable_pfn[nid] to end of each node should be
+		 * ZONE_MOVABLE not ZONE_NORMAL. skip it.
+		 */
+		if (!mirrored_kernelcore && zone_movable_pfn[nid])
+			if (zone == ZONE_NORMAL && pfn >= zone_movable_pfn[nid])
+				continue;
 
-			/*
-			 * check given memblock attribute by firmware which
-			 * can affect kernel memory layout.
-			 * if zone==ZONE_MOVABLE but memory is mirrored,
-			 * it's an overlapped memmap init. skip it.
-			 */
-			if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
-				if (!r ||
-				    pfn >= memblock_region_memory_end_pfn(r)) {
-					for_each_memblock(memory, tmp)
-						if (pfn < memblock_region_memory_end_pfn(tmp))
-							break;
-					r = tmp;
-				}
-				if (pfn >= memblock_region_memory_base_pfn(r) &&
-				    memblock_is_mirror(r)) {
-					/* already initialized as NORMAL */
-					pfn = memblock_region_memory_end_pfn(r);
-					continue;
-				}
+		/*
+		 * Check given memblock attribute by firmware which can affect
+		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
+		 * mirrored, it's an overlapped memmap init. skip it.
+		 */
+		if (mirrored_kernelcore && zone == ZONE_MOVABLE) {
+			if (!r || pfn >= memblock_region_memory_end_pfn(r)) {
+				for_each_memblock(memory, tmp)
+					if (pfn < memblock_region_memory_end_pfn(tmp))
+						break;
+				r = tmp;
 			}
-#endif
+			if (pfn >= memblock_region_memory_base_pfn(r) &&
+			    memblock_is_mirror(r)) {
+				/* already initialized as NORMAL */
+				pfn = memblock_region_memory_end_pfn(r);
+				continue;
+			}
 		}
+#endif
 
+not_early:
 		/*
 		 * Mark the block movable so that blocks are reserved for
 		 * movable at startup. This will force kernel allocations
