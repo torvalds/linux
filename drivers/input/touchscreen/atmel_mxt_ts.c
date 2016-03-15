@@ -2631,6 +2631,7 @@ err_free_mem:
 
 static int mxt_sysfs_init(struct mxt_data *data);
 static void mxt_sysfs_remove(struct mxt_data *data);
+
 static int mxt_configure_objects(struct mxt_data *data,
 				 const struct firmware *cfg);
 
@@ -2817,7 +2818,6 @@ static ssize_t mxt_fw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-
 	return scnprintf(buf, PAGE_SIZE, "%u.%u.%02X\n",
 			 data->info->version >> 4, data->info->version & 0xf,
 			 data->info->build);
@@ -2828,7 +2828,6 @@ static ssize_t mxt_hw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
-
 	return scnprintf(buf, PAGE_SIZE, "%u.%u\n",
 			data->info->family_id, data->info->variant_id);
 }
