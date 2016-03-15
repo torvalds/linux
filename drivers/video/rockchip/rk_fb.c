@@ -4102,6 +4102,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb_par *fb_par = NULL;
 	int i = 0, ret = 0, index = 0;
 	unsigned long flags;
+	char time_line_name[16];
 
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
@@ -4203,8 +4204,10 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			init_kthread_work(&dev_drv->update_regs_work,
 					  rk_fb_update_regs_handler);
 
+			snprintf(time_line_name, sizeof(time_line_name),
+				 "vop%d-timeline", id);
 			dev_drv->timeline =
-			    sw_sync_timeline_create("fb-timeline");
+			    sw_sync_timeline_create(time_line_name);
 			dev_drv->timeline_max = 1;
 		}
 	}
