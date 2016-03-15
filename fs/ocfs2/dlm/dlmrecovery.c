@@ -1403,12 +1403,24 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 	 * and RECOVERY flag changed when it completes. */
 	hash = dlm_lockid_hash(mres->lockname, mres->lockname_len);
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, mres->lockname, mres->lockname_len,
+	res = __dlm_lookup_lockres_full(dlm, mres->lockname, mres->lockname_len,
 			hash);
 	if (res) {
 	 	/* this will get a ref on res */
 		/* mark it as recovering/migrating and hash it */
 		spin_lock(&res->spinlock);
+		if (res->state & DLM_LOCK_RES_DROPPING_REF) {
+			mlog(0, "%s: node is attempting to migrate "
+				"lockres %.*s, but marked as dropping "
+				" ref!\n", dlm->name,
+				mres->lockname_len, mres->lockname);
+			ret = -EINVAL;
+			spin_unlock(&res->spinlock);
+			spin_unlock(&dlm->spinlock);
+			dlm_lockres_put(res);
+			goto leave;
+		}
+
 		if (mres->flags & DLM_MRES_RECOVERY) {
 			res->state |= DLM_LOCK_RES_RECOVERING;
 		} else {
