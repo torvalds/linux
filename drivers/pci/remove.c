@@ -54,6 +54,10 @@ void pci_remove_bus(struct pci_bus *bus)
 	pci_bus_release_busn_res(bus);
 	up_write(&pci_bus_sem);
 	pci_remove_legacy_files(bus);
+
+	if (bus->ops->remove_bus)
+		bus->ops->remove_bus(bus);
+
 	pcibios_remove_bus(bus);
 	device_unregister(&bus->dev);
 }

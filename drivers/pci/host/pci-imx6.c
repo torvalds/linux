@@ -39,6 +39,11 @@ struct imx6_pcie {
 	struct pcie_port	pp;
 	struct regmap		*iomuxc_gpr;
 	void __iomem		*mem_base;
+	u32			tx_deemph_gen1;
+	u32			tx_deemph_gen2_3p5db;
+	u32			tx_deemph_gen2_6db;
+	u32			tx_swing_full;
+	u32			tx_swing_low;
 };
 
 /* PCIe Root Complex registers (memory-mapped) */
@@ -334,15 +339,20 @@ static void imx6_pcie_init_phy(struct pcie_port *pp)
 			IMX6Q_GPR12_LOS_LEVEL, 9 << 4);
 
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR8,
-			IMX6Q_GPR8_TX_DEEMPH_GEN1, 0 << 0);
+			   IMX6Q_GPR8_TX_DEEMPH_GEN1,
+			   imx6_pcie->tx_deemph_gen1 << 0);
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR8,
-			IMX6Q_GPR8_TX_DEEMPH_GEN2_3P5DB, 0 << 6);
+			   IMX6Q_GPR8_TX_DEEMPH_GEN2_3P5DB,
+			   imx6_pcie->tx_deemph_gen2_3p5db << 6);
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR8,
-			IMX6Q_GPR8_TX_DEEMPH_GEN2_6DB, 20 << 12);
+			   IMX6Q_GPR8_TX_DEEMPH_GEN2_6DB,
+			   imx6_pcie->tx_deemph_gen2_6db << 12);
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR8,
-			IMX6Q_GPR8_TX_SWING_FULL, 127 << 18);
+			   IMX6Q_GPR8_TX_SWING_FULL,
+			   imx6_pcie->tx_swing_full << 18);
 	regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR8,
-			IMX6Q_GPR8_TX_SWING_LOW, 127 << 25);
+			   IMX6Q_GPR8_TX_SWING_LOW,
+			   imx6_pcie->tx_swing_low << 25);
 }
 
 static int imx6_pcie_wait_for_link(struct pcie_port *pp)
@@ -533,6 +543,7 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 	struct imx6_pcie *imx6_pcie;
 	struct pcie_port *pp;
 	struct resource *dbi_base;
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 
 	imx6_pcie = devm_kzalloc(&pdev->dev, sizeof(*imx6_pcie), GFP_KERNEL);
@@ -584,6 +595,27 @@ static int __init imx6_pcie_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to find iomuxc registers\n");
 		return PTR_ERR(imx6_pcie->iomuxc_gpr);
 	}
+
+	/* Grab PCIe PHY Tx Settings */
+	if (of_property_read_u32(node, "fsl,tx-deemph-gen1",
+				 &imx6_pcie->tx_deemph_gen1))
+		imx6_pcie->tx_deemph_gen1 = 0;
+
+	if (of_property_read_u32(node, "fsl,tx-deemph-gen2-3p5db",
+				 &imx6_pcie->tx_deemph_gen2_3p5db))
+		imx6_pcie->tx_deemph_gen2_3p5db = 0;
+
+	if (of_property_read_u32(node, "fsl,tx-deemph-gen2-6db",
+				 &imx6_pcie->tx_deemph_gen2_6db))
+		imx6_pcie->tx_deemph_gen2_6db = 20;
+
+	if (of_property_read_u32(node, "fsl,tx-swing-full",
+				 &imx6_pcie->tx_swing_full))
+		imx6_pcie->tx_swing_full = 127;
+
+	if (of_property_read_u32(node, "fsl,tx-swing-low",
+				 &imx6_pcie->tx_swing_low))
+		imx6_pcie->tx_swing_low = 127;
 
 	ret = imx6_add_pcie_port(pp, pdev);
 	if (ret < 0)

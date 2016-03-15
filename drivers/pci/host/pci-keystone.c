@@ -359,6 +359,9 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 
 	/* initialize SerDes Phy if present */
 	phy = devm_phy_get(dev, "pcie-phy");
+	if (PTR_ERR_OR_ZERO(phy) == -EPROBE_DEFER)
+		return PTR_ERR(phy);
+
 	if (!IS_ERR_OR_NULL(phy)) {
 		ret = phy_init(phy);
 		if (ret < 0)
