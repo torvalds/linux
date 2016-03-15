@@ -522,6 +522,8 @@ struct zone {
 	bool			compact_blockskip_flush;
 #endif
 
+	bool			contiguous;
+
 	ZONE_PADDING(_pad3_)
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
