@@ -18,6 +18,7 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "msm_gem.h"
+#include "msm_gpu.h"   /* temporary */
 #include "msm_fence.h"
 
 struct msm_commit {
@@ -202,6 +203,7 @@ int msm_atomic_check(struct drm_device *dev,
 int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock)
 {
+	struct msm_drm_private *priv = dev->dev_private;
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
 	ktime_t timeout;
@@ -276,15 +278,16 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
-	if (nonblock) {
-		msm_queue_fence_cb(dev, &c->fence_cb, c->fence);
+	if (nonblock && priv->gpu) {
+		msm_queue_fence_cb(priv->gpu->fctx, &c->fence_cb, c->fence);
 		return 0;
 	}
 
 	timeout = ktime_add_ms(ktime_get(), 1000);
 
 	/* uninterruptible wait */
-	msm_wait_fence(dev, c->fence, &timeout, false);
+	if (priv->gpu)
+		msm_wait_fence(priv->gpu->fctx, c->fence, &timeout, false);
 
 	complete_commit(c);
 

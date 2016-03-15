@@ -20,6 +20,21 @@
 
 #include "msm_drv.h"
 
+struct msm_fence_context {
+	struct drm_device *dev;
+	const char *name;
+	/* last_fence == completed_fence --> no pending work */
+	uint32_t last_fence;          /* last assigned fence */
+	uint32_t completed_fence;     /* last completed fence */
+	wait_queue_head_t event;
+	/* callbacks deferred until bo is inactive: */
+	struct list_head fence_cbs;
+};
+
+struct msm_fence_context * msm_fence_context_alloc(struct drm_device *dev,
+		const char *name);
+void msm_fence_context_free(struct msm_fence_context *fctx);
+
 /* callback from wq once fence has passed: */
 struct msm_fence_cb {
 	struct work_struct work;
@@ -34,10 +49,10 @@ void __msm_fence_worker(struct work_struct *work);
 		(_cb)->func = _func;                         \
 	} while (0)
 
-int msm_wait_fence(struct drm_device *dev, uint32_t fence,
+int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 		ktime_t *timeout, bool interruptible);
-int msm_queue_fence_cb(struct drm_device *dev,
+int msm_queue_fence_cb(struct msm_fence_context *fctx,
 		struct msm_fence_cb *cb, uint32_t fence);
-void msm_update_fence(struct drm_device *dev, uint32_t fence);
+void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence);
 
 #endif

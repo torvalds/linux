@@ -313,7 +313,7 @@ static void hangcheck_handler(unsigned long data)
 	if (fence != gpu->hangcheck_fence) {
 		/* some progress has been made.. ya! */
 		gpu->hangcheck_fence = fence;
-	} else if (fence < gpu->submitted_fence) {
+	} else if (fence < gpu->fctx->last_fence) {
 		/* no progress and not done.. hung! */
 		gpu->hangcheck_fence = fence;
 		dev_err(dev->dev, "%s: hangcheck detected gpu lockup!\n",
@@ -321,12 +321,12 @@ static void hangcheck_handler(unsigned long data)
 		dev_err(dev->dev, "%s:     completed fence: %u\n",
 				gpu->name, fence);
 		dev_err(dev->dev, "%s:     submitted fence: %u\n",
-				gpu->name, gpu->submitted_fence);
+				gpu->name, gpu->fctx->last_fence);
 		queue_work(priv->wq, &gpu->recover_work);
 	}
 
 	/* if still more pending work, reset the hangcheck timer: */
-	if (gpu->submitted_fence > gpu->hangcheck_fence)
+	if (gpu->fctx->last_fence > gpu->hangcheck_fence)
 		hangcheck_timer_reset(gpu);
 
 	/* workaround for missing irq: */
@@ -474,7 +474,7 @@ static void retire_worker(struct work_struct *work)
 	struct drm_device *dev = gpu->dev;
 	uint32_t fence = gpu->funcs->last_fence(gpu);
 
-	msm_update_fence(gpu->dev, fence);
+	msm_update_fence(gpu->fctx, fence);
 
 	mutex_lock(&dev->struct_mutex);
 	retire_submits(gpu, fence);
@@ -502,17 +502,13 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	submit->fence = ++priv->next_fence;
-
-	gpu->submitted_fence = submit->fence;
+	submit->fence = ++gpu->fctx->last_fence;
 
 	inactive_cancel(gpu);
 
 	list_add_tail(&submit->node, &gpu->submit_list);
 
 	msm_rd_dump_submit(submit);
-
-	gpu->submitted_fence = submit->fence;
 
 	update_sw_cntrs(gpu);
 
@@ -574,6 +570,12 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	gpu->funcs = funcs;
 	gpu->name = name;
 	gpu->inactive = true;
+	gpu->fctx = msm_fence_context_alloc(drm, name);
+	if (IS_ERR(gpu->fctx)) {
+		ret = PTR_ERR(gpu->fctx);
+		gpu->fctx = NULL;
+		goto fail;
+	}
 
 	INIT_LIST_HEAD(&gpu->active_list);
 	INIT_WORK(&gpu->retire_work, retire_worker);
@@ -694,4 +696,7 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 
 	if (gpu->mmu)
 		gpu->mmu->funcs->destroy(gpu->mmu);
+
+	if (gpu->fctx)
+		msm_fence_context_free(gpu->fctx);
 }

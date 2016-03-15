@@ -15,49 +15,68 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/fence.h>
+
 #include "msm_drv.h"
 #include "msm_fence.h"
-#include "msm_gpu.h"
 
-static inline bool fence_completed(struct drm_device *dev, uint32_t fence)
+
+struct msm_fence_context *
+msm_fence_context_alloc(struct drm_device *dev, const char *name)
 {
-	struct msm_drm_private *priv = dev->dev_private;
-	return (int32_t)(priv->completed_fence - fence) >= 0;
+	struct msm_fence_context *fctx;
+
+	fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	if (!fctx)
+		return ERR_PTR(-ENOMEM);
+
+	fctx->dev = dev;
+	fctx->name = name;
+	init_waitqueue_head(&fctx->event);
+	INIT_LIST_HEAD(&fctx->fence_cbs);
+
+	return fctx;
 }
 
-int msm_wait_fence(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout , bool interruptible)
+void msm_fence_context_free(struct msm_fence_context *fctx)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	kfree(fctx);
+}
+
+static inline bool fence_completed(struct msm_fence_context *fctx, uint32_t fence)
+{
+	return (int32_t)(fctx->completed_fence - fence) >= 0;
+}
+
+int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
+		ktime_t *timeout, bool interruptible)
+{
 	int ret;
 
-	if (!priv->gpu)
-		return 0;
-
-	if (fence > priv->gpu->submitted_fence) {
-		DRM_ERROR("waiting on invalid fence: %u (of %u)\n",
-				fence, priv->gpu->submitted_fence);
+	if (fence > fctx->last_fence) {
+		DRM_ERROR("%s: waiting on invalid fence: %u (of %u)\n",
+				fctx->name, fence, fctx->last_fence);
 		return -EINVAL;
 	}
 
 	if (!timeout) {
 		/* no-wait: */
-		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
+		ret = fence_completed(fctx, fence) ? 0 : -EBUSY;
 	} else {
 		unsigned long remaining_jiffies = timeout_to_jiffies(timeout);
 
 		if (interruptible)
-			ret = wait_event_interruptible_timeout(priv->fence_event,
-				fence_completed(dev, fence),
+			ret = wait_event_interruptible_timeout(fctx->event,
+				fence_completed(fctx, fence),
 				remaining_jiffies);
 		else
-			ret = wait_event_timeout(priv->fence_event,
-				fence_completed(dev, fence),
+			ret = wait_event_timeout(fctx->event,
+				fence_completed(fctx, fence),
 				remaining_jiffies);
 
 		if (ret == 0) {
 			DBG("timeout waiting for fence: %u (completed: %u)",
-					fence, priv->completed_fence);
+					fence, fctx->completed_fence);
 			ret = -ETIMEDOUT;
 		} else if (ret != -ERESTARTSYS) {
 			ret = 0;
@@ -67,50 +86,50 @@ int msm_wait_fence(struct drm_device *dev, uint32_t fence,
 	return ret;
 }
 
-int msm_queue_fence_cb(struct drm_device *dev,
+int msm_queue_fence_cb(struct msm_fence_context *fctx,
 		struct msm_fence_cb *cb, uint32_t fence)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = fctx->dev->dev_private;
 	int ret = 0;
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&fctx->dev->struct_mutex);
 	if (!list_empty(&cb->work.entry)) {
 		ret = -EINVAL;
-	} else if (fence > priv->completed_fence) {
+	} else if (fence > fctx->completed_fence) {
 		cb->fence = fence;
-		list_add_tail(&cb->work.entry, &priv->fence_cbs);
+		list_add_tail(&cb->work.entry, &fctx->fence_cbs);
 	} else {
 		queue_work(priv->wq, &cb->work);
 	}
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&fctx->dev->struct_mutex);
 
 	return ret;
 }
 
 /* called from workqueue */
-void msm_update_fence(struct drm_device *dev, uint32_t fence)
+void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = fctx->dev->dev_private;
 
-	mutex_lock(&dev->struct_mutex);
-	priv->completed_fence = max(fence, priv->completed_fence);
+	mutex_lock(&fctx->dev->struct_mutex);
+	fctx->completed_fence = max(fence, fctx->completed_fence);
 
-	while (!list_empty(&priv->fence_cbs)) {
+	while (!list_empty(&fctx->fence_cbs)) {
 		struct msm_fence_cb *cb;
 
-		cb = list_first_entry(&priv->fence_cbs,
+		cb = list_first_entry(&fctx->fence_cbs,
 				struct msm_fence_cb, work.entry);
 
-		if (cb->fence > priv->completed_fence)
+		if (cb->fence > fctx->completed_fence)
 			break;
 
 		list_del_init(&cb->work.entry);
 		queue_work(priv->wq, &cb->work);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&fctx->dev->struct_mutex);
 
-	wake_up_all(&priv->fence_event);
+	wake_up_all(&fctx->event);
 }
 
 void __msm_fence_worker(struct work_struct *work)

@@ -411,18 +411,6 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	return ret;
 }
 
-/* setup callback for when bo is no longer busy..
- * TODO probably want to differentiate read vs write..
- */
-int msm_gem_queue_inactive_cb(struct drm_gem_object *obj,
-		struct msm_fence_cb *cb)
-{
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	uint32_t fence = msm_gem_fence(msm_obj,
-			MSM_PREP_READ | MSM_PREP_WRITE);
-	return msm_queue_fence_cb(obj->dev, cb, fence);
-}
-
 void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool write, uint32_t fence)
 {
@@ -454,6 +442,7 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
 	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	int ret = 0;
 
@@ -463,7 +452,8 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 		if (op & MSM_PREP_NOSYNC)
 			timeout = NULL;
 
-		ret = msm_wait_fence(dev, fence, timeout, true);
+		if (priv->gpu)
+			ret = msm_wait_fence(priv->gpu->fctx, fence, timeout, true);
 	}
 
 	/* TODO cache maintenance */

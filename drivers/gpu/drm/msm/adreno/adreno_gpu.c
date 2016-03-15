@@ -121,7 +121,7 @@ void adreno_recover(struct msm_gpu *gpu)
 	gpu->rb->cur = gpu->rb->start;
 
 	/* reset completed fence seqno, just discard anything pending: */
-	adreno_gpu->memptrs->fence = gpu->submitted_fence;
+	adreno_gpu->memptrs->fence = gpu->fctx->last_fence;
 	adreno_gpu->memptrs->rptr  = 0;
 	adreno_gpu->memptrs->wptr  = 0;
 
@@ -254,7 +254,7 @@ void adreno_show(struct msm_gpu *gpu, struct seq_file *m)
 			adreno_gpu->rev.patchid);
 
 	seq_printf(m, "fence:    %d/%d\n", adreno_gpu->memptrs->fence,
-			gpu->submitted_fence);
+			gpu->fctx->last_fence);
 	seq_printf(m, "rptr:     %d\n", get_rptr(adreno_gpu));
 	seq_printf(m, "wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	seq_printf(m, "rb wptr:  %d\n", get_wptr(gpu->rb));
@@ -295,7 +295,7 @@ void adreno_dump_info(struct msm_gpu *gpu)
 			adreno_gpu->rev.patchid);
 
 	printk("fence:    %d/%d\n", adreno_gpu->memptrs->fence,
-			gpu->submitted_fence);
+			gpu->fctx->last_fence);
 	printk("rptr:     %d\n", get_rptr(adreno_gpu));
 	printk("wptr:     %d\n", adreno_gpu->memptrs->wptr);
 	printk("rb wptr:  %d\n", get_wptr(gpu->rb));
