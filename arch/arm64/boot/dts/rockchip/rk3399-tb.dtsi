@@ -114,6 +114,23 @@
 		default-brightness-level = <200>;
 		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 	};
+
+	io-domains {
+		compatible = "rockchip,rk3399-io-voltage-domain";
+		rockchip,grf = <&grf>;
+
+		bt656-supply = <&vcc1v8_dvp>;
+		audio-supply = <&vcca1v8_codec>;
+		sdmmc-supply = <&vcc_sd>;
+		gpio1830-supply = <&vcc_3v0>;
+	};
+
+	pmu-io-domains {
+		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
+		rockchip,grf = <&pmugrf>;
+
+		pmu1830-supply = <&vcc1v8_pmu>;
+	};
 };
 
 &i2s0 {
