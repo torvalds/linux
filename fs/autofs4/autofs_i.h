@@ -35,17 +35,10 @@
 
 /* #define DEBUG */
 
-#define DPRINTK(fmt, ...)				\
-	pr_debug(KBUILD_MODNAME ":pid:%d:%s: " fmt,	\
-		current->pid, __func__, ##__VA_ARGS__)
-
-#define AUTOFS_WARN(fmt, ...)				\
-	pr_warn(KBUILD_MODNAME ":pid:%d:%s: " fmt,	\
-		current->pid, __func__, ##__VA_ARGS__)
-
-#define AUTOFS_ERROR(fmt, ...)				\
-	pr_err(KBUILD_MODNAME ":pid:%d:%s: " fmt,	\
-		current->pid, __func__, ##__VA_ARGS__)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) KBUILD_MODNAME ":pid:%d:%s: " fmt, current->pid, __func__
 
 /*
  * Unified info structure.  This is pointed to by both the dentry and

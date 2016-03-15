@@ -108,7 +108,7 @@ static int autofs4_dir_open(struct inode *inode, struct file *file)
 	struct dentry *dentry = file->f_path.dentry;
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 
-	DPRINTK("file=%p dentry=%p %pd\n", file, dentry, dentry);
+	pr_debug("file=%p dentry=%p %pd\n", file, dentry, dentry);
 
 	if (autofs4_oz_mode(sbi))
 		goto out;
@@ -138,7 +138,7 @@ static void autofs4_dentry_release(struct dentry *de)
 	struct autofs_info *ino = autofs4_dentry_ino(de);
 	struct autofs_sb_info *sbi = autofs4_sbi(de->d_sb);
 
-	DPRINTK("releasing %p\n", de);
+	pr_debug("releasing %p\n", de);
 
 	if (!ino)
 		return;
@@ -278,9 +278,9 @@ static int autofs4_mount_wait(struct dentry *dentry, bool rcu_walk)
 	if (ino->flags & AUTOFS_INF_PENDING) {
 		if (rcu_walk)
 			return -ECHILD;
-		DPRINTK("waiting for mount name=%pd\n", dentry);
+		pr_debug("waiting for mount name=%pd\n", dentry);
 		status = autofs4_wait(sbi, dentry, NFY_MOUNT);
-		DPRINTK("mount wait done status=%d\n", status);
+		pr_debug("mount wait done status=%d\n", status);
 	}
 	ino->last_used = jiffies;
 	return status;
@@ -340,7 +340,7 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
 
-	DPRINTK("dentry=%p %pd\n", dentry, dentry);
+	pr_debug("dentry=%p %pd\n", dentry, dentry);
 
 	/* The daemon never triggers a mount. */
 	if (autofs4_oz_mode(sbi))
@@ -427,7 +427,7 @@ static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	int status;
 
-	DPRINTK("dentry=%p %pd\n", dentry, dentry);
+	pr_debug("dentry=%p %pd\n", dentry, dentry);
 
 	/* The daemon never waits. */
 	if (autofs4_oz_mode(sbi)) {
@@ -504,7 +504,7 @@ static struct dentry *autofs4_lookup(struct inode *dir,
 	struct autofs_info *ino;
 	struct dentry *active;
 
-	DPRINTK("name = %pd\n", dentry);
+	pr_debug("name = %pd\n", dentry);
 
 	/* File name too long to exist */
 	if (dentry->d_name.len > NAME_MAX)
@@ -512,9 +512,9 @@ static struct dentry *autofs4_lookup(struct inode *dir,
 
 	sbi = autofs4_sbi(dir->i_sb);
 
-	DPRINTK("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d\n",
-		current->pid, task_pgrp_nr(current), sbi->catatonic,
-		autofs4_oz_mode(sbi));
+	pr_debug("pid = %u, pgrp = %u, catatonic = %d, oz_mode = %d\n",
+		 current->pid, task_pgrp_nr(current), sbi->catatonic,
+		 autofs4_oz_mode(sbi));
 
 	active = autofs4_lookup_active(dentry);
 	if (active)
@@ -559,7 +559,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	size_t size = strlen(symname);
 	char *cp;
 
-	DPRINTK("%s <- %pd\n", symname, dentry);
+	pr_debug("%s <- %pd\n", symname, dentry);
 
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
@@ -699,7 +699,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 
-	DPRINTK("dentry %p, removing %pd\n", dentry, dentry);
+	pr_debug("dentry %p, removing %pd\n", dentry, dentry);
 
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
@@ -742,7 +742,7 @@ static int autofs4_dir_mkdir(struct inode *dir,
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
 
-	DPRINTK("dentry %p, creating %pd\n", dentry, dentry);
+	pr_debug("dentry %p, creating %pd\n", dentry, dentry);
 
 	BUG_ON(!ino);
 
@@ -844,7 +844,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 	if (may_umount(mnt))
 		status = 1;
 
-	DPRINTK("returning %d\n", status);
+	pr_debug("returning %d\n", status);
 
 	status = put_user(status, p);
 
@@ -872,8 +872,8 @@ static int autofs4_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 	struct autofs_sb_info *sbi = autofs4_sbi(inode->i_sb);
 	void __user *p = (void __user *)arg;
 
-	DPRINTK("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u\n",
-		cmd, arg, sbi, task_pgrp_nr(current));
+	pr_debug("cmd = 0x%08x, arg = 0x%08lx, sbi = %p, pgrp = %u\n",
+		 cmd, arg, sbi, task_pgrp_nr(current));
 
 	if (_IOC_TYPE(cmd) != _IOC_TYPE(AUTOFS_IOC_FIRST) ||
 	     _IOC_NR(cmd) - _IOC_NR(AUTOFS_IOC_FIRST) >= AUTOFS_IOC_COUNT)
