@@ -912,7 +912,6 @@ int wilc_mac_open(struct net_device *ndev)
 		return -ENODEV;
 	}
 
-	vif = netdev_priv(ndev);
 	wilc = vif->wilc;
 	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
