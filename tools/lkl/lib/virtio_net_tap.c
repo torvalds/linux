@@ -135,10 +135,6 @@ static int net_poll_closeable(struct lkl_netdev *nd, int events)
 	return net_poll(nd, events, 1);
 }
 
-
-/* Passing the virtio_net_dev in here is a little bit of a hack, but
- * we need access to those tids and this is the easiest way to get
- * it. */
 static int net_close(struct lkl_netdev *nd)
 {
 	long buf = 1;
@@ -177,7 +173,6 @@ struct lkl_dev_net_ops tap_net_ops_closeable = {
 	.poll = net_poll_closeable,
 	.close = net_close,
 };
-
 
 struct lkl_netdev *lkl_netdev_tap_create(const char *ifname)
 {

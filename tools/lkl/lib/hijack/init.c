@@ -290,5 +290,4 @@ hijack_fini(void)
 
 
 	lkl_sys_halt();
-	lkl_netdevs_remove();
 }

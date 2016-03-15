@@ -117,7 +117,7 @@ struct lkl_host_operations {
  * generate the Linux kernel command line
  */
 int lkl_start_kernel(struct lkl_host_operations *lkl_ops,
-		     unsigned long mem_size,
-		     const char *cmd_line, ...);
+		    unsigned long mem_size,
+		    const char *cmd_line, ...);
 
 #endif
