@@ -56,6 +56,7 @@ struct i915_params i915 __read_mostly = {
 	.edp_vswing = 0,
 	.enable_guc_submission = false,
 	.guc_log_level = -1,
+	.enable_dp_mst = true,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -201,3 +202,7 @@ MODULE_PARM_DESC(enable_guc_submission, "Enable GuC submission (default:false)")
 module_param_named(guc_log_level, i915.guc_log_level, int, 0400);
 MODULE_PARM_DESC(guc_log_level,
 	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
+
+module_param_named_unsafe(enable_dp_mst, i915.enable_dp_mst, bool, 0600);
+MODULE_PARM_DESC(enable_dp_mst,
+	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");

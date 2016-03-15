@@ -3882,6 +3882,9 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 {
 	u8 buf[1];
 
+	if (!i915.enable_dp_mst)
+		return false;
+
 	if (!intel_dp->can_mst)
 		return false;
 
