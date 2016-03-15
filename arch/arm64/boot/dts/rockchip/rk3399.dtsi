@@ -303,6 +303,49 @@
 		status = "disabled";
 	};
 
+	emmc_phy: phy {
+		compatible = "rockchip,rk3399-emmc-phy";
+		reg-offset = <0xf780>;
+		#phy-cells = <0>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+	};
+
+	sdio0: dwmmc@fe310000 {
+		compatible = "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe310000 0x0 0x4000>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		clock-freq-min-max = <400000 150000000>;
+		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
+			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		status = "disabled";
+	};
+
+	sdmmc: dwmmc@fe320000 {
+		compatible = "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xfe320000 0x0 0x4000>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+		clock-freq-min-max = <400000 150000000>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
+		fifo-depth = <0x100>;
+		status = "disabled";
+	};
+
+	sdhci: sdhci@fe330000 {
+		compatible = "arasan,sdhci-5.1";
+		reg = <0x0 0xfe330000 0x0 0x10000>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_EMMC>, <&cru ACLK_EMMC>;
+		clock-names = "clk_xin", "clk_ahb";
+		phys = <&emmc_phy>;
+		phy-names = "phy_arasan";
+		status = "disabled";
+	};
+
 	uart0: serial@ff180000 {
 		compatible = "rockchip,rk3399-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff180000 0x0 0x100>;
