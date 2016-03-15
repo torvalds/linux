@@ -405,6 +405,7 @@
         compatible = "amlogic,aml-spdif-codec";
         dev_name = "spdif-dit.0";
         pinctrl-names = "aml_audio_spdif";
+        pinctrl-0 = <&audio_spdif_pins>;
         status = "okay";
     };
 
@@ -888,9 +889,10 @@
                 };
 
         audio_spdif_pins:audio_pin1{
-            amlogic,setmask=<10 0x8>;       /*spdif_out*/
-            amlogic,clrmask=<10 0x80002000>;    /*spdif_out*/
-            amlogic,pins ="GPIOAO_6";        /*spdif_out*/
+            amlogic,setmask=<10 0x00010000>;
+            amlogic,clrmask=<10 0x00040000
+			      1 0x00002000>;
+            amlogic,pins ="GPIOAO_6";
         };
 
         audio_pins:audio_pin{
