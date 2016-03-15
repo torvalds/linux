@@ -3960,13 +3960,10 @@ static int polaris10_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
 			uint32_t low_limit, uint32_t high_limit)
 {
 	uint32_t i;
-	struct polaris10_hwmgr *data = (struct polaris10_hwmgr *)(hwmgr->backend);
 
 	for (i = 0; i < dpm_table->count; i++) {
 		if ((dpm_table->dpm_levels[i].value < low_limit)
 		|| (dpm_table->dpm_levels[i].value > high_limit))
-			dpm_table->dpm_levels[i].enabled = false;
-		else if (((1 << i) & data->disable_dpm_mask) == 0)
 			dpm_table->dpm_levels[i].enabled = false;
 		else
 			dpm_table->dpm_levels[i].enabled = true;
