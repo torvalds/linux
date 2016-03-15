@@ -1900,7 +1900,14 @@ struct drm_i915_private {
 
 	u32 fdi_rx_config;
 
+	/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
 	u32 chv_phy_control;
+	/*
+	 * Shadows for CHV DPLL_MD regs to keep the state
+	 * checker somewhat working in the presence hardware
+	 * crappiness (can't read out DPLL_MD for pipes B & C).
+	 */
+	u32 chv_dpll_md[I915_MAX_PIPES];
 
 	u32 suspend_count;
 	bool suspended_to_idle;

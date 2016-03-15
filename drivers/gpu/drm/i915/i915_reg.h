@@ -4786,6 +4786,10 @@ enum skl_disp_power_wells {
 #define  CBR_PND_DEADLINE_DISABLE	(1<<31)
 #define  CBR_PWM_CLOCK_MUX_SELECT	(1<<30)
 
+#define CBR4_VLV			_MMIO(VLV_DISPLAY_BASE + 0x70450)
+#define  CBR_DPLLBMD_PIPE_C		(1<<29)
+#define  CBR_DPLLBMD_PIPE_B		(1<<18)
+
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64
