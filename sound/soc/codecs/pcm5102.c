@@ -113,27 +113,22 @@ static const struct of_device_id codec_dt_match[]={
 static int pcm5102_platform_probe(struct platform_device *pdev)
 {
 	struct pcm5102_private *pcm5102;
-    int ret;
+	int ret;
     
-    printk("pcm5102_platform_probe\n");
-	pcm5102 = kzalloc(sizeof(struct pcm5102_private), GFP_KERNEL);
+	printk("pcm5102_platform_probe\n");
+	pcm5102 = devm_kzalloc(&pdev->dev, sizeof(struct pcm5102_private), GFP_KERNEL);
 	if (pcm5102 == NULL) {
 		return -ENOMEM;
 	}
 	platform_set_drvdata(pdev, pcm5102);
-    ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_pcm5102,
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_pcm5102,
 			pcm5102_dai, ARRAY_SIZE(pcm5102_dai));
-    
-	if (ret < 0)
-		kfree(pcm5102);
-    
 	return ret;
 }
 
 static int __exit pcm5102_platform_remove(struct platform_device *pdev)
 {
-    snd_soc_unregister_codec(&pdev->dev);
-	kfree(platform_get_drvdata(pdev));
+	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

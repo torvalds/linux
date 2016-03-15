@@ -24,11 +24,11 @@ obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-spdif-dai.o
 snd-soc-aml-spdif-codec-objs := aml_spdif_codec.o
 #obj-$(CONFIG_SND_SOC_AML_SPDIF_CODEC) += snd-soc-aml-spdif-codec.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-aml-spdif-codec.o
-#AML M8 Machine support
+#ODROID Machine support
 snd-soc-odroid-hdmi-objs := odroid_hdmi.o
 snd-soc-odroid-dac-objs := odroid_dac.o
 obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-odroid-hdmi.o
-obj-$(CONFIG_SND_AML_M8_SOC) += snd-soc-odroid-dac.o
+obj-$(CONFIG_SND_ODROID_HIFI1) += snd-soc-odroid-dac.o
 
 #AML M series with dummy codec support
 snd-soc-aml-m-dummy-objs := aml_m_dummy.o

@@ -6,8 +6,12 @@ config SND_AML_M8
 	tristate "AML-SND-M8 Board"
 	depends on SND_AML_M8_SOC && SWITCH
 	select SND_SOC_AML_M8_CODEC if SND_AML_M8
-	select SND_SOC_PCM5102 if MACH_MESON8B_ODROIDC
     select SND_SOC_DUMMY_CODEC
+
+config SND_ODROID_HIFI1
+	tristate "ODROID HiFi-Shield1(pcm5102) Support"
+	depends on SND_AML_M8_SOC && MACH_MESON8B_ODROIDC
+	select SND_SOC_PCM5102
 
 config SND_AML_M8_PCM
 	tristate "M8 evaluation board with PCM2BT"

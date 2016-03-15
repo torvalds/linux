@@ -56,14 +56,6 @@
 
 #define DRV_NAME "odroid_snd"
 
-static int enable_audiodac = 0;
-static int __init setup_audiodac(char *line)
-{
-    enable_audiodac = 1;
-    return 0;
-}
-early_param("enabledac", setup_audiodac);
-
 static int odroid_hw_params(struct snd_pcm_substream *substream,
     struct snd_pcm_hw_params *params)
 {
@@ -233,40 +225,11 @@ static struct snd_soc_card aml_snd_soc_card = {
 #endif
 };
 
-static void i2s_pinmux_init(struct snd_soc_card *card)
-{
-	struct odroid_audio_private_data *p_odroid_audio;
-	p_odroid_audio = snd_soc_card_get_drvdata(card);
-    p_odroid_audio->pin_ctl = devm_pinctrl_get_select(card->dev, "odroid_i2s");
-
-#ifndef CONFIG_MESON_TRUSTZONE
-    //aml_write_reg32(P_AO_SECURE_REG1,0x00000000);
-    aml_clr_reg32_mask(P_AO_SECURE_REG1, ((1<<8) | (1<<1)));
-#else
-    /* Secure reg can only be accessed in Secure World if TrustZone enabled. */
-    //meson_secure_reg_write(P_AO_SECURE_REG1, 0x00000000);
-	meson_secure_reg_write(P_AO_SECURE_REG1, meson_secure_reg_read(P_AO_SECURE_REG1) & (~((1<<8) | (1<<1))));
-#endif /* CONFIG_MESON_TRUSTZONE */
-	printk(KERN_DEBUG "=%s==,i2s_pinmux_init done,---%d\n",__func__,p_odroid_audio->det_pol_inv);
-}
-
-static void i2s_pinmux_deinit(struct snd_soc_card *card)
-{
-	struct odroid_audio_private_data *p_odroid_audio;
-
-	p_odroid_audio = snd_soc_card_get_drvdata(card);
-    if(p_odroid_audio->pin_ctl)
-        devm_pinctrl_put(p_odroid_audio->pin_ctl);
-}
-
 static int odroid_audio_probe(struct platform_device *pdev)
 {
     struct snd_soc_card *card = &aml_snd_soc_card;
     struct odroid_audio_private_data *p_odroid_audio;
     int ret = 0;
-
-    if(!enable_audiodac)
-        return 0;
 
 #ifdef CONFIG_USE_OF
     p_odroid_audio = devm_kzalloc(&pdev->dev,
@@ -284,6 +247,9 @@ static int odroid_audio_probe(struct platform_device *pdev)
         ret = -EINVAL;
         goto err;
     }
+    ret=of_property_read_string(pdev->dev.of_node,"pinctrl-names",&p_odroid_audio->pinctrl_name);
+    printk(KERN_DEBUG "card->pinctrl_name:%s\n",p_odroid_audio->pinctrl_name);
+    p_odroid_audio->pin_ctl = devm_pinctrl_get_select(&pdev->dev, p_odroid_audio->pinctrl_name);
 
     ret = snd_soc_of_parse_card_name(card, "aml,sound_card");
     if (ret)
@@ -295,13 +261,9 @@ static int odroid_audio_probe(struct platform_device *pdev)
             ret);
         goto err;
     }
-
-    i2s_pinmux_init(card);
     return 0;
 #endif
-
 err:
-    kfree(p_odroid_audio);
     return ret;
 }
 
@@ -311,11 +273,11 @@ static int odroid_audio_remove(struct platform_device *pdev)
 	struct odroid_audio_private_data *p_odroid_audio;
 
 	p_odroid_audio = snd_soc_card_get_drvdata(card);
-	snd_soc_unregister_card(card);
+	if(p_odroid_audio->pin_ctl)
+		devm_pinctrl_put(p_odroid_audio->pin_ctl);
 
-	i2s_pinmux_deinit(card);
-    kfree(p_odroid_audio);
-    return 0;
+	snd_soc_unregister_card(card);
+	return 0;
 }
 
 #ifdef CONFIG_USE_OF
@@ -356,9 +318,8 @@ module_init(odroid_audio_init);
 module_exit(odroid_audio_exit);
 
 /* Module information */
-MODULE_AUTHOR("AMLogic, Inc.");
-MODULE_DESCRIPTION("AML_M8 audio machine Asoc driver");
+MODULE_AUTHOR("Hardkernel, Inc.");
+MODULE_DESCRIPTION("ODROID audio machine Asoc driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, amlogic_audio_dt_match);
 
