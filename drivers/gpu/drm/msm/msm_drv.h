@@ -49,6 +49,7 @@ struct msm_mmu;
 struct msm_rd_state;
 struct msm_perf_state;
 struct msm_gem_submit;
+struct msm_fence_cb;
 
 #define NUM_DOMAINS 2    /* one for KMS, then one per gpu core (?) */
 
@@ -157,32 +158,12 @@ struct msm_format {
 	uint32_t pixel_format;
 };
 
-/* callback from wq once fence has passed: */
-struct msm_fence_cb {
-	struct work_struct work;
-	uint32_t fence;
-	void (*func)(struct msm_fence_cb *cb);
-};
-
-void __msm_fence_worker(struct work_struct *work);
-
-#define INIT_FENCE_CB(_cb, _func)  do {                     \
-		INIT_WORK(&(_cb)->work, __msm_fence_worker); \
-		(_cb)->func = _func;                         \
-	} while (0)
-
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state);
 int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock);
 
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
-
-int msm_wait_fence(struct drm_device *dev, uint32_t fence,
-		ktime_t *timeout, bool interruptible);
-int msm_queue_fence_cb(struct drm_device *dev,
-		struct msm_fence_cb *cb, uint32_t fence);
-void msm_update_fence(struct drm_device *dev, uint32_t fence);
 
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file);
@@ -302,12 +283,6 @@ u32 msm_readl(const void __iomem *addr);
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-
-static inline bool fence_completed(struct drm_device *dev, uint32_t fence)
-{
-	struct msm_drm_private *priv = dev->dev_private;
-	return priv->completed_fence >= fence;
-}
 
 static inline int align_pitch(int width, int bpp)
 {

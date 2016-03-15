@@ -18,6 +18,7 @@
 #include "msm_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
+#include "msm_fence.h"
 
 
 /*
