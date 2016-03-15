@@ -1557,6 +1557,8 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	/* the fw is stopped, the aux sta is dead: clean up driver state */
 	iwl_mvm_del_aux_sta(mvm);
 
+	iwl_free_fw_paging(mvm);
+
 	/*
 	 * Clear IN_HW_RESTART flag when stopping the hw (as restart_complete()
 	 * won't be called in this case).
