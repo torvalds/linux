@@ -896,7 +896,6 @@ static int mac_init_fn(struct net_device *ndev)
 int wilc_mac_open(struct net_device *ndev)
 {
 	struct wilc_vif *vif;
-	struct wilc *wilc;
 
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
@@ -912,7 +911,6 @@ int wilc_mac_open(struct net_device *ndev)
 		return -ENODEV;
 	}
 
-	wilc = vif->wilc;
 	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
 	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
 
@@ -932,13 +930,13 @@ int wilc_mac_open(struct net_device *ndev)
 				wilc_set_wfi_drv_handler(vif,
 							 wilc_get_vif_idx(vif),
 							 0);
-			} else if (!wilc_wlan_get_num_conn_ifcs(wilc)) {
+			} else if (!wilc_wlan_get_num_conn_ifcs(wl)) {
 				wilc_set_wfi_drv_handler(vif,
 							 wilc_get_vif_idx(vif),
-							 wilc->open_ifcs);
+							 wl->open_ifcs);
 			} else {
-				if (memcmp(wilc->vif[i ^ 1]->bssid,
-					   wilc->vif[i ^ 1]->src_addr, 6))
+				if (memcmp(wl->vif[i ^ 1]->bssid,
+					   wl->vif[i ^ 1]->src_addr, 6))
 					wilc_set_wfi_drv_handler(vif,
 							 wilc_get_vif_idx(vif),
 							 0);
