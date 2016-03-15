@@ -94,7 +94,12 @@ static int autofs4_show_options(struct seq_file *m, struct dentry *root)
 		seq_printf(m, ",direct");
 	else
 		seq_printf(m, ",indirect");
-
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	if (sbi->pipe)
+		seq_printf(m, ",pipe_ino=%ld", sbi->pipe->f_inode->i_ino);
+	else
+		seq_printf(m, ",pipe_ino=-1");
+#endif
 	return 0;
 }
 
