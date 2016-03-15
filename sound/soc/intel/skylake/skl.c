@@ -316,12 +316,13 @@ static int skl_free(struct hdac_ext_bus *ebus)
 
 	if (bus->irq >= 0)
 		free_irq(bus->irq, (void *)bus);
-	if (bus->remap_addr)
-		iounmap(bus->remap_addr);
-
 	snd_hdac_bus_free_stream_pages(bus);
 	snd_hdac_stream_free_all(ebus);
 	snd_hdac_link_free_all(ebus);
+
+	if (bus->remap_addr)
+		iounmap(bus->remap_addr);
+
 	pci_release_regions(skl->pci);
 	pci_disable_device(skl->pci);
 
