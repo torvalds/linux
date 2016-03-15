@@ -816,7 +816,6 @@ retry_read:
 	return 0;
 }
 
-#define MIN(a, b)       (a > b ? b : a)
 static int mxt_read_blks(struct mxt_data *data, u16 start, u16 count, u8 *buf)
 {
 	u16 offset = 0;
@@ -824,7 +823,7 @@ static int mxt_read_blks(struct mxt_data *data, u16 start, u16 count, u8 *buf)
 	u16 size;
 
 	while (offset < count) {
-		size = MIN(MXT_MAX_BLOCK_WRITE, count - offset);
+		size = min(MXT_MAX_BLOCK_WRITE, count - offset);
 
 		error = __mxt_read_reg(data->client,
 				       start + offset,
