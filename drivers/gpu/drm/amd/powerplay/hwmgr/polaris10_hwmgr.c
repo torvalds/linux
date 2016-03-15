@@ -1377,12 +1377,13 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 		result = polaris10_populate_single_memory_level(hwmgr,
 				dpm_table->mclk_table.dpm_levels[i].value,
 				&levels[i]);
+		if (i == dpm_table->mclk_table.count - 1) {
+			levels[i].DisplayWatermark = PPSMC_DISPLAY_WATERMARK_HIGH;
+			levels[i].EnabledForActivity = 1;
+		}
 		if (result)
 			return result;
 	}
-
-	/* Only enable level 0 for now. */
-	levels[0].EnabledForActivity = 1;
 
 	/* in order to prevent MC activity from stutter mode to push DPM up.
 	 * the UVD change complements this by putting the MCLK in
@@ -1396,9 +1397,6 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 			(uint8_t)dpm_table->mclk_table.count;
 	data->dpm_level_enable_mask.mclk_dpm_enable_mask =
 			phm_get_dpm_level_enable_mask_value(&dpm_table->mclk_table);
-	/* set highest level watermark to high */
-	levels[dpm_table->mclk_table.count - 1].DisplayWatermark =
-			PPSMC_DISPLAY_WATERMARK_HIGH;
 
 	/* level count will send to smc once at init smc table and never change */
 	result = polaris10_copy_bytes_to_smc(hwmgr->smumgr, array, (uint8_t *)levels,
