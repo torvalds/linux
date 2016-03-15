@@ -26,6 +26,7 @@
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/dax.h>
+#include <linux/blkdev.h>
 #include <linux/quotaops.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
@@ -737,10 +738,9 @@ static int ext2_get_blocks(struct inode *inode,
 		 * so that it's not found by another thread before it's
 		 * initialised
 		 */
-		err = dax_clear_sectors(inode->i_sb->s_bdev,
-				le32_to_cpu(chain[depth-1].key) <<
-				(inode->i_blkbits - 9),
-				count << inode->i_blkbits);
+		err = sb_issue_zeroout(inode->i_sb,
+				le32_to_cpu(chain[depth-1].key), count,
+				GFP_NOFS);
 		if (err) {
 			mutex_unlock(&ei->truncate_mutex);
 			goto cleanup;
