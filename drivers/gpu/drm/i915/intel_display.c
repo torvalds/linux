@@ -1715,16 +1715,13 @@ static void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* Make sure the pipe isn't still relying on us */
 	assert_pipe_disabled(dev_priv, pipe);
 
-	/*
-	 * Leave integrated clock source and reference clock enabled for pipe B.
-	 * The latter is needed for VGA hotplug / manual detection.
-	 */
-	val = DPLL_VGA_MODE_DIS;
-	if (pipe == PIPE_B)
-		val = DPLL_INTEGRATED_CRI_CLK_VLV | DPLL_REF_CLK_ENABLE_VLV;
+	val = DPLL_INTEGRATED_REF_CLK_VLV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+	if (pipe != PIPE_A)
+		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
-
 }
 
 static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
@@ -1735,11 +1732,11 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* Make sure the pipe isn't still relying on us */
 	assert_pipe_disabled(dev_priv, pipe);
 
-	/* Set PLL en = 0 */
 	val = DPLL_SSC_REF_CLK_CHV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
 	I915_WRITE(DPLL(pipe), val);
 	POSTING_READ(DPLL(pipe));
 
@@ -7156,24 +7153,27 @@ void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n)
 static void vlv_compute_dpll(struct intel_crtc *crtc,
 			     struct intel_crtc_state *pipe_config)
 {
-	u32 dpll, dpll_md;
+	pipe_config->dpll_hw_state.dpll = DPLL_INTEGRATED_REF_CLK_VLV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
+		DPLL_VCO_ENABLE | DPLL_EXT_BUFFER_ENABLE_VLV;
+	if (crtc->pipe != PIPE_A)
+		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
-	/*
-	 * Enable DPIO clock input. We should never disable the reference
-	 * clock for pipe B, since VGA hotplug / manual detection depends
-	 * on it.
-	 */
-	dpll = DPLL_EXT_BUFFER_ENABLE_VLV | DPLL_REF_CLK_ENABLE_VLV |
-		DPLL_VGA_MODE_DIS | DPLL_INTEGRATED_REF_CLK_VLV;
-	/* We should never disable this, set it here for state tracking */
-	if (crtc->pipe == PIPE_B)
-		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
-	dpll |= DPLL_VCO_ENABLE;
-	pipe_config->dpll_hw_state.dpll = dpll;
+	pipe_config->dpll_hw_state.dpll_md =
+		(pipe_config->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+}
 
-	dpll_md = (pipe_config->pixel_multiplier - 1)
-		<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-	pipe_config->dpll_hw_state.dpll_md = dpll_md;
+static void chv_compute_dpll(struct intel_crtc *crtc,
+			     struct intel_crtc_state *pipe_config)
+{
+	pipe_config->dpll_hw_state.dpll = DPLL_SSC_REF_CLK_CHV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
+		DPLL_VCO_ENABLE;
+	if (crtc->pipe != PIPE_A)
+		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
+	pipe_config->dpll_hw_state.dpll_md =
+		(pipe_config->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
 static void vlv_prepare_pll(struct intel_crtc *crtc,
@@ -7265,19 +7265,6 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 
 	vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW11(pipe), 0x87871000);
 	mutex_unlock(&dev_priv->sb_lock);
-}
-
-static void chv_compute_dpll(struct intel_crtc *crtc,
-			     struct intel_crtc_state *pipe_config)
-{
-	pipe_config->dpll_hw_state.dpll = DPLL_SSC_REF_CLK_CHV |
-		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS |
-		DPLL_VCO_ENABLE;
-	if (crtc->pipe != PIPE_A)
-		pipe_config->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
-
-	pipe_config->dpll_hw_state.dpll_md =
-		(pipe_config->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
 static void chv_prepare_pll(struct intel_crtc *crtc,
