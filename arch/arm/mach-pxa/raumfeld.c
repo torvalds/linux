@@ -378,18 +378,11 @@ static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
 	},
 };
 
-static u32 raumfeld_rotary_encoder_steps = 24;
-static u32 raumfeld_rotary_encoder_axis = REL_X;
-static u32 raumfeld_rotary_encoder_relative_axis = 1;
-
 static struct property_entry raumfeld_rotary_properties[] = {
-	{ "rotary-encoder,steps-per-period",
-		DEV_PROP_U32, 1, &raumfeld_rotary_encoder_steps, },
-	{ "linux,axis",
-		DEV_PROP_U32, 1, &raumfeld_rotary_encoder_axis, },
-	{ "rotary-encoder,relative_axis",
-		DEV_PROP_U32, 1, &raumfeld_rotary_encoder_relative_axis, },
-	{ NULL }
+	PROPERTY_ENTRY_INTEGER("rotary-encoder,steps-per-period", u32, 24),
+	PROPERTY_ENTRY_INTEGER("linux,axis",			  u32, REL_X),
+	PROPERTY_ENTRY_INTEGER("rotary-encoder,relative_axis",	  u32, 1),
+	{ },
 };
 
 static struct property_set raumfeld_rotary_property_set = {
