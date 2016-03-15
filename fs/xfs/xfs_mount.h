@@ -147,6 +147,17 @@ typedef struct xfs_mount {
 	 * to various other kinds of pain inflicted on the pNFS server.
 	 */
 	__uint32_t		m_generation;
+
+#ifdef DEBUG
+	/*
+	 * DEBUG mode instrumentation to test and/or trigger delayed allocation
+	 * block killing in the event of failed writes. When enabled, all
+	 * buffered writes are forced to fail. All delalloc blocks in the range
+	 * of the write (including pre-existing delalloc blocks!) are tossed as
+	 * part of the write failure error handling sequence.
+	 */
+	bool			m_fail_writes;
+#endif
 } xfs_mount_t;
 
 /*
@@ -262,6 +273,20 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
+
+#ifdef DEBUG
+static inline bool
+xfs_mp_fail_writes(struct xfs_mount *mp)
+{
+	return mp->m_fail_writes;
+}
+#else
+static inline bool
+xfs_mp_fail_writes(struct xfs_mount *mp)
+{
+	return 0;
+}
+#endif
 
 /*
  * Per-ag incore structure, copies of information in agf and agi, to improve the

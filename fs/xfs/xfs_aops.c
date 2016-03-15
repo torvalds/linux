@@ -1474,6 +1474,7 @@ xfs_vm_write_failed(
 	loff_t			from = pos & (PAGE_CACHE_SIZE - 1);
 	loff_t			to = from + len;
 	struct buffer_head	*bh, *head;
+	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
 
 	/*
 	 * The request pos offset might be 32 or 64 bit, this is all fine
@@ -1515,7 +1516,8 @@ xfs_vm_write_failed(
 		if (!buffer_delay(bh) && !buffer_unwritten(bh))
 			continue;
 
-		if (!buffer_new(bh) && block_offset < i_size_read(inode))
+		if (!xfs_mp_fail_writes(mp) && !buffer_new(bh) &&
+		    block_offset < i_size_read(inode))
 			continue;
 
 		if (buffer_delay(bh))
@@ -1555,6 +1557,7 @@ xfs_vm_write_begin(
 	pgoff_t			index = pos >> PAGE_CACHE_SHIFT;
 	struct page		*page;
 	int			status;
+	struct xfs_mount	*mp = XFS_I(mapping->host)->i_mount;
 
 	ASSERT(len <= PAGE_CACHE_SIZE);
 
@@ -1563,6 +1566,8 @@ xfs_vm_write_begin(
 		return -ENOMEM;
 
 	status = __block_write_begin(page, pos, len, xfs_get_blocks);
+	if (xfs_mp_fail_writes(mp))
+		status = -EIO;
 	if (unlikely(status)) {
 		struct inode	*inode = mapping->host;
 		size_t		isize = i_size_read(inode);
@@ -1575,6 +1580,8 @@ xfs_vm_write_begin(
 		 * allocated in this write, not blocks that were previously
 		 * written successfully.
 		 */
+		if (xfs_mp_fail_writes(mp))
+			isize = 0;
 		if (pos + len > isize) {
 			ssize_t start = max_t(ssize_t, pos, isize);
 

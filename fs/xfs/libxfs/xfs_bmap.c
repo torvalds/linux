@@ -4718,6 +4718,66 @@ error0:
 }
 
 /*
+ * When a delalloc extent is split (e.g., due to a hole punch), the original
+ * indlen reservation must be shared across the two new extents that are left
+ * behind.
+ *
+ * Given the original reservation and the worst case indlen for the two new
+ * extents (as calculated by xfs_bmap_worst_indlen()), split the original
+ * reservation fairly across the two new extents. If necessary, steal available
+ * blocks from a deleted extent to make up a reservation deficiency (e.g., if
+ * ores == 1). The number of stolen blocks is returned. The availability and
+ * subsequent accounting of stolen blocks is the responsibility of the caller.
+ */
+static xfs_filblks_t
+xfs_bmap_split_indlen(
+	xfs_filblks_t			ores,		/* original res. */
+	xfs_filblks_t			*indlen1,	/* ext1 worst indlen */
+	xfs_filblks_t			*indlen2,	/* ext2 worst indlen */
+	xfs_filblks_t			avail)		/* stealable blocks */
+{
+	xfs_filblks_t			len1 = *indlen1;
+	xfs_filblks_t			len2 = *indlen2;
+	xfs_filblks_t			nres = len1 + len2; /* new total res. */
+	xfs_filblks_t			stolen = 0;
+
+	/*
+	 * Steal as many blocks as we can to try and satisfy the worst case
+	 * indlen for both new extents.
+	 */
+	while (nres > ores && avail) {
+		nres--;
+		avail--;
+		stolen++;
+	}
+
+	/*
+	 * The only blocks available are those reserved for the original
+	 * extent and what we can steal from the extent being removed.
+	 * If this still isn't enough to satisfy the combined
+	 * requirements for the two new extents, skim blocks off of each
+	 * of the new reservations until they match what is available.
+	 */
+	while (nres > ores) {
+		if (len1) {
+			len1--;
+			nres--;
+		}
+		if (nres == ores)
+			break;
+		if (len2) {
+			len2--;
+			nres--;
+		}
+	}
+
+	*indlen1 = len1;
+	*indlen2 = len2;
+
+	return stolen;
+}
+
+/*
  * Called by xfs_bmapi to update file extent records and the btree
  * after removing space (or undoing a delayed allocation).
  */
@@ -4981,28 +5041,29 @@ xfs_bmap_del_extent(
 			XFS_IFORK_NEXT_SET(ip, whichfork,
 				XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
 		} else {
+			xfs_filblks_t	stolen;
 			ASSERT(whichfork == XFS_DATA_FORK);
-			temp = xfs_bmap_worst_indlen(ip, temp);
+
+			/*
+			 * Distribute the original indlen reservation across the
+			 * two new extents. Steal blocks from the deleted extent
+			 * if necessary. Stealing blocks simply fudges the
+			 * fdblocks accounting in xfs_bunmapi().
+			 */
+			temp = xfs_bmap_worst_indlen(ip, got.br_blockcount);
+			temp2 = xfs_bmap_worst_indlen(ip, new.br_blockcount);
+			stolen = xfs_bmap_split_indlen(da_old, &temp, &temp2,
+						       del->br_blockcount);
+			da_new = temp + temp2 - stolen;
+			del->br_blockcount -= stolen;
+
+			/*
+			 * Set the reservation for each extent. Warn if either
+			 * is zero as this can lead to delalloc problems.
+			 */
+			WARN_ON_ONCE(!temp || !temp2);
 			xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-			temp2 = xfs_bmap_worst_indlen(ip, temp2);
 			new.br_startblock = nullstartblock((int)temp2);
-			da_new = temp + temp2;
-			while (da_new > da_old) {
-				if (temp) {
-					temp--;
-					da_new--;
-					xfs_bmbt_set_startblock(ep,
-						nullstartblock((int)temp));
-				}
-				if (da_new == da_old)
-					break;
-				if (temp2) {
-					temp2--;
-					da_new--;
-					new.br_startblock =
-						nullstartblock((int)temp2);
-				}
-			}
 		}
 		trace_xfs_bmap_post_update(ip, *idx, state, _THIS_IP_);
 		xfs_iext_insert(ip, *idx + 1, 1, &new, state);
@@ -5293,31 +5354,7 @@ xfs_bunmapi(
 				goto nodelete;
 			}
 		}
-		if (wasdel) {
-			ASSERT(startblockval(del.br_startblock) > 0);
-			/* Update realtime/data freespace, unreserve quota */
-			if (isrt) {
-				xfs_filblks_t rtexts;
 
-				rtexts = XFS_FSB_TO_B(mp, del.br_blockcount);
-				do_div(rtexts, mp->m_sb.sb_rextsize);
-				xfs_mod_frextents(mp, (int64_t)rtexts);
-				(void)xfs_trans_reserve_quota_nblks(NULL,
-					ip, -((long)del.br_blockcount), 0,
-					XFS_QMOPT_RES_RTBLKS);
-			} else {
-				xfs_mod_fdblocks(mp, (int64_t)del.br_blockcount,
-						 false);
-				(void)xfs_trans_reserve_quota_nblks(NULL,
-					ip, -((long)del.br_blockcount), 0,
-					XFS_QMOPT_RES_REGBLKS);
-			}
-			ip->i_delayed_blks -= del.br_blockcount;
-			if (cur)
-				cur->bc_private.b.flags |=
-					XFS_BTCUR_BPRV_WASDEL;
-		} else if (cur)
-			cur->bc_private.b.flags &= ~XFS_BTCUR_BPRV_WASDEL;
 		/*
 		 * If it's the case where the directory code is running
 		 * with no block reservation, and the deleted block is in
@@ -5339,11 +5376,45 @@ xfs_bunmapi(
 			error = -ENOSPC;
 			goto error0;
 		}
+
+		/*
+		 * Unreserve quota and update realtime free space, if
+		 * appropriate. If delayed allocation, update the inode delalloc
+		 * counter now and wait to update the sb counters as
+		 * xfs_bmap_del_extent() might need to borrow some blocks.
+		 */
+		if (wasdel) {
+			ASSERT(startblockval(del.br_startblock) > 0);
+			if (isrt) {
+				xfs_filblks_t rtexts;
+
+				rtexts = XFS_FSB_TO_B(mp, del.br_blockcount);
+				do_div(rtexts, mp->m_sb.sb_rextsize);
+				xfs_mod_frextents(mp, (int64_t)rtexts);
+				(void)xfs_trans_reserve_quota_nblks(NULL,
+					ip, -((long)del.br_blockcount), 0,
+					XFS_QMOPT_RES_RTBLKS);
+			} else {
+				(void)xfs_trans_reserve_quota_nblks(NULL,
+					ip, -((long)del.br_blockcount), 0,
+					XFS_QMOPT_RES_REGBLKS);
+			}
+			ip->i_delayed_blks -= del.br_blockcount;
+			if (cur)
+				cur->bc_private.b.flags |=
+					XFS_BTCUR_BPRV_WASDEL;
+		} else if (cur)
+			cur->bc_private.b.flags &= ~XFS_BTCUR_BPRV_WASDEL;
+
 		error = xfs_bmap_del_extent(ip, tp, &lastx, flist, cur, &del,
 				&tmp_logflags, whichfork);
 		logflags |= tmp_logflags;
 		if (error)
 			goto error0;
+
+		if (!isrt && wasdel)
+			xfs_mod_fdblocks(mp, (int64_t)del.br_blockcount, false);
+
 		bno = del.br_startoff - 1;
 nodelete:
 		/*
