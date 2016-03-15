@@ -101,7 +101,7 @@
  *    ->tree_lock		(page_remove_rmap->set_page_dirty)
  *    bdi.wb->list_lock		(page_remove_rmap->set_page_dirty)
  *    ->inode->i_lock		(page_remove_rmap->set_page_dirty)
- *    ->memcg->move_lock	(page_remove_rmap->mem_cgroup_begin_page_stat)
+ *    ->memcg->move_lock	(page_remove_rmap->lock_page_memcg)
  *    bdi.wb->list_lock		(zap_pte_range->set_page_dirty)
  *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
@@ -177,7 +177,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
  * Delete a page from the page cache and free it. Caller has to make
  * sure the page is locked and that nobody else uses it - or that usage
  * is safe.  The caller must hold the mapping's tree_lock and
- * mem_cgroup_begin_page_stat().
+ * lock_page_memcg().
  */
 void __delete_from_page_cache(struct page *page, void *shadow,
 			      struct mem_cgroup *memcg)
@@ -263,11 +263,11 @@ void delete_from_page_cache(struct page *page)
 
 	freepage = mapping->a_ops->freepage;
 
-	memcg = mem_cgroup_begin_page_stat(page);
+	memcg = lock_page_memcg(page);
 	spin_lock_irqsave(&mapping->tree_lock, flags);
 	__delete_from_page_cache(page, NULL, memcg);
 	spin_unlock_irqrestore(&mapping->tree_lock, flags);
-	mem_cgroup_end_page_stat(memcg);
+	unlock_page_memcg(memcg);
 
 	if (freepage)
 		freepage(page);
@@ -561,7 +561,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 		new->mapping = mapping;
 		new->index = offset;
 
-		memcg = mem_cgroup_begin_page_stat(old);
+		memcg = lock_page_memcg(old);
 		spin_lock_irqsave(&mapping->tree_lock, flags);
 		__delete_from_page_cache(old, NULL, memcg);
 		error = radix_tree_insert(&mapping->page_tree, offset, new);
@@ -576,7 +576,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 		if (PageSwapBacked(new))
 			__inc_zone_page_state(new, NR_SHMEM);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
-		mem_cgroup_end_page_stat(memcg);
+		unlock_page_memcg(memcg);
 		mem_cgroup_replace_page(old, new);
 		radix_tree_preload_end();
 		if (freepage)

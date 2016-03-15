@@ -1978,10 +1978,10 @@ xfs_vm_set_page_dirty(
 		} while (bh != head);
 	}
 	/*
-	 * Use mem_group_begin_page_stat() to keep PageDirty synchronized with
-	 * per-memcg dirty page counters.
+	 * Lock out page->mem_cgroup migration to keep PageDirty
+	 * synchronized with per-memcg dirty page counters.
 	 */
-	memcg = mem_cgroup_begin_page_stat(page);
+	memcg = lock_page_memcg(page);
 	newly_dirty = !TestSetPageDirty(page);
 	spin_unlock(&mapping->private_lock);
 
@@ -1998,7 +1998,7 @@ xfs_vm_set_page_dirty(
 		}
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 	}
-	mem_cgroup_end_page_stat(memcg);
+	unlock_page_memcg(memcg);
 	if (newly_dirty)
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	return newly_dirty;

@@ -1709,19 +1709,13 @@ cleanup:
 }
 
 /**
- * mem_cgroup_begin_page_stat - begin a page state statistics transaction
- * @page: page that is going to change accounted state
+ * lock_page_memcg - lock a page->mem_cgroup binding
+ * @page: the page
  *
- * This function must mark the beginning of an accounted page state
- * change to prevent double accounting when the page is concurrently
- * being moved to another memcg:
- *
- *   memcg = mem_cgroup_begin_page_stat(page);
- *   if (TestClearPageState(page))
- *     mem_cgroup_update_page_stat(memcg, state, -1);
- *   mem_cgroup_end_page_stat(memcg);
+ * This function protects unlocked LRU pages from being moved to
+ * another cgroup and stabilizes their page->mem_cgroup binding.
  */
-struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page)
+struct mem_cgroup *lock_page_memcg(struct page *page)
 {
 	struct mem_cgroup *memcg;
 	unsigned long flags;
@@ -1759,20 +1753,20 @@ again:
 	/*
 	 * When charge migration first begins, we can have locked and
 	 * unlocked page stat updates happening concurrently.  Track
-	 * the task who has the lock for mem_cgroup_end_page_stat().
+	 * the task who has the lock for unlock_page_memcg().
 	 */
 	memcg->move_lock_task = current;
 	memcg->move_lock_flags = flags;
 
 	return memcg;
 }
-EXPORT_SYMBOL(mem_cgroup_begin_page_stat);
+EXPORT_SYMBOL(lock_page_memcg);
 
 /**
- * mem_cgroup_end_page_stat - finish a page state statistics transaction
- * @memcg: the memcg that was accounted against
+ * unlock_page_memcg - unlock a page->mem_cgroup binding
+ * @memcg: the memcg returned by lock_page_memcg()
  */
-void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
+void unlock_page_memcg(struct mem_cgroup *memcg)
 {
 	if (memcg && memcg->move_lock_task == current) {
 		unsigned long flags = memcg->move_lock_flags;
@@ -1785,7 +1779,7 @@ void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
 
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(mem_cgroup_end_page_stat);
+EXPORT_SYMBOL(unlock_page_memcg);
 
 /*
  * size of first charge trial. "32" comes from vmscan.c's magic value.
@@ -4923,9 +4917,9 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 
 	lru_add_drain_all();
 	/*
-	 * Signal mem_cgroup_begin_page_stat() to take the memcg's
-	 * move_lock while we're moving its pages to another memcg.
-	 * Then wait for already started RCU-only updates to finish.
+	 * Signal lock_page_memcg() to take the memcg's move_lock
+	 * while we're moving its pages to another memcg. Then wait
+	 * for already started RCU-only updates to finish.
 	 */
 	atomic_inc(&mc.from->moving_account);
 	synchronize_rcu();

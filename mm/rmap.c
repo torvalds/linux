@@ -1289,19 +1289,19 @@ void page_add_file_rmap(struct page *page)
 {
 	struct mem_cgroup *memcg;
 
-	memcg = mem_cgroup_begin_page_stat(page);
+	memcg = lock_page_memcg(page);
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		__inc_zone_page_state(page, NR_FILE_MAPPED);
 		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
 	}
-	mem_cgroup_end_page_stat(memcg);
+	unlock_page_memcg(memcg);
 }
 
 static void page_remove_file_rmap(struct page *page)
 {
 	struct mem_cgroup *memcg;
 
-	memcg = mem_cgroup_begin_page_stat(page);
+	memcg = lock_page_memcg(page);
 
 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
 	if (unlikely(PageHuge(page))) {
@@ -1325,7 +1325,7 @@ static void page_remove_file_rmap(struct page *page)
 	if (unlikely(PageMlocked(page)))
 		clear_page_mlock(page);
 out:
-	mem_cgroup_end_page_stat(memcg);
+	unlock_page_memcg(memcg);
 }
 
 static void page_remove_anon_compound_rmap(struct page *page)

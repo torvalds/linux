@@ -429,8 +429,8 @@ bool mem_cgroup_oom_synchronize(bool wait);
 extern int do_swap_account;
 #endif
 
-struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page);
-void mem_cgroup_end_page_stat(struct mem_cgroup *memcg);
+struct mem_cgroup *lock_page_memcg(struct page *page);
+void unlock_page_memcg(struct mem_cgroup *memcg);
 
 /**
  * mem_cgroup_update_page_stat - update page state statistics
@@ -438,7 +438,13 @@ void mem_cgroup_end_page_stat(struct mem_cgroup *memcg);
  * @idx: page state item to account
  * @val: number of pages (positive or negative)
  *
- * See mem_cgroup_begin_page_stat() for locking requirements.
+ * Callers must use lock_page_memcg() to prevent double accounting
+ * when the page is concurrently being moved to another memcg:
+ *
+ *   memcg = lock_page_memcg(page);
+ *   if (TestClearPageState(page))
+ *     mem_cgroup_update_page_stat(memcg, state, -1);
+ *   unlock_page_memcg(memcg);
  */
 static inline void mem_cgroup_update_page_stat(struct mem_cgroup *memcg,
 				 enum mem_cgroup_stat_index idx, int val)
@@ -613,12 +619,12 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 {
 }
 
-static inline struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page)
+static inline struct mem_cgroup *lock_page_memcg(struct page *page)
 {
 	return NULL;
 }
 
-static inline void mem_cgroup_end_page_stat(struct mem_cgroup *memcg)
+static inline void unlock_page_memcg(struct mem_cgroup *memcg)
 {
 }
 

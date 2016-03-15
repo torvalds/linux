@@ -621,7 +621,7 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
  * If warn is true, then emit a warning if the page is not uptodate and has
  * not been truncated.
  *
- * The caller must hold mem_cgroup_begin_page_stat() lock.
+ * The caller must hold lock_page_memcg().
  */
 static void __set_page_dirty(struct page *page, struct address_space *mapping,
 			     struct mem_cgroup *memcg, int warn)
@@ -683,17 +683,17 @@ int __set_page_dirty_buffers(struct page *page)
 		} while (bh != head);
 	}
 	/*
-	 * Use mem_group_begin_page_stat() to keep PageDirty synchronized with
-	 * per-memcg dirty page counters.
+	 * Lock out page->mem_cgroup migration to keep PageDirty
+	 * synchronized with per-memcg dirty page counters.
 	 */
-	memcg = mem_cgroup_begin_page_stat(page);
+	memcg = lock_page_memcg(page);
 	newly_dirty = !TestSetPageDirty(page);
 	spin_unlock(&mapping->private_lock);
 
 	if (newly_dirty)
 		__set_page_dirty(page, mapping, memcg, 1);
 
-	mem_cgroup_end_page_stat(memcg);
+	unlock_page_memcg(memcg);
 
 	if (newly_dirty)
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
@@ -1169,13 +1169,13 @@ void mark_buffer_dirty(struct buffer_head *bh)
 		struct address_space *mapping = NULL;
 		struct mem_cgroup *memcg;
 
-		memcg = mem_cgroup_begin_page_stat(page);
+		memcg = lock_page_memcg(page);
 		if (!TestSetPageDirty(page)) {
 			mapping = page_mapping(page);
 			if (mapping)
 				__set_page_dirty(page, mapping, memcg, 0);
 		}
-		mem_cgroup_end_page_stat(memcg);
+		unlock_page_memcg(memcg);
 		if (mapping)
 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	}
