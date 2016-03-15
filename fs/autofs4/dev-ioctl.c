@@ -373,7 +373,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		new_pid = get_task_pid(current, PIDTYPE_PGID);
 
 		if (ns_of_pid(new_pid) != ns_of_pid(sbi->oz_pgrp)) {
-			AUTOFS_WARN("Not allowed to change PID namespace");
+			AUTOFS_WARN("not allowed to change PID namespace");
 			err = -EINVAL;
 			goto out;
 		}

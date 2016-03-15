@@ -270,14 +270,14 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if (parse_options(data, &pipefd, &root_inode->i_uid, &root_inode->i_gid,
 			  &pgrp, &pgrp_set, &sbi->type, &sbi->min_proto,
 			  &sbi->max_proto)) {
-		printk("autofs: called with bogus options\n");
+		AUTOFS_ERROR("called with bogus options");
 		goto fail_dput;
 	}
 
 	if (pgrp_set) {
 		sbi->oz_pgrp = find_get_pid(pgrp);
 		if (!sbi->oz_pgrp) {
-			pr_warn("autofs: could not find process group %d\n",
+			AUTOFS_ERROR("could not find process group %d",
 				pgrp);
 			goto fail_dput;
 		}
@@ -294,8 +294,8 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	/* Couldn't this be tested earlier? */
 	if (sbi->max_proto < AUTOFS_MIN_PROTO_VERSION ||
 	    sbi->min_proto > AUTOFS_MAX_PROTO_VERSION) {
-		printk("autofs: kernel does not match daemon version "
-		       "daemon (%d, %d) kernel (%d, %d)\n",
+		AUTOFS_ERROR("kernel does not match daemon version "
+			     "daemon (%d, %d) kernel (%d, %d)",
 			sbi->min_proto, sbi->max_proto,
 			AUTOFS_MIN_PROTO_VERSION, AUTOFS_MAX_PROTO_VERSION);
 		goto fail_dput;
@@ -312,7 +312,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	pipe = fget(pipefd);
 
 	if (!pipe) {
-		printk("autofs: could not open pipe file descriptor\n");
+		AUTOFS_ERROR("could not open pipe file descriptor");
 		goto fail_dput;
 	}
 	ret = autofs_prepare_pipe(pipe);
@@ -332,7 +332,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	 * Failure ... clean up.
 	 */
 fail_fput:
-	printk("autofs: pipe file descriptor does not contain proper ops\n");
+	AUTOFS_ERROR("pipe file descriptor does not contain proper ops");
 	fput(pipe);
 	/* fall through */
 fail_dput:

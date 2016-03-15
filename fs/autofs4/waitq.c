@@ -164,7 +164,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		break;
 	}
 	default:
-		printk("autofs4_notify_daemon: bad type %d!\n", type);
+		AUTOFS_WARN("bad type %d!", type);
 		mutex_unlock(&sbi->wq_mutex);
 		return;
 	}
@@ -453,7 +453,7 @@ int autofs4_wait(struct autofs_sb_info *sbi,
 					autofs_ptype_expire_indirect;
 		}
 
-		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
+		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->name.len,
 			wq->name.name, notify);
 
