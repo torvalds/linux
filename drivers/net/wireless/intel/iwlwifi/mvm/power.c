@@ -227,7 +227,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 			cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
 	}
 
-	cmd->uapsd_max_sp = IWL_UAPSD_MAX_SP;
+	cmd->uapsd_max_sp = mvm->hw->uapsd_max_sp_len;
 
 	if (mvm->cur_ucode == IWL_UCODE_WOWLAN || cmd->flags &
 	    cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
