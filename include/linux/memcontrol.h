@@ -28,6 +28,7 @@
 #include <linux/eventfd.h>
 #include <linux/mmzone.h>
 #include <linux/writeback.h>
+#include <linux/page-flags.h>
 
 struct mem_cgroup;
 struct page;
@@ -464,18 +465,19 @@ void unlock_page_memcg(struct page *page);
  * @idx: page state item to account
  * @val: number of pages (positive or negative)
  *
- * Callers must use lock_page_memcg() to prevent double accounting
- * when the page is concurrently being moved to another memcg:
+ * The @page must be locked or the caller must use lock_page_memcg()
+ * to prevent double accounting when the page is concurrently being
+ * moved to another memcg:
  *
- *   lock_page_memcg(page);
+ *   lock_page(page) or lock_page_memcg(page)
  *   if (TestClearPageState(page))
  *     mem_cgroup_update_page_stat(page, state, -1);
- *   unlock_page_memcg(page);
+ *   unlock_page(page) or unlock_page_memcg(page)
  */
 static inline void mem_cgroup_update_page_stat(struct page *page,
 				 enum mem_cgroup_stat_index idx, int val)
 {
-	VM_BUG_ON(!rcu_read_lock_held());
+	VM_BUG_ON(!(rcu_read_lock_held() || PageLocked(page)));
 
 	if (page->mem_cgroup)
 		this_cpu_add(page->mem_cgroup->stat->count[idx], val);
