@@ -160,6 +160,8 @@ irq_put_desc_unlock(struct irq_desc *desc, unsigned long flags)
 	__irq_put_desc_unlock(desc, flags, false);
 }
 
+#define __irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
+
 /*
  * Manipulation functions for irq_data.state
  */
@@ -187,6 +189,8 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 {
 	return __irqd_to_state(d) & mask;
 }
+
+#undef __irqd_to_state
 
 static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
