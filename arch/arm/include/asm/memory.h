@@ -295,6 +295,11 @@ extern long long arch_phys_to_idmap_offset;
  * of physical memory for idmap purposes.  Most cases should leave these
  * untouched.  Note: this can only return addresses less than 4GiB.
  */
+static inline bool arm_has_idmap_alias(void)
+{
+	return IS_ENABLED(CONFIG_MMU) && arch_phys_to_idmap_offset != 0;
+}
+
 #define IDMAP_INVALID_ADDR ((u32)~0)
 
 static inline unsigned long phys_to_idmap(phys_addr_t addr)
