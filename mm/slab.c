@@ -396,20 +396,25 @@ static void set_obj_status(struct page *page, int idx, int val)
 	status[idx] = val;
 }
 
-static inline unsigned int get_obj_status(struct page *page, int idx)
+static inline bool is_store_user_clean(struct kmem_cache *cachep)
 {
-	int freelist_size;
-	char *status;
-	struct kmem_cache *cachep = page->slab_cache;
+	return atomic_read(&cachep->store_user_clean) == 1;
+}
 
-	freelist_size = cachep->num * sizeof(freelist_idx_t);
-	status = (char *)page->freelist + freelist_size;
+static inline void set_store_user_clean(struct kmem_cache *cachep)
+{
+	atomic_set(&cachep->store_user_clean, 1);
+}
 
-	return status[idx];
+static inline void set_store_user_dirty(struct kmem_cache *cachep)
+{
+	if (is_store_user_clean(cachep))
+		atomic_set(&cachep->store_user_clean, 0);
 }
 
 #else
 static inline void set_obj_status(struct page *page, int idx, int val) {}
+static inline void set_store_user_dirty(struct kmem_cache *cachep) {}
 
 #endif
 
@@ -2550,6 +2555,11 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct page *page)
 	objp = index_to_obj(cachep, page, get_free_obj(page, page->active));
 	page->active++;
 
+#if DEBUG
+	if (cachep->flags & SLAB_STORE_USER)
+		set_store_user_dirty(cachep);
+#endif
+
 	return objp;
 }
 
@@ -2725,8 +2735,10 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 		*dbg_redzone1(cachep, objp) = RED_INACTIVE;
 		*dbg_redzone2(cachep, objp) = RED_INACTIVE;
 	}
-	if (cachep->flags & SLAB_STORE_USER)
+	if (cachep->flags & SLAB_STORE_USER) {
+		set_store_user_dirty(cachep);
 		*dbg_userword(cachep, objp) = (void *)caller;
+	}
 
 	objnr = obj_to_index(cachep, page, objp);
 
@@ -4119,15 +4131,34 @@ static void handle_slab(unsigned long *n, struct kmem_cache *c,
 						struct page *page)
 {
 	void *p;
-	int i;
+	int i, j;
+	unsigned long v;
 
 	if (n[0] == n[1])
 		return;
 	for (i = 0, p = page->s_mem; i < c->num; i++, p += c->size) {
-		if (get_obj_status(page, i) != OBJECT_ACTIVE)
+		bool active = true;
+
+		for (j = page->active; j < c->num; j++) {
+			if (get_free_obj(page, j) == i) {
+				active = false;
+				break;
+			}
+		}
+
+		if (!active)
 			continue;
 
-		if (!add_caller(n, (unsigned long)*dbg_userword(c, p)))
+		/*
+		 * probe_kernel_read() is used for DEBUG_PAGEALLOC. page table
+		 * mapping is established when actual object allocation and
+		 * we could mistakenly access the unmapped object in the cpu
+		 * cache.
+		 */
+		if (probe_kernel_read(&v, dbg_userword(c, p), sizeof(v)))
+			continue;
+
+		if (!add_caller(n, v))
 			return;
 	}
 }
@@ -4163,21 +4194,31 @@ static int leaks_show(struct seq_file *m, void *p)
 	if (!(cachep->flags & SLAB_RED_ZONE))
 		return 0;
 
-	/* OK, we can do it */
+	/*
+	 * Set store_user_clean and start to grab stored user information
+	 * for all objects on this cache. If some alloc/free requests comes
+	 * during the processing, information would be wrong so restart
+	 * whole processing.
+	 */
+	do {
+		set_store_user_clean(cachep);
+		drain_cpu_caches(cachep);
 
-	x[1] = 0;
+		x[1] = 0;
 
-	for_each_kmem_cache_node(cachep, node, n) {
+		for_each_kmem_cache_node(cachep, node, n) {
 
-		check_irq_on();
-		spin_lock_irq(&n->list_lock);
+			check_irq_on();
+			spin_lock_irq(&n->list_lock);
 
-		list_for_each_entry(page, &n->slabs_full, lru)
-			handle_slab(x, cachep, page);
-		list_for_each_entry(page, &n->slabs_partial, lru)
-			handle_slab(x, cachep, page);
-		spin_unlock_irq(&n->list_lock);
-	}
+			list_for_each_entry(page, &n->slabs_full, lru)
+				handle_slab(x, cachep, page);
+			list_for_each_entry(page, &n->slabs_partial, lru)
+				handle_slab(x, cachep, page);
+			spin_unlock_irq(&n->list_lock);
+		}
+	} while (!is_store_user_clean(cachep));
+
 	name = cachep->name;
 	if (x[0] == x[1]) {
 		/* Increase the buffer size */
