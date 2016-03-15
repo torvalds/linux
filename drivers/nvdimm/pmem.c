@@ -35,7 +35,6 @@
 struct pmem_device {
 	struct request_queue	*pmem_queue;
 	struct gendisk		*pmem_disk;
-	struct nd_namespace_common *ndns;
 
 	/* One contiguous memory region per device */
 	phys_addr_t		phys_addr;
@@ -436,9 +435,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	return -ENXIO;
 }
 
-static int nvdimm_namespace_detach_pfn(struct nd_namespace_common *ndns)
+static int nvdimm_namespace_detach_pfn(struct nd_pfn *nd_pfn)
 {
-	struct nd_pfn *nd_pfn = to_nd_pfn(ndns->claim);
 	struct pmem_device *pmem;
 
 	/* free pmem disk */
@@ -537,7 +535,7 @@ static int __nvdimm_namespace_attach_pfn(struct nd_pfn *nd_pfn)
 
 	return rc;
  err:
-	nvdimm_namespace_detach_pfn(ndns);
+	nvdimm_namespace_detach_pfn(nd_pfn);
 	return rc;
 
 }
@@ -573,7 +571,6 @@ static int nd_pmem_probe(struct device *dev)
 	if (IS_ERR(pmem))
 		return PTR_ERR(pmem);
 
-	pmem->ndns = ndns;
 	dev_set_drvdata(dev, pmem);
 	ndns->rw_bytes = pmem_rw_bytes;
 	if (devm_init_badblocks(dev, &pmem->bb))
@@ -607,9 +604,9 @@ static int nd_pmem_remove(struct device *dev)
 	struct pmem_device *pmem = dev_get_drvdata(dev);
 
 	if (is_nd_btt(dev))
-		nvdimm_namespace_detach_btt(pmem->ndns);
+		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	else if (is_nd_pfn(dev))
-		nvdimm_namespace_detach_pfn(pmem->ndns);
+		nvdimm_namespace_detach_pfn(to_nd_pfn(dev));
 	else
 		pmem_detach_disk(pmem);
 
@@ -618,26 +615,33 @@ static int nd_pmem_remove(struct device *dev)
 
 static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 {
-	struct pmem_device *pmem = dev_get_drvdata(dev);
-	struct nd_namespace_common *ndns = pmem->ndns;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
-	struct resource res = {
-		.start = nsio->res.start + pmem->data_offset,
-		.end = nsio->res.end,
-	};
+	struct pmem_device *pmem = dev_get_drvdata(dev);
+	resource_size_t offset = 0, end_trunc = 0;
+	struct nd_namespace_common *ndns;
+	struct nd_namespace_io *nsio;
+	struct resource res;
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
 
-	if (is_nd_pfn(dev)) {
+	if (is_nd_btt(dev)) {
+		struct nd_btt *nd_btt = to_nd_btt(dev);
+
+		ndns = nd_btt->ndns;
+	} else if (is_nd_pfn(dev)) {
 		struct nd_pfn *nd_pfn = to_nd_pfn(dev);
 		struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
 
-		res.start += __le32_to_cpu(pfn_sb->start_pad);
-		res.end -= __le32_to_cpu(pfn_sb->end_trunc);
-	}
+		ndns = nd_pfn->ndns;
+		offset = pmem->data_offset + __le32_to_cpu(pfn_sb->start_pad);
+		end_trunc = __le32_to_cpu(pfn_sb->end_trunc);
+	} else
+		ndns = to_ndns(dev);
 
+	nsio = to_nd_namespace_io(&ndns->dev);
+	res.start = nsio->res.start + offset;
+	res.end = nsio->res.end - end_trunc;
 	nvdimm_badblocks_populate(nd_region, &pmem->bb, &res);
 }
 

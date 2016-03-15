@@ -1406,9 +1406,8 @@ int nvdimm_namespace_attach_btt(struct nd_namespace_common *ndns)
 }
 EXPORT_SYMBOL(nvdimm_namespace_attach_btt);
 
-int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns)
+int nvdimm_namespace_detach_btt(struct nd_btt *nd_btt)
 {
-	struct nd_btt *nd_btt = to_nd_btt(ndns->claim);
 	struct btt *btt = nd_btt->btt;
 
 	btt_fini(btt);

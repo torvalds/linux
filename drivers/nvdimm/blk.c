@@ -336,7 +336,7 @@ static int nd_blk_remove(struct device *dev)
 	struct nd_blk_device *blk_dev = dev_get_drvdata(dev);
 
 	if (is_nd_btt(dev))
-		nvdimm_namespace_detach_btt(to_nd_btt(dev)->ndns);
+		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	else
 		nd_blk_detach_disk(blk_dev);
 	kfree(blk_dev);
