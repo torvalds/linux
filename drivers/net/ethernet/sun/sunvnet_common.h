@@ -1,20 +1,12 @@
-#ifndef _SUNVNET_H
-#define _SUNVNET_H
+#ifndef _SUNVNETCOMMON_H
+#define _SUNVNETCOMMON_H
 
 #include <linux/interrupt.h>
-
-#define DESC_NCOOKIES(entry_size)	\
-	((entry_size) - sizeof(struct vio_net_desc))
-
-/* length of time before we decide the hardware is borked,
- * and dev->tx_timeout() should be called to fix the problem
- */
-#define VNET_TX_TIMEOUT			(5 * HZ)
 
 /* length of time (or less) we expect pending descriptors to be marked
  * as VIO_DESC_DONE and skbs ready to be freed
  */
-#define	VNET_CLEAN_TIMEOUT		((HZ/100)+1)
+#define	VNET_CLEAN_TIMEOUT		((HZ / 100) + 1)
 
 #define VNET_MAXPACKET			(65535ULL + ETH_HLEN + VLAN_HLEN)
 #define VNET_TX_RING_SIZE		512
@@ -29,7 +21,9 @@
  */
 #define VNET_PACKET_SKIP		6
 
-#define VNET_MAXCOOKIES			(VNET_MAXPACKET/PAGE_SIZE + 1)
+#define	VNET_MAXCOOKIES			(VNET_MAXPACKET / PAGE_SIZE + 1)
+
+#define	VNET_MAX_TXQS		16
 
 struct vnet_tx_entry {
 	struct sk_buff		*skb;
@@ -111,4 +105,29 @@ struct vnet {
 	int			nports;
 };
 
-#endif /* _SUNVNET_H */
+/* Common funcs */
+void sunvnet_clean_timer_expire_common(unsigned long port0);
+int sunvnet_open_common(struct net_device *dev);
+int sunvnet_close_common(struct net_device *dev);
+void sunvnet_set_rx_mode_common(struct net_device *dev);
+int sunvnet_set_mac_addr_common(struct net_device *dev, void *p);
+void sunvnet_tx_timeout_common(struct net_device *dev);
+int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu);
+int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev);
+u16 sunvnet_select_queue_common(struct net_device *dev,
+				struct sk_buff *skb,
+				void *accel_priv,
+				select_queue_fallback_t fallback);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+void sunvnet_poll_controller_common(struct net_device *dev);
+#endif
+void sunvnet_event_common(void *arg, int event);
+int sunvnet_send_attr_common(struct vio_driver_state *vio);
+int sunvnet_handle_attr_common(struct vio_driver_state *vio, void *arg);
+void sunvnet_handshake_complete_common(struct vio_driver_state *vio);
+int sunvnet_poll_common(struct napi_struct *napi, int budget);
+void sunvnet_port_free_tx_bufs_common(struct vnet_port *port);
+void sunvnet_port_add_txq_common(struct vnet_port *port);
+void sunvnet_port_rm_txq_common(struct vnet_port *port);
+
+#endif /* _SUNVNETCOMMON_H */
