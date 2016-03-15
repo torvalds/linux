@@ -80,6 +80,17 @@ config SUNVNET
 	---help---
 	  Support for virtual network devices under Sun Logical Domains.
 
+config LDMVSW
+	tristate "Sun4v LDoms Virtual Switch support"
+	depends on SUN_LDOMS
+	---help---
+	  Support for virtual switch devices under Sun4v Logical Domains.
+	  This driver adds a network interface for every vsw-port node
+	  found in the machine description of a service domain.
+	  Linux bridge/switch software can use these interfaces for
+	  guest domain network interconnectivity or guest domain
+	  connection to a physical network on a service domain.
+
 config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
 	depends on PCI
