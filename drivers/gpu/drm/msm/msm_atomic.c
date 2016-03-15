@@ -107,27 +107,6 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 	}
 }
 
-static void wait_fences(struct msm_commit *c, bool async)
-{
-	int nplanes = c->dev->mode_config.num_total_plane;
-	ktime_t timeout = ktime_add_ms(ktime_get(), 1000);
-	int i;
-
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = c->state->planes[i];
-		struct drm_plane_state *new_state = c->state->plane_states[i];
-
-		if (!plane)
-			continue;
-
-		if ((plane->state->fb != new_state->fb) && new_state->fb) {
-			struct drm_gem_object *obj =
-				msm_framebuffer_bo(new_state->fb, 0);
-			msm_gem_cpu_sync(obj, MSM_PREP_READ, &timeout);
-		}
-	}
-}
-
 /* The (potentially) asynchronous part of the commit.  At this point
  * nothing can fail short of armageddon.
  */
@@ -138,7 +117,7 @@ static void complete_commit(struct msm_commit *c, bool async)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 
-	wait_fences(c, async);
+	drm_atomic_helper_wait_for_fences(dev, state);
 
 	kms->funcs->prepare_commit(kms, state);
 
@@ -213,6 +192,7 @@ int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock)
 {
 	struct msm_drm_private *priv = dev->dev_private;
+	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
 	struct msm_commit *c;
 	int i, ret;
@@ -235,6 +215,24 @@ int msm_atomic_commit(struct drm_device *dev,
 		if (!crtc)
 			continue;
 		c->crtc_mask |= (1 << drm_crtc_index(crtc));
+	}
+
+	/*
+	 * Figure out what fence to wait for:
+	 */
+	for (i = 0; i < nplanes; i++) {
+		struct drm_plane *plane = state->planes[i];
+		struct drm_plane_state *new_state = state->plane_states[i];
+
+		if (!plane)
+			continue;
+
+		if ((plane->state->fb != new_state->fb) && new_state->fb) {
+			struct drm_gem_object *obj = msm_framebuffer_bo(new_state->fb, 0);
+			struct msm_gem_object *msm_obj = to_msm_bo(obj);
+
+			new_state->fence = reservation_object_get_excl_rcu(msm_obj->resv);
+		}
 	}
 
 	/*

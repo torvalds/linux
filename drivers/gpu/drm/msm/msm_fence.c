@@ -32,7 +32,9 @@ msm_fence_context_alloc(struct drm_device *dev, const char *name)
 
 	fctx->dev = dev;
 	fctx->name = name;
+	fctx->context = fence_context_alloc(1);
 	init_waitqueue_head(&fctx->event);
+	spin_lock_init(&fctx->spinlock);
 
 	return fctx;
 }
@@ -47,6 +49,7 @@ static inline bool fence_completed(struct msm_fence_context *fctx, uint32_t fenc
 	return (int32_t)(fctx->completed_fence - fence) >= 0;
 }
 
+/* legacy path for WAIT_FENCE ioctl: */
 int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 		ktime_t *timeout, bool interruptible)
 {
@@ -88,9 +91,73 @@ int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 /* called from workqueue */
 void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence)
 {
-	mutex_lock(&fctx->dev->struct_mutex);
+	spin_lock(&fctx->spinlock);
 	fctx->completed_fence = max(fence, fctx->completed_fence);
-	mutex_unlock(&fctx->dev->struct_mutex);
+	spin_unlock(&fctx->spinlock);
 
 	wake_up_all(&fctx->event);
+}
+
+struct msm_fence {
+	struct msm_fence_context *fctx;
+	struct fence base;
+};
+
+static inline struct msm_fence *to_msm_fence(struct fence *fence)
+{
+	return container_of(fence, struct msm_fence, base);
+}
+
+static const char *msm_fence_get_driver_name(struct fence *fence)
+{
+	return "msm";
+}
+
+static const char *msm_fence_get_timeline_name(struct fence *fence)
+{
+	struct msm_fence *f = to_msm_fence(fence);
+	return f->fctx->name;
+}
+
+static bool msm_fence_enable_signaling(struct fence *fence)
+{
+	return true;
+}
+
+static bool msm_fence_signaled(struct fence *fence)
+{
+	struct msm_fence *f = to_msm_fence(fence);
+	return fence_completed(f->fctx, f->base.seqno);
+}
+
+static void msm_fence_release(struct fence *fence)
+{
+	struct msm_fence *f = to_msm_fence(fence);
+	kfree_rcu(f, base.rcu);
+}
+
+static const struct fence_ops msm_fence_ops = {
+	.get_driver_name = msm_fence_get_driver_name,
+	.get_timeline_name = msm_fence_get_timeline_name,
+	.enable_signaling = msm_fence_enable_signaling,
+	.signaled = msm_fence_signaled,
+	.wait = fence_default_wait,
+	.release = msm_fence_release,
+};
+
+struct fence *
+msm_fence_alloc(struct msm_fence_context *fctx)
+{
+	struct msm_fence *f;
+
+	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	if (!f)
+		return ERR_PTR(-ENOMEM);
+
+	f->fctx = fctx;
+
+	fence_init(&f->base, &msm_fence_ops, &fctx->spinlock,
+			fctx->context, ++fctx->last_fence);
+
+	return &f->base;
 }

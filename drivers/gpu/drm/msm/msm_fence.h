@@ -23,10 +23,12 @@
 struct msm_fence_context {
 	struct drm_device *dev;
 	const char *name;
+	unsigned context;
 	/* last_fence == completed_fence --> no pending work */
 	uint32_t last_fence;          /* last assigned fence */
 	uint32_t completed_fence;     /* last completed fence */
 	wait_queue_head_t event;
+	spinlock_t spinlock;
 };
 
 struct msm_fence_context * msm_fence_context_alloc(struct drm_device *dev,
@@ -38,5 +40,7 @@ int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 int msm_queue_fence_cb(struct msm_fence_context *fctx,
 		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence);
+
+struct fence * msm_fence_alloc(struct msm_fence_context *fctx);
 
 #endif

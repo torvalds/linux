@@ -411,15 +411,62 @@ void *msm_gem_vaddr(struct drm_gem_object *obj)
 	return ret;
 }
 
+/* must be called before _move_to_active().. */
+int msm_gem_sync_object(struct drm_gem_object *obj,
+		struct msm_fence_context *fctx, bool exclusive)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct reservation_object_list *fobj;
+	struct fence *fence;
+	int i, ret;
+
+	if (!exclusive) {
+		/* NOTE: _reserve_shared() must happen before _add_shared_fence(),
+		 * which makes this a slightly strange place to call it.  OTOH this
+		 * is a convenient can-fail point to hook it in.  (And similar to
+		 * how etnaviv and nouveau handle this.)
+		 */
+		ret = reservation_object_reserve_shared(msm_obj->resv);
+		if (ret)
+			return ret;
+	}
+
+	fobj = reservation_object_get_list(msm_obj->resv);
+	if (!fobj || (fobj->shared_count == 0)) {
+		fence = reservation_object_get_excl(msm_obj->resv);
+		/* don't need to wait on our own fences, since ring is fifo */
+		if (fence && (fence->context != fctx->context)) {
+			ret = fence_wait(fence, true);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (!exclusive || !fobj)
+		return 0;
+
+	for (i = 0; i < fobj->shared_count; i++) {
+		fence = rcu_dereference_protected(fobj->shared[i],
+						reservation_object_held(msm_obj->resv));
+		if (fence->context != fctx->context) {
+			ret = fence_wait(fence, true);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 void msm_gem_move_to_active(struct drm_gem_object *obj,
-		struct msm_gpu *gpu, bool write, uint32_t fence)
+		struct msm_gpu *gpu, bool exclusive, struct fence *fence)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	msm_obj->gpu = gpu;
-	if (write)
-		msm_obj->write_fence = fence;
+	if (exclusive)
+		reservation_object_add_excl_fence(msm_obj->resv, fence);
 	else
-		msm_obj->read_fence = fence;
+		reservation_object_add_shared_fence(msm_obj->resv, fence);
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
 }
@@ -433,39 +480,30 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	msm_obj->gpu = NULL;
-	msm_obj->read_fence = 0;
-	msm_obj->write_fence = 0;
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
 }
 
-int msm_gem_cpu_sync(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
-{
-	struct drm_device *dev = obj->dev;
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	int ret = 0;
-
-	if (is_active(msm_obj)) {
-		uint32_t fence = msm_gem_fence(msm_obj, op);
-
-		if (op & MSM_PREP_NOSYNC)
-			timeout = NULL;
-
-		if (priv->gpu)
-			ret = msm_wait_fence(priv->gpu->fctx, fence, timeout, true);
-	}
-
-	return ret;
-}
-
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
-	int ret = msm_gem_cpu_sync(obj, op, timeout);
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	bool write = !!(op & MSM_PREP_WRITE);
+
+	if (op & MSM_PREP_NOSYNC) {
+		if (!reservation_object_test_signaled_rcu(msm_obj->resv, write))
+			return -EBUSY;
+	} else {
+		int ret;
+
+		ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
+				true, timeout_to_jiffies(timeout));
+		if (ret <= 0)
+			return ret == 0 ? -ETIMEDOUT : ret;
+	}
 
 	/* TODO cache maintenance */
 
-	return ret;
+	return 0;
 }
 
 int msm_gem_cpu_fini(struct drm_gem_object *obj)
@@ -475,18 +513,46 @@ int msm_gem_cpu_fini(struct drm_gem_object *obj)
 }
 
 #ifdef CONFIG_DEBUG_FS
+static void describe_fence(struct fence *fence, const char *type,
+		struct seq_file *m)
+{
+	if (!fence_is_signaled(fence))
+		seq_printf(m, "\t%9s: %s %s seq %u\n", type,
+				fence->ops->get_driver_name(fence),
+				fence->ops->get_timeline_name(fence),
+				fence->seqno);
+}
+
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
-	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct reservation_object *robj = msm_obj->resv;
+	struct reservation_object_list *fobj;
+	struct fence *fence;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
 
-	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
-	seq_printf(m, "%08x: %c(r=%u,w=%u) %2d (%2d) %08llx %p %zu\n",
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
+
+	seq_printf(m, "%08x: %c %2d (%2d) %08llx %p %zu\n",
 			msm_obj->flags, is_active(msm_obj) ? 'A' : 'I',
-			msm_obj->read_fence, msm_obj->write_fence,
 			obj->name, obj->refcount.refcount.counter,
 			off, msm_obj->vaddr, obj->size);
+
+	rcu_read_lock();
+	fobj = rcu_dereference(robj->fence);
+	if (fobj) {
+		unsigned int i, shared_count = fobj->shared_count;
+
+		for (i = 0; i < shared_count; i++) {
+			fence = rcu_dereference(fobj->shared[i]);
+			describe_fence(fence, "Shared", m);
+		}
+	}
+
+	fence = rcu_dereference(robj->fence_excl);
+	if (fence)
+		describe_fence(fence, "Exclusive", m);
+	rcu_read_unlock();
 }
 
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)

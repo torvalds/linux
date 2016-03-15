@@ -266,22 +266,24 @@ static void inactive_start(struct msm_gpu *gpu)
  * Hangcheck detection for locked gpu:
  */
 
-static void retire_submits(struct msm_gpu *gpu, uint32_t fence);
+static void retire_submits(struct msm_gpu *gpu);
 
 static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
+	uint32_t fence = gpu->funcs->last_fence(gpu);
 
 	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
+
+	msm_update_fence(gpu->fctx, fence + 1);
 
 	mutex_lock(&dev->struct_mutex);
 	if (msm_gpu_active(gpu)) {
 		struct msm_gem_submit *submit;
-		uint32_t fence = gpu->funcs->last_fence(gpu);
 
 		/* retire completed submits, plus the one that hung: */
-		retire_submits(gpu, fence + 1);
+		retire_submits(gpu);
 
 		inactive_cancel(gpu);
 		gpu->funcs->recover(gpu);
@@ -444,11 +446,12 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 		drm_gem_object_unreference(&msm_obj->base);
 	}
 
+	fence_put(submit->fence);
 	list_del(&submit->node);
 	kfree(submit);
 }
 
-static void retire_submits(struct msm_gpu *gpu, uint32_t fence)
+static void retire_submits(struct msm_gpu *gpu)
 {
 	struct drm_device *dev = gpu->dev;
 
@@ -460,7 +463,7 @@ static void retire_submits(struct msm_gpu *gpu, uint32_t fence)
 		submit = list_first_entry(&gpu->submit_list,
 				struct msm_gem_submit, node);
 
-		if (submit->fence <= fence) {
+		if (fence_is_signaled(submit->fence)) {
 			retire_submit(gpu, submit);
 		} else {
 			break;
@@ -477,7 +480,7 @@ static void retire_worker(struct work_struct *work)
 	msm_update_fence(gpu->fctx, fence);
 
 	mutex_lock(&dev->struct_mutex);
-	retire_submits(gpu, fence);
+	retire_submits(gpu);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (!msm_gpu_active(gpu))
@@ -502,7 +505,12 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	submit->fence = ++gpu->fctx->last_fence;
+	submit->fence = msm_fence_alloc(gpu->fctx);
+	if (IS_ERR(submit->fence)) {
+		ret = PTR_ERR(submit->fence);
+		submit->fence = NULL;
+		return ret;
+	}
 
 	inactive_cancel(gpu);
 
@@ -526,11 +534,10 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		msm_gem_get_iova_locked(&msm_obj->base,
 				submit->gpu->id, &iova);
 
-		if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
-			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
-
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
 			msm_gem_move_to_active(&msm_obj->base, gpu, true, submit->fence);
+		else if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
+			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
 	}
 
 	ret = gpu->funcs->submit(gpu, submit, ctx);

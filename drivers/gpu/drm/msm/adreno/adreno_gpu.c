@@ -168,7 +168,7 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		OUT_PKT2(ring);
 
 	OUT_PKT0(ring, REG_AXXX_CP_SCRATCH_REG2, 1);
-	OUT_RING(ring, submit->fence);
+	OUT_RING(ring, submit->fence->seqno);
 
 	if (adreno_is_a3xx(adreno_gpu) || adreno_is_a4xx(adreno_gpu)) {
 		/* Flush HLSQ lazy updates to make sure there is nothing
@@ -185,7 +185,7 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
 	OUT_RING(ring, CACHE_FLUSH_TS);
 	OUT_RING(ring, rbmemptr(adreno_gpu, fence));
-	OUT_RING(ring, submit->fence);
+	OUT_RING(ring, submit->fence->seqno);
 
 	/* we could maybe be clever and only CP_COND_EXEC the interrupt: */
 	OUT_PKT3(ring, CP_INTERRUPT, 1);
