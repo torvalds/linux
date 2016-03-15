@@ -120,11 +120,6 @@ static __always_inline bool virt_spin_lock(struct qspinlock *lock)
 #endif
 
 /*
- * Initializier
- */
-#define	__ARCH_SPIN_LOCK_UNLOCKED	{ ATOMIC_INIT(0) }
-
-/*
  * Remapping spinlock architecture specific functions to the corresponding
  * queued spinlock functions.
  */

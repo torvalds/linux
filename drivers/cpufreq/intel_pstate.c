@@ -1431,7 +1431,7 @@ static int __init intel_pstate_init(void)
 	if (!all_cpu_data)
 		return -ENOMEM;
 
-	if (static_cpu_has_safe(X86_FEATURE_HWP) && !no_hwp) {
+	if (static_cpu_has(X86_FEATURE_HWP) && !no_hwp) {
 		pr_info("intel_pstate: HWP enabled\n");
 		hwp_active++;
 	}

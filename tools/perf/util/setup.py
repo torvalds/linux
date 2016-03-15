@@ -22,6 +22,7 @@ cflags = getenv('CFLAGS', '').split()
 # switch off several checks (need to be at the end of cflags list)
 cflags += ['-fno-strict-aliasing', '-Wno-write-strings', '-Wno-unused-parameter' ]
 
+src_perf  = getenv('srctree') + '/tools/perf'
 build_lib = getenv('PYTHON_EXTBUILD_LIB')
 build_tmp = getenv('PYTHON_EXTBUILD_TMP')
 libtraceevent = getenv('LIBTRACEEVENT')
@@ -29,6 +30,9 @@ libapikfs = getenv('LIBAPI')
 
 ext_sources = [f.strip() for f in file('util/python-ext-sources')
 				if len(f.strip()) > 0 and f[0] != '#']
+
+# use full paths with source files
+ext_sources = map(lambda x: '%s/%s' % (src_perf, x) , ext_sources)
 
 perf = Extension('perf',
 		  sources = ext_sources,
