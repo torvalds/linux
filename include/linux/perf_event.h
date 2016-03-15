@@ -468,6 +468,7 @@ struct perf_event {
 	int				group_flags;
 	struct perf_event		*group_leader;
 	struct pmu			*pmu;
+	void				*pmu_private;
 
 	enum perf_event_active_state	state;
 	unsigned int			attach_state;

@@ -86,8 +86,7 @@ static int check_emacsclient_version(void)
 		return -1;
 	}
 
-	strbuf_remove(&buffer, 0, strlen("emacsclient"));
-	version = atoi(buffer.buf);
+	version = atoi(buffer.buf + strlen("emacsclient"));
 
 	if (version < 22) {
 		fprintf(stderr,
@@ -273,7 +272,7 @@ static int perf_help_config(const char *var, const char *value, void *cb)
 	if (!prefixcmp(var, "man."))
 		return add_man_viewer_info(var, value);
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static struct cmdnames main_cmds, other_cmds;
