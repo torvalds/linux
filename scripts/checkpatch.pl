@@ -3240,10 +3240,11 @@ sub process {
 		next if ($line =~ /^[^\+]/);
 
 # check for declarations of signed or unsigned without int
-		while ($line =~ m{($Declare++)\s*($Ident)\s*[=,;\[\)]}g) {
+		while ($line =~ m{($Declare)\s*(?!char\b|short\b|int\b|long\b)\s*($Ident)?\s*[=,;\[\)\(]}g) {
 			my $type = $1;
 			my $var = $2;
-			if ($type =~ /^((?:un)?signed)((?:\s*\*)*)\s*$/) {
+			$var = "" if (!defined $var);
+			if ($type =~ /^(?:(?:$Storage|$Inline|$Attribute)\s+)*((?:un)?signed)((?:\s*\*)*)\s*$/) {
 				my $sign = $1;
 				my $pointer = $2;
 
@@ -3253,8 +3254,11 @@ sub process {
 					 "Prefer '" . trim($sign) . " int" . rtrim($pointer) . "' to bare use of '$sign" . rtrim($pointer) . "'\n" . $herecurr) &&
 				    $fix) {
 					my $decl = trim($sign) . " int ";
-					$decl .= trim($pointer) if (rtrim($pointer) ne "");
-					$fixed[$fixlinenr] =~ s@\b\Q$type\E\s*$var\b@$decl$var@;
+					my $comp_pointer = $pointer;
+					$comp_pointer =~ s/\s//g;
+					$decl .= $comp_pointer;
+					$decl = rtrim($decl) if ($var eq "");
+					$fixed[$fixlinenr] =~ s@\b$sign\s*\Q$pointer\E\s*$var\b@$decl$var@;
 				}
 			}
 		}
