@@ -287,7 +287,18 @@ struct kvm_vcpu_arch {
 };
 
 #define vcpu_gp_regs(v)		(&(v)->arch.ctxt.gp_regs)
-#define vcpu_sys_reg(v,r)	((v)->arch.ctxt.sys_regs[(r)])
+
+/*
+ * Only use __vcpu_sys_reg if you know you want the memory backed version of a
+ * register, and not the one most recently accessed by a running VCPU.  For
+ * example, for userspace access or for system registers that are never context
+ * switched, but only emulated.
+ */
+#define __vcpu_sys_reg(v,r)	((v)->arch.ctxt.sys_regs[(r)])
+
+#define vcpu_read_sys_reg(v,r)	__vcpu_sys_reg(v,r)
+#define vcpu_write_sys_reg(v,n,r)	do { __vcpu_sys_reg(v,r) = n; } while (0)
+
 /*
  * CP14 and CP15 live in the same array, as they are backed by the
  * same system registers.

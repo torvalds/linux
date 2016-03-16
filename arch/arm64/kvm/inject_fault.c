@@ -58,7 +58,7 @@ static u64 get_except_vector(struct kvm_vcpu *vcpu, enum exception_type type)
 		exc_offset = LOWER_EL_AArch32_VECTOR;
 	}
 
-	return vcpu_sys_reg(vcpu, VBAR_EL1) + exc_offset + type;
+	return vcpu_read_sys_reg(vcpu, VBAR_EL1) + exc_offset + type;
 }
 
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
@@ -73,7 +73,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 	*vcpu_cpsr(vcpu) = PSTATE_FAULT_BITS_64;
 	*vcpu_spsr(vcpu) = cpsr;
 
-	vcpu_sys_reg(vcpu, FAR_EL1) = addr;
+	vcpu_write_sys_reg(vcpu, addr, FAR_EL1);
 
 	/*
 	 * Build an {i,d}abort, depending on the level and the
@@ -94,7 +94,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 	if (!is_iabt)
 		esr |= ESR_ELx_EC_DABT_LOW << ESR_ELx_EC_SHIFT;
 
-	vcpu_sys_reg(vcpu, ESR_EL1) = esr | ESR_ELx_FSC_EXTABT;
+	vcpu_write_sys_reg(vcpu, esr | ESR_ELx_FSC_EXTABT, ESR_EL1);
 }
 
 static void inject_undef64(struct kvm_vcpu *vcpu)
@@ -115,7 +115,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
 		esr |= ESR_ELx_IL;
 
-	vcpu_sys_reg(vcpu, ESR_EL1) = esr;
+	vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
 }
 
 /**

@@ -290,15 +290,18 @@ static inline int kvm_vcpu_sys_get_rt(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
+	return vcpu_read_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_mode_is_32bit(vcpu))
+	if (vcpu_mode_is_32bit(vcpu)) {
 		*vcpu_cpsr(vcpu) |= COMPAT_PSR_E_BIT;
-	else
-		vcpu_sys_reg(vcpu, SCTLR_EL1) |= (1 << 25);
+	} else {
+		u64 sctlr = vcpu_read_sys_reg(vcpu, SCTLR_EL1);
+		sctlr |= (1 << 25);
+		vcpu_write_sys_reg(vcpu, SCTLR_EL1, sctlr);
+	}
 }
 
 static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
@@ -306,7 +309,7 @@ static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
 	if (vcpu_mode_is_32bit(vcpu))
 		return !!(*vcpu_cpsr(vcpu) & COMPAT_PSR_E_BIT);
 
-	return !!(vcpu_sys_reg(vcpu, SCTLR_EL1) & (1 << 25));
+	return !!(vcpu_read_sys_reg(vcpu, SCTLR_EL1) & (1 << 25));
 }
 
 static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,

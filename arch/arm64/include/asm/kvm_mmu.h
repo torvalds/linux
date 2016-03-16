@@ -249,7 +249,7 @@ struct kvm;
 
 static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 {
-	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
+	return (vcpu_read_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
 }
 
 static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
