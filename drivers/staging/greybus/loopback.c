@@ -626,6 +626,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	do_gettimeofday(&op_async->ts);
 	op_async->pending = true;
 	atomic_inc(&gb->outstanding_operations);
+	mutex_lock(&gb->mutex);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
 					GFP_KERNEL);
@@ -637,9 +638,11 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	op_async->timer.data = (unsigned long)operation->id;
 	add_timer(&op_async->timer);
 
-	return ret;
+	goto done;
 error:
 	gb_loopback_async_operation_put(op_async);
+done:
+	mutex_unlock(&gb->mutex);
 	return ret;
 }
 
