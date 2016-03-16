@@ -27,6 +27,10 @@
 #include <lkl_host.h>
 
 #include "xlate.h"
+#include "../virtio_net_tap.h"
+
+#define __USE_GNU
+#include <dlfcn.h>
 
 /* Mount points are named after filesystem types so they should never
  * be longer than ~6 characters. */
@@ -139,6 +143,13 @@ static void mount_cmds_exec(char *_cmds, int (*callback)(char*))
 	free(cmds);
 }
 
+void fixup_netdev_tap_ops(void)
+{
+	/* It's okay if this is NULL, because then netdev close will
+	 * fall back onto an uncloseable implementation. */
+	lkl_netdev_tap_ops.eventfd = dlsym(RTLD_NEXT, "eventfd");
+}
+
 void __attribute__((constructor(102)))
 hijack_init(void)
 {
@@ -156,6 +167,9 @@ hijack_init(void)
 	char *debug = getenv("LKL_HIJACK_DEBUG");
 	char *mount = getenv("LKL_HIJACK_MOUNT");
 	struct lkl_netdev *nd = NULL;
+
+	/* Must be run before lkl_netdev_tap_create */
+	fixup_netdev_tap_ops();
 
 	if (tap) {
 		fprintf(stderr,

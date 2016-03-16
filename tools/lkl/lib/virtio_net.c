@@ -212,7 +212,7 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
 	 * this, but netdevs are the only flavor that need these
 	 * locks, so it's better to do it here. */
 	ret = virtio_dev_setup(&dev->dev, NUM_QUEUES, QUEUE_DEPTH);
- 
+
 	if (ret)
 		goto out_free;
 

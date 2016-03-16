@@ -209,7 +209,7 @@ int lkl_if_set_ipv4(int ifindex, unsigned int addr, unsigned int netmask_len);
 int lkl_set_ipv4_gateway(unsigned int addr);
 
 /**
- * lkl_netdev - host network device handle, defined in virtio.h.
+ * lkl_netdev - host network device handle, defined in lkl_host.h.
  */
 struct lkl_netdev;
 

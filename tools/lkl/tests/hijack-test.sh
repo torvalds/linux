@@ -75,10 +75,12 @@ sudo ip link set dev lkl_ptt0 up
 sudo ip addr add dev lkl_ptt0 192.168.13.1/24
 
 # Make sure our device has the addresses we expect
-addr=$(LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
+addr=$(LKL_HIJACK_DEBUG=1\
+  LKL_HIJACK_NET_MAC="aa:bb:cc:dd:ee:ff" ${hijack_script} ip addr) 
 echo "$addr" | grep eth0
 echo "$addr" | grep 192.168.13.2
 echo "$addr" | grep "aa:bb:cc:dd:ee:ff"
+! echo "$addr" | grep "WARN: failed to free"
 
 # Copy ping so we're allowed to run it under LKL
 cp `which ping` .
