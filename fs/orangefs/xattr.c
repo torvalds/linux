@@ -344,7 +344,6 @@ ssize_t orangefs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	__u64 token = ORANGEFS_ITERATE_START;
 	ssize_t ret = -ENOMEM;
 	ssize_t total = 0;
-	ssize_t length = 0;
 	int count_keys = 0;
 	int key_size;
 	int i = 0;
@@ -388,10 +387,6 @@ try_again:
 			ORANGEFS_MAX_XATTR_NAMELEN;
 		goto done;
 	}
-
-	length = new_op->downcall.resp.listxattr.keylen;
-	if (length == 0)
-		goto done;
 
 	returned_count = new_op->downcall.resp.listxattr.returned_count;
 	if (returned_count < 0 ||
