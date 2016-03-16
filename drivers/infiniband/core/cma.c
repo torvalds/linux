@@ -1206,6 +1206,10 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		req->has_gid	= true;
 		req->service_id	= req_param->primary_path->service_id;
 		req->pkey	= be16_to_cpu(req_param->primary_path->pkey);
+		if (req->pkey != req_param->bth_pkey)
+			pr_warn_ratelimited("RDMA CMA: got different BTH P_Key (0x%x) and primary path P_Key (0x%x)\n"
+					    "RDMA CMA: in the future this may cause the request to be dropped\n",
+					    req_param->bth_pkey, req->pkey);
 		break;
 	case IB_CM_SIDR_REQ_RECEIVED:
 		req->device	= sidr_param->listen_id->device;
@@ -1213,6 +1217,10 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		req->has_gid	= false;
 		req->service_id	= sidr_param->service_id;
 		req->pkey	= sidr_param->pkey;
+		if (req->pkey != sidr_param->bth_pkey)
+			pr_warn_ratelimited("RDMA CMA: got different BTH P_Key (0x%x) and SIDR request payload P_Key (0x%x)\n"
+					    "RDMA CMA: in the future this may cause the request to be dropped\n",
+					    sidr_param->bth_pkey, req->pkey);
 		break;
 	default:
 		return -EINVAL;

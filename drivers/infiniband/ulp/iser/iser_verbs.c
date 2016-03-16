@@ -252,14 +252,21 @@ void iser_free_fmr_pool(struct ib_conn *ib_conn)
 }
 
 static int
-iser_alloc_reg_res(struct ib_device *ib_device,
+iser_alloc_reg_res(struct iser_device *device,
 		   struct ib_pd *pd,
 		   struct iser_reg_resources *res,
 		   unsigned int size)
 {
+	struct ib_device *ib_dev = device->ib_device;
+	enum ib_mr_type mr_type;
 	int ret;
 
-	res->mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, size);
+	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+		mr_type = IB_MR_TYPE_SG_GAPS;
+	else
+		mr_type = IB_MR_TYPE_MEM_REG;
+
+	res->mr = ib_alloc_mr(pd, mr_type, size);
 	if (IS_ERR(res->mr)) {
 		ret = PTR_ERR(res->mr);
 		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
@@ -277,7 +284,7 @@ iser_free_reg_res(struct iser_reg_resources *rsc)
 }
 
 static int
-iser_alloc_pi_ctx(struct ib_device *ib_device,
+iser_alloc_pi_ctx(struct iser_device *device,
 		  struct ib_pd *pd,
 		  struct iser_fr_desc *desc,
 		  unsigned int size)
@@ -291,7 +298,7 @@ iser_alloc_pi_ctx(struct ib_device *ib_device,
 
 	pi_ctx = desc->pi_ctx;
 
-	ret = iser_alloc_reg_res(ib_device, pd, &pi_ctx->rsc, size);
+	ret = iser_alloc_reg_res(device, pd, &pi_ctx->rsc, size);
 	if (ret) {
 		iser_err("failed to allocate reg_resources\n");
 		goto alloc_reg_res_err;
@@ -324,7 +331,7 @@ iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
 }
 
 static struct iser_fr_desc *
-iser_create_fastreg_desc(struct ib_device *ib_device,
+iser_create_fastreg_desc(struct iser_device *device,
 			 struct ib_pd *pd,
 			 bool pi_enable,
 			 unsigned int size)
@@ -336,12 +343,12 @@ iser_create_fastreg_desc(struct ib_device *ib_device,
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
-	ret = iser_alloc_reg_res(ib_device, pd, &desc->rsc, size);
+	ret = iser_alloc_reg_res(device, pd, &desc->rsc, size);
 	if (ret)
 		goto reg_res_alloc_failure;
 
 	if (pi_enable) {
-		ret = iser_alloc_pi_ctx(ib_device, pd, desc, size);
+		ret = iser_alloc_pi_ctx(device, pd, desc, size);
 		if (ret)
 			goto pi_ctx_alloc_failure;
 	}
@@ -374,7 +381,7 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 	spin_lock_init(&fr_pool->lock);
 	fr_pool->size = 0;
 	for (i = 0; i < cmds_max; i++) {
-		desc = iser_create_fastreg_desc(device->ib_device, device->pd,
+		desc = iser_create_fastreg_desc(device, device->pd,
 						ib_conn->pi_support, size);
 		if (IS_ERR(desc)) {
 			ret = PTR_ERR(desc);

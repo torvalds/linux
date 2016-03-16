@@ -34,6 +34,7 @@
 #include <linux/moduleparam.h>
 #include <rdma/ib_umem.h>
 #include <linux/atomic.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "iw_cxgb4.h"
 
@@ -552,7 +553,8 @@ err:
 	return ERR_PTR(err);
 }
 
-struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			    struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
