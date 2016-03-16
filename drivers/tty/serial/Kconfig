@@ -1384,11 +1384,12 @@ config SERIAL_PCH_UART_CONSOLE
 config SERIAL_MXS_AUART
 	tristate "MXS AUART support"
 	depends on HAS_DMA
-	depends on ARCH_MXS || COMPILE_TEST
+	depends on ARCH_MXS || MACH_ASM9260 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
-	  This driver supports the MXS Application UART (AUART) port.
+	  This driver supports the MXS and Alphascale ASM9260 Application
+	  UART (AUART) port.
 
 config SERIAL_MXS_AUART_CONSOLE
 	bool "MXS AUART console support"
