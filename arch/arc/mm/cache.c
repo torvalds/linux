@@ -28,9 +28,9 @@ volatile int slc_enable = 1, ioc_enable = 1;
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
 			       unsigned long sz, const int cacheop);
 
-void (*__dma_cache_wback_inv)(unsigned long start, unsigned long sz);
-void (*__dma_cache_inv)(unsigned long start, unsigned long sz);
-void (*__dma_cache_wback)(unsigned long start, unsigned long sz);
+void (*__dma_cache_wback_inv)(phys_addr_t start, unsigned long sz);
+void (*__dma_cache_inv)(phys_addr_t start, unsigned long sz);
+void (*__dma_cache_wback)(phys_addr_t start, unsigned long sz);
 
 char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
@@ -633,17 +633,17 @@ EXPORT_SYMBOL(flush_dcache_page);
  * DMA ops for systems with L1 cache only
  * Make memory coherent with L1 cache by flushing/invalidating L1 lines
  */
-static void __dma_cache_wback_inv_l1(unsigned long start, unsigned long sz)
+static void __dma_cache_wback_inv_l1(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 }
 
-static void __dma_cache_inv_l1(unsigned long start, unsigned long sz)
+static void __dma_cache_inv_l1(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_INV);
 }
 
-static void __dma_cache_wback_l1(unsigned long start, unsigned long sz)
+static void __dma_cache_wback_l1(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_FLUSH);
 }
@@ -652,19 +652,19 @@ static void __dma_cache_wback_l1(unsigned long start, unsigned long sz)
  * DMA ops for systems with both L1 and L2 caches, but without IOC
  * Both L1 and L2 lines need to be explicitly flushed/invalidated
  */
-static void __dma_cache_wback_inv_slc(unsigned long start, unsigned long sz)
+static void __dma_cache_wback_inv_slc(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 	slc_op(start, sz, OP_FLUSH_N_INV);
 }
 
-static void __dma_cache_inv_slc(unsigned long start, unsigned long sz)
+static void __dma_cache_inv_slc(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_INV);
 	slc_op(start, sz, OP_INV);
 }
 
-static void __dma_cache_wback_slc(unsigned long start, unsigned long sz)
+static void __dma_cache_wback_slc(phys_addr_t start, unsigned long sz)
 {
 	__dc_line_op_k(start, sz, OP_FLUSH);
 	slc_op(start, sz, OP_FLUSH);
@@ -675,26 +675,26 @@ static void __dma_cache_wback_slc(unsigned long start, unsigned long sz)
  * IOC hardware snoops all DMA traffic keeping the caches consistent with
  * memory - eliding need for any explicit cache maintenance of DMA buffers
  */
-static void __dma_cache_wback_inv_ioc(unsigned long start, unsigned long sz) {}
-static void __dma_cache_inv_ioc(unsigned long start, unsigned long sz) {}
-static void __dma_cache_wback_ioc(unsigned long start, unsigned long sz) {}
+static void __dma_cache_wback_inv_ioc(phys_addr_t start, unsigned long sz) {}
+static void __dma_cache_inv_ioc(phys_addr_t start, unsigned long sz) {}
+static void __dma_cache_wback_ioc(phys_addr_t start, unsigned long sz) {}
 
 /*
  * Exported DMA API
  */
-void dma_cache_wback_inv(unsigned long start, unsigned long sz)
+void dma_cache_wback_inv(phys_addr_t start, unsigned long sz)
 {
 	__dma_cache_wback_inv(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_wback_inv);
 
-void dma_cache_inv(unsigned long start, unsigned long sz)
+void dma_cache_inv(phys_addr_t start, unsigned long sz)
 {
 	__dma_cache_inv(start, sz);
 }
 EXPORT_SYMBOL(dma_cache_inv);
 
-void dma_cache_wback(unsigned long start, unsigned long sz)
+void dma_cache_wback(phys_addr_t start, unsigned long sz)
 {
 	__dma_cache_wback(start, sz);
 }

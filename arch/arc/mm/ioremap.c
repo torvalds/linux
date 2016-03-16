@@ -14,18 +14,21 @@
 #include <linux/slab.h>
 #include <linux/cache.h>
 
-void __iomem *ioremap(unsigned long paddr, unsigned long size)
+void __iomem *ioremap(phys_addr_t paddr, unsigned long size)
 {
-	unsigned long end;
+	phys_addr_t end;
 
 	/* Don't allow wraparound or zero size */
 	end = paddr + size - 1;
 	if (!size || (end < paddr))
 		return NULL;
 
-	/* If the region is h/w uncached, avoid MMU mappings */
+	/*
+	 * If the region is h/w uncached, MMU mapping can be elided as optim
+	 * The cast to u32 is fine as this region can only be inside 4GB
+	 */
 	if (paddr >= ARC_UNCACHED_ADDR_SPACE)
-		return (void __iomem *)paddr;
+		return (void __iomem *)(u32)paddr;
 
 	return ioremap_prot(paddr, size, PAGE_KERNEL_NO_CACHE);
 }
@@ -41,9 +44,9 @@ EXPORT_SYMBOL(ioremap);
 void __iomem *ioremap_prot(phys_addr_t paddr, unsigned long size,
 			   unsigned long flags)
 {
-	void __iomem *vaddr;
+	unsigned long vaddr;
 	struct vm_struct *area;
-	unsigned long off, end;
+	phys_addr_t off, end;
 	pgprot_t prot = __pgprot(flags);
 
 	/* Don't allow wraparound, zero size */
@@ -70,9 +73,8 @@ void __iomem *ioremap_prot(phys_addr_t paddr, unsigned long size,
 	if (!area)
 		return NULL;
 	area->phys_addr = paddr;
-	vaddr = (void __iomem *)area->addr;
-	if (ioremap_page_range((unsigned long)vaddr,
-			       (unsigned long)vaddr + size, paddr, prot)) {
+	vaddr = (unsigned long)area->addr;
+	if (ioremap_page_range(vaddr, vaddr + size, paddr, prot)) {
 		vunmap((void __force *)vaddr);
 		return NULL;
 	}

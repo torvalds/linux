@@ -65,13 +65,13 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
 	if (need_kvaddr) {
-		kvaddr = ioremap_nocache((unsigned long)paddr, size);
+		kvaddr = ioremap_nocache(paddr, size);
 		if (kvaddr == NULL) {
 			__free_pages(page, order);
 			return NULL;
 		}
 	} else {
-		kvaddr = (void *)paddr;
+		kvaddr = (void *)(u32)paddr;
 	}
 
 	/*
@@ -85,7 +85,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	 * will be optimized as a separate commit
 	 */
 	if (need_coh)
-		dma_cache_wback_inv((unsigned long)paddr, size);
+		dma_cache_wback_inv(paddr, size);
 
 	return kvaddr;
 }
@@ -110,7 +110,7 @@ static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
  * CPU accesses page via normal paddr, thus needs to explicitly made
  * consistent before each use
  */
-static void _dma_cache_sync(unsigned long paddr, size_t size,
+static void _dma_cache_sync(phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir)
 {
 	switch (dir) {
@@ -124,7 +124,7 @@ static void _dma_cache_sync(unsigned long paddr, size_t size,
 		dma_cache_wback_inv(paddr, size);
 		break;
 	default:
-		pr_err("Invalid DMA dir [%d] for OP @ %lx\n", dir, paddr);
+		pr_err("Invalid DMA dir [%d] for OP @ %pa[p]\n", dir, &paddr);
 	}
 }
 
@@ -132,7 +132,7 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
 		struct dma_attrs *attrs)
 {
-	unsigned long paddr = page_to_phys(page) + offset;
+	phys_addr_t paddr = page_to_phys(page) + offset;
 	_dma_cache_sync(paddr, size, dir);
 	return (dma_addr_t)paddr;
 }
