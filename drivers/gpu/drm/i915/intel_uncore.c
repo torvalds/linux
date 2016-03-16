@@ -1433,7 +1433,7 @@ static int i915_reset_complete(struct drm_device *dev)
 	return (gdrst & GRDOM_RESET_STATUS) == 0;
 }
 
-static int i915_do_reset(struct drm_device *dev)
+static int i915_do_reset(struct drm_device *dev, unsigned engine_mask)
 {
 	/* assert reset for at least 20 usec */
 	pci_write_config_byte(dev->pdev, I915_GDRST, GRDOM_RESET_ENABLE);
@@ -1450,13 +1450,13 @@ static int g4x_reset_complete(struct drm_device *dev)
 	return (gdrst & GRDOM_RESET_ENABLE) == 0;
 }
 
-static int g33_do_reset(struct drm_device *dev)
+static int g33_do_reset(struct drm_device *dev, unsigned engine_mask)
 {
 	pci_write_config_byte(dev->pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	return wait_for(g4x_reset_complete(dev), 500);
 }
 
-static int g4x_do_reset(struct drm_device *dev)
+static int g4x_do_reset(struct drm_device *dev, unsigned engine_mask)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -1486,7 +1486,7 @@ static int g4x_do_reset(struct drm_device *dev)
 	return 0;
 }
 
-static int ironlake_do_reset(struct drm_device *dev)
+static int ironlake_do_reset(struct drm_device *dev, unsigned engine_mask)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -1510,21 +1510,62 @@ static int ironlake_do_reset(struct drm_device *dev)
 	return 0;
 }
 
-static int gen6_do_reset(struct drm_device *dev)
+/* Reset the hardware domains (GENX_GRDOM_*) specified by mask */
+static int gen6_hw_domain_reset(struct drm_i915_private *dev_priv,
+				u32 hw_domain_mask)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int	ret;
-
-	/* Reset the chip */
+	int ret;
 
 	/* GEN6_GDRST is not in the gt power well, no need to check
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
-	__raw_i915_write32(dev_priv, GEN6_GDRST, GEN6_GRDOM_FULL);
+	__raw_i915_write32(dev_priv, GEN6_GDRST, hw_domain_mask);
 
-	/* Spin waiting for the device to ack the reset request */
-	ret = wait_for((__raw_i915_read32(dev_priv, GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+#define ACKED ((__raw_i915_read32(dev_priv, GEN6_GDRST) & hw_domain_mask) == 0)
+	/* Spin waiting for the device to ack the reset requests */
+	ret = wait_for(ACKED, 500);
+#undef ACKED
+
+	return ret;
+}
+
+/**
+ * gen6_reset_engines - reset individual engines
+ * @dev: DRM device
+ * @engine_mask: mask of intel_ring_flag() engines or ALL_ENGINES for full reset
+ *
+ * This function will reset the individual engines that are set in engine_mask.
+ * If you provide ALL_ENGINES as mask, full global domain reset will be issued.
+ *
+ * Note: It is responsibility of the caller to handle the difference between
+ * asking full domain reset versus reset for all available individual engines.
+ *
+ * Returns 0 on success, nonzero on error.
+ */
+static int gen6_reset_engines(struct drm_device *dev, unsigned engine_mask)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *engine;
+	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
+		[RCS] = GEN6_GRDOM_RENDER,
+		[BCS] = GEN6_GRDOM_BLT,
+		[VCS] = GEN6_GRDOM_MEDIA,
+		[VCS2] = GEN8_GRDOM_MEDIA2,
+		[VECS] = GEN6_GRDOM_VECS,
+	};
+	u32 hw_mask;
+	int ret;
+
+	if (engine_mask == ALL_ENGINES) {
+		hw_mask = GEN6_GRDOM_FULL;
+	} else {
+		hw_mask = 0;
+		for_each_engine_masked(engine, dev_priv, engine_mask)
+			hw_mask |= hw_engine_mask[engine->id];
+	}
+
+	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
 
 	intel_uncore_forcewake_reset(dev, true);
 
@@ -1567,34 +1608,34 @@ static void gen8_unrequest_engine_reset(struct intel_engine_cs *engine)
 		      _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET));
 }
 
-static int gen8_do_reset(struct drm_device *dev)
+static int gen8_reset_engines(struct drm_device *dev, unsigned engine_mask)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int i;
 
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine_masked(engine, dev_priv, engine_mask)
 		if (gen8_request_engine_reset(engine))
 			goto not_ready;
 
-	return gen6_do_reset(dev);
+	return gen6_reset_engines(dev, engine_mask);
 
 not_ready:
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine_masked(engine, dev_priv, engine_mask)
 		gen8_unrequest_engine_reset(engine);
 
 	return -EIO;
 }
 
-static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *)
+static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *,
+							  unsigned engine_mask)
 {
 	if (!i915.reset)
 		return NULL;
 
 	if (INTEL_INFO(dev)->gen >= 8)
-		return gen8_do_reset;
+		return gen8_reset_engines;
 	else if (INTEL_INFO(dev)->gen >= 6)
-		return gen6_do_reset;
+		return gen6_reset_engines;
 	else if (IS_GEN5(dev))
 		return ironlake_do_reset;
 	else if (IS_G4X(dev))
@@ -1607,10 +1648,10 @@ static int (*intel_get_gpu_reset(struct drm_device *dev))(struct drm_device *)
 		return NULL;
 }
 
-int intel_gpu_reset(struct drm_device *dev)
+int intel_gpu_reset(struct drm_device *dev, unsigned engine_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	int (*reset)(struct drm_device *);
+	int (*reset)(struct drm_device *, unsigned);
 	int ret;
 
 	reset = intel_get_gpu_reset(dev);
@@ -1621,7 +1662,7 @@ int intel_gpu_reset(struct drm_device *dev)
 	 * request may be dropped and never completes (causing -EIO).
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
-	ret = reset(dev);
+	ret = reset(dev, engine_mask);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
 	return ret;

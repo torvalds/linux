@@ -1988,6 +1988,10 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 	for ((i__) = 0; (i__) < I915_NUM_ENGINES; (i__)++) \
 		for_each_if ((((ring__) = &(dev_priv__)->engine[(i__)]), intel_engine_initialized((ring__))))
 
+#define for_each_engine_masked(engine__, dev_priv__, mask__) \
+	for ((engine__) = &dev_priv->engine[0]; (engine__) < &dev_priv->engine[I915_NUM_ENGINES]; (engine__)++) \
+		for_each_if (intel_engine_flag((engine__)) & (mask__) && intel_engine_initialized((engine__)))
+
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
 	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
@@ -2570,6 +2574,8 @@ struct drm_i915_cmd_table {
 #define BLT_RING		(1<<BCS)
 #define VEBOX_RING		(1<<VECS)
 #define BSD2_RING		(1<<VCS2)
+#define ALL_ENGINES		(~0)
+
 #define HAS_BSD(dev)		(INTEL_INFO(dev)->ring_mask & BSD_RING)
 #define HAS_BSD2(dev)		(INTEL_INFO(dev)->ring_mask & BSD2_RING)
 #define HAS_BLT(dev)		(INTEL_INFO(dev)->ring_mask & BLT_RING)
@@ -2698,7 +2704,7 @@ extern void i915_driver_postclose(struct drm_device *dev,
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 #endif
-extern int intel_gpu_reset(struct drm_device *dev);
+extern int intel_gpu_reset(struct drm_device *dev, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_device *dev);
 extern int i915_reset(struct drm_device *dev);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);

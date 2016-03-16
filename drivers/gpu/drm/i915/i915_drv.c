@@ -881,7 +881,7 @@ int i915_reset(struct drm_device *dev)
 
 	simulated = dev_priv->gpu_error.stop_rings != 0;
 
-	ret = intel_gpu_reset(dev);
+	ret = intel_gpu_reset(dev, ALL_ENGINES);
 
 	/* Also reset the gpu hangman. */
 	if (simulated) {
