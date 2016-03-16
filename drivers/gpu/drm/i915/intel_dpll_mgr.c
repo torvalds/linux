@@ -1196,7 +1196,7 @@ skl_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
 
 		if (!skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params))
-			return false;
+			return NULL;
 
 		cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
 			 DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
