@@ -197,13 +197,13 @@ config MDIO_OCTEON
 	  drivers on some systems.
 
 config MDIO_THUNDER
-	tristate "Support for MDIO buses on on ThunderX SOCs"
+	tristate "Support for MDIO buses on ThunderX SOCs"
 	depends on 64BIT
 	depends on PCI
 	select MDIO_CAVIUM
 	help
 	  This driver supports the MDIO interfaces found on Cavium
-	  ThunderX SoCs when the MDIO bus device appears on as a PCI
+	  ThunderX SoCs when the MDIO bus device appears as a PCI
 	  device.
 
 
