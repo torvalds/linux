@@ -1307,7 +1307,7 @@ int si_get_allowed_info_register(struct radeon_device *rdev,
  */
 u32 si_get_xclk(struct radeon_device *rdev)
 {
-        u32 reference_clock = rdev->clock.spll.reference_freq;
+	u32 reference_clock = rdev->clock.spll.reference_freq;
 	u32 tmp;
 
 	tmp = RREG32(CG_CLKPIN_CNTL_2);
@@ -7267,7 +7267,7 @@ uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev)
 	mutex_lock(&rdev->gpu_clock_mutex);
 	WREG32(RLC_CAPTURE_GPU_CLOCK_COUNT, 1);
 	clock = (uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_LSB) |
-	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+		((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&rdev->gpu_clock_mutex);
 	return clock;
 }
@@ -7728,33 +7728,33 @@ static void si_program_aspm(struct radeon_device *rdev)
 
 int si_vce_send_vcepll_ctlreq(struct radeon_device *rdev)
 {
-        unsigned i;
+	unsigned i;
 
-        /* make sure VCEPLL_CTLREQ is deasserted */
-        WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+	/* make sure VCEPLL_CTLREQ is deasserted */
+	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
 
-        mdelay(10);
+	mdelay(10);
 
-        /* assert UPLL_CTLREQ */
-        WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
+	/* assert UPLL_CTLREQ */
+	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
 
-        /* wait for CTLACK and CTLACK2 to get asserted */
-        for (i = 0; i < 100; ++i) {
-                uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
-                if ((RREG32_SMC(CG_VCEPLL_FUNC_CNTL) & mask) == mask)
-                        break;
-                mdelay(10);
-        }
+	/* wait for CTLACK and CTLACK2 to get asserted */
+	for (i = 0; i < 100; ++i) {
+		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
+		if ((RREG32_SMC(CG_VCEPLL_FUNC_CNTL) & mask) == mask)
+			break;
+		mdelay(10);
+	}
 
-        /* deassert UPLL_CTLREQ */
-        WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+	/* deassert UPLL_CTLREQ */
+	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
 
-        if (i == 100) {
-                DRM_ERROR("Timeout setting UVD clocks!\n");
-                return -ETIMEDOUT;
-        }
+	if (i == 100) {
+		DRM_ERROR("Timeout setting UVD clocks!\n");
+		return -ETIMEDOUT;
+	}
 
-        return 0;
+	return 0;
 }
 
 int si_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)

@@ -38,9 +38,9 @@
 #include <linux/vga_switcheroo.h>
 
 /* object hierarchy -
-   this contains a helper + a radeon fb
-   the helper contains a pointer to radeon framebuffer baseclass.
-*/
+ * this contains a helper + a radeon fb
+ * the helper contains a pointer to radeon framebuffer baseclass.
+ */
 struct radeon_fbdev {
 	struct drm_fb_helper helper;
 	struct radeon_framebuffer rfb;

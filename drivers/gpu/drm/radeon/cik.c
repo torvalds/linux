@@ -1712,7 +1712,7 @@ static void cik_init_golden_registers(struct radeon_device *rdev)
  */
 u32 cik_get_xclk(struct radeon_device *rdev)
 {
-        u32 reference_clock = rdev->clock.spll.reference_freq;
+	u32 reference_clock = rdev->clock.spll.reference_freq;
 
 	if (rdev->flags & RADEON_IS_IGP) {
 		if (RREG32_SMC(GENERAL_PWRMGT) & GPU_COUNTER_CLK)
@@ -9350,13 +9350,13 @@ uint64_t cik_get_gpu_clock_counter(struct radeon_device *rdev)
 	mutex_lock(&rdev->gpu_clock_mutex);
 	WREG32(RLC_CAPTURE_GPU_CLOCK_COUNT, 1);
 	clock = (uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_LSB) |
-	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+		((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&rdev->gpu_clock_mutex);
 	return clock;
 }
 
 static int cik_set_uvd_clock(struct radeon_device *rdev, u32 clock,
-                              u32 cntl_reg, u32 status_reg)
+			     u32 cntl_reg, u32 status_reg)
 {
 	int r, i;
 	struct atom_clock_dividers dividers;
