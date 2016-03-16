@@ -100,6 +100,14 @@ static int parse_reply_info_in(void **p, void *end,
 	} else
 		info->inline_version = CEPH_INLINE_NONE;
 
+	if (features & CEPH_FEATURE_FS_FILE_LAYOUT_V2) {
+		ceph_decode_32_safe(p, end, info->pool_ns_len, bad);
+		ceph_decode_need(p, end, info->pool_ns_len, bad);
+		*p += info->pool_ns_len;
+	} else {
+		info->pool_ns_len = 0;
+	}
+
 	return 0;
 bad:
 	return err;
@@ -2297,6 +2305,14 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	if (req->r_old_dentry_dir)
 		ceph_get_cap_refs(ceph_inode(req->r_old_dentry_dir),
 				  CEPH_CAP_PIN);
+
+	/* deny access to directories with pool_ns layouts */
+	if (req->r_inode && S_ISDIR(req->r_inode->i_mode) &&
+	    ceph_inode(req->r_inode)->i_pool_ns_len)
+		return -EIO;
+	if (req->r_locked_dir &&
+	    ceph_inode(req->r_locked_dir)->i_pool_ns_len)
+		return -EIO;
 
 	/* issue */
 	mutex_lock(&mdsc->mutex);

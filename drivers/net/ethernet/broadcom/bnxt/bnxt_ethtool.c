@@ -486,15 +486,8 @@ static u32 bnxt_fw_to_ethtool_support_spds(struct bnxt_link_info *link_info)
 		speed_mask |= SUPPORTED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= SUPPORTED_10000baseT_Full;
-	/* TODO: support 25GB, 50GB with different cable type */
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= SUPPORTED_20000baseMLD2_Full |
-			SUPPORTED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= SUPPORTED_40000baseKR4_Full |
-			SUPPORTED_40000baseCR4_Full |
-			SUPPORTED_40000baseSR4_Full |
-			SUPPORTED_40000baseLR4_Full;
+		speed_mask |= SUPPORTED_40000baseCR4_Full;
 
 	return speed_mask;
 }
@@ -514,15 +507,8 @@ static u32 bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info)
 		speed_mask |= ADVERTISED_2500baseX_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
 		speed_mask |= ADVERTISED_10000baseT_Full;
-	/* TODO: how to advertise 20, 25, 40, 50GB with different cable type ?*/
-	if (fw_speeds & BNXT_LINK_SPEED_MSK_20GB)
-		speed_mask |= ADVERTISED_20000baseMLD2_Full |
-			      ADVERTISED_20000baseKR2_Full;
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= ADVERTISED_40000baseKR4_Full |
-			      ADVERTISED_40000baseCR4_Full |
-			      ADVERTISED_40000baseSR4_Full |
-			      ADVERTISED_40000baseLR4_Full;
+		speed_mask |= ADVERTISED_40000baseCR4_Full;
 	return speed_mask;
 }
 
@@ -557,11 +543,12 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	u16 ethtool_speed;
 
 	cmd->supported = bnxt_fw_to_ethtool_support_spds(link_info);
+	cmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (link_info->auto_link_speeds)
 		cmd->supported |= SUPPORTED_Autoneg;
 
-	if (BNXT_AUTO_MODE(link_info->auto_mode)) {
+	if (link_info->autoneg) {
 		cmd->advertising =
 			bnxt_fw_to_ethtool_advertised_spds(link_info);
 		cmd->advertising |= ADVERTISED_Autoneg;
@@ -570,27 +557,15 @@ static int bnxt_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->autoneg = AUTONEG_DISABLE;
 		cmd->advertising = 0;
 	}
-	if (link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) {
+	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL) {
 		if ((link_info->auto_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
 		    BNXT_LINK_PAUSE_BOTH) {
 			cmd->advertising |= ADVERTISED_Pause;
-			cmd->supported |= SUPPORTED_Pause;
 		} else {
 			cmd->advertising |= ADVERTISED_Asym_Pause;
-			cmd->supported |= SUPPORTED_Asym_Pause;
 			if (link_info->auto_pause_setting &
 			    BNXT_LINK_PAUSE_RX)
 				cmd->advertising |= ADVERTISED_Pause;
-		}
-	} else if (link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) {
-		if ((link_info->force_pause_setting & BNXT_LINK_PAUSE_BOTH) ==
-		    BNXT_LINK_PAUSE_BOTH) {
-			cmd->supported |= SUPPORTED_Pause;
-		} else {
-			cmd->supported |= SUPPORTED_Asym_Pause;
-			if (link_info->force_pause_setting &
-			    BNXT_LINK_PAUSE_RX)
-				cmd->supported |= SUPPORTED_Pause;
 		}
 	}
 
@@ -670,6 +645,9 @@ static u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
 	if (advertising & ADVERTISED_10000baseT_Full)
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_10GB;
 
+	if (advertising & ADVERTISED_40000baseCR4_Full)
+		fw_speed_mask |= BNXT_LINK_SPEED_MSK_40GB;
+
 	return fw_speed_mask;
 }
 
@@ -729,7 +707,7 @@ static int bnxt_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		speed = ethtool_cmd_speed(cmd);
 		link_info->req_link_speed = bnxt_get_fw_speed(dev, speed);
 		link_info->req_duplex = BNXT_LINK_DUPLEX_FULL;
-		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->autoneg = 0;
 		link_info->advertising = 0;
 	}
 
@@ -748,8 +726,7 @@ static void bnxt_get_pauseparam(struct net_device *dev,
 
 	if (BNXT_VF(bp))
 		return;
-	epause->autoneg = !!(link_info->auto_pause_setting &
-			     BNXT_LINK_PAUSE_BOTH);
+	epause->autoneg = !!(link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL);
 	epause->rx_pause = ((link_info->pause & BNXT_LINK_PAUSE_RX) != 0);
 	epause->tx_pause = ((link_info->pause & BNXT_LINK_PAUSE_TX) != 0);
 }
@@ -765,6 +742,9 @@ static int bnxt_set_pauseparam(struct net_device *dev,
 		return rc;
 
 	if (epause->autoneg) {
+		if (!(link_info->autoneg & BNXT_AUTONEG_SPEED))
+			return -EINVAL;
+
 		link_info->autoneg |= BNXT_AUTONEG_FLOW_CTRL;
 		link_info->req_flow_ctrl |= BNXT_LINK_PAUSE_BOTH;
 	} else {

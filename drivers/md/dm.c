@@ -1191,6 +1191,8 @@ static void dm_unprep_request(struct request *rq)
 
 	if (clone)
 		free_rq_clone(clone);
+	else if (!tio->md->queue->mq_ops)
+		free_rq_tio(tio);
 }
 
 /*

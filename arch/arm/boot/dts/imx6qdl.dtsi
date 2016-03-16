@@ -896,7 +896,6 @@
 				#size-cells = <1>;
 				reg = <0x2100000 0x10000>;
 				ranges = <0 0x2100000 0x10000>;
-				interrupt-parent = <&intc>;
 				clocks = <&clks IMX6QDL_CLK_CAAM_MEM>,
 					 <&clks IMX6QDL_CLK_CAAM_ACLK>,
 					 <&clks IMX6QDL_CLK_CAAM_IPG>,

@@ -603,6 +603,7 @@ extern int ftrace_arch_read_dyn_info(char *buf, int size);
 
 extern int skip_trace(unsigned long ip);
 extern void ftrace_module_init(struct module *mod);
+extern void ftrace_module_enable(struct module *mod);
 extern void ftrace_release_mod(struct module *mod);
 
 extern void ftrace_disable_daemon(void);
@@ -612,8 +613,9 @@ static inline int skip_trace(unsigned long ip) { return 0; }
 static inline int ftrace_force_update(void) { return 0; }
 static inline void ftrace_disable_daemon(void) { }
 static inline void ftrace_enable_daemon(void) { }
-static inline void ftrace_release_mod(struct module *mod) {}
-static inline void ftrace_module_init(struct module *mod) {}
+static inline void ftrace_module_init(struct module *mod) { }
+static inline void ftrace_module_enable(struct module *mod) { }
+static inline void ftrace_release_mod(struct module *mod) { }
 static inline __init int register_ftrace_command(struct ftrace_func_command *cmd)
 {
 	return -EINVAL;

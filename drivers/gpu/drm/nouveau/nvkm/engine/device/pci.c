@@ -1614,7 +1614,7 @@ nvkm_device_pci_func = {
 	.fini = nvkm_device_pci_fini,
 	.resource_addr = nvkm_device_pci_resource_addr,
 	.resource_size = nvkm_device_pci_resource_size,
-	.cpu_coherent = !IS_ENABLED(CONFIG_ARM),
+	.cpu_coherent = !IS_ENABLED(CONFIG_ARM) && !IS_ENABLED(CONFIG_ARM64),
 };
 
 int

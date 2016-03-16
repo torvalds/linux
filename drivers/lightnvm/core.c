@@ -572,11 +572,13 @@ int nvm_register(struct request_queue *q, char *disk_name,
 		}
 	}
 
-	ret = nvm_get_sysblock(dev, &dev->sb);
-	if (!ret)
-		pr_err("nvm: device not initialized.\n");
-	else if (ret < 0)
-		pr_err("nvm: err (%d) on device initialization\n", ret);
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
+		ret = nvm_get_sysblock(dev, &dev->sb);
+		if (!ret)
+			pr_err("nvm: device not initialized.\n");
+		else if (ret < 0)
+			pr_err("nvm: err (%d) on device initialization\n", ret);
+	}
 
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
@@ -1055,9 +1057,11 @@ static long __nvm_ioctl_dev_init(struct nvm_ioctl_dev_init *init)
 	strncpy(info.mmtype, init->mmtype, NVM_MMTYPE_LEN);
 	info.fs_ppa.ppa = -1;
 
-	ret = nvm_init_sysblock(dev, &info);
-	if (ret)
-		return ret;
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT) {
+		ret = nvm_init_sysblock(dev, &info);
+		if (ret)
+			return ret;
+	}
 
 	memcpy(&dev->sb, &info, sizeof(struct nvm_sb_info));
 
@@ -1117,7 +1121,10 @@ static long nvm_ioctl_dev_factory(struct file *file, void __user *arg)
 		dev->mt = NULL;
 	}
 
-	return nvm_dev_factory(dev, fact.flags);
+	if (dev->identity.cap & NVM_ID_DCAP_BBLKMGMT)
+		return nvm_dev_factory(dev, fact.flags);
+
+	return 0;
 }
 
 static long nvm_ctl_ioctl(struct file *file, uint cmd, unsigned long arg)

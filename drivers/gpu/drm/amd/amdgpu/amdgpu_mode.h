@@ -390,7 +390,6 @@ struct amdgpu_crtc {
 	struct drm_display_mode native_mode;
 	u32 pll_id;
 	/* page flipping */
-	struct workqueue_struct *pflip_queue;
 	struct amdgpu_flip_work *pflip_works;
 	enum amdgpu_flip_status pflip_status;
 	int deferred_flip_completion;

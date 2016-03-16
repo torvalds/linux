@@ -113,6 +113,7 @@ static ssize_t ahci_store_em_buffer(struct device *dev,
 				    const char *buf, size_t size);
 static ssize_t ahci_show_em_supported(struct device *dev,
 				      struct device_attribute *attr, char *buf);
+static irqreturn_t ahci_single_level_irq_intr(int irq, void *dev_instance);
 
 static DEVICE_ATTR(ahci_host_caps, S_IRUGO, ahci_show_host_caps, NULL);
 static DEVICE_ATTR(ahci_host_cap2, S_IRUGO, ahci_show_host_cap2, NULL);
@@ -496,8 +497,8 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		}
 	}
 
-	/* fabricate port_map from cap.nr_ports */
-	if (!port_map) {
+	/* fabricate port_map from cap.nr_ports for < AHCI 1.3 */
+	if (!port_map && vers < 0x10300) {
 		port_map = (1 << ahci_nr_ports(cap)) - 1;
 		dev_warn(dev, "forcing PORTS_IMPL to 0x%x\n", port_map);
 
@@ -512,6 +513,9 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 
 	if (!hpriv->start_engine)
 		hpriv->start_engine = ahci_start_engine;
+
+	if (!hpriv->irq_handler)
+		hpriv->irq_handler = ahci_single_level_irq_intr;
 }
 EXPORT_SYMBOL_GPL(ahci_save_initial_config);
 
@@ -593,7 +597,21 @@ EXPORT_SYMBOL_GPL(ahci_start_engine);
 int ahci_stop_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u32 tmp;
+
+	/*
+	 * On some controllers, stopping a port's DMA engine while the port
+	 * is in ALPM state (partial or slumber) results in failures on
+	 * subsequent DMA engine starts.  For those controllers, put the
+	 * port back in active state before stopping its DMA engine.
+	 */
+	if ((hpriv->flags & AHCI_HFLAG_WAKE_BEFORE_STOP) &&
+	    (ap->link.lpm_policy > ATA_LPM_MAX_POWER) &&
+	    ahci_set_lpm(&ap->link, ATA_LPM_MAX_POWER, ATA_LPM_WAKE_ONLY)) {
+		dev_err(ap->host->dev, "Failed to wake up port before engine stop\n");
+		return -EIO;
+	}
 
 	tmp = readl(port_mmio + PORT_CMD);
 
@@ -689,6 +707,9 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	void __iomem *port_mmio = ahci_port_base(ap);
 
 	if (policy != ATA_LPM_MAX_POWER) {
+		/* wakeup flag only applies to the max power policy */
+		hints &= ~ATA_LPM_WAKE_ONLY;
+
 		/*
 		 * Disable interrupts on Phy Ready. This keeps us from
 		 * getting woken up due to spurious phy ready
@@ -704,7 +725,8 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		u32 cmd = readl(port_mmio + PORT_CMD);
 
 		if (policy == ATA_LPM_MAX_POWER || !(hints & ATA_LPM_HIPM)) {
-			cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
+			if (!(hints & ATA_LPM_WAKE_ONLY))
+				cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
 			cmd |= PORT_CMD_ICC_ACTIVE;
 
 			writel(cmd, port_mmio + PORT_CMD);
@@ -712,6 +734,9 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 
 			/* wait 10ms to be sure we've come out of LPM state */
 			ata_msleep(ap, 10);
+
+			if (hints & ATA_LPM_WAKE_ONLY)
+				return 0;
 		} else {
 			cmd |= PORT_CMD_ALPE;
 			if (policy == ATA_LPM_MIN_POWER)
@@ -1143,8 +1168,7 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 
 	/* mark esata ports */
 	tmp = readl(port_mmio + PORT_CMD);
-	if ((tmp & PORT_CMD_HPCP) ||
-	    ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS)))
+	if ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS))
 		ap->pflags |= ATA_PFLAG_EXTERNAL;
 }
 
@@ -1825,7 +1849,7 @@ static irqreturn_t ahci_multi_irqs_intr_hard(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
-static u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
+u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
 {
 	unsigned int i, handled = 0;
 
@@ -1851,43 +1875,7 @@ static u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
 
 	return handled;
 }
-
-static irqreturn_t ahci_single_edge_irq_intr(int irq, void *dev_instance)
-{
-	struct ata_host *host = dev_instance;
-	struct ahci_host_priv *hpriv;
-	unsigned int rc = 0;
-	void __iomem *mmio;
-	u32 irq_stat, irq_masked;
-
-	VPRINTK("ENTER\n");
-
-	hpriv = host->private_data;
-	mmio = hpriv->mmio;
-
-	/* sigh.  0xffffffff is a valid return from h/w */
-	irq_stat = readl(mmio + HOST_IRQ_STAT);
-	if (!irq_stat)
-		return IRQ_NONE;
-
-	irq_masked = irq_stat & hpriv->port_map;
-
-	spin_lock(&host->lock);
-
-	/*
-	 * HOST_IRQ_STAT behaves as edge triggered latch meaning that
-	 * it should be cleared before all the port events are cleared.
-	 */
-	writel(irq_stat, mmio + HOST_IRQ_STAT);
-
-	rc = ahci_handle_port_intr(host, irq_masked);
-
-	spin_unlock(&host->lock);
-
-	VPRINTK("EXIT\n");
-
-	return IRQ_RETVAL(rc);
-}
+EXPORT_SYMBOL_GPL(ahci_handle_port_intr);
 
 static irqreturn_t ahci_single_level_irq_intr(int irq, void *dev_instance)
 {
@@ -2514,14 +2502,18 @@ int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 	int irq = hpriv->irq;
 	int rc;
 
-	if (hpriv->flags & (AHCI_HFLAG_MULTI_MSI | AHCI_HFLAG_MULTI_MSIX))
+	if (hpriv->flags & (AHCI_HFLAG_MULTI_MSI | AHCI_HFLAG_MULTI_MSIX)) {
+		if (hpriv->irq_handler)
+			dev_warn(host->dev, "both AHCI_HFLAG_MULTI_MSI flag set \
+				 and custom irq handler implemented\n");
+
 		rc = ahci_host_activate_multi_irqs(host, sht);
-	else if (hpriv->flags & AHCI_HFLAG_EDGE_IRQ)
-		rc = ata_host_activate(host, irq, ahci_single_edge_irq_intr,
+	} else {
+		rc = ata_host_activate(host, irq, hpriv->irq_handler,
 				       IRQF_SHARED, sht);
-	else
-		rc = ata_host_activate(host, irq, ahci_single_level_irq_intr,
-				       IRQF_SHARED, sht);
+	}
+
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ahci_host_activate);

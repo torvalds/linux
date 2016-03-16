@@ -19,7 +19,6 @@
 #include <media/v4l2-subdev.h>
 
 struct vsp1_device;
-struct vsp1_video;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRU,
@@ -32,6 +31,8 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_UDS,
 	VSP1_ENTITY_WPF,
 };
+
+#define VSP1_ENTITY_MAX_INPUTS		5	/* For the BRU */
 
 /*
  * struct vsp1_route - Entity routing configuration
@@ -49,7 +50,7 @@ struct vsp1_route {
 	enum vsp1_entity_type type;
 	unsigned int index;
 	unsigned int reg;
-	unsigned int inputs[4];
+	unsigned int inputs[VSP1_ENTITY_MAX_INPUTS];
 };
 
 struct vsp1_entity {
@@ -71,8 +72,6 @@ struct vsp1_entity {
 	struct v4l2_subdev subdev;
 	struct v4l2_mbus_framefmt *formats;
 
-	struct vsp1_video *video;
-
 	spinlock_t lock;		/* Protects the streaming field */
 	bool streaming;
 };
@@ -87,7 +86,10 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 void vsp1_entity_destroy(struct vsp1_entity *entity);
 
 extern const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops;
-extern const struct media_entity_operations vsp1_media_ops;
+
+int vsp1_entity_link_setup(struct media_entity *entity,
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags);
 
 struct v4l2_mbus_framefmt *
 vsp1_entity_get_pad_format(struct vsp1_entity *entity,
@@ -98,5 +100,7 @@ void vsp1_entity_init_formats(struct v4l2_subdev *subdev,
 
 bool vsp1_entity_is_streaming(struct vsp1_entity *entity);
 int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming);
+
+void vsp1_entity_route_setup(struct vsp1_entity *source);
 
 #endif /* __VSP1_ENTITY_H__ */

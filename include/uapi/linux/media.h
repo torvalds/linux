@@ -66,27 +66,42 @@ struct media_device_info {
 /*
  * DVB entities
  */
-#define MEDIA_ENT_F_DTV_DEMOD		(MEDIA_ENT_F_BASE + 1)
-#define MEDIA_ENT_F_TS_DEMUX		(MEDIA_ENT_F_BASE + 2)
-#define MEDIA_ENT_F_DTV_CA		(MEDIA_ENT_F_BASE + 3)
-#define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 4)
+#define MEDIA_ENT_F_DTV_DEMOD		(MEDIA_ENT_F_BASE + 0x00001)
+#define MEDIA_ENT_F_TS_DEMUX		(MEDIA_ENT_F_BASE + 0x00002)
+#define MEDIA_ENT_F_DTV_CA		(MEDIA_ENT_F_BASE + 0x00003)
+#define MEDIA_ENT_F_DTV_NET_DECAP	(MEDIA_ENT_F_BASE + 0x00004)
+
+/*
+ * I/O entities
+ */
+#define MEDIA_ENT_F_IO_DTV		(MEDIA_ENT_F_BASE + 0x01001)
+#define MEDIA_ENT_F_IO_VBI		(MEDIA_ENT_F_BASE + 0x01002)
+#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 0x01003)
+
+/*
+ * Analog TV IF-PLL decoders
+ *
+ * It is a responsibility of the master/bridge drivers to create links
+ * for MEDIA_ENT_F_IF_VID_DECODER and MEDIA_ENT_F_IF_AUD_DECODER.
+ */
+#define MEDIA_ENT_F_IF_VID_DECODER	(MEDIA_ENT_F_BASE + 2001)
+#define MEDIA_ENT_F_IF_AUD_DECODER	(MEDIA_ENT_F_BASE + 2002)
 
 /*
  * Connectors
  */
 /* It is a responsibility of the entity drivers to add connectors and links */
-#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 21)
-#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 22)
-#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 23)
-/* For internal test signal generators and other debug connectors */
-#define MEDIA_ENT_F_CONN_TEST		(MEDIA_ENT_F_BASE + 24)
+#ifdef __KERNEL__
+	/*
+	 * For now, it should not be used in userspace, as some
+	 * definitions may change
+	 */
 
-/*
- * I/O entities
- */
-#define MEDIA_ENT_F_IO_DTV  		(MEDIA_ENT_F_BASE + 31)
-#define MEDIA_ENT_F_IO_VBI  		(MEDIA_ENT_F_BASE + 32)
-#define MEDIA_ENT_F_IO_SWRADIO		(MEDIA_ENT_F_BASE + 33)
+#define MEDIA_ENT_F_CONN_RF		(MEDIA_ENT_F_BASE + 0x30001)
+#define MEDIA_ENT_F_CONN_SVIDEO		(MEDIA_ENT_F_BASE + 0x30002)
+#define MEDIA_ENT_F_CONN_COMPOSITE	(MEDIA_ENT_F_BASE + 0x30003)
+
+#endif
 
 /*
  * Don't touch on those. The ranges MEDIA_ENT_F_OLD_BASE and
@@ -107,14 +122,18 @@ struct media_device_info {
 #define MEDIA_ENT_F_LENS		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 3)
 #define MEDIA_ENT_F_ATV_DECODER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 4)
 /*
- * It is a responsibility of the entity drivers to add connectors and links
- *	for the tuner entities.
+ * It is a responsibility of the master/bridge drivers to add connectors
+ * and links for MEDIA_ENT_F_TUNER. Please notice that some old tuners
+ * may require the usage of separate I2C chips to decode analog TV signals,
+ * when the master/bridge chipset doesn't have its own TV standard decoder.
+ * On such cases, the IF-PLL staging is mapped via one or two entities:
+ * MEDIA_ENT_F_IF_VID_DECODER and/or MEDIA_ENT_F_IF_AUD_DECODER.
  */
 #define MEDIA_ENT_F_TUNER		(MEDIA_ENT_F_OLD_SUBDEV_BASE + 5)
 
 #define MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN	MEDIA_ENT_F_OLD_SUBDEV_BASE
 
-#ifndef __KERNEL__
+#if !defined(__KERNEL__) || defined(__NEED_MEDIA_LEGACY_API)
 
 /*
  * Legacy symbols used to avoid userspace compilation breakages
@@ -126,6 +145,10 @@ struct media_device_info {
 #define MEDIA_ENT_TYPE_SHIFT		16
 #define MEDIA_ENT_TYPE_MASK		0x00ff0000
 #define MEDIA_ENT_SUBTYPE_MASK		0x0000ffff
+
+/* End of the old subdev reserved numberspace */
+#define MEDIA_ENT_T_DEVNODE_UNKNOWN	(MEDIA_ENT_T_DEVNODE | \
+					 MEDIA_ENT_SUBTYPE_MASK)
 
 #define MEDIA_ENT_T_DEVNODE		MEDIA_ENT_F_OLD_BASE
 #define MEDIA_ENT_T_DEVNODE_V4L		MEDIA_ENT_F_IO_V4L
@@ -286,19 +309,19 @@ struct media_links_enum {
  *	  later, before the adding this API upstream.
  */
 
-#if 0 /* Let's postpone it to Kernel 4.6 */
+
 struct media_v2_entity {
 	__u32 id;
 	char name[64];		/* FIXME: move to a property? (RFC says so) */
 	__u32 function;		/* Main function of the entity */
-	__u16 reserved[12];
-};
+	__u32 reserved[6];
+} __attribute__ ((packed));
 
 /* Should match the specific fields at media_intf_devnode */
 struct media_v2_intf_devnode {
 	__u32 major;
 	__u32 minor;
-};
+} __attribute__ ((packed));
 
 struct media_v2_interface {
 	__u32 id;
@@ -310,22 +333,22 @@ struct media_v2_interface {
 		struct media_v2_intf_devnode devnode;
 		__u32 raw[16];
 	};
-};
+} __attribute__ ((packed));
 
 struct media_v2_pad {
 	__u32 id;
 	__u32 entity_id;
 	__u32 flags;
-	__u16 reserved[9];
-};
+	__u32 reserved[5];
+} __attribute__ ((packed));
 
 struct media_v2_link {
 	__u32 id;
 	__u32 source_id;
 	__u32 sink_id;
 	__u32 flags;
-	__u32 reserved[5];
-};
+	__u32 reserved[6];
+} __attribute__ ((packed));
 
 struct media_v2_topology {
 	__u64 topology_version;
@@ -345,13 +368,12 @@ struct media_v2_topology {
 	__u32 num_links;
 	__u32 reserved4;
 	__u64 ptr_links;
-};
+} __attribute__ ((packed));
 
 static inline void __user *media_get_uptr(__u64 arg)
 {
 	return (void __user *)(uintptr_t)arg;
 }
-#endif
 
 /* ioctls */
 
@@ -359,9 +381,6 @@ static inline void __user *media_get_uptr(__u64 arg)
 #define MEDIA_IOC_ENUM_ENTITIES		_IOWR('|', 0x01, struct media_entity_desc)
 #define MEDIA_IOC_ENUM_LINKS		_IOWR('|', 0x02, struct media_links_enum)
 #define MEDIA_IOC_SETUP_LINK		_IOWR('|', 0x03, struct media_link_desc)
-
-#if 0 /* Let's postpone it to Kernel 4.6 */
 #define MEDIA_IOC_G_TOPOLOGY		_IOWR('|', 0x04, struct media_v2_topology)
-#endif
 
 #endif /* __LINUX_MEDIA_H */

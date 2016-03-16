@@ -1681,9 +1681,12 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (qp->ibqp.uobject)
-		context->usr_page = cpu_to_be32(to_mucontext(ibqp->uobject->context)->uar.index);
+		context->usr_page = cpu_to_be32(
+			mlx4_to_hw_uar_index(dev->dev,
+					     to_mucontext(ibqp->uobject->context)->uar.index));
 	else
-		context->usr_page = cpu_to_be32(dev->priv_uar.index);
+		context->usr_page = cpu_to_be32(
+			mlx4_to_hw_uar_index(dev->dev, dev->priv_uar.index));
 
 	if (attr_mask & IB_QP_DEST_QPN)
 		context->remote_qpn = cpu_to_be32(attr->dest_qp_num);

@@ -1574,7 +1574,7 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 				for (cha = 0; cha < KNL_MAX_CHAS; cha++) {
 					if (knl_get_mc_route(target,
 						mc_route_reg[cha]) == channel
-						&& participants[channel]) {
+						&& !participants[channel]) {
 						participant_count++;
 						participants[channel] = 1;
 						break;

@@ -386,7 +386,7 @@ static inline void dma_free_attrs(struct device *dev, size_t size,
 	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
 		return;
 
-	if (!ops->free)
+	if (!ops->free || !cpu_addr)
 		return;
 
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);

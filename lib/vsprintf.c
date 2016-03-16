@@ -1590,22 +1590,23 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			return buf;
 		}
 	case 'K':
-		/*
-		 * %pK cannot be used in IRQ context because its test
-		 * for CAP_SYSLOG would be meaningless.
-		 */
-		if (kptr_restrict && (in_irq() || in_serving_softirq() ||
-				      in_nmi())) {
-			if (spec.field_width == -1)
-				spec.field_width = default_width;
-			return string(buf, end, "pK-error", spec);
-		}
-
 		switch (kptr_restrict) {
 		case 0:
 			/* Always print %pK values */
 			break;
 		case 1: {
+			const struct cred *cred;
+
+			/*
+			 * kptr_restrict==1 cannot be used in IRQ context
+			 * because its test for CAP_SYSLOG would be meaningless.
+			 */
+			if (in_irq() || in_serving_softirq() || in_nmi()) {
+				if (spec.field_width == -1)
+					spec.field_width = default_width;
+				return string(buf, end, "pK-error", spec);
+			}
+
 			/*
 			 * Only print the real pointer value if the current
 			 * process has CAP_SYSLOG and is running with the
@@ -1615,8 +1616,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			 * leak pointer values if a binary opens a file using
 			 * %pK and then elevates privileges before reading it.
 			 */
-			const struct cred *cred = current_cred();
-
+			cred = current_cred();
 			if (!has_capability_noaudit(current, CAP_SYSLOG) ||
 			    !uid_eq(cred->euid, cred->uid) ||
 			    !gid_eq(cred->egid, cred->gid))

@@ -340,7 +340,7 @@ static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 			if (name[0] == '.') {
 				if (strcmp(name+1, "TOC.") == 0)
 					syms[i].st_shndx = SHN_ABS;
-				memmove(name, name+1, strlen(name));
+				syms[i].st_name++;
 			}
 		}
 	}

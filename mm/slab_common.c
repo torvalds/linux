@@ -693,6 +693,7 @@ static inline int shutdown_memcg_caches(struct kmem_cache *s,
 
 void slab_kmem_cache_release(struct kmem_cache *s)
 {
+	__kmem_cache_release(s);
 	destroy_memcg_params(s);
 	kfree_const(s->name);
 	kmem_cache_free(kmem_cache, s);

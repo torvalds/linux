@@ -199,21 +199,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	int addr, found;
-	struct device_node *mdio_node = NULL;
-	struct device_node *child_node = NULL;
+	struct device_node *mdio_node = priv->plat->mdio_node;
 
 	if (!mdio_bus_data)
 		return 0;
 
 	if (IS_ENABLED(CONFIG_OF)) {
-		for_each_child_of_node(priv->device->of_node, child_node) {
-			if (of_device_is_compatible(child_node,
-						    "snps,dwmac-mdio")) {
-				mdio_node = child_node;
-				break;
-			}
-		}
-
 		if (mdio_node) {
 			netdev_dbg(ndev, "FOUND MDIO subnode\n");
 		} else {

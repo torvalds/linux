@@ -73,9 +73,6 @@
  * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
  * &drm_connector_helper_funcs.
  */
-MODULE_AUTHOR("David Airlie, Jesse Barnes");
-MODULE_DESCRIPTION("DRM KMS helper");
-MODULE_LICENSE("GPL and additional rights");
 
 /**
  * drm_helper_move_panel_connectors_to_head() - move panels to the front in the
@@ -346,9 +343,12 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		}
 	}
 
-	if (!(ret = crtc_funcs->mode_fixup(crtc, mode, adjusted_mode))) {
-		DRM_DEBUG_KMS("CRTC fixup failed\n");
-		goto done;
+	if (crtc_funcs->mode_fixup) {
+		if (!(ret = crtc_funcs->mode_fixup(crtc, mode,
+						adjusted_mode))) {
+			DRM_DEBUG_KMS("CRTC fixup failed\n");
+			goto done;
+		}
 	}
 	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
@@ -1075,3 +1075,36 @@ int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return drm_plane_helper_commit(plane, plane_state, old_fb);
 }
 EXPORT_SYMBOL(drm_helper_crtc_mode_set_base);
+
+/**
+ * drm_helper_crtc_enable_color_mgmt - enable color management properties
+ * @crtc: DRM CRTC
+ * @degamma_lut_size: the size of the degamma lut (before CSC)
+ * @gamma_lut_size: the size of the gamma lut (after CSC)
+ *
+ * This function lets the driver enable the color correction properties on a
+ * CRTC. This includes 3 degamma, csc and gamma properties that userspace can
+ * set and 2 size properties to inform the userspace of the lut sizes.
+ */
+void drm_helper_crtc_enable_color_mgmt(struct drm_crtc *crtc,
+				       int degamma_lut_size,
+				       int gamma_lut_size)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_attach_property(&crtc->base,
+				   config->degamma_lut_property, 0);
+	drm_object_attach_property(&crtc->base,
+				   config->ctm_property, 0);
+	drm_object_attach_property(&crtc->base,
+				   config->gamma_lut_property, 0);
+
+	drm_object_attach_property(&crtc->base,
+				   config->degamma_lut_size_property,
+				   degamma_lut_size);
+	drm_object_attach_property(&crtc->base,
+				   config->gamma_lut_size_property,
+				   gamma_lut_size);
+}
+EXPORT_SYMBOL(drm_helper_crtc_enable_color_mgmt);

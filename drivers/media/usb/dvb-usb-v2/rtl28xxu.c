@@ -259,6 +259,10 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		ret = -EOPNOTSUPP;
 	}
 
+	/* Retry failed I2C messages */
+	if (ret == -EPIPE)
+		ret = -EAGAIN;
+
 err_mutex_unlock:
 	mutex_unlock(&d->i2c_mutex);
 
@@ -618,6 +622,10 @@ static int rtl28xxu_identify_state(struct dvb_usb_device *d, const char **name)
 		goto err;
 	}
 	dev_dbg(&d->intf->dev, "chip_id=%u\n", dev->chip_id);
+
+	/* Retry failed I2C messages */
+	d->i2c_adap.retries = 1;
+	d->i2c_adap.timeout = msecs_to_jiffies(10);
 
 	return WARM;
 err:

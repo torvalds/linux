@@ -311,7 +311,7 @@ static void do_redirect(struct sk_buff *skb, struct sock *sk)
 
 
 /* handle ICMP messages on TCP_NEW_SYN_RECV request sockets */
-void tcp_req_err(struct sock *sk, u32 seq)
+void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 {
 	struct request_sock *req = inet_reqsk(sk);
 	struct net *net = sock_net(sk);
@@ -323,7 +323,7 @@ void tcp_req_err(struct sock *sk, u32 seq)
 
 	if (seq != tcp_rsk(req)->snt_isn) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
-	} else {
+	} else if (abort) {
 		/*
 		 * Still in SYN_RECV, just remove it silently.
 		 * There is no good way to pass the error to the newly
@@ -383,7 +383,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	}
 	seq = ntohl(th->seq);
 	if (sk->sk_state == TCP_NEW_SYN_RECV)
-		return tcp_req_err(sk, seq);
+		return tcp_req_err(sk, seq,
+				  type == ICMP_PARAMETERPROB ||
+				  type == ICMP_TIME_EXCEEDED ||
+				  (type == ICMP_DEST_UNREACH &&
+				   (code == ICMP_NET_UNREACH ||
+				    code == ICMP_HOST_UNREACH)));
 
 	bh_lock_sock(sk);
 	/* If too many ICMPs get dropped on busy
@@ -1592,28 +1597,30 @@ process:
 
 	if (sk->sk_state == TCP_NEW_SYN_RECV) {
 		struct request_sock *req = inet_reqsk(sk);
-		struct sock *nsk = NULL;
+		struct sock *nsk;
 
 		sk = req->rsk_listener;
-		if (tcp_v4_inbound_md5_hash(sk, skb))
-			goto discard_and_relse;
-		if (likely(sk->sk_state == TCP_LISTEN)) {
-			nsk = tcp_check_req(sk, skb, req, false);
-		} else {
+		if (unlikely(tcp_v4_inbound_md5_hash(sk, skb))) {
+			reqsk_put(req);
+			goto discard_it;
+		}
+		if (unlikely(sk->sk_state != TCP_LISTEN)) {
 			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
+		sock_hold(sk);
+		nsk = tcp_check_req(sk, skb, req, false);
 		if (!nsk) {
 			reqsk_put(req);
-			goto discard_it;
+			goto discard_and_relse;
 		}
 		if (nsk == sk) {
-			sock_hold(sk);
 			reqsk_put(req);
 		} else if (tcp_child_process(sk, nsk, skb)) {
 			tcp_v4_send_reset(nsk, skb);
-			goto discard_it;
+			goto discard_and_relse;
 		} else {
+			sock_put(sk);
 			return 0;
 		}
 	}

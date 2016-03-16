@@ -268,6 +268,10 @@ struct device;
  * struct media_device - Media device
  * @dev:	Parent device
  * @devnode:	Media device node
+ * @driver_name: Optional device driver name. If not set, calls to
+ *		%MEDIA_IOC_DEVICE_INFO will return dev->driver->name.
+ *		This is needed for USB drivers for example, as otherwise
+ *		they'll all appear as if the driver name was "usb".
  * @model:	Device model name
  * @serial:	Device serial number (optional)
  * @bus_info:	Unique and stable device location identifier
@@ -303,6 +307,7 @@ struct media_device {
 	struct media_devnode devnode;
 
 	char model[32];
+	char driver_name[32];
 	char serial[40];
 	char bus_info[32];
 	u32 hw_revision;

@@ -1739,7 +1739,7 @@ static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct fir
 #endif
 }
 
-static struct sp8870_config alps_tdlb7_config = {
+static const struct sp8870_config alps_tdlb7_config = {
 
 	.demod_address = 0x71,
 	.request_firmware = alps_tdlb7_request_firmware,

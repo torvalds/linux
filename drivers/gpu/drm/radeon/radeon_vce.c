@@ -810,11 +810,16 @@ int radeon_vce_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		goto error;
 	}
 
-	r = radeon_fence_wait(fence, false);
-	if (r) {
+	r = radeon_fence_wait_timeout(fence, false, usecs_to_jiffies(
+		RADEON_USEC_IB_TEST_TIMEOUT));
+	if (r < 0) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+	} else if (r == 0) {
+		DRM_ERROR("radeon: fence wait timed out.\n");
+		r = -ETIMEDOUT;
 	} else {
-	        DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
 	}
 error:
 	radeon_fence_unref(&fence);

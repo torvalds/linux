@@ -54,7 +54,7 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	grctx->unkn(gr);
 
-	gm204_grctx_generate_tpcid(gr);
+	gm200_grctx_generate_tpcid(gr);
 	gm20b_grctx_generate_r406028(gr);
 	gk104_grctx_generate_r418bb8(gr);
 
@@ -70,7 +70,7 @@ gm20b_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * 4);
 	nvkm_wr32(device, 0x4041c4, tmp);
 
-	gm204_grctx_generate_405b60(gr);
+	gm200_grctx_generate_405b60(gr);
 
 	gf100_gr_wait_idle(gr);
 

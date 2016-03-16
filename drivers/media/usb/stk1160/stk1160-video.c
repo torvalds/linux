@@ -98,7 +98,6 @@ void stk1160_buffer_done(struct stk1160 *dev)
 
 	buf->vb.sequence = dev->sequence++;
 	buf->vb.field = V4L2_FIELD_INTERLACED;
-	buf->vb.vb2_buf.planes[0].bytesused = buf->bytesused;
 	buf->vb.vb2_buf.timestamp = ktime_get_ns();
 
 	vb2_set_plane_payload(&buf->vb.vb2_buf, 0, buf->bytesused);

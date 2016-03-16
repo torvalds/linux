@@ -476,6 +476,7 @@ static void ext_tree_free_commitdata(struct nfs4_layoutcommit_args *arg,
 
 		for (i = 0; i < nr_pages; i++)
 			put_page(arg->layoutupdate_pages[i]);
+		vfree(arg->start_p);
 		kfree(arg->layoutupdate_pages);
 	} else {
 		put_page(arg->layoutupdate_page);
@@ -559,10 +560,15 @@ retry:
 
 	if (unlikely(arg->layoutupdate_pages != &arg->layoutupdate_page)) {
 		void *p = start_p, *end = p + arg->layoutupdate_len;
+		struct page *page = NULL;
 		int i = 0;
 
-		for ( ; p < end; p += PAGE_SIZE)
-			arg->layoutupdate_pages[i++] = vmalloc_to_page(p);
+		arg->start_p = start_p;
+		for ( ; p < end; p += PAGE_SIZE) {
+			page = vmalloc_to_page(p);
+			arg->layoutupdate_pages[i++] = page;
+			get_page(page);
+		}
 	}
 
 	dprintk("%s found %zu ranges\n", __func__, count);

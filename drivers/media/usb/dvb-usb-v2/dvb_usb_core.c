@@ -1,7 +1,7 @@
 /*
  * DVB USB framework
  *
- * Copyright (C) 2004-6 Patrick Boettcher <patrick.boettcher@desy.de>
+ * Copyright (C) 2004-6 Patrick Boettcher <patrick.boettcher@posteo.de>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
  *
  *    This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
  */
 
 #include "dvb_usb_common.h"
+#include <media/v4l2-mc.h>
 
 static int dvb_usbv2_disable_rc_polling;
 module_param_named(disable_rc_polling, dvb_usbv2_disable_rc_polling, int, 0644);
@@ -407,19 +408,9 @@ static int dvb_usbv2_media_device_init(struct dvb_usb_adapter *adap)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	struct usb_device *udev = d->udev;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = v4l2_mc_usb_media_device_init(udev, d->name);
 	if (!mdev)
 		return -ENOMEM;
-
-	mdev->dev = &udev->dev;
-	strlcpy(mdev->model, d->name, sizeof(mdev->model));
-	if (udev->serial)
-		strlcpy(mdev->serial, udev->serial, sizeof(mdev->serial));
-	strcpy(mdev->bus_info, udev->devpath);
-	mdev->hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	mdev->driver_version = LINUX_VERSION_CODE;
-
-	media_device_init(mdev);
 
 	dvb_register_media_controller(&adap->dvb_adap, mdev);
 
@@ -1129,7 +1120,7 @@ int dvb_usbv2_reset_resume(struct usb_interface *intf)
 EXPORT_SYMBOL(dvb_usbv2_reset_resume);
 
 MODULE_VERSION("2.0");
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("DVB USB common");
 MODULE_LICENSE("GPL");

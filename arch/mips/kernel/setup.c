@@ -782,6 +782,7 @@ static inline void prefill_possible_map(void) {}
 void __init setup_arch(char **cmdline_p)
 {
 	cpu_probe();
+	mips_cm_probe();
 	prom_init();
 
 	setup_early_fdc_console();

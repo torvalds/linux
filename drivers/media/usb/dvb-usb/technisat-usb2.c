@@ -512,7 +512,7 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 			&a->dev->i2c_adap, STV090x_DEMODULATOR_0);
 
 	if (a->fe_adap[0].fe) {
-		struct stv6110x_devctl *ctl;
+		const struct stv6110x_devctl *ctl;
 
 		ctl = dvb_attach(stv6110x_attach,
 				a->fe_adap[0].fe,

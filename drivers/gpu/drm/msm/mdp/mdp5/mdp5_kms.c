@@ -284,7 +284,7 @@ static int modeset_init_intf(struct mdp5_kms *mdp5_kms, int intf_num)
 			break;
 		}
 
-		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+		ret = msm_hdmi_modeset_init(priv->hdmi, dev, encoder);
 		break;
 	case INTF_DSI:
 	{

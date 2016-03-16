@@ -114,6 +114,7 @@ struct adreno_rev {
 
 struct adreno_gpu_funcs {
 	struct msm_gpu_funcs base;
+	int (*get_timestamp)(struct msm_gpu *gpu, uint64_t *value);
 };
 
 struct adreno_info {
@@ -226,6 +227,11 @@ static inline bool adreno_is_a4xx(struct adreno_gpu *gpu)
 static inline int adreno_is_a420(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 420;
+}
+
+static inline int adreno_is_a430(struct adreno_gpu *gpu)
+{
+       return gpu->revn == 430;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);

@@ -63,7 +63,7 @@ struct amdtp_dot {
 #define BYTE_PER_SAMPLE (4)
 #define MAGIC_DOT_BYTE (2)
 #define MAGIC_BYTE_OFF(x) (((x) * BYTE_PER_SAMPLE) + MAGIC_DOT_BYTE)
-static const u8 dot_scrt(const u8 idx, const unsigned int off)
+static u8 dot_scrt(const u8 idx, const unsigned int off)
 {
 	/*
 	 * the length of the added pattern only depends on the lower nibble

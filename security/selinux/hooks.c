@@ -3249,7 +3249,7 @@ static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t 
 
 static void selinux_inode_getsecid(struct inode *inode, u32 *secid)
 {
-	struct inode_security_struct *isec = inode_security(inode);
+	struct inode_security_struct *isec = inode_security_novalidate(inode);
 	*secid = isec->sid;
 }
 

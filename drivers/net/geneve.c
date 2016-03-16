@@ -1039,6 +1039,34 @@ static netdev_tx_t geneve_xmit(struct sk_buff *skb, struct net_device *dev)
 	return geneve_xmit_skb(skb, dev, info);
 }
 
+static int __geneve_change_mtu(struct net_device *dev, int new_mtu, bool strict)
+{
+	/* The max_mtu calculation does not take account of GENEVE
+	 * options, to avoid excluding potentially valid
+	 * configurations.
+	 */
+	int max_mtu = IP_MAX_MTU - GENEVE_BASE_HLEN - sizeof(struct iphdr)
+		- dev->hard_header_len;
+
+	if (new_mtu < 68)
+		return -EINVAL;
+
+	if (new_mtu > max_mtu) {
+		if (strict)
+			return -EINVAL;
+
+		new_mtu = max_mtu;
+	}
+
+	dev->mtu = new_mtu;
+	return 0;
+}
+
+static int geneve_change_mtu(struct net_device *dev, int new_mtu)
+{
+	return __geneve_change_mtu(dev, new_mtu, true);
+}
+
 static int geneve_fill_metadata_dst(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ip_tunnel_info *info = skb_tunnel_info(skb);
@@ -1083,7 +1111,7 @@ static const struct net_device_ops geneve_netdev_ops = {
 	.ndo_stop		= geneve_stop,
 	.ndo_start_xmit		= geneve_xmit,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
-	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_change_mtu		= geneve_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_fill_metadata_dst	= geneve_fill_metadata_dst,
@@ -1150,6 +1178,7 @@ static void geneve_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 
 	netif_keep_dst(dev);
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE | IFF_NO_QUEUE;
 	eth_hw_addr_random(dev);
 }
@@ -1441,12 +1470,23 @@ struct net_device *geneve_dev_create_fb(struct net *net, const char *name,
 		return dev;
 
 	err = geneve_configure(net, dev, &geneve_remote_unspec,
-			       0, 0, 0, htons(dst_port), true, 0);
-	if (err) {
-		free_netdev(dev);
-		return ERR_PTR(err);
-	}
+			       0, 0, 0, htons(dst_port), true,
+			       GENEVE_F_UDP_ZERO_CSUM6_RX);
+	if (err)
+		goto err;
+
+	/* openvswitch users expect packet sizes to be unrestricted,
+	 * so set the largest MTU we can.
+	 */
+	err = __geneve_change_mtu(dev, IP_MAX_MTU, false);
+	if (err)
+		goto err;
+
 	return dev;
+
+ err:
+	free_netdev(dev);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(geneve_dev_create_fb);
 

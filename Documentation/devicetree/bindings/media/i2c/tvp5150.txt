@@ -1,0 +1,88 @@
+* Texas Instruments TVP5150 and TVP5151 video decoders
+
+The TVP5150 and TVP5151 are video decoders that convert baseband NTSC and PAL
+(and also SECAM in the TVP5151 case) video signals to either 8-bit 4:2:2 YUV
+with discrete syncs or 8-bit ITU-R BT.656 with embedded syncs output formats.
+
+Required Properties:
+- compatible: value must be "ti,tvp5150"
+- reg: I2C slave address
+
+Optional Properties:
+- pdn-gpios: phandle for the GPIO connected to the PDN pin, if any.
+- reset-gpios: phandle for the GPIO connected to the RESETB pin, if any.
+
+Optional nodes:
+- connectors: The input connectors of tvp5150 have to be defined under
+  a subnode name "connectors" using the following format:
+
+	input-connector-name {
+		input connector properties
+	};
+
+Each input connector must contain the following properties:
+
+	- label: a name for the connector.
+	- input: the input connector.
+
+The possible values for the "input" property are:
+	0: Composite0
+	1: Composite1
+	2: S-Video
+
+and on a tvp5150am1 and tvp5151 there is another:
+	4: Signal generator
+
+The list of valid input connectors are defined in dt-bindings/media/tvp5150.h
+header file and can be included by device tree source files.
+
+Each input connector can be defined only once.
+
+The device node must contain one 'port' child node for its digital output
+video port, in accordance with the video interface bindings defined in
+Documentation/devicetree/bindings/media/video-interfaces.txt.
+
+Required Endpoint Properties for parallel synchronization:
+
+- hsync-active: active state of the HSYNC signal. Must be <1> (HIGH).
+- vsync-active: active state of the VSYNC signal. Must be <1> (HIGH).
+- field-even-active: field signal level during the even field data
+  transmission. Must be <0>.
+
+If none of hsync-active, vsync-active and field-even-active is specified,
+the endpoint is assumed to use embedded BT.656 synchronization.
+
+Example:
+
+&i2c2 {
+	...
+	tvp5150@5c {
+		compatible = "ti,tvp5150";
+		reg = <0x5c>;
+		pdn-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio6 7 GPIO_ACTIVE_LOW>;
+
+		connectors {
+			composite0 {
+				label = "Composite0";
+				input = <TVP5150_COMPOSITE0>;
+			};
+
+			composite1 {
+				label = "Composite1";
+				input = <TVP5150_COMPOSITE1>;
+			};
+
+			s-video {
+				label = "S-Video";
+				input = <TVP5150_SVIDEO>;
+			};
+		};
+
+		port {
+			tvp5150_1: endpoint {
+				remote-endpoint = <&ccdc_ep>;
+			};
+		};
+	};
+};

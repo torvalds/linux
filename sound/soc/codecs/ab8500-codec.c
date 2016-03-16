@@ -1130,7 +1130,7 @@ static int sid_status_control_get(struct snd_kcontrol *kcontrol,
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
 	mutex_lock(&drvdata->ctrl_lock);
-	ucontrol->value.integer.value[0] = drvdata->sid_status;
+	ucontrol->value.enumerated.item[0] = drvdata->sid_status;
 	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
@@ -1147,7 +1147,7 @@ static int sid_status_control_put(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(codec->dev, "%s: Enter\n", __func__);
 
-	if (ucontrol->value.integer.value[0] != SID_APPLY_FIR) {
+	if (ucontrol->value.enumerated.item[0] != SID_APPLY_FIR) {
 		dev_err(codec->dev,
 			"%s: ERROR: This control supports '%s' only!\n",
 			__func__, enum_sid_state[SID_APPLY_FIR]);
@@ -1199,7 +1199,7 @@ static int anc_status_control_get(struct snd_kcontrol *kcontrol,
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(codec->dev);
 
 	mutex_lock(&drvdata->ctrl_lock);
-	ucontrol->value.integer.value[0] = drvdata->anc_status;
+	ucontrol->value.enumerated.item[0] = drvdata->anc_status;
 	mutex_unlock(&drvdata->ctrl_lock);
 
 	return 0;
@@ -1220,7 +1220,7 @@ static int anc_status_control_put(struct snd_kcontrol *kcontrol,
 
 	mutex_lock(&drvdata->ctrl_lock);
 
-	req = ucontrol->value.integer.value[0];
+	req = ucontrol->value.enumerated.item[0];
 	if (req >= ARRAY_SIZE(enum_anc_state)) {
 		status = -EINVAL;
 		goto cleanup;

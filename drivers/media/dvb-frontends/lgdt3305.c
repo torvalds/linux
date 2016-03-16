@@ -812,9 +812,9 @@ fail:
 	return ret;
 }
 
-static int lgdt3305_get_frontend(struct dvb_frontend *fe)
+static int lgdt3305_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3305_state *state = fe->demodulator_priv;
 
 	lg_dbg("\n");

@@ -51,14 +51,6 @@ static void sti_crtc_disabling(struct drm_crtc *crtc)
 	mixer->status = STI_MIXER_DISABLING;
 }
 
-static bool sti_crtc_mode_fixup(struct drm_crtc *crtc,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
-{
-	/* accept the provided drm_display_mode, do not fix it up */
-	return true;
-}
-
 static int
 sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
@@ -229,7 +221,6 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
 	.enable = sti_crtc_enable,
 	.disable = sti_crtc_disabling,
-	.mode_fixup = sti_crtc_mode_fixup,
 	.mode_set = drm_helper_crtc_mode_set,
 	.mode_set_nofb = sti_crtc_mode_set_nofb,
 	.mode_set_base = drm_helper_crtc_mode_set_base,
