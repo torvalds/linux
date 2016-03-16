@@ -3839,14 +3839,18 @@ static void synchronize_sched_expedited_wait(struct rcu_state *rsp)
 }
 
 /*
- * Wake up everyone who piggybacked on the just-completed expedited
+ * Wait for the current expedited grace period to complete, and then
+ * wake up everyone who piggybacked on the just-completed expedited
  * grace period.  Also update all the ->exp_seq_rq counters as needed
  * in order to avoid counter-wrap problems.
  */
-static void rcu_exp_wake(struct rcu_state *rsp, unsigned long s)
+static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 {
 	struct rcu_node *rnp;
 
+	synchronize_sched_expedited_wait(rsp);
+	rcu_exp_gp_seq_end(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s)) {
 			spin_lock(&rnp->exp_lock);
@@ -3857,6 +3861,8 @@ static void rcu_exp_wake(struct rcu_state *rsp, unsigned long s)
 		}
 		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x1]);
 	}
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
+	mutex_unlock(&rsp->exp_mutex);
 }
 
 /**
@@ -3904,13 +3910,7 @@ void synchronize_sched_expedited(void)
 	sync_rcu_exp_select_cpus(rsp, sync_sched_exp_handler);
 
 	/* Wait and clean up, including waking everyone. */
-	synchronize_sched_expedited_wait(rsp);
-	rcu_exp_gp_seq_end(rsp);
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
-	rcu_exp_wake(rsp, s);
-
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
-	mutex_unlock(&rsp->exp_mutex);
+	rcu_exp_wait_wake(rsp, s);
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
 

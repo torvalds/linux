@@ -759,14 +759,8 @@ void synchronize_rcu_expedited(void)
 	/* Initialize the rcu_node tree in preparation for the wait. */
 	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
 
-	/* Wait for snapshotted ->blkd_tasks lists to drain. */
-	synchronize_sched_expedited_wait(rsp);
-	rcu_exp_gp_seq_end(rsp);
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
-	rcu_exp_wake(rsp, s);
-
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
-	mutex_unlock(&rsp->exp_mutex);
+	/* Wait for ->blkd_tasks lists to drain, then wake everyone up. */
+	rcu_exp_wait_wake(rsp, s);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
