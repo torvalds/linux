@@ -68,23 +68,6 @@ out_unlock:
 	return 0;
 }
 
-struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry)
-{
-	struct inode *inode = NULL;
-
-	if (!dentry)
-		return NULL;
-
-	spin_lock(&dentry->d_lock);
-	if (!IS_ROOT(dentry)) {
-		inode = d_inode(dentry->d_parent);
-		ihold(inode);
-	}
-	spin_unlock(&dentry->d_lock);
-	return inode;
-}
-
-
 /*
  * for readdir, we encode the directory frag and offset within that
  * frag into f_pos.
@@ -1100,6 +1083,7 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	int valid = 0;
+	struct dentry *parent;
 	struct inode *dir;
 
 	if (flags & LOOKUP_RCU)
@@ -1108,7 +1092,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
 	     dentry, d_inode(dentry), ceph_dentry(dentry)->offset);
 
-	dir = ceph_get_dentry_parent_inode(dentry);
+	parent = dget_parent(dentry);
+	dir = d_inode(parent);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
@@ -1132,7 +1117,8 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	} else {
 		ceph_dir_clear_complete(dir);
 	}
-	iput(dir);
+
+	dput(parent);
 	return valid;
 }
 
