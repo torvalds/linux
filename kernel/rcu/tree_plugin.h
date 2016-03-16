@@ -748,8 +748,6 @@ void synchronize_rcu_expedited(void)
 	}
 
 	s = rcu_exp_gp_seq_snap(rsp);
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("snap"));
-
 	if (exp_funnel_lock(rsp, s))
 		return;  /* Someone else did our work for us. */
 
