@@ -1051,6 +1051,50 @@ static void i915_mmio_cleanup(struct drm_device *dev)
 }
 
 /**
+ * i915_driver_init_mmio - setup device MMIO
+ * @dev_priv: device private
+ *
+ * Setup minimal device state necessary for MMIO accesses later in the
+ * initialization sequence. The setup here should avoid any other device-wide
+ * side effects or exposing the driver via kernel internal or user space
+ * interfaces.
+ */
+static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	int ret;
+
+	if (i915_get_bridge_dev(dev))
+		return -EIO;
+
+	ret = i915_mmio_setup(dev);
+	if (ret < 0)
+		goto put_bridge;
+
+	intel_uncore_init(dev);
+
+	return 0;
+
+put_bridge:
+	pci_dev_put(dev_priv->bridge_dev);
+
+	return ret;
+}
+
+/**
+ * i915_driver_cleanup_mmio - cleanup the setup done in i915_driver_init_mmio()
+ * @dev_priv: device private
+ */
+static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_uncore_fini(dev);
+	i915_mmio_cleanup(dev);
+	pci_dev_put(dev_priv->bridge_dev);
+}
+
+/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1081,22 +1125,15 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_runtime_pm_get(dev_priv);
 
-	if (i915_get_bridge_dev(dev)) {
-		ret = -EIO;
-		goto out_runtime_pm_put;
-	}
-
-	ret = i915_mmio_setup(dev);
+	ret = i915_driver_init_mmio(dev_priv);
 	if (ret < 0)
-		goto put_bridge;
-
-	intel_uncore_init(dev);
+		goto out_runtime_pm_put;
 
 	intel_device_info_runtime_init(dev);
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto out_uncore_fini;
+		goto out_cleanup_mmio;
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1218,11 +1255,8 @@ out_disable_msi:
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
 	i915_global_gtt_cleanup(dev);
-out_uncore_fini:
-	intel_uncore_fini(dev);
-	i915_mmio_cleanup(dev);
-put_bridge:
-	pci_dev_put(dev_priv->bridge_dev);
+out_cleanup_mmio:
+	i915_driver_cleanup_mmio(dev_priv);
 out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 	i915_driver_cleanup_early(dev_priv);
@@ -1303,10 +1337,7 @@ int i915_driver_unload(struct drm_device *dev)
 	io_mapping_free(dev_priv->gtt.mappable);
 	i915_global_gtt_cleanup(dev);
 
-	intel_uncore_fini(dev);
-	i915_mmio_cleanup(dev);
-
-	pci_dev_put(dev_priv->bridge_dev);
+	i915_driver_cleanup_mmio(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
