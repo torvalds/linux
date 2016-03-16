@@ -3603,6 +3603,15 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 {
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, raw_smp_processor_id());
 	struct rcu_node *rnp = rdp->mynode;
+	struct rcu_node *rnp_root = rcu_get_root(rsp);
+
+	/* Low-contention fastpath. */
+	if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s) &&
+	    (rnp == rnp_root ||
+	     ULONG_CMP_LT(READ_ONCE(rnp_root->exp_seq_rq), s)) &&
+	    !mutex_is_locked(&rsp->exp_mutex) &&
+	    mutex_trylock(&rsp->exp_mutex))
+		goto fastpath;
 
 	/*
 	 * Each pass through the following loop works its way up
@@ -3635,6 +3644,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 					  rnp->grphi, TPS("nxtlvl"));
 	}
 	mutex_lock(&rsp->exp_mutex);
+fastpath:
 	if (sync_exp_work_done(rsp, &rdp->exp_workdone3, s)) {
 		mutex_unlock(&rsp->exp_mutex);
 		return true;
