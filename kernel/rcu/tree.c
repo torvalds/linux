@@ -103,6 +103,7 @@ struct rcu_state sname##_state = { \
 	.name = RCU_STATE_NAME(sname), \
 	.abbr = sabbr, \
 	.exp_mutex = __MUTEX_INITIALIZER(sname##_state.exp_mutex), \
+	.exp_wake_mutex = __MUTEX_INITIALIZER(sname##_state.exp_wake_mutex), \
 }
 
 RCU_STATE_INITIALIZER(rcu_sched, 's', call_rcu_sched);
@@ -3637,7 +3638,7 @@ static bool exp_funnel_lock(struct rcu_state *rsp, unsigned long s)
 			trace_rcu_exp_funnel_lock(rsp->name, rnp->level,
 						  rnp->grplo, rnp->grphi,
 						  TPS("wait"));
-			wait_event(rnp->exp_wq[(s >> 1) & 0x1],
+			wait_event(rnp->exp_wq[(s >> 1) & 0x3],
 				   sync_exp_work_done(rsp,
 						      &rdp->exp_workdone2, s));
 			return true;
@@ -3857,6 +3858,14 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 	synchronize_sched_expedited_wait(rsp);
 	rcu_exp_gp_seq_end(rsp);
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("end"));
+
+	/*
+	 * Switch over to wakeup mode, allowing the next GP, but -only- the
+	 * next GP, to proceed.
+	 */
+	mutex_lock(&rsp->exp_wake_mutex);
+	mutex_unlock(&rsp->exp_mutex);
+
 	rcu_for_each_node_breadth_first(rsp, rnp) {
 		if (ULONG_CMP_LT(READ_ONCE(rnp->exp_seq_rq), s)) {
 			spin_lock(&rnp->exp_lock);
@@ -3865,10 +3874,10 @@ static void rcu_exp_wait_wake(struct rcu_state *rsp, unsigned long s)
 				rnp->exp_seq_rq = s;
 			spin_unlock(&rnp->exp_lock);
 		}
-		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x1]);
+		wake_up_all(&rnp->exp_wq[(rsp->expedited_sequence >> 1) & 0x3]);
 	}
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("endwake"));
-	mutex_unlock(&rsp->exp_mutex);
+	mutex_unlock(&rsp->exp_wake_mutex);
 }
 
 /**
@@ -4530,6 +4539,8 @@ static void __init rcu_init_one(struct rcu_state *rsp)
 			rcu_init_one_nocb(rnp);
 			init_waitqueue_head(&rnp->exp_wq[0]);
 			init_waitqueue_head(&rnp->exp_wq[1]);
+			init_waitqueue_head(&rnp->exp_wq[2]);
+			init_waitqueue_head(&rnp->exp_wq[3]);
 			spin_lock_init(&rnp->exp_lock);
 		}
 	}

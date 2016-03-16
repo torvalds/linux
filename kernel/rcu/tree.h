@@ -250,7 +250,7 @@ struct rcu_node {
 
 	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
 	unsigned long exp_seq_rq;
-	wait_queue_head_t exp_wq[2];
+	wait_queue_head_t exp_wq[4];
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -502,6 +502,7 @@ struct rcu_state {
 	/* End of fields guarded by barrier_mutex. */
 
 	struct mutex exp_mutex;			/* Serialize expedited GP. */
+	struct mutex exp_wake_mutex;		/* Serialize wakeup. */
 	unsigned long expedited_sequence;	/* Take a ticket. */
 	atomic_long_t expedited_normal;		/* # fallbacks to normal. */
 	atomic_t expedited_need_qs;		/* # CPUs left to check in. */
