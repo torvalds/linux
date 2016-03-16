@@ -201,10 +201,6 @@ acpi_extract_package(union acpi_object *package,
 		u8 **pointer = NULL;
 		union acpi_object *element = &(package->package.elements[i]);
 
-		if (!element) {
-			return AE_BAD_DATA;
-		}
-
 		switch (element->type) {
 
 		case ACPI_TYPE_INTEGER:
