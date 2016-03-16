@@ -2856,11 +2856,8 @@ static int ath10k_wmi_10_2_4_op_pull_fw_stats(struct ath10k *ar,
 		const struct wmi_10_2_4_ext_peer_stats *src;
 		struct ath10k_fw_stats_peer *dst;
 		int stats_len;
-		bool ext_peer_stats_support;
 
-		ext_peer_stats_support = test_bit(WMI_SERVICE_PEER_STATS,
-						  ar->wmi.svc_map);
-		if (ext_peer_stats_support)
+		if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
 			stats_len = sizeof(struct wmi_10_2_4_ext_peer_stats);
 		else
 			stats_len = sizeof(struct wmi_10_2_4_peer_stats);
@@ -2877,7 +2874,7 @@ static int ath10k_wmi_10_2_4_op_pull_fw_stats(struct ath10k *ar,
 
 		dst->peer_rx_rate = __le32_to_cpu(src->common.peer_rx_rate);
 
-		if (ext_peer_stats_support)
+		if (ath10k_peer_stats_enabled(ar))
 			dst->rx_duration = __le32_to_cpu(src->rx_duration);
 		/* FIXME: expose 10.2 specific values */
 
@@ -5514,7 +5511,8 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 
 	config.num_vdevs = __cpu_to_le32(TARGET_10X_NUM_VDEVS);
 	config.num_peer_keys = __cpu_to_le32(TARGET_10X_NUM_PEER_KEYS);
-	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+
+	if (ath10k_peer_stats_enabled(ar)) {
 		config.num_peers = __cpu_to_le32(TARGET_10X_TX_STATS_NUM_PEERS);
 		config.num_tids = __cpu_to_le32(TARGET_10X_TX_STATS_NUM_TIDS);
 	} else {
@@ -5576,7 +5574,7 @@ static struct sk_buff *ath10k_wmi_10_2_op_gen_init(struct ath10k *ar)
 	    test_bit(WMI_SERVICE_COEX_GPIO, ar->wmi.svc_map))
 		features |= WMI_10_2_COEX_GPIO;
 
-	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
+	if (ath10k_peer_stats_enabled(ar))
 		features |= WMI_10_2_PEER_STATS;
 
 	cmd->resource_config.feature_mask = __cpu_to_le32(features);

@@ -4435,7 +4435,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	ar->ani_enabled = true;
 
-	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+	if (ath10k_peer_stats_enabled(ar)) {
 		param = ar->wmi.pdev_param->peer_stats_update_period;
 		ret = ath10k_wmi_pdev_set_param(ar, param,
 						PEER_DEFAULT_STATS_UPDATE_PERIOD);

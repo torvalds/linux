@@ -561,6 +561,9 @@ enum ath10k_dev_flags {
 
 	/* Bluetooth coexistance enabled */
 	ATH10K_FLAG_BTCOEX,
+
+	/* Per Station statistics service */
+	ATH10K_FLAG_PEER_STATS,
 };
 
 enum ath10k_cal_mode {
@@ -902,6 +905,15 @@ struct ath10k {
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
+
+static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
+{
+	if (test_bit(ATH10K_FLAG_PEER_STATS, &ar->dev_flags) &&
+	    test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map))
+		return true;
+
+	return false;
+}
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  enum ath10k_bus bus,
