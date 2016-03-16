@@ -51,6 +51,15 @@ static void sti_crtc_disabling(struct drm_crtc *crtc)
 	mixer->status = STI_MIXER_DISABLING;
 }
 
+static bool sti_crtc_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	/* accept the provided drm_display_mode, do not fix it up */
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+	return true;
+}
+
 static int
 sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 {
