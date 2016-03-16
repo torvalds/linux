@@ -1492,9 +1492,7 @@ int rc_register_device(struct rc_dev *dev)
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
-	mutex_lock(&dev->lock);
 	atomic_set(&dev->initialized, 1);
-	mutex_unlock(&dev->lock);
 
 	IR_dprintk(1, "Registered rc%u (driver: %s, remote: %s, mode %s)\n",
 		   dev->minor,
