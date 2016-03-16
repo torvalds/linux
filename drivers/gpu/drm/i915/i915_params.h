@@ -49,6 +49,7 @@ struct i915_params {
 	int use_mmio_flip;
 	int mmio_debug;
 	int edp_vswing;
+	unsigned int inject_load_failure;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;
 	bool fastboot;
