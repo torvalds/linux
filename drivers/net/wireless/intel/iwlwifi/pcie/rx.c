@@ -210,8 +210,12 @@ static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans,
 	if (trans->cfg->mq_rx_supported)
 		iwl_write_prph(trans, RFH_Q_FRBDCB_WIDX(rxq->id),
 			       rxq->write_actual);
-	else
-		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
+	/*
+	 * write to FH_RSCSR_CHNL0_WPTR register even in MQ as a W/A to
+	 * hardware shadow registers bug - writing to RFH_Q_FRBDCB_WIDX will
+	 * not wake the NIC.
+	 */
+	iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, rxq->write_actual);
 }
 
 static void iwl_pcie_rxq_check_wrptr(struct iwl_trans *trans)
