@@ -131,11 +131,11 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 }
 
 /*
- * __btrfs_std_error decodes expected errors from the caller and
+ * __btrfs_handle_fs_error decodes expected errors from the caller and
  * invokes the approciate error response.
  */
 __cold
-void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
+void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
 		       unsigned int line, int errno, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
@@ -252,7 +252,7 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 	/* Wake up anybody who may be waiting on this transaction */
 	wake_up(&root->fs_info->transaction_wait);
 	wake_up(&root->fs_info->transaction_blocked_wait);
-	__btrfs_std_error(root->fs_info, function, line, errno, NULL);
+	__btrfs_handle_fs_error(root->fs_info, function, line, errno, NULL);
 }
 /*
  * __btrfs_panic decodes unexpected, fatal errors from the caller,

@@ -4329,7 +4329,7 @@ static inline void assfail(char *expr, char *file, int line)
 #define btrfs_assert()
 __printf(5, 6)
 __cold
-void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
+void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
 		     unsigned int line, int errno, const char *fmt, ...);
 
 const char *btrfs_decode_error(int errno);
@@ -4472,9 +4472,9 @@ do {								\
 				  __LINE__, (errno));		\
 } while (0)
 
-#define btrfs_std_error(fs_info, errno, fmt, args...)		\
+#define btrfs_handle_fs_error(fs_info, errno, fmt, args...)		\
 do {								\
-	__btrfs_std_error((fs_info), __func__, __LINE__,	\
+	__btrfs_handle_fs_error((fs_info), __func__, __LINE__,	\
 			  (errno), fmt, ##args);		\
 } while (0)
 
