@@ -357,7 +357,7 @@ struct media_device {
 	u32 hw_revision;
 	u32 driver_version;
 
-	u32 topology_version;
+	u64 topology_version;
 
 	u32 id;
 	struct ida entity_internal_idx;
