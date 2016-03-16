@@ -1220,9 +1220,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	io_mapping_free(dev_priv->gtt.mappable);
-	arch_phys_wc_del(dev_priv->gtt.mtrr);
-
 	acpi_video_unregister();
 	i915_gem_shrinker_cleanup(dev_priv);
 
@@ -1253,9 +1250,6 @@ int i915_driver_unload(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_destroy_error_state(dev);
 
-	if (dev->pdev->msi_enabled)
-		pci_disable_msi(dev->pdev);
-
 	intel_opregion_fini(dev);
 
 	/* Flush any outstanding unpin_work. */
@@ -1270,8 +1264,11 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_power_domains_fini(dev_priv);
 
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
-
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
+	io_mapping_free(dev_priv->gtt.mappable);
 	i915_global_gtt_cleanup(dev);
 
 	intel_uncore_fini(dev);
