@@ -80,7 +80,7 @@ int read_log(struct tpm_bios_log *log);
 extern struct dentry **tpm_bios_log_setup(const char *);
 extern void tpm_bios_log_teardown(struct dentry **);
 #else
-static inline struct dentry **tpm_bios_log_setup(char *name)
+static inline struct dentry **tpm_bios_log_setup(const char *name)
 {
 	return NULL;
 }
