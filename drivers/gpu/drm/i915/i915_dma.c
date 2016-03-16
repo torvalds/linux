@@ -1029,6 +1029,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_power_domains_init(dev_priv);
 	intel_irq_init(dev_priv);
 	intel_init_display_hooks(dev_priv);
+	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);

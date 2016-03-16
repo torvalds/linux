@@ -7097,14 +7097,67 @@ void intel_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->display.init_clock_gating)
-		dev_priv->display.init_clock_gating(dev);
+	dev_priv->display.init_clock_gating(dev);
 }
 
 void intel_suspend_hw(struct drm_device *dev)
 {
 	if (HAS_PCH_LPT(dev))
 		lpt_suspend_hw(dev);
+}
+
+static void nop_init_clock_gating(struct drm_device *dev)
+{
+	DRM_DEBUG_KMS("No clock gating settings or workarounds applied.\n");
+}
+
+/**
+ * intel_init_clock_gating_hooks - setup the clock gating hooks
+ * @dev_priv: device private
+ *
+ * Setup the hooks that configure which clocks of a given platform can be
+ * gated and also apply various GT and display specific workarounds for these
+ * platforms. Note that some GT specific workarounds are applied separately
+ * when GPU contexts or batchbuffers start their execution.
+ */
+void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
+{
+	if (IS_SKYLAKE(dev_priv))
+		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+	else if (IS_KABYLAKE(dev_priv))
+		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+	else if (IS_BROXTON(dev_priv))
+		dev_priv->display.init_clock_gating = bxt_init_clock_gating;
+	else if (IS_BROADWELL(dev_priv))
+		dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
+	else if (IS_CHERRYVIEW(dev_priv))
+		dev_priv->display.init_clock_gating = cherryview_init_clock_gating;
+	else if (IS_HASWELL(dev_priv))
+		dev_priv->display.init_clock_gating = haswell_init_clock_gating;
+	else if (IS_IVYBRIDGE(dev_priv))
+		dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
+	else if (IS_VALLEYVIEW(dev_priv))
+		dev_priv->display.init_clock_gating = valleyview_init_clock_gating;
+	else if (IS_GEN6(dev_priv))
+		dev_priv->display.init_clock_gating = gen6_init_clock_gating;
+	else if (IS_GEN5(dev_priv))
+		dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
+	else if (IS_G4X(dev_priv))
+		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
+	else if (IS_CRESTLINE(dev_priv))
+		dev_priv->display.init_clock_gating = crestline_init_clock_gating;
+	else if (IS_BROADWATER(dev_priv))
+		dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
+	else if (IS_GEN3(dev_priv))
+		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
+	else if (IS_I85X(dev_priv) || IS_I865G(dev_priv))
+		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
+	else if (IS_GEN2(dev_priv))
+		dev_priv->display.init_clock_gating = i830_init_clock_gating;
+	else {
+		MISSING_CASE(INTEL_DEVID(dev_priv));
+		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+	}
 }
 
 /* Set up chip specific power management-related functions */
@@ -7123,10 +7176,6 @@ void intel_init_pm(struct drm_device *dev)
 	/* For FIFO watermark updates */
 	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
-
-		if (IS_BROXTON(dev))
-			dev_priv->display.init_clock_gating =
-				bxt_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
@@ -7146,29 +7195,12 @@ void intel_init_pm(struct drm_device *dev)
 			DRM_DEBUG_KMS("Failed to read display plane latency. "
 				      "Disable CxSR\n");
 		}
-
-		if (IS_GEN5(dev))
-			dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
-		else if (IS_GEN6(dev))
-			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
-		else if (IS_IVYBRIDGE(dev))
-			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
-		else if (IS_HASWELL(dev))
-			dev_priv->display.init_clock_gating = haswell_init_clock_gating;
-		else if (INTEL_INFO(dev)->gen == 8)
-			dev_priv->display.init_clock_gating = broadwell_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
 		vlv_setup_wm_latency(dev);
-
 		dev_priv->display.update_wm = vlv_update_wm;
-		dev_priv->display.init_clock_gating =
-			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
 		vlv_setup_wm_latency(dev);
-
 		dev_priv->display.update_wm = vlv_update_wm;
-		dev_priv->display.init_clock_gating =
-			valleyview_init_clock_gating;
 	} else if (IS_PINEVIEW(dev)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
 					    dev_priv->is_ddr3,
@@ -7184,20 +7216,13 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
-		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.update_wm = g4x_update_wm;
-		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
 	} else if (IS_GEN4(dev)) {
 		dev_priv->display.update_wm = i965_update_wm;
-		if (IS_CRESTLINE(dev))
-			dev_priv->display.init_clock_gating = crestline_init_clock_gating;
-		else if (IS_BROADWATER(dev))
-			dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
 	} else if (IS_GEN3(dev)) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
-		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	} else if (IS_GEN2(dev)) {
 		if (INTEL_INFO(dev)->num_pipes == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
@@ -7206,11 +7231,6 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.update_wm = i9xx_update_wm;
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 		}
-
-		if (IS_I85X(dev) || IS_I865G(dev))
-			dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-		else
-			dev_priv->display.init_clock_gating = i830_init_clock_gating;
 	} else {
 		DRM_ERROR("unexpected fall-through in intel_init_pm\n");
 	}
