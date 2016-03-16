@@ -322,7 +322,7 @@ int intel_rcs_context_init_mocs(struct drm_i915_gem_request *req)
 	struct drm_i915_mocs_table t;
 	int ret;
 
-	if (get_mocs_settings(req->ring->dev, &t)) {
+	if (get_mocs_settings(req->engine->dev, &t)) {
 		struct drm_i915_private *dev_priv = req->i915;
 		struct intel_engine_cs *engine;
 		enum intel_ring_id ring_id;

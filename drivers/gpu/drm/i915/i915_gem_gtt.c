@@ -658,7 +658,7 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 			  unsigned entry,
 			  dma_addr_t addr)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
 	BUG_ON(entry >= 4);
@@ -1650,7 +1650,7 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			 struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
@@ -1676,7 +1676,7 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
 
 	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
@@ -1687,7 +1687,7 @@ static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
@@ -1720,7 +1720,7 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -2192,7 +2192,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 
 int i915_ppgtt_init_ring(struct drm_i915_gem_request *req)
 {
-	struct drm_i915_private *dev_priv = req->ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = req->engine->dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 	if (i915.enable_execlists)
@@ -2309,7 +2309,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 				   fault_reg & ~RING_FAULT_VALID);
 		}
 	}
-	POSTING_READ(RING_FAULT_REG(&dev_priv->ring[RCS]));
+	POSTING_READ(RING_FAULT_REG(&dev_priv->engine[RCS]));
 }
 
 static void i915_ggtt_flush(struct drm_i915_private *dev_priv)

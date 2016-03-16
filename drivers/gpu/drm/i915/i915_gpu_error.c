@@ -431,7 +431,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		obj = error->ring[i].batchbuffer;
 		if (obj) {
-			err_puts(m, dev_priv->ring[i].name);
+			err_puts(m, dev_priv->engine[i].name);
 			if (error->ring[i].pid != -1)
 				err_printf(m, " (submitted by %s [%d])",
 					   error->ring[i].comm,
@@ -445,14 +445,14 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		obj = error->ring[i].wa_batchbuffer;
 		if (obj) {
 			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
-				   dev_priv->ring[i].name,
+				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
 
 		if (error->ring[i].num_requests) {
 			err_printf(m, "%s --- %d requests\n",
-				   dev_priv->ring[i].name,
+				   dev_priv->engine[i].name,
 				   error->ring[i].num_requests);
 			for (j = 0; j < error->ring[i].num_requests; j++) {
 				err_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
@@ -464,7 +464,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		if ((obj = error->ring[i].ringbuffer)) {
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
-				   dev_priv->ring[i].name,
+				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
@@ -478,7 +478,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				hws_page = &obj->pages[LRC_PPHWSP_PN][0];
 			}
 			err_printf(m, "%s --- HW Status = 0x%08llx\n",
-				   dev_priv->ring[i].name, hws_offset);
+				   dev_priv->engine[i].name, hws_offset);
 			offset = 0;
 			for (elt = 0; elt < PAGE_SIZE/16; elt += 4) {
 				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
@@ -495,12 +495,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			u64 wa_ctx_offset = obj->gtt_offset;
 			u32 *wa_ctx_page = &obj->pages[0][0];
-			struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+			struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 			u32 wa_ctx_size = (engine->wa_ctx.indirect_ctx.size +
 					   engine->wa_ctx.per_ctx.size);
 
 			err_printf(m, "%s --- WA ctx batch buffer = 0x%08llx\n",
-				   dev_priv->ring[i].name, wa_ctx_offset);
+				   dev_priv->engine[i].name, wa_ctx_offset);
 			offset = 0;
 			for (elt = 0; elt < wa_ctx_size; elt += 4) {
 				err_printf(m, "[%04x] %08x %08x %08x %08x\n",
@@ -515,7 +515,7 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 		if ((obj = error->ring[i].ctx)) {
 			err_printf(m, "%s --- HW Context = 0x%08x\n",
-				   dev_priv->ring[i].name,
+				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
 		}
@@ -1020,7 +1020,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	int i, count;
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_engine_cs *engine = &dev_priv->ring[i];
+		struct intel_engine_cs *engine = &dev_priv->engine[i];
 		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;

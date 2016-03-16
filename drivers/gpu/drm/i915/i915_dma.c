@@ -87,16 +87,16 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = intel_ring_initialized(&dev_priv->ring[VCS]);
+		value = intel_ring_initialized(&dev_priv->engine[VCS]);
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = intel_ring_initialized(&dev_priv->ring[BCS]);
+		value = intel_ring_initialized(&dev_priv->engine[BCS]);
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = intel_ring_initialized(&dev_priv->ring[VECS]);
+		value = intel_ring_initialized(&dev_priv->engine[VECS]);
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = intel_ring_initialized(&dev_priv->ring[VCS2]);
+		value = intel_ring_initialized(&dev_priv->engine[VCS2]);
 		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;

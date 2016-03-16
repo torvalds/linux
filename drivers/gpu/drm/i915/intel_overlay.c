@@ -233,7 +233,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	int ret;
 
@@ -267,7 +267,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
@@ -336,7 +336,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	struct drm_i915_gem_request *req;
 	u32 flip_addr = overlay->flip_addr;
 	int ret;
@@ -409,7 +409,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));

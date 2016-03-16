@@ -542,11 +542,12 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 	wq_len = sizeof(struct guc_wq_item) / sizeof(u32) - 1;
 	wqi->header = WQ_TYPE_INORDER |
 			(wq_len << WQ_LEN_SHIFT) |
-			(rq->ring->guc_id << WQ_TARGET_SHIFT) |
+			(rq->engine->guc_id << WQ_TARGET_SHIFT) |
 			WQ_NO_WCFLUSH_WAIT;
 
 	/* The GuC wants only the low-order word of the context descriptor */
-	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx, rq->ring);
+	wqi->context_desc = (u32)intel_lr_context_descriptor(rq->ctx,
+							     rq->engine);
 
 	/* The GuC firmware wants the tail index in QWords, not bytes */
 	tail = rq->ringbuf->tail >> 3;
@@ -569,7 +570,7 @@ int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq)
 {
 	struct intel_guc *guc = client->guc;
-	unsigned int engine_id = rq->ring->guc_id;
+	unsigned int engine_id = rq->engine->guc_id;
 	int q_ret, b_ret;
 
 	q_ret = guc_add_workqueue_item(client, rq);
@@ -867,7 +868,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	 * so its address won't change after we've told the GuC where
 	 * to find it.
 	 */
-	engine = &dev_priv->ring[RCS];
+	engine = &dev_priv->engine[RCS];
 	ads->golden_context_lrca = engine->status_page.gfx_addr;
 
 	for_each_ring(engine, dev_priv, i)

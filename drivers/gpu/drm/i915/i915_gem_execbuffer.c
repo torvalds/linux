@@ -942,7 +942,7 @@ static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned other_rings = ~intel_ring_flag(req->ring);
+	const unsigned other_rings = ~intel_ring_flag(req->engine);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -952,7 +952,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, req->ring, &req);
+			ret = i915_gem_object_sync(obj, req->engine, &req);
 			if (ret)
 				return ret;
 		}
@@ -964,7 +964,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	}
 
 	if (flush_chipset)
-		i915_gem_chipset_flush(req->ring->dev);
+		i915_gem_chipset_flush(req->engine->dev);
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
@@ -1140,7 +1140,7 @@ void
 i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 {
 	/* Unconditionally force add_request to emit a full flush. */
-	params->ring->gpu_caches_dirty = true;
+	params->engine->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
 	__i915_add_request(params->request, params->batch_obj, true);
@@ -1150,11 +1150,11 @@ static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
 			    struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	if (!IS_GEN7(dev) || engine != &dev_priv->ring[RCS]) {
+	if (!IS_GEN7(dev) || engine != &dev_priv->engine[RCS]) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -1233,7 +1233,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			       struct list_head *vmas)
 {
 	struct drm_device *dev = params->dev;
-	struct intel_engine_cs *engine = params->ring;
+	struct intel_engine_cs *engine = params->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u64 exec_start, exec_len;
 	int instp_mode;
@@ -1257,7 +1257,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && engine != &dev_priv->ring[RCS]) {
+		if (instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
 			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
 			return -EINVAL;
 		}
@@ -1284,7 +1284,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		return -EINVAL;
 	}
 
-	if (engine == &dev_priv->ring[RCS] &&
+	if (engine == &dev_priv->engine[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(params->request, 4);
 		if (ret)
@@ -1412,9 +1412,9 @@ eb_select_ring(struct drm_i915_private *dev_priv,
 			return -EINVAL;
 		}
 
-		*ring = &dev_priv->ring[_VCS(bsd_idx)];
+		*ring = &dev_priv->engine[_VCS(bsd_idx)];
 	} else {
-		*ring = &dev_priv->ring[user_ring_map[user_ring_id]];
+		*ring = &dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
 	if (!intel_ring_initialized(*ring)) {
@@ -1632,7 +1632,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	params->dev                     = dev;
 	params->file                    = file;
-	params->ring                    = engine;
+	params->engine                    = engine;
 	params->dispatch_flags          = dispatch_flags;
 	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;

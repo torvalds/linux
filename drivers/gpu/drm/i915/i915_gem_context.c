@@ -346,7 +346,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_engine_cs *engine = &dev_priv->ring[i];
+		struct intel_engine_cs *engine = &dev_priv->engine[i];
 
 		if (engine->last_context) {
 			i915_gem_context_unpin(engine->last_context, engine);
@@ -421,13 +421,13 @@ void i915_gem_context_fini(struct drm_device *dev)
 		 * to default context. So we need to unreference the base object once
 		 * to offset the do_switch part, so that i915_gem_context_unreference()
 		 * can then free the base object correctly. */
-		WARN_ON(!dev_priv->ring[RCS].last_context);
+		WARN_ON(!dev_priv->engine[RCS].last_context);
 
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 	}
 
 	for (i = I915_NUM_RINGS; --i >= 0;) {
-		struct intel_engine_cs *engine = &dev_priv->ring[i];
+		struct intel_engine_cs *engine = &dev_priv->engine[i];
 
 		if (engine->last_context) {
 			i915_gem_context_unpin(engine->last_context, engine);
@@ -441,7 +441,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 
 int i915_gem_context_enable(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
 	if (i915.enable_execlists) {
@@ -510,7 +510,7 @@ i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 static inline int
 mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
@@ -625,7 +625,7 @@ needs_pd_load_pre(struct intel_engine_cs *engine, struct intel_context *to)
 	if (INTEL_INFO(engine->dev)->gen < 8)
 		return true;
 
-	if (engine != &dev_priv->ring[RCS])
+	if (engine != &dev_priv->engine[RCS])
 		return true;
 
 	return false;
@@ -643,7 +643,7 @@ needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
 	if (!IS_GEN8(engine->dev))
 		return false;
 
-	if (engine != &dev_priv->ring[RCS])
+	if (engine != &dev_priv->engine[RCS])
 		return false;
 
 	if (hw_flags & MI_RESTORE_INHIBIT)
@@ -655,14 +655,14 @@ needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
 static int do_switch(struct drm_i915_gem_request *req)
 {
 	struct intel_context *to = req->ctx;
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	struct intel_context *from = engine->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
 	int ret, i;
 
-	if (from != NULL && engine == &dev_priv->ring[RCS]) {
+	if (from != NULL && engine == &dev_priv->engine[RCS]) {
 		BUG_ON(from->legacy_hw_ctx.rcs_state == NULL);
 		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
 	}
@@ -671,7 +671,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
-	if (engine == &dev_priv->ring[RCS]) {
+	if (engine == &dev_priv->engine[RCS]) {
 		ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
 					    get_context_alignment(engine->dev),
 					    0);
@@ -700,7 +700,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(engine);
 	}
 
-	if (engine != &dev_priv->ring[RCS]) {
+	if (engine != &dev_priv->engine[RCS]) {
 		if (from)
 			i915_gem_context_unreference(from);
 		goto done;
@@ -828,7 +828,7 @@ unpin_out:
  */
 int i915_switch_context(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 
 	WARN_ON(i915.enable_execlists);

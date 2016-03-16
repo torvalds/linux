@@ -984,7 +984,7 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	const u32 *hws;
 	int i;
 
-	engine = &dev_priv->ring[(uintptr_t)node->info_ent->data];
+	engine = &dev_priv->engine[(uintptr_t)node->info_ent->data];
 	hws = engine->status_page.page_addr;
 	if (hws == NULL)
 		return 0;

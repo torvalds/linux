@@ -10984,7 +10984,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 flip_mask;
 	int ret;
@@ -11019,7 +11019,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 flip_mask;
 	int ret;
@@ -11051,7 +11051,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pf, pipesrc;
@@ -11090,7 +11090,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pf, pipesrc;
@@ -11126,7 +11126,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
-	struct intel_engine_cs *engine = req->ring;
+	struct intel_engine_cs *engine = req->engine;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t plane_bit = 0;
 	int len, ret;
@@ -11575,18 +11575,18 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		work->flip_count = I915_READ(PIPE_FLIPCOUNT_G4X(pipe)) + 1;
 
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
-		engine = &dev_priv->ring[BCS];
+		engine = &dev_priv->engine[BCS];
 		if (obj->tiling_mode != intel_fb_obj(work->old_fb)->tiling_mode)
 			/* vlv: DISPLAY_FLIP fails to change tiling */
 			engine = NULL;
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-		engine = &dev_priv->ring[BCS];
+		engine = &dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		engine = i915_gem_request_get_ring(obj->last_write_req);
 		if (engine == NULL || engine->id != RCS)
-			engine = &dev_priv->ring[BCS];
+			engine = &dev_priv->engine[BCS];
 	} else {
-		engine = &dev_priv->ring[RCS];
+		engine = &dev_priv->engine[RCS];
 	}
 
 	mmio_flip = use_mmio_flip(engine, obj);

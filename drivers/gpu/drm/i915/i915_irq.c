@@ -1291,9 +1291,9 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 {
 	if (gt_iir &
 	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
-		notify_ring(&dev_priv->ring[RCS]);
+		notify_ring(&dev_priv->engine[RCS]);
 	if (gt_iir & ILK_BSD_USER_INTERRUPT)
-		notify_ring(&dev_priv->ring[VCS]);
+		notify_ring(&dev_priv->engine[VCS]);
 }
 
 static void snb_gt_irq_handler(struct drm_device *dev,
@@ -1303,11 +1303,11 @@ static void snb_gt_irq_handler(struct drm_device *dev,
 
 	if (gt_iir &
 	    (GT_RENDER_USER_INTERRUPT | GT_RENDER_PIPECTL_NOTIFY_INTERRUPT))
-		notify_ring(&dev_priv->ring[RCS]);
+		notify_ring(&dev_priv->engine[RCS]);
 	if (gt_iir & GT_BSD_USER_INTERRUPT)
-		notify_ring(&dev_priv->ring[VCS]);
+		notify_ring(&dev_priv->engine[VCS]);
 	if (gt_iir & GT_BLT_USER_INTERRUPT)
-		notify_ring(&dev_priv->ring[BCS]);
+		notify_ring(&dev_priv->engine[BCS]);
 
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
@@ -1338,11 +1338,11 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 			I915_WRITE_FW(GEN8_GT_IIR(0), iir);
 			ret = IRQ_HANDLED;
 
-			gen8_cs_irq_handler(&dev_priv->ring[RCS],
-					iir, GEN8_RCS_IRQ_SHIFT);
+			gen8_cs_irq_handler(&dev_priv->engine[RCS],
+					    iir, GEN8_RCS_IRQ_SHIFT);
 
-			gen8_cs_irq_handler(&dev_priv->ring[BCS],
-					iir, GEN8_BCS_IRQ_SHIFT);
+			gen8_cs_irq_handler(&dev_priv->engine[BCS],
+					    iir, GEN8_BCS_IRQ_SHIFT);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT0)!\n");
 	}
@@ -1353,11 +1353,11 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 			I915_WRITE_FW(GEN8_GT_IIR(1), iir);
 			ret = IRQ_HANDLED;
 
-			gen8_cs_irq_handler(&dev_priv->ring[VCS],
-					iir, GEN8_VCS1_IRQ_SHIFT);
+			gen8_cs_irq_handler(&dev_priv->engine[VCS],
+					    iir, GEN8_VCS1_IRQ_SHIFT);
 
-			gen8_cs_irq_handler(&dev_priv->ring[VCS2],
-					iir, GEN8_VCS2_IRQ_SHIFT);
+			gen8_cs_irq_handler(&dev_priv->engine[VCS2],
+					    iir, GEN8_VCS2_IRQ_SHIFT);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT1)!\n");
 	}
@@ -1368,8 +1368,8 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 			I915_WRITE_FW(GEN8_GT_IIR(3), iir);
 			ret = IRQ_HANDLED;
 
-			gen8_cs_irq_handler(&dev_priv->ring[VECS],
-					iir, GEN8_VECS_IRQ_SHIFT);
+			gen8_cs_irq_handler(&dev_priv->engine[VECS],
+					    iir, GEN8_VECS_IRQ_SHIFT);
 		} else
 			DRM_ERROR("The master control interrupt lied (GT3)!\n");
 	}
@@ -1629,7 +1629,7 @@ static void gen6_rps_irq_handler(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 	if (HAS_VEBOX(dev_priv->dev)) {
 		if (pm_iir & PM_VEBOX_USER_INTERRUPT)
-			notify_ring(&dev_priv->ring[VECS]);
+			notify_ring(&dev_priv->engine[VECS]);
 
 		if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
 			DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
@@ -4042,7 +4042,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		new_iir = I915_READ16(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(&dev_priv->ring[RCS]);
+			notify_ring(&dev_priv->engine[RCS]);
 
 		for_each_pipe(dev_priv, pipe) {
 			int plane = pipe;
@@ -4238,7 +4238,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(&dev_priv->ring[RCS]);
+			notify_ring(&dev_priv->engine[RCS]);
 
 		for_each_pipe(dev_priv, pipe) {
 			int plane = pipe;
@@ -4468,9 +4468,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
-			notify_ring(&dev_priv->ring[RCS]);
+			notify_ring(&dev_priv->engine[RCS]);
 		if (iir & I915_BSD_USER_INTERRUPT)
-			notify_ring(&dev_priv->ring[VCS]);
+			notify_ring(&dev_priv->engine[VCS]);
 
 		for_each_pipe(dev_priv, pipe) {
 			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS &&

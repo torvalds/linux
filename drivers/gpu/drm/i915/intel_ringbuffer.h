@@ -99,7 +99,7 @@ struct intel_ringbuffer {
 	void __iomem *virtual_start;
 	struct i915_vma *vma;
 
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct list_head link;
 
 	u32 head;

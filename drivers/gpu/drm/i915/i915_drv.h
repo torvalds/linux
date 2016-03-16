@@ -1652,7 +1652,7 @@ struct i915_execbuffer_params {
 	uint32_t                        dispatch_flags;
 	uint32_t                        args_batch_start_offset;
 	uint64_t                        batch_obj_vm_offset;
-	struct intel_engine_cs          *ring;
+	struct intel_engine_cs *engine;
 	struct drm_i915_gem_object      *batch_obj;
 	struct intel_context            *ctx;
 	struct drm_i915_gem_request     *request;
@@ -1704,7 +1704,7 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
-	struct intel_engine_cs ring[I915_NUM_RINGS];
+	struct intel_engine_cs engine[I915_NUM_RINGS];
 	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
 
@@ -1969,7 +1969,7 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 /* Iterate over initialised rings */
 #define for_each_ring(ring__, dev_priv__, i__) \
 	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
-		for_each_if ((((ring__) = &(dev_priv__)->ring[(i__)]), intel_ring_initialized((ring__))))
+		for_each_if ((((ring__) = &(dev_priv__)->engine[(i__)]), intel_ring_initialized((ring__))))
 
 enum hdmi_force_audio {
 	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
@@ -2184,7 +2184,7 @@ struct drm_i915_gem_request {
 
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 
 	 /** GEM sequence number associated with the previous request,
 	  * when the HWS breadcrumb is equal to this the GPU is processing
@@ -2279,7 +2279,7 @@ i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
 static inline struct intel_engine_cs *
 i915_gem_request_get_ring(struct drm_i915_gem_request *req)
 {
-	return req ? req->ring : NULL;
+	return req ? req->engine : NULL;
 }
 
 static inline struct drm_i915_gem_request *
@@ -2293,7 +2293,7 @@ i915_gem_request_reference(struct drm_i915_gem_request *req)
 static inline void
 i915_gem_request_unreference(struct drm_i915_gem_request *req)
 {
-	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&req->engine->dev->struct_mutex));
 	kref_put(&req->ref, i915_gem_request_free);
 }
 
@@ -2305,7 +2305,7 @@ i915_gem_request_unreference__unlocked(struct drm_i915_gem_request *req)
 	if (!req)
 		return;
 
-	dev = req->ring->dev;
+	dev = req->engine->dev;
 	if (kref_put_mutex(&req->ref, i915_gem_request_free, &dev->struct_mutex))
 		mutex_unlock(&dev->struct_mutex);
 }
@@ -2949,14 +2949,14 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 static inline bool i915_gem_request_started(struct drm_i915_gem_request *req,
 					   bool lazy_coherency)
 {
-	u32 seqno = req->ring->get_seqno(req->ring, lazy_coherency);
+	u32 seqno = req->engine->get_seqno(req->engine, lazy_coherency);
 	return i915_seqno_passed(seqno, req->previous_seqno);
 }
 
 static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req,
 					      bool lazy_coherency)
 {
-	u32 seqno = req->ring->get_seqno(req->ring, lazy_coherency);
+	u32 seqno = req->engine->get_seqno(req->engine, lazy_coherency);
 	return i915_seqno_passed(seqno, req->seqno);
 }
 
