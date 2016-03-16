@@ -1298,7 +1298,7 @@ static const struct of_device_id mvebu_pcie_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, mvebu_pcie_of_match_table);
 
-static struct dev_pm_ops mvebu_pcie_pm_ops = {
+static const struct dev_pm_ops mvebu_pcie_pm_ops = {
 	.suspend_noirq = mvebu_pcie_suspend,
 	.resume_noirq = mvebu_pcie_resume,
 };
