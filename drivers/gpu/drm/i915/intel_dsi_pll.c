@@ -30,27 +30,6 @@
 #include "i915_drv.h"
 #include "intel_dsi.h"
 
-int dsi_pixel_format_bpp(int pixel_format)
-{
-	int bpp;
-
-	switch (pixel_format) {
-	default:
-	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666:
-		bpp = 24;
-		break;
-	case VID_MODE_FORMAT_RGB666_PACKED:
-		bpp = 18;
-		break;
-	case VID_MODE_FORMAT_RGB565:
-		bpp = 16;
-		break;
-	}
-
-	return bpp;
-}
-
 struct dsi_mnp {
 	u32 dsi_pll_ctrl;
 	u32 dsi_pll_div;
@@ -64,10 +43,11 @@ static const u32 lfsr_converts[] = {
 };
 
 /* Get DSI clock from pixel clock */
-static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
+static u32 dsi_clk_from_pclk(u32 pclk, enum mipi_dsi_pixel_format fmt,
+			     int lane_count)
 {
 	u32 dsi_clk_khz;
-	u32 bpp = dsi_pixel_format_bpp(pixel_format);
+	u32 bpp = mipi_dsi_pixel_format_to_bpp(fmt);
 
 	/* DSI data rate = pixel clock * bits per pixel / lane count
 	   pixel clock is converted from KHz to Hz */
@@ -232,9 +212,9 @@ static void bxt_disable_dsi_pll(struct intel_encoder *encoder)
 		DRM_ERROR("Timeout waiting for PLL lock deassertion\n");
 }
 
-static void assert_bpp_mismatch(int pixel_format, int pipe_bpp)
+static void assert_bpp_mismatch(enum mipi_dsi_pixel_format fmt, int pipe_bpp)
 {
-	int bpp = dsi_pixel_format_bpp(pixel_format);
+	int bpp = mipi_dsi_pixel_format_to_bpp(fmt);
 
 	WARN(bpp != pipe_bpp,
 	     "bpp match assertion failure (expected %d, current %d)\n",

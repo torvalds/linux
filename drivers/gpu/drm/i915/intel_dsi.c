@@ -787,7 +787,7 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
-	unsigned int bpp = dsi_pixel_format_bpp(intel_dsi->pixel_format);
+	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	unsigned int lane_count = intel_dsi->lane_count;
 
 	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
@@ -849,6 +849,23 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	}
 }
 
+static u32 pixel_format_to_reg(enum mipi_dsi_pixel_format fmt)
+{
+	switch (fmt) {
+	case MIPI_DSI_FMT_RGB888:
+		return VID_MODE_FORMAT_RGB888;
+	case MIPI_DSI_FMT_RGB666:
+		return VID_MODE_FORMAT_RGB666;
+	case MIPI_DSI_FMT_RGB666_PACKED:
+		return VID_MODE_FORMAT_RGB666_PACKED;
+	case MIPI_DSI_FMT_RGB565:
+		return VID_MODE_FORMAT_RGB565;
+	default:
+		MISSING_CASE(fmt);
+		return VID_MODE_FORMAT_RGB666;
+	}
+}
+
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -858,7 +875,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	const struct drm_display_mode *adjusted_mode = &intel_crtc->config->base.adjusted_mode;
 	enum port port;
-	unsigned int bpp = dsi_pixel_format_bpp(intel_dsi->pixel_format);
+	unsigned int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	u32 val, tmp;
 	u16 mode_hdisplay;
 
@@ -917,9 +934,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		val |= CMD_MODE_DATA_WIDTH_8_BIT; /* XXX */
 	} else {
 		val |= intel_dsi->channel << VID_MODE_CHANNEL_NUMBER_SHIFT;
-
-		/* XXX: cross-check bpp vs. pixel format? */
-		val |= intel_dsi->pixel_format;
+		val |= pixel_format_to_reg(intel_dsi->pixel_format);
 	}
 
 	tmp = 0;

@@ -34,8 +34,6 @@
 #define DSI_DUAL_LINK_FRONT_BACK	1
 #define DSI_DUAL_LINK_PIXEL_ALT		2
 
-int dsi_pixel_format_bpp(int pixel_format);
-
 struct intel_dsi_host;
 
 struct intel_dsi {
@@ -64,8 +62,12 @@ struct intel_dsi {
 	/* number of DSI lanes */
 	unsigned int lane_count;
 
-	/* video mode pixel format for MIPI_DSI_FUNC_PRG register */
-	u32 pixel_format;
+	/*
+	 * video mode pixel format
+	 *
+	 * XXX: consolidate on .format in struct mipi_dsi_device.
+	 */
+	enum mipi_dsi_pixel_format pixel_format;
 
 	/* video mode format for MIPI_VIDEO_MODE_FORMAT register */
 	u32 video_mode_format;
