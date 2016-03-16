@@ -1208,6 +1208,53 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 }
 
 /**
+ * i915_driver_register - register the driver with the rest of the system
+ * @dev_priv: device private
+ *
+ * Perform any steps necessary to make the driver available via kernel
+ * internal or userspace interfaces.
+ */
+static void i915_driver_register(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	i915_gem_shrinker_init(dev_priv);
+	/*
+	 * Notify a valid surface after modesetting,
+	 * when running inside a VM.
+	 */
+	if (intel_vgpu_active(dev))
+		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
+
+	i915_setup_sysfs(dev);
+
+	if (INTEL_INFO(dev_priv)->num_pipes) {
+		/* Must be done after probing outputs */
+		intel_opregion_init(dev);
+		acpi_video_register();
+	}
+
+	if (IS_GEN5(dev_priv))
+		intel_gpu_ips_init(dev_priv);
+
+	i915_audio_component_init(dev_priv);
+}
+
+/**
+ * i915_driver_unregister - cleanup the registration done in i915_driver_regiser()
+ * @dev_priv: device private
+ */
+static void i915_driver_unregister(struct drm_i915_private *dev_priv)
+{
+	i915_audio_component_cleanup(dev_priv);
+	intel_gpu_ips_teardown();
+	acpi_video_unregister();
+	intel_opregion_fini(dev_priv->dev);
+	i915_teardown_sysfs(dev_priv->dev);
+	i915_gem_shrinker_cleanup(dev_priv);
+}
+
+/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1245,6 +1292,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
+	/*
+	 * TODO: move the vblank init and parts of modeset init steps into one
+	 * of the i915_driver_init_/i915_driver_register functions according
+	 * to the role/effect of the given init step.
+	 */
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 		if (ret)
@@ -1257,26 +1309,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_power_well;
 	}
 
-	i915_gem_shrinker_init(dev_priv);
-	/*
-	 * Notify a valid surface after modesetting,
-	 * when running inside a VM.
-	 */
-	if (intel_vgpu_active(dev))
-		I915_WRITE(vgtif_reg(display_ready), VGT_DRV_DISPLAY_READY);
-
-	i915_setup_sysfs(dev);
-
-	if (INTEL_INFO(dev)->num_pipes) {
-		/* Must be done after probing outputs */
-		intel_opregion_init(dev);
-		acpi_video_register();
-	}
-
-	if (IS_GEN5(dev))
-		intel_gpu_ips_init(dev_priv);
-
-	i915_audio_component_init(dev_priv);
+	i915_driver_register(dev_priv);
 
 	intel_runtime_pm_enable(dev_priv);
 
@@ -1315,15 +1348,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
-	i915_audio_component_cleanup(dev_priv);
-
-	intel_gpu_ips_teardown();
-
-	i915_teardown_sysfs(dev);
-
-	acpi_video_unregister();
-	intel_opregion_fini(dev);
-	i915_gem_shrinker_cleanup(dev_priv);
+	i915_driver_unregister(dev_priv);
 
 	drm_vblank_cleanup(dev);
 
