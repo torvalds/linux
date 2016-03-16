@@ -1743,7 +1743,7 @@ intel_panel_init_backlight_funcs(struct intel_panel *panel)
 		panel->backlight.get = pch_get_backlight;
 		panel->backlight.hz_to_pwm = pch_hz_to_pwm;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		if (dev_priv->vbt.has_mipi) {
+		if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI) {
 			panel->backlight.setup = pwm_setup_backlight;
 			panel->backlight.enable = pwm_enable_backlight;
 			panel->backlight.disable = pwm_disable_backlight;
