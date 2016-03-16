@@ -148,6 +148,11 @@
 	 (((a)->s6_addr16[6]) == 0) &&		\
 	 (((a)->s6_addr[14]) == 0))
 
+#define lowpan_is_linklocal_zero_padded(a)	\
+	(!(hdr->saddr.s6_addr[1] & 0x3f) &&	\
+	 !hdr->saddr.s6_addr16[1] &&		\
+	 !hdr->saddr.s6_addr32[1])
+
 #define LOWPAN_IPHC_CID_DCI(cid)	(cid & 0x0f)
 #define LOWPAN_IPHC_CID_SCI(cid)	((cid & 0xf0) >> 4)
 
@@ -1101,7 +1106,8 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 							  true);
 			iphc1 |= LOWPAN_IPHC_SAC;
 		} else {
-			if (ipv6_saddr_type & IPV6_ADDR_LINKLOCAL) {
+			if (ipv6_saddr_type & IPV6_ADDR_LINKLOCAL &&
+			    lowpan_is_linklocal_zero_padded(hdr->saddr)) {
 				iphc1 |= lowpan_compress_addr_64(&hc_ptr,
 								 &hdr->saddr,
 								 saddr, true);
@@ -1135,7 +1141,8 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 							  false);
 			iphc1 |= LOWPAN_IPHC_DAC;
 		} else {
-			if (ipv6_daddr_type & IPV6_ADDR_LINKLOCAL) {
+			if (ipv6_daddr_type & IPV6_ADDR_LINKLOCAL &&
+			    lowpan_is_linklocal_zero_padded(hdr->daddr)) {
 				iphc1 |= lowpan_compress_addr_64(&hc_ptr,
 								 &hdr->daddr,
 								 daddr, false);
