@@ -621,6 +621,8 @@ static int vop_win0_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			V_WIN0_UV_SWAP(win->area[0].swap_uv);
 		if (dev_drv->cur_screen->mode.vmode & FB_VMODE_INTERLACED)
 			val |= V_WIN0_INTERLACE_READ(1);
+		else
+			val |= V_WIN0_INTERLACE_READ(0);
 		vop_msk_reg(vop_dev, WIN0_CTRL0, val);
 
 		val = V_WIN0_YRGB_VIR_STRIDE(win->area[0].y_vir_stride) |
@@ -1021,6 +1023,8 @@ static int vop_config_interface(struct rk_lcdc_driver *dev_drv)
 
 	if (screen->mode.vmode & FB_VMODE_INTERLACED)
 		val |= V_DSP_INTERLACE(1) | V_INTERLACE_FIELD_POL(0);
+	else
+		val |= V_DSP_INTERLACE(0) | V_INTERLACE_FIELD_POL(0);
 
 	dev_drv->output_color = screen->color_mode;
 	if (screen->color_mode == COLOR_RGB)
