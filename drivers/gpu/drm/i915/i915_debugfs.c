@@ -2483,7 +2483,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct intel_guc guc;
 	struct i915_guc_client client = {};
 	struct intel_engine_cs *engine;
-	enum intel_ring_id i;
+	enum intel_engine_id i;
 	u64 total = 0;
 
 	if (!HAS_GUC_SCHED(dev_priv->dev))

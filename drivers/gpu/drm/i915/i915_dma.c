@@ -87,16 +87,16 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = 1;
 		break;
 	case I915_PARAM_HAS_BSD:
-		value = intel_ring_initialized(&dev_priv->engine[VCS]);
+		value = intel_engine_initialized(&dev_priv->engine[VCS]);
 		break;
 	case I915_PARAM_HAS_BLT:
-		value = intel_ring_initialized(&dev_priv->engine[BCS]);
+		value = intel_engine_initialized(&dev_priv->engine[BCS]);
 		break;
 	case I915_PARAM_HAS_VEBOX:
-		value = intel_ring_initialized(&dev_priv->engine[VECS]);
+		value = intel_engine_initialized(&dev_priv->engine[VECS]);
 		break;
 	case I915_PARAM_HAS_BSD2:
-		value = intel_ring_initialized(&dev_priv->engine[VCS2]);
+		value = intel_engine_initialized(&dev_priv->engine[VCS2]);
 		break;
 	case I915_PARAM_HAS_RELAXED_FENCING:
 		value = 1;
@@ -444,7 +444,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_cleanup_engines(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 cleanup_irq:
@@ -1261,7 +1261,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_guc_ucode_fini(dev);
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_cleanup_engines(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);

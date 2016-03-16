@@ -996,7 +996,7 @@ static void ironlake_rps_change_irq_handler(struct drm_device *dev)
 
 static void notify_ring(struct intel_engine_cs *engine)
 {
-	if (!intel_ring_initialized(engine))
+	if (!intel_engine_initialized(engine))
 		return;
 
 	trace_i915_gem_request_notify(engine);

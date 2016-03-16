@@ -45,7 +45,7 @@ i915_verify_lists(struct drm_device *dev)
 
 	for_each_engine(engine, dev_priv, i) {
 		list_for_each_entry(obj, &engine->active_list,
-				    ring_list[engine->id]) {
+				    engine_list[engine->id]) {
 			if (obj->base.dev != dev ||
 			    !atomic_read(&obj->base.refcount.refcount)) {
 				DRM_ERROR("%s: freed active obj %p\n",

@@ -59,7 +59,7 @@ int intel_ring_space(struct intel_ringbuffer *ringbuf)
 	return ringbuf->space;
 }
 
-bool intel_ring_stopped(struct intel_engine_cs *engine)
+bool intel_engine_stopped(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	return dev_priv->gpu_error.stop_rings & intel_engine_flag(engine);
@@ -69,7 +69,7 @@ static void __intel_ring_advance(struct intel_engine_cs *engine)
 {
 	struct intel_ringbuffer *ringbuf = engine->buffer;
 	ringbuf->tail &= ringbuf->size - 1;
-	if (intel_ring_stopped(engine))
+	if (intel_engine_stopped(engine))
 		return;
 	engine->write_tail(engine, ringbuf->tail);
 }
@@ -2274,21 +2274,21 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 error:
-	intel_cleanup_ring_buffer(engine);
+	intel_cleanup_engine(engine);
 	return ret;
 }
 
-void intel_cleanup_ring_buffer(struct intel_engine_cs *engine)
+void intel_cleanup_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (!intel_ring_initialized(engine))
+	if (!intel_engine_initialized(engine))
 		return;
 
 	dev_priv = to_i915(engine->dev);
 
 	if (engine->buffer) {
-		intel_stop_ring_buffer(engine);
+		intel_stop_engine(engine);
 		WARN_ON(!IS_GEN2(engine->dev) && (I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
 		intel_unpin_ringbuffer_obj(engine->buffer);
@@ -3163,11 +3163,11 @@ intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 }
 
 void
-intel_stop_ring_buffer(struct intel_engine_cs *engine)
+intel_stop_engine(struct intel_engine_cs *engine)
 {
 	int ret;
 
-	if (!intel_ring_initialized(engine))
+	if (!intel_engine_initialized(engine))
 		return;
 
 	ret = intel_engine_idle(engine);

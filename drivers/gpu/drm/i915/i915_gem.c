@@ -2413,7 +2413,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 		drm_gem_object_reference(&obj->base);
 	obj->active |= intel_engine_flag(engine);
 
-	list_move_tail(&obj->ring_list[engine->id], &engine->active_list);
+	list_move_tail(&obj->engine_list[engine->id], &engine->active_list);
 	i915_gem_request_assign(&obj->last_read_req[engine->id], req);
 
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
@@ -2437,7 +2437,7 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 	RQ_BUG_ON(obj->last_read_req[ring] == NULL);
 	RQ_BUG_ON(!(obj->active & (1 << ring)));
 
-	list_del_init(&obj->ring_list[ring]);
+	list_del_init(&obj->engine_list[ring]);
 	i915_gem_request_assign(&obj->last_read_req[ring], NULL);
 
 	if (obj->last_write_req && obj->last_write_req->engine->id == ring)
@@ -2830,7 +2830,7 @@ static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 
 		obj = list_first_entry(&engine->active_list,
 				       struct drm_i915_gem_object,
-				       ring_list[engine->id]);
+				       engine_list[engine->id]);
 
 		i915_gem_object_retire__read(obj, engine->id);
 	}
@@ -2941,7 +2941,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 
 		obj = list_first_entry(&engine->active_list,
 				       struct drm_i915_gem_object,
-				       ring_list[engine->id]);
+				       engine_list[engine->id]);
 
 		if (!list_empty(&obj->last_read_req[engine->id]->list))
 			break;
@@ -4448,7 +4448,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	INIT_LIST_HEAD(&obj->global_list);
 	for (i = 0; i < I915_NUM_ENGINES; i++)
-		INIT_LIST_HEAD(&obj->ring_list[i]);
+		INIT_LIST_HEAD(&obj->engine_list[i]);
 	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
@@ -4653,14 +4653,14 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 }
 
 static void
-i915_gem_stop_ringbuffers(struct drm_device *dev)
+i915_gem_stop_engines(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	int i;
 
 	for_each_engine(engine, dev_priv, i)
-		dev_priv->gt.stop_ring(engine);
+		dev_priv->gt.stop_engine(engine);
 }
 
 int
@@ -4676,7 +4676,7 @@ i915_gem_suspend(struct drm_device *dev)
 
 	i915_gem_retire_requests(dev);
 
-	i915_gem_stop_ringbuffers(dev);
+	i915_gem_stop_engines(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
@@ -4778,7 +4778,7 @@ static void init_unused_rings(struct drm_device *dev)
 	}
 }
 
-int i915_gem_init_rings(struct drm_device *dev)
+int i915_gem_init_engines(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
@@ -4814,13 +4814,13 @@ int i915_gem_init_rings(struct drm_device *dev)
 	return 0;
 
 cleanup_vebox_ring:
-	intel_cleanup_ring_buffer(&dev_priv->engine[VECS]);
+	intel_cleanup_engine(&dev_priv->engine[VECS]);
 cleanup_blt_ring:
-	intel_cleanup_ring_buffer(&dev_priv->engine[BCS]);
+	intel_cleanup_engine(&dev_priv->engine[BCS]);
 cleanup_bsd_ring:
-	intel_cleanup_ring_buffer(&dev_priv->engine[VCS]);
+	intel_cleanup_engine(&dev_priv->engine[VCS]);
 cleanup_render_ring:
-	intel_cleanup_ring_buffer(&dev_priv->engine[RCS]);
+	intel_cleanup_engine(&dev_priv->engine[RCS]);
 
 	return ret;
 }
@@ -4907,7 +4907,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -4920,7 +4920,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret && ret != -EIO) {
 			DRM_ERROR("PPGTT enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -4928,7 +4928,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (ret && ret != -EIO) {
 			DRM_ERROR("Context enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);
-			i915_gem_cleanup_ringbuffer(dev);
+			i915_gem_cleanup_engines(dev);
 			goto out;
 		}
 
@@ -4952,14 +4952,14 @@ int i915_gem_init(struct drm_device *dev)
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.execbuf_submit = i915_gem_ringbuffer_submission;
-		dev_priv->gt.init_rings = i915_gem_init_rings;
-		dev_priv->gt.cleanup_ring = intel_cleanup_ring_buffer;
-		dev_priv->gt.stop_ring = intel_stop_ring_buffer;
+		dev_priv->gt.init_engines = i915_gem_init_engines;
+		dev_priv->gt.cleanup_engine = intel_cleanup_engine;
+		dev_priv->gt.stop_engine = intel_stop_engine;
 	} else {
 		dev_priv->gt.execbuf_submit = intel_execlists_submission;
-		dev_priv->gt.init_rings = intel_logical_rings_init;
-		dev_priv->gt.cleanup_ring = intel_logical_ring_cleanup;
-		dev_priv->gt.stop_ring = intel_logical_ring_stop;
+		dev_priv->gt.init_engines = intel_logical_rings_init;
+		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
+		dev_priv->gt.stop_engine = intel_logical_ring_stop;
 	}
 
 	/* This is just a security blanket to placate dragons.
@@ -4980,7 +4980,7 @@ int i915_gem_init(struct drm_device *dev)
 	if (ret)
 		goto out_unlock;
 
-	ret = dev_priv->gt.init_rings(dev);
+	ret = dev_priv->gt.init_engines(dev);
 	if (ret)
 		goto out_unlock;
 
@@ -5003,14 +5003,14 @@ out_unlock:
 }
 
 void
-i915_gem_cleanup_ringbuffer(struct drm_device *dev)
+i915_gem_cleanup_engines(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	int i;
 
 	for_each_engine(engine, dev_priv, i)
-		dev_priv->gt.cleanup_ring(engine);
+		dev_priv->gt.cleanup_engine(engine);
 
     if (i915.enable_execlists)
             /*

@@ -795,7 +795,7 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance(ringbuf);
 
-	if (intel_ring_stopped(engine))
+	if (intel_engine_stopped(engine))
 		return 0;
 
 	if (engine->last_context != request->ctx) {
@@ -1054,7 +1054,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	int ret;
 
-	if (!intel_ring_initialized(engine))
+	if (!intel_engine_initialized(engine))
 		return;
 
 	ret = intel_engine_idle(engine);
@@ -2012,7 +2012,7 @@ void intel_logical_ring_cleanup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (!intel_ring_initialized(engine))
+	if (!intel_engine_initialized(engine))
 		return;
 
 	dev_priv = engine->dev->dev_private;
@@ -2240,7 +2240,7 @@ static int logical_vebox_ring_init(struct drm_device *dev)
  * @dev: DRM device.
  *
  * This function inits the engines for an Execlists submission style (the equivalent in the
- * legacy ringbuffer submission world would be i915_gem_init_rings). It does it only for
+ * legacy ringbuffer submission world would be i915_gem_init_engines). It does it only for
  * those engines that are present in the hardware.
  *
  * Return: non-zero if the initialization failed.
