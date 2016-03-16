@@ -775,57 +775,6 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	{ }	/* terminating entry */
 };
 
-/*
- * Enumerate the child dev array parsed from VBT to check whether
- * the LVDS is present.
- * If it is present, return 1.
- * If it is not present, return false.
- * If no child dev is parsed from VBT, it assumes that the LVDS is present.
- */
-static bool lvds_is_present_in_vbt(struct drm_device *dev,
-				   u8 *i2c_pin)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i;
-
-	if (!dev_priv->vbt.child_dev_num)
-		return true;
-
-	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
-		union child_device_config *uchild = dev_priv->vbt.child_dev + i;
-		struct old_child_dev_config *child = &uchild->old;
-
-		/* If the device type is not LFP, continue.
-		 * We have to check both the new identifiers as well as the
-		 * old for compatibility with some BIOSes.
-		 */
-		if (child->device_type != DEVICE_TYPE_INT_LFP &&
-		    child->device_type != DEVICE_TYPE_LFP)
-			continue;
-
-		if (intel_gmbus_is_valid_pin(dev_priv, child->i2c_pin))
-			*i2c_pin = child->i2c_pin;
-
-		/* However, we cannot trust the BIOS writers to populate
-		 * the VBT correctly.  Since LVDS requires additional
-		 * information from AIM blocks, a non-zero addin offset is
-		 * a good indicator that the LVDS is actually present.
-		 */
-		if (child->addin_offset)
-			return true;
-
-		/* But even then some BIOS writers perform some black magic
-		 * and instantiate the device without reference to any
-		 * additional data.  Trust that if the VBT was written into
-		 * the OpRegion then they have validated the LVDS's existence.
-		 */
-		if (dev_priv->opregion.vbt)
-			return true;
-	}
-
-	return false;
-}
-
 static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
 {
 	DRM_INFO("Forcing lvds to dual link mode on %s\n", id->ident);
@@ -982,7 +931,7 @@ void intel_lvds_init(struct drm_device *dev)
 	}
 
 	pin = GMBUS_PIN_PANEL;
-	if (!lvds_is_present_in_vbt(dev, &pin)) {
+	if (!intel_bios_is_lvds_present(dev_priv, &pin)) {
 		if ((lvds & LVDS_PORT_EN) == 0) {
 			DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 			return;
