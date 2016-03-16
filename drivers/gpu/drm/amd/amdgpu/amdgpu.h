@@ -287,9 +287,11 @@ struct amdgpu_ring_funcs {
 			struct amdgpu_ib *ib);
 	void (*emit_fence)(struct amdgpu_ring *ring, uint64_t addr,
 			   uint64_t seq, unsigned flags);
+	void (*emit_pipeline_sync)(struct amdgpu_ring *ring);
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
 			      uint64_t pd_addr);
 	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
+	void (*emit_hdp_invalidate)(struct amdgpu_ring *ring);
 	void (*emit_gds_switch)(struct amdgpu_ring *ring, uint32_t vmid,
 				uint32_t gds_base, uint32_t gds_size,
 				uint32_t gws_base, uint32_t gws_size,
@@ -369,9 +371,6 @@ struct amdgpu_fence {
 	struct amdgpu_ring		*ring;
 	uint64_t			seq;
 
-	/* filp or special value for fence creator */
-	void				*owner;
-
 	wait_queue_t			fence_wake;
 };
 
@@ -392,8 +391,7 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   unsigned irq_type);
 void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
-int amdgpu_fence_emit(struct amdgpu_ring *ring, void *owner,
-		      struct amdgpu_fence **fence);
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
@@ -434,6 +432,8 @@ struct amdgpu_bo_list_entry {
 	struct ttm_validate_buffer	tv;
 	struct amdgpu_bo_va		*bo_va;
 	uint32_t			priority;
+	struct page			**user_pages;
+	int				user_invalidated;
 };
 
 struct amdgpu_bo_va_mapping {
@@ -445,7 +445,6 @@ struct amdgpu_bo_va_mapping {
 
 /* bo virtual addresses in a specific vm */
 struct amdgpu_bo_va {
-	struct mutex		        mutex;
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
 	struct fence		        *last_pt_update;
@@ -596,6 +595,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 struct fence *amdgpu_sync_get_fence(struct amdgpu_sync *sync);
 int amdgpu_sync_wait(struct amdgpu_sync *sync);
 void amdgpu_sync_free(struct amdgpu_sync *sync);
+int amdgpu_sync_init(void);
+void amdgpu_sync_fini(void);
 
 /*
  * GART structures, functions & helpers
@@ -726,7 +727,7 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct amdgpu_fence		*fence;
+	struct fence			*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
 	unsigned			vm_id;
@@ -845,7 +846,6 @@ struct amdgpu_vm_id {
 
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
-	spinlock_t		it_lock;
 	struct rb_root		va;
 
 	/* protecting invalidated */
@@ -882,6 +882,13 @@ struct amdgpu_vm_manager_id {
 	struct list_head	list;
 	struct fence		*active;
 	atomic_long_t		owner;
+
+	uint32_t		gds_base;
+	uint32_t		gds_size;
+	uint32_t		gws_base;
+	uint32_t		gws_size;
+	uint32_t		oa_base;
+	uint32_t		oa_size;
 };
 
 struct amdgpu_vm_manager {
@@ -917,8 +924,11 @@ int amdgpu_vm_grab_id(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		      struct amdgpu_sync *sync, struct fence *fence,
 		      unsigned *vm_id, uint64_t *vm_pd_addr);
 void amdgpu_vm_flush(struct amdgpu_ring *ring,
-		     unsigned vmid,
-		     uint64_t pd_addr);
+		     unsigned vm_id, uint64_t pd_addr,
+		     uint32_t gds_base, uint32_t gds_size,
+		     uint32_t gws_base, uint32_t gws_size,
+		     uint32_t oa_base, uint32_t oa_size);
+void amdgpu_vm_reset_id(struct amdgpu_device *adev, unsigned vm_id);
 uint64_t amdgpu_vm_map_gart(const dma_addr_t *pages_addr, uint64_t addr);
 int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 				    struct amdgpu_vm *vm);
@@ -1006,7 +1016,7 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo *gds_obj;
 	struct amdgpu_bo *gws_obj;
 	struct amdgpu_bo *oa_obj;
-	bool has_userptr;
+	unsigned first_userptr;
 	unsigned num_entries;
 	struct amdgpu_bo_list_entry *array;
 };
@@ -1135,8 +1145,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ib, void *owner,
-		       struct fence *last_vm_update,
+		       struct amdgpu_ib *ib, struct fence *last_vm_update,
 		       struct fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
@@ -2012,7 +2021,6 @@ struct amdgpu_device {
 	struct amdgpu_sdma		sdma;
 
 	/* uvd */
-	bool				has_uvd;
 	struct amdgpu_uvd		uvd;
 
 	/* vce */
@@ -2186,10 +2194,12 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_ring_get_wptr(r) (r)->funcs->get_wptr((r))
 #define amdgpu_ring_set_wptr(r) (r)->funcs->set_wptr((r))
 #define amdgpu_ring_emit_ib(r, ib) (r)->funcs->emit_ib((r), (ib))
+#define amdgpu_ring_emit_pipeline_sync(r) (r)->funcs->emit_pipeline_sync((r))
 #define amdgpu_ring_emit_vm_flush(r, vmid, addr) (r)->funcs->emit_vm_flush((r), (vmid), (addr))
 #define amdgpu_ring_emit_fence(r, addr, seq, flags) (r)->funcs->emit_fence((r), (addr), (seq), (flags))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
 #define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
+#define amdgpu_ring_emit_hdp_invalidate(r) (r)->funcs->emit_hdp_invalidate((r))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
@@ -2314,12 +2324,15 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 		       struct amdgpu_ring **out_ring);
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
+int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
 struct mm_struct *amdgpu_ttm_tt_get_usermm(struct ttm_tt *ttm);
 bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 				  unsigned long end);
+bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
+				       int *last_invalidated);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
 uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem);

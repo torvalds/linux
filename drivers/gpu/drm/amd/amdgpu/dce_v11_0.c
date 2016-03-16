@@ -1658,6 +1658,9 @@ static void dce_v11_0_audio_fini(struct amdgpu_device *adev)
 {
 	int i;
 
+	if (!amdgpu_audio)
+		return;
+
 	if (!adev->mode_info.audio.enabled)
 		return;
 
@@ -1963,7 +1966,7 @@ static void dce_v11_0_afmt_enable(struct drm_encoder *encoder, bool enable)
 		  enable ? "En" : "Dis", dig->afmt->offset, amdgpu_encoder->encoder_id);
 }
 
-static void dce_v11_0_afmt_init(struct amdgpu_device *adev)
+static int dce_v11_0_afmt_init(struct amdgpu_device *adev)
 {
 	int i;
 
@@ -1976,8 +1979,16 @@ static void dce_v11_0_afmt_init(struct amdgpu_device *adev)
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;
+		} else {
+			int j;
+			for (j = 0; j < i; j++) {
+				kfree(adev->mode_info.afmt[j]);
+				adev->mode_info.afmt[j] = NULL;
+			}
+			return -ENOMEM;
 		}
 	}
+	return 0;
 }
 
 static void dce_v11_0_afmt_fini(struct amdgpu_device *adev)
@@ -2054,8 +2065,7 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		amdgpu_fb = to_amdgpu_framebuffer(fb);
 		target_fb = fb;
-	}
-	else {
+	} else {
 		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 		target_fb = crtc->primary->fb;
 	}
@@ -2069,9 +2079,9 @@ static int dce_v11_0_crtc_do_set_base(struct drm_crtc *crtc,
 	if (unlikely(r != 0))
 		return r;
 
-	if (atomic)
+	if (atomic) {
 		fb_location = amdgpu_bo_gpu_offset(rbo);
-	else {
+	} else {
 		r = amdgpu_bo_pin(rbo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
 		if (unlikely(r != 0)) {
 			amdgpu_bo_unreserve(rbo);
@@ -2691,13 +2701,13 @@ static void dce_v11_0_crtc_dpms(struct drm_crtc *crtc, int mode)
 		type = amdgpu_crtc_idx_to_irq_type(adev, amdgpu_crtc->crtc_id);
 		amdgpu_irq_update(adev, &adev->crtc_irq, type);
 		amdgpu_irq_update(adev, &adev->pageflip_irq, type);
-		drm_vblank_post_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_vblank_on(dev, amdgpu_crtc->crtc_id);
 		dce_v11_0_crtc_load_lut(crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		drm_vblank_pre_modeset(dev, amdgpu_crtc->crtc_id);
+		drm_vblank_off(dev, amdgpu_crtc->crtc_id);
 		if (amdgpu_crtc->enabled) {
 			dce_v11_0_vga_enable(crtc, true);
 			amdgpu_atombios_crtc_blank(crtc, ATOM_ENABLE);
@@ -2961,7 +2971,7 @@ static int dce_v11_0_sw_init(void *handle)
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		r = amdgpu_irq_add_id(adev, i + 1, &adev->crtc_irq);
 		if (r)
-		return r;
+			return r;
 	}
 
 	for (i = 8; i < 20; i += 2) {
@@ -2973,9 +2983,7 @@ static int dce_v11_0_sw_init(void *handle)
 	/* HPD hotplug */
 	r = amdgpu_irq_add_id(adev, 42, &adev->hpd_irq);
 	if (r)
-	return r;
-
-	adev->mode_info.mode_config_initialized = true;
+		return r;
 
 	adev->ddev->mode_config.funcs = &amdgpu_mode_funcs;
 
@@ -2994,6 +3002,7 @@ static int dce_v11_0_sw_init(void *handle)
 	adev->ddev->mode_config.max_width = 16384;
 	adev->ddev->mode_config.max_height = 16384;
 
+
 	/* allocate crtcs */
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		r = dce_v11_0_crtc_init(adev, i);
@@ -3007,7 +3016,9 @@ static int dce_v11_0_sw_init(void *handle)
 		return -EINVAL;
 
 	/* setup afmt */
-	dce_v11_0_afmt_init(adev);
+	r = dce_v11_0_afmt_init(adev);
+	if (r)
+		return r;
 
 	r = dce_v11_0_audio_init(adev);
 	if (r)
@@ -3015,7 +3026,8 @@ static int dce_v11_0_sw_init(void *handle)
 
 	drm_kms_helper_poll_init(adev->ddev);
 
-	return r;
+	adev->mode_info.mode_config_initialized = true;
+	return 0;
 }
 
 static int dce_v11_0_sw_fini(void *handle)

@@ -140,25 +140,40 @@ int amdgpu_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_pri
 void amdgpu_gem_object_close(struct drm_gem_object *obj,
 			     struct drm_file *file_priv)
 {
-	struct amdgpu_bo *rbo = gem_to_amdgpu_bo(obj);
-	struct amdgpu_device *adev = rbo->adev;
+	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
+	struct amdgpu_device *adev = bo->adev;
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
+
+	struct amdgpu_bo_list_entry vm_pd;
+	struct list_head list, duplicates;
+	struct ttm_validate_buffer tv;
+	struct ww_acquire_ctx ticket;
 	struct amdgpu_bo_va *bo_va;
 	int r;
-	r = amdgpu_bo_reserve(rbo, true);
+
+	INIT_LIST_HEAD(&list);
+	INIT_LIST_HEAD(&duplicates);
+
+	tv.bo = &bo->tbo;
+	tv.shared = true;
+	list_add(&tv.head, &list);
+
+	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
 		return;
 	}
-	bo_va = amdgpu_vm_bo_find(vm, rbo);
+	bo_va = amdgpu_vm_bo_find(vm, bo);
 	if (bo_va) {
 		if (--bo_va->ref_count == 0) {
 			amdgpu_vm_bo_rmv(adev, bo_va);
 		}
 	}
-	amdgpu_bo_unreserve(rbo);
+	ttm_eu_backoff_reservation(&ticket, &list);
 }
 
 static int amdgpu_gem_handle_lockup(struct amdgpu_device *adev, int r)
@@ -274,18 +289,23 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	if (args->flags & AMDGPU_GEM_USERPTR_VALIDATE) {
 		down_read(&current->mm->mmap_sem);
+
+		r = amdgpu_ttm_tt_get_user_pages(bo->tbo.ttm,
+						 bo->tbo.ttm->pages);
+		if (r)
+			goto unlock_mmap_sem;
+
 		r = amdgpu_bo_reserve(bo, true);
-		if (r) {
-			up_read(&current->mm->mmap_sem);
-			goto release_object;
-		}
+		if (r)
+			goto free_pages;
 
 		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_GTT);
 		r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 		amdgpu_bo_unreserve(bo);
-		up_read(&current->mm->mmap_sem);
 		if (r)
-			goto release_object;
+			goto free_pages;
+
+		up_read(&current->mm->mmap_sem);
 	}
 
 	r = drm_gem_handle_create(filp, gobj, &handle);
@@ -296,6 +316,12 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 
 	args->handle = handle;
 	return 0;
+
+free_pages:
+	release_pages(bo->tbo.ttm->pages, bo->tbo.ttm->num_pages, false);
+
+unlock_mmap_sem:
+	up_read(&current->mm->mmap_sem);
 
 release_object:
 	drm_gem_object_unreference_unlocked(gobj);
@@ -569,11 +595,10 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	tv.shared = true;
 	list_add(&tv.head, &list);
 
-	if (args->operation == AMDGPU_VA_OP_MAP) {
-		tv_pd.bo = &fpriv->vm.page_directory->tbo;
-		tv_pd.shared = true;
-		list_add(&tv_pd.head, &list);
-	}
+	tv_pd.bo = &fpriv->vm.page_directory->tbo;
+	tv_pd.shared = true;
+	list_add(&tv_pd.head, &list);
+
 	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
 	if (r) {
 		drm_gem_object_unreference_unlocked(gobj);

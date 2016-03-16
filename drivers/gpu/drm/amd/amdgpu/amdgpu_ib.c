@@ -90,9 +90,8 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  */
 void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 {
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, &ib->fence->base);
-	if (ib->fence)
-		fence_put(&ib->fence->base);
+	amdgpu_sa_bo_free(adev, &ib->sa_bo, ib->fence);
+	fence_put(ib->fence);
 }
 
 /**
@@ -101,7 +100,6 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  * @adev: amdgpu_device pointer
  * @num_ibs: number of IBs to schedule
  * @ibs: IB objects to schedule
- * @owner: owner for creating the fences
  * @f: fence created during this submission
  *
  * Schedule an IB on the associated ring (all asics).
@@ -118,8 +116,7 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
  * to SI there was just a DE IB.
  */
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
-		       struct amdgpu_ib *ibs, void *owner,
-		       struct fence *last_vm_update,
+		       struct amdgpu_ib *ibs, struct fence *last_vm_update,
 		       struct fence **f)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -153,13 +150,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	if (vm) {
 		/* do context switch */
-		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr);
-
-		if (ring->funcs->emit_gds_switch)
-			amdgpu_ring_emit_gds_switch(ring, ib->vm_id,
-						    ib->gds_base, ib->gds_size,
-						    ib->gws_base, ib->gws_size,
-						    ib->oa_base, ib->oa_size);
+		amdgpu_vm_flush(ring, ib->vm_id, ib->vm_pd_addr,
+				ib->gds_base, ib->gds_size,
+				ib->gws_base, ib->gws_size,
+				ib->oa_base, ib->oa_size);
 
 		if (ring->funcs->emit_hdp_flush)
 			amdgpu_ring_emit_hdp_flush(ring);
@@ -171,6 +165,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 		if (ib->ctx != ctx || ib->vm != vm) {
 			ring->current_ctx = old_ctx;
+			if (ib->vm_id)
+				amdgpu_vm_reset_id(adev, ib->vm_id);
 			amdgpu_ring_undo(ring);
 			return -EINVAL;
 		}
@@ -178,10 +174,17 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		ring->current_ctx = ctx;
 	}
 
-	r = amdgpu_fence_emit(ring, owner, &ib->fence);
+	if (vm) {
+		if (ring->funcs->emit_hdp_invalidate)
+			amdgpu_ring_emit_hdp_invalidate(ring);
+	}
+
+	r = amdgpu_fence_emit(ring, &ib->fence);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		ring->current_ctx = old_ctx;
+		if (ib->vm_id)
+			amdgpu_vm_reset_id(adev, ib->vm_id);
 		amdgpu_ring_undo(ring);
 		return r;
 	}
@@ -195,7 +198,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (f)
-		*f = fence_get(&ib->fence->base);
+		*f = fence_get(ib->fence);
 
 	amdgpu_ring_commit(ring);
 	return 0;
