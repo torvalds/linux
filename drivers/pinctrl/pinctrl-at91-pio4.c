@@ -824,7 +824,7 @@ static struct pinctrl_desc atmel_pinctrl_desc = {
 	.pmxops		= &atmel_pmxops,
 };
 
-static int atmel_pctrl_suspend(struct device *dev)
+static int __maybe_unused atmel_pctrl_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_pioctrl *atmel_pioctrl = platform_get_drvdata(pdev);
@@ -844,7 +844,7 @@ static int atmel_pctrl_suspend(struct device *dev)
 	return 0;
 }
 
-static int atmel_pctrl_resume(struct device *dev)
+static int __maybe_unused atmel_pctrl_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct atmel_pioctrl *atmel_pioctrl = platform_get_drvdata(pdev);

@@ -245,6 +245,8 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	up_write(&led_cdev->trigger_lock);
 #endif
 
+	led_cdev->flags |= LED_UNREGISTERING;
+
 	/* Stop blinking */
 	led_stop_software_blink(led_cdev);
 
