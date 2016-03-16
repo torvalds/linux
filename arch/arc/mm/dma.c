@@ -170,7 +170,7 @@ static void arc_dma_sync_sg_for_cpu(struct device *dev,
 	struct scatterlist *sg;
 
 	for_each_sg(sglist, sg, nelems, i)
-		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
+		_dma_cache_sync(sg_phys(sg), sg->length, dir);
 }
 
 static void arc_dma_sync_sg_for_device(struct device *dev,
@@ -181,7 +181,7 @@ static void arc_dma_sync_sg_for_device(struct device *dev,
 	struct scatterlist *sg;
 
 	for_each_sg(sglist, sg, nelems, i)
-		_dma_cache_sync((unsigned int)sg_virt(sg), sg->length, dir);
+		_dma_cache_sync(sg_phys(sg), sg->length, dir);
 }
 
 static int arc_dma_supported(struct device *dev, u64 dma_mask)
