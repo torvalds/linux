@@ -276,7 +276,7 @@ struct sh_pfc_soc_info {
  *   - msel: Module selector
  */
 #define PINMUX_IPSR_MSEL(ipsr, fn, msel)				\
-	PINMUX_DATA(fn##_MARK, FN_##msel, FN_##ipsr, FN_##fn)
+	PINMUX_DATA(fn##_MARK, FN_##msel, FN_##fn, FN_##ipsr)
 
 /*
  * Describe a pinmux configuration for a single-function pin with GPIO
