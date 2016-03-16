@@ -60,6 +60,9 @@ void kmemcheck_free_shadow(struct page *page, int order)
 void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
 			  size_t size)
 {
+	if (unlikely(!object)) /* Skip object if allocation failed */
+		return;
+
 	/*
 	 * Has already been memset(), which initializes the shadow for us
 	 * as well.

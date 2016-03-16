@@ -826,8 +826,6 @@ static struct page_state {
 #undef lru
 #undef swapbacked
 #undef head
-#undef tail
-#undef compound
 #undef slab
 #undef reserved
 

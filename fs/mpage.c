@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/prefetch.h>
 #include <linux/mpage.h>
+#include <linux/mm_inline.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
@@ -366,7 +367,7 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	map_bh.b_state = 0;
 	map_bh.b_size = 0;
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
+		struct page *page = lru_to_page(pages);
 
 		prefetchw(&page->flags);
 		list_del(&page->lru);
