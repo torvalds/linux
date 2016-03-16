@@ -394,6 +394,7 @@ try_again:
 		gossip_err("%s: impossible value for returned_count:%d:\n",
 		__func__,
 		returned_count);
+		ret = -EIO;
 		goto done;
 	}
 
@@ -401,6 +402,15 @@ try_again:
 	 * Check to see how much can be fit in the buffer. Fit only whole keys.
 	 */
 	for (i = 0; i < returned_count; i++) {
+		if (new_op->downcall.resp.listxattr.lengths[i] < 0 ||
+		    new_op->downcall.resp.listxattr.lengths[i] >
+		    ORANGEFS_MAX_XATTR_NAMELEN) {
+			gossip_err("%s: impossible value for lengths[%d]\n",
+			    __func__,
+			    new_op->downcall.resp.listxattr.lengths[i]);
+			ret = -EIO;
+			goto done;
+		}
 		if (total + new_op->downcall.resp.listxattr.lengths[i] > size)
 			goto done;
 
