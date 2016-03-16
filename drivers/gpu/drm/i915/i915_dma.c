@@ -1117,8 +1117,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	i915_gem_load_init_fences(dev_priv);
 
-	i915_gem_shrinker_init(dev_priv);
-
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
 	 * according to the published specs.  It doesn't appear to function
@@ -1138,7 +1136,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 		if (ret)
-			goto out_cleanup_shrinker;
+			goto out_disable_msi;
 	}
 
 	ret = i915_load_modeset_init(dev);
@@ -1147,6 +1145,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_power_well;
 	}
 
+	i915_gem_shrinker_init(dev_priv);
 	/*
 	 * Notify a valid surface after modesetting,
 	 * when running inside a VM.
@@ -1176,9 +1175,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 out_power_well:
 	intel_power_domains_fini(dev_priv);
 	drm_vblank_cleanup(dev);
-out_cleanup_shrinker:
-	i915_gem_shrinker_cleanup(dev_priv);
-
+out_disable_msi:
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
@@ -1223,12 +1220,11 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	i915_gem_shrinker_cleanup(dev_priv);
-
 	io_mapping_free(dev_priv->gtt.mappable);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 
 	acpi_video_unregister();
+	i915_gem_shrinker_cleanup(dev_priv);
 
 	drm_vblank_cleanup(dev);
 
