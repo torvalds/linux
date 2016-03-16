@@ -209,11 +209,6 @@ data_access_slb_pSeries:
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x380)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
-#ifdef __DISABLED__
-	/* Keep that around for when we re-implement dynamic VSIDs */
-	cmpdi	r3,0
-	bge	slb_miss_user_pseries
-#endif /* __DISABLED__ */
 	mfspr	r12,SPRN_SRR1
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
@@ -240,11 +235,6 @@ instruction_access_slb_pSeries:
 	EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST, 0x480)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
-#ifdef __DISABLED__
-	/* Keep that around for when we re-implement dynamic VSIDs */
-	cmpdi	r3,0
-	bge	slb_miss_user_pseries
-#endif /* __DISABLED__ */
 	mfspr	r12,SPRN_SRR1
 #ifndef CONFIG_RELOCATABLE
 	b	slb_miss_realmode
@@ -709,34 +699,6 @@ system_reset_fwnmi:
 
 #endif /* CONFIG_PPC_PSERIES */
 
-#ifdef __DISABLED__
-/*
- * This is used for when the SLB miss handler has to go virtual,
- * which doesn't happen for now anymore but will once we re-implement
- * dynamic VSIDs for shared page tables
- */
-slb_miss_user_pseries:
-	std	r10,PACA_EXGEN+EX_R10(r13)
-	std	r11,PACA_EXGEN+EX_R11(r13)
-	std	r12,PACA_EXGEN+EX_R12(r13)
-	GET_SCRATCH0(r10)
-	ld	r11,PACA_EXSLB+EX_R9(r13)
-	ld	r12,PACA_EXSLB+EX_R3(r13)
-	std	r10,PACA_EXGEN+EX_R13(r13)
-	std	r11,PACA_EXGEN+EX_R9(r13)
-	std	r12,PACA_EXGEN+EX_R3(r13)
-	clrrdi	r12,r13,32
-	mfmsr	r10
-	mfspr	r11,SRR0			/* save SRR0 */
-	ori	r12,r12,slb_miss_user_common@l	/* virt addr of handler */
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
-	mtspr	SRR0,r12
-	mfspr	r12,SRR1			/* and SRR1 */
-	mtspr	SRR1,r10
-	rfid
-	b	.				/* prevent spec. execution */
-#endif /* __DISABLED__ */
-
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 kvmppc_skip_interrupt:
 	/*
@@ -1011,70 +973,6 @@ instruction_access_common:
 	b	do_hash_page		/* Try to handle as hpte fault */
 
 	STD_EXCEPTION_COMMON(0xe20, h_instr_storage, unknown_exception)
-
-/*
- * Here is the common SLB miss user that is used when going to virtual
- * mode for SLB misses, that is currently not used
- */
-#ifdef __DISABLED__
-	.align	7
-	.globl	slb_miss_user_common
-slb_miss_user_common:
-	mflr	r10
-	std	r3,PACA_EXGEN+EX_DAR(r13)
-	stw	r9,PACA_EXGEN+EX_CCR(r13)
-	std	r10,PACA_EXGEN+EX_LR(r13)
-	std	r11,PACA_EXGEN+EX_SRR0(r13)
-	bl	slb_allocate_user
-
-	ld	r10,PACA_EXGEN+EX_LR(r13)
-	ld	r3,PACA_EXGEN+EX_R3(r13)
-	lwz	r9,PACA_EXGEN+EX_CCR(r13)
-	ld	r11,PACA_EXGEN+EX_SRR0(r13)
-	mtlr	r10
-	beq-	slb_miss_fault
-
-	andi.	r10,r12,MSR_RI		/* check for unrecoverable exception */
-	beq-	unrecov_user_slb
-	mfmsr	r10
-
-.machine push
-.machine "power4"
-	mtcrf	0x80,r9
-.machine pop
-
-	clrrdi	r10,r10,2		/* clear RI before setting SRR0/1 */
-	mtmsrd	r10,1
-
-	mtspr	SRR0,r11
-	mtspr	SRR1,r12
-
-	ld	r9,PACA_EXGEN+EX_R9(r13)
-	ld	r10,PACA_EXGEN+EX_R10(r13)
-	ld	r11,PACA_EXGEN+EX_R11(r13)
-	ld	r12,PACA_EXGEN+EX_R12(r13)
-	ld	r13,PACA_EXGEN+EX_R13(r13)
-	rfid
-	b	.
-
-slb_miss_fault:
-	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXGEN)
-	ld	r4,PACA_EXGEN+EX_DAR(r13)
-	li	r5,0
-	std	r4,_DAR(r1)
-	std	r5,_DSISR(r1)
-	b	handle_page_fault
-
-unrecov_user_slb:
-	EXCEPTION_PROLOG_COMMON(0x4200, PACA_EXGEN)
-	RECONCILE_IRQ_STATE(r10, r11)
-	bl	save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	unrecoverable_exception
-	b	1b
-
-#endif /* __DISABLED__ */
-
 
 	/*
 	 * Machine check is different because we use a different
