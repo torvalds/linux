@@ -2651,7 +2651,6 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 
 	ftrace_start_up++;
-	command |= FTRACE_UPDATE_CALLS;
 
 	/*
 	 * Note that ftrace probes uses this to start up
@@ -2672,7 +2671,8 @@ static int ftrace_startup(struct ftrace_ops *ops, int command)
 		return ret;
 	}
 
-	ftrace_hash_rec_enable(ops, 1);
+	if (ftrace_hash_rec_enable(ops, 1))
+		command |= FTRACE_UPDATE_CALLS;
 
 	ftrace_startup_enable(command);
 
@@ -2702,11 +2702,11 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 	/* Disabling ipmodify never fails */
 	ftrace_hash_ipmodify_disable(ops);
-	ftrace_hash_rec_disable(ops, 1);
+
+	if (ftrace_hash_rec_disable(ops, 1))
+		command |= FTRACE_UPDATE_CALLS;
 
 	ops->flags &= ~FTRACE_OPS_FL_ENABLED;
-
-	command |= FTRACE_UPDATE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
 		saved_ftrace_func = ftrace_trace_function;
