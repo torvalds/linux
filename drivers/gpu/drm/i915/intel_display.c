@@ -14824,23 +14824,24 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.atomic_state_clear = intel_atomic_state_clear,
 };
 
-/* Set up chip specific display functions */
-static void intel_init_display(struct drm_device *dev)
+/**
+ * intel_init_display_hooks - initialize the display modesetting hooks
+ * @dev_priv: device private
+ */
+void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_PCH_SPLIT(dev) || IS_G4X(dev))
+	if (HAS_PCH_SPLIT(dev_priv) || IS_G4X(dev_priv))
 		dev_priv->display.find_dpll = g4x_find_best_dpll;
-	else if (IS_CHERRYVIEW(dev))
+	else if (IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.find_dpll = chv_find_best_dpll;
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		dev_priv->display.find_dpll = vlv_find_best_dpll;
-	else if (IS_PINEVIEW(dev))
+	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.find_dpll = pnv_find_best_dpll;
 	else
 		dev_priv->display.find_dpll = i9xx_find_best_dpll;
 
-	if (INTEL_INFO(dev)->gen >= 9) {
+	if (INTEL_INFO(dev_priv)->gen >= 9) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			skylake_get_initial_plane_config;
@@ -14848,7 +14849,7 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-	} else if (HAS_DDI(dev)) {
+	} else if (HAS_DDI(dev_priv)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			ironlake_get_initial_plane_config;
@@ -14856,7 +14857,7 @@ static void intel_init_display(struct drm_device *dev)
 			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-	} else if (HAS_PCH_SPLIT(dev)) {
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		dev_priv->display.get_pipe_config = ironlake_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			ironlake_get_initial_plane_config;
@@ -14864,7 +14865,7 @@ static void intel_init_display(struct drm_device *dev)
 			ironlake_crtc_compute_clock;
 		dev_priv->display.crtc_enable = ironlake_crtc_enable;
 		dev_priv->display.crtc_disable = ironlake_crtc_disable;
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.get_pipe_config = i9xx_get_pipe_config;
 		dev_priv->display.get_initial_plane_config =
 			i9xx_get_initial_plane_config;
@@ -14881,89 +14882,89 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev))
+	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			skylake_get_display_clock_speed;
-	else if (IS_BROXTON(dev))
+	else if (IS_BROXTON(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			broxton_get_display_clock_speed;
-	else if (IS_BROADWELL(dev))
+	else if (IS_BROADWELL(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			broadwell_get_display_clock_speed;
-	else if (IS_HASWELL(dev))
+	else if (IS_HASWELL(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			haswell_get_display_clock_speed;
-	else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			valleyview_get_display_clock_speed;
-	else if (IS_GEN5(dev))
+	else if (IS_GEN5(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			ilk_get_display_clock_speed;
-	else if (IS_I945G(dev) || IS_BROADWATER(dev) ||
-		 IS_GEN6(dev) || IS_IVYBRIDGE(dev))
+	else if (IS_I945G(dev_priv) || IS_BROADWATER(dev_priv) ||
+		 IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
-	else if (IS_GM45(dev))
+	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			gm45_get_display_clock_speed;
-	else if (IS_CRESTLINE(dev))
+	else if (IS_CRESTLINE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i965gm_get_display_clock_speed;
-	else if (IS_PINEVIEW(dev))
+	else if (IS_PINEVIEW(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			pnv_get_display_clock_speed;
-	else if (IS_G33(dev) || IS_G4X(dev))
+	else if (IS_G33(dev_priv) || IS_G4X(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			g33_get_display_clock_speed;
-	else if (IS_I915G(dev))
+	else if (IS_I915G(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i915_get_display_clock_speed;
-	else if (IS_I945GM(dev) || IS_845G(dev))
+	else if (IS_I945GM(dev_priv) || IS_845G(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i9xx_misc_get_display_clock_speed;
-	else if (IS_I915GM(dev))
+	else if (IS_I915GM(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i915gm_get_display_clock_speed;
-	else if (IS_I865G(dev))
+	else if (IS_I865G(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i865_get_display_clock_speed;
-	else if (IS_I85X(dev))
+	else if (IS_I85X(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i85x_get_display_clock_speed;
 	else { /* 830 */
-		WARN(!IS_I830(dev), "Unknown platform. Assuming 133 MHz CDCLK\n");
+		WARN(!IS_I830(dev_priv), "Unknown platform. Assuming 133 MHz CDCLK\n");
 		dev_priv->display.get_display_clock_speed =
 			i830_get_display_clock_speed;
 	}
 
-	if (IS_GEN5(dev)) {
+	if (IS_GEN5(dev_priv)) {
 		dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
-	} else if (IS_GEN6(dev)) {
+	} else if (IS_GEN6(dev_priv)) {
 		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
-	} else if (IS_IVYBRIDGE(dev)) {
+	} else if (IS_IVYBRIDGE(dev_priv)) {
 		/* FIXME: detect B0+ stepping and use auto training */
 		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
-	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-		if (IS_BROADWELL(dev)) {
+		if (IS_BROADWELL(dev_priv)) {
 			dev_priv->display.modeset_commit_cdclk =
 				broadwell_modeset_commit_cdclk;
 			dev_priv->display.modeset_calc_cdclk =
 				broadwell_modeset_calc_cdclk;
 		}
-	} else if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		dev_priv->display.modeset_commit_cdclk =
 			valleyview_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			valleyview_modeset_calc_cdclk;
-	} else if (IS_BROXTON(dev)) {
+	} else if (IS_BROXTON(dev_priv)) {
 		dev_priv->display.modeset_commit_cdclk =
 			broxton_modeset_commit_cdclk;
 		dev_priv->display.modeset_calc_cdclk =
 			broxton_modeset_calc_cdclk;
 	}
 
-	switch (INTEL_INFO(dev)->gen) {
+	switch (INTEL_INFO(dev_priv)->gen) {
 	case 2:
 		dev_priv->display.queue_flip = intel_gen2_queue_flip;
 		break;
@@ -14990,8 +14991,6 @@ static void intel_init_display(struct drm_device *dev)
 		/* Default just returns -ENODEV to indicate unsupported */
 		dev_priv->display.queue_flip = intel_default_queue_flip;
 	}
-
-	mutex_init(&dev_priv->pps_mutex);
 }
 
 /*
@@ -15317,9 +15316,6 @@ void intel_modeset_init(struct drm_device *dev)
 			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
 		}
 	}
-
-	intel_init_display(dev);
-	intel_init_audio(dev);
 
 	if (IS_GEN2(dev)) {
 		dev->mode_config.max_width = 2048;
