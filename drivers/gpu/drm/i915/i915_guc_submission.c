@@ -377,7 +377,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 			      struct i915_guc_client *client)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct intel_context *ctx = client->owner;
 	struct guc_context_desc desc;
 	struct sg_table *sg;
@@ -390,8 +390,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for_each_ring(ring, dev_priv, i) {
-		struct guc_execlist_context *lrc = &desc.lrc[ring->guc_id];
+	for_each_ring(engine, dev_priv, i) {
+		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
 		struct drm_i915_gem_object *obj;
 		uint64_t ctx_desc;
 
@@ -406,14 +406,14 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		if (!obj)
 			break;	/* XXX: continue? */
 
-		ctx_desc = intel_lr_context_descriptor(ctx, ring);
+		ctx_desc = intel_lr_context_descriptor(ctx, engine);
 		lrc->context_desc = (u32)ctx_desc;
 
 		/* The state page is after PPHWSP */
 		lrc->ring_lcra = i915_gem_obj_ggtt_offset(obj) +
 				LRC_STATE_PN * PAGE_SIZE;
 		lrc->context_id = (client->ctx_index << GUC_ELC_CTXID_OFFSET) |
-				(ring->guc_id << GUC_ELC_ENGINE_OFFSET);
+				(engine->guc_id << GUC_ELC_ENGINE_OFFSET);
 
 		obj = ctx->engine[i].ringbuf->obj;
 
@@ -422,7 +422,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
 
-		desc.engines_used |= (1 << ring->guc_id);
+		desc.engines_used |= (1 << engine->guc_id);
 	}
 
 	WARN_ON(desc.engines_used == 0);
@@ -839,7 +839,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	struct guc_ads *ads;
 	struct guc_policies *policies;
 	struct guc_mmio_reg_state *reg_state;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct page *page;
 	u32 size, i;
 
@@ -867,11 +867,11 @@ static void guc_create_ads(struct intel_guc *guc)
 	 * so its address won't change after we've told the GuC where
 	 * to find it.
 	 */
-	ring = &dev_priv->ring[RCS];
-	ads->golden_context_lrca = ring->status_page.gfx_addr;
+	engine = &dev_priv->ring[RCS];
+	ads->golden_context_lrca = engine->status_page.gfx_addr;
 
-	for_each_ring(ring, dev_priv, i)
-		ads->eng_state_size[ring->guc_id] = intel_lr_context_size(ring);
+	for_each_ring(engine, dev_priv, i)
+		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
 
 	/* GuC scheduling policies */
 	policies = (void *)ads + sizeof(struct guc_ads);
@@ -883,12 +883,12 @@ static void guc_create_ads(struct intel_guc *guc)
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
 
-	for_each_ring(ring, dev_priv, i) {
-		reg_state->mmio_white_list[ring->guc_id].mmio_start =
-			ring->mmio_base + GUC_MMIO_WHITE_LIST_START;
+	for_each_ring(engine, dev_priv, i) {
+		reg_state->mmio_white_list[engine->guc_id].mmio_start =
+			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
 
 		/* Nothing to be saved or restored for now. */
-		reg_state->mmio_white_list[ring->guc_id].count = 0;
+		reg_state->mmio_white_list[engine->guc_id].count = 0;
 	}
 
 	ads->reg_state_addr = ads->scheduler_policies +

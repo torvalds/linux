@@ -129,7 +129,7 @@ static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct i915_vma *vma;
 	int pin_count = 0;
 	int i;
@@ -143,7 +143,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain);
-	for_each_ring(ring, dev_priv, i)
+	for_each_ring(engine, dev_priv, i)
 		seq_printf(m, "%x ",
 				i915_gem_request_get_seqno(obj->last_read_req[i]));
 	seq_printf(m, "] %x %x%s%s%s",
@@ -397,15 +397,15 @@ static void print_batch_pool_stats(struct seq_file *m,
 {
 	struct drm_i915_gem_object *obj;
 	struct file_stats stats;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i, j;
 
 	memset(&stats, 0, sizeof(stats));
 
-	for_each_ring(ring, dev_priv, i) {
-		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+	for_each_ring(engine, dev_priv, i) {
+		for (j = 0; j < ARRAY_SIZE(engine->batch_pool.cache_list); j++) {
 			list_for_each_entry(obj,
-					    &ring->batch_pool.cache_list[j],
+					    &engine->batch_pool.cache_list[j],
 					    batch_pool_link)
 				per_file_stats(0, obj, &stats);
 		}
@@ -591,14 +591,13 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 					   pipe, plane);
 			}
 			if (work->flip_queued_req) {
-				struct intel_engine_cs *ring =
-					i915_gem_request_get_ring(work->flip_queued_req);
+				struct intel_engine_cs *engine = i915_gem_request_get_ring(work->flip_queued_req);
 
 				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
-					   ring->name,
+					   engine->name,
 					   i915_gem_request_get_seqno(work->flip_queued_req),
 					   dev_priv->next_seqno,
-					   ring->get_seqno(ring, true),
+					   engine->get_seqno(engine, true),
 					   i915_gem_request_completed(work->flip_queued_req, true));
 			} else
 				seq_printf(m, "Flip not associated with any ring\n");
@@ -637,7 +636,7 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int total = 0;
 	int ret, i, j;
 
@@ -645,20 +644,20 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	for_each_ring(ring, dev_priv, i) {
-		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+	for_each_ring(engine, dev_priv, i) {
+		for (j = 0; j < ARRAY_SIZE(engine->batch_pool.cache_list); j++) {
 			int count;
 
 			count = 0;
 			list_for_each_entry(obj,
-					    &ring->batch_pool.cache_list[j],
+					    &engine->batch_pool.cache_list[j],
 					    batch_pool_link)
 				count++;
 			seq_printf(m, "%s cache[%d]: %d objects\n",
-				   ring->name, j, count);
+				   engine->name, j, count);
 
 			list_for_each_entry(obj,
-					    &ring->batch_pool.cache_list[j],
+					    &engine->batch_pool.cache_list[j],
 					    batch_pool_link) {
 				seq_puts(m, "   ");
 				describe_obj(m, obj);
@@ -681,7 +680,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct drm_i915_gem_request *req;
 	int ret, any, i;
 
@@ -690,17 +689,17 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 		return ret;
 
 	any = 0;
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		int count;
 
 		count = 0;
-		list_for_each_entry(req, &ring->request_list, list)
+		list_for_each_entry(req, &engine->request_list, list)
 			count++;
 		if (count == 0)
 			continue;
 
-		seq_printf(m, "%s requests: %d\n", ring->name, count);
-		list_for_each_entry(req, &ring->request_list, list) {
+		seq_printf(m, "%s requests: %d\n", engine->name, count);
+		list_for_each_entry(req, &engine->request_list, list) {
 			struct task_struct *task;
 
 			rcu_read_lock();
@@ -739,7 +738,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -747,8 +746,8 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 		return ret;
 	intel_runtime_pm_get(dev_priv);
 
-	for_each_ring(ring, dev_priv, i)
-		i915_ring_seqno_info(m, ring);
+	for_each_ring(engine, dev_priv, i)
+		i915_ring_seqno_info(m, engine);
 
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
@@ -762,7 +761,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int ret, i, pipe;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -934,13 +933,13 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
 			   I915_READ(GTIMR));
 	}
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		if (INTEL_INFO(dev)->gen >= 6) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
-				   ring->name, I915_READ_IMR(ring));
+				   engine->name, I915_READ_IMR(engine));
 		}
-		i915_ring_seqno_info(m, ring);
+		i915_ring_seqno_info(m, engine);
 	}
 	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
@@ -981,12 +980,12 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	const u32 *hws;
 	int i;
 
-	ring = &dev_priv->ring[(uintptr_t)node->info_ent->data];
-	hws = ring->status_page.page_addr;
+	engine = &dev_priv->ring[(uintptr_t)node->info_ent->data];
+	hws = engine->status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 
@@ -1331,7 +1330,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	u64 acthd[I915_NUM_RINGS];
 	u32 seqno[I915_NUM_RINGS];
 	u32 instdone[I915_NUM_INSTDONE_REG];
@@ -1344,9 +1343,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	for_each_ring(ring, dev_priv, i) {
-		seqno[i] = ring->get_seqno(ring, false);
-		acthd[i] = intel_ring_get_active_head(ring);
+	for_each_ring(engine, dev_priv, i) {
+		seqno[i] = engine->get_seqno(engine, false);
+		acthd[i] = intel_ring_get_active_head(engine);
 	}
 
 	i915_get_extra_instdone(dev, instdone);
@@ -1360,17 +1359,17 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	} else
 		seq_printf(m, "Hangcheck inactive\n");
 
-	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "%s:\n", ring->name);
+	for_each_ring(engine, dev_priv, i) {
+		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x]\n",
-			   ring->hangcheck.seqno, seqno[i]);
+			   engine->hangcheck.seqno, seqno[i]);
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
-			   (long long)ring->hangcheck.acthd,
+			   (long long)engine->hangcheck.acthd,
 			   (long long)acthd[i]);
-		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
-		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
+		seq_printf(m, "\tscore = %d\n", engine->hangcheck.score);
+		seq_printf(m, "\taction = %d\n", engine->hangcheck.action);
 
-		if (ring->id == RCS) {
+		if (engine->id == RCS) {
 			seq_puts(m, "\tinstdone read =");
 
 			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
@@ -1380,7 +1379,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
 				seq_printf(m, " 0x%08x",
-					   ring->hangcheck.instdone[j]);
+					   engine->hangcheck.instdone[j]);
 
 			seq_puts(m, "\n");
 		}
@@ -1946,7 +1945,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct intel_context *ctx;
 	int ret, i;
 
@@ -1966,13 +1965,13 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
-			for_each_ring(ring, dev_priv, i) {
+			for_each_ring(engine, dev_priv, i) {
 				struct drm_i915_gem_object *ctx_obj =
 					ctx->engine[i].state;
 				struct intel_ringbuffer *ringbuf =
 					ctx->engine[i].ringbuf;
 
-				seq_printf(m, "%s: ", ring->name);
+				seq_printf(m, "%s: ", engine->name);
 				if (ctx_obj)
 					describe_obj(m, ctx_obj);
 				if (ringbuf)
@@ -2041,7 +2040,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct intel_context *ctx;
 	int ret, i;
 
@@ -2056,8 +2055,8 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 
 	list_for_each_entry(ctx, &dev_priv->context_list, link)
 		if (ctx != dev_priv->kernel_context)
-			for_each_ring(ring, dev_priv, i)
-				i915_dump_lrc_obj(m, ctx, ring);
+			for_each_ring(engine, dev_priv, i)
+				i915_dump_lrc_obj(m, ctx, engine);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2069,7 +2068,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	u32 status_pointer;
 	u8 read_pointer;
 	u8 write_pointer;
@@ -2090,22 +2089,22 @@ static int i915_execlists(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
-	for_each_ring(ring, dev_priv, ring_id) {
+	for_each_ring(engine, dev_priv, ring_id) {
 		struct drm_i915_gem_request *head_req = NULL;
 		int count = 0;
 		unsigned long flags;
 
-		seq_printf(m, "%s\n", ring->name);
+		seq_printf(m, "%s\n", engine->name);
 
-		status = I915_READ(RING_EXECLIST_STATUS_LO(ring));
-		ctx_id = I915_READ(RING_EXECLIST_STATUS_HI(ring));
+		status = I915_READ(RING_EXECLIST_STATUS_LO(engine));
+		ctx_id = I915_READ(RING_EXECLIST_STATUS_HI(engine));
 		seq_printf(m, "\tExeclist status: 0x%08X, context: %u\n",
 			   status, ctx_id);
 
-		status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(ring));
+		status_pointer = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
 		seq_printf(m, "\tStatus pointer: 0x%08X\n", status_pointer);
 
-		read_pointer = ring->next_context_status_buffer;
+		read_pointer = engine->next_context_status_buffer;
 		write_pointer = GEN8_CSB_WRITE_PTR(status_pointer);
 		if (read_pointer > write_pointer)
 			write_pointer += GEN8_CSB_ENTRIES;
@@ -2113,24 +2112,25 @@ static int i915_execlists(struct seq_file *m, void *data)
 			   read_pointer, write_pointer);
 
 		for (i = 0; i < GEN8_CSB_ENTRIES; i++) {
-			status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(ring, i));
-			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(ring, i));
+			status = I915_READ(RING_CONTEXT_STATUS_BUF_LO(engine, i));
+			ctx_id = I915_READ(RING_CONTEXT_STATUS_BUF_HI(engine, i));
 
 			seq_printf(m, "\tStatus buffer %d: 0x%08X, context: %u\n",
 				   i, status, ctx_id);
 		}
 
-		spin_lock_irqsave(&ring->execlist_lock, flags);
-		list_for_each(cursor, &ring->execlist_queue)
+		spin_lock_irqsave(&engine->execlist_lock, flags);
+		list_for_each(cursor, &engine->execlist_queue)
 			count++;
-		head_req = list_first_entry_or_null(&ring->execlist_queue,
-				struct drm_i915_gem_request, execlist_link);
-		spin_unlock_irqrestore(&ring->execlist_lock, flags);
+		head_req = list_first_entry_or_null(&engine->execlist_queue,
+						    struct drm_i915_gem_request,
+						    execlist_link);
+		spin_unlock_irqrestore(&engine->execlist_lock, flags);
 
 		seq_printf(m, "\t%d requests in queue\n", count);
 		if (head_req) {
 			seq_printf(m, "\tHead request id: %u\n",
-				   intel_execlists_ctx_id(head_req->ctx, ring));
+				   intel_execlists_ctx_id(head_req->ctx, engine));
 			seq_printf(m, "\tHead request tail: %u\n",
 				   head_req->tail);
 		}
@@ -2246,19 +2246,19 @@ static int per_file_ctx(int id, void *ptr, void *data)
 static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 	int unused, i;
 
 	if (!ppgtt)
 		return;
 
-	for_each_ring(ring, dev_priv, unused) {
-		seq_printf(m, "%s\n", ring->name);
+	for_each_ring(engine, dev_priv, unused) {
+		seq_printf(m, "%s\n", engine->name);
 		for (i = 0; i < 4; i++) {
-			u64 pdp = I915_READ(GEN8_RING_PDP_UDW(ring, i));
+			u64 pdp = I915_READ(GEN8_RING_PDP_UDW(engine, i));
 			pdp <<= 32;
-			pdp |= I915_READ(GEN8_RING_PDP_LDW(ring, i));
+			pdp |= I915_READ(GEN8_RING_PDP_LDW(engine, i));
 			seq_printf(m, "\tPDP%d 0x%016llx\n", i, pdp);
 		}
 	}
@@ -2267,19 +2267,23 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 static void gen6_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 
 	if (INTEL_INFO(dev)->gen == 6)
 		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
 
-	for_each_ring(ring, dev_priv, i) {
-		seq_printf(m, "%s\n", ring->name);
+	for_each_ring(engine, dev_priv, i) {
+		seq_printf(m, "%s\n", engine->name);
 		if (INTEL_INFO(dev)->gen == 7)
-			seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(RING_MODE_GEN7(ring)));
-		seq_printf(m, "PP_DIR_BASE: 0x%08x\n", I915_READ(RING_PP_DIR_BASE(ring)));
-		seq_printf(m, "PP_DIR_BASE_READ: 0x%08x\n", I915_READ(RING_PP_DIR_BASE_READ(ring)));
-		seq_printf(m, "PP_DIR_DCLV: 0x%08x\n", I915_READ(RING_PP_DIR_DCLV(ring)));
+			seq_printf(m, "GFX_MODE: 0x%08x\n",
+				   I915_READ(RING_MODE_GEN7(engine)));
+		seq_printf(m, "PP_DIR_BASE: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_BASE(engine)));
+		seq_printf(m, "PP_DIR_BASE_READ: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_BASE_READ(engine)));
+		seq_printf(m, "PP_DIR_DCLV: 0x%08x\n",
+			   I915_READ(RING_PP_DIR_DCLV(engine)));
 	}
 	if (dev_priv->mm.aliasing_ppgtt) {
 		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
@@ -2334,12 +2338,12 @@ out_put:
 
 static int count_irq_waiters(struct drm_i915_private *i915)
 {
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int count = 0;
 	int i;
 
-	for_each_ring(ring, i915, i)
-		count += ring->irq_refcount;
+	for_each_ring(engine, i915, i)
+		count += engine->irq_refcount;
 
 	return count;
 }
@@ -2447,7 +2451,7 @@ static void i915_guc_client_info(struct seq_file *m,
 				 struct drm_i915_private *dev_priv,
 				 struct i915_guc_client *client)
 {
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	uint64_t tot = 0;
 	uint32_t i;
 
@@ -2462,11 +2466,11 @@ static void i915_guc_client_info(struct seq_file *m,
 	seq_printf(m, "\tFailed doorbell: %u\n", client->b_fail);
 	seq_printf(m, "\tLast submission result: %d\n", client->retcode);
 
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		seq_printf(m, "\tSubmissions: %llu %s\n",
-				client->submissions[ring->guc_id],
-				ring->name);
-		tot += client->submissions[ring->guc_id];
+				client->submissions[engine->guc_id],
+				engine->name);
+		tot += client->submissions[engine->guc_id];
 	}
 	seq_printf(m, "\tTotal: %llu\n", tot);
 }
@@ -2478,7 +2482,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc guc;
 	struct i915_guc_client client = {};
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	enum intel_ring_id i;
 	u64 total = 0;
 
@@ -2502,11 +2506,11 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	seq_printf(m, "GuC last action error code: %d\n", guc.action_err);
 
 	seq_printf(m, "\nGuC submissions:\n");
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
-			ring->name, guc.submissions[ring->guc_id],
-			guc.last_seqno[ring->guc_id]);
-		total += guc.submissions[ring->guc_id];
+			engine->name, guc.submissions[engine->guc_id],
+			guc.last_seqno[engine->guc_id]);
+		total += guc.submissions[engine->guc_id];
 	}
 	seq_printf(m, "\t%s: %llu\n", "Total", total);
 
@@ -3128,7 +3132,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
 	int i, j, ret;
 
@@ -3149,10 +3153,10 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		page = i915_gem_object_get_page(dev_priv->semaphore_obj, 0);
 
 		seqno = (uint64_t *)kmap_atomic(page);
-		for_each_ring(ring, dev_priv, i) {
+		for_each_ring(engine, dev_priv, i) {
 			uint64_t offset;
 
-			seq_printf(m, "%s\n", ring->name);
+			seq_printf(m, "%s\n", engine->name);
 
 			seq_puts(m, "  Last signal:");
 			for (j = 0; j < num_rings; j++) {
@@ -3174,17 +3178,18 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		kunmap_atomic(seqno);
 	} else {
 		seq_puts(m, "  Last signal:");
-		for_each_ring(ring, dev_priv, i)
+		for_each_ring(engine, dev_priv, i)
 			for (j = 0; j < num_rings; j++)
 				seq_printf(m, "0x%08x\n",
-					   I915_READ(ring->semaphore.mbox.signal[j]));
+					   I915_READ(engine->semaphore.mbox.signal[j]));
 		seq_putc(m, '\n');
 	}
 
 	seq_puts(m, "\nSync seqno:\n");
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		for (j = 0; j < num_rings; j++) {
-			seq_printf(m, "  0x%08x ", ring->semaphore.sync_seqno[j]);
+			seq_printf(m, "  0x%08x ",
+				   engine->semaphore.sync_seqno[j]);
 		}
 		seq_putc(m, '\n');
 	}
@@ -3226,7 +3231,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 {
 	int i;
 	int ret;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3239,9 +3244,9 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 
 	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
-	for_each_ring(ring, dev_priv, i)
+	for_each_ring(engine, dev_priv, i)
 		seq_printf(m, "HW whitelist count for %s: %d\n",
-			   ring->name, workarounds->hw_whitelist_count[i]);
+			   engine->name, workarounds->hw_whitelist_count[i]);
 	for (i = 0; i < workarounds->count; ++i) {
 		i915_reg_t addr;
 		u32 mask, value, read;

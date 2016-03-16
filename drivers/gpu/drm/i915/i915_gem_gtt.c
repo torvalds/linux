@@ -658,7 +658,7 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 			  unsigned entry,
 			  dma_addr_t addr)
 {
-	struct intel_engine_cs *ring = req->ring;
+	struct intel_engine_cs *engine = req->ring;
 	int ret;
 
 	BUG_ON(entry >= 4);
@@ -667,13 +667,13 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit_reg(ring, GEN8_RING_PDP_UDW(ring, entry));
-	intel_ring_emit(ring, upper_32_bits(addr));
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-	intel_ring_emit_reg(ring, GEN8_RING_PDP_LDW(ring, entry));
-	intel_ring_emit(ring, lower_32_bits(addr));
-	intel_ring_advance(ring);
+	intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit_reg(engine, GEN8_RING_PDP_UDW(engine, entry));
+	intel_ring_emit(engine, upper_32_bits(addr));
+	intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
+	intel_ring_emit_reg(engine, GEN8_RING_PDP_LDW(engine, entry));
+	intel_ring_emit(engine, lower_32_bits(addr));
+	intel_ring_advance(engine);
 
 	return 0;
 }
@@ -1650,11 +1650,11 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			 struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = req->ring;
+	struct intel_engine_cs *engine = req->ring;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = ring->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	ret = engine->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1662,13 +1662,13 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
-	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
-	intel_ring_emit(ring, get_pd_offset(ppgtt));
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(2));
+	intel_ring_emit_reg(engine, RING_PP_DIR_DCLV(engine));
+	intel_ring_emit(engine, PP_DIR_DCLV_2G);
+	intel_ring_emit_reg(engine, RING_PP_DIR_BASE(engine));
+	intel_ring_emit(engine, get_pd_offset(ppgtt));
+	intel_ring_emit(engine, MI_NOOP);
+	intel_ring_advance(engine);
 
 	return 0;
 }
@@ -1676,22 +1676,22 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = req->ring;
+	struct intel_engine_cs *engine = req->ring;
 	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
 
-	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
+	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
 	return 0;
 }
 
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = req->ring;
+	struct intel_engine_cs *engine = req->ring;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = ring->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	ret = engine->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1699,17 +1699,17 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(2));
-	intel_ring_emit_reg(ring, RING_PP_DIR_DCLV(ring));
-	intel_ring_emit(ring, PP_DIR_DCLV_2G);
-	intel_ring_emit_reg(ring, RING_PP_DIR_BASE(ring));
-	intel_ring_emit(ring, get_pd_offset(ppgtt));
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(2));
+	intel_ring_emit_reg(engine, RING_PP_DIR_DCLV(engine));
+	intel_ring_emit(engine, PP_DIR_DCLV_2G);
+	intel_ring_emit_reg(engine, RING_PP_DIR_BASE(engine));
+	intel_ring_emit(engine, get_pd_offset(ppgtt));
+	intel_ring_emit(engine, MI_NOOP);
+	intel_ring_advance(engine);
 
 	/* XXX: RCS is the only one to auto invalidate the TLBs? */
-	if (ring->id != RCS) {
-		ret = ring->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	if (engine->id != RCS) {
+		ret = engine->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 		if (ret)
 			return ret;
 	}
@@ -1720,15 +1720,15 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 			  struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = req->ring;
+	struct intel_engine_cs *engine = req->ring;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 
-	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-	I915_WRITE(RING_PP_DIR_BASE(ring), get_pd_offset(ppgtt));
+	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
+	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));
 
-	POSTING_READ(RING_PP_DIR_DCLV(ring));
+	POSTING_READ(RING_PP_DIR_DCLV(engine));
 
 	return 0;
 }
@@ -1736,12 +1736,12 @@ static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
 static void gen8_ppgtt_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int j;
 
-	for_each_ring(ring, dev_priv, j) {
+	for_each_ring(engine, dev_priv, j) {
 		u32 four_level = USES_FULL_48BIT_PPGTT(dev) ? GEN8_GFX_PPGTT_48B : 0;
-		I915_WRITE(RING_MODE_GEN7(ring),
+		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE | four_level));
 	}
 }
@@ -1749,7 +1749,7 @@ static void gen8_ppgtt_enable(struct drm_device *dev)
 static void gen7_ppgtt_enable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	uint32_t ecochk, ecobits;
 	int i;
 
@@ -1765,9 +1765,9 @@ static void gen7_ppgtt_enable(struct drm_device *dev)
 	}
 	I915_WRITE(GAM_ECOCHK, ecochk);
 
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		/* GFX_MODE is per-ring on gen7+ */
-		I915_WRITE(RING_MODE_GEN7(ring),
+		I915_WRITE(RING_MODE_GEN7(engine),
 			   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 	}
 }
@@ -2286,15 +2286,15 @@ static void undo_idling(struct drm_i915_private *dev_priv, bool interruptible)
 void i915_check_and_clear_faults(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return;
 
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		u32 fault_reg;
-		fault_reg = I915_READ(RING_FAULT_REG(ring));
+		fault_reg = I915_READ(RING_FAULT_REG(engine));
 		if (fault_reg & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
 					 "\tAddr: 0x%08lx\n"
@@ -2305,7 +2305,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 					 fault_reg & RING_FAULT_GTTSEL_MASK ? "GGTT" : "PPGTT",
 					 RING_FAULT_SRCID(fault_reg),
 					 RING_FAULT_FAULT_TYPE(fault_reg));
-			I915_WRITE(RING_FAULT_REG(ring),
+			I915_WRITE(RING_FAULT_REG(engine),
 				   fault_reg & ~RING_FAULT_VALID);
 		}
 	}

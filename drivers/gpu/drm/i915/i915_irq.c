@@ -1079,11 +1079,11 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 
 static bool any_waiters(struct drm_i915_private *dev_priv)
 {
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(ring, dev_priv, i)
-		if (ring->irq_refcount)
+	for_each_ring(engine, dev_priv, i)
+		if (engine->irq_refcount)
 			return true;
 
 	return false;
@@ -2449,7 +2449,7 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 			       bool reset_completed)
 {
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 
 	/*
@@ -2460,8 +2460,8 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 	 */
 
 	/* Wake up __wait_seqno, potentially holding dev->struct_mutex. */
-	for_each_ring(ring, dev_priv, i)
-		wake_up_all(&ring->irq_queue);
+	for_each_ring(engine, dev_priv, i)
+		wake_up_all(&engine->irq_queue);
 
 	/* Wake up intel_crtc_wait_for_pending_flips, holding crtc->mutex. */
 	wake_up_all(&dev_priv->pending_flip_queue);
@@ -2956,11 +2956,11 @@ static int semaphore_passed(struct intel_engine_cs *ring)
 
 static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 {
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(ring, dev_priv, i)
-		ring->hangcheck.deadlock = 0;
+	for_each_ring(engine, dev_priv, i)
+		engine->hangcheck.deadlock = 0;
 }
 
 static bool subunits_stuck(struct intel_engine_cs *ring)
@@ -3071,7 +3071,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		container_of(work, typeof(*dev_priv),
 			     gpu_error.hangcheck_work.work);
 	struct drm_device *dev = dev_priv->dev;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	int i;
 	int busy_count = 0, rings_hung = 0;
 	bool stuck[I915_NUM_RINGS] = { 0 };
@@ -3096,33 +3096,33 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
-	for_each_ring(ring, dev_priv, i) {
+	for_each_ring(engine, dev_priv, i) {
 		u64 acthd;
 		u32 seqno;
 		bool busy = true;
 
 		semaphore_clear_deadlocks(dev_priv);
 
-		seqno = ring->get_seqno(ring, false);
-		acthd = intel_ring_get_active_head(ring);
+		seqno = engine->get_seqno(engine, false);
+		acthd = intel_ring_get_active_head(engine);
 
-		if (ring->hangcheck.seqno == seqno) {
-			if (ring_idle(ring, seqno)) {
-				ring->hangcheck.action = HANGCHECK_IDLE;
+		if (engine->hangcheck.seqno == seqno) {
+			if (ring_idle(engine, seqno)) {
+				engine->hangcheck.action = HANGCHECK_IDLE;
 
-				if (waitqueue_active(&ring->irq_queue)) {
+				if (waitqueue_active(&engine->irq_queue)) {
 					/* Issue a wake-up to catch stuck h/w. */
-					if (!test_and_set_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(ring)))
+					if (!test_and_set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings)) {
+						if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(engine)))
 							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-								  ring->name);
+								  engine->name);
 						else
 							DRM_INFO("Fake missed irq on %s\n",
-								 ring->name);
-						wake_up_all(&ring->irq_queue);
+								 engine->name);
+						wake_up_all(&engine->irq_queue);
 					}
 					/* Safeguard against driver failure */
-					ring->hangcheck.score += BUSY;
+					engine->hangcheck.score += BUSY;
 				} else
 					busy = false;
 			} else {
@@ -3141,53 +3141,53 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				 * being repeatedly kicked and so responsible
 				 * for stalling the machine.
 				 */
-				ring->hangcheck.action = ring_stuck(ring,
-								    acthd);
+				engine->hangcheck.action = ring_stuck(engine,
+								      acthd);
 
-				switch (ring->hangcheck.action) {
+				switch (engine->hangcheck.action) {
 				case HANGCHECK_IDLE:
 				case HANGCHECK_WAIT:
 					break;
 				case HANGCHECK_ACTIVE:
-					ring->hangcheck.score += BUSY;
+					engine->hangcheck.score += BUSY;
 					break;
 				case HANGCHECK_KICK:
-					ring->hangcheck.score += KICK;
+					engine->hangcheck.score += KICK;
 					break;
 				case HANGCHECK_HUNG:
-					ring->hangcheck.score += HUNG;
+					engine->hangcheck.score += HUNG;
 					stuck[i] = true;
 					break;
 				}
 			}
 		} else {
-			ring->hangcheck.action = HANGCHECK_ACTIVE;
+			engine->hangcheck.action = HANGCHECK_ACTIVE;
 
 			/* Gradually reduce the count so that we catch DoS
 			 * attempts across multiple batches.
 			 */
-			if (ring->hangcheck.score > 0)
-				ring->hangcheck.score -= ACTIVE_DECAY;
-			if (ring->hangcheck.score < 0)
-				ring->hangcheck.score = 0;
+			if (engine->hangcheck.score > 0)
+				engine->hangcheck.score -= ACTIVE_DECAY;
+			if (engine->hangcheck.score < 0)
+				engine->hangcheck.score = 0;
 
 			/* Clear head and subunit states on seqno movement */
-			ring->hangcheck.acthd = 0;
+			engine->hangcheck.acthd = 0;
 
-			memset(ring->hangcheck.instdone, 0,
-			       sizeof(ring->hangcheck.instdone));
+			memset(engine->hangcheck.instdone, 0,
+			       sizeof(engine->hangcheck.instdone));
 		}
 
-		ring->hangcheck.seqno = seqno;
-		ring->hangcheck.acthd = acthd;
+		engine->hangcheck.seqno = seqno;
+		engine->hangcheck.acthd = acthd;
 		busy_count += busy;
 	}
 
-	for_each_ring(ring, dev_priv, i) {
-		if (ring->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
+	for_each_ring(engine, dev_priv, i) {
+		if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
 			DRM_INFO("%s on %s\n",
 				 stuck[i] ? "stuck" : "no progress",
-				 ring->name);
+				 engine->name);
 			rings_hung++;
 		}
 	}

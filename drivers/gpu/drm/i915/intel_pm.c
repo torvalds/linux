@@ -4815,7 +4815,7 @@ static void gen9_enable_rps(struct drm_device *dev)
 static void gen9_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	uint32_t rc6_mask = 0;
 	int unused;
 
@@ -4838,8 +4838,8 @@ static void gen9_enable_rc6(struct drm_device *dev)
 		I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 54 << 16);
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_ring(ring, dev_priv, unused)
-		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	for_each_ring(engine, dev_priv, unused)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 
 	if (HAS_GUC_UCODE(dev))
 		I915_WRITE(GUC_MAX_IDLE_COUNT, 0xA);
@@ -4885,7 +4885,7 @@ static void gen9_enable_rc6(struct drm_device *dev)
 static void gen8_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	uint32_t rc6_mask = 0;
 	int unused;
 
@@ -4906,8 +4906,8 @@ static void gen8_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_ring(ring, dev_priv, unused)
-		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	for_each_ring(engine, dev_priv, unused)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	if (IS_BROADWELL(dev))
 		I915_WRITE(GEN6_RC6_THRESHOLD, 625); /* 800us/1.28 for TO */
@@ -4967,7 +4967,7 @@ static void gen8_enable_rps(struct drm_device *dev)
 static void gen6_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	u32 rc6vids, pcu_mbox = 0, rc6_mask = 0;
 	u32 gtfifodbg;
 	int rc6_mode;
@@ -5003,8 +5003,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for_each_ring(ring, dev_priv, i)
-		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	for_each_ring(engine, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
@@ -5495,7 +5495,7 @@ static void valleyview_cleanup_gt_powersave(struct drm_device *dev)
 static void cherryview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	u32 gtfifodbg, val, rc6_mode = 0, pcbr;
 	int i;
 
@@ -5522,8 +5522,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
 
-	for_each_ring(ring, dev_priv, i)
-		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	for_each_ring(engine, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
 	/* TO threshold set to 500 us ( 0x186 * 1.28 us) */
@@ -5593,7 +5593,7 @@ static void cherryview_enable_rps(struct drm_device *dev)
 static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	u32 gtfifodbg, val, rc6_mode = 0;
 	int i;
 
@@ -5633,8 +5633,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
 	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for_each_ring(ring, dev_priv, i)
-		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
+	for_each_ring(engine, dev_priv, i)
+		I915_WRITE(RING_MAX_IDLE(engine->mmio_base), 10);
 
 	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
 
@@ -6010,7 +6010,7 @@ EXPORT_SYMBOL_GPL(i915_gpu_lower);
 bool i915_gpu_busy(void)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_engine_cs *ring;
+	struct intel_engine_cs *engine;
 	bool ret = false;
 	int i;
 
@@ -6019,8 +6019,8 @@ bool i915_gpu_busy(void)
 		goto out_unlock;
 	dev_priv = i915_mch_dev;
 
-	for_each_ring(ring, dev_priv, i)
-		ret |= !list_empty(&ring->request_list);
+	for_each_ring(engine, dev_priv, i)
+		ret |= !list_empty(&engine->request_list);
 
 out_unlock:
 	spin_unlock_irq(&mchdev_lock);

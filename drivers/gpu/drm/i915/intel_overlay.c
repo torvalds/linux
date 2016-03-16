@@ -233,14 +233,14 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
 	struct drm_i915_gem_request *req;
 	int ret;
 
 	WARN_ON(overlay->active);
 	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
-	req = i915_gem_request_alloc(ring, NULL);
+	req = i915_gem_request_alloc(engine, NULL);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -252,11 +252,11 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 
 	overlay->active = true;
 
-	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_ON);
-	intel_ring_emit(ring, overlay->flip_addr | OFC_UPDATE);
-	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	intel_ring_emit(ring, MI_NOOP);
-	intel_ring_advance(ring);
+	intel_ring_emit(engine, MI_OVERLAY_FLIP | MI_OVERLAY_ON);
+	intel_ring_emit(engine, overlay->flip_addr | OFC_UPDATE);
+	intel_ring_emit(engine, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+	intel_ring_emit(engine, MI_NOOP);
+	intel_ring_advance(engine);
 
 	return intel_overlay_do_wait_request(overlay, req, NULL);
 }
@@ -267,7 +267,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
 	struct drm_i915_gem_request *req;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
@@ -283,7 +283,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	req = i915_gem_request_alloc(ring, NULL);
+	req = i915_gem_request_alloc(engine, NULL);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -293,9 +293,9 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 		return ret;
 	}
 
-	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
-	intel_ring_emit(ring, flip_addr);
-	intel_ring_advance(ring);
+	intel_ring_emit(engine, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
+	intel_ring_emit(engine, flip_addr);
+	intel_ring_advance(engine);
 
 	WARN_ON(overlay->last_flip_req);
 	i915_gem_request_assign(&overlay->last_flip_req, req);
@@ -336,7 +336,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
 	struct drm_i915_gem_request *req;
 	u32 flip_addr = overlay->flip_addr;
 	int ret;
@@ -349,7 +349,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	 * of the hw. Do it in both cases */
 	flip_addr |= OFC_UPDATE;
 
-	req = i915_gem_request_alloc(ring, NULL);
+	req = i915_gem_request_alloc(engine, NULL);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -360,22 +360,23 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	}
 
 	/* wait for overlay to go idle */
-	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
-	intel_ring_emit(ring, flip_addr);
-	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+	intel_ring_emit(engine, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
+	intel_ring_emit(engine, flip_addr);
+	intel_ring_emit(engine, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	/* turn overlay off */
 	if (IS_I830(dev)) {
 		/* Workaround: Don't disable the overlay fully, since otherwise
 		 * it dies on the next OVERLAY_ON cmd. */
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_emit(engine, MI_NOOP);
+		intel_ring_emit(engine, MI_NOOP);
+		intel_ring_emit(engine, MI_NOOP);
 	} else {
-		intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
-		intel_ring_emit(ring, flip_addr);
-		intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+		intel_ring_emit(engine, MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
+		intel_ring_emit(engine, flip_addr);
+		intel_ring_emit(engine,
+				MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
 	}
-	intel_ring_advance(ring);
+	intel_ring_advance(engine);
 
 	return intel_overlay_do_wait_request(overlay, req, intel_overlay_off_tail);
 }
@@ -408,7 +409,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *ring = &dev_priv->ring[RCS];
+	struct intel_engine_cs *engine = &dev_priv->ring[RCS];
 	int ret;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -423,7 +424,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		/* synchronous slowpath */
 		struct drm_i915_gem_request *req;
 
-		req = i915_gem_request_alloc(ring, NULL);
+		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 
@@ -433,9 +434,10 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 			return ret;
 		}
 
-		intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
+		intel_ring_emit(engine,
+				MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+		intel_ring_emit(engine, MI_NOOP);
+		intel_ring_advance(engine);
 
 		ret = intel_overlay_do_wait_request(overlay, req,
 						    intel_overlay_release_old_vid_tail);

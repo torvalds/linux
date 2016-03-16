@@ -495,9 +495,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		if (obj) {
 			u64 wa_ctx_offset = obj->gtt_offset;
 			u32 *wa_ctx_page = &obj->pages[0][0];
-			struct intel_engine_cs *ring = &dev_priv->ring[RCS];
-			u32 wa_ctx_size = (ring->wa_ctx.indirect_ctx.size +
-					   ring->wa_ctx.per_ctx.size);
+			struct intel_engine_cs *engine = &dev_priv->ring[RCS];
+			u32 wa_ctx_size = (engine->wa_ctx.indirect_ctx.size +
+					   engine->wa_ctx.per_ctx.size);
 
 			err_printf(m, "%s --- WA ctx batch buffer = 0x%08llx\n",
 				   dev_priv->ring[i].name, wa_ctx_offset);
@@ -1019,19 +1019,19 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	int i, count;
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_engine_cs *ring = &dev_priv->ring[i];
+		struct intel_engine_cs *engine = &dev_priv->ring[i];
 		struct intel_ringbuffer *rbuf;
 
 		error->ring[i].pid = -1;
 
-		if (ring->dev == NULL)
+		if (engine->dev == NULL)
 			continue;
 
 		error->ring[i].valid = true;
 
-		i915_record_ring_state(dev, error, ring, &error->ring[i]);
+		i915_record_ring_state(dev, error, engine, &error->ring[i]);
 
-		request = i915_gem_find_active_request(ring);
+		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct i915_address_space *vm;
 
@@ -1051,7 +1051,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			if (HAS_BROKEN_CS_TLB(dev_priv->dev))
 				error->ring[i].wa_batchbuffer =
 					i915_error_ggtt_object_create(dev_priv,
-							     ring->scratch.obj);
+							     engine->scratch.obj);
 
 			if (request->pid) {
 				struct task_struct *task;
@@ -1073,11 +1073,11 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			 * executed).
 			 */
 			if (request)
-				rbuf = request->ctx->engine[ring->id].ringbuf;
+				rbuf = request->ctx->engine[engine->id].ringbuf;
 			else
-				rbuf = dev_priv->kernel_context->engine[ring->id].ringbuf;
+				rbuf = dev_priv->kernel_context->engine[engine->id].ringbuf;
 		} else
-			rbuf = ring->buffer;
+			rbuf = engine->buffer;
 
 		error->ring[i].cpu_ring_head = rbuf->head;
 		error->ring[i].cpu_ring_tail = rbuf->tail;
@@ -1086,18 +1086,19 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
 
 		error->ring[i].hws_page =
-			i915_error_ggtt_object_create(dev_priv, ring->status_page.obj);
+			i915_error_ggtt_object_create(dev_priv,
+						      engine->status_page.obj);
 
-		if (ring->wa_ctx.obj) {
+		if (engine->wa_ctx.obj) {
 			error->ring[i].wa_ctx =
 				i915_error_ggtt_object_create(dev_priv,
-							      ring->wa_ctx.obj);
+							      engine->wa_ctx.obj);
 		}
 
-		i915_gem_record_active_context(ring, error, &error->ring[i]);
+		i915_gem_record_active_context(engine, error, &error->ring[i]);
 
 		count = 0;
-		list_for_each_entry(request, &ring->request_list, list)
+		list_for_each_entry(request, &engine->request_list, list)
 			count++;
 
 		error->ring[i].num_requests = count;
@@ -1110,7 +1111,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		}
 
 		count = 0;
-		list_for_each_entry(request, &ring->request_list, list) {
+		list_for_each_entry(request, &engine->request_list, list) {
 			struct drm_i915_error_request *erq;
 
 			if (count >= error->ring[i].num_requests) {
