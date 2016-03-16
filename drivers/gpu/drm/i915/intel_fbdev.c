@@ -379,6 +379,7 @@ retry:
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		struct drm_fb_helper_crtc *new_crtc;
+		struct intel_crtc *intel_crtc;
 
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
@@ -419,6 +420,13 @@ retry:
 		}
 
 		num_connectors_enabled++;
+
+		intel_crtc = to_intel_crtc(connector->state->crtc);
+		for (j = 0; j < 256; j++) {
+			intel_crtc->lut_r[j] = j;
+			intel_crtc->lut_g[j] = j;
+			intel_crtc->lut_b[j] = j;
+		}
 
 		new_crtc = intel_fb_helper_crtc(fb_helper, connector->state->crtc);
 

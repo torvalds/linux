@@ -24,39 +24,155 @@
 
 #include "intel_drv.h"
 
+#define CTM_COEFF_SIGN	(1ULL << 63)
+
+#define CTM_COEFF_1_0	(1ULL << 32)
+#define CTM_COEFF_2_0	(CTM_COEFF_1_0 << 1)
+#define CTM_COEFF_4_0	(CTM_COEFF_2_0 << 1)
+#define CTM_COEFF_0_5	(CTM_COEFF_1_0 >> 1)
+#define CTM_COEFF_0_25	(CTM_COEFF_0_5 >> 1)
+#define CTM_COEFF_0_125	(CTM_COEFF_0_25 >> 1)
+
+#define CTM_COEFF_LIMITED_RANGE ((235ULL - 16ULL) * CTM_COEFF_1_0 / 255)
+
+#define CTM_COEFF_NEGATIVE(coeff)	(((coeff) & CTM_COEFF_SIGN) != 0)
+#define CTM_COEFF_ABS(coeff)		((coeff) & (CTM_COEFF_SIGN - 1))
+
+#define LEGACY_LUT_LENGTH		(sizeof(struct drm_color_lut) * 256)
+
 /*
- * Set up the pipe CSC unit.
+ * Extract the CSC coefficient from a CTM coefficient (in U32.32 fixed point
+ * format). This macro takes the coefficient we want transformed and the
+ * number of fractional bits.
  *
- * Currently only full range RGB to limited range RGB conversion
- * is supported, but eventually this should handle various
- * RGB<->YCbCr scenarios as well.
+ * We only have a 9 bits precision window which slides depending on the value
+ * of the CTM coefficient and we write the value from bit 3. We also round the
+ * value.
  */
+#define I9XX_CSC_COEFF_FP(coeff, fbits)	\
+	(clamp_val(((coeff) >> (32 - (fbits) - 3)) + 4, 0, 0xfff) & 0xff8)
+
+#define I9XX_CSC_COEFF_LIMITED_RANGE	\
+	I9XX_CSC_COEFF_FP(CTM_COEFF_LIMITED_RANGE, 9)
+#define I9XX_CSC_COEFF_1_0		\
+	((7 << 12) | I9XX_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
+
+static bool crtc_state_is_legacy(struct drm_crtc_state *state)
+{
+	return !state->degamma_lut &&
+		!state->ctm &&
+		state->gamma_lut &&
+		state->gamma_lut->length == LEGACY_LUT_LENGTH;
+}
+
+/*
+ * When using limited range, multiply the matrix given by userspace by
+ * the matrix that we would use for the limited range. We do the
+ * multiplication in U2.30 format.
+ */
+static void ctm_mult_by_limited(uint64_t *result, int64_t *input)
+{
+	int i;
+
+	for (i = 0; i < 9; i++)
+		result[i] = 0;
+
+	for (i = 0; i < 3; i++) {
+		int64_t user_coeff = input[i * 3 + i];
+		uint64_t limited_coeff = CTM_COEFF_LIMITED_RANGE >> 2;
+		uint64_t abs_coeff = clamp_val(CTM_COEFF_ABS(user_coeff),
+					       0,
+					       CTM_COEFF_4_0 - 1) >> 2;
+
+		result[i * 3 + i] = (limited_coeff * abs_coeff) >> 27;
+		if (CTM_COEFF_NEGATIVE(user_coeff))
+			result[i * 3 + i] |= CTM_COEFF_SIGN;
+	}
+}
+
+/* Set up the pipe CSC unit. */
 static void i9xx_load_csc_matrix(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	uint16_t coeff = 0x7800; /* 1.0 */
+	int i, pipe = intel_crtc->pipe;
+	uint16_t coeffs[9] = { 0, };
 
-	/*
-	 * TODO: Check what kind of values actually come out of the pipe
-	 * with these coeff/postoff values and adjust to get the best
-	 * accuracy. Perhaps we even need to take the bpc value into
-	 * consideration.
-	 */
+	if (crtc_state->ctm) {
+		struct drm_color_ctm *ctm =
+			(struct drm_color_ctm *)crtc_state->ctm->data;
+		uint64_t input[9] = { 0, };
 
-	if (intel_crtc->config->limited_color_range)
-		coeff = ((235 - 16) * (1 << 12) / 255) & 0xff8; /* 0.xxx... */
+		if (intel_crtc->config->limited_color_range) {
+			ctm_mult_by_limited(input, ctm->matrix);
+		} else {
+			for (i = 0; i < ARRAY_SIZE(input); i++)
+				input[i] = ctm->matrix[i];
+		}
 
-	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeff << 16);
-	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), 0);
+		/*
+		 * Convert fixed point S31.32 input to format supported by the
+		 * hardware.
+		 */
+		for (i = 0; i < ARRAY_SIZE(coeffs); i++) {
+			uint64_t abs_coeff = ((1ULL << 63) - 1) & input[i];
 
-	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeff);
-	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), 0);
+			/*
+			 * Clamp input value to min/max supported by
+			 * hardware.
+			 */
+			abs_coeff = clamp_val(abs_coeff, 0, CTM_COEFF_4_0 - 1);
 
-	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), 0);
-	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeff << 16);
+			/* sign bit */
+			if (CTM_COEFF_NEGATIVE(input[i]))
+				coeffs[i] |= 1 << 15;
+
+			if (abs_coeff < CTM_COEFF_0_125)
+				coeffs[i] |= (3 << 12) |
+					I9XX_CSC_COEFF_FP(abs_coeff, 12);
+			else if (abs_coeff < CTM_COEFF_0_25)
+				coeffs[i] |= (2 << 12) |
+					I9XX_CSC_COEFF_FP(abs_coeff, 11);
+			else if (abs_coeff < CTM_COEFF_0_5)
+				coeffs[i] |= (1 << 12) |
+					I9XX_CSC_COEFF_FP(abs_coeff, 10);
+			else if (abs_coeff < CTM_COEFF_1_0)
+				coeffs[i] |= I9XX_CSC_COEFF_FP(abs_coeff, 9);
+			else if (abs_coeff < CTM_COEFF_2_0)
+				coeffs[i] |= (7 << 12) |
+					I9XX_CSC_COEFF_FP(abs_coeff, 8);
+			else
+				coeffs[i] |= (6 << 12) |
+					I9XX_CSC_COEFF_FP(abs_coeff, 7);
+		}
+	} else {
+		/*
+		 * Load an identity matrix if no coefficients are provided.
+		 *
+		 * TODO: Check what kind of values actually come out of the
+		 * pipe with these coeff/postoff values and adjust to get the
+		 * best accuracy. Perhaps we even need to take the bpc value
+		 * into consideration.
+		 */
+		for (i = 0; i < 3; i++) {
+			if (intel_crtc->config->limited_color_range)
+				coeffs[i * 3 + i] =
+					I9XX_CSC_COEFF_LIMITED_RANGE;
+			else
+				coeffs[i * 3 + i] = I9XX_CSC_COEFF_1_0;
+		}
+	}
+
+	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeffs[0] << 16 | coeffs[1]);
+	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), coeffs[2] << 16);
+
+	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeffs[3] << 16 | coeffs[4]);
+	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), coeffs[5] << 16);
+
+	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), coeffs[6] << 16 | coeffs[7]);
+	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeffs[8] << 16);
 
 	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
 	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
@@ -85,13 +201,18 @@ static void i9xx_load_csc_matrix(struct drm_crtc *crtc)
 
 void intel_color_set_csc(struct drm_crtc *crtc)
 {
-	i9xx_load_csc_matrix(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.load_csc_matrix)
+		dev_priv->display.load_csc_matrix(crtc);
 }
 
-/* Loads the palette/gamma unit for the CRTC with the prepared values. */
+/* Loads the legacy palette/gamma unit for the CRTC. */
 static void i9xx_load_luts(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *state = crtc->state;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
@@ -104,18 +225,33 @@ static void i9xx_load_luts(struct drm_crtc *crtc)
 			assert_pll_enabled(dev_priv, pipe);
 	}
 
-	for (i = 0; i < 256; i++) {
-		uint32_t word = (intel_crtc->lut_r[i] << 16) |
-			(intel_crtc->lut_g[i] << 8) |
-			intel_crtc->lut_b[i];
-		if (HAS_GMCH_DISPLAY(dev))
-			I915_WRITE(PALETTE(pipe, i), word);
-		else
-			I915_WRITE(LGC_PALETTE(pipe, i), word);
+	if (state->gamma_lut) {
+		struct drm_color_lut *lut =
+			(struct drm_color_lut *) state->gamma_lut->data;
+		for (i = 0; i < 256; i++) {
+			uint32_t word =
+				(drm_color_lut_extract(lut[i].red, 8) << 16) |
+				(drm_color_lut_extract(lut[i].green, 8) << 8) |
+				drm_color_lut_extract(lut[i].blue, 8);
+
+			if (HAS_GMCH_DISPLAY(dev))
+				I915_WRITE(PALETTE(pipe, i), word);
+			else
+				I915_WRITE(LGC_PALETTE(pipe, i), word);
+		}
+	} else {
+		for (i = 0; i < 256; i++) {
+			uint32_t word = (i << 16) | (i << 8) | i;
+
+			if (HAS_GMCH_DISPLAY(dev))
+				I915_WRITE(PALETTE(pipe, i), word);
+			else
+				I915_WRITE(LGC_PALETTE(pipe, i), word);
+		}
 	}
 }
 
-/* Loads the legacy palette/gamma unit for the CRTC on Haswell+. */
+/* Loads the legacy palette/gamma unit for the CRTC on Haswell. */
 static void haswell_load_luts(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -144,6 +280,89 @@ static void haswell_load_luts(struct drm_crtc *crtc)
 		hsw_enable_ips(intel_crtc);
 }
 
+/* Loads the palette/gamma unit for the CRTC on Broadwell+. */
+static void broadwell_load_luts(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *state = crtc->state;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc_state *intel_state = to_intel_crtc_state(state);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	uint32_t i, lut_size = INTEL_INFO(dev)->color.degamma_lut_size;
+
+	if (crtc_state_is_legacy(state)) {
+		haswell_load_luts(crtc);
+		return;
+	}
+
+	I915_WRITE(PREC_PAL_INDEX(pipe),
+		   PAL_PREC_SPLIT_MODE | PAL_PREC_AUTO_INCREMENT);
+
+	if (state->degamma_lut) {
+		struct drm_color_lut *lut =
+			(struct drm_color_lut *) state->degamma_lut->data;
+
+		for (i = 0; i < lut_size; i++) {
+			uint32_t word =
+			drm_color_lut_extract(lut[i].red, 10) << 20 |
+			drm_color_lut_extract(lut[i].green, 10) << 10 |
+			drm_color_lut_extract(lut[i].blue, 10);
+
+			I915_WRITE(PREC_PAL_DATA(pipe), word);
+		}
+	} else {
+		for (i = 0; i < lut_size; i++) {
+			uint32_t v = (i * ((1 << 10) - 1)) / (lut_size - 1);
+
+			I915_WRITE(PREC_PAL_DATA(pipe),
+				   (v << 20) | (v << 10) | v);
+		}
+	}
+
+	if (state->gamma_lut) {
+		struct drm_color_lut *lut =
+			(struct drm_color_lut *) state->gamma_lut->data;
+
+		for (i = 0; i < lut_size; i++) {
+			uint32_t word =
+			(drm_color_lut_extract(lut[i].red, 10) << 20) |
+			(drm_color_lut_extract(lut[i].green, 10) << 10) |
+			drm_color_lut_extract(lut[i].blue, 10);
+
+			I915_WRITE(PREC_PAL_DATA(pipe), word);
+		}
+
+		/* Program the max register to clamp values > 1.0. */
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 0),
+			   drm_color_lut_extract(lut[i].red, 16));
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 1),
+			   drm_color_lut_extract(lut[i].green, 16));
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 2),
+			   drm_color_lut_extract(lut[i].blue, 16));
+	} else {
+		for (i = 0; i < lut_size; i++) {
+			uint32_t v = (i * ((1 << 10) - 1)) / (lut_size - 1);
+
+			I915_WRITE(PREC_PAL_DATA(pipe),
+				   (v << 20) | (v << 10) | v);
+		}
+
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 0), (1 << 16) - 1);
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 1), (1 << 16) - 1);
+		I915_WRITE(PREC_PAL_GC_MAX(pipe, 2), (1 << 16) - 1);
+	}
+
+	intel_state->gamma_mode = GAMMA_MODE_MODE_SPLIT;
+	I915_WRITE(GAMMA_MODE(pipe), GAMMA_MODE_MODE_SPLIT);
+	POSTING_READ(GAMMA_MODE(pipe));
+
+	/*
+	 * Reset the index, otherwise it prevents the legacy palette to be
+	 * written properly.
+	 */
+	I915_WRITE(PREC_PAL_INDEX(pipe), 0);
+}
+
 void intel_color_load_luts(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -156,39 +375,61 @@ void intel_color_load_luts(struct drm_crtc *crtc)
 	dev_priv->display.load_luts(crtc);
 }
 
-void intel_color_legacy_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t start, uint32_t size)
+int intel_color_check(struct drm_crtc *crtc,
+		      struct drm_crtc_state *crtc_state)
 {
-	int end = (start + size > 256) ? 256 : start + size, i;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	size_t gamma_length, degamma_length;
 
-	for (i = start; i < end; i++) {
-		intel_crtc->lut_r[i] = red[i] >> 8;
-		intel_crtc->lut_g[i] = green[i] >> 8;
-		intel_crtc->lut_b[i] = blue[i] >> 8;
-	}
+	degamma_length = INTEL_INFO(dev)->color.degamma_lut_size *
+		sizeof(struct drm_color_lut);
+	gamma_length = INTEL_INFO(dev)->color.gamma_lut_size *
+		sizeof(struct drm_color_lut);
 
-	intel_color_load_luts(crtc);
+	/*
+	 * We allow both degamma & gamma luts at the right size or
+	 * NULL.
+	 */
+	if ((!crtc_state->degamma_lut ||
+	     crtc_state->degamma_lut->length == degamma_length) &&
+	    (!crtc_state->gamma_lut ||
+	     crtc_state->gamma_lut->length == gamma_length))
+		return 0;
+
+	/*
+	 * We also allow no degamma lut and a gamma lut at the legacy
+	 * size (256 entries).
+	 */
+	if (!crtc_state->degamma_lut &&
+	    crtc_state->gamma_lut &&
+	    crtc_state->gamma_lut->length == LEGACY_LUT_LENGTH)
+		return 0;
+
+	return -EINVAL;
 }
 
 void intel_color_init(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int i;
 
 	drm_mode_crtc_set_gamma_size(crtc, 256);
-	for (i = 0; i < 256; i++) {
-		intel_crtc->lut_r[i] = i;
-		intel_crtc->lut_g[i] = i;
-		intel_crtc->lut_b[i] = i;
-	}
 
-	if (IS_HASWELL(dev) ||
-	    (INTEL_INFO(dev)->gen >= 8 && !IS_CHERRYVIEW(dev))) {
+	if (IS_HASWELL(dev)) {
+		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
+	} else if (IS_BROADWELL(dev) || IS_SKYLAKE(dev) ||
+		   IS_BROXTON(dev) || IS_KABYLAKE(dev)) {
+		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
+		dev_priv->display.load_luts = broadwell_load_luts;
 	} else {
 		dev_priv->display.load_luts = i9xx_load_luts;
 	}
+
+	/* Enable color management support when we have degamma & gamma LUTs. */
+	if (INTEL_INFO(dev)->color.degamma_lut_size != 0 &&
+	    INTEL_INFO(dev)->color.gamma_lut_size != 0)
+		drm_helper_crtc_enable_color_mgmt(crtc,
+					INTEL_INFO(dev)->color.degamma_lut_size,
+					INTEL_INFO(dev)->color.gamma_lut_size);
 }
