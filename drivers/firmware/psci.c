@@ -21,6 +21,7 @@
 #include <linux/psci.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
+#include <linux/regulator/machine.h>
 
 #include <uapi/linux/psci.h>
 
@@ -236,9 +237,25 @@ static int psci_system_suspend_enter(suspend_state_t state)
 	return cpu_suspend(0, psci_system_suspend);
 }
 
+static int psci_system_suspend_prepare(void)
+{
+	return regulator_suspend_prepare(PM_SUSPEND_MEM);
+}
+
+static void psci_system_suspend_finish(void)
+{
+	int ret;
+
+	ret = regulator_suspend_finish();
+	if (ret < 0)
+		pr_warn("regulator_suspend_finish failed (%d)\n", ret);
+}
+
 static const struct platform_suspend_ops psci_suspend_ops = {
 	.valid          = suspend_valid_only_mem,
 	.enter          = psci_system_suspend_enter,
+	.prepare        = psci_system_suspend_prepare,
+	.finish         = psci_system_suspend_finish,
 };
 
 static void __init psci_init_system_suspend(void)
