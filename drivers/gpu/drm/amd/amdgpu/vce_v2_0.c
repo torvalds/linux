@@ -44,7 +44,7 @@
 static void vce_v2_0_mc_resume(struct amdgpu_device *adev);
 static void vce_v2_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v2_0_set_irq_funcs(struct amdgpu_device *adev);
-
+static int vce_v2_0_wait_for_idle(void *handle);
 /**
  * vce_v2_0_ring_get_rptr - get read pointer
  *
@@ -339,6 +339,21 @@ static void vce_v2_0_set_dyn_cg(struct amdgpu_device *adev, bool gated)
 {
 	u32 orig, tmp;
 
+	if (gated) {
+		if (vce_v2_0_wait_for_idle(adev)) {
+			DRM_INFO("VCE is busy, Can't set clock gateing");
+			return;
+		}
+		WREG32_P(mmVCE_VCPU_CNTL, 0, ~VCE_VCPU_CNTL__CLK_EN_MASK);
+		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		mdelay(100);
+		WREG32(mmVCE_STATUS, 0);
+	} else {
+		WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK, ~VCE_VCPU_CNTL__CLK_EN_MASK);
+		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+		mdelay(100);
+	}
+
 	tmp = RREG32(mmVCE_CLOCK_GATING_B);
 	tmp &= ~0x00060006;
 	if (gated) {
@@ -362,6 +377,7 @@ static void vce_v2_0_set_dyn_cg(struct amdgpu_device *adev, bool gated)
 
 	if (gated)
 		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
+	WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
 }
 
 static void vce_v2_0_disable_cg(struct amdgpu_device *adev)
