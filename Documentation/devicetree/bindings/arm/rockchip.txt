@@ -39,6 +39,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
 
+- GeekBuying GeekBox:
+    Required root node properties:
+      - compatible = "geekbuying,geekbox", "rockchip,rk3368";
+
 - Google Jaq (Haier Chromebook 11 and more):
     Required root node properties:
       - compatible = "google,veyron-jaq-rev5", "google,veyron-jaq-rev4",
