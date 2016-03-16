@@ -81,6 +81,8 @@ struct bcm2835_chan {
 
 	void __iomem *chan_base;
 	int irq_number;
+
+	bool is_lite_channel;
 };
 
 struct bcm2835_desc {
@@ -169,6 +171,16 @@ struct bcm2835_desc {
 #define BCM2835_DMA_CHAN(n)	((n) << 8) /* Base address */
 #define BCM2835_DMA_CHANIO(base, n) ((base) + BCM2835_DMA_CHAN(n))
 
+/* the max dma length for different channels */
+#define MAX_DMA_LEN SZ_1G
+#define MAX_LITE_DMA_LEN (SZ_64K - 4)
+
+static inline size_t bcm2835_dma_max_frame_length(struct bcm2835_chan *c)
+{
+	/* lite and normal channels have different max frame length */
+	return c->is_lite_channel ? MAX_LITE_DMA_LEN : MAX_DMA_LEN;
+}
+
 /* how many frames of max_len size do we need to transfer len bytes */
 static inline size_t bcm2835_dma_frames_for_length(size_t len,
 						   size_t max_len)
@@ -217,8 +229,10 @@ static void bcm2835_dma_create_cb_set_length(
 	size_t *total_len,
 	u32 finalextrainfo)
 {
-	/* set the length */
-	control_block->length = len;
+	size_t max_len = bcm2835_dma_max_frame_length(chan);
+
+	/* set the length taking lite-channel limitations into account */
+	control_block->length = min_t(u32, len, max_len);
 
 	/* finished if we have no period_length */
 	if (!period_len)
@@ -544,6 +558,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	dma_addr_t src, dst;
 	u32 info = BCM2835_DMA_WAIT_RESP;
 	u32 extra = BCM2835_DMA_INT_EN;
+	size_t max_len = bcm2835_dma_max_frame_length(c);
 	size_t frames;
 
 	/* Grab configuration */
@@ -586,7 +601,10 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	}
 
 	/* calculate number of frames */
-	frames = DIV_ROUND_UP(buf_len, period_len);
+	frames = /* number of periods */
+		 DIV_ROUND_UP(buf_len, period_len) *
+		 /* number of frames per period */
+		 bcm2835_dma_frames_for_length(period_len, max_len);
 
 	/*
 	 * allocate the CB chain
@@ -684,6 +702,11 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
 	c->irq_number = irq;
+
+	/* check in DEBUG register if this is a LITE channel */
+	if (readl(c->chan_base + BCM2835_DMA_DEBUG) &
+		BCM2835_DMA_DEBUG_LITE)
+		c->is_lite_channel = true;
 
 	return 0;
 }
