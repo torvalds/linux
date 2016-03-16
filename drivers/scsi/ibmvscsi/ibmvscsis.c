@@ -90,8 +90,6 @@ static char system_id[64] = "";
 static char partition_name[97] = "UNKNOWN";
 static unsigned int partition_number = -1;
 
-static DEFINE_MUTEX(tpg_mutex);
-static LIST_HEAD(tpg_list);
 static DEFINE_SPINLOCK(ibmvscsis_dev_lock);
 static LIST_HEAD(ibmvscsis_dev_list);
 
@@ -124,25 +122,16 @@ struct ibmvscsis_nexus {
 struct ibmvscsis_tpg {
 	/* ibmvscsis port target portal group tag for TCM */
 	u16 tport_tpgt;
-	/* Used to track number of TPG Port/Lun Links wrt to explict
-	 * I_T Nexus shutdown
-	 */
-	int tpg_port_count;
-	/* Used for ibmvscsis device reference to tpg_nexus, protected
-	 * by tpg_mutex
+	/* Used for ibmvscsis device reference to tpg_nexus
 	 */
 	int tpg_ibmvscsis_count;
-	/* list for ibmvscsis_list */
-	struct list_head tpg_list;
-	/* Used to protect access for tpg_nexus */
-	struct mutex tpg_mutex;
 	/* Pointer to the TCM ibmvscsis I_T Nexus for this TPG endpoint */
 	struct ibmvscsis_nexus *tpg_nexus;
 	/* Pointer back to ibmvscsis_tport */
 	struct ibmvscsis_tport *tport;
 	/* Returned by ibmvscsis_make_tpg() */
 	struct se_portal_group se_tpg;
-	/* Pointer back to ibmvscsis, protected by tpg_mutex */
+	/* Pointer back to ibmvscsis*/
 	struct ibmvscsis_adapter *ibmvscsis_adapter;
 };
 
@@ -329,9 +318,7 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 	struct ibmvscsis_nexus *nexus;
 
 	pr_debug("ibmvscsis: make nexus");
-	mutex_lock(&tpg->tpg_mutex);
 	if (tpg->tpg_nexus) {
-		mutex_unlock(&tpg->tpg_mutex);
 		pr_debug("tpg->tpg_nexus already exists\n");
 		return -EEXIST;
 	}
@@ -339,7 +326,6 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 
 	nexus = kzalloc(sizeof(struct ibmvscsis_nexus), GFP_KERNEL);
 	if (!nexus) {
-		mutex_unlock(&tpg->tpg_mutex);
 		pr_err("Unable to allocate struct ibmvscsis_nexus\n");
 		return -ENOMEM;
 	}
@@ -349,7 +335,6 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 	 */
 	nexus->se_sess = transport_init_session(TARGET_PROT_NORMAL);
 	if (IS_ERR(nexus->se_sess)) {
-		mutex_unlock(&tpg->tpg_mutex);
 		goto transport_init_fail;
 	}
 	/*
@@ -360,7 +345,6 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 	nexus->se_sess->se_node_acl = core_tpg_check_initiator_node_acl(
 				se_tpg, (unsigned char *)name);
 	if (!nexus->se_sess->se_node_acl) {
-		mutex_unlock(&tpg->tpg_mutex);
 		pr_debug("core_tpg_check_initiator_node_acl() failed"
 				" for %s\n", name);
 		goto acl_failed;
@@ -372,7 +356,6 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tpg *tpg,
 			nexus->se_sess, nexus);
 	tpg->tpg_nexus = nexus;
 
-	mutex_unlock(&tpg->tpg_mutex);
 	return 0;
 
 acl_failed:
@@ -386,31 +369,20 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tpg *tpg)
 {
 	struct se_session *se_sess;
 	struct ibmvscsis_nexus *nexus;
+	unsigned long flags;
 
 	pr_debug("ibmvscsis: drop nexus");
-	mutex_lock(&tpg->tpg_mutex);
 	nexus = tpg->tpg_nexus;
 	if (!nexus) {
-		mutex_unlock(&tpg->tpg_mutex);
 		return -ENODEV;
 	}
 
 	se_sess = nexus->se_sess;
 	if (!se_sess) {
-		mutex_unlock(&tpg->tpg_mutex);
 		return -ENODEV;
 	}
 
-	if (tpg->tpg_port_count != 0) {
-		mutex_unlock(&tpg->tpg_mutex);
-		pr_err("Unable to remove TCM_ibmvscsis I_T Nexus with"
-			" active TPG port count: %d\n",
-			tpg->tpg_port_count);
-		return -EBUSY;
-	}
-
 	if (tpg->tpg_ibmvscsis_count != 0) {
-		mutex_unlock(&tpg->tpg_mutex);
 		pr_err("Unable to remove TCM_ibmvscsis I_T Nexus with"
 			" active TPG ibmvscsis count: %d\n",
 			tpg->tpg_ibmvscsis_count);
@@ -421,101 +393,16 @@ static int ibmvscsis_drop_nexus(struct ibmvscsis_tpg *tpg)
 	 * Release the SCSI I_T Nexus to the emulated ibmvscsis Target Port
 	 */
 	transport_deregister_session(nexus->se_sess);
+
+	transport_free_session(nexus->se_sess);
+
+	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
 	tpg->tpg_nexus = NULL;
-	mutex_unlock(&tpg->tpg_mutex);
+	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 
 	kfree(nexus);
 	return 0;
 }
-
-static ssize_t ibmvscsis_tpg_nexus_show(struct config_item *item, char *page)
-{
-	struct se_portal_group *se_tpg = to_tpg(item);
-	struct ibmvscsis_tpg *tpg = container_of(se_tpg,
-				struct ibmvscsis_tpg, se_tpg);
-	struct ibmvscsis_nexus *nexus;
-	ssize_t ret;
-
-	pr_debug("ibmvscsis: tpg nexus show");
-	mutex_lock(&tpg->tpg_mutex);
-	nexus = tpg->tpg_nexus;
-	if (!nexus) {
-		mutex_unlock(&tpg->tpg_mutex);
-		return -ENODEV;
-	}
-	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			nexus->se_sess->se_node_acl->initiatorname);
-	mutex_unlock(&tpg->tpg_mutex);
-
-	return ret;
-}
-
-static ssize_t ibmvscsis_tpg_nexus_store(struct config_item *item,
-		const char *page, size_t count)
-{
-	struct se_portal_group *se_tpg = to_tpg(item);
-	struct ibmvscsis_tpg *tpg = container_of(se_tpg,
-				struct ibmvscsis_tpg, se_tpg);
-	struct ibmvscsis_tport *tport_wwn = tpg->tport;
-	unsigned char i_port[256], *ptr, *port_ptr;
-	int ret;
-	pr_debug("ibmvscsis: tpg nexus store");
-	/*
-	 * Shutdown the active I_T nexus if 'NULL' is passed..
-	 */
-	if (!strncmp(page, "NULL", 4)) {
-		ret = ibmvscsis_drop_nexus(tpg);
-		return (!ret) ? count : ret;
-	}
-	/*
-	 * Otherwise make sure the passed virtual Initiator port WWN matches
-	 * the fabric protocol_id set in ibmvscsis_make_tport(), and call
-	 * ibmvscsis_make_nexus().
-	 */
-	if (strlen(page) >= 256) {
-		pr_err("Emulated NAA Sas Address: %s, exceeds"
-				" max: %d\n", page, 256);
-		return -EINVAL;
-	}
-	snprintf(&i_port[0], 256, "%s", page);
-
-	ptr = strstr(i_port, "naa.");
-	if (ptr) {
-		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_SRP) {
-			pr_err("Passed SRP Initiator Port %s does not"
-				" match target port protoid: \n", i_port);
-			return -EINVAL;
-		}
-		port_ptr = &i_port[0];
-		goto check_newline;
-	}
-	pr_err("Unable to locate prefix for emulated Initiator Port:"
-			" %s\n", i_port);
-	return -EINVAL;
-	/*
-	 * Clear any trailing newline for the NAA WWN
-	 */
-check_newline:
-	if (i_port[strlen(i_port)-1] == '\n')
-		i_port[strlen(i_port)-1] = '\0';
-
-	/*
-	 * Called creation of nexus here as a hack since actual use of nexus
-	 * isn't working with targetcli/config files.
-	 */
-	ret = ibmvscsis_make_nexus(tpg, port_ptr);
-	if (ret < 0)
-		return ret;
-
-	return count;
-}
-
-CONFIGFS_ATTR(ibmvscsis_tpg_, nexus);
-
-static struct configfs_attribute *ibmvscsis_tpg_attrs[] = {
-	&ibmvscsis_tpg_attr_nexus,
-	NULL,
-};
 
 static void ibmvscsis_drop_tpg(struct se_portal_group *se_tpg)
 {
@@ -523,9 +410,6 @@ static void ibmvscsis_drop_tpg(struct se_portal_group *se_tpg)
 				struct ibmvscsis_tpg, se_tpg);
 
 	//TODO: Add a release mechanism to remove vio
-	mutex_lock(&tpg_mutex);
-	list_del(&tpg->tpg_list);
-	mutex_unlock(&tpg_mutex);
 	/*
 	 * Release the virtual I_T Nexus for this ibmvscsis TPG
 	 */
@@ -544,21 +428,32 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 	struct ibmvscsis_tport *tport =
 		container_of(wwn, struct ibmvscsis_tport, tport_wwn);
 	struct ibmvscsis_tpg *tpg;
+	struct ibmvscsis_adapter *adapter;
+	struct vio_dev *vdev;
 	u16 tpgt;
 	int ret;
+	unsigned long flags;
 
 	if (strstr(name, "tpgt_") != name)
 		return ERR_PTR(-EINVAL);
 	if (kstrtou16(name + 5, 10, &tpgt) || tpgt >= DEFAULT_MAX_SECTORS)
 		return ERR_PTR(-EINVAL);
 
-	tpg = kzalloc(sizeof(struct ibmvscsis_tpg), GFP_KERNEL);
-	if (!tpg) {
-		pr_err("Unable to allocate struct ibmvscsis_tpg");
-		return ERR_PTR(-ENOMEM);
+	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
+	list_for_each_entry(adapter, &ibmvscsis_dev_list, list) {
+		vdev = adapter->dma_dev;
+		ret = strcmp(dev_name(&vdev->dev), &tport->tport_name[0]);
+		if(ret == 0) {
+			tpg = adapter->tpg;
+		}
+		if(tpg)
+			goto found;
 	}
-	mutex_init(&tpg->tpg_mutex);
-	INIT_LIST_HEAD(&tpg->tpg_list);
+	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
+	return NULL;
+
+found:
+	spin_unlock_irqrestore(&ibmvscsis_dev_lock, flags);
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
@@ -570,10 +465,6 @@ static struct se_portal_group *ibmvscsis_make_tpg(struct se_wwn *wwn,
 		kfree(tpg);
 		return NULL;
 	}
-	mutex_lock(&tpg_mutex);
-	list_add_tail(&tpg->tpg_list, &tpg_list);
-	mutex_unlock(&tpg_mutex);
-
 	if(ibmvscsis_make_nexus(tpg, name) < 0) {
 		pr_info("ibmvscsis: failed make nexus\n");
 		ibmvscsis_drop_tpg(&tpg->se_tpg);
@@ -593,12 +484,8 @@ static struct ibmvscsis_tport *ibmvscsis_lookup_port(const char *name)
 	spin_lock_irqsave(&ibmvscsis_dev_lock, flags);
 	list_for_each_entry(adapter, &ibmvscsis_dev_list, list) {
 		vdev = adapter->dma_dev;
-		pr_debug("ibmvscsis: lookup adapter ptr: %p\n", adapter);
-		pr_debug("ibmvscsis:lookup_port ptr:%p\n", vdev);
 		ret = strcmp(dev_name(&vdev->dev), name);
 		if(ret == 0) {
-			pr_debug("ibmvscsis: lookup ret: %x, :port%p\n",
-					ret, adapter->tport);
 			tport = adapter->tport;
 		}
 		if(tport)
@@ -616,7 +503,6 @@ static struct se_wwn *ibmvscsis_make_tport(struct target_fabric_configfs *tf,
 					   const char *name)
 {
 	struct ibmvscsis_tport *tport;
-	char *ptr;
 	u64 wwpn = 0;
 
 	tport = ibmvscsis_lookup_port(name);
@@ -625,21 +511,11 @@ static struct se_wwn *ibmvscsis_make_tport(struct target_fabric_configfs *tf,
 		return NULL;
 
 	tport->tport_wwpn = wwpn;
+	tport->tport_proto_id = SCSI_PROTOCOL_SRP;
 
 	pr_debug("ibmvscsis: make_tport name:%s, %x\n", name,
 					tport->tport_proto_id);
-	ptr = strstr(name, "naa.");
-	if(ptr) {
-		tport->tport_proto_id = SCSI_PROTOCOL_SRP;
-		goto check_len;
-	}
-	//TODO: Fix to use something better than 300
-	ptr = strstr(name, "300");
-	if(ptr) {
-		tport->tport_proto_id = SCSI_PROTOCOL_SRP;
-		goto check_len;
-	}
-check_len:
+
 	snprintf(&tport->tport_name[0], 256, "%s", name);
 	return &tport->tport_wwn;
 }
@@ -1108,7 +984,10 @@ static inline struct viosrp_crq *next_crq(struct crq_queue *queue)
 
 	return crq;
 }
-//TODO: Needs to be rewritten to support TCM
+/*
+ * TODO: Needs to be rewritten to support TCM, use target_submit_cmd()
+ * for dispatching incoming SCSI CDB's and payloads into target-core
+ */
 static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 			    struct ibmvscsis_cmnd *vsc,
 			    struct srp_cmd *scmd)
@@ -1127,6 +1006,9 @@ static int tcm_queuecommand(struct ibmvscsis_adapter *adapter,
 		break;
 	case SRP_HEAD_TASK:
 		attr = TCM_HEAD_TAG;
+		break;
+	case SRP_ACA_TASK:
+		attr = SRP_SIMPLE_TASK;
 		break;
 	default:
 		pr_err("ibmvscsis: Task attribute %d not supported\n",
@@ -1263,7 +1145,7 @@ static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 
 	unpacked_lun = scsilun_to_int(&cmd->lun);
 
-	mutex_lock(&se_tpg->tpg_lun_mutex);
+	spin_lock(&se_tpg->session_lock);
 
 	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
 		if (se_lun->unpacked_lun == unpacked_lun) {
@@ -1272,7 +1154,7 @@ static int ibmvscsis_inquiry(struct ibmvscsis_adapter *adapter,
 		}
 	}
 
-	mutex_unlock(&se_tpg->tpg_lun_mutex);
+	spin_unlock(&se_tpg->session_lock);
 
 	if (!found_lun) {
 		data[0] = TYPE_NO_LUN;
@@ -1292,7 +1174,7 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 
 	unpacked_lun = scsilun_to_int(&cmd->lun);
 
-	mutex_lock(&se_tpg->tpg_lun_mutex);
+	spin_lock(&se_tpg->session_lock);
 
 	hlist_for_each_entry(lun, &se_tpg->tpg_lun_hlist, link) {
 		if (lun->unpacked_lun == unpacked_lun) {
@@ -1303,7 +1185,7 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 		}
 	}
 
-	mutex_unlock(&se_tpg->tpg_lun_mutex);
+	spin_unlock(&se_tpg->session_lock);
 
 	switch (cmd->cdb[2]) {
 	case 0:
@@ -1345,7 +1227,10 @@ static int ibmvscsis_mode_sense(struct ibmvscsis_adapter *adapter,
 
 	return bytes;
 }
-//TODO: Needs to be rewritten to support TCM
+/* TODO: Needs to be rewritten to support TCM, have a call back via
+ * target_core_fabric_ops using existing make_luns encoding format
+ * to use common code spc_emulate_report_luns().
+ */
 static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 				 struct srp_cmd *cmd, u64 *data)
 {
@@ -1370,7 +1255,7 @@ static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 	idx = 2;
 	nr_luns = 1;
 
-	mutex_lock(&se_tpg->tpg_lun_mutex);
+	spin_lock(&se_tpg->session_lock);
 	// TODO Is lun_index the right thing?
 	hlist_for_each_entry(se_lun, &se_tpg->tpg_lun_hlist, link) {
 		lun = make_lun(0, se_lun->lun_index & 0x003f, 0);
@@ -1384,7 +1269,7 @@ static int ibmvscsis_report_luns(struct ibmvscsis_adapter *adapter,
 
 		nr_luns++;
 	}
-	mutex_unlock(&se_tpg->tpg_lun_mutex);
+	spin_unlock(&se_tpg->session_lock);
 done:
 	put_unaligned_be32(nr_luns * 8, data);
 	return min(oalen, nr_luns * 8 + 8);
@@ -1857,6 +1742,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct ibmvscsis_adapter *adapter;
 	struct srp_target *target;
 	struct ibmvscsis_tport *tport;
+	struct ibmvscsis_tpg *tpg;
 	unsigned long flags;
 
 	pr_debug("ibmvscsis: Probe for UA 0x%x\n", vdev->unit_address);
@@ -1872,16 +1758,20 @@ static int ibmvscsis_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	tport = kzalloc(sizeof(struct ibmvscsis_tport), GFP_KERNEL);
 	if(!tport)
 		goto free_target;
+	tpg = kzalloc(sizeof(struct ibmvscsis_tpg), GFP_KERNEL);
+	if(!tpg)
+		goto free_tport;
 
 	adapter->dma_dev = vdev;
 	target->ldata = adapter;
 	adapter->target = target;
 	adapter->tport = tport;
+	adapter->tpg = tpg;
 	pr_debug("ibmvscsis: tport probe pointer:%p\n", tport);
 
 	ret = read_dma_window(adapter->dma_dev, adapter);
 	if(ret != 0) {
-		goto free_tport;
+		goto free_tpg;
 	}
 	pr_debug("ibmvscsis: Probe: liobn 0x%x, riobn 0x%x\n", adapter->liobn,
 			adapter->riobn);
@@ -1917,6 +1807,8 @@ destroy_crq_queue:
 	crq_queue_destroy(adapter);
 free_srp_target:
 	srp_target_free(adapter->target);
+free_tpg:
+	kfree(tpg);
 free_tport:
 	kfree(tport);
 free_target:
@@ -1999,7 +1891,6 @@ static int get_system_info(void)
 static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.module				= THIS_MODULE,
 	.name				= "ibmvscsis",
-	.node_acl_size			= sizeof(struct ibmvscsis_nacl),
 	.max_data_sg_nents		= 1024,
 	.get_fabric_name		= ibmvscsis_get_fabric_name,
 	.tpg_get_wwn			= ibmvscsis_get_fabric_wwn,
@@ -2032,7 +1923,6 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.fabric_drop_tpg		= ibmvscsis_drop_tpg,
 
 	.tfc_wwn_attrs			= ibmvscsis_wwn_attrs,
-	.tfc_tpg_base_attrs		= ibmvscsis_tpg_attrs,
 };
 
 /**
