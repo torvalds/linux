@@ -121,6 +121,8 @@ static void haswell_load_luts(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *intel_crtc_state =
+		to_intel_crtc_state(crtc->state);
 	bool reenable_ips = false;
 
 	/*
@@ -128,11 +130,12 @@ static void haswell_load_luts(struct drm_crtc *crtc)
 	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
 	 */
 	if (IS_HASWELL(dev) && intel_crtc->config->ips_enabled &&
-	    ((I915_READ(GAMMA_MODE(intel_crtc->pipe)) & GAMMA_MODE_MODE_MASK) ==
-	     GAMMA_MODE_MODE_SPLIT)) {
+	    (intel_crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)) {
 		hsw_disable_ips(intel_crtc);
 		reenable_ips = true;
 	}
+
+	intel_crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 
 	i9xx_load_luts(crtc);

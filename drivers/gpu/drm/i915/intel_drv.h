@@ -578,6 +578,9 @@ struct intel_crtc_state {
 		 */
 		bool need_postvbl_update;
 	} wm;
+
+	/* Gamma mode programmed on the pipe */
+	uint32_t gamma_mode;
 };
 
 struct vlv_wm_state {
