@@ -71,13 +71,19 @@ ENTRY(__sys_vfork)
 
 ENTRY(sys_sigreturn)
 	SAVE_SWITCH_STACK
+	movel	%sp,%sp@-		  | switch_stack pointer
+	pea	%sp@(SWITCH_STACK_SIZE+4) | pt_regs pointer
 	jbsr	do_sigreturn
+	addql	#8,%sp
 	RESTORE_SWITCH_STACK
 	rts
 
 ENTRY(sys_rt_sigreturn)
 	SAVE_SWITCH_STACK
+	movel	%sp,%sp@-		  | switch_stack pointer
+	pea	%sp@(SWITCH_STACK_SIZE+4) | pt_regs pointer
 	jbsr	do_rt_sigreturn
+	addql	#8,%sp
 	RESTORE_SWITCH_STACK
 	rts
 

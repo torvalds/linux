@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/tracepoint.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 #define COMPACTION_STATUS					\
 	EM( COMPACT_DEFERRED,		"deferred")		\

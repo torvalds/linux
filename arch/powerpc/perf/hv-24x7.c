@@ -493,14 +493,6 @@ static size_t event_to_attr_ct(struct hv_24x7_event_data *event)
 	}
 }
 
-static unsigned long vmalloc_to_phys(void *v)
-{
-	struct page *p = vmalloc_to_page(v);
-
-	BUG_ON(!p);
-	return page_to_phys(p) + offset_in_page(v);
-}
-
 /* */
 struct event_uniq {
 	struct rb_node node;

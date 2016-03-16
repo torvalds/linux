@@ -699,8 +699,8 @@ tape_generic_remove(struct ccw_device *cdev)
 			 */
 			DBF_EVENT(3, "(%08x): Drive in use vanished!\n",
 				device->cdev_id);
-			pr_warning("%s: A tape unit was detached while in "
-				   "use\n", dev_name(&device->cdev->dev));
+			pr_warn("%s: A tape unit was detached while in use\n",
+				dev_name(&device->cdev->dev));
 			tape_state_set(device, TS_NOT_OPER);
 			__tape_discard_requests(device);
 			spin_unlock_irq(get_ccwdev_lock(device->cdev));
