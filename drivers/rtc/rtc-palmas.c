@@ -311,8 +311,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, palmas_rtc->irq, NULL,
 			palmas_rtc_interrupt,
-			IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-			IRQF_EARLY_RESUME,
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 			dev_name(&pdev->dev), palmas_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ request failed, err = %d\n", ret);
