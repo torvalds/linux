@@ -1141,9 +1141,9 @@ static void fake_irq(unsigned long data)
 }
 
 static bool missed_irq(struct drm_i915_private *dev_priv,
-		       struct intel_engine_cs *ring)
+		       struct intel_engine_cs *engine)
 {
-	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
+	return test_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings);
 }
 
 static unsigned long local_clock_us(unsigned *cpu)
@@ -2689,11 +2689,11 @@ void i915_gem_request_free(struct kref *req_ref)
 }
 
 static inline int
-__i915_gem_request_alloc(struct intel_engine_cs *ring,
+__i915_gem_request_alloc(struct intel_engine_cs *engine,
 			 struct intel_context *ctx,
 			 struct drm_i915_gem_request **req_out)
 {
-	struct drm_i915_private *dev_priv = to_i915(ring->dev);
+	struct drm_i915_private *dev_priv = to_i915(engine->dev);
 	struct drm_i915_gem_request *req;
 	int ret;
 
@@ -2706,13 +2706,13 @@ __i915_gem_request_alloc(struct intel_engine_cs *ring,
 	if (req == NULL)
 		return -ENOMEM;
 
-	ret = i915_gem_get_seqno(ring->dev, &req->seqno);
+	ret = i915_gem_get_seqno(engine->dev, &req->seqno);
 	if (ret)
 		goto err;
 
 	kref_init(&req->ref);
 	req->i915 = dev_priv;
-	req->ring = ring;
+	req->ring = engine;
 	req->ctx  = ctx;
 	i915_gem_context_reference(req->ctx);
 
@@ -2787,11 +2787,11 @@ void i915_gem_request_cancel(struct drm_i915_gem_request *req)
 }
 
 struct drm_i915_gem_request *
-i915_gem_find_active_request(struct intel_engine_cs *ring)
+i915_gem_find_active_request(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 
-	list_for_each_entry(request, &ring->request_list, list) {
+	list_for_each_entry(request, &engine->request_list, list) {
 		if (i915_gem_request_completed(request, false))
 			continue;
 
@@ -2802,37 +2802,37 @@ i915_gem_find_active_request(struct intel_engine_cs *ring)
 }
 
 static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
-				       struct intel_engine_cs *ring)
+				       struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 	bool ring_hung;
 
-	request = i915_gem_find_active_request(ring);
+	request = i915_gem_find_active_request(engine);
 
 	if (request == NULL)
 		return;
 
-	ring_hung = ring->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
+	ring_hung = engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG;
 
 	i915_set_reset_status(dev_priv, request->ctx, ring_hung);
 
-	list_for_each_entry_continue(request, &ring->request_list, list)
+	list_for_each_entry_continue(request, &engine->request_list, list)
 		i915_set_reset_status(dev_priv, request->ctx, false);
 }
 
 static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
-					struct intel_engine_cs *ring)
+					struct intel_engine_cs *engine)
 {
 	struct intel_ringbuffer *buffer;
 
-	while (!list_empty(&ring->active_list)) {
+	while (!list_empty(&engine->active_list)) {
 		struct drm_i915_gem_object *obj;
 
-		obj = list_first_entry(&ring->active_list,
+		obj = list_first_entry(&engine->active_list,
 				       struct drm_i915_gem_object,
-				       ring_list[ring->id]);
+				       ring_list[engine->id]);
 
-		i915_gem_object_retire__read(obj, ring->id);
+		i915_gem_object_retire__read(obj, engine->id);
 	}
 
 	/*
@@ -2842,14 +2842,14 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 */
 
 	if (i915.enable_execlists) {
-		spin_lock_irq(&ring->execlist_lock);
+		spin_lock_irq(&engine->execlist_lock);
 
 		/* list_splice_tail_init checks for empty lists */
-		list_splice_tail_init(&ring->execlist_queue,
-				      &ring->execlist_retired_req_list);
+		list_splice_tail_init(&engine->execlist_queue,
+				      &engine->execlist_retired_req_list);
 
-		spin_unlock_irq(&ring->execlist_lock);
-		intel_execlists_retire_requests(ring);
+		spin_unlock_irq(&engine->execlist_lock);
+		intel_execlists_retire_requests(engine);
 	}
 
 	/*
@@ -2859,10 +2859,10 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 * implicit references on things like e.g. ppgtt address spaces through
 	 * the request.
 	 */
-	while (!list_empty(&ring->request_list)) {
+	while (!list_empty(&engine->request_list)) {
 		struct drm_i915_gem_request *request;
 
-		request = list_first_entry(&ring->request_list,
+		request = list_first_entry(&engine->request_list,
 					   struct drm_i915_gem_request,
 					   list);
 
@@ -2876,7 +2876,7 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 	 * upon reset is less than when we start. Do one more pass over
 	 * all the ringbuffers to reset last_retired_head.
 	 */
-	list_for_each_entry(buffer, &ring->buffers, link) {
+	list_for_each_entry(buffer, &engine->buffers, link) {
 		buffer->last_retired_head = buffer->tail;
 		intel_ring_update_space(buffer);
 	}
@@ -2910,19 +2910,19 @@ void i915_gem_reset(struct drm_device *dev)
  * This function clears the request list as sequence numbers are passed.
  */
 void
-i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
+i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 {
-	WARN_ON(i915_verify_lists(ring->dev));
+	WARN_ON(i915_verify_lists(engine->dev));
 
 	/* Retire requests first as we use it above for the early return.
 	 * If we retire requests last, we may use a later seqno and so clear
 	 * the requests lists without clearing the active list, leading to
 	 * confusion.
 	 */
-	while (!list_empty(&ring->request_list)) {
+	while (!list_empty(&engine->request_list)) {
 		struct drm_i915_gem_request *request;
 
-		request = list_first_entry(&ring->request_list,
+		request = list_first_entry(&engine->request_list,
 					   struct drm_i915_gem_request,
 					   list);
 
@@ -2936,26 +2936,26 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *ring)
 	 * by the ringbuffer to the flushing/inactive lists as appropriate,
 	 * before we free the context associated with the requests.
 	 */
-	while (!list_empty(&ring->active_list)) {
+	while (!list_empty(&engine->active_list)) {
 		struct drm_i915_gem_object *obj;
 
-		obj = list_first_entry(&ring->active_list,
-				      struct drm_i915_gem_object,
-				      ring_list[ring->id]);
+		obj = list_first_entry(&engine->active_list,
+				       struct drm_i915_gem_object,
+				       ring_list[engine->id]);
 
-		if (!list_empty(&obj->last_read_req[ring->id]->list))
+		if (!list_empty(&obj->last_read_req[engine->id]->list))
 			break;
 
-		i915_gem_object_retire__read(obj, ring->id);
+		i915_gem_object_retire__read(obj, engine->id);
 	}
 
-	if (unlikely(ring->trace_irq_req &&
-		     i915_gem_request_completed(ring->trace_irq_req, true))) {
-		ring->irq_put(ring);
-		i915_gem_request_assign(&ring->trace_irq_req, NULL);
+	if (unlikely(engine->trace_irq_req &&
+		     i915_gem_request_completed(engine->trace_irq_req, true))) {
+		engine->irq_put(engine);
+		i915_gem_request_assign(&engine->trace_irq_req, NULL);
 	}
 
-	WARN_ON(i915_verify_lists(ring->dev));
+	WARN_ON(i915_verify_lists(engine->dev));
 }
 
 bool
@@ -5022,10 +5022,10 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 }
 
 static void
-init_ring_lists(struct intel_engine_cs *ring)
+init_ring_lists(struct intel_engine_cs *engine)
 {
-	INIT_LIST_HEAD(&ring->active_list);
-	INIT_LIST_HEAD(&ring->request_list);
+	INIT_LIST_HEAD(&engine->active_list);
+	INIT_LIST_HEAD(&engine->request_list);
 }
 
 void

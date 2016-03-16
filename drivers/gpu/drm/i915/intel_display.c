@@ -11214,7 +11214,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	return 0;
 }
 
-static bool use_mmio_flip(struct intel_engine_cs *ring,
+static bool use_mmio_flip(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_object *obj)
 {
 	/*
@@ -11225,10 +11225,10 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 	 * So using MMIO flips there would disrupt this mechanism.
 	 */
 
-	if (ring == NULL)
+	if (engine == NULL)
 		return true;
 
-	if (INTEL_INFO(ring->dev)->gen < 5)
+	if (INTEL_INFO(engine->dev)->gen < 5)
 		return false;
 
 	if (i915.use_mmio_flip < 0)
@@ -11242,7 +11242,7 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 						       false))
 		return true;
 	else
-		return ring != i915_gem_request_get_ring(obj->last_write_req);
+		return engine != i915_gem_request_get_ring(obj->last_write_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,

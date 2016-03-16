@@ -600,7 +600,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	return ret;
 }
 
-static inline bool should_skip_switch(struct intel_engine_cs *ring,
+static inline bool should_skip_switch(struct intel_engine_cs *engine,
 				      struct intel_context *from,
 				      struct intel_context *to)
 {
@@ -608,42 +608,42 @@ static inline bool should_skip_switch(struct intel_engine_cs *ring,
 		return false;
 
 	if (to->ppgtt && from == to &&
-	    !(intel_ring_flag(ring) & to->ppgtt->pd_dirty_rings))
+	    !(intel_ring_flag(engine) & to->ppgtt->pd_dirty_rings))
 		return true;
 
 	return false;
 }
 
 static bool
-needs_pd_load_pre(struct intel_engine_cs *ring, struct intel_context *to)
+needs_pd_load_pre(struct intel_engine_cs *engine, struct intel_context *to)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 
 	if (!to->ppgtt)
 		return false;
 
-	if (INTEL_INFO(ring->dev)->gen < 8)
+	if (INTEL_INFO(engine->dev)->gen < 8)
 		return true;
 
-	if (ring != &dev_priv->ring[RCS])
+	if (engine != &dev_priv->ring[RCS])
 		return true;
 
 	return false;
 }
 
 static bool
-needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to,
-		u32 hw_flags)
+needs_pd_load_post(struct intel_engine_cs *engine, struct intel_context *to,
+		   u32 hw_flags)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 
 	if (!to->ppgtt)
 		return false;
 
-	if (!IS_GEN8(ring->dev))
+	if (!IS_GEN8(engine->dev))
 		return false;
 
-	if (ring != &dev_priv->ring[RCS])
+	if (engine != &dev_priv->ring[RCS])
 		return false;
 
 	if (hw_flags & MI_RESTORE_INHIBIT)

@@ -599,7 +599,7 @@ static bool only_mappable_for_reloc(unsigned int flags)
 
 static int
 i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
-				struct intel_engine_cs *ring,
+				struct intel_engine_cs *engine,
 				bool *need_reloc)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
@@ -713,7 +713,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 }
 
 static int
-i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
+i915_gem_execbuffer_reserve(struct intel_engine_cs *engine,
 			    struct list_head *vmas,
 			    struct intel_context *ctx,
 			    bool *need_relocs)
@@ -723,10 +723,10 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 	struct i915_address_space *vm;
 	struct list_head ordered_vmas;
 	struct list_head pinned_vmas;
-	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
+	bool has_fenced_gpu_access = INTEL_INFO(engine->dev)->gen < 4;
 	int retry;
 
-	i915_gem_retire_requests_ring(ring);
+	i915_gem_retire_requests_ring(engine);
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
@@ -788,7 +788,9 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			if (eb_vma_misplaced(vma))
 				ret = i915_vma_unbind(vma);
 			else
-				ret = i915_gem_execbuffer_reserve_vma(vma, ring, need_relocs);
+				ret = i915_gem_execbuffer_reserve_vma(vma,
+								      engine,
+								      need_relocs);
 			if (ret)
 				goto err;
 		}
@@ -798,7 +800,8 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			if (drm_mm_node_allocated(&vma->node))
 				continue;
 
-			ret = i915_gem_execbuffer_reserve_vma(vma, ring, need_relocs);
+			ret = i915_gem_execbuffer_reserve_vma(vma, engine,
+							      need_relocs);
 			if (ret)
 				goto err;
 		}
@@ -821,7 +824,7 @@ static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_i915_gem_execbuffer2 *args,
 				  struct drm_file *file,
-				  struct intel_engine_cs *ring,
+				  struct intel_engine_cs *engine,
 				  struct eb_vmas *eb,
 				  struct drm_i915_gem_exec_object2 *exec,
 				  struct intel_context *ctx)
@@ -910,7 +913,8 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		goto err;
 
 	need_relocs = (args->flags & I915_EXEC_NO_RELOC) == 0;
-	ret = i915_gem_execbuffer_reserve(ring, &eb->vmas, ctx, &need_relocs);
+	ret = i915_gem_execbuffer_reserve(engine, &eb->vmas, ctx,
+					  &need_relocs);
 	if (ret)
 		goto err;
 
@@ -1062,12 +1066,12 @@ validate_exec_list(struct drm_device *dev,
 
 static struct intel_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
-			  struct intel_engine_cs *ring, const u32 ctx_id)
+			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
 	struct intel_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
 
-	if (ring->id != RCS && ctx_id != DEFAULT_CONTEXT_HANDLE)
+	if (engine->id != RCS && ctx_id != DEFAULT_CONTEXT_HANDLE)
 		return ERR_PTR(-EINVAL);
 
 	ctx = i915_gem_context_get(file->driver_priv, ctx_id);
@@ -1080,8 +1084,8 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 		return ERR_PTR(-EIO);
 	}
 
-	if (i915.enable_execlists && !ctx->engine[ring->id].state) {
-		int ret = intel_lr_context_deferred_alloc(ctx, ring);
+	if (i915.enable_execlists && !ctx->engine[engine->id].state) {
+		int ret = intel_lr_context_deferred_alloc(ctx, engine);
 		if (ret) {
 			DRM_DEBUG("Could not create LRC %u: %d\n", ctx_id, ret);
 			return ERR_PTR(ret);
@@ -1171,7 +1175,7 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 }
 
 static struct drm_i915_gem_object*
-i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
+i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
 			  struct eb_vmas *eb,
 			  struct drm_i915_gem_object *batch_obj,
@@ -1183,12 +1187,12 @@ i915_gem_execbuffer_parse(struct intel_engine_cs *ring,
 	struct i915_vma *vma;
 	int ret;
 
-	shadow_batch_obj = i915_gem_batch_pool_get(&ring->batch_pool,
+	shadow_batch_obj = i915_gem_batch_pool_get(&engine->batch_pool,
 						   PAGE_ALIGN(batch_len));
 	if (IS_ERR(shadow_batch_obj))
 		return shadow_batch_obj;
 
-	ret = i915_parse_cmds(ring,
+	ret = i915_parse_cmds(engine,
 			      batch_obj,
 			      shadow_batch_obj,
 			      batch_start_offset,

@@ -842,7 +842,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 					struct drm_i915_error_state *error,
-					struct intel_engine_cs *ring,
+					struct intel_engine_cs *engine,
 					struct drm_i915_error_ring *ering)
 {
 	struct intel_engine_cs *to;
@@ -861,63 +861,64 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 		u16 signal_offset;
 		u32 *tmp;
 
-		if (ring == to)
+		if (engine == to)
 			continue;
 
-		signal_offset = (GEN8_SIGNAL_OFFSET(ring, i) & (PAGE_SIZE - 1))
+		signal_offset = (GEN8_SIGNAL_OFFSET(engine, i) & (PAGE_SIZE - 1))
 				/ 4;
 		tmp = error->semaphore_obj->pages[0];
-		idx = intel_ring_sync_index(ring, to);
+		idx = intel_ring_sync_index(engine, to);
 
 		ering->semaphore_mboxes[idx] = tmp[signal_offset];
-		ering->semaphore_seqno[idx] = ring->semaphore.sync_seqno[idx];
+		ering->semaphore_seqno[idx] = engine->semaphore.sync_seqno[idx];
 	}
 }
 
 static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
-					struct intel_engine_cs *ring,
+					struct intel_engine_cs *engine,
 					struct drm_i915_error_ring *ering)
 {
-	ering->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(ring->mmio_base));
-	ering->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(ring->mmio_base));
-	ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
-	ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
+	ering->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(engine->mmio_base));
+	ering->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(engine->mmio_base));
+	ering->semaphore_seqno[0] = engine->semaphore.sync_seqno[0];
+	ering->semaphore_seqno[1] = engine->semaphore.sync_seqno[1];
 
 	if (HAS_VEBOX(dev_priv->dev)) {
 		ering->semaphore_mboxes[2] =
-			I915_READ(RING_SYNC_2(ring->mmio_base));
-		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
+			I915_READ(RING_SYNC_2(engine->mmio_base));
+		ering->semaphore_seqno[2] = engine->semaphore.sync_seqno[2];
 	}
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
 				   struct drm_i915_error_state *error,
-				   struct intel_engine_cs *ring,
+				   struct intel_engine_cs *engine,
 				   struct drm_i915_error_ring *ering)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ering->rc_psmi = I915_READ(RING_PSMI_CTL(ring->mmio_base));
-		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
+		ering->rc_psmi = I915_READ(RING_PSMI_CTL(engine->mmio_base));
+		ering->fault_reg = I915_READ(RING_FAULT_REG(engine));
 		if (INTEL_INFO(dev)->gen >= 8)
-			gen8_record_semaphore_state(dev_priv, error, ring, ering);
+			gen8_record_semaphore_state(dev_priv, error, engine,
+						    ering);
 		else
-			gen6_record_semaphore_state(dev_priv, ring, ering);
+			gen6_record_semaphore_state(dev_priv, engine, ering);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		ering->faddr = I915_READ(RING_DMA_FADD(ring->mmio_base));
-		ering->ipeir = I915_READ(RING_IPEIR(ring->mmio_base));
-		ering->ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
-		ering->instdone = I915_READ(RING_INSTDONE(ring->mmio_base));
-		ering->instps = I915_READ(RING_INSTPS(ring->mmio_base));
-		ering->bbaddr = I915_READ(RING_BBADDR(ring->mmio_base));
+		ering->faddr = I915_READ(RING_DMA_FADD(engine->mmio_base));
+		ering->ipeir = I915_READ(RING_IPEIR(engine->mmio_base));
+		ering->ipehr = I915_READ(RING_IPEHR(engine->mmio_base));
+		ering->instdone = I915_READ(RING_INSTDONE(engine->mmio_base));
+		ering->instps = I915_READ(RING_INSTPS(engine->mmio_base));
+		ering->bbaddr = I915_READ(RING_BBADDR(engine->mmio_base));
 		if (INTEL_INFO(dev)->gen >= 8) {
-			ering->faddr |= (u64) I915_READ(RING_DMA_FADD_UDW(ring->mmio_base)) << 32;
-			ering->bbaddr |= (u64) I915_READ(RING_BBADDR_UDW(ring->mmio_base)) << 32;
+			ering->faddr |= (u64) I915_READ(RING_DMA_FADD_UDW(engine->mmio_base)) << 32;
+			ering->bbaddr |= (u64) I915_READ(RING_BBADDR_UDW(engine->mmio_base)) << 32;
 		}
-		ering->bbstate = I915_READ(RING_BBSTATE(ring->mmio_base));
+		ering->bbstate = I915_READ(RING_BBSTATE(engine->mmio_base));
 	} else {
 		ering->faddr = I915_READ(DMA_FADD_I8XX);
 		ering->ipeir = I915_READ(IPEIR);
@@ -925,20 +926,20 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->instdone = I915_READ(GEN2_INSTDONE);
 	}
 
-	ering->waiting = waitqueue_active(&ring->irq_queue);
-	ering->instpm = I915_READ(RING_INSTPM(ring->mmio_base));
-	ering->seqno = ring->get_seqno(ring, false);
-	ering->acthd = intel_ring_get_active_head(ring);
-	ering->start = I915_READ_START(ring);
-	ering->head = I915_READ_HEAD(ring);
-	ering->tail = I915_READ_TAIL(ring);
-	ering->ctl = I915_READ_CTL(ring);
+	ering->waiting = waitqueue_active(&engine->irq_queue);
+	ering->instpm = I915_READ(RING_INSTPM(engine->mmio_base));
+	ering->seqno = engine->get_seqno(engine, false);
+	ering->acthd = intel_ring_get_active_head(engine);
+	ering->start = I915_READ_START(engine);
+	ering->head = I915_READ_HEAD(engine);
+	ering->tail = I915_READ_TAIL(engine);
+	ering->ctl = I915_READ_CTL(engine);
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		i915_reg_t mmio;
 
 		if (IS_GEN7(dev)) {
-			switch (ring->id) {
+			switch (engine->id) {
 			default:
 			case RCS:
 				mmio = RENDER_HWS_PGA_GEN7;
@@ -953,51 +954,51 @@ static void i915_record_ring_state(struct drm_device *dev,
 				mmio = VEBOX_HWS_PGA_GEN7;
 				break;
 			}
-		} else if (IS_GEN6(ring->dev)) {
-			mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+		} else if (IS_GEN6(engine->dev)) {
+			mmio = RING_HWS_PGA_GEN6(engine->mmio_base);
 		} else {
 			/* XXX: gen8 returns to sanity */
-			mmio = RING_HWS_PGA(ring->mmio_base);
+			mmio = RING_HWS_PGA(engine->mmio_base);
 		}
 
 		ering->hws = I915_READ(mmio);
 	}
 
-	ering->hangcheck_score = ring->hangcheck.score;
-	ering->hangcheck_action = ring->hangcheck.action;
+	ering->hangcheck_score = engine->hangcheck.score;
+	ering->hangcheck_action = engine->hangcheck.action;
 
 	if (USES_PPGTT(dev)) {
 		int i;
 
-		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
+		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
 
 		if (IS_GEN6(dev))
 			ering->vm_info.pp_dir_base =
-				I915_READ(RING_PP_DIR_BASE_READ(ring));
+				I915_READ(RING_PP_DIR_BASE_READ(engine));
 		else if (IS_GEN7(dev))
 			ering->vm_info.pp_dir_base =
-				I915_READ(RING_PP_DIR_BASE(ring));
+				I915_READ(RING_PP_DIR_BASE(engine));
 		else if (INTEL_INFO(dev)->gen >= 8)
 			for (i = 0; i < 4; i++) {
 				ering->vm_info.pdp[i] =
-					I915_READ(GEN8_RING_PDP_UDW(ring, i));
+					I915_READ(GEN8_RING_PDP_UDW(engine, i));
 				ering->vm_info.pdp[i] <<= 32;
 				ering->vm_info.pdp[i] |=
-					I915_READ(GEN8_RING_PDP_LDW(ring, i));
+					I915_READ(GEN8_RING_PDP_LDW(engine, i));
 			}
 	}
 }
 
 
-static void i915_gem_record_active_context(struct intel_engine_cs *ring,
+static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 					   struct drm_i915_error_state *error,
 					   struct drm_i915_error_ring *ering)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	/* Currently render ring is the only HW context user */
-	if (ring->id != RCS || !error->ccid)
+	if (engine->id != RCS || !error->ccid)
 		return;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {

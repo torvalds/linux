@@ -725,11 +725,11 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 }
 
 static void i915_ring_seqno_info(struct seq_file *m,
-				 struct intel_engine_cs *ring)
+				 struct intel_engine_cs *engine)
 {
-	if (ring->get_seqno) {
+	if (engine->get_seqno) {
 		seq_printf(m, "Current sequence (%s): %x\n",
-			   ring->name, ring->get_seqno(ring, false));
+			   engine->name, engine->get_seqno(engine, false));
 	}
 }
 
@@ -1992,22 +1992,22 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 static void i915_dump_lrc_obj(struct seq_file *m,
 			      struct intel_context *ctx,
-			      struct intel_engine_cs *ring)
+			      struct intel_engine_cs *engine)
 {
 	struct page *page;
 	uint32_t *reg_state;
 	int j;
-	struct drm_i915_gem_object *ctx_obj = ctx->engine[ring->id].state;
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine->id].state;
 	unsigned long ggtt_offset = 0;
 
 	if (ctx_obj == NULL) {
 		seq_printf(m, "Context on %s with no gem object\n",
-			   ring->name);
+			   engine->name);
 		return;
 	}
 
-	seq_printf(m, "CONTEXT: %s %u\n", ring->name,
-		   intel_execlists_ctx_id(ctx, ring));
+	seq_printf(m, "CONTEXT: %s %u\n", engine->name,
+		   intel_execlists_ctx_id(ctx, engine));
 
 	if (!i915_gem_obj_ggtt_bound(ctx_obj))
 		seq_puts(m, "\tNot bound in GGTT\n");

@@ -169,15 +169,15 @@ void i915_gem_render_state_fini(struct render_state *so)
 	drm_gem_object_unreference(&so->obj->base);
 }
 
-int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
+int i915_gem_render_state_prepare(struct intel_engine_cs *engine,
 				  struct render_state *so)
 {
 	int ret;
 
-	if (WARN_ON(ring->id != RCS))
+	if (WARN_ON(engine->id != RCS))
 		return -ENOENT;
 
-	ret = render_state_init(so, ring->dev);
+	ret = render_state_init(so, engine->dev);
 	if (ret)
 		return ret;
 

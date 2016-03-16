@@ -2964,10 +2964,10 @@ int __must_check i915_gem_get_seqno(struct drm_device *dev, u32 *seqno);
 int __must_check i915_gem_set_seqno(struct drm_device *dev, u32 seqno);
 
 struct drm_i915_gem_request *
-i915_gem_find_active_request(struct intel_engine_cs *ring);
+i915_gem_find_active_request(struct intel_engine_cs *engine);
 
 bool i915_gem_retire_requests(struct drm_device *dev);
-void i915_gem_retire_requests_ring(struct intel_engine_cs *ring);
+void i915_gem_retire_requests_ring(struct intel_engine_cs *engine);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
 
@@ -3297,10 +3297,10 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type);
 
 /* i915_cmd_parser.c */
 int i915_cmd_parser_get_version(void);
-int i915_cmd_parser_init_ring(struct intel_engine_cs *ring);
-void i915_cmd_parser_fini_ring(struct intel_engine_cs *ring);
-bool i915_needs_cmd_parser(struct intel_engine_cs *ring);
-int i915_parse_cmds(struct intel_engine_cs *ring,
+int i915_cmd_parser_init_ring(struct intel_engine_cs *engine);
+void i915_cmd_parser_fini_ring(struct intel_engine_cs *engine);
+bool i915_needs_cmd_parser(struct intel_engine_cs *engine);
+int i915_parse_cmds(struct intel_engine_cs *engine,
 		    struct drm_i915_gem_object *batch_obj,
 		    struct drm_i915_gem_object *shadow_batch_obj,
 		    u32 batch_start_offset,
@@ -3571,11 +3571,11 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 	}
 }
 
-static inline void i915_trace_irq_get(struct intel_engine_cs *ring,
+static inline void i915_trace_irq_get(struct intel_engine_cs *engine,
 				      struct drm_i915_gem_request *req)
 {
-	if (ring->trace_irq_req == NULL && ring->irq_get(ring))
-		i915_gem_request_assign(&ring->trace_irq_req, req);
+	if (engine->trace_irq_req == NULL && engine->irq_get(engine))
+		i915_gem_request_assign(&engine->trace_irq_req, req);
 }
 
 #endif
