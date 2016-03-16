@@ -392,11 +392,11 @@ To instantiate a large spte, four constraints must be satisfied:
   write-protected pages
 - the guest page must be wholly contained by a single memory slot
 
-To check the last two conditions, the mmu maintains a ->write_count set of
+To check the last two conditions, the mmu maintains a ->disallow_lpage set of
 arrays for each memory slot and large page size.  Every write protected page
-causes its write_count to be incremented, thus preventing instantiation of
+causes its disallow_lpage to be incremented, thus preventing instantiation of
 a large spte.  The frames at the end of an unaligned memory slot have
-artificially inflated ->write_counts so they can never be instantiated.
+artificially inflated ->disallow_lpages so they can never be instantiated.
 
 Zapping all pages (page generation count)
 =========================================
