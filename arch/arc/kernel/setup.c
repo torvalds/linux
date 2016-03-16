@@ -459,7 +459,7 @@ static int __init customize_machine(void)
 	 * Traverses flattened DeviceTree - registering platform devices
 	 * (if any) complete with their resources
 	 */
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	of_platform_default_populate(NULL, NULL, NULL);
 
 	if (machine_desc->init_machine)
 		machine_desc->init_machine();
