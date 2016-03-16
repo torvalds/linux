@@ -1199,6 +1199,9 @@ void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state);
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
 #define assert_pll_disabled(d, p) assert_pll(d, p, false)
+void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state);
+#define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
+#define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)
 void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, bool state);
 #define assert_fdi_rx_pll_enabled(d, p) assert_fdi_rx_pll(d, p, true)
@@ -1659,5 +1662,12 @@ struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
+
+/* intel_color.c */
+void intel_color_init(struct drm_crtc *crtc);
+void intel_color_set_csc(struct drm_crtc *crtc);
+void intel_color_load_luts(struct drm_crtc *crtc);
+void intel_color_legacy_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+				  u16 *blue, uint32_t start, uint32_t size);
 
 #endif /* __INTEL_DRV_H__ */

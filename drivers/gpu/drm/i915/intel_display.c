@@ -102,9 +102,7 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 					 struct intel_link_m_n *m2_n2);
 static void ironlake_set_pipeconf(struct drm_crtc *crtc);
 static void haswell_set_pipeconf(struct drm_crtc *crtc);
-static void haswell_set_pipe_gamma(struct drm_crtc *crtc);
 static void haswell_set_pipemisc(struct drm_crtc *crtc);
-static void intel_set_pipe_csc(struct drm_crtc *crtc);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
 static void chv_prepare_pll(struct intel_crtc *crtc,
@@ -1183,7 +1181,7 @@ void assert_pll(struct drm_i915_private *dev_priv,
 }
 
 /* XXX: the dsi pll is shared between MIPI DSI ports */
-static void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
+void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 {
 	u32 val;
 	bool cur_state;
@@ -1197,8 +1195,6 @@ static void assert_dsi_pll(struct drm_i915_private *dev_priv, bool state)
 	     "DSI PLL state assertion failure (expected %s, current %s)\n",
 			onoff(state), onoff(cur_state));
 }
-#define assert_dsi_pll_enabled(d) assert_dsi_pll(d, true)
-#define assert_dsi_pll_disabled(d) assert_dsi_pll(d, false)
 
 static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 			  enum pipe pipe, bool state)
@@ -3270,7 +3266,7 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
 
 	if (HAS_DDI(dev))
-		intel_set_pipe_csc(&crtc->base);
+		intel_color_set_csc(&crtc->base);
 
 	/*
 	 * Update pipe size and adjust fitter if needed: the reason for this is
@@ -4510,55 +4506,6 @@ void hsw_disable_ips(struct intel_crtc *crtc)
 	intel_wait_for_vblank(dev, crtc->pipe);
 }
 
-/** Loads the palette/gamma unit for the CRTC with the prepared values */
-static void intel_crtc_load_lut(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
-	int i;
-	bool reenable_ips = false;
-
-	/* The clocks have to be on to load the palette. */
-	if (!crtc->state->active)
-		return;
-
-	if (HAS_GMCH_DISPLAY(dev_priv->dev)) {
-		if (intel_crtc->config->has_dsi_encoder)
-			assert_dsi_pll_enabled(dev_priv);
-		else
-			assert_pll_enabled(dev_priv, pipe);
-	}
-
-	/* Workaround : Do not read or write the pipe palette/gamma data while
-	 * GAMMA_MODE is configured for split gamma and IPS_CTL has IPS enabled.
-	 */
-	if (IS_HASWELL(dev) && intel_crtc->config->ips_enabled &&
-	    ((I915_READ(GAMMA_MODE(pipe)) & GAMMA_MODE_MODE_MASK) ==
-	     GAMMA_MODE_MODE_SPLIT)) {
-		hsw_disable_ips(intel_crtc);
-		reenable_ips = true;
-	}
-
-	for (i = 0; i < 256; i++) {
-		i915_reg_t palreg;
-
-		if (HAS_GMCH_DISPLAY(dev))
-			palreg = PALETTE(pipe, i);
-		else
-			palreg = LGC_PALETTE(pipe, i);
-
-		I915_WRITE(palreg,
-			   (intel_crtc->lut_r[i] << 16) |
-			   (intel_crtc->lut_g[i] << 8) |
-			   intel_crtc->lut_b[i]);
-	}
-
-	if (reenable_ips)
-		hsw_enable_ips(intel_crtc);
-}
-
 static void intel_crtc_dpms_overlay_disable(struct intel_crtc *intel_crtc)
 {
 	if (intel_crtc->overlay) {
@@ -4863,7 +4810,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_crtc_load_lut(crtc);
+	intel_color_load_luts(crtc);
 
 	if (dev_priv->display.initial_watermarks != NULL)
 		dev_priv->display.initial_watermarks(intel_crtc->config);
@@ -4936,10 +4883,9 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (!intel_crtc->config->has_dsi_encoder)
 		haswell_set_pipeconf(crtc);
 
-	haswell_set_pipe_gamma(crtc);
 	haswell_set_pipemisc(crtc);
 
-	intel_set_pipe_csc(crtc);
+	intel_color_set_csc(crtc);
 
 	intel_crtc->active = true;
 
@@ -4968,7 +4914,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	 * On ILK+ LUT must be loaded before the pipe is running but with
 	 * clocks enabled
 	 */
-	intel_crtc_load_lut(crtc);
+	intel_color_load_luts(crtc);
 
 	intel_ddi_set_pipe_settings(crtc);
 	if (!intel_crtc->config->has_dsi_encoder)
@@ -6173,7 +6119,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	i9xx_pfit_enable(intel_crtc);
 
-	intel_crtc_load_lut(crtc);
+	intel_color_load_luts(crtc);
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
@@ -6228,7 +6174,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 
 	i9xx_pfit_enable(intel_crtc);
 
-	intel_crtc_load_lut(crtc);
+	intel_color_load_luts(crtc);
 
 	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
@@ -8713,70 +8659,6 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 	POSTING_READ(PIPECONF(pipe));
 }
 
-/*
- * Set up the pipe CSC unit.
- *
- * Currently only full range RGB to limited range RGB conversion
- * is supported, but eventually this should handle various
- * RGB<->YCbCr scenarios as well.
- */
-static void intel_set_pipe_csc(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	uint16_t coeff = 0x7800; /* 1.0 */
-
-	/*
-	 * TODO: Check what kind of values actually come out of the pipe
-	 * with these coeff/postoff values and adjust to get the best
-	 * accuracy. Perhaps we even need to take the bpc value into
-	 * consideration.
-	 */
-
-	if (intel_crtc->config->limited_color_range)
-		coeff = ((235 - 16) * (1 << 12) / 255) & 0xff8; /* 0.xxx... */
-
-	/*
-	 * GY/GU and RY/RU should be the other way around according
-	 * to BSpec, but reality doesn't agree. Just set them up in
-	 * a way that results in the correct picture.
-	 */
-	I915_WRITE(PIPE_CSC_COEFF_RY_GY(pipe), coeff << 16);
-	I915_WRITE(PIPE_CSC_COEFF_BY(pipe), 0);
-
-	I915_WRITE(PIPE_CSC_COEFF_RU_GU(pipe), coeff);
-	I915_WRITE(PIPE_CSC_COEFF_BU(pipe), 0);
-
-	I915_WRITE(PIPE_CSC_COEFF_RV_GV(pipe), 0);
-	I915_WRITE(PIPE_CSC_COEFF_BV(pipe), coeff << 16);
-
-	I915_WRITE(PIPE_CSC_PREOFF_HI(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_ME(pipe), 0);
-	I915_WRITE(PIPE_CSC_PREOFF_LO(pipe), 0);
-
-	if (INTEL_INFO(dev)->gen > 6) {
-		uint16_t postoff = 0;
-
-		if (intel_crtc->config->limited_color_range)
-			postoff = (16 * (1 << 12) / 255) & 0x1fff;
-
-		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
-		I915_WRITE(PIPE_CSC_POSTOFF_ME(pipe), postoff);
-		I915_WRITE(PIPE_CSC_POSTOFF_LO(pipe), postoff);
-
-		I915_WRITE(PIPE_CSC_MODE(pipe), 0);
-	} else {
-		uint32_t mode = CSC_MODE_YUV_TO_RGB;
-
-		if (intel_crtc->config->limited_color_range)
-			mode |= CSC_BLACK_SCREEN_OFFSET;
-
-		I915_WRITE(PIPE_CSC_MODE(pipe), mode);
-	}
-}
-
 static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
@@ -8794,15 +8676,6 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(PIPECONF(cpu_transcoder), val);
 	POSTING_READ(PIPECONF(cpu_transcoder));
-}
-
-static void haswell_set_pipe_gamma(struct drm_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
-	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
 }
 
 static void haswell_set_pipemisc(struct drm_crtc *crtc)
@@ -10313,21 +10186,6 @@ static bool cursor_size_ok(struct drm_device *dev,
 	}
 
 	return true;
-}
-
-static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				 u16 *blue, uint32_t start, uint32_t size)
-{
-	int end = (start + size > 256) ? 256 : start + size, i;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	for (i = start; i < end; i++) {
-		intel_crtc->lut_r[i] = red[i] >> 8;
-		intel_crtc->lut_g[i] = green[i] >> 8;
-		intel_crtc->lut_b[i] = blue[i] >> 8;
-	}
-
-	intel_crtc_load_lut(crtc);
 }
 
 /* VESA 640x480x72Hz mode to set on the pipe */
@@ -12092,7 +11950,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
 	.mode_set_base_atomic = intel_pipe_set_base_atomic,
-	.load_lut = intel_crtc_load_lut,
+	.load_lut = intel_color_load_luts,
 	.atomic_begin = intel_begin_crtc_commit,
 	.atomic_flush = intel_finish_crtc_commit,
 	.atomic_check = intel_crtc_atomic_check,
@@ -13825,7 +13683,7 @@ out:
 #undef for_each_intel_crtc_masked
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.gamma_set = intel_crtc_gamma_set,
+	.gamma_set = intel_color_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = intel_crtc_destroy,
 	.page_flip = intel_crtc_page_flip,
@@ -14329,7 +14187,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	struct intel_crtc_state *crtc_state = NULL;
 	struct drm_plane *primary = NULL;
 	struct drm_plane *cursor = NULL;
-	int i, ret;
+	int ret;
 
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
 	if (intel_crtc == NULL)
@@ -14365,13 +14223,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	if (ret)
 		goto fail;
 
-	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
-	for (i = 0; i < 256; i++) {
-		intel_crtc->lut_r[i] = i;
-		intel_crtc->lut_g[i] = i;
-		intel_crtc->lut_b[i] = i;
-	}
-
 	/*
 	 * On gen2/3 only plane A can do fbc, but the panel fitter and lvds port
 	 * is hooked to pipe B. Hence we want plane A feeding pipe B.
@@ -14395,6 +14246,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
+
+	intel_color_init(&intel_crtc->base);
 
 	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
 	return;
