@@ -7887,8 +7887,8 @@ enum skl_disp_power_wells {
 #define  VID_MODE_FORMAT_MASK				(0xf << 7)
 #define  VID_MODE_NOT_SUPPORTED				(0 << 7)
 #define  VID_MODE_FORMAT_RGB565				(1 << 7)
-#define  VID_MODE_FORMAT_RGB666				(2 << 7)
-#define  VID_MODE_FORMAT_RGB666_LOOSE			(3 << 7)
+#define  VID_MODE_FORMAT_RGB666_PACKED			(2 << 7)
+#define  VID_MODE_FORMAT_RGB666				(3 << 7)
 #define  VID_MODE_FORMAT_RGB888				(4 << 7)
 #define  CMD_MODE_CHANNEL_NUMBER_SHIFT			5
 #define  CMD_MODE_CHANNEL_NUMBER_MASK			(3 << 5)

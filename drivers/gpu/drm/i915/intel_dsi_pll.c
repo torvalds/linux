@@ -37,10 +37,10 @@ int dsi_pixel_format_bpp(int pixel_format)
 	switch (pixel_format) {
 	default:
 	case VID_MODE_FORMAT_RGB888:
-	case VID_MODE_FORMAT_RGB666_LOOSE:
+	case VID_MODE_FORMAT_RGB666:
 		bpp = 24;
 		break;
-	case VID_MODE_FORMAT_RGB666:
+	case VID_MODE_FORMAT_RGB666_PACKED:
 		bpp = 18;
 		break;
 	case VID_MODE_FORMAT_RGB565:
