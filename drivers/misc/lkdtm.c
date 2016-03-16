@@ -103,6 +103,7 @@ enum ctype {
 	CT_EXEC_USERSPACE,
 	CT_ACCESS_USERSPACE,
 	CT_WRITE_RO,
+	CT_WRITE_RO_AFTER_INIT,
 	CT_WRITE_KERN,
 };
 
@@ -140,6 +141,7 @@ static char* cp_type[] = {
 	"EXEC_USERSPACE",
 	"ACCESS_USERSPACE",
 	"WRITE_RO",
+	"WRITE_RO_AFTER_INIT",
 	"WRITE_KERN",
 };
 
@@ -162,6 +164,7 @@ static DEFINE_SPINLOCK(lock_me_up);
 static u8 data_area[EXEC_SIZE];
 
 static const unsigned long rodata = 0xAA55AA55;
+static unsigned long ro_after_init __ro_after_init = 0x55AA5500;
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test");
@@ -503,11 +506,28 @@ static void lkdtm_do_action(enum ctype which)
 		break;
 	}
 	case CT_WRITE_RO: {
-		unsigned long *ptr;
+		/* Explicitly cast away "const" for the test. */
+		unsigned long *ptr = (unsigned long *)&rodata;
 
-		ptr = (unsigned long *)&rodata;
+		pr_info("attempting bad rodata write at %p\n", ptr);
+		*ptr ^= 0xabcd1234;
 
-		pr_info("attempting bad write at %p\n", ptr);
+		break;
+	}
+	case CT_WRITE_RO_AFTER_INIT: {
+		unsigned long *ptr = &ro_after_init;
+
+		/*
+		 * Verify we were written to during init. Since an Oops
+		 * is considered a "success", a failure is to just skip the
+		 * real test.
+		 */
+		if ((*ptr & 0xAA) != 0xAA) {
+			pr_info("%p was NOT written during init!?\n", ptr);
+			break;
+		}
+
+		pr_info("attempting bad ro_after_init write at %p\n", ptr);
 		*ptr ^= 0xabcd1234;
 
 		break;
@@ -816,6 +836,9 @@ static int __init lkdtm_module_init(void)
 	int ret = -EINVAL;
 	int n_debugfs_entries = 1; /* Assume only the direct entry */
 	int i;
+
+	/* Make sure we can write to __ro_after_init values during __init */
+	ro_after_init |= 0xAA;
 
 	/* Register debugfs interface */
 	lkdtm_debugfs_root = debugfs_create_dir("provoke-crash", NULL);
