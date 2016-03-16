@@ -260,6 +260,23 @@ static void bcm2835_dma_create_cb_set_length(
 	control_block->info |= finalextrainfo;
 }
 
+static inline size_t bcm2835_dma_count_frames_for_sg(
+	struct bcm2835_chan *c,
+	struct scatterlist *sgl,
+	unsigned int sg_len)
+{
+	size_t frames = 0;
+	struct scatterlist *sgent;
+	unsigned int i;
+	size_t plength = bcm2835_dma_max_frame_length(c);
+
+	for_each_sg(sgl, sgent, sg_len, i)
+		frames += bcm2835_dma_frames_for_length(
+			sg_dma_len(sgent), plength);
+
+	return frames;
+}
+
 /**
  * bcm2835_dma_create_cb_chain - create a control block and fills data in
  *
@@ -361,6 +378,32 @@ error_cb:
 	return NULL;
 }
 
+static void bcm2835_dma_fill_cb_chain_with_sg(
+	struct dma_chan *chan,
+	enum dma_transfer_direction direction,
+	struct bcm2835_cb_entry *cb,
+	struct scatterlist *sgl,
+	unsigned int sg_len)
+{
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
+	size_t max_len = bcm2835_dma_max_frame_length(c);
+	unsigned int i, len;
+	dma_addr_t addr;
+	struct scatterlist *sgent;
+
+	for_each_sg(sgl, sgent, sg_len, i) {
+		for (addr = sg_dma_address(sgent), len = sg_dma_len(sgent);
+		     len > 0;
+		     addr += cb->cb->length, len -= cb->cb->length, cb++) {
+			if (direction == DMA_DEV_TO_MEM)
+				cb->cb->dst = addr;
+			else
+				cb->cb->src = addr;
+			cb->cb->length = min(len, max_len);
+		}
+	}
+}
+
 static int bcm2835_dma_abort(void __iomem *chan_base)
 {
 	unsigned long cs;
@@ -428,12 +471,18 @@ static irqreturn_t bcm2835_dma_callback(int irq, void *data)
 	d = c->desc;
 
 	if (d) {
-		/* TODO Only works for cyclic DMA */
-		vchan_cyclic_callback(&d->vd);
-	}
+		if (d->cyclic) {
+			/* call the cyclic callback */
+			vchan_cyclic_callback(&d->vd);
 
-	/* Keep the DMA engine running */
-	writel(BCM2835_DMA_ACTIVE, c->chan_base + BCM2835_DMA_CS);
+			/* Keep the DMA engine running */
+			writel(BCM2835_DMA_ACTIVE,
+			       c->chan_base + BCM2835_DMA_CS);
+		} else {
+			vchan_cookie_complete(&c->desc->vd);
+			bcm2835_dma_start_desc(c);
+		}
+	}
 
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
@@ -546,6 +595,58 @@ static void bcm2835_dma_issue_pending(struct dma_chan *chan)
 		bcm2835_dma_start_desc(c);
 
 	spin_unlock_irqrestore(&c->vc.lock, flags);
+}
+
+static struct dma_async_tx_descriptor *bcm2835_dma_prep_slave_sg(
+	struct dma_chan *chan,
+	struct scatterlist *sgl, unsigned int sg_len,
+	enum dma_transfer_direction direction,
+	unsigned long flags, void *context)
+{
+	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
+	struct bcm2835_desc *d;
+	dma_addr_t src = 0, dst = 0;
+	u32 info = BCM2835_DMA_WAIT_RESP;
+	u32 extra = BCM2835_DMA_INT_EN;
+	size_t frames;
+
+	if (!is_slave_direction(direction)) {
+		dev_err(chan->device->dev,
+			"%s: bad direction?\n", __func__);
+		return NULL;
+	}
+
+	if (c->dreq != 0)
+		info |= BCM2835_DMA_PER_MAP(c->dreq);
+
+	if (direction == DMA_DEV_TO_MEM) {
+		if (c->cfg.src_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES)
+			return NULL;
+		src = c->cfg.src_addr;
+		info |= BCM2835_DMA_S_DREQ | BCM2835_DMA_D_INC;
+	} else {
+		if (c->cfg.dst_addr_width != DMA_SLAVE_BUSWIDTH_4_BYTES)
+			return NULL;
+		dst = c->cfg.dst_addr;
+		info |= BCM2835_DMA_D_DREQ | BCM2835_DMA_S_INC;
+	}
+
+	/* count frames in sg list */
+	frames = bcm2835_dma_count_frames_for_sg(c, sgl, sg_len);
+
+	/* allocate the CB chain */
+	d = bcm2835_dma_create_cb_chain(chan, direction, false,
+					info, extra,
+					frames, src, dst, 0, 0,
+					GFP_KERNEL);
+	if (!d)
+		return NULL;
+
+	/* fill in frames with scatterlist pointers */
+	bcm2835_dma_fill_cb_chain_with_sg(chan, direction, d->cb_list,
+					  sgl, sg_len);
+
+	return vchan_tx_prep(&c->vc, &d->vd, flags);
 }
 
 static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
@@ -778,11 +879,13 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_SLAVE, od->ddev.cap_mask);
 	dma_cap_set(DMA_PRIVATE, od->ddev.cap_mask);
 	dma_cap_set(DMA_CYCLIC, od->ddev.cap_mask);
+	dma_cap_set(DMA_SLAVE, od->ddev.cap_mask);
 	od->ddev.device_alloc_chan_resources = bcm2835_dma_alloc_chan_resources;
 	od->ddev.device_free_chan_resources = bcm2835_dma_free_chan_resources;
 	od->ddev.device_tx_status = bcm2835_dma_tx_status;
 	od->ddev.device_issue_pending = bcm2835_dma_issue_pending;
 	od->ddev.device_prep_dma_cyclic = bcm2835_dma_prep_dma_cyclic;
+	od->ddev.device_prep_slave_sg = bcm2835_dma_prep_slave_sg;
 	od->ddev.device_config = bcm2835_dma_slave_config;
 	od->ddev.device_terminate_all = bcm2835_dma_terminate_all;
 	od->ddev.src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
