@@ -46,7 +46,7 @@ struct m88ds3103_dev {
 	/* auto detect chip id to do different config */
 	u8 chip_id;
 	/* main mclk is calculated for M88RS6000 dynamically */
-	u32 mclk_khz;
+	s32 mclk_khz;
 	u64 post_bit_error;
 	u64 post_bit_count;
 };
