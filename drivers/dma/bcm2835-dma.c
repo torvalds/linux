@@ -73,7 +73,6 @@ struct bcm2835_chan {
 	struct list_head node;
 
 	struct dma_slave_config	cfg;
-	bool cyclic;
 	unsigned int dreq;
 
 	int ch;
@@ -93,6 +92,8 @@ struct bcm2835_desc {
 
 	unsigned int frames;
 	size_t size;
+
+	bool cyclic;
 };
 
 #define BCM2835_DMA_CS		0x00
@@ -377,8 +378,6 @@ static void bcm2835_dma_issue_pending(struct dma_chan *chan)
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	unsigned long flags;
 
-	c->cyclic = true; /* Nothing else is implemented */
-
 	spin_lock_irqsave(&c->vc.lock, flags);
 	if (vchan_issue_pending(&c->vc) && !c->desc)
 		bcm2835_dma_start_desc(c);
@@ -432,6 +431,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	d->c = c;
 	d->dir = direction;
 	d->frames = buf_len / period_len;
+	d->cyclic = true;
 
 	d->cb_list = kcalloc(d->frames, sizeof(*d->cb_list), GFP_KERNEL);
 	if (!d->cb_list) {
