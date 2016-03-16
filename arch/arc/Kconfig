@@ -468,6 +468,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 config ARCH_DMA_ADDR_T_64BIT
 	bool
 
+config ARC_PLAT_NEEDS_PHYS_TO_DMA
+	bool
+
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"
 	default y

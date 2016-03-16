@@ -60,8 +60,7 @@ static void *arc_dma_alloc(struct device *dev, size_t size,
 	/* This is linear addr (0x8000_0000 based) */
 	paddr = page_to_phys(page);
 
-	/* For now bus address is exactly same as paddr */
-	*dma_handle = paddr;
+	*dma_handle = plat_phys_to_dma(dev, paddr);
 
 	/* This is kernel Virtual address (0x7000_0000 based) */
 	if (need_kvaddr) {
@@ -134,7 +133,7 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
 {
 	phys_addr_t paddr = page_to_phys(page) + offset;
 	_dma_cache_sync(paddr, size, dir);
-	return (dma_addr_t)paddr;
+	return plat_phys_to_dma(dev, paddr);
 }
 
 static int arc_dma_map_sg(struct device *dev, struct scatterlist *sg,
@@ -153,13 +152,13 @@ static int arc_dma_map_sg(struct device *dev, struct scatterlist *sg,
 static void arc_dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(dma_handle, size, DMA_FROM_DEVICE);
+	_dma_cache_sync(plat_dma_to_phys(dev, dma_handle), size, DMA_FROM_DEVICE);
 }
 
 static void arc_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t dma_handle, size_t size, enum dma_data_direction dir)
 {
-	_dma_cache_sync(dma_handle, size, DMA_TO_DEVICE);
+	_dma_cache_sync(plat_dma_to_phys(dev, dma_handle), size, DMA_TO_DEVICE);
 }
 
 static void arc_dma_sync_sg_for_cpu(struct device *dev,
