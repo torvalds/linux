@@ -44,16 +44,38 @@
 #include "rk3399-tb.dtsi"
 
 / {
-	model = "Rockchip Chrome";
-	compatible = "rockchip,chrome", "rockchip,rk3399";
+	model = "Rockchip monkey";
+	compatible = "rockchip,android", "rockchip,rk3399";
 
 	chosen {
-		bootargs = "rootwait cros_debug cros_secure ro root=/dev/mmcblk0p3 init=/sbin/init console=uart,mmio32,0xff1a0000";
+		bootargs = "console=uart,mmio32,0xff690000";
 	};
 
-	memory@00000000 {
-		device_type = "memory";
-		reg = <0x0 0x00000000 0x0 0x20000000>;
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x8000000>;
+			linux,cma-default;
+		};
+	};
+
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cma-heap {
+			reg = <0x00000000 0x02000000>;
+		};
+
+		system-heap {
+		};
 	};
 };
 
