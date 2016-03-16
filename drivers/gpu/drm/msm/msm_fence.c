@@ -44,16 +44,7 @@ int msm_wait_fence(struct drm_device *dev, uint32_t fence,
 		/* no-wait: */
 		ret = fence_completed(dev, fence) ? 0 : -EBUSY;
 	} else {
-		ktime_t now = ktime_get();
-		unsigned long remaining_jiffies;
-
-		if (ktime_compare(*timeout, now) < 0) {
-			remaining_jiffies = 0;
-		} else {
-			ktime_t rem = ktime_sub(*timeout, now);
-			struct timespec ts = ktime_to_timespec(rem);
-			remaining_jiffies = timespec_to_jiffies(&ts);
-		}
+		unsigned long remaining_jiffies = timeout_to_jiffies(timeout);
 
 		if (interruptible)
 			ret = wait_event_interruptible_timeout(priv->fence_event,

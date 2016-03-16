@@ -302,5 +302,20 @@ static inline int align_pitch(int width, int bpp)
 /* for conditionally setting boolean flag(s): */
 #define COND(bool, val) ((bool) ? (val) : 0)
 
+static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
+{
+	ktime_t now = ktime_get();
+	unsigned long remaining_jiffies;
+
+	if (ktime_compare(*timeout, now) < 0) {
+		remaining_jiffies = 0;
+	} else {
+		ktime_t rem = ktime_sub(*timeout, now);
+		struct timespec ts = ktime_to_timespec(rem);
+		remaining_jiffies = timespec_to_jiffies(&ts);
+	}
+
+	return remaining_jiffies;
+}
 
 #endif /* __MSM_DRV_H__ */
