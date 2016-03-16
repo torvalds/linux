@@ -132,7 +132,7 @@ static int mixart_set_pipe_state(struct mixart_mgr *mgr,
 	}
 
 	if(start) {
-		u32 stat;
+		u32 stat = 0;
 
 		group_state.pipe_count = 0; /* in case of start same command once again with pipe_count=0 */
 
