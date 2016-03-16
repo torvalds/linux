@@ -1,0 +1,10 @@
+# This is a personal fork of linus's tree
+#
+# The intent of this fork is to add in patches I like, and trim size by deleting what I don't need.
+#
+# possible patch sources include, but are not limited to
+#       http://algo.ing.unimo.it/people/paolo/disk_sched/
+#       http://tuxonice.nigelcunningham.com.au/features
+#       http://kerneldedup.org/en/projects/uksm/
+#       https://github.com/stec-inc/EnhanceIO
+#       http://ck.kolivas.org/patches/
