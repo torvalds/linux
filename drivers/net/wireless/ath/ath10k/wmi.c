@@ -2604,6 +2604,16 @@ void ath10k_wmi_pull_peer_stats(const struct wmi_peer_stats *src,
 	dst->peer_tx_rate = __le32_to_cpu(src->peer_tx_rate);
 }
 
+static void
+ath10k_wmi_10_4_pull_peer_stats(const struct wmi_10_4_peer_stats *src,
+				struct ath10k_fw_stats_peer *dst)
+{
+	ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
+	dst->peer_rssi = __le32_to_cpu(src->peer_rssi);
+	dst->peer_tx_rate = __le32_to_cpu(src->peer_tx_rate);
+	dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
+}
+
 static int ath10k_wmi_main_op_pull_fw_stats(struct ath10k *ar,
 					    struct sk_buff *skb,
 					    struct ath10k_fw_stats *stats)
@@ -2894,6 +2904,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	u32 num_pdev_ext_stats;
 	u32 num_vdev_stats;
 	u32 num_peer_stats;
+	u32 stats_id;
 	int i;
 
 	if (!skb_pull(skb, sizeof(*ev)))
@@ -2903,6 +2914,7 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	num_pdev_ext_stats = __le32_to_cpu(ev->num_pdev_ext_stats);
 	num_vdev_stats = __le32_to_cpu(ev->num_vdev_stats);
 	num_peer_stats = __le32_to_cpu(ev->num_peer_stats);
+	stats_id = __le32_to_cpu(ev->stats_id);
 
 	for (i = 0; i < num_pdev_stats; i++) {
 		const struct wmi_10_4_pdev_stats *src;
@@ -2942,22 +2954,28 @@ static int ath10k_wmi_10_4_op_pull_fw_stats(struct ath10k *ar,
 	/* fw doesn't implement vdev stats */
 
 	for (i = 0; i < num_peer_stats; i++) {
-		const struct wmi_10_4_peer_stats *src;
+		const struct wmi_10_4_peer_extd_stats *src;
 		struct ath10k_fw_stats_peer *dst;
+		int stats_len;
+		bool extd_peer_stats = !!(stats_id & WMI_10_4_STAT_PEER_EXTD);
+
+		if (extd_peer_stats)
+			stats_len = sizeof(struct wmi_10_4_peer_extd_stats);
+		else
+			stats_len = sizeof(struct wmi_10_4_peer_stats);
 
 		src = (void *)skb->data;
-		if (!skb_pull(skb, sizeof(*src)))
+		if (!skb_pull(skb, stats_len))
 			return -EPROTO;
 
 		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
 		if (!dst)
 			continue;
 
-		ether_addr_copy(dst->peer_macaddr, src->peer_macaddr.addr);
-		dst->peer_rssi = __le32_to_cpu(src->peer_rssi);
-		dst->peer_tx_rate = __le32_to_cpu(src->peer_tx_rate);
-		dst->peer_rx_rate = __le32_to_cpu(src->peer_rx_rate);
+		ath10k_wmi_10_4_pull_peer_stats(&src->common, dst);
 		/* FIXME: expose 10.4 specific values */
+		if (extd_peer_stats)
+			dst->rx_duration = __le32_to_cpu(src->rx_duration);
 
 		list_add_tail(&dst->list, &stats->peers);
 	}

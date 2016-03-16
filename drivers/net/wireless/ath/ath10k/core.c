@@ -1615,7 +1615,8 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->num_active_peers = TARGET_10_4_ACTIVE_PEERS;
 		ar->max_num_vdevs = TARGET_10_4_NUM_VDEVS;
 		ar->num_tids = TARGET_10_4_TGT_NUM_TIDS;
-		ar->fw_stats_req_mask = WMI_STAT_PEER;
+		ar->fw_stats_req_mask = WMI_10_4_STAT_PEER |
+					WMI_10_4_STAT_PEER_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
 
 		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
@@ -1660,6 +1661,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 {
 	int status;
+	u32 val;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -1779,6 +1781,21 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "firmware %s booted\n",
 		   ar->hw->wiphy->fw_version);
+
+	if (test_bit(WMI_SERVICE_EXT_RES_CFG_SUPPORT, ar->wmi.svc_map)) {
+		val = 0;
+		if (ath10k_peer_stats_enabled(ar))
+			val = WMI_10_4_PEER_STATS;
+
+		status = ath10k_wmi_ext_resource_config(ar,
+							WMI_HOST_PLATFORM_HIGH_PERF, val);
+		if (status) {
+			ath10k_err(ar,
+				   "failed to send ext resource cfg command : %d\n",
+				   status);
+			goto err_hif_stop;
+		}
+	}
 
 	status = ath10k_wmi_cmd_init(ar);
 	if (status) {

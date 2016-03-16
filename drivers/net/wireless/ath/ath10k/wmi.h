@@ -4104,6 +4104,13 @@ enum wmi_stats_id {
 	WMI_STAT_VDEV_RATE = BIT(5),
 };
 
+enum wmi_10_4_stats_id {
+	WMI_10_4_STAT_PEER		= BIT(0),
+	WMI_10_4_STAT_AP		= BIT(1),
+	WMI_10_4_STAT_INST		= BIT(2),
+	WMI_10_4_STAT_PEER_EXTD		= BIT(3),
+};
+
 struct wlan_inst_rssi_args {
 	__le16 cfg_retry_count;
 	__le16 retry_count;
@@ -4301,6 +4308,15 @@ struct wmi_10_4_peer_stats {
 	__le32 num_pkt_loss_overflow[4];
 	__le32 num_pkt_loss_excess_retry[4];
 	__le32 peer_rssi_changed;
+} __packed;
+
+struct wmi_10_4_peer_extd_stats {
+	struct wmi_10_4_peer_stats common;
+	struct wmi_mac_addr peer_macaddr;
+	__le32 inactive_time;
+	__le32 peer_chain_rssi;
+	__le32 rx_duration;
+	__le32 reserved[10];
 } __packed;
 
 struct wmi_10_2_pdev_ext_stats {
