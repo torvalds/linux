@@ -33,7 +33,6 @@ msm_fence_context_alloc(struct drm_device *dev, const char *name)
 	fctx->dev = dev;
 	fctx->name = name;
 	init_waitqueue_head(&fctx->event);
-	INIT_LIST_HEAD(&fctx->fence_cbs);
 
 	return fctx;
 }
@@ -86,54 +85,12 @@ int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 	return ret;
 }
 
-int msm_queue_fence_cb(struct msm_fence_context *fctx,
-		struct msm_fence_cb *cb, uint32_t fence)
-{
-	struct msm_drm_private *priv = fctx->dev->dev_private;
-	int ret = 0;
-
-	mutex_lock(&fctx->dev->struct_mutex);
-	if (!list_empty(&cb->work.entry)) {
-		ret = -EINVAL;
-	} else if (fence > fctx->completed_fence) {
-		cb->fence = fence;
-		list_add_tail(&cb->work.entry, &fctx->fence_cbs);
-	} else {
-		queue_work(priv->wq, &cb->work);
-	}
-	mutex_unlock(&fctx->dev->struct_mutex);
-
-	return ret;
-}
-
 /* called from workqueue */
 void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence)
 {
-	struct msm_drm_private *priv = fctx->dev->dev_private;
-
 	mutex_lock(&fctx->dev->struct_mutex);
 	fctx->completed_fence = max(fence, fctx->completed_fence);
-
-	while (!list_empty(&fctx->fence_cbs)) {
-		struct msm_fence_cb *cb;
-
-		cb = list_first_entry(&fctx->fence_cbs,
-				struct msm_fence_cb, work.entry);
-
-		if (cb->fence > fctx->completed_fence)
-			break;
-
-		list_del_init(&cb->work.entry);
-		queue_work(priv->wq, &cb->work);
-	}
-
 	mutex_unlock(&fctx->dev->struct_mutex);
 
 	wake_up_all(&fctx->event);
-}
-
-void __msm_fence_worker(struct work_struct *work)
-{
-	struct msm_fence_cb *cb = container_of(work, struct msm_fence_cb, work);
-	cb->func(cb);
 }
