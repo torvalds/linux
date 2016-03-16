@@ -706,7 +706,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	const struct mipi_pps_data *pps;
 
 	/* parse MIPI blocks only if LFP type is MIPI */
-	if (!dev_priv->vbt.has_mipi)
+	if (!intel_bios_is_dsi_present(dev_priv, NULL))
 		return;
 
 	/* Initialize this to undefined indicating no generic MIPI support */
@@ -1232,13 +1232,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 			continue;
 		}
 
-		if (p_child->common.dvo_port >= DVO_PORT_MIPIA
-		    && p_child->common.dvo_port <= DVO_PORT_MIPID
-		    &&p_child->common.device_type & DEVICE_TYPE_MIPI_OUTPUT) {
-			DRM_DEBUG_KMS("Found MIPI as LFP\n");
-			dev_priv->vbt.has_mipi = 1;
-		}
-
 		child_dev_ptr = dev_priv->vbt.child_dev + count;
 		count++;
 
@@ -1580,7 +1573,8 @@ bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
 		switch (dvo_port) {
 		case DVO_PORT_MIPIA:
 		case DVO_PORT_MIPIC:
-			*port = dvo_port - DVO_PORT_MIPIA;
+			if (port)
+				*port = dvo_port - DVO_PORT_MIPIA;
 			return true;
 		case DVO_PORT_MIPIB:
 		case DVO_PORT_MIPID:
