@@ -7105,6 +7105,7 @@ enum skl_disp_power_wells {
 #define   GEN9_CCS_TLB_PREFETCH_ENABLE	(1<<3)
 
 #define GEN8_ROW_CHICKEN		_MMIO(0xe4f0)
+#define   FLOW_CONTROL_ENABLE		(1<<15)
 #define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1<<8)
 #define   STALL_DOP_GATING_DISABLE		(1<<5)
 

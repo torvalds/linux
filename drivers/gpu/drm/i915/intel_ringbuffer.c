@@ -925,8 +925,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *engine)
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) |
 		   ECOCHK_DIS_TLB);
 
+	/* WaClearFlowControlGpgpuContextSave:skl,bxt */
 	/* WaDisablePartialInstShootdown:skl,bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  FLOW_CONTROL_ENABLE |
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
 	/* Syncing dependencies between camera and graphics:skl,bxt */
