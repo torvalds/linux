@@ -111,7 +111,31 @@
 	cpu-supply = <&syr827>;
 };
 
+&cpu_l1 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&syr827>;
+};
+
 &cpu_b0 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_b2 {
+	cpu-supply = <&syr827>;
+};
+
+&cpu_b3 {
 	cpu-supply = <&syr827>;
 };
 

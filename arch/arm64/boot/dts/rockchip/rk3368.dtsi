@@ -137,6 +137,7 @@
 			reg = <0x0 0x1>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -146,6 +147,7 @@
 			reg = <0x0 0x2>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -155,6 +157,7 @@
 			reg = <0x0 0x3>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
 
@@ -174,6 +177,7 @@
 			reg = <0x0 0x101>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -183,6 +187,7 @@
 			reg = <0x0 0x102>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 
@@ -192,6 +197,7 @@
 			reg = <0x0 0x103>;
 			cpu-idle-states = <&cpu_sleep>;
 			enable-method = "psci";
+			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
 	};
