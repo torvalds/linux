@@ -432,6 +432,22 @@ out:
  * Cmdstream submission/retirement:
  */
 
+static void retire_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
+{
+	int i;
+
+	for (i = 0; i < submit->nr_bos; i++) {
+		struct msm_gem_object *msm_obj = submit->bos[i].obj;
+		/* move to inactive: */
+		msm_gem_move_to_inactive(&msm_obj->base);
+		msm_gem_put_iova(&msm_obj->base, gpu->id);
+		drm_gem_object_unreference(&msm_obj->base);
+	}
+
+	list_del(&submit->node);
+	kfree(submit);
+}
+
 static void retire_submits(struct msm_gpu *gpu, uint32_t fence)
 {
 	struct drm_device *dev = gpu->dev;
@@ -445,8 +461,7 @@ static void retire_submits(struct msm_gpu *gpu, uint32_t fence)
 				struct msm_gem_submit, node);
 
 		if (submit->fence <= fence) {
-			list_del(&submit->node);
-			kfree(submit);
+			retire_submit(gpu, submit);
 		} else {
 			break;
 		}
@@ -462,26 +477,7 @@ static void retire_worker(struct work_struct *work)
 	msm_update_fence(gpu->dev, fence);
 
 	mutex_lock(&dev->struct_mutex);
-
 	retire_submits(gpu, fence);
-
-	while (!list_empty(&gpu->active_list)) {
-		struct msm_gem_object *obj;
-
-		obj = list_first_entry(&gpu->active_list,
-				struct msm_gem_object, mm_list);
-
-		if ((obj->read_fence <= fence) &&
-				(obj->write_fence <= fence)) {
-			/* move to inactive: */
-			msm_gem_move_to_inactive(&obj->base);
-			msm_gem_put_iova(&obj->base, gpu->id);
-			drm_gem_object_unreference(&obj->base);
-		} else {
-			break;
-		}
-	}
-
 	mutex_unlock(&dev->struct_mutex);
 
 	if (!msm_gpu_active(gpu))
@@ -522,20 +518,17 @@ int msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
+		uint32_t iova;
 
 		/* can't happen yet.. but when we add 2d support we'll have
 		 * to deal w/ cross-ring synchronization:
 		 */
 		WARN_ON(is_active(msm_obj) && (msm_obj->gpu != gpu));
 
-		if (!is_active(msm_obj)) {
-			uint32_t iova;
-
-			/* ring takes a reference to the bo and iova: */
-			drm_gem_object_reference(&msm_obj->base);
-			msm_gem_get_iova_locked(&msm_obj->base,
-					submit->gpu->id, &iova);
-		}
+		/* submit takes a reference to the bo and iova until retired: */
+		drm_gem_object_reference(&msm_obj->base);
+		msm_gem_get_iova_locked(&msm_obj->base,
+				submit->gpu->id, &iova);
 
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
 			msm_gem_move_to_active(&msm_obj->base, gpu, false, submit->fence);
