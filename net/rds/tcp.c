@@ -52,8 +52,6 @@ static LIST_HEAD(rds_tcp_conn_list);
 
 static struct kmem_cache *rds_tcp_conn_slab;
 
-#define RDS_TCP_DEFAULT_BUFSIZE (128 * 1024)
-
 static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
 				 void __user *buffer, size_t *lenp,
 				 loff_t *fpos);
