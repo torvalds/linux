@@ -36,7 +36,7 @@
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
 #define DRIVER_DESC	"LAN78XX USB 3.0 Gigabit Ethernet Devices"
 #define DRIVER_NAME	"lan78xx"
-#define DRIVER_VERSION	"1.0.3"
+#define DRIVER_VERSION	"1.0.4"
 
 #define TX_TIMEOUT_JIFFIES		(5 * HZ)
 #define THROTTLE_JIFFIES		(HZ / 8)
@@ -85,6 +85,9 @@
 
 /* default autosuspend delay (mSec)*/
 #define DEFAULT_AUTOSUSPEND_DELAY	(10 * 1000)
+
+/* statistic update interval (mSec) */
+#define STAT_UPDATE_TIMER		(1 * 1000)
 
 static const char lan78xx_gstrings[][ETH_GSTRING_LEN] = {
 	"RX FCS Errors",
@@ -186,6 +189,56 @@ struct lan78xx_statstage {
 	u32 eee_tx_lpi_time;
 };
 
+struct lan78xx_statstage64 {
+	u64 rx_fcs_errors;
+	u64 rx_alignment_errors;
+	u64 rx_fragment_errors;
+	u64 rx_jabber_errors;
+	u64 rx_undersize_frame_errors;
+	u64 rx_oversize_frame_errors;
+	u64 rx_dropped_frames;
+	u64 rx_unicast_byte_count;
+	u64 rx_broadcast_byte_count;
+	u64 rx_multicast_byte_count;
+	u64 rx_unicast_frames;
+	u64 rx_broadcast_frames;
+	u64 rx_multicast_frames;
+	u64 rx_pause_frames;
+	u64 rx_64_byte_frames;
+	u64 rx_65_127_byte_frames;
+	u64 rx_128_255_byte_frames;
+	u64 rx_256_511_bytes_frames;
+	u64 rx_512_1023_byte_frames;
+	u64 rx_1024_1518_byte_frames;
+	u64 rx_greater_1518_byte_frames;
+	u64 eee_rx_lpi_transitions;
+	u64 eee_rx_lpi_time;
+	u64 tx_fcs_errors;
+	u64 tx_excess_deferral_errors;
+	u64 tx_carrier_errors;
+	u64 tx_bad_byte_count;
+	u64 tx_single_collisions;
+	u64 tx_multiple_collisions;
+	u64 tx_excessive_collision;
+	u64 tx_late_collisions;
+	u64 tx_unicast_byte_count;
+	u64 tx_broadcast_byte_count;
+	u64 tx_multicast_byte_count;
+	u64 tx_unicast_frames;
+	u64 tx_broadcast_frames;
+	u64 tx_multicast_frames;
+	u64 tx_pause_frames;
+	u64 tx_64_byte_frames;
+	u64 tx_65_127_byte_frames;
+	u64 tx_128_255_byte_frames;
+	u64 tx_256_511_bytes_frames;
+	u64 tx_512_1023_byte_frames;
+	u64 tx_1024_1518_byte_frames;
+	u64 tx_greater_1518_byte_frames;
+	u64 eee_tx_lpi_transitions;
+	u64 eee_tx_lpi_time;
+};
+
 struct lan78xx_net;
 
 struct lan78xx_priv {
@@ -232,6 +285,15 @@ struct usb_context {
 #define EVENT_DEV_WAKING		6
 #define EVENT_DEV_ASLEEP		7
 #define EVENT_DEV_OPEN			8
+#define EVENT_STAT_UPDATE		9
+
+struct statstage {
+	struct mutex			access_lock;	/* for stats access */
+	struct lan78xx_statstage	saved;
+	struct lan78xx_statstage	rollover_count;
+	struct lan78xx_statstage	rollover_max;
+	struct lan78xx_statstage64	curr_stat;
+};
 
 struct lan78xx_net {
 	struct net_device	*net;
@@ -272,6 +334,7 @@ struct lan78xx_net {
 
 	unsigned		maxpacket;
 	struct timer_list	delay;
+	struct timer_list	stat_monitor;
 
 	unsigned long		data[5];
 
@@ -284,6 +347,9 @@ struct lan78xx_net {
 
 	int			fc_autoneg;
 	u8			fc_request_control;
+
+	int			delta;
+	struct statstage	stats;
 };
 
 /* use ethtool to change the level for any given device */
@@ -380,6 +446,93 @@ static int lan78xx_read_stats(struct lan78xx_net *dev,
 	kfree(stats);
 
 	return ret;
+}
+
+#define check_counter_rollover(struct1, dev_stats, member) {	\
+	if (struct1->member < dev_stats.saved.member)		\
+		dev_stats.rollover_count.member++;		\
+	}
+
+static void lan78xx_check_stat_rollover(struct lan78xx_net *dev,
+					struct lan78xx_statstage *stats)
+{
+	check_counter_rollover(stats, dev->stats, rx_fcs_errors);
+	check_counter_rollover(stats, dev->stats, rx_alignment_errors);
+	check_counter_rollover(stats, dev->stats, rx_fragment_errors);
+	check_counter_rollover(stats, dev->stats, rx_jabber_errors);
+	check_counter_rollover(stats, dev->stats, rx_undersize_frame_errors);
+	check_counter_rollover(stats, dev->stats, rx_oversize_frame_errors);
+	check_counter_rollover(stats, dev->stats, rx_dropped_frames);
+	check_counter_rollover(stats, dev->stats, rx_unicast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_broadcast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_multicast_byte_count);
+	check_counter_rollover(stats, dev->stats, rx_unicast_frames);
+	check_counter_rollover(stats, dev->stats, rx_broadcast_frames);
+	check_counter_rollover(stats, dev->stats, rx_multicast_frames);
+	check_counter_rollover(stats, dev->stats, rx_pause_frames);
+	check_counter_rollover(stats, dev->stats, rx_64_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_65_127_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_128_255_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_256_511_bytes_frames);
+	check_counter_rollover(stats, dev->stats, rx_512_1023_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_1024_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, rx_greater_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, eee_rx_lpi_transitions);
+	check_counter_rollover(stats, dev->stats, eee_rx_lpi_time);
+	check_counter_rollover(stats, dev->stats, tx_fcs_errors);
+	check_counter_rollover(stats, dev->stats, tx_excess_deferral_errors);
+	check_counter_rollover(stats, dev->stats, tx_carrier_errors);
+	check_counter_rollover(stats, dev->stats, tx_bad_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_single_collisions);
+	check_counter_rollover(stats, dev->stats, tx_multiple_collisions);
+	check_counter_rollover(stats, dev->stats, tx_excessive_collision);
+	check_counter_rollover(stats, dev->stats, tx_late_collisions);
+	check_counter_rollover(stats, dev->stats, tx_unicast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_broadcast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_multicast_byte_count);
+	check_counter_rollover(stats, dev->stats, tx_unicast_frames);
+	check_counter_rollover(stats, dev->stats, tx_broadcast_frames);
+	check_counter_rollover(stats, dev->stats, tx_multicast_frames);
+	check_counter_rollover(stats, dev->stats, tx_pause_frames);
+	check_counter_rollover(stats, dev->stats, tx_64_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_65_127_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_128_255_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_256_511_bytes_frames);
+	check_counter_rollover(stats, dev->stats, tx_512_1023_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_1024_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, tx_greater_1518_byte_frames);
+	check_counter_rollover(stats, dev->stats, eee_tx_lpi_transitions);
+	check_counter_rollover(stats, dev->stats, eee_tx_lpi_time);
+
+	memcpy(&dev->stats.saved, stats, sizeof(struct lan78xx_statstage));
+}
+
+static void lan78xx_update_stats(struct lan78xx_net *dev)
+{
+	u32 *p, *count, *max;
+	u64 *data;
+	int i;
+	struct lan78xx_statstage lan78xx_stats;
+
+	if (usb_autopm_get_interface(dev->intf) < 0)
+		return;
+
+	p = (u32 *)&lan78xx_stats;
+	count = (u32 *)&dev->stats.rollover_count;
+	max = (u32 *)&dev->stats.rollover_max;
+	data = (u64 *)&dev->stats.curr_stat;
+
+	mutex_lock(&dev->stats.access_lock);
+
+	if (lan78xx_read_stats(dev, &lan78xx_stats) > 0)
+		lan78xx_check_stat_rollover(dev, &lan78xx_stats);
+
+	for (i = 0; i < (sizeof(lan78xx_stats) / (sizeof(u32))); i++)
+		data[i] = (u64)p[i] + ((u64)count[i] * ((u64)max[i] + 1));
+
+	mutex_unlock(&dev->stats.access_lock);
+
+	usb_autopm_put_interface(dev->intf);
 }
 
 /* Loop until the read is completed with timeout called with phy_mutex held */
@@ -967,6 +1120,8 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 			return -EIO;
 
 		phy_mac_interrupt(phydev, 0);
+
+		del_timer(&dev->stat_monitor);
 	} else if (phydev->link && !dev->link_on) {
 		dev->link_on = true;
 
@@ -1007,6 +1162,12 @@ static int lan78xx_link_reset(struct lan78xx_net *dev)
 
 		ret = lan78xx_update_flowcontrol(dev, ecmd.duplex, ladv, radv);
 		phy_mac_interrupt(phydev, 1);
+
+		if (!timer_pending(&dev->stat_monitor)) {
+			dev->delta = 1;
+			mod_timer(&dev->stat_monitor,
+				  jiffies + STAT_UPDATE_TIMER);
+		}
 	}
 
 	return ret;
@@ -1099,20 +1260,12 @@ static void lan78xx_get_stats(struct net_device *netdev,
 			      struct ethtool_stats *stats, u64 *data)
 {
 	struct lan78xx_net *dev = netdev_priv(netdev);
-	struct lan78xx_statstage lan78xx_stat;
-	u32 *p;
-	int i;
 
-	if (usb_autopm_get_interface(dev->intf) < 0)
-		return;
+	lan78xx_update_stats(dev);
 
-	if (lan78xx_read_stats(dev, &lan78xx_stat) > 0) {
-		p = (u32 *)&lan78xx_stat;
-		for (i = 0; i < (sizeof(lan78xx_stat) / (sizeof(u32))); i++)
-			data[i] = p[i];
-	}
-
-	usb_autopm_put_interface(dev->intf);
+	mutex_lock(&dev->stats.access_lock);
+	memcpy(data, &dev->stats.curr_stat, sizeof(dev->stats.curr_stat));
+	mutex_unlock(&dev->stats.access_lock);
 }
 
 static void lan78xx_get_wol(struct net_device *netdev,
@@ -2095,6 +2248,32 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	return 0;
 }
 
+static void lan78xx_init_stats(struct lan78xx_net *dev)
+{
+	u32 *p;
+	int i;
+
+	/* initialize for stats update
+	 * some counters are 20bits and some are 32bits
+	 */
+	p = (u32 *)&dev->stats.rollover_max;
+	for (i = 0; i < (sizeof(dev->stats.rollover_max) / (sizeof(u32))); i++)
+		p[i] = 0xFFFFF;
+
+	dev->stats.rollover_max.rx_unicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.rx_broadcast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.rx_multicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_rx_lpi_transitions = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_rx_lpi_time = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_unicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_broadcast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.tx_multicast_byte_count = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_tx_lpi_transitions = 0xFFFFFFFF;
+	dev->stats.rollover_max.eee_tx_lpi_time = 0xFFFFFFFF;
+
+	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
+}
+
 static int lan78xx_open(struct net_device *net)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
@@ -2121,6 +2300,8 @@ static int lan78xx_open(struct net_device *net)
 			goto done;
 		}
 	}
+
+	lan78xx_init_stats(dev);
 
 	set_bit(EVENT_DEV_OPEN, &dev->flags);
 
@@ -2165,6 +2346,9 @@ static void lan78xx_terminate_urbs(struct lan78xx_net *dev)
 int lan78xx_stop(struct net_device *net)
 {
 	struct lan78xx_net		*dev = netdev_priv(net);
+
+	if (timer_pending(&dev->stat_monitor))
+		del_timer_sync(&dev->stat_monitor);
 
 	phy_stop(net->phydev);
 	phy_disconnect(net->phydev);
@@ -2910,6 +3094,13 @@ static void lan78xx_bh(unsigned long param)
 	}
 
 	if (netif_device_present(dev->net) && netif_running(dev->net)) {
+		/* reset update timer delta */
+		if (timer_pending(&dev->stat_monitor) && (dev->delta != 1)) {
+			dev->delta = 1;
+			mod_timer(&dev->stat_monitor,
+				  jiffies + STAT_UPDATE_TIMER);
+		}
+
 		if (!skb_queue_empty(&dev->txq_pend))
 			lan78xx_tx_bh(dev);
 
@@ -2983,6 +3174,17 @@ skip_reset:
 		} else {
 			usb_autopm_put_interface(dev->intf);
 		}
+	}
+
+	if (test_bit(EVENT_STAT_UPDATE, &dev->flags)) {
+		lan78xx_update_stats(dev);
+
+		clear_bit(EVENT_STAT_UPDATE, &dev->flags);
+
+		mod_timer(&dev->stat_monitor,
+			  jiffies + (STAT_UPDATE_TIMER * dev->delta));
+
+		dev->delta = min((dev->delta * 2), 50);
 	}
 }
 
@@ -3074,6 +3276,15 @@ static const struct net_device_ops lan78xx_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= lan78xx_vlan_rx_kill_vid,
 };
 
+static void lan78xx_stat_monitor(unsigned long param)
+{
+	struct lan78xx_net *dev;
+
+	dev = (struct lan78xx_net *)param;
+
+	lan78xx_defer_kevent(dev, EVENT_STAT_UPDATE);
+}
+
 static int lan78xx_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
@@ -3119,6 +3330,13 @@ static int lan78xx_probe(struct usb_interface *intf,
 	netdev->netdev_ops = &lan78xx_netdev_ops;
 	netdev->watchdog_timeo = TX_TIMEOUT_JIFFIES;
 	netdev->ethtool_ops = &lan78xx_ethtool_ops;
+
+	dev->stat_monitor.function = lan78xx_stat_monitor;
+	dev->stat_monitor.data = (unsigned long)dev;
+	dev->delta = 1;
+	init_timer(&dev->stat_monitor);
+
+	mutex_init(&dev->stats.access_lock);
 
 	ret = lan78xx_bind(dev, intf);
 	if (ret < 0)
@@ -3397,6 +3615,8 @@ int lan78xx_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	if (test_bit(EVENT_DEV_ASLEEP, &dev->flags)) {
+		del_timer(&dev->stat_monitor);
+
 		if (PMSG_IS_AUTO(message)) {
 			/* auto suspend (selective suspend) */
 			ret = lan78xx_read_reg(dev, MAC_TX, &buf);
@@ -3456,6 +3676,12 @@ int lan78xx_resume(struct usb_interface *intf)
 	struct urb *res;
 	int ret;
 	u32 buf;
+
+	if (!timer_pending(&dev->stat_monitor)) {
+		dev->delta = 1;
+		mod_timer(&dev->stat_monitor,
+			  jiffies + STAT_UPDATE_TIMER);
+	}
 
 	if (!--dev->suspend_count) {
 		/* resume interrupt URBs */
