@@ -1904,8 +1904,6 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-#define BPF_TUNLEN_MAX	255
-
 static u64 bpf_skb_set_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
@@ -1915,7 +1913,7 @@ static u64 bpf_skb_set_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
 
 	if (unlikely(info != &md->u.tun_info || (size & (sizeof(u32) - 1))))
 		return -EINVAL;
-	if (unlikely(size > BPF_TUNLEN_MAX))
+	if (unlikely(size > IP_TUNNEL_OPTS_MAX))
 		return -ENOMEM;
 
 	ip_tunnel_info_opts_set(info, from, size);
@@ -1936,13 +1934,10 @@ static const struct bpf_func_proto *
 bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 {
 	if (!md_dst) {
-		BUILD_BUG_ON(FIELD_SIZEOF(struct ip_tunnel_info,
-					  options_len) != 1);
-
 		/* Race is not possible, since it's called from verifier
 		 * that is holding verifier mutex.
 		 */
-		md_dst = metadata_dst_alloc_percpu(BPF_TUNLEN_MAX,
+		md_dst = metadata_dst_alloc_percpu(IP_TUNNEL_OPTS_MAX,
 						   GFP_KERNEL);
 		if (!md_dst)
 			return NULL;
