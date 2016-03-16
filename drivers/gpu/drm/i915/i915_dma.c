@@ -1026,6 +1026,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_pm_setup(dev);
 	intel_init_dpio(dev_priv);
 	intel_power_domains_init(dev_priv);
+	intel_irq_init(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1100,7 +1101,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
 					      aperture_size);
 
-	intel_irq_init(dev_priv);
+	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
+
 	intel_uncore_sanitize(dev);
 
 	intel_opregion_setup(dev);
