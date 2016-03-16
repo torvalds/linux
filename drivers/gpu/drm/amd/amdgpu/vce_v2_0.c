@@ -319,7 +319,7 @@ static void vce_v2_0_set_sw_cg(struct amdgpu_device *adev, bool gated)
 		WREG32(mmVCE_UENC_REG_CLOCK_GATING, tmp);
 
 		WREG32(mmVCE_CGTT_CLK_OVERRIDE, 0);
-    } else {
+	} else {
 		tmp = RREG32(mmVCE_CLOCK_GATING_B);
 		tmp |= 0xe7;
 		tmp &= ~0xe70000;
