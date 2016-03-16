@@ -1033,8 +1033,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_init_audio_hooks(dev_priv);
 	i915_gem_load_init(dev);
 
-	intel_runtime_pm_get(dev_priv);
-
 	intel_display_crc_init(dev);
 
 	i915_dump_device_info(dev_priv);
@@ -1046,6 +1044,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_HSW_EARLY_SDV(dev))
 		DRM_INFO("This is an early pre-production Haswell machine. "
 			 "It may not be fully functional.\n");
+
+	intel_runtime_pm_get(dev_priv);
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
