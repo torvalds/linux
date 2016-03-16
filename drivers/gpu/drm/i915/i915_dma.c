@@ -1095,45 +1095,23 @@ static void i915_driver_cleanup_mmio(struct drm_i915_private *dev_priv)
 }
 
 /**
- * i915_driver_load - setup chip and create an initial config
- * @dev: DRM device
- * @flags: startup flags
+ * i915_driver_init_hw - setup state requiring device access
+ * @dev_priv: device private
  *
- * The driver load routine has to do several things:
- *   - drive output discovery via intel_modeset_init()
- *   - initialize the memory manager
- *   - allocate initial config memory
- *   - setup the DRM framebuffer with the allocated memory
+ * Setup state that requires accessing the device, but doesn't require
+ * exposing the driver via kernel internal or userspace interfaces.
  */
-int i915_driver_load(struct drm_device *dev, unsigned long flags)
+static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv;
-	int ret = 0;
+	struct drm_device *dev = dev_priv->dev;
 	uint32_t aperture_size;
-
-	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (dev_priv == NULL)
-		return -ENOMEM;
-
-	dev->dev_private = dev_priv;
-
-	ret = i915_driver_init_early(dev_priv, dev,
-				     (struct intel_device_info *)flags);
-
-	if (ret < 0)
-		goto out_free_priv;
-
-	intel_runtime_pm_get(dev_priv);
-
-	ret = i915_driver_init_mmio(dev_priv);
-	if (ret < 0)
-		goto out_runtime_pm_put;
+	int ret;
 
 	intel_device_info_runtime_init(dev);
 
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto out_cleanup_mmio;
+		return ret;
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1204,10 +1182,73 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}
 
+	return 0;
+
+out_gtt:
+	i915_global_gtt_cleanup(dev);
+
+	return ret;
+}
+
+/**
+ * i915_driver_cleanup_hw - cleanup the setup done in i915_driver_init_hw()
+ * @dev_priv: device private
+ */
+static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
+
+	pm_qos_remove_request(&dev_priv->pm_qos);
+	arch_phys_wc_del(dev_priv->gtt.mtrr);
+	io_mapping_free(dev_priv->gtt.mappable);
+	i915_global_gtt_cleanup(dev);
+}
+
+/**
+ * i915_driver_load - setup chip and create an initial config
+ * @dev: DRM device
+ * @flags: startup flags
+ *
+ * The driver load routine has to do several things:
+ *   - drive output discovery via intel_modeset_init()
+ *   - initialize the memory manager
+ *   - allocate initial config memory
+ *   - setup the DRM framebuffer with the allocated memory
+ */
+int i915_driver_load(struct drm_device *dev, unsigned long flags)
+{
+	struct drm_i915_private *dev_priv;
+	int ret = 0;
+
+	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
+	if (dev_priv == NULL)
+		return -ENOMEM;
+
+	dev->dev_private = dev_priv;
+
+	ret = i915_driver_init_early(dev_priv, dev,
+				     (struct intel_device_info *)flags);
+
+	if (ret < 0)
+		goto out_free_priv;
+
+	intel_runtime_pm_get(dev_priv);
+
+	ret = i915_driver_init_mmio(dev_priv);
+	if (ret < 0)
+		goto out_runtime_pm_put;
+
+	ret = i915_driver_init_hw(dev_priv);
+	if (ret < 0)
+		goto out_cleanup_mmio;
+
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 		if (ret)
-			goto out_disable_msi;
+			goto out_cleanup_hw;
 	}
 
 	ret = i915_load_modeset_init(dev);
@@ -1246,15 +1287,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 out_power_well:
 	intel_power_domains_fini(dev_priv);
 	drm_vblank_cleanup(dev);
-out_disable_msi:
-	if (dev->pdev->msi_enabled)
-		pci_disable_msi(dev->pdev);
-
-	pm_qos_remove_request(&dev_priv->pm_qos);
-	arch_phys_wc_del(dev_priv->gtt.mtrr);
-	io_mapping_free(dev_priv->gtt.mappable);
-out_gtt:
-	i915_global_gtt_cleanup(dev);
+out_cleanup_hw:
+	i915_driver_cleanup_hw(dev_priv);
 out_cleanup_mmio:
 	i915_driver_cleanup_mmio(dev_priv);
 out_runtime_pm_put:
@@ -1330,13 +1364,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_power_domains_fini(dev_priv);
 
-	if (dev->pdev->msi_enabled)
-		pci_disable_msi(dev->pdev);
-	pm_qos_remove_request(&dev_priv->pm_qos);
-	arch_phys_wc_del(dev_priv->gtt.mtrr);
-	io_mapping_free(dev_priv->gtt.mappable);
-	i915_global_gtt_cleanup(dev);
-
+	i915_driver_cleanup_hw(dev_priv);
 	i915_driver_cleanup_mmio(dev_priv);
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
