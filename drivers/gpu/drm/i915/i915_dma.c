@@ -1221,6 +1221,7 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_teardown_sysfs(dev);
 
 	acpi_video_unregister();
+	intel_opregion_fini(dev);
 	i915_gem_shrinker_cleanup(dev_priv);
 
 	drm_vblank_cleanup(dev);
@@ -1249,8 +1250,6 @@ int i915_driver_unload(struct drm_device *dev)
 	/* Free error state after interrupts are fully disabled. */
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_destroy_error_state(dev);
-
-	intel_opregion_fini(dev);
 
 	/* Flush any outstanding unpin_work. */
 	flush_workqueue(dev_priv->wq);
