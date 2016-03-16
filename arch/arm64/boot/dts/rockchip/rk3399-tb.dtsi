@@ -60,3 +60,18 @@
 	status = "okay";
 };
 
+&usb_host0_echi {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host1_echi {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};

@@ -507,6 +507,42 @@
 		status = "disabled";
 	};
 
+	usb_host0_echi: usb@fe380000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xfe380000 0x0 0x20000>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST0>;
+		clock-names = "hclk_host0";
+		status = "disabled";
+	};
+
+	usb_host0_ohci: usb@fe3a0000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xfe3a0000 0x0 0x20000>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST0>;
+		clock-names = "hclk_host0";
+		status = "disabled";
+	};
+
+	usb_host1_echi: usb@fe3c0000 {
+		compatible = "generic-ehci";
+		reg = <0x0 0xfe3c0000 0x0 0x20000>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST1>;
+		clock-names = "hclk_host1";
+		status = "disabled";
+	};
+
+	usb_host1_ohci: usb@fe3e0000 {
+		compatible = "generic-ohci";
+		reg = <0x0 0xfe3e0000 0x0 0x20000>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_HOST1>;
+		clock-names = "hclk_host1";
+		status = "disabled";
+	};
+
 	i2c4: i2c@ff3d0000 {
 		compatible = "rockchip,rk3399-i2c", "rockchip,rk3288-i2c";
 		reg = <0x0 0xff3d0000 0x0 0x1000>;
