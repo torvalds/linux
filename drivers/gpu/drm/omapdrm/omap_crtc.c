@@ -332,13 +332,6 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	kfree(omap_crtc);
 }
 
-static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void omap_crtc_enable(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -475,7 +468,6 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
-	.mode_fixup = omap_crtc_mode_fixup,
 	.mode_set_nofb = omap_crtc_mode_set_nofb,
 	.disable = omap_crtc_disable,
 	.enable = omap_crtc_enable,

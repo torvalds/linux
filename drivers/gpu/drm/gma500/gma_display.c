@@ -478,13 +478,6 @@ int gma_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-bool gma_crtc_mode_fixup(struct drm_crtc *crtc,
-			 const struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 void gma_crtc_prepare(struct drm_crtc *crtc)
 {
 	const struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;

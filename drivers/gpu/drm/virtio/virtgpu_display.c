@@ -237,13 +237,6 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static bool virtio_gpu_crtc_mode_fixup(struct drm_crtc *crtc,
-				       const struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static void virtio_gpu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -277,7 +270,6 @@ static int virtio_gpu_crtc_atomic_check(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs virtio_gpu_crtc_helper_funcs = {
 	.enable        = virtio_gpu_crtc_enable,
 	.disable       = virtio_gpu_crtc_disable,
-	.mode_fixup    = virtio_gpu_crtc_mode_fixup,
 	.mode_set_nofb = virtio_gpu_crtc_mode_set_nofb,
 	.atomic_check  = virtio_gpu_crtc_atomic_check,
 };

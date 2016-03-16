@@ -491,14 +491,6 @@ static void rcar_du_crtc_disable(struct drm_crtc *crtc)
 	rcrtc->outputs = 0;
 }
 
-static bool rcar_du_crtc_mode_fixup(struct drm_crtc *crtc,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
-{
-	/* TODO Fixup modes */
-	return true;
-}
-
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 				      struct drm_crtc_state *old_crtc_state)
 {
@@ -531,7 +523,6 @@ static void rcar_du_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
-	.mode_fixup = rcar_du_crtc_mode_fixup,
 	.disable = rcar_du_crtc_disable,
 	.enable = rcar_du_crtc_enable,
 	.atomic_begin = rcar_du_crtc_atomic_begin,

@@ -1816,7 +1816,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="37" valign="top" >DRM</td>
+	<td rowspan="42" valign="top" >DRM</td>
 	<td valign="top" >Generic</td>
 	<td valign="top" >“rotation”</td>
 	<td valign="top" >BITMASK</td>
@@ -2068,7 +2068,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >property to suggest an Y offset for a connector</td>
 	</tr>
 	<tr>
-	<td rowspan="3" valign="top" >Optional</td>
+	<td rowspan="8" valign="top" >Optional</td>
 	<td valign="top" >“scaling mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
@@ -2090,6 +2090,61 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >{ "Off", "On", "Annotate" }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >“DEGAMMA_LUT”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the degamma lookup table
+		(LUT) mapping pixel data from the framebuffer before it is
+		given to the transformation matrix. The data is an interpreted
+		as an array of struct drm_color_lut elements. Hardware might
+		choose not to use the full precision of the LUT elements nor
+		use all the elements of the LUT (for example the hardware
+		might choose to interpolate between LUT[0] and LUT[4]). </td>
+	</tr>
+	<tr>
+	<td valign="top" >“DEGAMMA_LUT_SIZE”</td>
+	<td valign="top" >RANGE | IMMUTABLE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to gives the size of the lookup
+		table to be set on the DEGAMMA_LUT property (the size depends
+		on the underlying hardware).</td>
+	</tr>
+	<tr>
+	<td valign="top" >“CTM”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the current
+		transformation matrix (CTM) apply to pixel data after the
+		lookup through the degamma LUT and before the lookup through
+		the gamma LUT. The data is an interpreted as a struct
+		drm_color_ctm.</td>
+	</tr>
+	<tr>
+	<td valign="top" >“GAMMA_LUT”</td>
+	<td valign="top" >BLOB</td>
+	<td valign="top" >0</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to set the gamma lookup table
+		(LUT) mapping pixel data after to the transformation matrix to
+		data sent to the connector. The data is an interpreted as an
+		array of struct drm_color_lut elements. Hardware might choose
+		not to use the full precision of the LUT elements nor use all
+		the elements of the LUT (for example the hardware might choose
+		to interpolate between LUT[0] and LUT[4]).</td>
+	</tr>
+	<tr>
+	<td valign="top" >“GAMMA_LUT_SIZE”</td>
+	<td valign="top" >RANGE | IMMUTABLE</td>
+	<td valign="top" >Min=0, Max=UINT_MAX</td>
+	<td valign="top" >CRTC</td>
+	<td valign="top" >DRM property to gives the size of the lookup
+		table to be set on the GAMMA_LUT property (the size depends on
+		the underlying hardware).</td>
 	</tr>
 	<tr>
 	<td rowspan="20" valign="top" >i915</td>

@@ -147,13 +147,6 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp4_crtc);
 }
 
-static bool mdp4_crtc_mode_fixup(struct drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 /* statically (for now) map planes to mixer stage (z-order): */
 static const int idxs[] = {
 		[VG1]  = 1,
@@ -501,7 +494,6 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
-	.mode_fixup = mdp4_crtc_mode_fixup,
 	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
 	.disable = mdp4_crtc_disable,
 	.enable = mdp4_crtc_enable,
