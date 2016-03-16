@@ -123,9 +123,6 @@ struct bcm2835_desc {
 #define BCM2835_DMA_DATA_TYPE_S32	4
 #define BCM2835_DMA_DATA_TYPE_S128	16
 
-#define BCM2835_DMA_BULK_MASK	BIT(0)
-#define BCM2835_DMA_FIQ_MASK	(BIT(2) | BIT(3))
-
 /* Valid only for channels 0 - 14, 15 has its own base address */
 #define BCM2835_DMA_CHAN(n)	((n) << 8) /* Base address */
 #define BCM2835_DMA_CHANIO(base, n) ((base) + BCM2835_DMA_CHAN(n))
@@ -640,12 +637,6 @@ static int bcm2835_dma_probe(struct platform_device *pdev)
 		rc = -EINVAL;
 		goto err_no_dma;
 	}
-
-	/*
-	 * Do not use the FIQ and BULK channels,
-	 * because they are used by the GPU.
-	 */
-	chans_available &= ~(BCM2835_DMA_FIQ_MASK | BCM2835_DMA_BULK_MASK);
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		irq = platform_get_irq(pdev, i);
