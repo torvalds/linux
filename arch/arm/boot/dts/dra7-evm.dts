@@ -567,7 +567,7 @@
 	};
 
 	pcf_gpio_21: gpio@21 {
-		compatible = "ti,pcf8575";
+		compatible = "nxp,pcf8575";
 		reg = <0x21>;
 		lines-initial-states = <0x1408>;
 		gpio-controller;
