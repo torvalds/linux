@@ -68,6 +68,7 @@
 		serial1 = &uart1;
 		serial2 = &uart2;
 		serial3 = &uart3;
+		serial4 = &uart4;
 	};
 
 	psci {
@@ -479,6 +480,8 @@
 		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -490,6 +493,8 @@
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&uart1_xfer>;
 		status = "disabled";
 	};
 
@@ -501,6 +506,8 @@
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&uart2c_xfer>;
 		status = "disabled";
 	};
 
@@ -512,6 +519,8 @@
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&uart3_xfer &uart3_cts &uart3_rts>;
 		status = "disabled";
 	};
 
@@ -689,6 +698,8 @@
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4_xfer>;
 		status = "disabled";
 	};
 
