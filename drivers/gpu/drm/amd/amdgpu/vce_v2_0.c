@@ -240,7 +240,8 @@ static int vce_v2_0_hw_init(void *handle)
 
 	r = vce_v2_0_start(adev);
 	if (r)
-		return r;
+/* this error mean vcpu not in running state, so just skip ring test, not stop driver initialize */
+		return 0;
 
 	ring = &adev->vce.ring[0];
 	ring->ready = true;
