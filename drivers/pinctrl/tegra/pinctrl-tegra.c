@@ -30,9 +30,9 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
 #include "pinctrl-tegra.h"
-#include "pinctrl-utils.h"
 
 struct tegra_pmx {
 	struct device *dev;
