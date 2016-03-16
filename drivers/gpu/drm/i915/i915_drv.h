@@ -1468,7 +1468,6 @@ struct intel_vbt_data {
 
 	/* MIPI DSI */
 	struct {
-		u16 port;
 		u16 panel_id;
 		struct mipi_config *config;
 		struct mipi_pps_data *pps;
@@ -3356,6 +3355,7 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
 bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
+bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
 
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI

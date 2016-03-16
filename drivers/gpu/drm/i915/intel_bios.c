@@ -1237,7 +1237,6 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		    &&p_child->common.device_type & DEVICE_TYPE_MIPI_OUTPUT) {
 			DRM_DEBUG_KMS("Found MIPI as LFP\n");
 			dev_priv->vbt.has_mipi = 1;
-			dev_priv->vbt.dsi.port = p_child->common.dvo_port;
 		}
 
 		child_dev_ptr = dev_priv->vbt.child_dev + count;
@@ -1551,6 +1550,44 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 		    (p_child->common.device_type & DEVICE_TYPE_eDP_BITS) ==
 		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
 			return true;
+	}
+
+	return false;
+}
+
+/**
+ * intel_bios_is_dsi_present - is DSI present in VBT
+ * @dev_priv:	i915 device instance
+ * @port:	port for DSI if present
+ *
+ * Return true if DSI is present, and return the port in %port.
+ */
+bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv,
+			       enum port *port)
+{
+	union child_device_config *p_child;
+	u8 dvo_port;
+	int i;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		p_child = dev_priv->vbt.child_dev + i;
+
+		if (!(p_child->common.device_type & DEVICE_TYPE_MIPI_OUTPUT))
+			continue;
+
+		dvo_port = p_child->common.dvo_port;
+
+		switch (dvo_port) {
+		case DVO_PORT_MIPIA:
+		case DVO_PORT_MIPIC:
+			*port = dvo_port - DVO_PORT_MIPIA;
+			return true;
+		case DVO_PORT_MIPIB:
+		case DVO_PORT_MIPID:
+			DRM_DEBUG_KMS("VBT has unsupported DSI port %c\n",
+				      port_name(dvo_port - DVO_PORT_MIPIA));
+			break;
+		}
 	}
 
 	return false;
