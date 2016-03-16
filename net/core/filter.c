@@ -2069,16 +2069,14 @@ static bool sk_filter_is_valid_access(int off, int size,
 static bool tc_cls_act_is_valid_access(int off, int size,
 				       enum bpf_access_type type)
 {
-	if (off == offsetof(struct __sk_buff, tc_classid))
-		return type == BPF_WRITE ? true : false;
-
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct __sk_buff, mark):
 		case offsetof(struct __sk_buff, tc_index):
 		case offsetof(struct __sk_buff, priority):
 		case offsetof(struct __sk_buff, cb[0]) ...
-			offsetof(struct __sk_buff, cb[4]):
+		     offsetof(struct __sk_buff, cb[4]):
+		case offsetof(struct __sk_buff, tc_classid):
 			break;
 		default:
 			return false;
@@ -2195,8 +2193,10 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 		ctx_off -= offsetof(struct __sk_buff, tc_classid);
 		ctx_off += offsetof(struct sk_buff, cb);
 		ctx_off += offsetof(struct qdisc_skb_cb, tc_classid);
-		WARN_ON(type != BPF_WRITE);
-		*insn++ = BPF_STX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
+		else
+			*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
 		break;
 
 	case offsetof(struct __sk_buff, tc_index):
