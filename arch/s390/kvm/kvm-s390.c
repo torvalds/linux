@@ -30,6 +30,7 @@
 #include <asm/lowcore.h>
 #include <asm/etr.h>
 #include <asm/pgtable.h>
+#include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/switch_to.h>
 #include <asm/isc.h>
@@ -281,7 +282,7 @@ static void kvm_s390_sync_dirty_log(struct kvm *kvm,
 	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
 		address = gfn_to_hva_memslot(memslot, cur_gfn);
 
-		if (gmap_test_and_clear_dirty(address, gmap))
+		if (test_and_clear_guest_dirty(gmap->mm, address))
 			mark_page_dirty(kvm, cur_gfn);
 		if (fatal_signal_pending(current))
 			return;

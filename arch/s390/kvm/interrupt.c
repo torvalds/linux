@@ -23,6 +23,7 @@
 #include <asm/uaccess.h>
 #include <asm/sclp.h>
 #include <asm/isc.h>
+#include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"

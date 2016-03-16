@@ -105,11 +105,10 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 			      unsigned long addr, pte_t *ptep)
 {
 	pmd_t *pmdp = (pmd_t *) ptep;
-	pte_t pte = huge_ptep_get(ptep);
+	pmd_t old;
 
-	pmdp_flush_direct(mm, addr, pmdp);
-	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
-	return pte;
+	old = pmdp_xchg_direct(mm, addr, pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
+	return __pmd_to_pte(old);
 }
 
 pte_t *huge_pte_alloc(struct mm_struct *mm,

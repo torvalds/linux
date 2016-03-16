@@ -23,6 +23,7 @@
 #include <asm/sysinfo.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/gmap.h>
 #include <asm/io.h>
 #include <asm/ptrace.h>
 #include <asm/compat.h>
