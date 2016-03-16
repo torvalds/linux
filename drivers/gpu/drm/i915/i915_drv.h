@@ -3353,6 +3353,7 @@ extern void intel_i2c_reset(struct drm_device *dev);
 /* intel_bios.c */
 int intel_bios_init(struct drm_i915_private *dev_priv);
 bool intel_bios_is_valid_vbt(const void *buf, size_t size);
+bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 
 /* intel_opregion.c */
 #ifdef CONFIG_ACPI

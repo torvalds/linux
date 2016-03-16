@@ -1431,3 +1431,44 @@ intel_bios_init(struct drm_i915_private *dev_priv)
 
 	return 0;
 }
+
+/**
+ * intel_bios_is_tv_present - is integrated TV present in VBT
+ * @dev_priv:	i915 device instance
+ *
+ * Return true if TV is present. If no child devices were parsed from VBT,
+ * assume TV is present.
+ */
+bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv)
+{
+	union child_device_config *p_child;
+	int i;
+
+	if (!dev_priv->vbt.int_tv_support)
+		return false;
+
+	if (!dev_priv->vbt.child_dev_num)
+		return true;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		p_child = dev_priv->vbt.child_dev + i;
+		/*
+		 * If the device type is not TV, continue.
+		 */
+		switch (p_child->old.device_type) {
+		case DEVICE_TYPE_INT_TV:
+		case DEVICE_TYPE_TV:
+		case DEVICE_TYPE_TV_SVIDEO_COMPOSITE:
+			break;
+		default:
+			continue;
+		}
+		/* Only when the addin_offset is non-zero, it is regarded
+		 * as present.
+		 */
+		if (p_child->old.addin_offset)
+			return true;
+	}
+
+	return false;
+}
