@@ -32,6 +32,14 @@
 #define CNTTIDR		0x08
 #define CNTTIDR_VIRT(n)	(BIT(1) << ((n) * 4))
 
+#define CNTACR(n)	(0x40 + ((n) * 4))
+#define CNTACR_RPCT	BIT(0)
+#define CNTACR_RVCT	BIT(1)
+#define CNTACR_RFRQ	BIT(2)
+#define CNTACR_RVOFF	BIT(3)
+#define CNTACR_RWVT	BIT(4)
+#define CNTACR_RWPT	BIT(5)
+
 #define CNTVCT_LO	0x08
 #define CNTVCT_HI	0x0c
 #define CNTFRQ		0x10
@@ -266,10 +274,12 @@ static void __arch_timer_setup(unsigned type,
 		if (arch_timer_use_virtual) {
 			clk->irq = arch_timer_ppi[VIRT_PPI];
 			clk->set_state_shutdown = arch_timer_shutdown_virt;
+			clk->set_state_oneshot_stopped = arch_timer_shutdown_virt;
 			clk->set_next_event = arch_timer_set_next_event_virt;
 		} else {
 			clk->irq = arch_timer_ppi[PHYS_SECURE_PPI];
 			clk->set_state_shutdown = arch_timer_shutdown_phys;
+			clk->set_state_oneshot_stopped = arch_timer_shutdown_phys;
 			clk->set_next_event = arch_timer_set_next_event_phys;
 		}
 	} else {
@@ -279,10 +289,12 @@ static void __arch_timer_setup(unsigned type,
 		clk->cpumask = cpu_all_mask;
 		if (arch_timer_mem_use_virtual) {
 			clk->set_state_shutdown = arch_timer_shutdown_virt_mem;
+			clk->set_state_oneshot_stopped = arch_timer_shutdown_virt_mem;
 			clk->set_next_event =
 				arch_timer_set_next_event_virt_mem;
 		} else {
 			clk->set_state_shutdown = arch_timer_shutdown_phys_mem;
+			clk->set_state_oneshot_stopped = arch_timer_shutdown_phys_mem;
 			clk->set_next_event =
 				arch_timer_set_next_event_phys_mem;
 		}
@@ -757,7 +769,6 @@ static void __init arch_timer_mem_init(struct device_node *np)
 	}
 
 	cnttidr = readl_relaxed(cntctlbase + CNTTIDR);
-	iounmap(cntctlbase);
 
 	/*
 	 * Try to find a virtual capable frame. Otherwise fall back to a
@@ -765,20 +776,31 @@ static void __init arch_timer_mem_init(struct device_node *np)
 	 */
 	for_each_available_child_of_node(np, frame) {
 		int n;
+		u32 cntacr;
 
 		if (of_property_read_u32(frame, "frame-number", &n)) {
 			pr_err("arch_timer: Missing frame-number\n");
-			of_node_put(best_frame);
 			of_node_put(frame);
-			return;
+			goto out;
 		}
 
-		if (cnttidr & CNTTIDR_VIRT(n)) {
+		/* Try enabling everything, and see what sticks */
+		cntacr = CNTACR_RFRQ | CNTACR_RWPT | CNTACR_RPCT |
+			 CNTACR_RWVT | CNTACR_RVOFF | CNTACR_RVCT;
+		writel_relaxed(cntacr, cntctlbase + CNTACR(n));
+		cntacr = readl_relaxed(cntctlbase + CNTACR(n));
+
+		if ((cnttidr & CNTTIDR_VIRT(n)) &&
+		    !(~cntacr & (CNTACR_RWVT | CNTACR_RVCT))) {
 			of_node_put(best_frame);
 			best_frame = frame;
 			arch_timer_mem_use_virtual = true;
 			break;
 		}
+
+		if (~cntacr & (CNTACR_RWPT | CNTACR_RPCT))
+			continue;
+
 		of_node_put(best_frame);
 		best_frame = of_node_get(frame);
 	}
@@ -786,24 +808,26 @@ static void __init arch_timer_mem_init(struct device_node *np)
 	base = arch_counter_base = of_iomap(best_frame, 0);
 	if (!base) {
 		pr_err("arch_timer: Can't map frame's registers\n");
-		of_node_put(best_frame);
-		return;
+		goto out;
 	}
 
 	if (arch_timer_mem_use_virtual)
 		irq = irq_of_parse_and_map(best_frame, 1);
 	else
 		irq = irq_of_parse_and_map(best_frame, 0);
-	of_node_put(best_frame);
+
 	if (!irq) {
 		pr_err("arch_timer: Frame missing %s irq",
 		       arch_timer_mem_use_virtual ? "virt" : "phys");
-		return;
+		goto out;
 	}
 
 	arch_timer_detect_rate(base, np);
 	arch_timer_mem_register(base, irq);
 	arch_timer_common_init();
+out:
+	iounmap(cntctlbase);
+	of_node_put(best_frame);
 }
 CLOCKSOURCE_OF_DECLARE(armv7_arch_timer_mem, "arm,armv7-timer-mem",
 		       arch_timer_mem_init);
