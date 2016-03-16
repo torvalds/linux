@@ -24,8 +24,8 @@
 
 #include <dt-bindings/pinctrl/pinctrl-tegra-xusb.h>
 
-#include "core.h"
-#include "pinctrl-utils.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
 
 #define XUSB_PADCTL_ELPG_PROGRAM 0x01c
 #define XUSB_PADCTL_ELPG_PROGRAM_AUX_MUX_LP0_VCORE_DOWN (1 << 26)
