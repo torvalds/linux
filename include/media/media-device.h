@@ -494,7 +494,7 @@ int __must_check __media_device_register(struct media_device *mdev,
 #define media_device_register(mdev) __media_device_register(mdev, THIS_MODULE)
 
 /**
- * __media_device_unregister() - Unegisters a media device element
+ * media_device_unregister() - Unregisters a media device element
  *
  * @mdev:	pointer to struct &media_device
  *
