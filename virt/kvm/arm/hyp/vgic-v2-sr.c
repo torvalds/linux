@@ -21,7 +21,12 @@
 
 #include <asm/kvm_hyp.h>
 
+#ifdef CONFIG_KVM_NEW_VGIC
+extern struct vgic_global kvm_vgic_global_state;
+#define vgic_v2_params kvm_vgic_global_state
+#else
 extern struct vgic_params vgic_v2_params;
+#endif
 
 static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
 					    void __iomem *base)
