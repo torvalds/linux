@@ -147,3 +147,7 @@ int cavium_mdiobus_write(struct mii_bus *bus, int phy_id, int regnum, u16 val)
 	return 0;
 }
 EXPORT_SYMBOL(cavium_mdiobus_write);
+
+MODULE_DESCRIPTION("Common code for OCTEON and Thunder MDIO bus drivers");
+MODULE_AUTHOR("David Daney");
+MODULE_LICENSE("GPL");
