@@ -47,6 +47,9 @@ static int perf_trace_event_perm(struct trace_event_call *tp_event,
 		if (perf_paranoid_tracepoint_raw() && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (!is_sampling_event(p_event))
+			return 0;
+
 		/*
 		 * We don't allow user space callchains for  function trace
 		 * event, due to issues with page faults while tracing page
