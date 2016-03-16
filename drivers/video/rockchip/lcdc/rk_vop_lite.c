@@ -779,7 +779,7 @@ static int vop_set_hwc_lut(struct rk_lcdc_driver *dev_drv,
 				dev_drv->hwc_lut[i] = hwc_lut[i];
 
 			v = dev_drv->hwc_lut[i];
-			c = vop_dev->hwc_lut_addr_base + i;
+			c = vop_dev->hwc_lut_addr_base + (i << 2);
 			writel_relaxed(v, c);
 		}
 		vop_msk_reg(vop_dev, HWC_CTRL0, V_HWC_LUT_EN(1));
@@ -807,7 +807,7 @@ static int vop_set_lut(struct rk_lcdc_driver *dev_drv, int *dsp_lut)
 		mdelay(25);
 		for (i = 0; i < 256; i++) {
 			v = dsp_lut[i];
-			c = vop_dev->dsp_lut_addr_base + i;
+			c = vop_dev->dsp_lut_addr_base + (i << 2);
 			writel_relaxed(v, c);
 		}
 		vop_msk_reg(vop_dev, DSP_CTRL2, V_DSP_LUT_EN(1));
