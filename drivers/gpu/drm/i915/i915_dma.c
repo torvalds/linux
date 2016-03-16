@@ -933,6 +933,83 @@ static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 	destroy_workqueue(dev_priv->wq);
 }
 
+/**
+ * i915_driver_init_early - setup state not requiring device access
+ * @dev_priv: device private
+ *
+ * Initialize everything that is a "SW-only" state, that is state not
+ * requiring accessing the device or exposing the driver via kernel internal
+ * or userspace interfaces. Example steps belonging here: lock initialization,
+ * system memory allocation, setting up device specific attributes and
+ * function hooks not requiring accessing the device.
+ */
+static int i915_driver_init_early(struct drm_i915_private *dev_priv,
+				  struct drm_device *dev,
+				  struct intel_device_info *info)
+{
+	struct intel_device_info *device_info;
+	int ret = 0;
+
+	dev_priv->dev = dev;
+
+	/* Setup the write-once "constant" device info */
+	device_info = (struct intel_device_info *)&dev_priv->info;
+	memcpy(device_info, info, sizeof(dev_priv->info));
+	device_info->device_id = dev->pdev->device;
+
+	spin_lock_init(&dev_priv->irq_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
+	mutex_init(&dev_priv->backlight_lock);
+	spin_lock_init(&dev_priv->uncore.lock);
+	spin_lock_init(&dev_priv->mm.object_stat_lock);
+	spin_lock_init(&dev_priv->mmio_flip_lock);
+	mutex_init(&dev_priv->sb_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
+	mutex_init(&dev_priv->av_mutex);
+	mutex_init(&dev_priv->wm.wm_mutex);
+	mutex_init(&dev_priv->pps_mutex);
+
+	ret = i915_workqueues_init(dev_priv);
+	if (ret < 0)
+		return ret;
+
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
+	intel_pm_setup(dev);
+	intel_init_dpio(dev_priv);
+	intel_power_domains_init(dev_priv);
+	intel_irq_init(dev_priv);
+	intel_init_display_hooks(dev_priv);
+	intel_init_clock_gating_hooks(dev_priv);
+	intel_init_audio_hooks(dev_priv);
+	i915_gem_load_init(dev);
+
+	intel_display_crc_init(dev);
+
+	i915_dump_device_info(dev_priv);
+
+	/* Not all pre-production machines fall into this category, only the
+	 * very first ones. Almost everything should work, except for maybe
+	 * suspend/resume. And we don't implement workarounds that affect only
+	 * pre-production machines. */
+	if (IS_HSW_EARLY_SDV(dev))
+		DRM_INFO("This is an early pre-production Haswell machine. "
+			 "It may not be fully functional.\n");
+
+	return 0;
+}
+
+/**
+ * i915_driver_cleanup_early - cleanup the setup done in i915_driver_init_early()
+ * @dev_priv: device private
+ */
+static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
+{
+	i915_gem_load_cleanup(dev_priv->dev);
+	i915_workqueues_cleanup(dev_priv);
+}
+
 static int i915_mmio_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -987,63 +1064,20 @@ static void i915_mmio_cleanup(struct drm_device *dev)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_device_info *info, *device_info;
 	int ret = 0;
 	uint32_t aperture_size;
-
-	info = (struct intel_device_info *) flags;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
 	dev->dev_private = dev_priv;
-	dev_priv->dev = dev;
 
-	/* Setup the write-once "constant" device info */
-	device_info = (struct intel_device_info *)&dev_priv->info;
-	memcpy(device_info, info, sizeof(dev_priv->info));
-	device_info->device_id = dev->pdev->device;
+	ret = i915_driver_init_early(dev_priv, dev,
+				     (struct intel_device_info *)flags);
 
-	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->gpu_error.lock);
-	mutex_init(&dev_priv->backlight_lock);
-	spin_lock_init(&dev_priv->uncore.lock);
-	spin_lock_init(&dev_priv->mm.object_stat_lock);
-	spin_lock_init(&dev_priv->mmio_flip_lock);
-	mutex_init(&dev_priv->sb_lock);
-	mutex_init(&dev_priv->modeset_restore_lock);
-	mutex_init(&dev_priv->av_mutex);
-	mutex_init(&dev_priv->wm.wm_mutex);
-	mutex_init(&dev_priv->pps_mutex);
-
-	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
 		goto out_free_priv;
-
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev);
-
-	intel_pm_setup(dev);
-	intel_init_dpio(dev_priv);
-	intel_power_domains_init(dev_priv);
-	intel_irq_init(dev_priv);
-	intel_init_display_hooks(dev_priv);
-	intel_init_clock_gating_hooks(dev_priv);
-	intel_init_audio_hooks(dev_priv);
-	i915_gem_load_init(dev);
-
-	intel_display_crc_init(dev);
-
-	i915_dump_device_info(dev_priv);
-
-	/* Not all pre-production machines fall into this category, only the
-	 * very first ones. Almost everything should work, except for maybe
-	 * suspend/resume. And we don't implement workarounds that affect only
-	 * pre-production machines. */
-	if (IS_HSW_EARLY_SDV(dev))
-		DRM_INFO("This is an early pre-production Haswell machine. "
-			 "It may not be fully functional.\n");
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1191,8 +1225,7 @@ put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
-	i915_gem_load_cleanup(dev);
-	i915_workqueues_cleanup(dev_priv);
+	i915_driver_cleanup_early(dev_priv);
 out_free_priv:
 	kfree(dev_priv);
 
@@ -1277,8 +1310,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 
-	i915_gem_load_cleanup(dev);
-	i915_workqueues_cleanup(dev_priv);
+	i915_driver_cleanup_early(dev_priv);
 	kfree(dev_priv);
 
 	return 0;
