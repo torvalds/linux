@@ -180,15 +180,8 @@ int threads_init(void)
 	if (!ti->sched_sem) {
 		pr_early("lkl: failed to allocate init schedule semaphore\n");
 		ret = -ENOMEM;
-		goto out;
 	}
 
-	return 0;
-
-out_free_init_sched_sem:
-	lkl_ops->sem_free(ti->sched_sem);
-
-out:
 	return ret;
 }
 
