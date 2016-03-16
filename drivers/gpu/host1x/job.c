@@ -225,7 +225,7 @@ unpin:
 	return 0;
 }
 
-static unsigned int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
+static int do_relocs(struct host1x_job *job, struct host1x_bo *cmdbuf)
 {
 	int i = 0;
 	u32 last_page = ~0;
