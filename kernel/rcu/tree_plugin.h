@@ -751,9 +751,6 @@ void synchronize_rcu_expedited(void)
 	if (exp_funnel_lock(rsp, s))
 		return;  /* Someone else did our work for us. */
 
-	rcu_exp_gp_seq_start(rsp);
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("start"));
-
 	/* Initialize the rcu_node tree in preparation for the wait. */
 	sync_rcu_exp_select_cpus(rsp, sync_rcu_exp_handler);
 

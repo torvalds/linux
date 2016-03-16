@@ -3653,6 +3653,8 @@ fastpath:
 		mutex_unlock(&rsp->exp_mutex);
 		return true;
 	}
+	rcu_exp_gp_seq_start(rsp);
+	trace_rcu_exp_grace_period(rsp->name, s, TPS("start"));
 	return false;
 }
 
@@ -3904,9 +3906,6 @@ void synchronize_sched_expedited(void)
 	s = rcu_exp_gp_seq_snap(rsp);
 	if (exp_funnel_lock(rsp, s))
 		return;  /* Someone else did our work for us. */
-
-	rcu_exp_gp_seq_start(rsp);
-	trace_rcu_exp_grace_period(rsp->name, s, TPS("start"));
 
 	/* Initialize the rcu_node tree in preparation for the wait. */
 	sync_rcu_exp_select_cpus(rsp, sync_sched_exp_handler);
