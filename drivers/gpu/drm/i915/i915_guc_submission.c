@@ -390,7 +390,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		struct guc_execlist_context *lrc = &desc.lrc[engine->guc_id];
 		struct drm_i915_gem_object *obj;
 		uint64_t ctx_desc;
@@ -871,7 +871,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	engine = &dev_priv->engine[RCS];
 	ads->golden_context_lrca = engine->status_page.gfx_addr;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		ads->eng_state_size[engine->guc_id] = intel_lr_context_size(engine);
 
 	/* GuC scheduling policies */
@@ -884,7 +884,7 @@ static void guc_create_ads(struct intel_guc *guc)
 	/* MMIO reg state */
 	reg_state = (void *)policies + sizeof(struct guc_policies);
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		reg_state->mmio_white_list[engine->guc_id].mmio_start =
 			engine->mmio_base + GUC_MMIO_WHITE_LIST_START;
 

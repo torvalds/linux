@@ -198,7 +198,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 			   err->size,
 			   err->read_domains,
 			   err->write_domain);
-		for (i = 0; i < I915_NUM_RINGS; i++)
+		for (i = 0; i < I915_NUM_ENGINES; i++)
 			err_printf(m, "%02x ", err->rseqno[i]);
 
 		err_printf(m, "] %02x", err->wseqno);
@@ -732,7 +732,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	for (i = 0; i < I915_NUM_RINGS; i++)
+	for (i = 0; i < I915_NUM_ENGINES; i++)
 		err->rseqno[i] = i915_gem_request_get_seqno(obj->last_read_req[i]);
 	err->wseqno = i915_gem_request_get_seqno(obj->last_write_req);
 	err->gtt_offset = vma->node.start;
@@ -747,7 +747,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
 	err->ring = obj->last_write_req ?
-			i915_gem_request_get_ring(obj->last_write_req)->id : -1;
+			i915_gem_request_get_engine(obj->last_write_req)->id : -1;
 	err->cache_level = obj->cache_level;
 }
 
@@ -809,7 +809,7 @@ static uint32_t i915_error_generate_code(struct drm_i915_private *dev_priv,
 	 * synchronization commands which almost always appear in the case
 	 * strictly a client bug. Use instdone to differentiate those some.
 	 */
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		if (error->ring[i].hangcheck_action == HANGCHECK_HUNG) {
 			if (ring_id)
 				*ring_id = i;
@@ -856,7 +856,7 @@ static void gen8_record_semaphore_state(struct drm_i915_private *dev_priv,
 			i915_error_ggtt_object_create(dev_priv,
 						      dev_priv->semaphore_obj);
 
-	for_each_ring(to, dev_priv, i) {
+	for_each_engine(to, dev_priv, i) {
 		int idx;
 		u16 signal_offset;
 		u32 *tmp;
@@ -1019,7 +1019,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	struct drm_i915_gem_request *request;
 	int i, count;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
 		struct intel_ringbuffer *rbuf;
 

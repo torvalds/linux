@@ -1573,14 +1573,14 @@ static int gen8_do_reset(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		if (gen8_request_engine_reset(engine))
 			goto not_ready;
 
 	return gen6_do_reset(dev);
 
 not_ready:
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		gen8_unrequest_engine_reset(engine);
 
 	return -EIO;

@@ -62,7 +62,7 @@ int intel_ring_space(struct intel_ringbuffer *ringbuf)
 bool intel_ring_stopped(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-	return dev_priv->gpu_error.stop_rings & intel_ring_flag(engine);
+	return dev_priv->gpu_error.stop_rings & intel_engine_flag(engine);
 }
 
 static void __intel_ring_advance(struct intel_engine_cs *engine)
@@ -1283,7 +1283,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_ring(waiter, dev_priv, i) {
+	for_each_engine(waiter, dev_priv, i) {
 		u32 seqno;
 		u64 gtt_offset = signaller->semaphore.signal_ggtt[i];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
@@ -1324,7 +1324,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_ring(waiter, dev_priv, i) {
+	for_each_engine(waiter, dev_priv, i) {
 		u32 seqno;
 		u64 gtt_offset = signaller->semaphore.signal_ggtt[i];
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
@@ -1363,7 +1363,7 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 	if (ret)
 		return ret;
 
-	for_each_ring(useless, dev_priv, i) {
+	for_each_engine(useless, dev_priv, i) {
 		i915_reg_t mbox_reg = signaller->semaphore.mbox.signal[i];
 
 		if (i915_mmio_reg_valid(mbox_reg)) {
@@ -2356,7 +2356,7 @@ static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
 	intel_ring_update_space(ringbuf);
 }
 
-int intel_ring_idle(struct intel_engine_cs *engine)
+int intel_engine_idle(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *req;
 
@@ -3170,7 +3170,7 @@ intel_stop_ring_buffer(struct intel_engine_cs *engine)
 	if (!intel_ring_initialized(engine))
 		return;
 
-	ret = intel_ring_idle(engine);
+	ret = intel_engine_idle(engine);
 	if (ret && !i915_reset_in_progress(&to_i915(engine->dev)->gpu_error))
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  engine->name, ret);

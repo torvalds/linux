@@ -1082,7 +1082,7 @@ static bool any_waiters(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		if (engine->irq_refcount)
 			return true;
 
@@ -2460,7 +2460,7 @@ static void i915_error_wake_up(struct drm_i915_private *dev_priv,
 	 */
 
 	/* Wake up __wait_seqno, potentially holding dev->struct_mutex. */
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		wake_up_all(&engine->irq_queue);
 
 	/* Wake up intel_crtc_wait_for_pending_flips, holding crtc->mutex. */
@@ -2832,7 +2832,7 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 	int i;
 
 	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
-		for_each_ring(signaller, dev_priv, i) {
+		for_each_engine(signaller, dev_priv, i) {
 			if (engine == signaller)
 				continue;
 
@@ -2842,7 +2842,7 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *engine, u32 ipehr,
 	} else {
 		u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
 
-		for_each_ring(signaller, dev_priv, i) {
+		for_each_engine(signaller, dev_priv, i) {
 			if(engine == signaller)
 				continue;
 
@@ -2941,7 +2941,7 @@ static int semaphore_passed(struct intel_engine_cs *engine)
 		return -1;
 
 	/* Prevent pathological recursion due to driver bugs */
-	if (signaller->hangcheck.deadlock >= I915_NUM_RINGS)
+	if (signaller->hangcheck.deadlock >= I915_NUM_ENGINES)
 		return -1;
 
 	if (i915_seqno_passed(signaller->get_seqno(signaller, false), seqno))
@@ -2960,7 +2960,7 @@ static void semaphore_clear_deadlocks(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		engine->hangcheck.deadlock = 0;
 }
 
@@ -3075,7 +3075,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	struct intel_engine_cs *engine;
 	int i;
 	int busy_count = 0, rings_hung = 0;
-	bool stuck[I915_NUM_RINGS] = { 0 };
+	bool stuck[I915_NUM_ENGINES] = { 0 };
 #define BUSY 1
 #define KICK 5
 #define HUNG 20
@@ -3097,7 +3097,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		u64 acthd;
 		u32 seqno;
 		bool busy = true;
@@ -3114,7 +3114,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 				if (waitqueue_active(&engine->irq_queue)) {
 					/* Issue a wake-up to catch stuck h/w. */
 					if (!test_and_set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						if (!(dev_priv->gpu_error.test_irq_rings & intel_ring_flag(engine)))
+						if (!(dev_priv->gpu_error.test_irq_rings & intel_engine_flag(engine)))
 							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 								  engine->name);
 						else
@@ -3184,7 +3184,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 		busy_count += busy;
 	}
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		if (engine->hangcheck.score >= HANGCHECK_SCORE_RING_HUNG) {
 			DRM_INFO("%s on %s\n",
 				 stuck[i] ? "stuck" : "no progress",

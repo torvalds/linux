@@ -669,7 +669,7 @@ static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 				 struct list_head *vmas)
 {
-	const unsigned other_rings = ~intel_ring_flag(req->engine);
+	const unsigned other_rings = ~intel_engine_flag(req->engine);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -1057,7 +1057,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *engine)
 	if (!intel_ring_initialized(engine))
 		return;
 
-	ret = intel_ring_idle(engine);
+	ret = intel_engine_idle(engine);
 	if (ret && !i915_reset_in_progress(&to_i915(engine->dev)->gpu_error))
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  engine->name, ret);
@@ -1688,7 +1688,7 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	 * not idle). PML4 is allocated during ppgtt init so this is
 	 * not needed in 48-bit.*/
 	if (req->ctx->ppgtt &&
-	    (intel_ring_flag(req->engine) & req->ctx->ppgtt->pd_dirty_rings)) {
+	    (intel_engine_flag(req->engine) & req->ctx->ppgtt->pd_dirty_rings)) {
 		if (!USES_FULL_48BIT_PPGTT(req->i915) &&
 		    !intel_vgpu_active(req->i915->dev)) {
 			ret = intel_logical_ring_emit_pdps(req);
@@ -1696,7 +1696,7 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 				return ret;
 		}
 
-		req->ctx->ppgtt->pd_dirty_rings &= ~intel_ring_flag(req->engine);
+		req->ctx->ppgtt->pd_dirty_rings &= ~intel_engine_flag(req->engine);
 	}
 
 	ret = intel_logical_ring_begin(req, 4);
@@ -2511,7 +2511,7 @@ void intel_lr_context_free(struct intel_context *ctx)
 {
 	int i;
 
-	for (i = I915_NUM_RINGS; --i >= 0; ) {
+	for (i = I915_NUM_ENGINES; --i >= 0; ) {
 		struct intel_ringbuffer *ringbuf = ctx->engine[i].ringbuf;
 		struct drm_i915_gem_object *ctx_obj = ctx->engine[i].state;
 
@@ -2674,7 +2674,7 @@ void intel_lr_context_reset(struct drm_device *dev,
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		struct drm_i915_gem_object *ctx_obj =
 				ctx->engine[engine->id].state;
 		struct intel_ringbuffer *ringbuf =

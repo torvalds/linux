@@ -328,7 +328,7 @@ int intel_rcs_context_init_mocs(struct drm_i915_gem_request *req)
 		enum intel_ring_id ring_id;
 
 		/* Program the control registers */
-		for_each_ring(engine, dev_priv, ring_id) {
+		for_each_engine(engine, dev_priv, ring_id) {
 			ret = emit_mocs_control_table(req, &t, ring_id);
 			if (ret)
 				return ret;

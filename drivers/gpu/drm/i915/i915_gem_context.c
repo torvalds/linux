@@ -345,7 +345,7 @@ void i915_gem_context_reset(struct drm_device *dev)
 			intel_lr_context_reset(dev, ctx);
 	}
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
 
 		if (engine->last_context) {
@@ -426,7 +426,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 	}
 
-	for (i = I915_NUM_RINGS; --i >= 0;) {
+	for (i = I915_NUM_ENGINES; --i >= 0;) {
 		struct intel_engine_cs *engine = &dev_priv->engine[i];
 
 		if (engine->last_context) {
@@ -553,7 +553,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_ring(signaller, to_i915(engine->dev), i) {
+			for_each_engine(signaller, to_i915(engine->dev), i) {
 				if (signaller == engine)
 					continue;
 
@@ -582,7 +582,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 
 			intel_ring_emit(engine,
 					MI_LOAD_REGISTER_IMM(num_rings));
-			for_each_ring(signaller, to_i915(engine->dev), i) {
+			for_each_engine(signaller, to_i915(engine->dev), i) {
 				if (signaller == engine)
 					continue;
 
@@ -608,7 +608,7 @@ static inline bool should_skip_switch(struct intel_engine_cs *engine,
 		return false;
 
 	if (to->ppgtt && from == to &&
-	    !(intel_ring_flag(engine) & to->ppgtt->pd_dirty_rings))
+	    !(intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings))
 		return true;
 
 	return false;
@@ -697,7 +697,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 			goto unpin_out;
 
 		/* Doing a PD load always reloads the page dirs */
-		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(engine);
+		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
 	}
 
 	if (engine != &dev_priv->engine[RCS]) {
@@ -725,9 +725,9 @@ static int do_switch(struct drm_i915_gem_request *req)
 		 * space. This means we must enforce that a page table load
 		 * occur when this occurs. */
 	} else if (to->ppgtt &&
-		   (intel_ring_flag(engine) & to->ppgtt->pd_dirty_rings)) {
+		   (intel_engine_flag(engine) & to->ppgtt->pd_dirty_rings)) {
 		hw_flags |= MI_FORCE_RESTORE;
-		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(engine);
+		to->ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
 	}
 
 	/* We should never emit switch_mm more than once */

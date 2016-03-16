@@ -1243,11 +1243,11 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			s64 *timeout,
 			struct intel_rps_client *rps)
 {
-	struct intel_engine_cs *engine = i915_gem_request_get_ring(req);
+	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const bool irq_test_in_progress =
-		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_ring_flag(engine);
+		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_engine_flag(engine);
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
@@ -1512,7 +1512,7 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 				i915_gem_object_retire__write(obj);
 		}
 	} else {
-		for (i = 0; i < I915_NUM_RINGS; i++) {
+		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			if (obj->last_read_req[i] == NULL)
 				continue;
 
@@ -1552,7 +1552,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_request *requests[I915_NUM_RINGS];
+	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
 	unsigned reset_counter;
 	int ret, i, n = 0;
 
@@ -1577,7 +1577,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 
 		requests[n++] = i915_gem_request_reference(req);
 	} else {
-		for (i = 0; i < I915_NUM_RINGS; i++) {
+		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			struct drm_i915_gem_request *req;
 
 			req = obj->last_read_req[i];
@@ -2406,12 +2406,12 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	struct intel_engine_cs *engine;
 
-	engine = i915_gem_request_get_ring(req);
+	engine = i915_gem_request_get_engine(req);
 
 	/* Add a reference if we're newly entering the active list. */
 	if (obj->active == 0)
 		drm_gem_object_reference(&obj->base);
-	obj->active |= intel_ring_flag(engine);
+	obj->active |= intel_engine_flag(engine);
 
 	list_move_tail(&obj->ring_list[engine->id], &engine->active_list);
 	i915_gem_request_assign(&obj->last_read_req[engine->id], req);
@@ -2423,7 +2423,7 @@ static void
 i915_gem_object_retire__write(struct drm_i915_gem_object *obj)
 {
 	RQ_BUG_ON(obj->last_write_req == NULL);
-	RQ_BUG_ON(!(obj->active & intel_ring_flag(obj->last_write_req->engine)));
+	RQ_BUG_ON(!(obj->active & intel_engine_flag(obj->last_write_req->engine)));
 
 	i915_gem_request_assign(&obj->last_write_req, NULL);
 	intel_fb_obj_flush(obj, true, ORIGIN_CS);
@@ -2471,15 +2471,15 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 	int ret, i, j;
 
 	/* Carefully retire all requests without writing to the rings */
-	for_each_ring(engine, dev_priv, i) {
-		ret = intel_ring_idle(engine);
+	for_each_engine(engine, dev_priv, i) {
+		ret = intel_engine_idle(engine);
 		if (ret)
 			return ret;
 	}
 	i915_gem_retire_requests(dev);
 
 	/* Finally reset hw state */
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		intel_ring_init_seqno(engine, seqno);
 
 		for (j = 0; j < ARRAY_SIZE(engine->semaphore.sync_seqno); j++)
@@ -2801,7 +2801,7 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	return NULL;
 }
 
-static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
+static void i915_gem_reset_engine_status(struct drm_i915_private *dev_priv,
 				       struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
@@ -2820,7 +2820,7 @@ static void i915_gem_reset_ring_status(struct drm_i915_private *dev_priv,
 		i915_set_reset_status(dev_priv, request->ctx, false);
 }
 
-static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
+static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 					struct intel_engine_cs *engine)
 {
 	struct intel_ringbuffer *buffer;
@@ -2893,11 +2893,11 @@ void i915_gem_reset(struct drm_device *dev)
 	 * them for finding the guilty party. As the requests only borrow
 	 * their reference to the objects, the inspection must be done first.
 	 */
-	for_each_ring(engine, dev_priv, i)
-		i915_gem_reset_ring_status(dev_priv, engine);
+	for_each_engine(engine, dev_priv, i)
+		i915_gem_reset_engine_status(dev_priv, engine);
 
-	for_each_ring(engine, dev_priv, i)
-		i915_gem_reset_ring_cleanup(dev_priv, engine);
+	for_each_engine(engine, dev_priv, i)
+		i915_gem_reset_engine_cleanup(dev_priv, engine);
 
 	i915_gem_context_reset(dev);
 
@@ -2966,7 +2966,7 @@ i915_gem_retire_requests(struct drm_device *dev)
 	bool idle = true;
 	int i;
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		i915_gem_retire_requests_ring(engine);
 		idle &= list_empty(&engine->request_list);
 		if (i915.enable_execlists) {
@@ -3014,7 +3014,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 	struct intel_engine_cs *ring;
 	int i;
 
-	for_each_ring(ring, dev_priv, i)
+	for_each_engine(ring, dev_priv, i)
 		if (!list_empty(&ring->request_list))
 			return;
 
@@ -3028,7 +3028,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		struct intel_engine_cs *engine;
 		int i;
 
-		for_each_ring(engine, dev_priv, i)
+		for_each_engine(engine, dev_priv, i)
 			i915_gem_batch_pool_fini(&engine->batch_pool);
 
 		mutex_unlock(&dev->struct_mutex);
@@ -3048,7 +3048,7 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 	if (!obj->active)
 		return 0;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct drm_i915_gem_request *req;
 
 		req = obj->last_read_req[i];
@@ -3096,7 +3096,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_wait *args = data;
 	struct drm_i915_gem_object *obj;
-	struct drm_i915_gem_request *req[I915_NUM_RINGS];
+	struct drm_i915_gem_request *req[I915_NUM_ENGINES];
 	unsigned reset_counter;
 	int i, n = 0;
 	int ret;
@@ -3133,7 +3133,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	drm_gem_object_unreference(&obj->base);
 	reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		if (obj->last_read_req[i] == NULL)
 			continue;
 
@@ -3166,7 +3166,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	struct intel_engine_cs *from;
 	int ret;
 
-	from = i915_gem_request_get_ring(from_req);
+	from = i915_gem_request_get_engine(from_req);
 	if (to == from)
 		return 0;
 
@@ -3260,7 +3260,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_request **to_req)
 {
 	const bool readonly = obj->base.pending_write_domain == 0;
-	struct drm_i915_gem_request *req[I915_NUM_RINGS];
+	struct drm_i915_gem_request *req[I915_NUM_ENGINES];
 	int ret, i, n;
 
 	if (!obj->active)
@@ -3274,7 +3274,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		if (obj->last_write_req)
 			req[n++] = obj->last_write_req;
 	} else {
-		for (i = 0; i < I915_NUM_RINGS; i++)
+		for (i = 0; i < I915_NUM_ENGINES; i++)
 			if (obj->last_read_req[i])
 				req[n++] = obj->last_read_req[i];
 	}
@@ -3395,7 +3395,7 @@ int i915_gpu_idle(struct drm_device *dev)
 	int ret, i;
 
 	/* Flush everything onto the inactive list. */
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		if (!i915.enable_execlists) {
 			struct drm_i915_gem_request *req;
 
@@ -3412,7 +3412,7 @@ int i915_gpu_idle(struct drm_device *dev)
 			i915_add_request_no_flush(req);
 		}
 
-		ret = intel_ring_idle(engine);
+		ret = intel_engine_idle(engine);
 		if (ret)
 			return ret;
 	}
@@ -4359,7 +4359,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (obj->active) {
 		int i;
 
-		for (i = 0; i < I915_NUM_RINGS; i++) {
+		for (i = 0; i < I915_NUM_ENGINES; i++) {
 			struct drm_i915_gem_request *req;
 
 			req = obj->last_read_req[i];
@@ -4447,7 +4447,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	int i;
 
 	INIT_LIST_HEAD(&obj->global_list);
-	for (i = 0; i < I915_NUM_RINGS; i++)
+	for (i = 0; i < I915_NUM_ENGINES; i++)
 		INIT_LIST_HEAD(&obj->ring_list[i]);
 	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
@@ -4659,7 +4659,7 @@ i915_gem_stop_ringbuffers(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		dev_priv->gt.stop_ring(engine);
 }
 
@@ -4876,7 +4876,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	/* Need to do basic initialisation of all rings first: */
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		ret = engine->init_hw(engine);
 		if (ret)
 			goto out;
@@ -4901,7 +4901,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		goto out;
 
 	/* Now it is safe to go back round and do everything else: */
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		struct drm_i915_gem_request *req;
 
 		req = i915_gem_request_alloc(engine, NULL);
@@ -5009,7 +5009,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	struct intel_engine_cs *engine;
 	int i;
 
-	for_each_ring(engine, dev_priv, i)
+	for_each_engine(engine, dev_priv, i)
 		dev_priv->gt.cleanup_ring(engine);
 
     if (i915.enable_execlists)
@@ -5022,7 +5022,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 }
 
 static void
-init_ring_lists(struct intel_engine_cs *engine)
+init_engine_lists(struct intel_engine_cs *engine)
 {
 	INIT_LIST_HEAD(&engine->active_list);
 	INIT_LIST_HEAD(&engine->request_list);
@@ -5055,8 +5055,8 @@ i915_gem_load_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		init_ring_lists(&dev_priv->engine[i]);
+	for (i = 0; i < I915_NUM_ENGINES; i++)
+		init_engine_lists(&dev_priv->engine[i]);
 	for (i = 0; i < I915_MAX_NUM_FENCES; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,

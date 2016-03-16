@@ -459,7 +459,7 @@ struct drm_i915_error_state {
 		u32 cpu_ring_head;
 		u32 cpu_ring_tail;
 
-		u32 semaphore_seqno[I915_NUM_RINGS - 1];
+		u32 semaphore_seqno[I915_NUM_ENGINES - 1];
 
 		/* Register state */
 		u32 start;
@@ -479,7 +479,7 @@ struct drm_i915_error_state {
 		u32 fault_reg;
 		u64 faddr;
 		u32 rc_psmi; /* sleep state */
-		u32 semaphore_mboxes[I915_NUM_RINGS - 1];
+		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
 
 		struct drm_i915_error_object {
 			int page_count;
@@ -505,12 +505,12 @@ struct drm_i915_error_state {
 
 		pid_t pid;
 		char comm[TASK_COMM_LEN];
-	} ring[I915_NUM_RINGS];
+	} ring[I915_NUM_ENGINES];
 
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 rseqno[I915_NUM_RINGS], wseqno;
+		u32 rseqno[I915_NUM_ENGINES], wseqno;
 		u64 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
@@ -824,7 +824,7 @@ struct intel_context {
 		struct i915_vma *lrc_vma;
 		u64 lrc_desc;
 		uint32_t *lrc_reg_state;
-	} engine[I915_NUM_RINGS];
+	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
 };
@@ -1639,7 +1639,7 @@ struct i915_wa_reg {
 struct i915_workarounds {
 	struct i915_wa_reg reg[I915_MAX_WA_REGS];
 	u32 count;
-	u32 hw_whitelist_count[I915_NUM_RINGS];
+	u32 hw_whitelist_count[I915_NUM_ENGINES];
 };
 
 struct i915_virtual_gpu {
@@ -1704,7 +1704,7 @@ struct drm_i915_private {
 	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
-	struct intel_engine_cs engine[I915_NUM_RINGS];
+	struct intel_engine_cs engine[I915_NUM_ENGINES];
 	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
 
@@ -1967,8 +1967,8 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 }
 
 /* Iterate over initialised rings */
-#define for_each_ring(ring__, dev_priv__, i__) \
-	for ((i__) = 0; (i__) < I915_NUM_RINGS; (i__)++) \
+#define for_each_engine(ring__, dev_priv__, i__) \
+	for ((i__) = 0; (i__) < I915_NUM_ENGINES; (i__)++) \
 		for_each_if ((((ring__) = &(dev_priv__)->engine[(i__)]), intel_ring_initialized((ring__))))
 
 enum hdmi_force_audio {
@@ -2039,7 +2039,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	struct list_head ring_list[I915_NUM_RINGS];
+	struct list_head ring_list[I915_NUM_ENGINES];
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -2050,7 +2050,7 @@ struct drm_i915_gem_object {
 	 * rendering and so a non-zero seqno), and is not set if it i s on
 	 * inactive (ready to be unbound) list.
 	 */
-	unsigned int active:I915_NUM_RINGS;
+	unsigned int active:I915_NUM_ENGINES;
 
 	/**
 	 * This is set if the object has been written to since last bound
@@ -2129,7 +2129,7 @@ struct drm_i915_gem_object {
 	 * read request. This allows for the CPU to read from an active
 	 * buffer by only waiting for the write to complete.
 	 * */
-	struct drm_i915_gem_request *last_read_req[I915_NUM_RINGS];
+	struct drm_i915_gem_request *last_read_req[I915_NUM_ENGINES];
 	struct drm_i915_gem_request *last_write_req;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	struct drm_i915_gem_request *last_fenced_req;
@@ -2277,7 +2277,7 @@ i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
 }
 
 static inline struct intel_engine_cs *
-i915_gem_request_get_ring(struct drm_i915_gem_request *req)
+i915_gem_request_get_engine(struct drm_i915_gem_request *req)
 {
 	return req ? req->engine : NULL;
 }

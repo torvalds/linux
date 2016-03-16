@@ -942,7 +942,7 @@ static int
 i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned other_rings = ~intel_ring_flag(req->engine);
+	const unsigned other_rings = ~intel_engine_flag(req->engine);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -1099,7 +1099,7 @@ void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 				   struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = i915_gem_request_get_ring(req);
+	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {

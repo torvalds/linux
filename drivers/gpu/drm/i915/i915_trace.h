@@ -487,7 +487,7 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 
 	    TP_fast_assign(
 			   struct intel_engine_cs *engine =
-						i915_gem_request_get_ring(req);
+						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
@@ -534,7 +534,7 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 
 	    TP_fast_assign(
 			   struct intel_engine_cs *engine =
-						i915_gem_request_get_ring(req);
+						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
@@ -598,7 +598,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	     */
 	    TP_fast_assign(
 			   struct intel_engine_cs *engine =
-						i915_gem_request_get_ring(req);
+						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
 			   __entry->seqno = i915_gem_request_get_seqno(req);

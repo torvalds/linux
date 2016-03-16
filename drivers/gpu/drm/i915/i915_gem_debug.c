@@ -43,7 +43,7 @@ i915_verify_lists(struct drm_device *dev)
 	if (warned)
 		return 0;
 
-	for_each_ring(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, i) {
 		list_for_each_entry(obj, &engine->active_list,
 				    ring_list[engine->id]) {
 			if (obj->base.dev != dev ||

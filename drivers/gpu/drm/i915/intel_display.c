@@ -11242,7 +11242,7 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 						       false))
 		return true;
 	else
-		return engine != i915_gem_request_get_ring(obj->last_write_req);
+		return engine != i915_gem_request_get_engine(obj->last_write_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
@@ -11582,7 +11582,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		engine = &dev_priv->engine[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		engine = i915_gem_request_get_ring(obj->last_write_req);
+		engine = i915_gem_request_get_engine(obj->last_write_req);
 		if (engine == NULL || engine->id != RCS)
 			engine = &dev_priv->engine[BCS];
 	} else {
