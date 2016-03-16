@@ -1212,7 +1212,7 @@ int i915_driver_unload(struct drm_device *dev)
 		return ret;
 	}
 
-	intel_power_domains_fini(dev_priv);
+	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
 	i915_audio_component_cleanup(dev_priv);
 
@@ -1268,6 +1268,8 @@ int i915_driver_unload(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 	intel_fbc_cleanup_cfb(dev_priv);
 
+	intel_power_domains_fini(dev_priv);
+
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
 	i915_global_gtt_cleanup(dev);
@@ -1276,6 +1278,9 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_mmio_cleanup(dev);
 
 	pci_dev_put(dev_priv->bridge_dev);
+
+	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
+
 	i915_gem_load_cleanup(dev);
 	i915_workqueues_cleanup(dev_priv);
 	kfree(dev_priv);
