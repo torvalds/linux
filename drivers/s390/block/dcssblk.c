@@ -738,15 +738,15 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	dev_info = dcssblk_get_device_by_name(local_buf);
 	if (dev_info == NULL) {
 		up_write(&dcssblk_devices_sem);
-		pr_warning("Device %s cannot be removed because it is not a "
-			   "known device\n", local_buf);
+		pr_warn("Device %s cannot be removed because it is not a known device\n",
+			local_buf);
 		rc = -ENODEV;
 		goto out_buf;
 	}
 	if (atomic_read(&dev_info->use_count) != 0) {
 		up_write(&dcssblk_devices_sem);
-		pr_warning("Device %s cannot be removed while it is in "
-			   "use\n", local_buf);
+		pr_warn("Device %s cannot be removed while it is in use\n",
+			local_buf);
 		rc = -EBUSY;
 		goto out_buf;
 	}
@@ -850,9 +850,8 @@ dcssblk_make_request(struct request_queue *q, struct bio *bio)
 		case SEG_TYPE_SC:
 			/* cannot write to these segments */
 			if (bio_data_dir(bio) == WRITE) {
-				pr_warning("Writing to %s failed because it "
-					   "is a read-only device\n",
-					   dev_name(&dev_info->dev));
+				pr_warn("Writing to %s failed because it is a read-only device\n",
+					dev_name(&dev_info->dev));
 				goto fail;
 			}
 		}

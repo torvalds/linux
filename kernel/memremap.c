@@ -391,7 +391,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 	/*
 	 * 'memmap_start' is the virtual address for the first "struct
 	 * page" in this range of the vmemmap array.  In the case of
-	 * CONFIG_SPARSE_VMEMMAP a page_to_pfn conversion is simple
+	 * CONFIG_SPARSEMEM_VMEMMAP a page_to_pfn conversion is simple
 	 * pointer arithmetic, so we can perform this to_vmem_altmap()
 	 * conversion without concern for the initialization state of
 	 * the struct page fields.
@@ -400,7 +400,7 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 	struct dev_pagemap *pgmap;
 
 	/*
-	 * Uncoditionally retrieve a dev_pagemap associated with the
+	 * Unconditionally retrieve a dev_pagemap associated with the
 	 * given physical address, this is only for use in the
 	 * arch_{add|remove}_memory() for setting up and tearing down
 	 * the memmap.
