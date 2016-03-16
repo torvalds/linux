@@ -1522,3 +1522,36 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin)
 
 	return false;
 }
+
+/**
+ * intel_bios_is_port_edp - is the device in given port eDP
+ * @dev_priv:	i915 device instance
+ * @port:	port to check
+ *
+ * Return true if the device in %port is eDP.
+ */
+bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
+{
+	union child_device_config *p_child;
+	static const short port_mapping[] = {
+		[PORT_B] = DVO_PORT_DPB,
+		[PORT_C] = DVO_PORT_DPC,
+		[PORT_D] = DVO_PORT_DPD,
+		[PORT_E] = DVO_PORT_DPE,
+	};
+	int i;
+
+	if (!dev_priv->vbt.child_dev_num)
+		return false;
+
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		p_child = dev_priv->vbt.child_dev + i;
+
+		if (p_child->common.dvo_port == port_mapping[port] &&
+		    (p_child->common.device_type & DEVICE_TYPE_eDP_BITS) ==
+		    (DEVICE_TYPE_eDP & DEVICE_TYPE_eDP_BITS))
+			return true;
+	}
+
+	return false;
+}
