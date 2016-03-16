@@ -218,7 +218,16 @@ system_call:			/* label this so stack traces look sane */
 	bne	3f
 #endif
 2:	addi    r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_BOOK3S
+	mtmsrd	r10,1		/* Restore RI */
+#endif
 	bl	restore_math
+#ifdef CONFIG_PPC_BOOK3S
+	ld	r10,PACAKMSR(r13)
+	li	r9,MSR_RI
+	andc	r11,r10,r9 /* Re-clear RI */
+	mtmsrd	r11,1
+#endif
 	ld	r8,_MSR(r1)
 	ld	r3,RESULT(r1)
 	li	r11,-MAX_ERRNO
