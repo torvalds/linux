@@ -453,6 +453,7 @@ cleanup_irq:
 	intel_teardown_gmbus(dev);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
+	intel_power_domains_fini(dev_priv);
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
@@ -1306,7 +1307,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = i915_load_modeset_init(dev);
 	if (ret < 0) {
 		DRM_ERROR("failed to init modeset\n");
-		goto out_power_well;
+		goto out_cleanup_vblank;
 	}
 
 	i915_driver_register(dev_priv);
@@ -1317,8 +1318,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
-out_power_well:
-	intel_power_domains_fini(dev_priv);
+out_cleanup_vblank:
 	drm_vblank_cleanup(dev);
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
