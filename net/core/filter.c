@@ -1682,14 +1682,7 @@ static const struct bpf_func_proto bpf_get_cgroup_classid_proto = {
 
 static u64 bpf_get_route_realm(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
-#ifdef CONFIG_IP_ROUTE_CLASSID
-	const struct dst_entry *dst;
-
-	dst = skb_dst((struct sk_buff *) (unsigned long) r1);
-	if (dst)
-		return dst->tclassid;
-#endif
-	return 0;
+	return dst_tclassid((struct sk_buff *) (unsigned long) r1);
 }
 
 static const struct bpf_func_proto bpf_get_route_realm_proto = {
