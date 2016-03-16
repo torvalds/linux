@@ -1493,7 +1493,7 @@ void drm_atomic_helper_swap_state(struct drm_device *dev,
 {
 	int i;
 
-	for (i = 0; i < dev->mode_config.num_connector; i++) {
+	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i];
 
 		if (!connector)

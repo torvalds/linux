@@ -1880,9 +1880,9 @@ static int dwceqos_open(struct net_device *ndev)
 	}
 	netdev_reset_queue(ndev);
 
+	dwceqos_init_hw(lp);
 	napi_enable(&lp->napi);
 	phy_start(lp->phy_dev);
-	dwceqos_init_hw(lp);
 
 	netif_start_queue(ndev);
 	tasklet_enable(&lp->tx_bdreclaim_tasklet);

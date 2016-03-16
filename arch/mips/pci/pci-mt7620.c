@@ -297,12 +297,12 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		return PTR_ERR(rstpcie0);
 
 	bridge_base = devm_ioremap_resource(&pdev->dev, bridge_res);
-	if (!bridge_base)
-		return -ENOMEM;
+	if (IS_ERR(bridge_base))
+		return PTR_ERR(bridge_base);
 
 	pcie_base = devm_ioremap_resource(&pdev->dev, pcie_res);
-	if (!pcie_base)
-		return -ENOMEM;
+	if (IS_ERR(pcie_base))
+		return PTR_ERR(pcie_base);
 
 	iomem_resource.start = 0;
 	iomem_resource.end = ~0;

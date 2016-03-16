@@ -445,7 +445,7 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 							pdata->slave_id_rx);
 	} else {
 		host->chan_tx = dma_request_slave_channel(dev, "tx");
-		host->chan_tx = dma_request_slave_channel(dev, "rx");
+		host->chan_rx = dma_request_slave_channel(dev, "rx");
 	}
 	dev_dbg(dev, "%s: got channel TX %p RX %p\n", __func__, host->chan_tx,
 		host->chan_rx);

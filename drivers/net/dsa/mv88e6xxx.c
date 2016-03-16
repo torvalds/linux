@@ -1555,7 +1555,7 @@ static int _mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 
 	if (vlan.vid != vid || !vlan.valid ||
 	    vlan.data[port] == GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER)
-		return -ENOENT;
+		return -EOPNOTSUPP;
 
 	vlan.data[port] = GLOBAL_VTU_DATA_MEMBER_TAG_NON_MEMBER;
 
@@ -1582,6 +1582,7 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			    const struct switchdev_obj_port_vlan *vlan)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	const u16 defpvid = 4000 + ds->index * DSA_MAX_PORTS + port;
 	u16 pvid, vid;
 	int err = 0;
 
@@ -1597,7 +1598,8 @@ int mv88e6xxx_port_vlan_del(struct dsa_switch *ds, int port,
 			goto unlock;
 
 		if (vid == pvid) {
-			err = _mv88e6xxx_port_pvid_set(ds, port, 0);
+			/* restore reserved VLAN ID */
+			err = _mv88e6xxx_port_pvid_set(ds, port, defpvid);
 			if (err)
 				goto unlock;
 		}
@@ -1889,26 +1891,20 @@ unlock:
 
 int mv88e6xxx_port_bridge_join(struct dsa_switch *ds, int port, u32 members)
 {
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
-	int err;
-
-	/* The port joined a bridge, so leave its reserved VLAN */
-	mutex_lock(&ps->smi_mutex);
-	err = _mv88e6xxx_port_vlan_del(ds, port, pvid);
-	if (!err)
-		err = _mv88e6xxx_port_pvid_set(ds, port, 0);
-	mutex_unlock(&ps->smi_mutex);
-	return err;
+	return 0;
 }
 
 int mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port, u32 members)
+{
+	return 0;
+}
+
+static int mv88e6xxx_setup_port_default_vlan(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	const u16 pvid = 4000 + ds->index * DSA_MAX_PORTS + port;
 	int err;
 
-	/* The port left the bridge, so join its reserved VLAN */
 	mutex_lock(&ps->smi_mutex);
 	err = _mv88e6xxx_port_vlan_add(ds, port, pvid, true);
 	if (!err)
@@ -2192,8 +2188,7 @@ int mv88e6xxx_setup_ports(struct dsa_switch *ds)
 		if (dsa_is_cpu_port(ds, i) || dsa_is_dsa_port(ds, i))
 			continue;
 
-		/* setup the unbridged state */
-		ret = mv88e6xxx_port_bridge_leave(ds, i, 0);
+		ret = mv88e6xxx_setup_port_default_vlan(ds, i);
 		if (ret < 0)
 			return ret;
 	}

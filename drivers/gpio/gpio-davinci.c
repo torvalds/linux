@@ -195,7 +195,7 @@ static int davinci_gpio_of_xlate(struct gpio_chip *gc,
 static int davinci_gpio_probe(struct platform_device *pdev)
 {
 	int i, base;
-	unsigned ngpio;
+	unsigned ngpio, nbank;
 	struct davinci_gpio_controller *chips;
 	struct davinci_gpio_platform_data *pdata;
 	struct davinci_gpio_regs __iomem *regs;
@@ -224,8 +224,9 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	if (WARN_ON(ARCH_NR_GPIOS < ngpio))
 		ngpio = ARCH_NR_GPIOS;
 
+	nbank = DIV_ROUND_UP(ngpio, 32);
 	chips = devm_kzalloc(dev,
-			     ngpio * sizeof(struct davinci_gpio_controller),
+			     nbank * sizeof(struct davinci_gpio_controller),
 			     GFP_KERNEL);
 	if (!chips)
 		return -ENOMEM;
@@ -511,7 +512,7 @@ static int davinci_gpio_irq_setup(struct platform_device *pdev)
 			return irq;
 		}
 
-		irq_domain = irq_domain_add_legacy(NULL, ngpio, irq, 0,
+		irq_domain = irq_domain_add_legacy(dev->of_node, ngpio, irq, 0,
 							&davinci_gpio_irq_ops,
 							chips);
 		if (!irq_domain) {

@@ -401,8 +401,8 @@ validate_tile_binning_config(VALIDATE_ARGS)
 	tile_bo = vc4_bo_create(dev, exec->tile_alloc_offset + tile_alloc_size,
 				true);
 	exec->tile_bo = &tile_bo->base;
-	if (!exec->tile_bo)
-		return -ENOMEM;
+	if (IS_ERR(exec->tile_bo))
+		return PTR_ERR(exec->tile_bo);
 	list_add_tail(&tile_bo->unref_head, &exec->unref_list);
 
 	/* tile alloc address. */

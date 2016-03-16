@@ -228,6 +228,37 @@
 	};
 };
 
+&devbus_bootcs {
+	status = "okay";
+	devbus,keep-config;
+
+	flash@0 {
+		compatible = "jedec-flash";
+		reg = <0 0x40000>;
+		bank-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			header@0 {
+				reg = <0 0x30000>;
+				read-only;
+			};
+
+			uboot@30000 {
+				reg = <0x30000 0xF000>;
+				read-only;
+			};
+
+			uboot_env@3F000 {
+				reg = <0x3F000 0x1000>;
+			};
+		};
+	};
+};
+
 &mdio {
 	status = "okay";
 

@@ -247,7 +247,7 @@ static struct clk_onecell_data dove_divider_data = {
 
 void __init dove_divider_clk_init(struct device_node *np)
 {
-	void *base;
+	void __iomem *base;
 
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base))

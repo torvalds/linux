@@ -100,6 +100,9 @@ static ssize_t ci_port_test_write(struct file *file, const char __user *ubuf,
 	if (sscanf(buf, "%u", &mode) != 1)
 		return -EINVAL;
 
+	if (mode > 255)
+		return -EBADRQC;
+
 	pm_runtime_get_sync(ci->dev);
 	spin_lock_irqsave(&ci->lock, flags);
 	ret = hw_port_test_set(ci, mode);

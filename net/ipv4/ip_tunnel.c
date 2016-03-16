@@ -943,16 +943,30 @@ done:
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_ioctl);
 
-int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
+int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	int t_hlen = tunnel->hlen + sizeof(struct iphdr);
+	int max_mtu = 0xFFF8 - dev->hard_header_len - t_hlen;
 
-	if (new_mtu < 68 ||
-	    new_mtu > 0xFFF8 - dev->hard_header_len - t_hlen)
+	if (new_mtu < 68)
 		return -EINVAL;
+
+	if (new_mtu > max_mtu) {
+		if (strict)
+			return -EINVAL;
+
+		new_mtu = max_mtu;
+	}
+
 	dev->mtu = new_mtu;
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__ip_tunnel_change_mtu);
+
+int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
+{
+	return __ip_tunnel_change_mtu(dev, new_mtu, true);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_change_mtu);
 

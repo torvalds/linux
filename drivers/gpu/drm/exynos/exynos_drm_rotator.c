@@ -754,7 +754,7 @@ static int rotator_probe(struct platform_device *pdev)
 		goto err_ippdrv_register;
 	}
 
-	DRM_DEBUG_KMS("ippdrv[0x%x]\n", (int)ippdrv);
+	DRM_DEBUG_KMS("ippdrv[%p]\n", ippdrv);
 
 	platform_set_drvdata(pdev, rot);
 

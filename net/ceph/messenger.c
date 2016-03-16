@@ -1197,6 +1197,13 @@ static bool ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor,
 	return new_piece;
 }
 
+static size_t sizeof_footer(struct ceph_connection *con)
+{
+	return (con->peer_features & CEPH_FEATURE_MSG_AUTH) ?
+	    sizeof(struct ceph_msg_footer) :
+	    sizeof(struct ceph_msg_footer_old);
+}
+
 static void prepare_message_data(struct ceph_msg *msg, u32 data_len)
 {
 	BUG_ON(!msg);
@@ -2335,9 +2342,9 @@ static int read_partial_message(struct ceph_connection *con)
 			ceph_pr_addr(&con->peer_addr.in_addr),
 			seq, con->in_seq + 1);
 		con->in_base_pos = -front_len - middle_len - data_len -
-			sizeof(m->footer);
+			sizeof_footer(con);
 		con->in_tag = CEPH_MSGR_TAG_READY;
-		return 0;
+		return 1;
 	} else if ((s64)seq - (s64)con->in_seq > 1) {
 		pr_err("read_partial_message bad seq %lld expected %lld\n",
 		       seq, con->in_seq + 1);
@@ -2360,10 +2367,10 @@ static int read_partial_message(struct ceph_connection *con)
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
 			con->in_base_pos = -front_len - middle_len - data_len -
-				sizeof(m->footer);
+				sizeof_footer(con);
 			con->in_tag = CEPH_MSGR_TAG_READY;
 			con->in_seq++;
-			return 0;
+			return 1;
 		}
 
 		BUG_ON(!con->in_msg);

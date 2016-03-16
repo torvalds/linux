@@ -1512,6 +1512,7 @@ static void ip6gre_tap_setup(struct net_device *dev)
 	dev->destructor = ip6gre_dev_free;
 
 	dev->features |= NETIF_F_NETNS_LOCAL;
+	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 }
 
 static int ip6gre_newlink(struct net *src_net, struct net_device *dev,

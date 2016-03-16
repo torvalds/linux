@@ -66,14 +66,18 @@ struct nd_cmd_ars_cap {
 	__u64 length;
 	__u32 status;
 	__u32 max_ars_out;
+	__u32 clear_err_unit;
+	__u32 reserved;
 } __packed;
 
 struct nd_cmd_ars_start {
 	__u64 address;
 	__u64 length;
 	__u16 type;
-	__u8 reserved[6];
+	__u8 flags;
+	__u8 reserved[5];
 	__u32 status;
+	__u32 scrub_time;
 } __packed;
 
 struct nd_cmd_ars_status {
@@ -81,11 +85,14 @@ struct nd_cmd_ars_status {
 	__u32 out_length;
 	__u64 address;
 	__u64 length;
+	__u64 restart_address;
+	__u64 restart_length;
 	__u16 type;
+	__u16 flags;
 	__u32 num_records;
 	struct nd_ars_record {
 		__u32 handle;
-		__u32 flags;
+		__u32 reserved;
 		__u64 err_address;
 		__u64 length;
 	} __packed records[0];

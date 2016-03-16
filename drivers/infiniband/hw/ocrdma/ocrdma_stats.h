@@ -65,6 +65,8 @@ enum OCRDMA_STATS_TYPE {
 
 void ocrdma_rem_debugfs(void);
 void ocrdma_init_debugfs(void);
+bool ocrdma_alloc_stats_resources(struct ocrdma_dev *dev);
+void ocrdma_release_stats_resources(struct ocrdma_dev *dev);
 void ocrdma_rem_port_stats(struct ocrdma_dev *dev);
 void ocrdma_add_port_stats(struct ocrdma_dev *dev);
 int ocrdma_pma_counters(struct ocrdma_dev *dev,

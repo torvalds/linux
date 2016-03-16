@@ -317,6 +317,7 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 	struct inode_switch_wbs_context *isw =
 		container_of(work, struct inode_switch_wbs_context, work);
 	struct inode *inode = isw->inode;
+	struct super_block *sb = inode->i_sb;
 	struct address_space *mapping = inode->i_mapping;
 	struct bdi_writeback *old_wb = inode->i_wb;
 	struct bdi_writeback *new_wb = isw->new_wb;
@@ -423,6 +424,7 @@ skip_switch:
 	wb_put(new_wb);
 
 	iput(inode);
+	deactivate_super(sb);
 	kfree(isw);
 }
 
@@ -469,11 +471,14 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	/* while holding I_WB_SWITCH, no one else can update the association */
 	spin_lock(&inode->i_lock);
+
 	if (inode->i_state & (I_WB_SWITCH | I_FREEING) ||
-	    inode_to_wb(inode) == isw->new_wb) {
-		spin_unlock(&inode->i_lock);
-		goto out_free;
-	}
+	    inode_to_wb(inode) == isw->new_wb)
+		goto out_unlock;
+
+	if (!atomic_inc_not_zero(&inode->i_sb->s_active))
+		goto out_unlock;
+
 	inode->i_state |= I_WB_SWITCH;
 	spin_unlock(&inode->i_lock);
 
@@ -489,6 +494,8 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
 	return;
 
+out_unlock:
+	spin_unlock(&inode->i_lock);
 out_free:
 	if (isw->new_wb)
 		wb_put(isw->new_wb);

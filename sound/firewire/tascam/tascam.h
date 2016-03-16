@@ -39,7 +39,6 @@ struct snd_tscm_spec {
 	unsigned int pcm_playback_analog_channels;
 	unsigned int midi_capture_ports;
 	unsigned int midi_playback_ports;
-	bool is_controller;
 };
 
 #define TSCM_MIDI_IN_PORT_MAX	4
@@ -72,9 +71,6 @@ struct snd_tscm {
 	struct snd_fw_async_midi_port out_ports[TSCM_MIDI_OUT_PORT_MAX];
 	u8 running_status[TSCM_MIDI_OUT_PORT_MAX];
 	bool on_sysex[TSCM_MIDI_OUT_PORT_MAX];
-
-	/* For control messages. */
-	struct snd_firewire_tascam_status *status;
 };
 
 #define TSCM_ADDR_BASE			0xffff00000000ull

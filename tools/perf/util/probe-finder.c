@@ -686,8 +686,9 @@ static int call_probe_finder(Dwarf_Die *sc_die, struct probe_finder *pf)
 		pf->fb_ops = NULL;
 #if _ELFUTILS_PREREQ(0, 142)
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
-		   pf->cfi != NULL) {
-		if (dwarf_cfi_addrframe(pf->cfi, pf->addr, &frame) != 0 ||
+		   (pf->cfi_eh != NULL || pf->cfi_dbg != NULL)) {
+		if ((dwarf_cfi_addrframe(pf->cfi_eh, pf->addr, &frame) != 0 &&
+		     (dwarf_cfi_addrframe(pf->cfi_dbg, pf->addr, &frame) != 0)) ||
 		    dwarf_frame_cfa(frame, &pf->fb_ops, &nops) != 0) {
 			pr_warning("Failed to get call frame on 0x%jx\n",
 				   (uintmax_t)pf->addr);
@@ -1015,8 +1016,7 @@ static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 	return DWARF_CB_OK;
 }
 
-/* Find probe points from debuginfo */
-static int debuginfo__find_probes(struct debuginfo *dbg,
+static int debuginfo__find_probe_location(struct debuginfo *dbg,
 				  struct probe_finder *pf)
 {
 	struct perf_probe_point *pp = &pf->pev->point;
@@ -1024,27 +1024,6 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 	size_t cuhl;
 	Dwarf_Die *diep;
 	int ret = 0;
-
-#if _ELFUTILS_PREREQ(0, 142)
-	Elf *elf;
-	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-
-	/* Get the call frame information from this dwarf */
-	elf = dwarf_getelf(dbg->dbg);
-	if (elf == NULL)
-		return -EINVAL;
-
-	if (gelf_getehdr(elf, &ehdr) == NULL)
-		return -EINVAL;
-
-	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
-	    shdr.sh_type == SHT_PROGBITS) {
-		pf->cfi = dwarf_getcfi_elf(elf);
-	} else {
-		pf->cfi = dwarf_getcfi(dbg->dbg);
-	}
-#endif
 
 	off = 0;
 	pf->lcache = intlist__new(NULL);
@@ -1105,6 +1084,39 @@ found:
 	intlist__delete(pf->lcache);
 	pf->lcache = NULL;
 
+	return ret;
+}
+
+/* Find probe points from debuginfo */
+static int debuginfo__find_probes(struct debuginfo *dbg,
+				  struct probe_finder *pf)
+{
+	int ret = 0;
+
+#if _ELFUTILS_PREREQ(0, 142)
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+
+	if (pf->cfi_eh || pf->cfi_dbg)
+		return debuginfo__find_probe_location(dbg, pf);
+
+	/* Get the call frame information from this dwarf */
+	elf = dwarf_getelf(dbg->dbg);
+	if (elf == NULL)
+		return -EINVAL;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		return -EINVAL;
+
+	if (elf_section_by_name(elf, &ehdr, &shdr, ".eh_frame", NULL) &&
+	    shdr.sh_type == SHT_PROGBITS)
+		pf->cfi_eh = dwarf_getcfi_elf(elf);
+
+	pf->cfi_dbg = dwarf_getcfi(dbg->dbg);
+#endif
+
+	ret = debuginfo__find_probe_location(dbg, pf);
 	return ret;
 }
 

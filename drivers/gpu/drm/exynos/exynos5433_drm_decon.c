@@ -93,7 +93,7 @@ static int decon_enable_vblank(struct exynos_drm_crtc *crtc)
 	if (test_bit(BIT_SUSPENDED, &ctx->flags))
 		return -EPERM;
 
-	if (test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
+	if (!test_and_set_bit(BIT_IRQS_ENABLED, &ctx->flags)) {
 		val = VIDINTCON0_INTEN;
 		if (ctx->out_type == IFTYPE_I80)
 			val |= VIDINTCON0_FRAMEDONE;
@@ -402,8 +402,6 @@ static void decon_enable(struct exynos_drm_crtc *crtc)
 		decon_enable_vblank(ctx->crtc);
 
 	decon_commit(ctx->crtc);
-
-	set_bit(BIT_SUSPENDED, &ctx->flags);
 }
 
 static void decon_disable(struct exynos_drm_crtc *crtc)
@@ -582,9 +580,9 @@ out:
 static int exynos5433_decon_suspend(struct device *dev)
 {
 	struct decon_context *ctx = dev_get_drvdata(dev);
-	int i;
+	int i = ARRAY_SIZE(decon_clks_name);
 
-	for (i = 0; i < ARRAY_SIZE(decon_clks_name); i++)
+	while (--i >= 0)
 		clk_disable_unprepare(ctx->clks[i]);
 
 	return 0;

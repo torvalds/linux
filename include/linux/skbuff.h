@@ -299,6 +299,7 @@ struct sk_buff;
 #else
 #define MAX_SKB_FRAGS (65536/PAGE_SIZE + 1)
 #endif
+extern int sysctl_max_skb_frags;
 
 typedef struct skb_frag_struct skb_frag_t;
 

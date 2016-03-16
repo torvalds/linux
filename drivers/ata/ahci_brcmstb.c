@@ -317,6 +317,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 	hpriv->plat_data = priv;
+	hpriv->flags = AHCI_HFLAG_WAKE_BEFORE_STOP;
 
 	brcm_sata_alpm_init(hpriv);
 

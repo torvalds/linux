@@ -135,6 +135,10 @@ enum {
 	/* Memory types */
 	NVM_ID_FMTYPE_SLC	= 0,
 	NVM_ID_FMTYPE_MLC	= 1,
+
+	/* Device capabilities */
+	NVM_ID_DCAP_BBLKMGMT	= 0x1,
+	NVM_UD_DCAP_ECC		= 0x2,
 };
 
 struct nvm_id_lp_mlc {

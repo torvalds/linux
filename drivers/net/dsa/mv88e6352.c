@@ -25,6 +25,7 @@
 static const struct mv88e6xxx_switch_id mv88e6352_table[] = {
 	{ PORT_SWITCH_ID_6172, "Marvell 88E6172" },
 	{ PORT_SWITCH_ID_6176, "Marvell 88E6176" },
+	{ PORT_SWITCH_ID_6240, "Marvell 88E6240" },
 	{ PORT_SWITCH_ID_6320, "Marvell 88E6320" },
 	{ PORT_SWITCH_ID_6320_A1, "Marvell 88E6320 (A1)" },
 	{ PORT_SWITCH_ID_6320_A2, "Marvell 88e6320 (A2)" },

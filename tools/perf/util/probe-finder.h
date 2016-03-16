@@ -76,7 +76,10 @@ struct probe_finder {
 
 	/* For variable searching */
 #if _ELFUTILS_PREREQ(0, 142)
-	Dwarf_CFI		*cfi;		/* Call Frame Information */
+	/* Call Frame Information from .eh_frame */
+	Dwarf_CFI		*cfi_eh;
+	/* Call Frame Information from .debug_frame */
+	Dwarf_CFI		*cfi_dbg;
 #endif
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
 	struct perf_probe_arg	*pvar;		/* Current target variable */

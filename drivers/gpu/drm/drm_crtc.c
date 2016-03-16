@@ -918,12 +918,19 @@ int drm_connector_init(struct drm_device *dev,
 	connector->base.properties = &connector->properties;
 	connector->dev = dev;
 	connector->funcs = funcs;
+
+	connector->connector_id = ida_simple_get(&config->connector_ida, 0, 0, GFP_KERNEL);
+	if (connector->connector_id < 0) {
+		ret = connector->connector_id;
+		goto out_put;
+	}
+
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
 		ida_simple_get(connector_ida, 1, 0, GFP_KERNEL);
 	if (connector->connector_type_id < 0) {
 		ret = connector->connector_type_id;
-		goto out_put;
+		goto out_put_id;
 	}
 	connector->name =
 		kasprintf(GFP_KERNEL, "%s-%d",
@@ -931,7 +938,7 @@ int drm_connector_init(struct drm_device *dev,
 			  connector->connector_type_id);
 	if (!connector->name) {
 		ret = -ENOMEM;
-		goto out_put;
+		goto out_put_type_id;
 	}
 
 	INIT_LIST_HEAD(&connector->probed_modes);
@@ -959,7 +966,12 @@ int drm_connector_init(struct drm_device *dev,
 	}
 
 	connector->debugfs_entry = NULL;
-
+out_put_type_id:
+	if (ret)
+		ida_remove(connector_ida, connector->connector_type_id);
+out_put_id:
+	if (ret)
+		ida_remove(&config->connector_ida, connector->connector_id);
 out_put:
 	if (ret)
 		drm_mode_object_put(dev, &connector->base);
@@ -996,6 +1008,9 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	ida_remove(&drm_connector_enum_list[connector->connector_type].ida,
 		   connector->connector_type_id);
 
+	ida_remove(&dev->mode_config.connector_ida,
+		   connector->connector_id);
+
 	kfree(connector->display_info.bus_formats);
 	drm_mode_object_put(dev, &connector->base);
 	kfree(connector->name);
@@ -1011,32 +1026,6 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	memset(connector, 0, sizeof(*connector));
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
-
-/**
- * drm_connector_index - find the index of a registered connector
- * @connector: connector to find index for
- *
- * Given a registered connector, return the index of that connector within a DRM
- * device's list of connectors.
- */
-unsigned int drm_connector_index(struct drm_connector *connector)
-{
-	unsigned int index = 0;
-	struct drm_connector *tmp;
-	struct drm_mode_config *config = &connector->dev->mode_config;
-
-	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
-
-	drm_for_each_connector(tmp, connector->dev) {
-		if (tmp == connector)
-			return index;
-
-		index++;
-	}
-
-	BUG();
-}
-EXPORT_SYMBOL(drm_connector_index);
 
 /**
  * drm_connector_register - register a connector
@@ -5789,6 +5778,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.plane_list);
 	idr_init(&dev->mode_config.crtc_idr);
 	idr_init(&dev->mode_config.tile_idr);
+	ida_init(&dev->mode_config.connector_ida);
 
 	drm_modeset_lock_all(dev);
 	drm_mode_create_standard_properties(dev);
@@ -5869,6 +5859,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		crtc->funcs->destroy(crtc);
 	}
 
+	ida_destroy(&dev->mode_config.connector_ida);
 	idr_destroy(&dev->mode_config.tile_idr);
 	idr_destroy(&dev->mode_config.crtc_idr);
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);

@@ -67,7 +67,7 @@ static const char *cclk_lp_parents[] = { "clk_m", "pll_c", "clk_32k", "pll_m",
 					 "pll_p", "pll_p_out4", "unused",
 					 "unused", "pll_x", "pll_x_out0" };
 
-const struct tegra_super_gen_info tegra_super_gen_info_gen4 = {
+static const struct tegra_super_gen_info tegra_super_gen_info_gen4 = {
 	.gen = gen4,
 	.sclk_parents = sclk_parents,
 	.cclk_g_parents = cclk_g_parents,
@@ -93,7 +93,7 @@ static const char *cclk_lp_parents_gen5[] = { "clk_m", "unused", "clk_32k", "unu
 					"unused", "unused", "unused", "unused",
 					"dfllCPU_out" };
 
-const struct tegra_super_gen_info tegra_super_gen_info_gen5 = {
+static const struct tegra_super_gen_info tegra_super_gen_info_gen5 = {
 	.gen = gen5,
 	.sclk_parents = sclk_parents_gen5,
 	.cclk_g_parents = cclk_g_parents_gen5,
@@ -171,7 +171,7 @@ static void __init tegra_sclk_init(void __iomem *clk_base,
 	*dt_clk = clk;
 }
 
-void __init tegra_super_clk_init(void __iomem *clk_base,
+static void __init tegra_super_clk_init(void __iomem *clk_base,
 				void __iomem *pmc_base,
 				struct tegra_clk *tegra_clks,
 				struct tegra_clk_pll_params *params,

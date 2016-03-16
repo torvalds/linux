@@ -173,6 +173,8 @@
 
 		sound0_master: simple-audio-card,codec {
 			sound-dai = <&tlv320aic3104>;
+			assigned-clocks = <&clkoutmux2_clk_mux>;
+			assigned-clock-parents = <&sys_clk2_dclk_div>;
 			clocks = <&clkout2_clk>;
 		};
 	};
@@ -796,6 +798,8 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&mcasp3_pins_default>;
 	pinctrl-1 = <&mcasp3_pins_sleep>;
+	assigned-clocks = <&mcasp3_ahclkx_mux>;
+	assigned-clock-parents = <&sys_clkin2>;
 	status = "okay";
 
 	op-mode = <0>;	/* MCASP_IIS_MODE */

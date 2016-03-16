@@ -4425,6 +4425,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
+	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
 	.get_pages = i915_gem_object_get_pages_gtt,
 	.put_pages = i915_gem_object_put_pages_gtt,
 };
@@ -5261,7 +5262,7 @@ i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj, int n)
 	struct page *page;
 
 	/* Only default objects have per-page dirty tracking */
-	if (WARN_ON(obj->ops != &i915_gem_object_ops))
+	if (WARN_ON((obj->ops->flags & I915_GEM_OBJECT_HAS_STRUCT_PAGE) == 0))
 		return NULL;
 
 	page = i915_gem_object_get_page(obj, n);

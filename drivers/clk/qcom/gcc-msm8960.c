@@ -3468,7 +3468,6 @@ static const struct regmap_config gcc_msm8960_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x3660,
 	.fast_io	= true,
-	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct regmap_config gcc_apq8064_regmap_config = {
@@ -3477,7 +3476,6 @@ static const struct regmap_config gcc_apq8064_regmap_config = {
 	.val_bits	= 32,
 	.max_register	= 0x3880,
 	.fast_io	= true,
-	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
 static const struct qcom_cc_desc gcc_msm8960_desc = {

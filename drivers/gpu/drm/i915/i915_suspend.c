@@ -49,7 +49,7 @@ static void i915_save_display(struct drm_device *dev)
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PCH_PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PCH_PP_OFF_DELAYS);
 		dev_priv->regfile.savePP_DIVISOR = I915_READ(PCH_PP_DIVISOR);
-	} else if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+	} else if (INTEL_INFO(dev)->gen <= 4) {
 		dev_priv->regfile.savePP_CONTROL = I915_READ(PP_CONTROL);
 		dev_priv->regfile.savePP_ON_DELAYS = I915_READ(PP_ON_DELAYS);
 		dev_priv->regfile.savePP_OFF_DELAYS = I915_READ(PP_OFF_DELAYS);
@@ -84,7 +84,7 @@ static void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(PCH_PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PCH_PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);
 		I915_WRITE(PCH_PP_CONTROL, dev_priv->regfile.savePP_CONTROL);
-	} else if (!IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+	} else if (INTEL_INFO(dev)->gen <= 4) {
 		I915_WRITE(PP_ON_DELAYS, dev_priv->regfile.savePP_ON_DELAYS);
 		I915_WRITE(PP_OFF_DELAYS, dev_priv->regfile.savePP_OFF_DELAYS);
 		I915_WRITE(PP_DIVISOR, dev_priv->regfile.savePP_DIVISOR);

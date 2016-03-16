@@ -42,9 +42,57 @@ struct task_struct *_current_task[NR_CPUS];	/* For stack switching */
 
 struct cpuinfo_arc cpuinfo_arc700[NR_CPUS];
 
+static void read_decode_ccm_bcr(struct cpuinfo_arc *cpu)
+{
+	if (is_isa_arcompact()) {
+		struct bcr_iccm_arcompact iccm;
+		struct bcr_dccm_arcompact dccm;
+
+		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+		if (iccm.ver) {
+			cpu->iccm.sz = 4096 << iccm.sz;	/* 8K to 512K */
+			cpu->iccm.base_addr = iccm.base << 16;
+		}
+
+		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+		if (dccm.ver) {
+			unsigned long base;
+			cpu->dccm.sz = 2048 << dccm.sz;	/* 2K to 256K */
+
+			base = read_aux_reg(ARC_REG_DCCM_BASE_BUILD);
+			cpu->dccm.base_addr = base & ~0xF;
+		}
+	} else {
+		struct bcr_iccm_arcv2 iccm;
+		struct bcr_dccm_arcv2 dccm;
+		unsigned long region;
+
+		READ_BCR(ARC_REG_ICCM_BUILD, iccm);
+		if (iccm.ver) {
+			cpu->iccm.sz = 256 << iccm.sz00;	/* 512B to 16M */
+			if (iccm.sz00 == 0xF && iccm.sz01 > 0)
+				cpu->iccm.sz <<= iccm.sz01;
+
+			region = read_aux_reg(ARC_REG_AUX_ICCM);
+			cpu->iccm.base_addr = region & 0xF0000000;
+		}
+
+		READ_BCR(ARC_REG_DCCM_BUILD, dccm);
+		if (dccm.ver) {
+			cpu->dccm.sz = 256 << dccm.sz0;
+			if (dccm.sz0 == 0xF && dccm.sz1 > 0)
+				cpu->dccm.sz <<= dccm.sz1;
+
+			region = read_aux_reg(ARC_REG_AUX_DCCM);
+			cpu->dccm.base_addr = region & 0xF0000000;
+		}
+	}
+}
+
 static void read_arc_build_cfg_regs(void)
 {
 	struct bcr_perip uncached_space;
+	struct bcr_timer timer;
 	struct bcr_generic bcr;
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	unsigned long perip_space;
@@ -53,7 +101,11 @@ static void read_arc_build_cfg_regs(void)
 	READ_BCR(AUX_IDENTITY, cpu->core);
 	READ_BCR(ARC_REG_ISA_CFG_BCR, cpu->isa);
 
-	READ_BCR(ARC_REG_TIMERS_BCR, cpu->timers);
+	READ_BCR(ARC_REG_TIMERS_BCR, timer);
+	cpu->extn.timer0 = timer.t0;
+	cpu->extn.timer1 = timer.t1;
+	cpu->extn.rtc = timer.rtc;
+
 	cpu->vec_base = read_aux_reg(AUX_INTR_VEC_BASE);
 
 	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
@@ -71,35 +123,10 @@ static void read_arc_build_cfg_regs(void)
 	cpu->extn.swap = read_aux_reg(ARC_REG_SWAP_BCR) ? 1 : 0;        /* 1,3 */
 	cpu->extn.crc = read_aux_reg(ARC_REG_CRC_BCR) ? 1 : 0;
 	cpu->extn.minmax = read_aux_reg(ARC_REG_MIXMAX_BCR) > 1 ? 1 : 0; /* 2 */
-
-	/* Note that we read the CCM BCRs independent of kernel config
-	 * This is to catch the cases where user doesn't know that
-	 * CCMs are present in hardware build
-	 */
-	{
-		struct bcr_iccm iccm;
-		struct bcr_dccm dccm;
-		struct bcr_dccm_base dccm_base;
-		unsigned int bcr_32bit_val;
-
-		bcr_32bit_val = read_aux_reg(ARC_REG_ICCM_BCR);
-		if (bcr_32bit_val) {
-			iccm = *((struct bcr_iccm *)&bcr_32bit_val);
-			cpu->iccm.base_addr = iccm.base << 16;
-			cpu->iccm.sz = 0x2000 << (iccm.sz - 1);
-		}
-
-		bcr_32bit_val = read_aux_reg(ARC_REG_DCCM_BCR);
-		if (bcr_32bit_val) {
-			dccm = *((struct bcr_dccm *)&bcr_32bit_val);
-			cpu->dccm.sz = 0x800 << (dccm.sz);
-
-			READ_BCR(ARC_REG_DCCMBASE_BCR, dccm_base);
-			cpu->dccm.base_addr = dccm_base.addr << 8;
-		}
-	}
-
 	READ_BCR(ARC_REG_XY_MEM_BCR, cpu->extn_xymem);
+
+	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
+	read_decode_ccm_bcr(cpu);
 
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
@@ -208,9 +235,9 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       (unsigned int)(arc_get_core_freq() / 10000) % 100);
 
 	n += scnprintf(buf + n, len - n, "Timers\t\t: %s%s%s%s\nISA Extn\t: ",
-		       IS_AVAIL1(cpu->timers.t0, "Timer0 "),
-		       IS_AVAIL1(cpu->timers.t1, "Timer1 "),
-		       IS_AVAIL2(cpu->timers.rtc, "64-bit RTC ",
+		       IS_AVAIL1(cpu->extn.timer0, "Timer0 "),
+		       IS_AVAIL1(cpu->extn.timer1, "Timer1 "),
+		       IS_AVAIL2(cpu->extn.rtc, "Local-64-bit-Ctr ",
 				 CONFIG_ARC_HAS_RTC));
 
 	n += i = scnprintf(buf + n, len - n, "%s%s%s%s%s",
@@ -232,8 +259,6 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
 		}
-		n += scnprintf(buf + n, len - n, "%s",
-			       IS_USED_CFG(CONFIG_ARC_HAS_HW_MPY));
 	}
 
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
@@ -293,13 +318,13 @@ static void arc_chk_core_config(void)
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int fpu_enabled;
 
-	if (!cpu->timers.t0)
+	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");
 
-	if (!cpu->timers.t1)
+	if (!cpu->extn.timer1)
 		panic("Timer1 is not present!\n");
 
-	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->timers.rtc)
+	if (IS_ENABLED(CONFIG_ARC_HAS_RTC) && !cpu->extn.rtc)
 		panic("RTC is not present\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
@@ -334,6 +359,7 @@ static void arc_chk_core_config(void)
 		panic("FPU non-existent, disable CONFIG_ARC_FPU_SAVE_RESTORE\n");
 
 	if (is_isa_arcv2() && IS_ENABLED(CONFIG_SMP) && cpu->isa.atomic &&
+	    IS_ENABLED(CONFIG_ARC_HAS_LLSC) &&
 	    !IS_ENABLED(CONFIG_ARC_STAR_9000923308))
 		panic("llock/scond livelock workaround missing\n");
 }

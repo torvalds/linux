@@ -776,7 +776,7 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
 
 	/* IN1/IN2 Control */
 	SOC_SINGLE_TLV("IN1 Boost", RT5645_IN1_CTRL1,
-		RT5645_BST_SFT1, 8, 0, bst_tlv),
+		RT5645_BST_SFT1, 12, 0, bst_tlv),
 	SOC_SINGLE_TLV("IN2 Boost", RT5645_IN2_CTRL,
 		RT5645_BST_SFT2, 8, 0, bst_tlv),
 

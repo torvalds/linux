@@ -133,17 +133,17 @@ static int regmap_mmio_gather_write(void *context,
 	while (val_size) {
 		switch (ctx->val_bytes) {
 		case 1:
-			__raw_writeb(*(u8 *)val, ctx->regs + offset);
+			writeb(*(u8 *)val, ctx->regs + offset);
 			break;
 		case 2:
-			__raw_writew(*(u16 *)val, ctx->regs + offset);
+			writew(*(u16 *)val, ctx->regs + offset);
 			break;
 		case 4:
-			__raw_writel(*(u32 *)val, ctx->regs + offset);
+			writel(*(u32 *)val, ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			__raw_writeq(*(u64 *)val, ctx->regs + offset);
+			writeq(*(u64 *)val, ctx->regs + offset);
 			break;
 #endif
 		default:
@@ -193,17 +193,17 @@ static int regmap_mmio_read(void *context,
 	while (val_size) {
 		switch (ctx->val_bytes) {
 		case 1:
-			*(u8 *)val = __raw_readb(ctx->regs + offset);
+			*(u8 *)val = readb(ctx->regs + offset);
 			break;
 		case 2:
-			*(u16 *)val = __raw_readw(ctx->regs + offset);
+			*(u16 *)val = readw(ctx->regs + offset);
 			break;
 		case 4:
-			*(u32 *)val = __raw_readl(ctx->regs + offset);
+			*(u32 *)val = readl(ctx->regs + offset);
 			break;
 #ifdef CONFIG_64BIT
 		case 8:
-			*(u64 *)val = __raw_readq(ctx->regs + offset);
+			*(u64 *)val = readq(ctx->regs + offset);
 			break;
 #endif
 		default:

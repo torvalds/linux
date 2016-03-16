@@ -41,3 +41,6 @@ struct sst_acpi_mach *sst_acpi_find_machine(struct sst_acpi_mach *machines)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(sst_acpi_find_machine);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Intel Common ACPI Match module");

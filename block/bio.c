@@ -874,7 +874,7 @@ int submit_bio_wait(int rw, struct bio *bio)
 	bio->bi_private = &ret;
 	bio->bi_end_io = submit_bio_wait_endio;
 	submit_bio(rw, bio);
-	wait_for_completion(&ret.event);
+	wait_for_completion_io(&ret.event);
 
 	return ret.error;
 }
@@ -1090,9 +1090,12 @@ int bio_uncopy_user(struct bio *bio)
 	if (!bio_flagged(bio, BIO_NULL_MAPPED)) {
 		/*
 		 * if we're in a workqueue, the request is orphaned, so
-		 * don't copy into a random user address space, just free.
+		 * don't copy into a random user address space, just free
+		 * and return -EINTR so user space doesn't expect any data.
 		 */
-		if (current->mm && bio_data_dir(bio) == READ)
+		if (!current->mm)
+			ret = -EINTR;
+		else if (bio_data_dir(bio) == READ)
 			ret = bio_copy_to_iter(bio, bmd->iter);
 		if (bmd->is_our_pages)
 			bio_free_pages(bio);

@@ -17,6 +17,7 @@
 #include <linux/splice.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
+#include <linux/fs.h>
 #include "internal.h"
 
 #include <asm/uaccess.h>
@@ -183,7 +184,7 @@ loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
 		return generic_file_llseek_size(file, offset, whence,
-						~0ULL, 0);
+						OFFSET_MAX, 0);
 	default:
 		return -EINVAL;
 	}
@@ -1532,9 +1533,11 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
-	    (file_out->f_flags & O_APPEND) ||
-	    !file_in->f_op->clone_file_range)
+	    (file_out->f_flags & O_APPEND))
 		return -EBADF;
+
+	if (!file_in->f_op->clone_file_range)
+		return -EOPNOTSUPP;
 
 	ret = clone_verify_area(file_in, pos_in, len, false);
 	if (ret)

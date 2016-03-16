@@ -445,13 +445,13 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 	pi->gfx_pg_threshold = 500;
 	pi->caps_fps = true;
 	/* uvd */
-	pi->caps_uvd_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_UVD) ? true : false;
+	pi->caps_uvd_pg = (adev->pg_flags & AMD_PG_SUPPORT_UVD) ? true : false;
 	pi->caps_uvd_dpm = true;
 	/* vce */
-	pi->caps_vce_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_VCE) ? true : false;
+	pi->caps_vce_pg = (adev->pg_flags & AMD_PG_SUPPORT_VCE) ? true : false;
 	pi->caps_vce_dpm = true;
 	/* acp */
-	pi->caps_acp_pg = (adev->pg_flags & AMDGPU_PG_SUPPORT_ACP) ? true : false;
+	pi->caps_acp_pg = (adev->pg_flags & AMD_PG_SUPPORT_ACP) ? true : false;
 	pi->caps_acp_dpm = true;
 
 	pi->caps_stable_power_state = false;

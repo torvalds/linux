@@ -469,36 +469,15 @@ static void nfit_mem_find_spa_bdw(struct acpi_nfit_desc *acpi_desc,
 	nfit_mem->bdw = NULL;
 }
 
-static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
+static void nfit_mem_init_bdw(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem, struct acpi_nfit_system_address *spa)
 {
 	u16 dcr = __to_nfit_memdev(nfit_mem)->region_index;
 	struct nfit_memdev *nfit_memdev;
 	struct nfit_flush *nfit_flush;
-	struct nfit_dcr *nfit_dcr;
 	struct nfit_bdw *nfit_bdw;
 	struct nfit_idt *nfit_idt;
 	u16 idt_idx, range_index;
-
-	list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
-		if (nfit_dcr->dcr->region_index != dcr)
-			continue;
-		nfit_mem->dcr = nfit_dcr->dcr;
-		break;
-	}
-
-	if (!nfit_mem->dcr) {
-		dev_dbg(acpi_desc->dev, "SPA %d missing:%s%s\n",
-				spa->range_index, __to_nfit_memdev(nfit_mem)
-				? "" : " MEMDEV", nfit_mem->dcr ? "" : " DCR");
-		return -ENODEV;
-	}
-
-	/*
-	 * We've found enough to create an nvdimm, optionally
-	 * find an associated BDW
-	 */
-	list_add(&nfit_mem->list, &acpi_desc->dimms);
 
 	list_for_each_entry(nfit_bdw, &acpi_desc->bdws, list) {
 		if (nfit_bdw->bdw->region_index != dcr)
@@ -508,12 +487,12 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	if (!nfit_mem->bdw)
-		return 0;
+		return;
 
 	nfit_mem_find_spa_bdw(acpi_desc, nfit_mem);
 
 	if (!nfit_mem->spa_bdw)
-		return 0;
+		return;
 
 	range_index = nfit_mem->spa_bdw->range_index;
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
@@ -538,8 +517,6 @@ static int nfit_mem_add(struct acpi_nfit_desc *acpi_desc,
 		}
 		break;
 	}
-
-	return 0;
 }
 
 static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
@@ -548,7 +525,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	struct nfit_mem *nfit_mem, *found;
 	struct nfit_memdev *nfit_memdev;
 	int type = nfit_spa_type(spa);
-	u16 dcr;
 
 	switch (type) {
 	case NFIT_SPA_DCR:
@@ -559,14 +535,18 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
-		int rc;
+		struct nfit_dcr *nfit_dcr;
+		u32 device_handle;
+		u16 dcr;
 
 		if (nfit_memdev->memdev->range_index != spa->range_index)
 			continue;
 		found = NULL;
 		dcr = nfit_memdev->memdev->region_index;
+		device_handle = nfit_memdev->memdev->device_handle;
 		list_for_each_entry(nfit_mem, &acpi_desc->dimms, list)
-			if (__to_nfit_memdev(nfit_mem)->region_index == dcr) {
+			if (__to_nfit_memdev(nfit_mem)->device_handle
+					== device_handle) {
 				found = nfit_mem;
 				break;
 			}
@@ -579,6 +559,31 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			if (!nfit_mem)
 				return -ENOMEM;
 			INIT_LIST_HEAD(&nfit_mem->list);
+			list_add(&nfit_mem->list, &acpi_desc->dimms);
+		}
+
+		list_for_each_entry(nfit_dcr, &acpi_desc->dcrs, list) {
+			if (nfit_dcr->dcr->region_index != dcr)
+				continue;
+			/*
+			 * Record the control region for the dimm.  For
+			 * the ACPI 6.1 case, where there are separate
+			 * control regions for the pmem vs blk
+			 * interfaces, be sure to record the extended
+			 * blk details.
+			 */
+			if (!nfit_mem->dcr)
+				nfit_mem->dcr = nfit_dcr->dcr;
+			else if (nfit_mem->dcr->windows == 0
+					&& nfit_dcr->dcr->windows)
+				nfit_mem->dcr = nfit_dcr->dcr;
+			break;
+		}
+
+		if (dcr && !nfit_mem->dcr) {
+			dev_err(acpi_desc->dev, "SPA %d missing DCR %d\n",
+					spa->range_index, dcr);
+			return -ENODEV;
 		}
 
 		if (type == NFIT_SPA_DCR) {
@@ -595,6 +600,7 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 				nfit_mem->idt_dcr = nfit_idt->idt;
 				break;
 			}
+			nfit_mem_init_bdw(acpi_desc, nfit_mem, spa);
 		} else {
 			/*
 			 * A single dimm may belong to multiple SPA-PM
@@ -603,13 +609,6 @@ static int nfit_mem_dcr_init(struct acpi_nfit_desc *acpi_desc,
 			 */
 			nfit_mem->memdev_pmem = nfit_memdev->memdev;
 		}
-
-		if (found)
-			continue;
-
-		rc = nfit_mem_add(acpi_desc, nfit_mem, spa);
-		if (rc)
-			return rc;
 	}
 
 	return 0;
@@ -1504,9 +1503,7 @@ static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 		case 1:
 			/* ARS unsupported, but we should never get here */
 			return 0;
-		case 2:
-			return -EINVAL;
-		case 3:
+		case 6:
 			/* ARS is in progress */
 			msleep(1000);
 			break;
@@ -1517,13 +1514,13 @@ static int ars_do_start(struct nvdimm_bus_descriptor *nd_desc,
 }
 
 static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
-		struct nd_cmd_ars_status *cmd)
+		struct nd_cmd_ars_status *cmd, u32 size)
 {
 	int rc;
 
 	while (1) {
 		rc = nd_desc->ndctl(nd_desc, NULL, ND_CMD_ARS_STATUS, cmd,
-			sizeof(*cmd));
+			size);
 		if (rc || cmd->status & 0xffff)
 			return -ENXIO;
 
@@ -1538,6 +1535,8 @@ static int ars_get_status(struct nvdimm_bus_descriptor *nd_desc,
 		case 2:
 			/* No ARS performed for the current boot */
 			return 0;
+		case 3:
+			/* TODO: error list overflow support */
 		default:
 			return -ENXIO;
 		}
@@ -1581,6 +1580,7 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 	struct nd_cmd_ars_start *ars_start = NULL;
 	struct nd_cmd_ars_cap *ars_cap = NULL;
 	u64 start, len, cur, remaining;
+	u32 ars_status_size;
 	int rc;
 
 	ars_cap = kzalloc(sizeof(*ars_cap), GFP_KERNEL);
@@ -1610,14 +1610,14 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 	 * Check if a full-range ARS has been run. If so, use those results
 	 * without having to start a new ARS.
 	 */
-	ars_status = kzalloc(ars_cap->max_ars_out + sizeof(*ars_status),
-			GFP_KERNEL);
+	ars_status_size = ars_cap->max_ars_out;
+	ars_status = kzalloc(ars_status_size, GFP_KERNEL);
 	if (!ars_status) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	rc = ars_get_status(nd_desc, ars_status);
+	rc = ars_get_status(nd_desc, ars_status, ars_status_size);
 	if (rc)
 		goto out;
 
@@ -1647,7 +1647,7 @@ static int acpi_nfit_find_poison(struct acpi_nfit_desc *acpi_desc,
 		if (rc)
 			goto out;
 
-		rc = ars_get_status(nd_desc, ars_status);
+		rc = ars_get_status(nd_desc, ars_status, ars_status_size);
 		if (rc)
 			goto out;
 

@@ -228,6 +228,11 @@ static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 
 	ocrdma_alloc_pd_pool(dev);
 
+	if (!ocrdma_alloc_stats_resources(dev)) {
+		pr_err("%s: stats resource allocation failed\n", __func__);
+		goto alloc_err;
+	}
+
 	spin_lock_init(&dev->av_tbl.lock);
 	spin_lock_init(&dev->flush_q_lock);
 	return 0;
@@ -238,6 +243,7 @@ alloc_err:
 
 static void ocrdma_free_resources(struct ocrdma_dev *dev)
 {
+	ocrdma_release_stats_resources(dev);
 	kfree(dev->stag_arr);
 	kfree(dev->qp_tbl);
 	kfree(dev->cq_tbl);

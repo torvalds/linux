@@ -4491,7 +4491,7 @@ xlog_recover_process(
 	 * know precisely what failed.
 	 */
 	if (pass == XLOG_RECOVER_CRCPASS) {
-		if (rhead->h_crc && crc != le32_to_cpu(rhead->h_crc))
+		if (rhead->h_crc && crc != rhead->h_crc)
 			return -EFSBADCRC;
 		return 0;
 	}
@@ -4502,7 +4502,7 @@ xlog_recover_process(
 	 * zero CRC check prevents warnings from being emitted when upgrading
 	 * the kernel from one that does not add CRCs by default.
 	 */
-	if (crc != le32_to_cpu(rhead->h_crc)) {
+	if (crc != rhead->h_crc) {
 		if (rhead->h_crc || xfs_sb_version_hascrc(&log->l_mp->m_sb)) {
 			xfs_alert(log->l_mp,
 		"log record CRC mismatch: found 0x%x, expected 0x%x.",

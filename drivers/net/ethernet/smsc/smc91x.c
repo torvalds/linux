@@ -2342,8 +2342,8 @@ static int smc_drv_probe(struct platform_device *pdev)
 	}
 
 	ndev->irq = platform_get_irq(pdev, 0);
-	if (ndev->irq <= 0) {
-		ret = -ENODEV;
+	if (ndev->irq < 0) {
+		ret = ndev->irq;
 		goto out_release_io;
 	}
 	/*

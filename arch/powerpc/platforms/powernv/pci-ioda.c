@@ -3180,6 +3180,7 @@ static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 
 static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
        .dma_dev_setup = pnv_pci_dma_dev_setup,
+       .dma_bus_setup = pnv_pci_dma_bus_setup,
 #ifdef CONFIG_PCI_MSI
        .setup_msi_irqs = pnv_setup_msi_irqs,
        .teardown_msi_irqs = pnv_teardown_msi_irqs,

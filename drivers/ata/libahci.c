@@ -496,8 +496,8 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		}
 	}
 
-	/* fabricate port_map from cap.nr_ports */
-	if (!port_map) {
+	/* fabricate port_map from cap.nr_ports for < AHCI 1.3 */
+	if (!port_map && vers < 0x10300) {
 		port_map = (1 << ahci_nr_ports(cap)) - 1;
 		dev_warn(dev, "forcing PORTS_IMPL to 0x%x\n", port_map);
 
@@ -593,7 +593,21 @@ EXPORT_SYMBOL_GPL(ahci_start_engine);
 int ahci_stop_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	u32 tmp;
+
+	/*
+	 * On some controllers, stopping a port's DMA engine while the port
+	 * is in ALPM state (partial or slumber) results in failures on
+	 * subsequent DMA engine starts.  For those controllers, put the
+	 * port back in active state before stopping its DMA engine.
+	 */
+	if ((hpriv->flags & AHCI_HFLAG_WAKE_BEFORE_STOP) &&
+	    (ap->link.lpm_policy > ATA_LPM_MAX_POWER) &&
+	    ahci_set_lpm(&ap->link, ATA_LPM_MAX_POWER, ATA_LPM_WAKE_ONLY)) {
+		dev_err(ap->host->dev, "Failed to wake up port before engine stop\n");
+		return -EIO;
+	}
 
 	tmp = readl(port_mmio + PORT_CMD);
 
@@ -689,6 +703,9 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 	void __iomem *port_mmio = ahci_port_base(ap);
 
 	if (policy != ATA_LPM_MAX_POWER) {
+		/* wakeup flag only applies to the max power policy */
+		hints &= ~ATA_LPM_WAKE_ONLY;
+
 		/*
 		 * Disable interrupts on Phy Ready. This keeps us from
 		 * getting woken up due to spurious phy ready
@@ -704,7 +721,8 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		u32 cmd = readl(port_mmio + PORT_CMD);
 
 		if (policy == ATA_LPM_MAX_POWER || !(hints & ATA_LPM_HIPM)) {
-			cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
+			if (!(hints & ATA_LPM_WAKE_ONLY))
+				cmd &= ~(PORT_CMD_ASP | PORT_CMD_ALPE);
 			cmd |= PORT_CMD_ICC_ACTIVE;
 
 			writel(cmd, port_mmio + PORT_CMD);
@@ -712,6 +730,9 @@ static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 
 			/* wait 10ms to be sure we've come out of LPM state */
 			ata_msleep(ap, 10);
+
+			if (hints & ATA_LPM_WAKE_ONLY)
+				return 0;
 		} else {
 			cmd |= PORT_CMD_ALPE;
 			if (policy == ATA_LPM_MIN_POWER)

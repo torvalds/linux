@@ -276,8 +276,12 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	if (rdev->irq.installed) {
 		for (i = 0; i < rdev->num_crtc; i++) {
 			if (rdev->pm.active_crtcs & (1 << i)) {
-				rdev->pm.req_vblank |= (1 << i);
-				drm_vblank_get(rdev->ddev, i);
+				/* This can fail if a modeset is in progress */
+				if (drm_vblank_get(rdev->ddev, i) == 0)
+					rdev->pm.req_vblank |= (1 << i);
+				else
+					DRM_DEBUG_DRIVER("crtc %d no vblank, can glitch\n",
+							 i);
 			}
 		}
 	}
@@ -1075,8 +1079,6 @@ force:
 
 	/* update display watermarks based on new power state */
 	radeon_bandwidth_update(rdev);
-	/* update displays */
-	radeon_dpm_display_configuration_changed(rdev);
 
 	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
 	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
@@ -1096,6 +1098,9 @@ force:
 	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps;
 
 	radeon_dpm_post_set_power_state(rdev);
+
+	/* update displays */
+	radeon_dpm_display_configuration_changed(rdev);
 
 	if (rdev->asic->dpm.force_performance_level) {
 		if (rdev->pm.dpm.thermal_active) {

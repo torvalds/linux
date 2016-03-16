@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/device.h>
 #include <linux/io.h>
 
@@ -228,8 +229,16 @@ vc4_reset(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	DRM_INFO("Resetting GPU.\n");
-	vc4_v3d_set_power(vc4, false);
-	vc4_v3d_set_power(vc4, true);
+
+	mutex_lock(&vc4->power_lock);
+	if (vc4->power_refcount) {
+		/* Power the device off and back on the by dropping the
+		 * reference on runtime PM.
+		 */
+		pm_runtime_put_sync_suspend(&vc4->v3d->pdev->dev);
+		pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	}
+	mutex_unlock(&vc4->power_lock);
 
 	vc4_irq_reset(dev);
 
@@ -257,10 +266,17 @@ vc4_hangcheck_elapsed(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t ct0ca, ct1ca;
+	unsigned long irqflags;
+	struct vc4_exec_info *exec;
+
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
+	exec = vc4_first_job(vc4);
 
 	/* If idle, we can stop watching for hangs. */
-	if (list_empty(&vc4->job_list))
+	if (!exec) {
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		return;
+	}
 
 	ct0ca = V3D_READ(V3D_CTNCA(0));
 	ct1ca = V3D_READ(V3D_CTNCA(1));
@@ -268,13 +284,15 @@ vc4_hangcheck_elapsed(unsigned long data)
 	/* If we've made any progress in execution, rearm the timer
 	 * and wait.
 	 */
-	if (ct0ca != vc4->hangcheck.last_ct0ca ||
-	    ct1ca != vc4->hangcheck.last_ct1ca) {
-		vc4->hangcheck.last_ct0ca = ct0ca;
-		vc4->hangcheck.last_ct1ca = ct1ca;
+	if (ct0ca != exec->last_ct0ca || ct1ca != exec->last_ct1ca) {
+		exec->last_ct0ca = ct0ca;
+		exec->last_ct1ca = ct1ca;
+		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		vc4_queue_hangcheck(dev);
 		return;
 	}
+
+	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	/* We've gone too long with no progress, reset.  This has to
 	 * be done from a work struct, since resetting can sleep and
@@ -340,12 +358,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	finish_wait(&vc4->job_wait_queue, &wait);
 	trace_vc4_wait_for_seqno_end(dev, seqno);
 
-	if (ret && ret != -ERESTARTSYS) {
-		DRM_ERROR("timeout waiting for render thread idle\n");
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static void
@@ -578,9 +591,9 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 
 	bo = vc4_bo_create(dev, exec_size, true);
-	if (!bo) {
+	if (IS_ERR(bo)) {
 		DRM_ERROR("Couldn't allocate BO for binning\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(bo);
 		goto fail;
 	}
 	exec->exec_bo = &bo->base;
@@ -617,6 +630,7 @@ fail:
 static void
 vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned i;
 
 	/* Need the struct lock for drm_gem_object_unreference(). */
@@ -634,6 +648,11 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		drm_gem_object_unreference(&bo->base.base);
 	}
 	mutex_unlock(&dev->struct_mutex);
+
+	mutex_lock(&vc4->power_lock);
+	if (--vc4->power_refcount == 0)
+		pm_runtime_put(&vc4->v3d->pdev->dev);
+	mutex_unlock(&vc4->power_lock);
 
 	kfree(exec);
 }
@@ -746,6 +765,9 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 	struct vc4_bo *bo;
 
+	if (args->pad != 0)
+		return -EINVAL;
+
 	gem_obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
@@ -772,7 +794,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_submit_cl *args = data;
 	struct vc4_exec_info *exec;
-	int ret;
+	int ret = 0;
 
 	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
 		DRM_ERROR("Unknown flags: 0x%02x\n", args->flags);
@@ -783,6 +805,15 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (!exec) {
 		DRM_ERROR("malloc failure on exec struct\n");
 		return -ENOMEM;
+	}
+
+	mutex_lock(&vc4->power_lock);
+	if (vc4->power_refcount++ == 0)
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	mutex_unlock(&vc4->power_lock);
+	if (ret < 0) {
+		kfree(exec);
+		return ret;
 	}
 
 	exec->args = args;
@@ -839,6 +870,8 @@ vc4_gem_init(struct drm_device *dev)
 		    (unsigned long)dev);
 
 	INIT_WORK(&vc4->job_done_work, vc4_job_done_work);
+
+	mutex_init(&vc4->power_lock);
 }
 
 void

@@ -526,6 +526,7 @@ enum ata_lpm_policy {
 enum ata_lpm_hints {
 	ATA_LPM_EMPTY		= (1 << 0), /* port empty/probing */
 	ATA_LPM_HIPM		= (1 << 1), /* may use HIPM */
+	ATA_LPM_WAKE_ONLY	= (1 << 2), /* only wake up link */
 };
 
 /* forward declarations */

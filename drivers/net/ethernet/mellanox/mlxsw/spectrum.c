@@ -2123,6 +2123,8 @@ static int mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (flush_fdb && mlxsw_sp_port_fdb_flush(mlxsw_sp_port))
 		netdev_err(mlxsw_sp_port->dev, "Failed to flush FDB\n");
 
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
+
 	mlxsw_sp_port->learning = 0;
 	mlxsw_sp_port->learning_sync = 0;
 	mlxsw_sp_port->uc_flood = 0;
@@ -2746,6 +2748,13 @@ static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
 		goto err_vport_flood_set;
 	}
 
+	err = mlxsw_sp_port_stp_state_set(mlxsw_sp_vport, vid,
+					  MLXSW_REG_SPMS_STATE_FORWARDING);
+	if (err) {
+		netdev_err(dev, "Failed to set STP state\n");
+		goto err_port_stp_state_set;
+	}
+
 	if (flush_fdb && mlxsw_sp_vport_fdb_flush(mlxsw_sp_vport))
 		netdev_err(dev, "Failed to flush FDB\n");
 
@@ -2763,6 +2772,7 @@ static int mlxsw_sp_vport_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_vport,
 
 	return 0;
 
+err_port_stp_state_set:
 err_vport_flood_set:
 err_port_vid_learning_set:
 err_port_vid_to_fid_validate:
