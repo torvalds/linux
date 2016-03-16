@@ -14,7 +14,7 @@ dependencies:
   pre:
     # required for 14.04 container
     # - sudo dpkg --add-architecture i386
-    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine qemu-user-static linux-headers-generic
+    - sudo apt-get update; sudo apt-get install bc libfuse-dev libarchive-dev xfsprogs valgrind gcc-mingw-w64-i686 wine qemu-user-static linux-headers-$(uname -r)
     - /usr/local/android-ndk/build/tools/make-standalone-toolchain.sh --platform=android-21 --install-dir=/home/ubuntu/android-toolchain --arch=arm
 
 
