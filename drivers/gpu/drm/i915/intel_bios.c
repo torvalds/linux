@@ -29,7 +29,9 @@
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
-#include "intel_bios.h"
+
+#define _INTEL_BIOS_PRIVATE
+#include "intel_vbt_defs.h"
 
 /**
  * DOC: Video BIOS Table (VBT)
