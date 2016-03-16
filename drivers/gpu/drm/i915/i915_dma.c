@@ -1175,7 +1175,6 @@ out_gem_unload:
 	if (dev->pdev->msi_enabled)
 		pci_disable_msi(dev->pdev);
 
-	intel_teardown_mchbar(dev);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
