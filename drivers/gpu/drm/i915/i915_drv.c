@@ -68,6 +68,8 @@ static struct drm_driver driver;
 
 #define BDW_COLORS \
 	.color = { .degamma_lut_size = 512, .gamma_lut_size = 512 }
+#define CHV_COLORS \
+	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257 }
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
@@ -325,6 +327,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
+	CHV_COLORS,
 };
 
 static const struct intel_device_info intel_skylake_info = {
