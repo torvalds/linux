@@ -584,6 +584,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
+		struct reservation_object *resv,
 		struct drm_gem_object **obj)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -623,8 +624,12 @@ static int msm_gem_new_impl(struct drm_device *dev,
 
 	msm_obj->flags = flags;
 
-	msm_obj->resv = &msm_obj->_resv;
-	reservation_object_init(msm_obj->resv);
+	if (resv) {
+		msm_obj->resv = resv;
+	} else {
+		msm_obj->resv = &msm_obj->_resv;
+		reservation_object_init(msm_obj->resv);
+	}
 
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
 	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
@@ -644,7 +649,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 
 	size = PAGE_ALIGN(size);
 
-	ret = msm_gem_new_impl(dev, size, flags, &obj);
+	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj);
 	if (ret)
 		goto fail;
 
@@ -666,10 +671,11 @@ fail:
 }
 
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
-		uint32_t size, struct sg_table *sgt)
+		struct dma_buf *dmabuf, struct sg_table *sgt)
 {
 	struct msm_gem_object *msm_obj;
 	struct drm_gem_object *obj;
+	uint32_t size;
 	int ret, npages;
 
 	/* if we don't have IOMMU, don't bother pretending we can import: */
@@ -678,9 +684,9 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = PAGE_ALIGN(size);
+	size = PAGE_ALIGN(dmabuf->size);
 
-	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj);
+	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj);
 	if (ret)
 		goto fail;
 

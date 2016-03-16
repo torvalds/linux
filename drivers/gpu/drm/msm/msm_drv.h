@@ -208,7 +208,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
-		uint32_t size, struct sg_table *sgt);
+		struct dma_buf *dmabuf, struct sg_table *sgt);
 
 int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id);
 void msm_framebuffer_cleanup(struct drm_framebuffer *fb, int id);
