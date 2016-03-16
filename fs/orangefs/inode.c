@@ -365,16 +365,8 @@ static inline ino_t orangefs_handle_hash(struct orangefs_object_kref *ref)
 static int orangefs_set_inode(struct inode *inode, void *data)
 {
 	struct orangefs_object_kref *ref = (struct orangefs_object_kref *) data;
-	struct orangefs_inode_s *orangefs_inode = NULL;
-
-	/* Make sure that we have sane parameters */
-	if (!data || !inode)
-		return 0;
-	orangefs_inode = ORANGEFS_I(inode);
-	if (!orangefs_inode)
-		return 0;
-	orangefs_inode->refn.fs_id = ref->fs_id;
-	orangefs_inode->refn.khandle = ref->khandle;
+	ORANGEFS_I(inode)->refn.fs_id = ref->fs_id;
+	ORANGEFS_I(inode)->refn.khandle = ref->khandle;
 	return 0;
 }
 
