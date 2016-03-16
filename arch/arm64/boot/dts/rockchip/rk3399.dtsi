@@ -858,7 +858,7 @@
 		gpio0: gpio0@ff720000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff720000 0x0 0x100>;
-			clocks = <&xin24m>;
+			clocks = <&cru PCLK_GPIO0_PMU>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
@@ -871,7 +871,7 @@
 		gpio1: gpio1@ff730000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff730000 0x0 0x100>;
-			clocks = <&xin24m>;
+			clocks = <&cru PCLK_GPIO1_PMU>;
 			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
@@ -884,7 +884,7 @@
 		gpio2: gpio2@ff780000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff780000 0x0 0x100>;
-			clocks = <&xin24m>;
+			clocks = <&cru PCLK_GPIO2>;
 			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
@@ -897,7 +897,7 @@
 		gpio3: gpio3@ff788000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff788000 0x0 0x100>;
-			clocks = <&xin24m>;
+			clocks = <&cru PCLK_GPIO3>;
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
@@ -910,7 +910,7 @@
 		gpio4: gpio4@ff790000 {
 			compatible = "rockchip,gpio-bank";
 			reg = <0x0 0xff790000 0x0 0x100>;
-			clocks = <&xin24m>;
+			clocks = <&cru PCLK_GPIO4>;
 			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 
 			gpio-controller;
