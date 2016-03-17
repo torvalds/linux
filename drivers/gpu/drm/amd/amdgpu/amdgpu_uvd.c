@@ -880,6 +880,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 
 	if (direct) {
 		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		job->fence = f;
 		if (r)
 			goto err_free;
 

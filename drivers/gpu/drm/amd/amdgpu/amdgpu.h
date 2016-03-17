@@ -762,7 +762,6 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct fence			*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
 	unsigned			vm_id;
@@ -1240,6 +1239,7 @@ struct amdgpu_job {
 	struct amdgpu_ring	*ring;
 	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
+	struct fence		*fence; /* the hw fence */
 	uint32_t		num_ibs;
 	void			*owner;
 	struct amdgpu_user_fence uf;

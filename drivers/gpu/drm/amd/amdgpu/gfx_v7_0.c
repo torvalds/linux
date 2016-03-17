@@ -2164,6 +2164,7 @@ static int gfx_v7_0_ring_test_ib(struct amdgpu_ring *ring)
 err2:
 	fence_put(f);
 	amdgpu_ib_free(adev, &ib, NULL);
+	fence_put(f);
 err1:
 	amdgpu_gfx_scratch_free(adev, scratch);
 	return r;

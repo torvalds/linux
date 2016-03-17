@@ -72,8 +72,8 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	unsigned i;
 
 	for (i = 0; i < job->num_ibs; ++i)
-		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, job->ibs[job->num_ibs - 1].fence);
-	fence_put(job->ibs[job->num_ibs - 1].fence);
+		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, job->fence);
+	fence_put(job->fence);
 
 	amdgpu_bo_unref(&job->uf.bo);
 	amdgpu_sync_free(&job->sync);
@@ -157,6 +157,7 @@ static struct fence *amdgpu_job_run(struct amd_sched_job *sched_job)
 	}
 
 err:
+	job->fence = fence;
 	amdgpu_job_free(job);
 	return fence;
 }
