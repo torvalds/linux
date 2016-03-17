@@ -229,6 +229,11 @@ thp_split_page is incremented every time a huge page is split into base
 thp_split_page_failed is is incremented if kernel fails to split huge
 	page. This can happen if the page was pinned by somebody.
 
+thp_deferred_split_page is incremented when a huge page is put onto split
+	queue. This happens when a huge page is partially unmapped and
+	splitting it would free up some memory. Pages on split queue are
+	going to be split under memory pressure.
+
 thp_split_pmd is incremented every time a PMD split into table of PTEs.
 	This can happen, for instance, when application calls mprotect() or
 	munmap() on part of huge page. It doesn't split huge page, only
