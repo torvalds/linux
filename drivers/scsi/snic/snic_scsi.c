@@ -601,6 +601,12 @@ snic_icmnd_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 		      sc->device->lun, sc, sc->cmnd[0], snic_cmd_tag(sc),
 		      CMD_FLAGS(sc), rqi);
 
+	if (CMD_FLAGS(sc) & SNIC_HOST_RESET_CMD_TERM) {
+		spin_unlock_irqrestore(io_lock, flags);
+
+		return;
+	}
+
 	SNIC_BUG_ON(rqi != (struct snic_req_info *)ctx);
 	WARN_ON_ONCE(req);
 	if (!rqi) {
@@ -782,6 +788,11 @@ snic_process_itmf_cmpl(struct snic *snic,
 
 	io_lock = snic_io_lock_hash(snic, sc);
 	spin_lock_irqsave(io_lock, flags);
+	if (CMD_FLAGS(sc) & SNIC_HOST_RESET_CMD_TERM) {
+		spin_unlock_irqrestore(io_lock, flags);
+
+		return ret;
+	}
 	rqi = (struct snic_req_info *) CMD_SP(sc);
 	WARN_ON_ONCE(!rqi);
 
