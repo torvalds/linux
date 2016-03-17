@@ -386,8 +386,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
 static void dump_header(struct oom_control *oc, struct task_struct *p,
 			struct mem_cgroup *memcg)
 {
-	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, "
-		"oom_score_adj=%hd\n",
+	pr_warning("%s invoked oom-killer: gfp_mask=0x%x, order=%d, oom_score_adj=%hd\n",
 		current->comm, oc->gfp_mask, oc->order,
 		current->signal->oom_score_adj);
 	cpuset_print_current_mems_allowed();

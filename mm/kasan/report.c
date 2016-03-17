@@ -239,8 +239,7 @@ static void kasan_report_error(struct kasan_access_info *info)
 	 */
 	kasan_disable_current();
 	spin_lock_irqsave(&report_lock, flags);
-	pr_err("================================="
-		"=================================\n");
+	pr_err("==================================================================\n");
 	if (info->access_addr <
 			kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) {
 		if ((unsigned long)info->access_addr < PAGE_SIZE)
@@ -261,8 +260,7 @@ static void kasan_report_error(struct kasan_access_info *info)
 		print_address_description(info);
 		print_shadow_for_address(info->first_bad_addr);
 	}
-	pr_err("================================="
-		"=================================\n");
+	pr_err("==================================================================\n");
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irqrestore(&report_lock, flags);
 	kasan_enable_current();
