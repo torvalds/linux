@@ -52,31 +52,54 @@ static const struct file_operations sta_ ##name## _ops = {		\
 
 STA_FILE(aid, sta.aid, D);
 
+static const char * const sta_flag_names[] = {
+#define FLAG(F) [WLAN_STA_##F] = #F
+	FLAG(AUTH),
+	FLAG(ASSOC),
+	FLAG(PS_STA),
+	FLAG(AUTHORIZED),
+	FLAG(SHORT_PREAMBLE),
+	FLAG(WDS),
+	FLAG(CLEAR_PS_FILT),
+	FLAG(MFP),
+	FLAG(BLOCK_BA),
+	FLAG(PS_DRIVER),
+	FLAG(PSPOLL),
+	FLAG(TDLS_PEER),
+	FLAG(TDLS_PEER_AUTH),
+	FLAG(TDLS_INITIATOR),
+	FLAG(TDLS_CHAN_SWITCH),
+	FLAG(TDLS_OFF_CHANNEL),
+	FLAG(TDLS_WIDER_BW),
+	FLAG(UAPSD),
+	FLAG(SP),
+	FLAG(4ADDR_EVENT),
+	FLAG(INSERTED),
+	FLAG(RATE_CONTROL),
+	FLAG(TOFFSET_KNOWN),
+	FLAG(MPSP_OWNER),
+	FLAG(MPSP_RECIPIENT),
+	FLAG(PS_DELIVER),
+#undef FLAG
+};
+
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	char buf[121];
+	char buf[16 * NUM_WLAN_STA_FLAGS], *pos = buf;
+	char *end = buf + sizeof(buf) - 1;
 	struct sta_info *sta = file->private_data;
+	unsigned int flg;
 
-#define TEST(flg) \
-	test_sta_flag(sta, WLAN_STA_##flg) ? #flg "\n" : ""
+	BUILD_BUG_ON(ARRAY_SIZE(sta_flag_names) != NUM_WLAN_STA_FLAGS);
 
-	int res = scnprintf(buf, sizeof(buf),
-			    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-			    TEST(AUTH), TEST(ASSOC), TEST(PS_STA),
-			    TEST(PS_DRIVER), TEST(AUTHORIZED),
-			    TEST(SHORT_PREAMBLE),
-			    sta->sta.wme ? "WME\n" : "",
-			    TEST(WDS), TEST(CLEAR_PS_FILT),
-			    TEST(MFP), TEST(BLOCK_BA), TEST(PSPOLL),
-			    TEST(UAPSD), TEST(SP), TEST(TDLS_PEER),
-			    TEST(TDLS_PEER_AUTH), TEST(TDLS_INITIATOR),
-			    TEST(TDLS_CHAN_SWITCH), TEST(TDLS_OFF_CHANNEL),
-			    TEST(4ADDR_EVENT), TEST(INSERTED),
-			    TEST(RATE_CONTROL), TEST(TOFFSET_KNOWN),
-			    TEST(MPSP_OWNER), TEST(MPSP_RECIPIENT));
-#undef TEST
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
+	for (flg = 0; flg < NUM_WLAN_STA_FLAGS; flg++) {
+		if (test_sta_flag(sta, flg))
+			pos += scnprintf(pos, end - pos, "%s\n",
+					 sta_flag_names[flg]);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, strlen(buf));
 }
 STA_OPS(flags);
 
