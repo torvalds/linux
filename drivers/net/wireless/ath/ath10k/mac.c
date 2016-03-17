@@ -3770,7 +3770,8 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 
 		/* Prevent aggressive sta/tid taking over tx queue */
 		max = 16;
-		while (max--) {
+		ret = 0;
+		while (ath10k_mac_tx_can_push(hw, txq) && max--) {
 			ret = ath10k_mac_tx_push_txq(hw, txq);
 			if (ret < 0)
 				break;
@@ -4023,14 +4024,13 @@ static void ath10k_mac_op_wake_tx_queue(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_txq *artxq = (void *)txq->drv_priv;
 
-	if (ath10k_mac_tx_can_push(hw, txq)) {
-		spin_lock_bh(&ar->txqs_lock);
-		if (list_empty(&artxq->list))
-			list_add_tail(&artxq->list, &ar->txqs);
-		spin_unlock_bh(&ar->txqs_lock);
+	spin_lock_bh(&ar->txqs_lock);
+	if (list_empty(&artxq->list))
+		list_add_tail(&artxq->list, &ar->txqs);
+	spin_unlock_bh(&ar->txqs_lock);
 
+	if (ath10k_mac_tx_can_push(hw, txq))
 		tasklet_schedule(&ar->htt.txrx_compl_task);
-	}
 
 	ath10k_htt_tx_txq_update(hw, txq);
 }
