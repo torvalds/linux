@@ -32,8 +32,8 @@
 #include "oss/oss_2_4_d.h"
 #include "oss/oss_2_4_sh_mask.h"
 
-#include "gmc/gmc_8_1_d.h"
-#include "gmc/gmc_8_1_sh_mask.h"
+#include "gmc/gmc_7_1_d.h"
+#include "gmc/gmc_7_1_sh_mask.h"
 
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_enum.h"
