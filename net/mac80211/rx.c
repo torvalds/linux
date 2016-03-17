@@ -722,8 +722,8 @@ static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
 	return -1;
 }
 
-static int iwl80211_get_cs_keyid(const struct ieee80211_cipher_scheme *cs,
-				 struct sk_buff *skb)
+static int ieee80211_get_cs_keyid(const struct ieee80211_cipher_scheme *cs,
+				  struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc;
@@ -1586,7 +1586,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_has_protected(fc) && rx->sta->cipher_scheme) {
 			cs = rx->sta->cipher_scheme;
-			keyid = iwl80211_get_cs_keyid(cs, rx->skb);
+			keyid = ieee80211_get_cs_keyid(cs, rx->skb);
 			if (unlikely(keyid < 0))
 				return RX_DROP_UNUSABLE;
 		}
@@ -1670,7 +1670,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		hdrlen = ieee80211_hdrlen(fc);
 
 		if (cs) {
-			keyidx = iwl80211_get_cs_keyid(cs, rx->skb);
+			keyidx = ieee80211_get_cs_keyid(cs, rx->skb);
 
 			if (unlikely(keyidx < 0))
 				return RX_DROP_UNUSABLE;
