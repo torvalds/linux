@@ -2981,29 +2981,20 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 {
 	spinlock_t *ptl;
 	struct mm_struct *mm = vma->vm_mm;
-	struct page *page = NULL;
 	unsigned long haddr = address & HPAGE_PMD_MASK;
 
 	mmu_notifier_invalidate_range_start(mm, haddr, haddr + HPAGE_PMD_SIZE);
 	ptl = pmd_lock(mm, pmd);
 	if (pmd_trans_huge(*pmd)) {
-		page = pmd_page(*pmd);
+		struct page *page = pmd_page(*pmd);
 		if (PageMlocked(page))
-			get_page(page);
-		else
-			page = NULL;
+			clear_page_mlock(page);
 	} else if (!pmd_devmap(*pmd))
 		goto out;
 	__split_huge_pmd_locked(vma, pmd, haddr, freeze);
 out:
 	spin_unlock(ptl);
 	mmu_notifier_invalidate_range_end(mm, haddr, haddr + HPAGE_PMD_SIZE);
-	if (page) {
-		lock_page(page);
-		munlock_vma_page(page);
-		unlock_page(page);
-		put_page(page);
-	}
 }
 
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
