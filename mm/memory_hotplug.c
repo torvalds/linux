@@ -33,6 +33,7 @@
 #include <linux/hugetlb.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
+#include <linux/compaction.h>
 
 #include <asm/tlbflush.h>
 
@@ -1105,8 +1106,10 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
 
 	init_per_zone_wmark_min();
 
-	if (onlined_pages)
+	if (onlined_pages) {
 		kswapd_run(zone_to_nid(zone));
+		kcompactd_run(nid);
+	}
 
 	vm_total_pages = nr_free_pagecache_pages();
 
@@ -1880,8 +1883,10 @@ repeat:
 		zone_pcp_update(zone);
 
 	node_states_clear_node(node, &arg);
-	if (arg.status_change_nid >= 0)
+	if (arg.status_change_nid >= 0) {
 		kswapd_stop(node);
+		kcompactd_stop(node);
+	}
 
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
