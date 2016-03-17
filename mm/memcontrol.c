@@ -2824,6 +2824,9 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
 {
 	int memcg_id;
 
+	if (cgroup_memory_nokmem)
+		return 0;
+
 	BUG_ON(memcg->kmemcg_id >= 0);
 	BUG_ON(memcg->kmem_state);
 
@@ -2842,24 +2845,6 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
 	memcg->kmem_state = KMEM_ONLINE;
 
 	return 0;
-}
-
-static int memcg_propagate_kmem(struct mem_cgroup *parent,
-				struct mem_cgroup *memcg)
-{
-	int ret = 0;
-
-	mutex_lock(&memcg_limit_mutex);
-	/*
-	 * If the parent cgroup is not kmem-online now, it cannot be
-	 * onlined after this point, because it has at least one child
-	 * already.
-	 */
-	if (memcg_kmem_online(parent) ||
-	    (cgroup_subsys_on_dfl(memory_cgrp_subsys) && !cgroup_memory_nokmem))
-		ret = memcg_online_kmem(memcg);
-	mutex_unlock(&memcg_limit_mutex);
-	return ret;
 }
 
 static void memcg_offline_kmem(struct mem_cgroup *memcg)
@@ -2920,10 +2905,6 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
 	}
 }
 #else
-static int memcg_propagate_kmem(struct mem_cgroup *parent, struct mem_cgroup *memcg)
-{
-	return 0;
-}
 static int memcg_online_kmem(struct mem_cgroup *memcg)
 {
 	return 0;
@@ -2939,22 +2920,10 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
 static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
 				   unsigned long limit)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&memcg_limit_mutex);
-	/* Top-level cgroup doesn't propagate from root */
-	if (!memcg_kmem_online(memcg)) {
-		if (cgroup_is_populated(memcg->css.cgroup) ||
-		    (memcg->use_hierarchy && memcg_has_children(memcg)))
-			ret = -EBUSY;
-		if (ret)
-			goto out;
-		ret = memcg_online_kmem(memcg);
-		if (ret)
-			goto out;
-	}
 	ret = page_counter_limit(&memcg->kmem, limit);
-out:
 	mutex_unlock(&memcg_limit_mutex);
 	return ret;
 }
@@ -4205,7 +4174,7 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 		return &memcg->css;
 	}
 
-	error = memcg_propagate_kmem(parent, memcg);
+	error = memcg_online_kmem(memcg);
 	if (error)
 		goto fail;
 
