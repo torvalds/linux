@@ -651,8 +651,6 @@ config IDLE_PAGE_TRACKING
 
 config ZONE_DEVICE
 	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
-	default !ZONE_DMA
-	depends on !ZONE_DMA
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
 	depends on X86_64 #arch_add_memory() comprehends device memory
