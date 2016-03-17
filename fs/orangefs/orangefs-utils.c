@@ -129,141 +129,6 @@ static int orangefs_inode_perms(struct ORANGEFS_sys_attr_s *attrs)
 	return perm_mode;
 }
 
-/* NOTE: symname is ignored unless the inode is a sym link */
-static int copy_attributes_to_inode(struct inode *inode,
-				    struct ORANGEFS_sys_attr_s *attrs,
-				    char *symname)
-{
-	int ret = -1;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	loff_t inode_size = 0;
-	loff_t rounded_up_size = 0;
-
-
-	/*
-	 * arbitrarily set the inode block size; FIXME: we need to
-	 * resolve the difference between the reported inode blocksize
-	 * and the PAGE_CACHE_SIZE, since our block count will always
-	 * be wrong.
-	 *
-	 * For now, we're setting the block count to be the proper
-	 * number assuming the block size is 512 bytes, and the size is
-	 * rounded up to the nearest 4K.  This is apparently required
-	 * to get proper size reports from the 'du' shell utility.
-	 *
-	 * changing the inode->i_blkbits to something other than
-	 * PAGE_CACHE_SHIFT breaks mmap/execution as we depend on that.
-	 */
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "attrs->mask = %x (objtype = %s)\n",
-		     attrs->mask,
-		     attrs->objtype == ORANGEFS_TYPE_METAFILE ? "file" :
-		     attrs->objtype == ORANGEFS_TYPE_DIRECTORY ? "directory" :
-		     attrs->objtype == ORANGEFS_TYPE_SYMLINK ? "symlink" :
-			"invalid/unknown");
-
-	switch (attrs->objtype) {
-	case ORANGEFS_TYPE_METAFILE:
-		inode->i_flags = orangefs_inode_flags(attrs);
-		if (attrs->mask & ORANGEFS_ATTR_SYS_SIZE) {
-			inode_size = (loff_t) attrs->size;
-			rounded_up_size =
-			    (inode_size + (4096 - (inode_size % 4096)));
-
-			spin_lock(&inode->i_lock);
-			inode->i_bytes = inode_size;
-			inode->i_blocks =
-			    (unsigned long)(rounded_up_size / 512);
-			spin_unlock(&inode->i_lock);
-
-			/*
-			 * NOTE: make sure all the places we're called
-			 * from have the inode->i_sem lock. We're fine
-			 * in 99% of the cases since we're mostly
-			 * called from a lookup.
-			 */
-			inode->i_size = inode_size;
-		}
-		break;
-	case ORANGEFS_TYPE_SYMLINK:
-		if (symname != NULL) {
-			inode->i_size = (loff_t) strlen(symname);
-			break;
-		}
-		/*FALLTHRU*/
-	default:
-		inode->i_size = PAGE_CACHE_SIZE;
-
-		spin_lock(&inode->i_lock);
-		inode_set_bytes(inode, inode->i_size);
-		spin_unlock(&inode->i_lock);
-		break;
-	}
-
-	inode->i_uid = make_kuid(&init_user_ns, attrs->owner);
-	inode->i_gid = make_kgid(&init_user_ns, attrs->group);
-	inode->i_atime.tv_sec = (time64_t) attrs->atime;
-	inode->i_mtime.tv_sec = (time64_t) attrs->mtime;
-	inode->i_ctime.tv_sec = (time64_t) attrs->ctime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
-
-	inode->i_mode = orangefs_inode_perms(attrs);
-
-	if (is_root_handle(inode)) {
-		/* special case: mark the root inode as sticky */
-		inode->i_mode |= S_ISVTX;
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "Marking inode %pU as sticky\n",
-			     get_khandle_from_ino(inode));
-	}
-
-	switch (attrs->objtype) {
-	case ORANGEFS_TYPE_METAFILE:
-		inode->i_mode |= S_IFREG;
-		ret = 0;
-		break;
-	case ORANGEFS_TYPE_DIRECTORY:
-		inode->i_mode |= S_IFDIR;
-		/* NOTE: we have no good way to keep nlink consistent
-		 * for directories across clients; keep constant at 1.
-		 * Why 1?  If we go with 2, then find(1) gets confused
-		 * and won't work properly withouth the -noleaf option
-		 */
-		set_nlink(inode, 1);
-		ret = 0;
-		break;
-	case ORANGEFS_TYPE_SYMLINK:
-		inode->i_mode |= S_IFLNK;
-
-		/* copy link target to inode private data */
-		if (orangefs_inode && symname) {
-			strncpy(orangefs_inode->link_target,
-				symname,
-				ORANGEFS_NAME_MAX);
-			gossip_debug(GOSSIP_UTILS_DEBUG,
-				     "Copied attr link target %s\n",
-				     orangefs_inode->link_target);
-		}
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "symlink mode %o\n",
-			     inode->i_mode);
-		ret = 0;
-		break;
-	default:
-		gossip_err("orangefs: copy_attributes_to_inode: got invalid attribute type %x\n",
-			attrs->objtype);
-	}
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs: copy_attributes_to_inode: setting i_mode to %o, i_size to %lu\n",
-		     inode->i_mode,
-		     (unsigned long)i_size_read(inode));
-
-	return ret;
-}
-
 /*
  * NOTE: in kernel land, we never use the sys_attr->link_target for
  * anything, so don't bother copying it into the sys_attr object here.
@@ -349,192 +214,6 @@ static inline int copy_attributes_from_inode(struct inode *inode,
 	}
 
 	return 0;
-}
-
-static int compare_attributes_to_inode(struct inode *inode,
-				       struct ORANGEFS_sys_attr_s *attrs,
-				       char *symname,
-				       int mask)
-{
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	loff_t inode_size, rounded_up_size;
-
-	/* Much of what happens below relies on the type being around. */
-	if (!(mask & ORANGEFS_ATTR_SYS_TYPE))
-		return 0;
-
-	if (attrs->objtype == ORANGEFS_TYPE_METAFILE &&
-	    inode->i_flags != orangefs_inode_flags(attrs))
-		return 0;
-
-	/* Compare file size. */
-
-	switch (attrs->objtype) {
-	case ORANGEFS_TYPE_METAFILE:
-		if (mask & ORANGEFS_ATTR_SYS_SIZE) {
-			inode_size = attrs->size;
-			rounded_up_size = inode_size +
-			    (4096 - (inode_size % 4096));
-			if (inode->i_bytes != inode_size ||
-			    inode->i_blocks != rounded_up_size/512)
-				return 0;
-		}
-		break;
-	case ORANGEFS_TYPE_SYMLINK:
-		if (mask & ORANGEFS_ATTR_SYS_SIZE)
-			if (symname && strlen(symname) != inode->i_size)
-				return 0;
-		break;
-	default:
-		if (inode->i_size != PAGE_CACHE_SIZE &&
-		    inode_get_bytes(inode) != PAGE_CACHE_SIZE)
-			return 0;
-	}
-
-	/* Compare general attributes. */
-
-	if (mask & ORANGEFS_ATTR_SYS_UID &&
-	    !uid_eq(inode->i_uid, make_kuid(&init_user_ns, attrs->owner)))
-		return 0;
-	if (mask & ORANGEFS_ATTR_SYS_GID &&
-	    !gid_eq(inode->i_gid, make_kgid(&init_user_ns, attrs->group)))
-		return 0;
-	if (mask & ORANGEFS_ATTR_SYS_ATIME &&
-	    inode->i_atime.tv_sec != attrs->atime)
-		return 0;
-	if (mask & ORANGEFS_ATTR_SYS_MTIME &&
-	    inode->i_atime.tv_sec != attrs->mtime)
-		return 0;
-	if (mask & ORANGEFS_ATTR_SYS_CTIME &&
-	    inode->i_atime.tv_sec != attrs->ctime)
-		return 0;
-	if (inode->i_atime.tv_nsec != 0 ||
-	    inode->i_mtime.tv_nsec != 0 ||
-	    inode->i_ctime.tv_nsec != 0)
-		return 0;
-
-	if (mask & ORANGEFS_ATTR_SYS_PERM &&
-	    (inode->i_mode & ~(S_ISVTX|S_IFREG|S_IFDIR|S_IFLNK)) !=
-	    orangefs_inode_perms(attrs))
-		return 0;
-
-	if (is_root_handle(inode))
-		if (!(inode->i_mode & S_ISVTX))
-			return 0;
-
-	/* Compare file type. */
-
-	switch (attrs->objtype) {
-	case ORANGEFS_TYPE_METAFILE:
-		if (!S_ISREG(inode->i_mode))
-			return 0;
-		break;
-	case ORANGEFS_TYPE_DIRECTORY:
-		if (!S_ISDIR(inode->i_mode))
-			return 0;
-		if (inode->i_nlink != 1)
-			return 0;
-		break;
-	case ORANGEFS_TYPE_SYMLINK:
-		if (!S_ISLNK(inode->i_mode))
-			return 0;
-		if (orangefs_inode && symname &&
-		    mask & ORANGEFS_ATTR_SYS_LNK_TARGET)
-			if (strcmp(orangefs_inode->link_target, symname))
-				return 0;
-		break;
-	default:
-		gossip_err("orangefs: compare_attributes_to_inode: got invalid attribute type %x\n",
-		    attrs->objtype);
-
-	}
-
-	return 1;
-}
-
-/*
- * Issues a orangefs getattr request and fills in the appropriate inode
- * attributes if successful. When check is 0, returns 0 on success and -errno
- * otherwise. When check is 1, returns 1 on success where the inode is valid
- * and 0 on success where the inode is stale and -errno otherwise.
- */
-int orangefs_inode_old_getattr(struct inode *inode, __u32 getattr_mask,
-    int check)
-{
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct orangefs_kernel_op_s *new_op;
-	int ret = -EINVAL;
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "%s: called on inode %pU\n",
-		     __func__,
-		     get_khandle_from_ino(inode));
-
-	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
-	if (!new_op)
-		return -ENOMEM;
-	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
-	new_op->upcall.req.getattr.mask = getattr_mask;
-
-	ret = service_operation(new_op, __func__,
-				get_interruptible_flag(inode));
-	if (ret != 0)
-		goto out;
-
-	if (check) {
-		ret = compare_attributes_to_inode(inode,
-		    &new_op->downcall.resp.getattr.attributes,
-		    new_op->downcall.resp.getattr.link_target,
-		    getattr_mask);
-
-		if (new_op->downcall.resp.getattr.attributes.objtype ==
-		    ORANGEFS_TYPE_METAFILE) {
-			if (orangefs_inode->blksize !=
-			    new_op->downcall.resp.getattr.attributes.blksize)
-				ret = 0;
-		} else {
-			if (orangefs_inode->blksize != 1 << inode->i_blkbits)
-				ret = 0;
-		}
-	} else {
-		if (copy_attributes_to_inode(inode,
-				&new_op->downcall.resp.getattr.attributes,
-				new_op->downcall.resp.getattr.link_target)) {
-			gossip_err("%s: failed to copy attributes\n", __func__);
-			ret = -ENOENT;
-			goto out;
-		}
-
-		/*
-		 * Store blksize in orangefs specific part of inode structure;
-		 * we are only going to use this to report to stat to make sure
-		 * it doesn't perturb any inode related code paths.
-		 */
-		if (new_op->downcall.resp.getattr.attributes.objtype ==
-				ORANGEFS_TYPE_METAFILE) {
-			orangefs_inode->blksize = new_op->downcall.resp.
-			    getattr.attributes.blksize;
-		} else {
-			/*
-			 * mimic behavior of generic_fillattr() for other file
-			 * types.
-			 */
-			orangefs_inode->blksize = (1 << inode->i_blkbits);
-
-		}
-	}
-
-out:
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "Getattr on handle %pU, "
-		     "fsid %d\n  (inode ct = %d) returned %d\n",
-		     &orangefs_inode->refn.khandle,
-		     orangefs_inode->refn.fs_id,
-		     (int)atomic_read(&inode->i_count),
-		     ret);
-
-	op_release(new_op);
-	return ret;
 }
 
 static int orangefs_inode_type(enum orangefs_ds_type objtype)
@@ -648,6 +327,52 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	/* special case: mark the root inode as sticky */
 	inode->i_mode = ret | (is_root_handle(inode) ? S_ISVTX : 0) |
 	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
+
+	ret = 0;
+out:
+	op_release(new_op);
+	return ret;
+}
+
+int orangefs_inode_check_changed(struct inode *inode)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_kernel_op_s *new_op;
+	int ret;
+
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
+	    get_khandle_from_ino(inode));
+
+	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
+	if (!new_op)
+		return -ENOMEM;
+	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_TYPE |
+	    ORANGEFS_ATTR_SYS_LNK_TARGET;
+
+	ret = service_operation(new_op, __func__,
+	    get_interruptible_flag(inode));
+	if (ret != 0)
+		goto out;
+
+	ret = orangefs_inode_type(new_op->
+	    downcall.resp.getattr.attributes.objtype);
+	/*
+	 * If the inode type or symlink target have changed then this
+	 * inode is stale.
+	 */
+	if (ret == -1 || !(inode->i_mode & ret)) {
+		orangefs_make_bad_inode(inode);
+		ret = 1;
+		goto out;
+	}
+	if (ret == S_IFLNK && strncmp(orangefs_inode->link_target,
+	    new_op->downcall.resp.getattr.link_target,
+	    ORANGEFS_NAME_MAX)) {
+		orangefs_make_bad_inode(inode);
+		ret = 1;
+		goto out;
+	}
 
 	ret = 0;
 out:
