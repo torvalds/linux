@@ -189,6 +189,11 @@ static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 		return (lkl_thread_t) thread;
 }
 
+static void thread_detach(void)
+{
+	WARN_PTHREAD(pthread_detach(pthread_self()));
+}
+
 static void thread_exit(void)
 {
 	pthread_exit(NULL);
@@ -279,6 +284,7 @@ static long _gettid(void)
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
+	.thread_detach = thread_detach,
 	.thread_exit = thread_exit,
 	.sem_alloc = sem_alloc,
 	.sem_free = sem_free,
