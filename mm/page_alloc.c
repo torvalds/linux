@@ -544,11 +544,11 @@ static int __init debug_guardpage_minorder_setup(char *buf)
 	unsigned long res;
 
 	if (kstrtoul(buf, 10, &res) < 0 ||  res > MAX_ORDER / 2) {
-		printk(KERN_ERR "Bad debug_guardpage_minorder value\n");
+		pr_err("Bad debug_guardpage_minorder value\n");
 		return 0;
 	}
 	_debug_guardpage_minorder = res;
-	printk(KERN_INFO "Setting debug_guardpage_minorder to %lu\n", res);
+	pr_info("Setting debug_guardpage_minorder to %lu\n", res);
 	return 0;
 }
 __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
@@ -4073,8 +4073,7 @@ static int __parse_numa_zonelist_order(char *s)
 	} else if (*s == 'z' || *s == 'Z') {
 		user_zonelist_order = ZONELIST_ORDER_ZONE;
 	} else {
-		printk(KERN_WARNING
-		       "Ignoring invalid numa_zonelist_order value:  %s\n", s);
+		pr_warn("Ignoring invalid numa_zonelist_order value:  %s\n", s);
 		return -EINVAL;
 	}
 	return 0;
@@ -5458,8 +5457,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
 					       "  %s zone: %lu pages used for memmap\n",
 					       zone_names[j], memmap_pages);
 			} else
-				printk(KERN_WARNING
-					"  %s zone: %lu pages exceeds freesize %lu\n",
+				pr_warn("  %s zone: %lu pages exceeds freesize %lu\n",
 					zone_names[j], memmap_pages, freesize);
 		}
 
@@ -5667,8 +5665,7 @@ static unsigned long __init find_min_pfn_for_node(int nid)
 		min_pfn = min(min_pfn, start_pfn);
 
 	if (min_pfn == ULONG_MAX) {
-		printk(KERN_WARNING
-			"Could not find start_pfn for node %d\n", nid);
+		pr_warn("Could not find start_pfn for node %d\n", nid);
 		return 0;
 	}
 
@@ -6686,11 +6683,8 @@ void *__init alloc_large_system_hash(const char *tablename,
 	if (!table)
 		panic("Failed to allocate %s hash table\n", tablename);
 
-	printk(KERN_INFO "%s hash table entries: %ld (order: %d, %lu bytes)\n",
-	       tablename,
-	       (1UL << log2qty),
-	       ilog2(size) - PAGE_SHIFT,
-	       size);
+	pr_info("%s hash table entries: %ld (order: %d, %lu bytes)\n",
+		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size);
 
 	if (_hash_shift)
 		*_hash_shift = log2qty;
@@ -7191,8 +7185,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 		BUG_ON(!PageBuddy(page));
 		order = page_order(page);
 #ifdef CONFIG_DEBUG_VM
-		printk(KERN_INFO "remove from free list %lx %d %lx\n",
-		       pfn, 1 << order, end_pfn);
+		pr_info("remove from free list %lx %d %lx\n",
+			pfn, 1 << order, end_pfn);
 #endif
 		list_del(&page->lru);
 		rmv_page_order(page);
