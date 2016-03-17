@@ -403,6 +403,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_REG_INDOOR] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PBSS] = { .type = NLA_FLAG },
 	[NL80211_ATTR_BSS_SELECT] = { .type = NLA_NESTED },
+	[NL80211_ATTR_STA_SUPPORT_P2P_PS] = { .type = NLA_U8 },
 };
 
 /* policy for the key attributes */
@@ -4006,6 +4007,10 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 	    statype != CFG80211_STA_AP_CLIENT_UNASSOC)
 		return -EINVAL;
 
+	if (params->support_p2p_ps != -1 &&
+	    statype != CFG80211_STA_AP_CLIENT_UNASSOC)
+		return -EINVAL;
+
 	if (params->aid &&
 	    !(params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
 	    statype != CFG80211_STA_AP_CLIENT_UNASSOC)
@@ -4299,6 +4304,18 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	else
 		params.listen_interval = -1;
 
+	if (info->attrs[NL80211_ATTR_STA_SUPPORT_P2P_PS]) {
+		u8 tmp;
+
+		tmp = nla_get_u8(info->attrs[NL80211_ATTR_STA_SUPPORT_P2P_PS]);
+		if (tmp >= NUM_NL80211_P2P_PS_STATUS)
+			return -EINVAL;
+
+		params.support_p2p_ps = tmp;
+	} else {
+		params.support_p2p_ps = -1;
+	}
+
 	if (!info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
@@ -4421,6 +4438,23 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
+
+	if (info->attrs[NL80211_ATTR_STA_SUPPORT_P2P_PS]) {
+		u8 tmp;
+
+		tmp = nla_get_u8(info->attrs[NL80211_ATTR_STA_SUPPORT_P2P_PS]);
+		if (tmp >= NUM_NL80211_P2P_PS_STATUS)
+			return -EINVAL;
+
+		params.support_p2p_ps = tmp;
+	} else {
+		/*
+		 * if not specified, assume it's supported for P2P GO interface,
+		 * and is NOT supported for AP interface
+		 */
+		params.support_p2p_ps =
+			dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO;
+	}
 
 	if (info->attrs[NL80211_ATTR_PEER_AID])
 		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_PEER_AID]);

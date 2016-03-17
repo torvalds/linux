@@ -816,6 +816,7 @@ enum station_parameters_apply_mask {
  * @supported_oper_classes_len: number of supported operating classes
  * @opmode_notif: operating mode field from Operating Mode Notification
  * @opmode_notif_used: information if operating mode field is used
+ * @support_p2p_ps: information if station supports P2P PS mechanism
  */
 struct station_parameters {
 	const u8 *supported_rates;
@@ -841,6 +842,7 @@ struct station_parameters {
 	u8 supported_oper_classes_len;
 	u8 opmode_notif;
 	bool opmode_notif_used;
+	int support_p2p_ps;
 };
 
 /**
