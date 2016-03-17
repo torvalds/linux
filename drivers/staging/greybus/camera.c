@@ -421,6 +421,19 @@ static enum v4l2_mbus_pixelcode gb_camera_gb_to_mbus(u16 gb_fmt)
 	return mbus_to_gbus_format[0].mbus_code;
 }
 
+static ssize_t gb_camera_op_capabilities(void *priv, char *data, size_t len)
+{
+	struct gb_camera *gcam = priv;
+	size_t capabilities_len = len;
+	int ret;
+
+	ret = gb_camera_capabilities(gcam, data, &capabilities_len);
+	if (ret)
+		return ret;
+
+	return capabilities_len;
+}
+
 static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 		unsigned int *flags, struct gb_camera_stream *streams)
 {
@@ -492,6 +505,7 @@ static int gb_camera_op_flush(void *priv, u32 *request_id)
 }
 
 struct gb_camera_ops gb_cam_ops = {
+	.capabilities = gb_camera_op_capabilities,
 	.configure_streams = gb_camera_op_configure_streams,
 	.capture = gb_camera_op_capture,
 	.flush = gb_camera_op_flush,
