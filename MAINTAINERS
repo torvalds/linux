@@ -11316,7 +11316,7 @@ F:	include/linux/mtd/ubi.h
 F:	include/uapi/mtd/ubi-user.h
 
 USB ACM DRIVER
-M:	Oliver Neukum <oliver@neukum.org>
+M:	Oliver Neukum <oneukum@suse.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/acm.txt
@@ -11440,6 +11440,7 @@ M:	Valentina Manea <valentina.manea.m@gmail.com>
 M:	Shuah Khan <shuah.kh@samsung.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
+F:	Documentation/usb/usbip_protocol.txt
 F:	drivers/usb/usbip/
 F:	tools/usb/usbip/
 

@@ -306,9 +306,9 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 /*-------------------------------------------------------------------------*/
 
+static void end_iaa_cycle(struct ehci_hcd *ehci);
 static void end_unlink_async(struct ehci_hcd *ehci);
 static void unlink_empty_async(struct ehci_hcd *ehci);
-static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
@@ -565,6 +565,9 @@ static int ehci_init(struct usb_hcd *hcd)
 	/* Accept arbitrarily long scatter-gather lists */
 	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
 		hcd->self.sg_tablesize = ~0;
+
+	/* Prepare for unlinking active QHs */
+	ehci->old_current = ~0;
 	return 0;
 }
 
@@ -675,8 +678,10 @@ int ehci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	retval = ehci_halt(ehci);
-	if (retval)
+	if (retval) {
+		ehci_mem_cleanup(ehci);
 		return retval;
+	}
 
 	ehci_reset(ehci);
 
@@ -756,7 +761,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
 		if (ehci->iaa_in_progress)
 			COUNT(ehci->stats.iaa);
-		end_unlink_async(ehci);
+		end_iaa_cycle(ehci);
 	}
 
 	/* remote wakeup [4.3.1] */
@@ -909,7 +914,7 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		 */
 	} else {
 		qh = (struct ehci_qh *) urb->hcpriv;
-		qh->exception = 1;
+		qh->unlink_reason |= QH_UNLINK_REQUESTED;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)
@@ -970,10 +975,13 @@ rescan:
 		goto done;
 	}
 
-	qh->exception = 1;
+	qh->unlink_reason |= QH_UNLINK_REQUESTED;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
-		WARN_ON(!list_empty(&qh->qtd_list));
+		if (list_empty(&qh->qtd_list))
+			qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
+		else
+			WARN_ON(1);
 		if (usb_endpoint_type(&ep->desc) != USB_ENDPOINT_XFER_INT)
 			start_unlink_async(ehci, qh);
 		else
@@ -1040,7 +1048,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * re-linking will call qh_refresh().
 			 */
 			usb_settoggle(qh->ps.udev, epnum, is_out, 0);
-			qh->exception = 1;
+			qh->unlink_reason |= QH_UNLINK_REQUESTED;
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				start_unlink_async(ehci, qh);
 			else
