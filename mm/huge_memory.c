@@ -3006,14 +3006,11 @@ out:
 	}
 }
 
-static void split_huge_pmd_address(struct vm_area_struct *vma,
-				    unsigned long address)
+void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-
-	VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
 
 	pgd = pgd_offset(vma->vm_mm, address);
 	if (!pgd_present(*pgd))
