@@ -408,7 +408,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 
 	new_buffer = acpi_db_encode_pld_buffer(pld_info);
 	if (!new_buffer) {
-		return;
+		goto exit;
 	}
 
 	/* The two bit-packed buffers should match */
@@ -479,6 +479,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 			       pld_info->horizontal_offset);
 	}
 
-	ACPI_FREE(pld_info);
 	ACPI_FREE(new_buffer);
+exit:
+	ACPI_FREE(pld_info);
 }

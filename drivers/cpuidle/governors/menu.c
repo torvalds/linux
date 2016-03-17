@@ -199,8 +199,8 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev);
 static void get_typical_interval(struct menu_device *data)
 {
 	int i, divisor;
-	unsigned int max, thresh;
-	uint64_t avg, stddev;
+	unsigned int max, thresh, avg;
+	uint64_t sum, variance;
 
 	thresh = UINT_MAX; /* Discard outliers above this value */
 
@@ -208,52 +208,51 @@ again:
 
 	/* First calculate the average of past intervals */
 	max = 0;
-	avg = 0;
+	sum = 0;
 	divisor = 0;
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 		if (value <= thresh) {
-			avg += value;
+			sum += value;
 			divisor++;
 			if (value > max)
 				max = value;
 		}
 	}
 	if (divisor == INTERVALS)
-		avg >>= INTERVAL_SHIFT;
+		avg = sum >> INTERVAL_SHIFT;
 	else
-		do_div(avg, divisor);
+		avg = div_u64(sum, divisor);
 
-	/* Then try to determine standard deviation */
-	stddev = 0;
+	/* Then try to determine variance */
+	variance = 0;
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 		if (value <= thresh) {
-			int64_t diff = value - avg;
-			stddev += diff * diff;
+			int64_t diff = (int64_t)value - avg;
+			variance += diff * diff;
 		}
 	}
 	if (divisor == INTERVALS)
-		stddev >>= INTERVAL_SHIFT;
+		variance >>= INTERVAL_SHIFT;
 	else
-		do_div(stddev, divisor);
+		do_div(variance, divisor);
 
 	/*
-	 * The typical interval is obtained when standard deviation is small
-	 * or standard deviation is small compared to the average interval.
-	 *
-	 * int_sqrt() formal parameter type is unsigned long. When the
-	 * greatest difference to an outlier exceeds ~65 ms * sqrt(divisor)
-	 * the resulting squared standard deviation exceeds the input domain
-	 * of int_sqrt on platforms where unsigned long is 32 bits in size.
-	 * In such case reject the candidate average.
+	 * The typical interval is obtained when standard deviation is
+	 * small (stddev <= 20 us, variance <= 400 us^2) or standard
+	 * deviation is small compared to the average interval (avg >
+	 * 6*stddev, avg^2 > 36*variance). The average is smaller than
+	 * UINT_MAX aka U32_MAX, so computing its square does not
+	 * overflow a u64. We simply reject this candidate average if
+	 * the standard deviation is greater than 715 s (which is
+	 * rather unlikely).
 	 *
 	 * Use this result only if there is no timer to wake us up sooner.
 	 */
-	if (likely(stddev <= ULONG_MAX)) {
-		stddev = int_sqrt(stddev);
-		if (((avg > stddev * 6) && (divisor * 4 >= INTERVALS * 3))
-							|| stddev <= 20) {
+	if (likely(variance <= U64_MAX/36)) {
+		if ((((u64)avg*avg > variance*36) && (divisor * 4 >= INTERVALS * 3))
+							|| variance <= 400) {
 			if (data->next_timer_us > avg)
 				data->predicted_us = avg;
 			return;

@@ -422,7 +422,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 	if (debug_legacy_dish_switch)
 		printk ("%s switch command: 0x%04lx\n",__func__, cmd);
 
-	nexttime = ktime_get_real();
+	nexttime = ktime_get_boottime();
 	if (debug_legacy_dish_switch)
 		tv[0] = nexttime;
 	stv0299_writeregI (state, 0x0c, reg0x0c | 0x50); /* set LNB to 18V */
@@ -431,7 +431,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 
 	for (i=0; i<9; i++) {
 		if (debug_legacy_dish_switch)
-			tv[i+1] = ktime_get_real();
+			tv[i+1] = ktime_get_boottime();
 		if((cmd & 0x01) != last) {
 			/* set voltage to (last ? 13V : 18V) */
 			stv0299_writeregI (state, 0x0c, reg0x0c | (last ? lv_mask : 0x50));
@@ -602,9 +602,9 @@ static int stv0299_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0299_get_frontend(struct dvb_frontend *fe)
+static int stv0299_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0299_state* state = fe->demodulator_priv;
 	s32 derot_freq;
 	int invval;

@@ -13,7 +13,7 @@
  *
  * TODO: Use the cx25840-driver for the analogue part
  *
- * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@posteo.de)
  * Copyright (C) 2006 Michael Krufky (mkrufky@linuxtv.org)
  * Copyright (C) 2006, 2007 Chris Pascoe (c.pascoe@itee.uq.edu.au)
  *
@@ -2314,7 +2314,7 @@ static struct usb_driver cxusb_driver = {
 
 module_usb_driver(cxusb_driver);
 
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
 MODULE_DESCRIPTION("Driver for Conexant USB2.0 hybrid reference design");

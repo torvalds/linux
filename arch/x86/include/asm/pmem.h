@@ -137,6 +137,11 @@ static inline void arch_clear_pmem(void __pmem *addr, size_t size)
 	arch_wb_cache_pmem(addr, size);
 }
 
+static inline void arch_invalidate_pmem(void __pmem *addr, size_t size)
+{
+	clflush_cache_range((void __force *) addr, size);
+}
+
 static inline bool __arch_has_wmb_pmem(void)
 {
 	/*

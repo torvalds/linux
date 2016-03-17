@@ -403,6 +403,9 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
 		if (!cptr)
 			return SCSI_MLQUEUE_HOST_BUSY;
+	} else {
+		sg_count = 0;
+		cptr = NULL;
 	}
 
 	/* Use the outgoing mailboxes in a round-robin fashion, because this
