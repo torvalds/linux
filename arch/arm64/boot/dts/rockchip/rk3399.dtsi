@@ -106,24 +106,32 @@
 			reg = <0x0 0x0>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			clocks = <&cru ARMCLKL>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_l1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
+			clocks = <&cru ARMCLKL>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_l2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
+			clocks = <&cru ARMCLKL>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_l3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
+			clocks = <&cru ARMCLKL>;
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu_b0: cpu@100 {
@@ -132,12 +140,66 @@
 			reg = <0x0 0x100>;
 
 			#cooling-cells = <2>; /* min followed by max */
+			clocks = <&cru ARMCLKB>;
+			operating-points-v2 = <&cluster1_opp>;
 		};
 
 		cpu_b1: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x101>;
+			clocks = <&cru ARMCLKB>;
+			operating-points-v2 = <&cluster1_opp>;
+		};
+	};
+
+	cluster0_opp: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <1000000>;
+		};
+	};
+
+	cluster1_opp: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <408000000>;
+			opp-microvolt = <1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <816000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <1000000>;
 		};
 	};
 
