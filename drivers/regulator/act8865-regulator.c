@@ -139,6 +139,74 @@ struct act8865 {
 	int off_mask;
 };
 
+static const struct regmap_range act8600_reg_ranges[] = {
+	regmap_reg_range(0x00, 0x01),
+	regmap_reg_range(0x10, 0x10),
+	regmap_reg_range(0x12, 0x12),
+	regmap_reg_range(0x20, 0x20),
+	regmap_reg_range(0x22, 0x22),
+	regmap_reg_range(0x30, 0x30),
+	regmap_reg_range(0x32, 0x32),
+	regmap_reg_range(0x40, 0x41),
+	regmap_reg_range(0x50, 0x51),
+	regmap_reg_range(0x60, 0x61),
+	regmap_reg_range(0x70, 0x71),
+	regmap_reg_range(0x80, 0x81),
+	regmap_reg_range(0x91, 0x91),
+	regmap_reg_range(0xA1, 0xA1),
+	regmap_reg_range(0xA8, 0xAA),
+	regmap_reg_range(0xB0, 0xB0),
+	regmap_reg_range(0xB2, 0xB2),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_range act8600_reg_ro_ranges[] = {
+	regmap_reg_range(0xAA, 0xAA),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_range act8600_reg_volatile_ranges[] = {
+	regmap_reg_range(0x00, 0x01),
+	regmap_reg_range(0x12, 0x12),
+	regmap_reg_range(0x22, 0x22),
+	regmap_reg_range(0x32, 0x32),
+	regmap_reg_range(0x41, 0x41),
+	regmap_reg_range(0x51, 0x51),
+	regmap_reg_range(0x61, 0x61),
+	regmap_reg_range(0x71, 0x71),
+	regmap_reg_range(0x81, 0x81),
+	regmap_reg_range(0xA8, 0xA8),
+	regmap_reg_range(0xAA, 0xAA),
+	regmap_reg_range(0xB0, 0xB0),
+	regmap_reg_range(0xC1, 0xC1),
+};
+
+static const struct regmap_access_table act8600_write_ranges_table = {
+	.yes_ranges	= act8600_reg_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+	.no_ranges	= act8600_reg_ro_ranges,
+	.n_no_ranges	= ARRAY_SIZE(act8600_reg_ro_ranges),
+};
+
+static const struct regmap_access_table act8600_read_ranges_table = {
+	.yes_ranges	= act8600_reg_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_ranges),
+};
+
+static const struct regmap_access_table act8600_volatile_ranges_table = {
+	.yes_ranges	= act8600_reg_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(act8600_reg_volatile_ranges),
+};
+
+static const struct regmap_config act8600_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0xFF,
+	.wr_table = &act8600_write_ranges_table,
+	.rd_table = &act8600_read_ranges_table,
+	.volatile_table = &act8600_volatile_ranges_table,
+};
+
 static const struct regmap_config act8865_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -418,6 +486,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	int i, ret, num_regulators;
 	struct act8865 *act8865;
+	const struct regmap_config *regmap_config;
 	unsigned long type;
 	int off_reg, off_mask;
 	int voltage_select = 0;
@@ -444,12 +513,14 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	case ACT8600:
 		regulators = act8600_regulators;
 		num_regulators = ARRAY_SIZE(act8600_regulators);
+		regmap_config = &act8600_regmap_config;
 		off_reg = -1;
 		off_mask = -1;
 		break;
 	case ACT8846:
 		regulators = act8846_regulators;
 		num_regulators = ARRAY_SIZE(act8846_regulators);
+		regmap_config = &act8865_regmap_config;
 		off_reg = ACT8846_GLB_OFF_CTRL;
 		off_mask = ACT8846_OFF_SYSMASK;
 		break;
@@ -461,6 +532,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 			regulators = act8865_regulators;
 			num_regulators = ARRAY_SIZE(act8865_regulators);
 		}
+		regmap_config = &act8865_regmap_config;
 		off_reg = ACT8865_SYS_CTRL;
 		off_mask = ACT8865_MSTROFF;
 		break;
@@ -481,7 +553,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	if (!act8865)
 		return -ENOMEM;
 
-	act8865->regmap = devm_regmap_init_i2c(client, &act8865_regmap_config);
+	act8865->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(act8865->regmap)) {
 		ret = PTR_ERR(act8865->regmap);
 		dev_err(dev, "Failed to allocate register map: %d\n", ret);
