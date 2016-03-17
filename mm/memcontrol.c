@@ -2325,9 +2325,6 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
 	struct page_counter *counter;
 	int ret;
 
-	if (!memcg_kmem_online(memcg))
-		return 0;
-
 	ret = try_charge(memcg, gfp, nr_pages);
 	if (ret)
 		return ret;
@@ -2346,10 +2343,11 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
 int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 {
 	struct mem_cgroup *memcg;
-	int ret;
+	int ret = 0;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
-	ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
+	if (memcg_kmem_online(memcg))
+		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
 	css_put(&memcg->css);
 	return ret;
 }
