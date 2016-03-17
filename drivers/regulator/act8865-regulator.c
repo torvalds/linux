@@ -498,8 +498,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	act8865->regmap = devm_regmap_init_i2c(client, &act8865_regmap_config);
 	if (IS_ERR(act8865->regmap)) {
 		ret = PTR_ERR(act8865->regmap);
-		dev_err(&client->dev, "Failed to allocate register map: %d\n",
-			ret);
+		dev_err(dev, "Failed to allocate register map: %d\n", ret);
 		return ret;
 	}
 
@@ -526,7 +525,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		config.driver_data = act8865;
 		config.regmap = act8865->regmap;
 
-		rdev = devm_regulator_register(&client->dev, desc, &config);
+		rdev = devm_regulator_register(dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "failed to register %s\n", desc->name);
 			return PTR_ERR(rdev);
