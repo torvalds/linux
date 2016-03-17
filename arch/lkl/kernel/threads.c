@@ -144,7 +144,7 @@ int copy_thread(unsigned long clone_flags, unsigned long esp,
 	tba->ti = ti;
 
 	ret = lkl_ops->thread_create(thread_bootstrap, tba);
-	if (ret) {
+	if (!ret) {
 		kfree(tba);
 		return -ENOMEM;
 	}

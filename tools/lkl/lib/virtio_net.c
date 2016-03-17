@@ -198,10 +198,10 @@ int lkl_netdev_add(struct lkl_netdev *nd, void *mac)
 	if (ret)
 		goto out_free;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->rx_poll) < 0)
+	if (lkl_host_ops.thread_create(poll_thread, &dev->rx_poll) == 0)
 		goto out_cleanup_dev;
 
-	if (lkl_host_ops.thread_create(poll_thread, &dev->tx_poll) < 0)
+	if (lkl_host_ops.thread_create(poll_thread, &dev->tx_poll) == 0)
 		goto out_cleanup_dev;
 
 	/* RX/TX thread polls will exit when the host netdev handle is closed */

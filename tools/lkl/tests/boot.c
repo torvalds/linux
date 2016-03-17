@@ -667,7 +667,7 @@ static int test_syscall_thread(char *str, int len)
 	}
 
 	ret = lkl_host_ops.thread_create(test_thread, pipe_fds);
-	if (ret) {
+	if (!ret) {
 		snprintf(str, len, "failed to create thread");
 		return TEST_FAILURE;
 	}
