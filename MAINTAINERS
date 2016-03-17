@@ -11126,8 +11126,8 @@ M:	Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
 R:	Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
-Q:	git git://github.com/PeterHuewe/linux-tpmdd.git
-T:	git https://github.com/PeterHuewe/linux-tpmdd
+Q:	https://patchwork.kernel.org/project/tpmdd-devel/list/
+T:	git git://git.infradead.org/users/jjs/linux-tpmdd.git
 S:	Maintained
 F:	drivers/char/tpm/
 
