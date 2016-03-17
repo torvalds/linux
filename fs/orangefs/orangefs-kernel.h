@@ -645,18 +645,14 @@ do {									\
 	sys_attr.mask = ORANGEFS_ATTR_SYS_ALL_SETABLE;			\
 } while (0)
 
-#define orangefs_inode_lock(__i)  mutex_lock(&(__i)->i_mutex)
-
-#define orangefs_inode_unlock(__i) mutex_unlock(&(__i)->i_mutex)
-
 static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
 {
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	orangefs_inode_lock(inode);
+	mutex_lock(&inode->i_mutex);
 #endif
 	i_size_write(inode, i_size);
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	orangefs_inode_unlock(inode);
+	mutex_unlock(&inode->i_mutex);
 #endif
 }
 
