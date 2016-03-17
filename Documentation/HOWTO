@@ -68,7 +68,7 @@ For common questions and answers about the GPL, please see:
 
 
 Documentation
-------------
+-------------
 
 The Linux kernel source tree has a large range of documents that are
 invaluable for learning how to interact with the kernel community.  When
@@ -187,7 +187,7 @@ apply a patch.
 If you do not know where you want to start, but you want to look for
 some task to start doing to join into the kernel development community,
 go to the Linux Kernel Janitor's project:
-	http://kernelnewbies.org/KernelJanitors	
+	http://kernelnewbies.org/KernelJanitors
 It is a great place to start.  It describes a list of relatively simple
 problems that need to be cleaned up and fixed within the Linux kernel
 source tree.  Working with the developers in charge of this project, you
@@ -250,11 +250,6 @@ process is as follows:
     release a new -rc kernel every week.
   - Process continues until the kernel is considered "ready", the
     process should last around 6 weeks.
-  - Known regressions in each release are periodically posted to the 
-    linux-kernel mailing list.  The goal is to reduce the length of 
-    that list to zero before declaring the kernel to be "ready," but, in
-    the real world, a small number of regressions often remain at 
-    release time.
 
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
@@ -263,7 +258,7 @@ mailing list about kernel releases:
 	preconceived timeline."
 
 4.x.y -stable kernel tree
----------------------------
+-------------------------
 Kernels with 3-part versions are -stable kernels. They contain
 relatively small and critical fixes for security problems or significant
 regressions discovered in a given 4.x kernel.
@@ -286,7 +281,7 @@ documents what kinds of changes are acceptable for the -stable tree, and
 how the release process works.
 
 4.x -git patches
-------------------
+----------------
 These are daily snapshots of Linus' kernel tree which are managed in a
 git repository (hence the name.) These patches are usually released
 daily and represent the current state of Linus' tree.  They are more
@@ -318,7 +313,7 @@ accepted, or rejected.  Most of these patchwork sites are listed at
 http://patchwork.kernel.org/.
 
 4.x -next kernel tree for integration tests
----------------------------------------------
+-------------------------------------------
 Before updates from subsystem trees are merged into the mainline 4.x
 tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are

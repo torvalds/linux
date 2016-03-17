@@ -349,7 +349,7 @@ static ssize_t
 sum_iovec_len(struct mic_copy_desc *copy)
 {
 	ssize_t sum = 0;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < copy->iovcnt; i++)
 		sum += copy->iov[i].iov_len;
@@ -372,7 +372,7 @@ static void
 disp_iovec(struct mic_info *mic, struct mic_copy_desc *copy,
 	   const char *s, int line)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < copy->iovcnt; i++)
 		mpsslog("%s %s %d copy->iov[%d] addr %p len 0x%zx\n",
