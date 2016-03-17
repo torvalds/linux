@@ -127,6 +127,7 @@ EXPORT_SYMBOL(ath10k_info);
 void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 {
 	char fw_features[128] = {};
+	u32 crc = 0;
 
 	ath10k_core_get_fw_features_str(ar, fw_features, sizeof(fw_features));
 
@@ -143,11 +144,14 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
 		    config_enabled(CONFIG_NL80211_TESTMODE));
 
+	if (ar->firmware)
+		crc = crc32_le(0, ar->firmware->data, ar->firmware->size);
+
 	ath10k_info(ar, "firmware ver %s api %d features %s crc32 %08x\n",
 		    ar->hw->wiphy->fw_version,
 		    ar->fw_api,
 		    fw_features,
-		    crc32_le(0, ar->firmware->data, ar->firmware->size));
+		    crc);
 }
 
 void ath10k_debug_print_board_info(struct ath10k *ar)
