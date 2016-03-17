@@ -120,8 +120,8 @@ void adreno_recover(struct msm_gpu *gpu)
 	/* reset ringbuffer: */
 	gpu->rb->cur = gpu->rb->start;
 
-	/* reset completed fence seqno, just discard anything pending: */
-	adreno_gpu->memptrs->fence = gpu->fctx->last_fence;
+	/* reset completed fence seqno: */
+	adreno_gpu->memptrs->fence = gpu->fctx->completed_fence;
 	adreno_gpu->memptrs->rptr  = 0;
 	adreno_gpu->memptrs->wptr  = 0;
 
