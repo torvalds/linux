@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/ktime.h>
+#include <linux/pagemap.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
