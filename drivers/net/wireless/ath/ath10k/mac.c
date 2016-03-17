@@ -3777,13 +3777,13 @@ void ath10k_mac_tx_push_pending(struct ath10k *ar)
 		}
 
 		list_del_init(&artxq->list);
+		if (ret != -ENOENT)
+			list_add_tail(&artxq->list, &ar->txqs);
+
 		ath10k_htt_tx_txq_update(hw, txq);
 
-		if (artxq == last || (ret < 0 && ret != -ENOENT)) {
-			if (ret != -ENOENT)
-				list_add_tail(&artxq->list, &ar->txqs);
+		if (artxq == last || (ret < 0 && ret != -ENOENT))
 			break;
-		}
 	}
 
 	rcu_read_unlock();
