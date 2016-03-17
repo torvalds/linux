@@ -694,8 +694,10 @@ static int gb_audio_add_data_connection(struct gbaudio_codec_info *gbcodec,
 		return -ENOMEM;
 	}
 
-	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
-					  gbaudio_dai_request_handler);
+	connection = gb_connection_create_flags(bundle,
+						le16_to_cpu(cport_desc->id),
+						gbaudio_dai_request_handler,
+						GB_CONNECTION_FLAG_CSD);
 	if (IS_ERR(connection)) {
 		devm_kfree(gbcodec->dev, dai);
 		return PTR_ERR(connection);
