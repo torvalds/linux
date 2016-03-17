@@ -2346,7 +2346,7 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 	int ret = 0;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
-	if (memcg_kmem_online(memcg))
+	if (!mem_cgroup_is_root(memcg))
 		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
 	css_put(&memcg->css);
 	return ret;
