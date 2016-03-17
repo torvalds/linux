@@ -5765,6 +5765,7 @@ S:	Supported
 F:	include/uapi/linux/mei.h
 F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
+F:	drivers/watchdog/mei_wdt.c
 F:	Documentation/misc-devices/mei/*
 
 INTEL MIC DRIVERS (mic)
@@ -6597,6 +6598,11 @@ F:	Documentation/ABI/testing/sysfs-kernel-livepatch
 F:	samples/livepatch/
 L:	live-patching@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/livepatching.git
+
+LINUX KERNEL DUMP TEST MODULE (LKDTM)
+M:	Kees Cook <keescook@chromium.org>
+S:	Maintained
+F:	drivers/misc/lkdtm.c
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>

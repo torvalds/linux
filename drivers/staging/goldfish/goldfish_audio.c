@@ -63,7 +63,7 @@ struct goldfish_audio {
 #define AUDIO_READ(data, addr)		(readl(data->reg_base + addr))
 #define AUDIO_WRITE(data, addr, x)	(writel(x, data->reg_base + addr))
 #define AUDIO_WRITE64(data, addr, addr2, x)	\
-	(gf_write_dma_addr((x), data->reg_base + addr, data->reg_base+addr2))
+	(gf_write_dma_addr((x), data->reg_base + addr, data->reg_base + addr2))
 
 /*
  *  temporary variable used between goldfish_audio_probe() and
@@ -280,12 +280,12 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
+	if (!r) {
 		dev_err(&pdev->dev, "platform_get_resource failed\n");
 		return -ENODEV;
 	}
 	data->reg_base = devm_ioremap(&pdev->dev, r->start, PAGE_SIZE);
-	if (data->reg_base == NULL)
+	if (!data->reg_base)
 		return -ENOMEM;
 
 	data->irq = platform_get_irq(pdev, 0);
@@ -295,7 +295,7 @@ static int goldfish_audio_probe(struct platform_device *pdev)
 	}
 	data->buffer_virt = dmam_alloc_coherent(&pdev->dev,
 				COMBINED_BUFFER_SIZE, &buf_addr, GFP_KERNEL);
-	if (data->buffer_virt == NULL) {
+	if (!data->buffer_virt) {
 		dev_err(&pdev->dev, "allocate buffer failed\n");
 		return -ENOMEM;
 	}

@@ -1147,7 +1147,6 @@ int w1_process(void *data)
 			jremain = 1;
 		}
 
-		try_to_freeze();
 		__set_current_state(TASK_INTERRUPTIBLE);
 
 		/* hold list_mutex until after interruptible to prevent loosing

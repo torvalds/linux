@@ -115,13 +115,14 @@ static void mityomapl138_cpufreq_init(const char *partnum)
 static void mityomapl138_cpufreq_init(const char *partnum) { }
 #endif
 
-static void read_factory_config(struct memory_accessor *a, void *context)
+static void read_factory_config(struct nvmem_device *nvmem, void *context)
 {
 	int ret;
 	const char *partnum = NULL;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
-	ret = a->read(a, (char *)&factory_config, 0, sizeof(factory_config));
+	ret = nvmem_device_read(nvmem, 0, sizeof(factory_config),
+				&factory_config);
 	if (ret != sizeof(struct factory_config)) {
 		pr_warn("Read Factory Config Failed: %d\n", ret);
 		goto bad_config;
