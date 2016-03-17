@@ -633,7 +633,15 @@ static void walk_pfn(unsigned long voffset,
 	unsigned long pages;
 	unsigned long i;
 
-	memset(cgi, 0, sizeof cgi);
+	/*
+	 * kpagecgroup_read() reads only if kpagecgroup were opened, but
+	 * /proc/kpagecgroup might even not exist, so it's better to fill
+	 * them with zeros here.
+	 */
+	if (count == 1)
+		cgi[0] = 0;
+	else
+		memset(cgi, 0, sizeof cgi);
 
 	while (count) {
 		batch = min_t(unsigned long, count, KPAGEFLAGS_BATCH);
