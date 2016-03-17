@@ -651,7 +651,7 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	const char *propname, const char *string)
 {
 	const char **values;
-	int nval, ret, i;
+	int nval, ret;
 
 	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
 	if (nval < 0)
@@ -668,13 +668,9 @@ int fwnode_property_match_string(struct fwnode_handle *fwnode,
 	if (ret < 0)
 		goto out;
 
-	ret = -ENODATA;
-	for (i = 0; i < nval; i++) {
-		if (!strcmp(values[i], string)) {
-			ret = i;
-			break;
-		}
-	}
+	ret = match_string(values, nval, string);
+	if (ret < 0)
+		ret = -ENODATA;
 out:
 	kfree(values);
 	return ret;
