@@ -98,11 +98,18 @@ snic_slave_configure(struct scsi_device *sdev)
 static int
 snic_change_queue_depth(struct scsi_device *sdev, int qdepth)
 {
+	struct snic *snic = shost_priv(sdev->host);
 	int qsz = 0;
 
 	qsz = min_t(u32, qdepth, SNIC_MAX_QUEUE_DEPTH);
+	if (qsz < sdev->queue_depth)
+		atomic64_inc(&snic->s_stats.misc.qsz_rampdown);
+	else if (qsz > sdev->queue_depth)
+		atomic64_inc(&snic->s_stats.misc.qsz_rampup);
+
+	atomic64_set(&snic->s_stats.misc.last_qsz, sdev->queue_depth);
+
 	scsi_change_queue_depth(sdev, qsz);
-	SNIC_INFO("QDepth Changed to %d\n", sdev->queue_depth);
 
 	return sdev->queue_depth;
 }

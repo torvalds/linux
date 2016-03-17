@@ -39,17 +39,15 @@ snic_handle_link(struct work_struct *work)
 {
 	struct snic *snic = container_of(work, struct snic, link_work);
 
-	if (snic->config.xpt_type != SNIC_DAS) {
-		SNIC_HOST_INFO(snic->shost, "Link Event Received.\n");
-		SNIC_ASSERT_NOT_IMPL(1);
-
+	if (snic->config.xpt_type == SNIC_DAS)
 		return;
-	}
 
 	snic->link_status = svnic_dev_link_status(snic->vdev);
 	snic->link_down_cnt = svnic_dev_link_down_cnt(snic->vdev);
 	SNIC_HOST_INFO(snic->shost, "Link Event: Link %s.\n",
 		       ((snic->link_status) ? "Up" : "Down"));
+
+	SNIC_ASSERT_NOT_IMPL(1);
 }
 
 

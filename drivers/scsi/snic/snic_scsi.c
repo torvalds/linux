@@ -221,11 +221,15 @@ snic_queue_icmnd_req(struct snic *snic,
 			pa, /* sense buffer pa */
 			SCSI_SENSE_BUFFERSIZE);
 
+	atomic64_inc(&snic->s_stats.io.active);
 	ret = snic_queue_wq_desc(snic, rqi->req, rqi->req_len);
-	if (ret)
+	if (ret) {
+		atomic64_dec(&snic->s_stats.io.active);
 		SNIC_HOST_ERR(snic->shost,
 			      "QIcmnd: Queuing Icmnd Failed. ret = %d\n",
 			      ret);
+	} else
+		snic_stats_update_active_ios(&snic->s_stats);
 
 	return ret;
 } /* end of snic_queue_icmnd_req */
@@ -361,8 +365,7 @@ snic_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc)
 	if (ret) {
 		SNIC_HOST_ERR(shost, "Failed to Q, Scsi Req w/ err %d.\n", ret);
 		ret = SCSI_MLQUEUE_HOST_BUSY;
-	} else
-		snic_stats_update_active_ios(&snic->s_stats);
+	}
 
 	atomic_dec(&snic->ios_inflight);
 
@@ -1001,10 +1004,11 @@ snic_hba_reset_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 	unsigned long flags, gflags;
 	int ret = 0;
 
-	SNIC_HOST_INFO(snic->shost,
-		       "reset_cmpl:HBA Reset Completion received.\n");
-
 	snic_io_hdr_dec(&fwreq->hdr, &typ, &hdr_stat, &cmnd_id, &hid, &ctx);
+	SNIC_HOST_INFO(snic->shost,
+		       "reset_cmpl:Tag %d ctx %lx cmpl status %s HBA Reset Completion received.\n",
+		       cmnd_id, ctx, snic_io_status_to_str(hdr_stat));
+
 	SNIC_SCSI_DBG(snic->shost,
 		      "reset_cmpl: type = %x, hdr_stat = %x, cmnd_id = %x, hid = %x, ctx = %lx\n",
 		      typ, hdr_stat, cmnd_id, hid, ctx);
@@ -1012,6 +1016,9 @@ snic_hba_reset_cmpl_handler(struct snic *snic, struct snic_fw_req *fwreq)
 	/* spl case, host reset issued through ioctl */
 	if (cmnd_id == SCSI_NO_TAG) {
 		rqi = (struct snic_req_info *) ctx;
+		SNIC_HOST_INFO(snic->shost,
+			       "reset_cmpl:Tag %d ctx %lx cmpl stat %s\n",
+			       cmnd_id, ctx, snic_io_status_to_str(hdr_stat));
 		sc = rqi->sc;
 
 		goto ioctl_hba_rst;
@@ -1037,6 +1044,10 @@ ioctl_hba_rst:
 
 		return ret;
 	}
+
+	SNIC_HOST_INFO(snic->shost,
+		       "reset_cmpl: sc %p rqi %p Tag %d flags 0x%llx\n",
+		       sc, rqi, cmnd_id, CMD_FLAGS(sc));
 
 	io_lock = snic_io_lock_hash(snic, sc);
 	spin_lock_irqsave(io_lock, flags);
@@ -1554,6 +1565,7 @@ snic_send_abort_and_wait(struct snic *snic, struct scsi_cmnd *sc)
 	/* Now Queue the abort command to firmware */
 	ret = snic_queue_abort_req(snic, rqi, sc, tmf);
 	if (ret) {
+		atomic64_inc(&snic->s_stats.abts.q_fail);
 		SNIC_HOST_ERR(snic->shost,
 			      "send_abt_cmd: IO w/ Tag 0x%x fail w/ err %d flags 0x%llx\n",
 			      tag, ret, CMD_FLAGS(sc));
@@ -2459,8 +2471,9 @@ snic_scsi_cleanup(struct snic *snic, int ex_tag)
 cleanup:
 		sc->result = DID_TRANSPORT_DISRUPTED << 16;
 		SNIC_HOST_INFO(snic->shost,
-			       "sc_clean: DID_TRANSPORT_DISRUPTED for sc %p. rqi %p duration %llu msecs\n",
-			       sc, rqi, (jiffies - st_time));
+			       "sc_clean: DID_TRANSPORT_DISRUPTED for sc %p, Tag %d flags 0x%llx rqi %p duration %u msecs\n",
+			       sc, sc->request->tag, CMD_FLAGS(sc), rqi,
+			       jiffies_to_msecs(jiffies - st_time));
 
 		/* Update IO stats */
 		snic_stats_update_io_cmpl(&snic->s_stats);
