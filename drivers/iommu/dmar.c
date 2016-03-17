@@ -1579,18 +1579,14 @@ static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 	reason = dmar_get_fault_reason(fault_reason, &fault_type);
 
 	if (fault_type == INTR_REMAP)
-		pr_err("INTR-REMAP: Request device [[%02x:%02x.%d] "
-		       "fault index %llx\n"
-			"INTR-REMAP:[fault reason %02d] %s\n",
-			(source_id >> 8), PCI_SLOT(source_id & 0xFF),
+		pr_err("[INTR-REMAP] Request device [%02x:%02x.%d] fault index %llx [fault reason %02d] %s\n",
+			source_id >> 8, PCI_SLOT(source_id & 0xFF),
 			PCI_FUNC(source_id & 0xFF), addr >> 48,
 			fault_reason, reason);
 	else
-		pr_err("DMAR:[%s] Request device [%02x:%02x.%d] "
-		       "fault addr %llx \n"
-		       "DMAR:[fault reason %02d] %s\n",
-		       (type ? "DMA Read" : "DMA Write"),
-		       (source_id >> 8), PCI_SLOT(source_id & 0xFF),
+		pr_err("[%s] Request device [%02x:%02x.%d] fault addr %llx [fault reason %02d] %s\n",
+		       type ? "DMA Read" : "DMA Write",
+		       source_id >> 8, PCI_SLOT(source_id & 0xFF),
 		       PCI_FUNC(source_id & 0xFF), addr, fault_reason, reason);
 	return 0;
 }
