@@ -5007,9 +5007,9 @@ F:	Documentation/blockdev/cpqarray.txt
 F:	drivers/block/cpqarray.*
 
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
-M:	Don Brace <don.brace@pmcs.com>
+M:	Don Brace <don.brace@microsemi.com>
 L:	iss_storagedev@hp.com
-L:	storagedev@pmcs.com
+L:	esc.storagedev@microsemi.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/hpsa.txt
@@ -6682,13 +6682,12 @@ S:	Maintained
 F:	arch/arm/mach-lpc32xx/
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
-M:	Nagalakshmi Nandigama <nagalakshmi.nandigama@avagotech.com>
-M:	Praveen Krishnamoorthy <praveen.krishnamoorthy@avagotech.com>
-M:	Sreekanth Reddy <sreekanth.reddy@avagotech.com>
-M:	Abhijit Mahajan <abhijit.mahajan@avagotech.com>
-L:	MPT-FusionLinux.pdl@avagotech.com
+M:	Sathya Prakash <sathya.prakash@broadcom.com>
+M:	Chaitra P B <chaitra.basappa@broadcom.com>
+M:	Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>
+L:	MPT-FusionLinux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
-W:	http://www.lsilogic.com/support
+W:	http://www.avagotech.com/support/
 S:	Supported
 F:	drivers/message/fusion/
 F:	drivers/scsi/mpt2sas/
@@ -9691,7 +9690,7 @@ F:	drivers/scsi/sg.c
 F:	include/scsi/sg.h
 
 SCSI SUBSYSTEM
-M:	"James E.J. Bottomley" <JBottomley@odin.com>
+M:	"James E.J. Bottomley" <jejb@linux.vnet.ibm.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/scsi.git
 M:	"Martin K. Petersen" <martin.petersen@oracle.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mkp/scsi.git
