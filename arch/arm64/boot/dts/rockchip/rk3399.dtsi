@@ -779,6 +779,8 @@
 		rockchip,grf = <&pmugrf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		assigned-clocks = <&cru PLL_PPLL>;
+		assigned-clock-rates = <676000000>;
 	};
 
 	cru: clock-controller@ff760000 {
@@ -787,6 +789,22 @@
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+		assigned-clocks =
+			<&cru PLL_GPLL>, <&cru PLL_CPLL>,
+			<&cru PLL_NPLL>,
+			<&cru ACLK_PERIHP>, <&cru HCLK_PERIHP>,
+			<&cru PCLK_PERIHP>,
+			<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
+			<&cru PCLK_PERILP0>,
+			<&cru HCLK_PERILP1>, <&cru PCLK_PERILP1>;
+		assigned-clock-rates =
+			 <594000000>,  <800000000>,
+			<1000000000>,
+			 <150000000>,   <75000000>,
+			  <37500000>,
+			 <100000000>,  <100000000>,
+			  <50000000>,
+			 <100000000>,   <50000000>;
 	};
 
 	grf: syscon@ff770000 {
