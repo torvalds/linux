@@ -25,9 +25,6 @@
 #define _CRYPTO_TESTMGR_H
 
 #include <linux/netlink.h>
-#include <linux/zlib.h>
-
-#include <crypto/compress.h>
 
 #define MAX_DIGEST_SIZE		64
 #define MAX_TAP			8
@@ -32268,14 +32265,6 @@ struct comp_testvec {
 	char output[COMP_BUF_SIZE];
 };
 
-struct pcomp_testvec {
-	const void *params;
-	unsigned int paramsize;
-	int inlen, outlen;
-	char input[COMP_BUF_SIZE];
-	char output[COMP_BUF_SIZE];
-};
-
 /*
  * Deflate test vectors (null-terminated strings).
  * Params: winbits=-11, Z_DEFAULT_COMPRESSION, MAX_MEM_LEVEL.
@@ -32344,139 +32333,6 @@ static struct comp_testvec deflate_decomp_tv_template[] = {
 			"compression algorithm.  This document defines the application of "
 			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
 	}, {
-		.inlen	= 38,
-		.outlen	= 70,
-		.input	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"
-			  "\xc8\xcb\x2f\x57\x48\xcc\x4b\x51"
-			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
-			  "\x48\x55\x28\xce\x4f\x2b\x29\x07"
-			  "\x71\xbc\x08\x2b\x01\x00",
-		.output	= "Join us now and share the software "
-			"Join us now and share the software ",
-	},
-};
-
-#define ZLIB_COMP_TEST_VECTORS 2
-#define ZLIB_DECOMP_TEST_VECTORS 2
-
-static const struct {
-	struct nlattr nla;
-	int val;
-} deflate_comp_params[] = {
-	{
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_LEVEL,
-		},
-		.val			= Z_DEFAULT_COMPRESSION,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_METHOD,
-		},
-		.val			= Z_DEFLATED,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_WINDOWBITS,
-		},
-		.val			= -11,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_MEMLEVEL,
-		},
-		.val			= MAX_MEM_LEVEL,
-	}, {
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_COMP_STRATEGY,
-		},
-		.val			= Z_DEFAULT_STRATEGY,
-	}
-};
-
-static const struct {
-	struct nlattr nla;
-	int val;
-} deflate_decomp_params[] = {
-	{
-		.nla = {
-			.nla_len	= NLA_HDRLEN + sizeof(int),
-			.nla_type	= ZLIB_DECOMP_WINDOWBITS,
-		},
-		.val			= -11,
-	}
-};
-
-static struct pcomp_testvec zlib_comp_tv_template[] = {
-	{
-		.params = &deflate_comp_params,
-		.paramsize = sizeof(deflate_comp_params),
-		.inlen	= 70,
-		.outlen	= 38,
-		.input	= "Join us now and share the software "
-			"Join us now and share the software ",
-		.output	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"
-			  "\xc8\xcb\x2f\x57\x48\xcc\x4b\x51"
-			  "\x28\xce\x48\x2c\x4a\x55\x28\xc9"
-			  "\x48\x55\x28\xce\x4f\x2b\x29\x07"
-			  "\x71\xbc\x08\x2b\x01\x00",
-	}, {
-		.params = &deflate_comp_params,
-		.paramsize = sizeof(deflate_comp_params),
-		.inlen	= 191,
-		.outlen	= 122,
-		.input	= "This document describes a compression method based on the DEFLATE"
-			"compression algorithm.  This document defines the application of "
-			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
-		.output	= "\x5d\x8d\x31\x0e\xc2\x30\x10\x04"
-			  "\xbf\xb2\x2f\xc8\x1f\x10\x04\x09"
-			  "\x89\xc2\x85\x3f\x70\xb1\x2f\xf8"
-			  "\x24\xdb\x67\xd9\x47\xc1\xef\x49"
-			  "\x68\x12\x51\xae\x76\x67\xd6\x27"
-			  "\x19\x88\x1a\xde\x85\xab\x21\xf2"
-			  "\x08\x5d\x16\x1e\x20\x04\x2d\xad"
-			  "\xf3\x18\xa2\x15\x85\x2d\x69\xc4"
-			  "\x42\x83\x23\xb6\x6c\x89\x71\x9b"
-			  "\xef\xcf\x8b\x9f\xcf\x33\xca\x2f"
-			  "\xed\x62\xa9\x4c\x80\xff\x13\xaf"
-			  "\x52\x37\xed\x0e\x52\x6b\x59\x02"
-			  "\xd9\x4e\xe8\x7a\x76\x1d\x02\x98"
-			  "\xfe\x8a\x87\x83\xa3\x4f\x56\x8a"
-			  "\xb8\x9e\x8e\x5c\x57\xd3\xa0\x79"
-			  "\xfa\x02",
-	},
-};
-
-static struct pcomp_testvec zlib_decomp_tv_template[] = {
-	{
-		.params = &deflate_decomp_params,
-		.paramsize = sizeof(deflate_decomp_params),
-		.inlen	= 122,
-		.outlen	= 191,
-		.input	= "\x5d\x8d\x31\x0e\xc2\x30\x10\x04"
-			  "\xbf\xb2\x2f\xc8\x1f\x10\x04\x09"
-			  "\x89\xc2\x85\x3f\x70\xb1\x2f\xf8"
-			  "\x24\xdb\x67\xd9\x47\xc1\xef\x49"
-			  "\x68\x12\x51\xae\x76\x67\xd6\x27"
-			  "\x19\x88\x1a\xde\x85\xab\x21\xf2"
-			  "\x08\x5d\x16\x1e\x20\x04\x2d\xad"
-			  "\xf3\x18\xa2\x15\x85\x2d\x69\xc4"
-			  "\x42\x83\x23\xb6\x6c\x89\x71\x9b"
-			  "\xef\xcf\x8b\x9f\xcf\x33\xca\x2f"
-			  "\xed\x62\xa9\x4c\x80\xff\x13\xaf"
-			  "\x52\x37\xed\x0e\x52\x6b\x59\x02"
-			  "\xd9\x4e\xe8\x7a\x76\x1d\x02\x98"
-			  "\xfe\x8a\x87\x83\xa3\x4f\x56\x8a"
-			  "\xb8\x9e\x8e\x5c\x57\xd3\xa0\x79"
-			  "\xfa\x02",
-		.output	= "This document describes a compression method based on the DEFLATE"
-			"compression algorithm.  This document defines the application of "
-			"the DEFLATE algorithm to the IP Payload Compression Protocol.",
-	}, {
-		.params = &deflate_decomp_params,
-		.paramsize = sizeof(deflate_decomp_params),
 		.inlen	= 38,
 		.outlen	= 70,
 		.input	= "\xf3\xca\xcf\xcc\x53\x28\x2d\x56"

@@ -1031,6 +1031,18 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	BUG_ON(ivsize && !req->iv);
 	memcpy(crypt->iv, req->iv, ivsize);
 
+	buf = chainup_buffers(dev, req->src, crypt->auth_len,
+			      &src_hook, flags, src_direction);
+	req_ctx->src = src_hook.next;
+	crypt->src_buf = src_hook.phys_next;
+	if (!buf)
+		goto free_buf_src;
+
+	lastlen = buf->buf_len;
+	if (lastlen >= authsize)
+		crypt->icv_rev_aes = buf->phys_addr +
+				     buf->buf_len - authsize;
+
 	req_ctx->dst = NULL;
 
 	if (req->src != req->dst) {
@@ -1053,20 +1065,6 @@ static int aead_perform(struct aead_request *req, int encrypt,
 				crypt->icv_rev_aes = buf->phys_addr +
 						     buf->buf_len - authsize;
 		}
-	}
-
-	buf = chainup_buffers(dev, req->src, crypt->auth_len,
-			      &src_hook, flags, src_direction);
-	req_ctx->src = src_hook.next;
-	crypt->src_buf = src_hook.phys_next;
-	if (!buf)
-		goto free_buf_src;
-
-	if (!encrypt || !req_ctx->dst) {
-		lastlen = buf->buf_len;
-		if (lastlen >= authsize)
-			crypt->icv_rev_aes = buf->phys_addr +
-					     buf->buf_len - authsize;
 	}
 
 	if (unlikely(lastlen < authsize)) {
