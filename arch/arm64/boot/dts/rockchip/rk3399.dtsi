@@ -211,6 +211,22 @@
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
+	pmu_a53 {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-affinity = <&cpu_l0>,
+				     <&cpu_l1>,
+				     <&cpu_l2>,
+				     <&cpu_l3>;
+	};
+
+	pmu_a72 {
+		compatible = "arm,cortex-a72-pmu", "arm,cortex-a57-pmu";
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-affinity = <&cpu_b0>,
+				     <&cpu_b1>;
+	};
+
 	xin24m: xin24m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
