@@ -1405,7 +1405,6 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 	bool ret;
 	bool do_repoll = false;
 
-	snd_hda_power_up_pm(codec);
 	present = snd_hda_pin_sense(codec, pin_nid);
 
 	mutex_lock(&per_pin->lock);
@@ -1444,7 +1443,6 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 		jack->block_report = !ret;
 
 	mutex_unlock(&per_pin->lock);
-	snd_hda_power_down_pm(codec);
 	return ret;
 }
 
@@ -1522,6 +1520,10 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	struct hdmi_spec *spec = codec->spec;
 	int ret;
 
+	/* no temporary power up/down needed for component notifier */
+	if (!codec_has_acomp(codec))
+		snd_hda_power_up_pm(codec);
+
 	mutex_lock(&spec->pcm_lock);
 	if (codec_has_acomp(codec)) {
 		sync_eld_via_acomp(codec, per_pin);
@@ -1530,6 +1532,9 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		ret = hdmi_present_sense_via_verbs(per_pin, repoll);
 	}
 	mutex_unlock(&spec->pcm_lock);
+
+	if (!codec_has_acomp(codec))
+		snd_hda_power_down_pm(codec);
 
 	return ret;
 }
