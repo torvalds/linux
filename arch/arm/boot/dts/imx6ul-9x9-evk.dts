@@ -140,7 +140,7 @@
 			#gpio-cells = <2>;
 			reg = <0>;
 			registers-number = <1>;
-			registers-default = /bits/ 8 <0xb7>;
+			registers-default = /bits/ 8 <0x57>;
 			spi-max-frequency = <100000>;
 		};
 	};
