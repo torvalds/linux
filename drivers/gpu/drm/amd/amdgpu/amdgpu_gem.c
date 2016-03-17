@@ -161,7 +161,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 
 	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, &duplicates);
 	if (r) {
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
