@@ -99,7 +99,6 @@ const char *const aa_profile_mode_names[] = {
 	"unconfined",
 };
 
-
 /* requires profile list write lock held */
 void __aa_update_proxy(struct aa_profile *orig, struct aa_profile *new)
 {
