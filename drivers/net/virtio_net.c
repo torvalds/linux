@@ -256,7 +256,7 @@ static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 	p = page_address(page) + offset;
 
 	/* copy small packet so we can reuse these pages for small data */
-	skb = netdev_alloc_skb_ip_align(vi->dev, GOOD_COPY_LEN);
+	skb = napi_alloc_skb(&rq->napi, GOOD_COPY_LEN);
 	if (unlikely(!skb))
 		return NULL;
 
