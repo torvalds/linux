@@ -261,6 +261,7 @@ int main(void)
 
 	regression1_test();
 	regression2_test();
+	regression3_test();
 	single_thread_tests();
 
 	sleep(1);
