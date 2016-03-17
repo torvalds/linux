@@ -22,6 +22,7 @@
 #include <linux/resource.h>
 #include <linux/page_ext.h>
 #include <linux/err.h>
+#include <linux/page_ref.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -386,8 +387,8 @@ static inline int pmd_devmap(pmd_t pmd)
  */
 static inline int put_page_testzero(struct page *page)
 {
-	VM_BUG_ON_PAGE(atomic_read(&page->_count) == 0, page);
-	return atomic_dec_and_test(&page->_count);
+	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
+	return page_ref_dec_and_test(page);
 }
 
 /*
@@ -398,7 +399,7 @@ static inline int put_page_testzero(struct page *page)
  */
 static inline int get_page_unless_zero(struct page *page)
 {
-	return atomic_inc_not_zero(&page->_count);
+	return page_ref_add_unless(page, 1, 0);
 }
 
 extern int page_is_ram(unsigned long pfn);
@@ -486,25 +487,11 @@ static inline int total_mapcount(struct page *page)
 }
 #endif
 
-static inline int page_count(struct page *page)
-{
-	return atomic_read(&compound_head(page)->_count);
-}
-
 static inline struct page *virt_to_head_page(const void *x)
 {
 	struct page *page = virt_to_page(x);
 
 	return compound_head(page);
-}
-
-/*
- * Setup the page count before being freed into the page allocator for
- * the first time (boot or memory hotplug)
- */
-static inline void init_page_count(struct page *page)
-{
-	atomic_set(&page->_count, 1);
 }
 
 void __put_page(struct page *page);
@@ -716,8 +703,8 @@ static inline void get_page(struct page *page)
 	 * Getting a normal page or the head of a compound page
 	 * requires to already have an elevated page->_count.
 	 */
-	VM_BUG_ON_PAGE(atomic_read(&page->_count) <= 0, page);
-	atomic_inc(&page->_count);
+	VM_BUG_ON_PAGE(page_ref_count(page) <= 0, page);
+	page_ref_inc(page);
 
 	if (unlikely(is_zone_device_page(page)))
 		get_zone_device_page(page);

@@ -1903,7 +1903,7 @@ EXPORT_SYMBOL(sock_cmsg_send);
 bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 {
 	if (pfrag->page) {
-		if (atomic_read(&pfrag->page->_count) == 1) {
+		if (page_ref_count(pfrag->page) == 1) {
 			pfrag->offset = 0;
 			return true;
 		}

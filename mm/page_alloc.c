@@ -766,7 +766,7 @@ static inline int free_pages_check(struct page *page)
 		bad_reason = "nonzero mapcount";
 	if (unlikely(page->mapping != NULL))
 		bad_reason = "non-NULL mapping";
-	if (unlikely(atomic_read(&page->_count) != 0))
+	if (unlikely(page_ref_count(page) != 0))
 		bad_reason = "nonzero _count";
 	if (unlikely(page->flags & PAGE_FLAGS_CHECK_AT_FREE)) {
 		bad_reason = "PAGE_FLAGS_CHECK_AT_FREE flag(s) set";
@@ -1462,7 +1462,7 @@ static inline int check_new_page(struct page *page)
 		bad_reason = "nonzero mapcount";
 	if (unlikely(page->mapping != NULL))
 		bad_reason = "non-NULL mapping";
-	if (unlikely(atomic_read(&page->_count) != 0))
+	if (unlikely(page_ref_count(page) != 0))
 		bad_reason = "nonzero _count";
 	if (unlikely(page->flags & __PG_HWPOISON)) {
 		bad_reason = "HWPoisoned (hardware-corrupted)";
@@ -3475,7 +3475,7 @@ refill:
 		/* Even if we own the page, we do not use atomic_set().
 		 * This would break get_page_unless_zero() users.
 		 */
-		atomic_add(size - 1, &page->_count);
+		page_ref_add(page, size - 1);
 
 		/* reset page count bias and offset to start of new frag */
 		nc->pfmemalloc = page_is_pfmemalloc(page);
@@ -3487,7 +3487,7 @@ refill:
 	if (unlikely(offset < 0)) {
 		page = virt_to_page(nc->va);
 
-		if (!atomic_sub_and_test(nc->pagecnt_bias, &page->_count))
+		if (!page_ref_sub_and_test(page, nc->pagecnt_bias))
 			goto refill;
 
 #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
@@ -3495,7 +3495,7 @@ refill:
 		size = nc->size;
 #endif
 		/* OK, page count is 0, we can safely set it */
-		atomic_set(&page->_count, size);
+		set_page_count(page, size);
 
 		/* reset page count bias and offset to start of new frag */
 		nc->pagecnt_bias = size;
@@ -6852,7 +6852,7 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 		 * This check already skips compound tails of THP
 		 * because their page->_count is zero at all time.
 		 */
-		if (!atomic_read(&page->_count)) {
+		if (!page_ref_count(page)) {
 			if (PageBuddy(page))
 				iter += (1 << page_order(page)) - 1;
 			continue;

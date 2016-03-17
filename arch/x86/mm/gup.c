@@ -131,7 +131,7 @@ static inline void get_head_page_multiple(struct page *page, int nr)
 {
 	VM_BUG_ON_PAGE(page != compound_head(page), page);
 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
-	atomic_add(nr, &page->_count);
+	page_ref_add(page, nr);
 	SetPageReferenced(page);
 }
 
