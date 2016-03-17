@@ -415,10 +415,10 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 	slot = indirect_to_ptr(root->rnode);
 
 	height = root->height;
-	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
+	shift = height * RADIX_TREE_MAP_SHIFT;
 
 	offset = 0;			/* uninitialised var warning */
-	while (height > 0) {
+	while (shift > 0) {
 		if (slot == NULL) {
 			/* Have to add a child node.  */
 			if (!(slot = radix_tree_node_alloc(root)))
@@ -436,11 +436,11 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		}
 
 		/* Go a level down */
+		shift -= RADIX_TREE_MAP_SHIFT;
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 		node = slot;
 		slot = node->slots[offset];
 		slot = indirect_to_ptr(slot);
-		shift -= RADIX_TREE_MAP_SHIFT;
 		height--;
 	}
 
