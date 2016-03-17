@@ -1497,6 +1497,16 @@
 			       0x48485200 0x2E00>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			/*
+			 * Do not allow gating of cpsw clock as workaround
+			 * for errata i877. Keeping internal clock disabled
+			 * causes the device switching characteristics
+			 * to degrade over time and eventually fail to meet
+			 * the data manual delay time/skew specs.
+			 */
+			ti,no-idle;
+
 			/*
 			 * rx_thresh_pend
 			 * rx_pend

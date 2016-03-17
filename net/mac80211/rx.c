@@ -1754,7 +1754,7 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 	entry->seq = seq;
 	entry->rx_queue = rx_queue;
 	entry->last_frag = frag;
-	entry->ccmp = 0;
+	entry->check_sequential_pn = false;
 	entry->extra_len = 0;
 
 	return entry;
@@ -1850,15 +1850,27 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 						 rx->seqno_idx, &(rx->skb));
 		if (rx->key &&
 		    (rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP ||
-		     rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP_256) &&
+		     rx->key->conf.cipher == WLAN_CIPHER_SUITE_CCMP_256 ||
+		     rx->key->conf.cipher == WLAN_CIPHER_SUITE_GCMP ||
+		     rx->key->conf.cipher == WLAN_CIPHER_SUITE_GCMP_256) &&
 		    ieee80211_has_protected(fc)) {
 			int queue = rx->security_idx;
-			/* Store CCMP PN so that we can verify that the next
-			 * fragment has a sequential PN value. */
-			entry->ccmp = 1;
+
+			/* Store CCMP/GCMP PN so that we can verify that the
+			 * next fragment has a sequential PN value.
+			 */
+			entry->check_sequential_pn = true;
 			memcpy(entry->last_pn,
 			       rx->key->u.ccmp.rx_pn[queue],
 			       IEEE80211_CCMP_PN_LEN);
+			BUILD_BUG_ON(offsetof(struct ieee80211_key,
+					      u.ccmp.rx_pn) !=
+				     offsetof(struct ieee80211_key,
+					      u.gcmp.rx_pn));
+			BUILD_BUG_ON(sizeof(rx->key->u.ccmp.rx_pn[queue]) !=
+				     sizeof(rx->key->u.gcmp.rx_pn[queue]));
+			BUILD_BUG_ON(IEEE80211_CCMP_PN_LEN !=
+				     IEEE80211_GCMP_PN_LEN);
 		}
 		return RX_QUEUED;
 	}
@@ -1873,15 +1885,21 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
-	/* Verify that MPDUs within one MSDU have sequential PN values.
-	 * (IEEE 802.11i, 8.3.3.4.5) */
-	if (entry->ccmp) {
+	/* "The receiver shall discard MSDUs and MMPDUs whose constituent
+	 *  MPDU PN values are not incrementing in steps of 1."
+	 * see IEEE P802.11-REVmc/D5.0, 12.5.3.4.4, item d (for CCMP)
+	 * and IEEE P802.11-REVmc/D5.0, 12.5.5.4.4, item d (for GCMP)
+	 */
+	if (entry->check_sequential_pn) {
 		int i;
 		u8 pn[IEEE80211_CCMP_PN_LEN], *rpn;
 		int queue;
+
 		if (!rx->key ||
 		    (rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP &&
-		     rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP_256))
+		     rx->key->conf.cipher != WLAN_CIPHER_SUITE_CCMP_256 &&
+		     rx->key->conf.cipher != WLAN_CIPHER_SUITE_GCMP &&
+		     rx->key->conf.cipher != WLAN_CIPHER_SUITE_GCMP_256))
 			return RX_DROP_UNUSABLE;
 		memcpy(pn, entry->last_pn, IEEE80211_CCMP_PN_LEN);
 		for (i = IEEE80211_CCMP_PN_LEN - 1; i >= 0; i--) {
@@ -3367,6 +3385,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 				return false;
 			/* ignore action frames to TDLS-peers */
 			if (ieee80211_is_action(hdr->frame_control) &&
+			    !is_broadcast_ether_addr(bssid) &&
 			    !ether_addr_equal(bssid, hdr->addr1))
 				return false;
 		}
