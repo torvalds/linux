@@ -207,18 +207,20 @@ void __init plat_mem_setup(void)
 	else if (fw_arg0 == -2)
 		__dt_setup_arch((void *)KSEG0ADDR(fw_arg1));
 
-	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
-					   AR71XX_RESET_SIZE);
-	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
-					 AR71XX_PLL_SIZE);
-	ath79_detect_sys_type();
-	ath79_ddr_ctrl_init();
-
 	if (mips_machtype != ATH79_MACH_GENERIC_OF) {
+		ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
+						   AR71XX_RESET_SIZE);
+		ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
+						 AR71XX_PLL_SIZE);
+		ath79_detect_sys_type();
+		ath79_ddr_ctrl_init();
+
 		detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
+
 		/* OF machines should use the reset driver */
 		_machine_restart = ath79_restart;
 	}
+
 	_machine_halt = ath79_halt;
 	pm_power_off = ath79_halt;
 }
