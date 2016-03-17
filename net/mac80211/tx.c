@@ -1116,6 +1116,12 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 			reset_agg_timer = true;
 		} else {
 			queued = true;
+			if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER) {
+				clear_sta_flag(tx->sta, WLAN_STA_SP);
+				ps_dbg(tx->sta->sdata,
+				       "STA %pM aid %d: SP frame queued, close the SP w/o telling the peer\n",
+				       tx->sta->sta.addr, tx->sta->sta.aid);
+			}
 			info->control.vif = &tx->sdata->vif;
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			info->flags &= ~IEEE80211_TX_TEMPORARY_FLAGS;
