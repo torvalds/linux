@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+#include <dt-bindings/clock/ath79-clk.h>
 
 #include <asm/div64.h>
 
@@ -28,7 +29,7 @@
 #define AR71XX_BASE_FREQ	40000000
 #define AR724X_BASE_FREQ	40000000
 
-static struct clk *clks[3];
+static struct clk *clks[ATH79_CLK_END];
 static struct clk_onecell_data clk_data = {
 	.clks = clks,
 	.clk_num = ARRAY_SIZE(clks),
@@ -78,9 +79,9 @@ static void __init ar71xx_clocks_init(void)
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[ATH79_CLK_CPU] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[ATH79_CLK_DDR] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[ATH79_CLK_AHB] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ahb", NULL);
@@ -114,9 +115,9 @@ static void __init ar724x_clocks_init(void)
 	ahb_rate = cpu_rate / div;
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[ATH79_CLK_CPU] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[ATH79_CLK_DDR] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[ATH79_CLK_AHB] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ahb", NULL);
@@ -176,9 +177,9 @@ static void __init ar933x_clocks_init(void)
 	}
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[ATH79_CLK_CPU] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[ATH79_CLK_DDR] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[ATH79_CLK_AHB] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ahb", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -310,9 +311,9 @@ static void __init ar934x_clocks_init(void)
 		ahb_rate = cpu_pll / (postdiv + 1);
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[ATH79_CLK_CPU] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[ATH79_CLK_DDR] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[ATH79_CLK_AHB] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
@@ -397,9 +398,9 @@ static void __init qca955x_clocks_init(void)
 		ahb_rate = cpu_pll / (postdiv + 1);
 
 	ath79_add_sys_clkdev("ref", ref_rate);
-	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
-	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
-	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[ATH79_CLK_CPU] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[ATH79_CLK_DDR] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[ATH79_CLK_AHB] = ath79_add_sys_clkdev("ahb", ahb_rate);
 
 	clk_add_alias("wdt", NULL, "ref", NULL);
 	clk_add_alias("uart", NULL, "ref", NULL);
