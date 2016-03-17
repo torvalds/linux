@@ -416,15 +416,25 @@ static void execlists_update_context(struct drm_i915_gem_request *rq)
 static void execlists_submit_requests(struct drm_i915_gem_request *rq0,
 				      struct drm_i915_gem_request *rq1)
 {
+	struct drm_i915_private *dev_priv = rq0->i915;
+
+	/* BUG_ON(!irqs_disabled());  */
+
 	execlists_update_context(rq0);
 
 	if (rq1)
 		execlists_update_context(rq1);
 
+	spin_lock(&dev_priv->uncore.lock);
+	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
+
 	execlists_elsp_write(rq0, rq1);
+
+	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
+	spin_unlock(&dev_priv->uncore.lock);
 }
 
-static void execlists_context_unqueue__locked(struct intel_engine_cs *engine)
+static void execlists_context_unqueue(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *req0 = NULL, *req1 = NULL;
 	struct drm_i915_gem_request *cursor, *tmp;
@@ -476,19 +486,6 @@ static void execlists_context_unqueue__locked(struct intel_engine_cs *engine)
 	}
 
 	execlists_submit_requests(req0, req1);
-}
-
-static void execlists_context_unqueue(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
-
-	spin_lock(&dev_priv->uncore.lock);
-	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
-
-	execlists_context_unqueue__locked(engine);
-
-	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
-	spin_unlock(&dev_priv->uncore.lock);
 }
 
 static unsigned int
@@ -551,11 +548,9 @@ void intel_lrc_irq_handler(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	u32 status_pointer;
 	unsigned int read_pointer, write_pointer;
-	u32 status = 0;
-	u32 status_id;
+	u32 csb[GEN8_CSB_ENTRIES][2];
+	unsigned int csb_read = 0, i;
 	unsigned int submit_contexts = 0;
-
-	spin_lock(&engine->execlist_lock);
 
 	spin_lock(&dev_priv->uncore.lock);
 	intel_uncore_forcewake_get__locked(dev_priv, FORCEWAKE_ALL);
@@ -568,28 +563,11 @@ void intel_lrc_irq_handler(struct intel_engine_cs *engine)
 		write_pointer += GEN8_CSB_ENTRIES;
 
 	while (read_pointer < write_pointer) {
-		status = get_context_status(engine, ++read_pointer,
-				            &status_id);
-
-		if (unlikely(status & GEN8_CTX_STATUS_PREEMPTED)) {
-			if (status & GEN8_CTX_STATUS_LITE_RESTORE) {
-				if (execlists_check_remove_request(engine, status_id))
-					WARN(1, "Lite Restored request removed from queue\n");
-			} else
-				WARN(1, "Preemption without Lite Restore\n");
-		}
-
-		if (status & (GEN8_CTX_STATUS_ACTIVE_IDLE |
-		    GEN8_CTX_STATUS_ELEMENT_SWITCH))
-			submit_contexts +=
-				execlists_check_remove_request(engine,
-						               status_id);
-	}
-
-	if (submit_contexts) {
-		if (!engine->disable_lite_restore_wa ||
-		    (status & GEN8_CTX_STATUS_ACTIVE_IDLE))
-			execlists_context_unqueue__locked(engine);
+		if (WARN_ON_ONCE(csb_read == GEN8_CSB_ENTRIES))
+			break;
+		csb[csb_read][0] = get_context_status(engine, ++read_pointer,
+						      &csb[csb_read][1]);
+		csb_read++;
 	}
 
 	engine->next_context_status_buffer = write_pointer % GEN8_CSB_ENTRIES;
@@ -602,6 +580,29 @@ void intel_lrc_irq_handler(struct intel_engine_cs *engine)
 
 	intel_uncore_forcewake_put__locked(dev_priv, FORCEWAKE_ALL);
 	spin_unlock(&dev_priv->uncore.lock);
+
+	spin_lock(&engine->execlist_lock);
+
+	for (i = 0; i < csb_read; i++) {
+		if (unlikely(csb[i][0] & GEN8_CTX_STATUS_PREEMPTED)) {
+			if (csb[i][0] & GEN8_CTX_STATUS_LITE_RESTORE) {
+				if (execlists_check_remove_request(engine, csb[i][1]))
+					WARN(1, "Lite Restored request removed from queue\n");
+			} else
+				WARN(1, "Preemption without Lite Restore\n");
+		}
+
+		if (csb[i][0] & (GEN8_CTX_STATUS_ACTIVE_IDLE |
+		    GEN8_CTX_STATUS_ELEMENT_SWITCH))
+			submit_contexts +=
+				execlists_check_remove_request(engine, csb[i][1]);
+	}
+
+	if (submit_contexts) {
+		if (!engine->disable_lite_restore_wa ||
+		    (csb[i][0] & GEN8_CTX_STATUS_ACTIVE_IDLE))
+			execlists_context_unqueue(engine);
+	}
 
 	spin_unlock(&engine->execlist_lock);
 
