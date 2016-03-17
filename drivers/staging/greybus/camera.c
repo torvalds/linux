@@ -156,6 +156,33 @@ static int gb_camera_set_power_mode(struct gb_camera *gcam, bool hs)
 	return 0;
 }
 
+static int gb_camera_capabilities(struct gb_camera *gcam,
+				  u8 *capabilities, size_t *size)
+{
+	struct gb_operation *op;
+	int ret;
+
+	op = gb_operation_create_flags(gcam->connection,
+				       GB_CAMERA_TYPE_CAPABILITIES, 0, *size,
+				       GB_OPERATION_FLAG_SHORT_RESPONSE,
+				       GFP_KERNEL);
+	if (!op)
+		return -ENOMEM;
+
+	ret = gb_operation_request_send_sync(op);
+	if (ret) {
+		gcam_err(gcam, "failed to retrieve capabilities: %d\n", ret);
+		goto done;
+	}
+
+	memcpy(capabilities, op->response->payload, op->response->payload_size);
+	*size = op->response->payload_size;
+
+done:
+	gb_operation_put(op);
+	return ret;
+}
+
 struct ap_csi_config_request {
 	__u8 csi_id;
 	__u8 flags;
@@ -478,10 +505,41 @@ static int gb_camera_register_intf_ops(struct gb_camera *gcam)
 /* -----------------------------------------------------------------------------
  * DebugFS
  */
+
 static ssize_t gb_camera_debugfs_capabilities(struct gb_camera *gcam,
 		char *buf, size_t len)
 {
-	return len;
+	struct gb_camera_debugfs_buffer *buffer =
+		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES];
+	size_t size = 1024;
+	unsigned int i;
+	u8 *caps;
+	int ret;
+
+	caps = kmalloc(size, GFP_KERNEL);
+	if (!caps)
+		return -ENOMEM;
+
+	ret = gb_camera_capabilities(gcam, caps, &size);
+	if (ret < 0)
+		goto done;
+
+	/*
+	 * hex_dump_to_buffer() doesn't return the number of bytes dumped prior
+	 * to v4.0, we need our own implementation :-(
+	 */
+	buffer->length = 0;
+
+	for (i = 0; i < size; i += 16) {
+		unsigned int nbytes = min_t(unsigned int, size - i, 16);
+
+		buffer->length += sprintf(buffer->data + buffer->length,
+					  "%*ph\n", nbytes, caps + i);
+	}
+
+done:
+	kfree(caps);
+	return ret;
 }
 
 static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
