@@ -42,7 +42,7 @@ EXPORT_SYMBOL_GPL(mtrr_state);
  * "BIOS and Kernel Developer's Guide for the AMD Athlon 64 and AMD
  * Opteron Processors" (26094 Rev. 3.30 February 2006), section
  * "13.2.1.2 SYSCFG Register": "The MtrrFixDramModEn bit should be set
- * to 1 during BIOS initalization of the fixed MTRRs, then cleared to
+ * to 1 during BIOS initialization of the fixed MTRRs, then cleared to
  * 0 for operation."
  */
 static inline void k8_check_syscfg_dram_mod_en(void)

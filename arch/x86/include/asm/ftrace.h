@@ -52,7 +52,7 @@ int ftrace_int3_handler(struct pt_regs *regs);
  * this screws up the trace output when tracing a ia32 task.
  * Instead of reporting bogus syscalls, just do not trace them.
  *
- * If the user realy wants these, then they should use the
+ * If the user really wants these, then they should use the
  * raw syscall tracepoints with filtering.
  */
 #define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS 1
