@@ -368,9 +368,10 @@ static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
 		node->count = 1;
 		node->parent = NULL;
 		slot = root->rnode;
-		if (newheight > 1) {
+		if (radix_tree_is_indirect_ptr(slot) && newheight > 1) {
 			slot = indirect_to_ptr(slot);
 			slot->parent = node;
+			slot = ptr_to_indirect(slot);
 		}
 		node->slots[0] = slot;
 		node = ptr_to_indirect(node);
@@ -425,17 +426,20 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			slot->path = height;
 			slot->parent = node;
 			if (node) {
-				rcu_assign_pointer(node->slots[offset], slot);
+				rcu_assign_pointer(node->slots[offset],
+							ptr_to_indirect(slot));
 				node->count++;
 				slot->path |= offset << RADIX_TREE_HEIGHT_SHIFT;
 			} else
-				rcu_assign_pointer(root->rnode, ptr_to_indirect(slot));
+				rcu_assign_pointer(root->rnode,
+							ptr_to_indirect(slot));
 		}
 
 		/* Go a level down */
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 		node = slot;
 		slot = node->slots[offset];
+		slot = indirect_to_ptr(slot);
 		shift -= RADIX_TREE_MAP_SHIFT;
 		height--;
 	}
@@ -533,6 +537,7 @@ void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
 		node = rcu_dereference_raw(*slot);
 		if (node == NULL)
 			return NULL;
+		node = indirect_to_ptr(node);
 
 		shift -= RADIX_TREE_MAP_SHIFT;
 		height--;
@@ -619,6 +624,7 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 			tag_set(slot, tag, offset);
 		slot = slot->slots[offset];
 		BUG_ON(slot == NULL);
+		slot = indirect_to_ptr(slot);
 		shift -= RADIX_TREE_MAP_SHIFT;
 		height--;
 	}
@@ -658,11 +664,12 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 		goto out;
 
 	shift = height * RADIX_TREE_MAP_SHIFT;
-	slot = indirect_to_ptr(root->rnode);
+	slot = root->rnode;
 
 	while (shift) {
 		if (slot == NULL)
 			goto out;
+		slot = indirect_to_ptr(slot);
 
 		shift -= RADIX_TREE_MAP_SHIFT;
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
@@ -738,6 +745,7 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 
 		if (node == NULL)
 			return 0;
+		node = indirect_to_ptr(node);
 
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 		if (!tag_get(node, tag, offset))
@@ -838,6 +846,7 @@ restart:
 		node = rcu_dereference_raw(node->slots[offset]);
 		if (node == NULL)
 			goto restart;
+		node = indirect_to_ptr(node);
 		shift -= RADIX_TREE_MAP_SHIFT;
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 	}
@@ -939,6 +948,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 			shift -= RADIX_TREE_MAP_SHIFT;
 			node = slot;
 			slot = slot->slots[offset];
+			slot = indirect_to_ptr(slot);
 			continue;
 		}
 
@@ -1195,6 +1205,7 @@ static unsigned long __locate(struct radix_tree_node *slot, void *item,
 		slot = rcu_dereference_raw(slot->slots[i]);
 		if (slot == NULL)
 			goto out;
+		slot = indirect_to_ptr(slot);
 	}
 
 	/* Bottom level: check items */
@@ -1278,7 +1289,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		 */
 		if (to_free->count != 1)
 			break;
-		if (!to_free->slots[0])
+		slot = to_free->slots[0];
+		if (!slot)
 			break;
 
 		/*
@@ -1288,8 +1300,8 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 		 * (to_free->slots[0]), it will be safe to dereference the new
 		 * one (root->rnode) as far as dependent read barriers go.
 		 */
-		slot = to_free->slots[0];
 		if (root->height > 1) {
+			slot = indirect_to_ptr(slot);
 			slot->parent = NULL;
 			slot = ptr_to_indirect(slot);
 		}

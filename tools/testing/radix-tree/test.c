@@ -142,6 +142,8 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 	int i;
 	int j;
 
+	slot = indirect_to_ptr(slot);
+
 	/* Verify consistency at this level */
 	for (i = 0; i < RADIX_TREE_TAG_LONGS; i++) {
 		if (slot->tags[tag][i]) {
@@ -184,8 +186,7 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
 	if (!root->height)
 		return;
-	verify_node(indirect_to_ptr(root->rnode),
-			tag, root->height, !!root_tag_get(root, tag));
+	verify_node(root->rnode, tag, root->height, !!root_tag_get(root, tag));
 }
 
 void item_kill_tree(struct radix_tree_root *root)
