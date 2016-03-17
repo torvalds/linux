@@ -367,16 +367,20 @@ static int logbuf_has_space(u32 msg_size, bool empty)
 
 static int log_make_free_space(u32 msg_size)
 {
-	while (log_first_seq < log_next_seq) {
-		if (logbuf_has_space(msg_size, false))
-			return 0;
+	while (log_first_seq < log_next_seq &&
+	       !logbuf_has_space(msg_size, false)) {
 		/* drop old messages until we have enough contiguous space */
 		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
 
+	if (clear_seq < log_first_seq) {
+		clear_seq = log_first_seq;
+		clear_idx = log_first_idx;
+	}
+
 	/* sequence numbers are equal, so the log buffer is empty */
-	if (logbuf_has_space(msg_size, true))
+	if (logbuf_has_space(msg_size, log_first_seq == log_next_seq))
 		return 0;
 
 	return -ENOMEM;
@@ -854,6 +858,7 @@ void log_buf_kexec_setup(void)
 	VMCOREINFO_SYMBOL(log_buf);
 	VMCOREINFO_SYMBOL(log_buf_len);
 	VMCOREINFO_SYMBOL(log_first_idx);
+	VMCOREINFO_SYMBOL(clear_idx);
 	VMCOREINFO_SYMBOL(log_next_idx);
 	/*
 	 * Export struct printk_log size and field offsets. User space tools can
@@ -1215,12 +1220,6 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		u64 seq;
 		u32 idx;
 		enum log_flags prev;
-
-		if (clear_seq < log_first_seq) {
-			/* messages are gone, move to first available one */
-			clear_seq = log_first_seq;
-			clear_idx = log_first_idx;
-		}
 
 		/*
 		 * Find first record that fits, including all following records,
