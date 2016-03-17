@@ -24,8 +24,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
-#include "ad5933.h"
-
 /* AD5933/AD5934 Registers */
 #define AD5933_REG_CONTROL_HB		0x80	/* R/W, 2 bytes */
 #define AD5933_REG_CONTROL_LB		0x81	/* R/W, 2 bytes */
@@ -85,6 +83,18 @@
 
 #define AD5933_POLL_TIME_ms		10
 #define AD5933_INIT_EXCITATION_TIME_ms	100
+
+/**
+ * struct ad5933_platform_data - platform specific data
+ * @ext_clk_Hz:		the external clock frequency in Hz, if not set
+ *			the driver uses the internal clock (16.776 MHz)
+ * @vref_mv:		the external reference voltage in millivolt
+ */
+
+struct ad5933_platform_data {
+	unsigned long			ext_clk_Hz;
+	unsigned short			vref_mv;
+};
 
 struct ad5933_state {
 	struct i2c_client		*client;
