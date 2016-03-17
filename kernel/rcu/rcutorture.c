@@ -1585,7 +1585,7 @@ static int rcutorture_cpu_notify(struct notifier_block *self,
 {
 	long cpu = (long)hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
 		(void)rcutorture_booster_init(cpu);
