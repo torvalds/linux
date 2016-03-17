@@ -105,8 +105,6 @@ struct vm_area_struct;
  *
  * __GFP_NOMEMALLOC is used to explicitly forbid access to emergency reserves.
  *   This takes precedence over the __GFP_MEMALLOC flag if both are set.
- *
- * __GFP_NOACCOUNT ignores the accounting for kmemcg limit enforcement.
  */
 #define __GFP_ATOMIC	((__force gfp_t)___GFP_ATOMIC)
 #define __GFP_HIGH	((__force gfp_t)___GFP_HIGH)
