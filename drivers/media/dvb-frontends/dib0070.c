@@ -774,6 +774,6 @@ free_mem:
 }
 EXPORT_SYMBOL(dib0070_attach);
 
-MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for the DiBcom 0070 base-band RF Tuner");
 MODULE_LICENSE("GPL");

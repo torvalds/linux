@@ -189,6 +189,7 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_querybuf		= vb2_ioctl_querybuf,
 	.vidioc_qbuf			= vb2_ioctl_qbuf,
 	.vidioc_dqbuf			= vb2_ioctl_dqbuf,
+	.vidioc_expbuf			= vb2_ioctl_expbuf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
 	.vidioc_g_frequency		= saa7134_g_frequency,
@@ -286,7 +287,7 @@ static int empress_init(struct saa7134_dev *dev)
 	 * transfers that do not start at the beginning of a page. A USERPTR
 	 * can start anywhere in a page, so USERPTR support is a no-go.
 	 */
-	q->io_modes = VB2_MMAP | VB2_READ;
+	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
 	q->drv_priv = &dev->ts_q;
 	q->ops = &saa7134_empress_qops;
 	q->gfp_flags = GFP_DMA32;
