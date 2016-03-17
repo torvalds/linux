@@ -709,27 +709,32 @@ int cxlflash_disk_release(struct scsi_device *sdev,
  * @cfg:	Internal structure associated with the host.
  * @ctxi:	Context to release.
  *
- * Note that the rht_lun member of the context was cut from a single
- * allocation when the context was created and therefore does not need
- * to be explicitly freed. Also note that we conditionally check for the
- * existence of the context control map before clearing the RHT registers
- * and context capabilities because it is possible to destroy a context
- * while the context is in the error state (previous mapping was removed
- * [so we don't have to worry about clearing] and context is waiting for
- * a new mapping).
+ * This routine is safe to be called with a a non-initialized context
+ * and is tolerant of being called with the context's mutex held (it
+ * will be unlocked if necessary before freeing). Also note that the
+ * routine conditionally checks for the existence of the context control
+ * map before clearing the RHT registers and context capabilities because
+ * it is possible to destroy a context while the context is in the error
+ * state (previous mapping was removed [so there is no need to worry about
+ * clearing] and context is waiting for a new mapping).
  */
 static void destroy_context(struct cxlflash_cfg *cfg,
 			    struct ctx_info *ctxi)
 {
 	struct afu *afu = cfg->afu;
 
-	WARN_ON(!list_empty(&ctxi->luns));
+	if (ctxi->initialized) {
+		WARN_ON(!list_empty(&ctxi->luns));
 
-	/* Clear RHT registers and drop all capabilities for this context */
-	if (afu->afu_map && ctxi->ctrl_map) {
-		writeq_be(0, &ctxi->ctrl_map->rht_start);
-		writeq_be(0, &ctxi->ctrl_map->rht_cnt_id);
-		writeq_be(0, &ctxi->ctrl_map->ctx_cap);
+		/* Clear RHT registers and drop all capabilities for context */
+		if (afu->afu_map && ctxi->ctrl_map) {
+			writeq_be(0, &ctxi->ctrl_map->rht_start);
+			writeq_be(0, &ctxi->ctrl_map->rht_cnt_id);
+			writeq_be(0, &ctxi->ctrl_map->ctx_cap);
+		}
+
+		if (mutex_is_locked(&ctxi->mutex))
+			mutex_unlock(&ctxi->mutex);
 	}
 
 	/* Free memory associated with context */
@@ -742,23 +747,12 @@ static void destroy_context(struct cxlflash_cfg *cfg,
 /**
  * create_context() - allocates and initializes a context
  * @cfg:	Internal structure associated with the host.
- * @ctx:	Previously obtained CXL context reference.
- * @ctxid:	Previously obtained process element associated with CXL context.
- * @adap_fd:	Previously obtained adapter fd associated with CXL context.
- * @file:	Previously obtained file associated with CXL context.
- * @perms:	User-specified permissions.
- *
- * The context's mutex is locked when an allocated context is returned.
  *
  * Return: Allocated context on success, NULL on failure
  */
-static struct ctx_info *create_context(struct cxlflash_cfg *cfg,
-				       struct cxl_context *ctx, int ctxid,
-				       int adap_fd, struct file *file,
-				       u32 perms)
+static struct ctx_info *create_context(struct cxlflash_cfg *cfg)
 {
 	struct device *dev = &cfg->dev->dev;
-	struct afu *afu = cfg->afu;
 	struct ctx_info *ctxi = NULL;
 	struct llun_info **lli = NULL;
 	u8 *ws = NULL;
@@ -781,19 +775,6 @@ static struct ctx_info *create_context(struct cxlflash_cfg *cfg,
 	ctxi->rht_lun = lli;
 	ctxi->rht_needs_ws = ws;
 	ctxi->rht_start = rhte;
-	ctxi->rht_perms = perms;
-
-	ctxi->ctrl_map = &afu->afu_map->ctrls[ctxid].ctrl;
-	ctxi->ctxid = ENCODE_CTXID(ctxi, ctxid);
-	ctxi->lfd = adap_fd;
-	ctxi->pid = current->tgid; /* tgid = pid */
-	ctxi->ctx = ctx;
-	ctxi->file = file;
-	mutex_init(&ctxi->mutex);
-	INIT_LIST_HEAD(&ctxi->luns);
-	INIT_LIST_HEAD(&ctxi->list); /* initialize for list_empty() */
-
-	mutex_lock(&ctxi->mutex);
 out:
 	return ctxi;
 
@@ -803,6 +784,40 @@ err:
 	kfree(ctxi);
 	ctxi = NULL;
 	goto out;
+}
+
+/**
+ * init_context() - initializes a previously allocated context
+ * @ctxi:	Previously allocated context
+ * @cfg:	Internal structure associated with the host.
+ * @ctx:	Previously obtained CXL context reference.
+ * @ctxid:	Previously obtained process element associated with CXL context.
+ * @adap_fd:	Previously obtained adapter fd associated with CXL context.
+ * @file:	Previously obtained file associated with CXL context.
+ * @perms:	User-specified permissions.
+ *
+ * Upon return, the context is marked as initialized and the context's mutex
+ * is locked.
+ */
+static void init_context(struct ctx_info *ctxi, struct cxlflash_cfg *cfg,
+			 struct cxl_context *ctx, int ctxid, int adap_fd,
+			 struct file *file, u32 perms)
+{
+	struct afu *afu = cfg->afu;
+
+	ctxi->rht_perms = perms;
+	ctxi->ctrl_map = &afu->afu_map->ctrls[ctxid].ctrl;
+	ctxi->ctxid = ENCODE_CTXID(ctxi, ctxid);
+	ctxi->lfd = adap_fd;
+	ctxi->pid = current->tgid; /* tgid = pid */
+	ctxi->ctx = ctx;
+	ctxi->file = file;
+	ctxi->initialized = true;
+	mutex_init(&ctxi->mutex);
+	INIT_LIST_HEAD(&ctxi->luns);
+	INIT_LIST_HEAD(&ctxi->list); /* initialize for list_empty() */
+
+	mutex_lock(&ctxi->mutex);
 }
 
 /**
@@ -1300,9 +1315,9 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	u32 perms;
 	int ctxid = -1;
 	u64 rctxid = 0UL;
-	struct file *file;
+	struct file *file = NULL;
 
-	struct cxl_context *ctx;
+	struct cxl_context *ctx = NULL;
 
 	int fd = -1;
 
@@ -1356,7 +1371,7 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	if (unlikely(!lun_access)) {
 		dev_err(dev, "%s: Unable to allocate lun_access!\n", __func__);
 		rc = -ENOMEM;
-		goto err0;
+		goto err;
 	}
 
 	lun_access->lli = lli;
@@ -1371,36 +1386,19 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 		goto out_attach;
 	}
 
+	ctxi = create_context(cfg);
+	if (unlikely(!ctxi)) {
+		dev_err(dev, "%s: Failed to create context! (%d)\n",
+			__func__, ctxid);
+		goto err;
+	}
+
 	ctx = cxl_dev_context_init(cfg->dev);
 	if (IS_ERR_OR_NULL(ctx)) {
 		dev_err(dev, "%s: Could not initialize context %p\n",
 			__func__, ctx);
 		rc = -ENODEV;
-		goto err1;
-	}
-
-	ctxid = cxl_process_element(ctx);
-	if (unlikely((ctxid >= MAX_CONTEXT) || (ctxid < 0))) {
-		dev_err(dev, "%s: ctxid (%d) invalid!\n", __func__, ctxid);
-		rc = -EPERM;
-		goto err2;
-	}
-
-	file = cxl_get_fd(ctx, &cfg->cxl_fops, &fd);
-	if (unlikely(fd < 0)) {
-		rc = -ENODEV;
-		dev_err(dev, "%s: Could not get file descriptor\n", __func__);
-		goto err2;
-	}
-
-	/* Translate read/write O_* flags from fcntl.h to AFU permission bits */
-	perms = SISL_RHT_PERM(attach->hdr.flags + 1);
-
-	ctxi = create_context(cfg, ctx, ctxid, fd, file, perms);
-	if (unlikely(!ctxi)) {
-		dev_err(dev, "%s: Failed to create context! (%d)\n",
-			__func__, ctxid);
-		goto err3;
+		goto err;
 	}
 
 	work = &ctxi->work;
@@ -1411,13 +1409,33 @@ static int cxlflash_disk_attach(struct scsi_device *sdev,
 	if (unlikely(rc)) {
 		dev_dbg(dev, "%s: Could not start context rc=%d\n",
 			__func__, rc);
-		goto err4;
+		goto err;
 	}
+
+	ctxid = cxl_process_element(ctx);
+	if (unlikely((ctxid >= MAX_CONTEXT) || (ctxid < 0))) {
+		dev_err(dev, "%s: ctxid (%d) invalid!\n", __func__, ctxid);
+		rc = -EPERM;
+		goto err;
+	}
+
+	file = cxl_get_fd(ctx, &cfg->cxl_fops, &fd);
+	if (unlikely(fd < 0)) {
+		rc = -ENODEV;
+		dev_err(dev, "%s: Could not get file descriptor\n", __func__);
+		goto err;
+	}
+
+	/* Translate read/write O_* flags from fcntl.h to AFU permission bits */
+	perms = SISL_RHT_PERM(attach->hdr.flags + 1);
+
+	/* Context mutex is locked upon return */
+	init_context(ctxi, cfg, ctx, ctxid, fd, file, perms);
 
 	rc = afu_attach(cfg, ctxi);
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: Could not attach AFU rc %d\n", __func__, rc);
-		goto err5;
+		goto err;
 	}
 
 	/*
@@ -1453,13 +1471,14 @@ out:
 		__func__, ctxid, fd, attach->block_size, rc, attach->last_lba);
 	return rc;
 
-err5:
-	cxl_stop_context(ctx);
-err4:
-	put_context(ctxi);
-	destroy_context(cfg, ctxi);
-	ctxi = NULL;
-err3:
+err:
+	/* Cleanup CXL context; okay to 'stop' even if it was not started */
+	if (!IS_ERR_OR_NULL(ctx)) {
+		cxl_stop_context(ctx);
+		cxl_release_context(ctx);
+		ctx = NULL;
+	}
+
 	/*
 	 * Here, we're overriding the fops with a dummy all-NULL fops because
 	 * fput() calls the release fop, which will cause us to mistakenly
@@ -1467,15 +1486,21 @@ err3:
 	 * to that routine (cxlflash_cxl_release) we should try to fix the
 	 * issue here.
 	 */
-	file->f_op = &null_fops;
-	fput(file);
-	put_unused_fd(fd);
-	fd = -1;
-err2:
-	cxl_release_context(ctx);
-err1:
+	if (fd > 0) {
+		file->f_op = &null_fops;
+		fput(file);
+		put_unused_fd(fd);
+		fd = -1;
+		file = NULL;
+	}
+
+	/* Cleanup our context; safe to call even with mutex locked */
+	if (ctxi) {
+		destroy_context(cfg, ctxi);
+		ctxi = NULL;
+	}
+
 	kfree(lun_access);
-err0:
 	scsi_device_put(sdev);
 	goto out;
 }
@@ -1507,24 +1532,24 @@ static int recover_context(struct cxlflash_cfg *cfg, struct ctx_info *ctxi)
 		goto out;
 	}
 
+	rc = cxl_start_work(ctx, &ctxi->work);
+	if (unlikely(rc)) {
+		dev_dbg(dev, "%s: Could not start context rc=%d\n",
+			__func__, rc);
+		goto err1;
+	}
+
 	ctxid = cxl_process_element(ctx);
 	if (unlikely((ctxid >= MAX_CONTEXT) || (ctxid < 0))) {
 		dev_err(dev, "%s: ctxid (%d) invalid!\n", __func__, ctxid);
 		rc = -EPERM;
-		goto err1;
+		goto err2;
 	}
 
 	file = cxl_get_fd(ctx, &cfg->cxl_fops, &fd);
 	if (unlikely(fd < 0)) {
 		rc = -ENODEV;
 		dev_err(dev, "%s: Could not get file descriptor\n", __func__);
-		goto err1;
-	}
-
-	rc = cxl_start_work(ctx, &ctxi->work);
-	if (unlikely(rc)) {
-		dev_dbg(dev, "%s: Could not start context rc=%d\n",
-			__func__, rc);
 		goto err2;
 	}
 
@@ -1569,10 +1594,10 @@ out:
 	return rc;
 
 err3:
-	cxl_stop_context(ctx);
-err2:
 	fput(file);
 	put_unused_fd(fd);
+err2:
+	cxl_stop_context(ctx);
 err1:
 	cxl_release_context(ctx);
 	goto out;

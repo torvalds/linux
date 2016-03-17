@@ -105,6 +105,8 @@ struct snd_usb_endpoint {
 	struct list_head list;
 };
 
+struct media_ctl;
+
 struct snd_usb_substream {
 	struct snd_usb_stream *stream;
 	struct usb_device *dev;
@@ -156,6 +158,7 @@ struct snd_usb_substream {
 	} dsd_dop;
 
 	bool trigger_tstamp_pending_update; /* trigger timestamp being updated from initial estimate */
+	struct media_ctl *media_ctl;
 };
 
 struct snd_usb_stream {

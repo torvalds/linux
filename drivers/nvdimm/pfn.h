@@ -15,6 +15,7 @@
 #define __NVDIMM_PFN_H
 
 #include <linux/types.h>
+#include <linux/mmzone.h>
 
 #define PFN_SIG_LEN 16
 #define PFN_SIG "NVDIMM_PFN_INFO\0"
@@ -26,10 +27,28 @@ struct nd_pfn_sb {
 	__le32 flags;
 	__le16 version_major;
 	__le16 version_minor;
-	__le64 dataoff;
+	__le64 dataoff; /* relative to namespace_base + start_pad */
 	__le64 npfns;
 	__le32 mode;
-	u8 padding[4012];
+	/* minor-version-1 additions for section alignment */
+	__le32 start_pad;
+	__le32 end_trunc;
+	u8 padding[4004];
 	__le64 checksum;
 };
+
+#ifdef CONFIG_SPARSEMEM
+#define PFN_SECTION_ALIGN_DOWN(x) SECTION_ALIGN_DOWN(x)
+#define PFN_SECTION_ALIGN_UP(x) SECTION_ALIGN_UP(x)
+#else
+/*
+ * In this case ZONE_DEVICE=n and we will disable 'pfn' device support,
+ * but we still want pmem to compile.
+ */
+#define PFN_SECTION_ALIGN_DOWN(x) (x)
+#define PFN_SECTION_ALIGN_UP(x) (x)
+#endif
+
+#define PHYS_SECTION_ALIGN_DOWN(x) PFN_PHYS(PFN_SECTION_ALIGN_DOWN(PHYS_PFN(x)))
+#define PHYS_SECTION_ALIGN_UP(x) PFN_PHYS(PFN_SECTION_ALIGN_UP(PHYS_PFN(x)))
 #endif /* __NVDIMM_PFN_H */

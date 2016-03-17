@@ -14,6 +14,7 @@
  */
 #ifndef __NFIT_H__
 #define __NFIT_H__
+#include <linux/workqueue.h>
 #include <linux/libnvdimm.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
@@ -40,15 +41,32 @@ enum nfit_uuids {
 	NFIT_UUID_MAX,
 };
 
+enum nfit_fic {
+	NFIT_FIC_BYTE = 0x101, /* byte-addressable energy backed */
+	NFIT_FIC_BLK = 0x201, /* block-addressable non-energy backed */
+	NFIT_FIC_BYTEN = 0x301, /* byte-addressable non-energy backed */
+};
+
 enum {
-	ND_BLK_READ_FLUSH = 1,
-	ND_BLK_DCR_LATCH = 2,
+	NFIT_BLK_READ_FLUSH = 1,
+	NFIT_BLK_DCR_LATCH = 2,
+	NFIT_ARS_STATUS_DONE = 0,
+	NFIT_ARS_STATUS_BUSY = 1 << 16,
+	NFIT_ARS_STATUS_NONE = 2 << 16,
+	NFIT_ARS_STATUS_INTR = 3 << 16,
+	NFIT_ARS_START_BUSY = 6,
+	NFIT_ARS_CAP_NONE = 1,
+	NFIT_ARS_F_OVERFLOW = 1,
+	NFIT_ARS_TIMEOUT = 90,
 };
 
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;
-	int is_registered;
+	struct nd_region *nd_region;
+	unsigned int ars_done:1;
+	u32 clear_err_unit;
+	u32 max_ars;
 };
 
 struct nfit_dcr {
@@ -110,6 +128,10 @@ struct acpi_nfit_desc {
 	struct list_head idts;
 	struct nvdimm_bus *nvdimm_bus;
 	struct device *dev;
+	struct nd_cmd_ars_status *ars_status;
+	size_t ars_status_size;
+	struct work_struct work;
+	unsigned int cancel:1;
 	unsigned long dimm_dsm_force_en;
 	unsigned long bus_dsm_force_en;
 	int (*blk_do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -182,5 +204,5 @@ static inline struct acpi_nfit_desc *to_acpi_desc(
 
 const u8 *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *nfit, acpi_size sz);
-extern const struct attribute_group *acpi_nfit_attribute_groups[];
+void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);
 #endif /* __NFIT_H__ */

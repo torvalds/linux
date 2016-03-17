@@ -220,7 +220,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
-	ti->per_bio_data_size = sizeof(struct per_bio_data);
+	ti->per_io_data_size = sizeof(struct per_bio_data);
 	ti->private = fc;
 	return 0;
 

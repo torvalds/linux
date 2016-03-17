@@ -27,11 +27,10 @@
 struct mn88473_dev {
 	struct i2c_client *client[3];
 	struct regmap *regmap[3];
-	struct dvb_frontend fe;
+	struct dvb_frontend frontend;
 	u16 i2c_wr_max;
-	enum fe_delivery_system delivery_system;
-	bool warm; /* FW running */
-	u32 xtal;
+	bool active;
+	u32 clk;
 };
 
 #endif
