@@ -1370,7 +1370,6 @@ out:
 int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 				   struct drm_file *file)
 {
-	struct drm_i915_private *dev_private;
 	struct drm_i915_file_private *file_priv;
 
 	WARN_ON(!req || !file || req->file_priv);
@@ -1381,7 +1380,6 @@ int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
 	if (req->file_priv)
 		return -EINVAL;
 
-	dev_private = req->engine->dev->dev_private;
 	file_priv = file->driver_priv;
 
 	spin_lock(&file_priv->mm.lock);
