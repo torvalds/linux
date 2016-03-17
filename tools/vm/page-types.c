@@ -61,6 +61,8 @@
 #define PM_PFRAME_BITS		55
 #define PM_PFRAME_MASK		((1LL << PM_PFRAME_BITS) - 1)
 #define PM_PFRAME(x)		((x) & PM_PFRAME_MASK)
+#define MAX_SWAPFILES_SHIFT	5
+#define PM_SWAP_OFFSET(x)	(((x) & PM_PFRAME_MASK) >> MAX_SWAPFILES_SHIFT)
 #define PM_SOFT_DIRTY		(1ULL << 55)
 #define PM_MMAP_EXCLUSIVE	(1ULL << 56)
 #define PM_FILE			(1ULL << 61)
@@ -92,7 +94,8 @@
 #define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
 #define KPF_SLUB_DEBUG		51
-#define KPF_FILE		62
+#define KPF_FILE		61
+#define KPF_SWAP		62
 #define KPF_MMAP_EXCLUSIVE	63
 
 #define KPF_ALL_BITS		((uint64_t)~0ULL)
@@ -146,6 +149,7 @@ static const char * const page_flag_names[] = {
 	[KPF_SLUB_DEBUG]	= "E:slub_debug",
 
 	[KPF_FILE]		= "F:file",
+	[KPF_SWAP]		= "w:swap",
 	[KPF_MMAP_EXCLUSIVE]	= "1:mmap_exclusive",
 };
 
@@ -297,6 +301,10 @@ static unsigned long pagemap_pfn(uint64_t val)
 	return pfn;
 }
 
+static unsigned long pagemap_swap_offset(uint64_t val)
+{
+	return val & PM_SWAP ? PM_SWAP_OFFSET(val) : 0;
+}
 
 /*
  * page flag names
@@ -452,6 +460,8 @@ static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 		flags |= BIT(SOFTDIRTY);
 	if (pme & PM_FILE)
 		flags |= BIT(FILE);
+	if (pme & PM_SWAP)
+		flags |= BIT(SWAP);
 	if (pme & PM_MMAP_EXCLUSIVE)
 		flags |= BIT(MMAP_EXCLUSIVE);
 
@@ -613,6 +623,22 @@ static void walk_pfn(unsigned long voffset,
 	}
 }
 
+static void walk_swap(unsigned long voffset, uint64_t pme)
+{
+	uint64_t flags = kpageflags_flags(0, pme);
+
+	if (!bit_mask_ok(flags))
+		return;
+
+	if (opt_list == 1)
+		show_page_range(voffset, pagemap_swap_offset(pme), 1, flags);
+	else if (opt_list == 2)
+		show_page(voffset, pagemap_swap_offset(pme), flags);
+
+	nr_pages[hash_slot(flags)]++;
+	total_pages++;
+}
+
 #define PAGEMAP_BATCH	(64 << 10)
 static void walk_vma(unsigned long index, unsigned long count)
 {
@@ -632,6 +658,8 @@ static void walk_vma(unsigned long index, unsigned long count)
 			pfn = pagemap_pfn(buf[i]);
 			if (pfn)
 				walk_pfn(index + i, pfn, 1, buf[i]);
+			if (buf[i] & PM_SWAP)
+				walk_swap(index + i, buf[i]);
 		}
 
 		index += pages;
