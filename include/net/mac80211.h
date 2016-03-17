@@ -291,7 +291,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_PS: PS changed for this BSS (STA mode)
  * @BSS_CHANGED_TXPOWER: TX power setting changed for this interface
  * @BSS_CHANGED_P2P_PS: P2P powersave settings (CTWindow, opportunistic PS)
- *	changed (currently only in P2P client mode, GO mode will be later)
+ *	changed
  * @BSS_CHANGED_BEACON_INFO: Data from the AP's beacon became available:
  *	currently dtim_period only is under consideration.
  * @BSS_CHANGED_BANDWIDTH: The bandwidth used by this interface changed,
@@ -526,6 +526,9 @@ struct ieee80211_mu_group_data {
  *	userspace), whereas TPC is disabled if %txpower_type is set to
  *	NL80211_TX_POWER_FIXED (use value configured from userspace)
  * @p2p_noa_attr: P2P NoA attribute for P2P powersave
+ * @allow_p2p_go_ps: indication for AP or P2P GO interface, whether it's allowed
+ *	to use P2P PS mechanism or not. AP/P2P GO is not allowed to use P2P PS
+ *	if it has associated clients without P2P PS support.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -563,6 +566,7 @@ struct ieee80211_bss_conf {
 	int txpower;
 	enum nl80211_tx_power_setting txpower_type;
 	struct ieee80211_p2p_noa_attr p2p_noa_attr;
+	bool allow_p2p_go_ps;
 };
 
 /**
@@ -1741,6 +1745,7 @@ struct ieee80211_sta_rates {
  *		  size is min(max_amsdu_len, 7935) bytes.
  *	Both additional HT limits must be enforced by the low level driver.
  *	This is defined by the spec (IEEE 802.11-2012 section 8.3.2.2 NOTE 2).
+ * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
  */
 struct ieee80211_sta {
@@ -1761,6 +1766,7 @@ struct ieee80211_sta {
 	bool mfp;
 	u8 max_amsdu_subframes;
 	u16 max_amsdu_len;
+	bool support_p2p_ps;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
 
