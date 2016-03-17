@@ -796,14 +796,13 @@ static inline void early_init_dt_check_for_initrd(unsigned long node)
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 #ifdef CONFIG_SERIAL_EARLYCON
-extern struct of_device_id __earlycon_of_table[];
 
 static int __init early_init_dt_scan_chosen_serial(void)
 {
 	int offset;
-	const char *p;
+	const char *p, *q, *options = NULL;
 	int l;
-	const struct of_device_id *match = __earlycon_of_table;
+	const struct earlycon_id *match;
 	const void *fdt = initial_boot_params;
 
 	offset = fdt_path_offset(fdt, "/chosen");
@@ -818,27 +817,26 @@ static int __init early_init_dt_scan_chosen_serial(void)
 	if (!p || !l)
 		return -ENOENT;
 
-	/* Remove console options if present */
-	l = strchrnul(p, ':') - p;
+	q = strchrnul(p, ':');
+	if (*q != '\0')
+		options = q + 1;
+	l = q - p;
 
 	/* Get the node specified by stdout-path */
 	offset = fdt_path_offset_namelen(fdt, p, l);
-	if (offset < 0)
-		return -ENODEV;
+	if (offset < 0) {
+		pr_warn("earlycon: stdout-path %.*s not found\n", l, p);
+		return 0;
+	}
 
-	while (match->compatible[0]) {
-		u64 addr;
-
-		if (fdt_node_check_compatible(fdt, offset, match->compatible)) {
-			match++;
+	for (match = __earlycon_table; match < __earlycon_table_end; match++) {
+		if (!match->compatible[0])
 			continue;
-		}
 
-		addr = fdt_translate_address(fdt, offset);
-		if (addr == OF_BAD_ADDR)
-			return -ENXIO;
+		if (fdt_node_check_compatible(fdt, offset, match->compatible))
+			continue;
 
-		of_setup_earlycon(addr, match->data);
+		of_setup_earlycon(match, offset, options);
 		return 0;
 	}
 	return -ENODEV;
