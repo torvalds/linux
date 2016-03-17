@@ -144,21 +144,12 @@ static int __init orangefs_init(void)
 	if (ret < 0)
 		goto cleanup_op;
 
-	/* Initialize the orangefsdev subsystem. */
-	ret = orangefs_dev_init();
-	if (ret < 0) {
-		gossip_err("%s: could not initialize device subsystem %d!\n",
-			   __func__,
-			   ret);
-		goto cleanup_inode;
-	}
-
 	htable_ops_in_progress =
 	    kcalloc(hash_table_size, sizeof(struct list_head), GFP_KERNEL);
 	if (!htable_ops_in_progress) {
 		gossip_err("Failed to initialize op hashtable");
 		ret = -ENOMEM;
-		goto cleanup_device;
+		goto cleanup_inode;
 	}
 
 	/* initialize a doubly linked at each hash table index */
@@ -198,6 +189,15 @@ static int __init orangefs_init(void)
 	if (ret)
 		goto sysfs_init_failed;
 
+	/* Initialize the orangefsdev subsystem. */
+	ret = orangefs_dev_init();
+	if (ret < 0) {
+		gossip_err("%s: could not initialize device subsystem %d!\n",
+			   __func__,
+			   ret);
+		goto cleanup_device;
+	}
+
 	ret = register_filesystem(&orangefs_fs_type);
 	if (ret == 0) {
 		pr_info("orangefs: module version %s loaded\n", ORANGEFS_VERSION);
@@ -206,6 +206,9 @@ static int __init orangefs_init(void)
 	}
 
 	orangefs_sysfs_exit();
+
+cleanup_device:
+	orangefs_dev_cleanup();
 
 sysfs_init_failed:
 
@@ -219,9 +222,6 @@ cleanup_key_table:
 
 cleanup_progress_table:
 	kfree(htable_ops_in_progress);
-
-cleanup_device:
-	orangefs_dev_cleanup();
 
 cleanup_inode:
 	orangefs_inode_cache_finalize();
