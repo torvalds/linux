@@ -33,9 +33,8 @@
 
 #define PCI_CFG_SPACE_SIZE	256
 
-/* Useful "pseudo" capabilities */
+/* Fake capability ID for standard config space */
 #define PCI_CAP_ID_BASIC	0
-#define PCI_CAP_ID_INVALID	0xFF
 
 #define is_bar(offset)	\
 	((offset >= PCI_BASE_ADDRESS_0 && offset < PCI_BASE_ADDRESS_5 + 4) || \
@@ -301,6 +300,23 @@ static int vfio_raw_config_read(struct vfio_pci_device *vdev, int pos,
 	return count;
 }
 
+/* Virt access uses only virtualization */
+static int vfio_virt_config_write(struct vfio_pci_device *vdev, int pos,
+				  int count, struct perm_bits *perm,
+				  int offset, __le32 val)
+{
+	memcpy(vdev->vconfig + pos, &val, count);
+	return count;
+}
+
+static int vfio_virt_config_read(struct vfio_pci_device *vdev, int pos,
+				 int count, struct perm_bits *perm,
+				 int offset, __le32 *val)
+{
+	memcpy(val, vdev->vconfig + pos, count);
+	return count;
+}
+
 /* Default capability regions to read-only, no-virtualization */
 static struct perm_bits cap_perms[PCI_CAP_ID_MAX + 1] = {
 	[0 ... PCI_CAP_ID_MAX] = { .readfn = vfio_direct_config_read }
@@ -317,6 +333,11 @@ static struct perm_bits ecap_perms[PCI_EXT_CAP_ID_MAX + 1] = {
 static struct perm_bits unassigned_perms = {
 	.readfn = vfio_raw_config_read,
 	.writefn = vfio_raw_config_write
+};
+
+static struct perm_bits virt_perms = {
+	.readfn = vfio_virt_config_read,
+	.writefn = vfio_virt_config_write
 };
 
 static void free_perm_bits(struct perm_bits *perm)
@@ -454,12 +475,17 @@ static void vfio_bar_fixup(struct vfio_pci_device *vdev)
 	bar = (__le32 *)&vdev->vconfig[PCI_ROM_ADDRESS];
 
 	/*
-	 * NB. we expose the actual BAR size here, regardless of whether
-	 * we can read it.  When we report the REGION_INFO for the ROM
-	 * we report what PCI tells us is the actual ROM size.
+	 * NB. REGION_INFO will have reported zero size if we weren't able
+	 * to read the ROM, but we still return the actual BAR size here if
+	 * it exists (or the shadow ROM space).
 	 */
 	if (pci_resource_start(pdev, PCI_ROM_RESOURCE)) {
 		mask = ~(pci_resource_len(pdev, PCI_ROM_RESOURCE) - 1);
+		mask |= PCI_ROM_ADDRESS_ENABLE;
+		*bar &= cpu_to_le32((u32)mask);
+	} else if (pdev->resource[PCI_ROM_RESOURCE].flags &
+					IORESOURCE_ROM_SHADOW) {
+		mask = ~(0x20000 - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
 		*bar &= cpu_to_le32((u32)mask);
 	} else
@@ -1332,6 +1358,8 @@ static int vfio_cap_init(struct vfio_pci_device *vdev)
 				pos + i, map[pos + i], cap);
 		}
 
+		BUILD_BUG_ON(PCI_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
+
 		memset(map + pos, cap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, pos, len);
 		if (ret)
@@ -1419,9 +1447,9 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 		/*
 		 * Even though ecap is 2 bytes, we're currently a long way
 		 * from exceeding 1 byte capabilities.  If we ever make it
-		 * up to 0xFF we'll need to up this to a two-byte, byte map.
+		 * up to 0xFE we'll need to up this to a two-byte, byte map.
 		 */
-		BUILD_BUG_ON(PCI_EXT_CAP_ID_MAX >= PCI_CAP_ID_INVALID);
+		BUILD_BUG_ON(PCI_EXT_CAP_ID_MAX >= PCI_CAP_ID_INVALID_VIRT);
 
 		memset(map + epos, ecap, len);
 		ret = vfio_fill_vconfig_bytes(vdev, epos, len);
@@ -1596,6 +1624,9 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 
 	if (cap_id == PCI_CAP_ID_INVALID) {
 		perm = &unassigned_perms;
+		cap_start = *ppos;
+	} else if (cap_id == PCI_CAP_ID_INVALID_VIRT) {
+		perm = &virt_perms;
 		cap_start = *ppos;
 	} else {
 		if (*ppos >= PCI_CFG_SPACE_SIZE) {
