@@ -1465,11 +1465,19 @@ snic_abort_finish(struct snic *snic, struct scsi_cmnd *sc)
 	case SNIC_STAT_IO_SUCCESS:
 	case SNIC_STAT_IO_NOT_FOUND:
 		ret = SUCCESS;
+		/*
+		 * If abort path doesn't call scsi_done(),
+		 * the # IO timeouts == 2, will cause the LUN offline.
+		 * Call scsi_done to complete the IO.
+		 */
+		sc->result = (DID_ERROR << 16);
+		sc->scsi_done(sc);
 		break;
 
 	default:
 		/* Firmware completed abort with error */
 		ret = FAILED;
+		rqi = NULL;
 		break;
 	}
 
@@ -1841,6 +1849,9 @@ snic_dr_clean_single_req(struct snic *snic,
 	spin_unlock_irqrestore(io_lock, flags);
 
 	snic_release_req_buf(snic, rqi, sc);
+
+	sc->result = (DID_ERROR << 16);
+	sc->scsi_done(sc);
 
 	ret = 0;
 
@@ -2395,6 +2406,13 @@ snic_cmpl_pending_tmreq(struct snic *snic, struct scsi_cmnd *sc)
 	SNIC_SCSI_DBG(snic->shost,
 		      "Completing Pending TM Req sc %p, state %s flags 0x%llx\n",
 		      sc, snic_io_status_to_str(CMD_STATE(sc)), CMD_FLAGS(sc));
+
+	/*
+	 * CASE : FW didn't post itmf completion due to PCIe Errors.
+	 * Marking the abort status as Success to call scsi completion
+	 * in snic_abort_finish()
+	 */
+	CMD_ABTS_STATUS(sc) = SNIC_STAT_IO_SUCCESS;
 
 	rqi = (struct snic_req_info *) CMD_SP(sc);
 	if (!rqi)
