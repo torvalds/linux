@@ -676,7 +676,7 @@ static bool verify_xindex(int xindex, int table_size)
 	int index, xtype;
 	xtype = xindex & AA_X_TYPE_MASK;
 	index = xindex & AA_X_INDEX_MASK;
-	if (xtype == AA_X_TABLE && index > table_size)
+	if (xtype == AA_X_TABLE && index >= table_size)
 		return 0;
 	return 1;
 }
