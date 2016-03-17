@@ -1566,11 +1566,9 @@ static void dump_line(char *data, int offset, int limit)
 	if (bad_count == 1) {
 		error ^= POISON_FREE;
 		if (!(error & (error - 1))) {
-			printk(KERN_ERR "Single bit error detected. Probably "
-					"bad RAM.\n");
+			printk(KERN_ERR "Single bit error detected. Probably bad RAM.\n");
 #ifdef CONFIG_X86
-			printk(KERN_ERR "Run memtest86+ or a similar memory "
-					"test tool.\n");
+			printk(KERN_ERR "Run memtest86+ or a similar memory test tool.\n");
 #else
 			printk(KERN_ERR "Run a memory test tool.\n");
 #endif
@@ -1693,11 +1691,9 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
 		}
 		if (cachep->flags & SLAB_RED_ZONE) {
 			if (*dbg_redzone1(cachep, objp) != RED_INACTIVE)
-				slab_error(cachep, "start of a freed object "
-					   "was overwritten");
+				slab_error(cachep, "start of a freed object was overwritten");
 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
-				slab_error(cachep, "end of a freed object "
-					   "was overwritten");
+				slab_error(cachep, "end of a freed object was overwritten");
 		}
 	}
 }
@@ -2398,11 +2394,9 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
 
 		if (cachep->flags & SLAB_RED_ZONE) {
 			if (*dbg_redzone2(cachep, objp) != RED_INACTIVE)
-				slab_error(cachep, "constructor overwrote the"
-					   " end of an object");
+				slab_error(cachep, "constructor overwrote the end of an object");
 			if (*dbg_redzone1(cachep, objp) != RED_INACTIVE)
-				slab_error(cachep, "constructor overwrote the"
-					   " start of an object");
+				slab_error(cachep, "constructor overwrote the start of an object");
 		}
 		/* need to poison the objs? */
 		if (cachep->flags & SLAB_POISON) {
@@ -2469,8 +2463,8 @@ static void slab_put_obj(struct kmem_cache *cachep,
 	/* Verify double free bug */
 	for (i = page->active; i < cachep->num; i++) {
 		if (get_free_obj(page, i) == objnr) {
-			printk(KERN_ERR "slab: double free detected in cache "
-					"'%s', objp %p\n", cachep->name, objp);
+			printk(KERN_ERR "slab: double free detected in cache '%s', objp %p\n",
+			       cachep->name, objp);
 			BUG();
 		}
 	}
@@ -2901,8 +2895,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 	if (cachep->flags & SLAB_RED_ZONE) {
 		if (*dbg_redzone1(cachep, objp) != RED_INACTIVE ||
 				*dbg_redzone2(cachep, objp) != RED_INACTIVE) {
-			slab_error(cachep, "double free, or memory outside"
-						" object was overwritten");
+			slab_error(cachep, "double free, or memory outside object was overwritten");
 			printk(KERN_ERR
 				"%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
 				objp, *dbg_redzone1(cachep, objp),
@@ -4028,8 +4021,7 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
 		unsigned long node_frees = cachep->node_frees;
 		unsigned long overflows = cachep->node_overflow;
 
-		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu "
-			   "%4lu %4lu %4lu %4lu %4lu",
+		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu %4lu %4lu %4lu %4lu %4lu",
 			   allocs, high, grown,
 			   reaped, errors, max_freeable, node_allocs,
 			   node_frees, overflows);
