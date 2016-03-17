@@ -5106,6 +5106,9 @@ static int memory_stat_show(struct seq_file *m, void *v)
 		   (u64)stat[MEM_CGROUP_STAT_RSS] * PAGE_SIZE);
 	seq_printf(m, "file %llu\n",
 		   (u64)stat[MEM_CGROUP_STAT_CACHE] * PAGE_SIZE);
+	seq_printf(m, "slab %llu\n",
+		   (u64)(stat[MEMCG_SLAB_RECLAIMABLE] +
+			 stat[MEMCG_SLAB_UNRECLAIMABLE]) * PAGE_SIZE);
 	seq_printf(m, "sock %llu\n",
 		   (u64)stat[MEMCG_SOCK] * PAGE_SIZE);
 
@@ -5125,6 +5128,11 @@ static int memory_stat_show(struct seq_file *m, void *v)
 		seq_printf(m, "%s %llu\n",
 			   mem_cgroup_lru_names[i], (u64)val * PAGE_SIZE);
 	}
+
+	seq_printf(m, "slab_reclaimable %llu\n",
+		   (u64)stat[MEMCG_SLAB_RECLAIMABLE] * PAGE_SIZE);
+	seq_printf(m, "slab_unreclaimable %llu\n",
+		   (u64)stat[MEMCG_SLAB_UNRECLAIMABLE] * PAGE_SIZE);
 
 	/* Accumulated memory events */
 

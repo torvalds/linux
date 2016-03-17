@@ -53,6 +53,8 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_NSTATS,
 	/* default hierarchy stats */
 	MEMCG_SOCK = MEM_CGROUP_STAT_NSTATS,
+	MEMCG_SLAB_RECLAIMABLE,
+	MEMCG_SLAB_UNRECLAIMABLE,
 	MEMCG_NR_STAT,
 };
 
@@ -883,6 +885,20 @@ static __always_inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
 	if (memcg_kmem_enabled())
 		__memcg_kmem_put_cache(cachep);
 }
+
+/**
+ * memcg_kmem_update_page_stat - update kmem page state statistics
+ * @page: the page
+ * @idx: page state item to account
+ * @val: number of pages (positive or negative)
+ */
+static inline void memcg_kmem_update_page_stat(struct page *page,
+				enum mem_cgroup_stat_index idx, int val)
+{
+	if (memcg_kmem_enabled() && page->mem_cgroup)
+		this_cpu_add(page->mem_cgroup->stat->count[idx], val);
+}
+
 #else
 #define for_each_memcg_cache_index(_idx)	\
 	for (; NULL; )
@@ -926,6 +942,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
 }
 
 static inline void memcg_kmem_put_cache(struct kmem_cache *cachep)
+{
+}
+
+static inline void memcg_kmem_update_page_stat(struct page *page,
+				enum mem_cgroup_stat_index idx, int val)
 {
 }
 #endif /* CONFIG_MEMCG && !CONFIG_SLOB */

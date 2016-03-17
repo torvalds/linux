@@ -843,6 +843,11 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used to cache filesystem data,
 		including tmpfs and shared memory.
 
+	  slab
+
+		Amount of memory used for storing in-kernel data
+		structures.
+
 	  sock
 
 		Amount of memory used in network transmission buffers
@@ -870,6 +875,16 @@ PAGE_SIZE multiple when read back.
 		Amount of memory, swap-backed and filesystem-backed,
 		on the internal memory management lists used by the
 		page reclaim algorithm
+
+	  slab_reclaimable
+
+		Part of "slab" that might be reclaimed, such as
+		dentries and inodes.
+
+	  slab_unreclaimable
+
+		Part of "slab" that cannot be reclaimed on memory
+		pressure.
 
 	  pgfault
 

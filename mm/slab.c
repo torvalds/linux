@@ -1442,9 +1442,10 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
  */
 static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 {
-	const unsigned long nr_freed = (1 << cachep->gfporder);
+	int order = cachep->gfporder;
+	unsigned long nr_freed = (1 << order);
 
-	kmemcheck_free_shadow(page, cachep->gfporder);
+	kmemcheck_free_shadow(page, order);
 
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 		sub_zone_page_state(page_zone(page),
@@ -1461,7 +1462,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += nr_freed;
-	__free_kmem_pages(page, cachep->gfporder);
+	memcg_uncharge_slab(page, order, cachep);
+	__free_pages(page, order);
 }
 
 static void kmem_rcu_free(struct rcu_head *head)
