@@ -228,12 +228,35 @@ static int orangefs_inode_type(enum orangefs_ds_type objtype)
 		return -1;
 }
 
+static int orangefs_inode_is_stale(struct inode *inode, int new,
+    struct ORANGEFS_sys_attr_s *attrs, char *link_target)
+{
+	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	int type = orangefs_inode_type(attrs->objtype);
+	if (!new) {
+		/*
+		 * If the inode type or symlink target have changed then this
+		 * inode is stale.
+		 */
+		if (type == -1 || !(inode->i_mode & type)) {
+			orangefs_make_bad_inode(inode);
+			return 1;
+		}
+		if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
+		    link_target, ORANGEFS_NAME_MAX)) {
+			orangefs_make_bad_inode(inode);
+			return 1;
+		}
+	}
+	return 0;
+}
+
 int orangefs_inode_getattr(struct inode *inode, int new, int size)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_kernel_op_s *new_op;
 	loff_t inode_size, rounded_up_size;
-	int ret;
+	int ret, type;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
 	    get_khandle_from_ino(inode));
@@ -250,28 +273,17 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	if (ret != 0)
 		goto out;
 
-	ret = orangefs_inode_type(new_op->
+	type = orangefs_inode_type(new_op->
 	    downcall.resp.getattr.attributes.objtype);
-	if (!new) {
-		/*
-		 * If the inode type or symlink target have changed then this
-		 * inode is stale.
-		 */
-		if (ret == -1 || !(inode->i_mode & ret)) {
-			orangefs_make_bad_inode(inode);
-			ret = -ESTALE;
-			goto out;
-		}
-		if (ret == S_IFLNK && strncmp(orangefs_inode->link_target,
-		    new_op->downcall.resp.getattr.link_target,
-		    ORANGEFS_NAME_MAX)) {
-			orangefs_make_bad_inode(inode);
-			ret = -ESTALE;
-			goto out;
-		}
+	ret = orangefs_inode_is_stale(inode, new,
+	    &new_op->downcall.resp.getattr.attributes,
+	    new_op->downcall.resp.getattr.link_target);
+	if (ret) {
+		ret = -ESTALE;
+		goto out;
 	}
 
-	switch (ret) {
+	switch (type) {
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
 		    downcall.resp.getattr.attributes);
@@ -325,7 +337,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 	inode->i_ctime.tv_nsec = 0;
 
 	/* special case: mark the root inode as sticky */
-	inode->i_mode = ret | (is_root_handle(inode) ? S_ISVTX : 0) |
+	inode->i_mode = type | (is_root_handle(inode) ? S_ISVTX : 0) |
 	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
 
 	ret = 0;
@@ -355,26 +367,9 @@ int orangefs_inode_check_changed(struct inode *inode)
 	if (ret != 0)
 		goto out;
 
-	ret = orangefs_inode_type(new_op->
-	    downcall.resp.getattr.attributes.objtype);
-	/*
-	 * If the inode type or symlink target have changed then this
-	 * inode is stale.
-	 */
-	if (ret == -1 || !(inode->i_mode & ret)) {
-		orangefs_make_bad_inode(inode);
-		ret = 1;
-		goto out;
-	}
-	if (ret == S_IFLNK && strncmp(orangefs_inode->link_target,
-	    new_op->downcall.resp.getattr.link_target,
-	    ORANGEFS_NAME_MAX)) {
-		orangefs_make_bad_inode(inode);
-		ret = 1;
-		goto out;
-	}
-
-	ret = 0;
+	ret = orangefs_inode_is_stale(inode, 0,
+	    &new_op->downcall.resp.getattr.attributes,
+	    new_op->downcall.resp.getattr.link_target);
 out:
 	op_release(new_op);
 	return ret;
