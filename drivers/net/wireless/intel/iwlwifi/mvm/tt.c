@@ -787,9 +787,6 @@ static int iwl_mvm_tcool_get_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct iwl_mvm *mvm = (struct iwl_mvm *)(cdev->devdata);
 
-	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
-		return -EBUSY;
-
 	*state = mvm->cooling_dev.cur_state;
 
 	return 0;
