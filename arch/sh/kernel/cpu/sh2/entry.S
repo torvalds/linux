@@ -147,6 +147,11 @@ ENTRY(exception_handler)
 	mov	#31,r8
 	cmp/hs	r8,r9
 	bt	trap_entry	! 64 > vec >= 31  is trap
+#ifdef CONFIG_CPU_J2
+	mov	#16,r8
+	cmp/hs	r8,r9
+	bt	interrupt_entry	! 31 > vec >= 16 is interrupt
+#endif
 
 	mov.l	4f,r8
 	mov	r9,r4

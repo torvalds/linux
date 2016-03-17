@@ -186,6 +186,12 @@ config CPU_SH2A
 	select CPU_SH2
 	select UNCACHED_MAPPING
 
+config CPU_J2
+	bool
+	select CPU_SH2
+	select OF
+	select OF_EARLY_FLATTREE
+
 config CPU_SH3
 	bool
 	select CPU_HAS_INTEVT
@@ -251,6 +257,10 @@ config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
 	select SYS_SUPPORTS_SH_CMT
+
+config CPU_SUBTYPE_J2
+	bool "Support J2 processor"
+	select CPU_J2
 
 # SH-2A Processor Support
 

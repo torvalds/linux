@@ -309,7 +309,11 @@ void __init cpu_cache_init(void)
 	if (unlikely(cache_disabled))
 		goto skip;
 
-	if (boot_cpu_data.family == CPU_FAMILY_SH2) {
+	if (boot_cpu_data.type == CPU_J2) {
+		extern void __weak j2_cache_init(void);
+
+		j2_cache_init();
+	} else if (boot_cpu_data.family == CPU_FAMILY_SH2) {
 		extern void __weak sh2_cache_init(void);
 
 		sh2_cache_init();
