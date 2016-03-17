@@ -211,11 +211,15 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 			 struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	unsigned int bpw = transfer->bits_per_word;
+	unsigned int bpw;
 
 	if (!master->dma_rx)
 		return false;
 
+	if (!transfer)
+		return false;
+
+	bpw = transfer->bits_per_word;
 	if (!bpw)
 		bpw = spi->bits_per_word;
 
