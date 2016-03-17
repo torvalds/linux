@@ -843,6 +843,10 @@ PAGE_SIZE multiple when read back.
 		Amount of memory used to cache filesystem data,
 		including tmpfs and shared memory.
 
+	  kernel_stack
+
+		Amount of memory allocated to kernel stacks.
+
 	  slab
 
 		Amount of memory used for storing in-kernel data
