@@ -145,6 +145,7 @@ static int pt_gpio_remove(struct platform_device *pdev)
 
 static const struct acpi_device_id pt_gpio_acpi_match[] = {
 	{ "AMDF030", 0 },
+	{ "AMDIF030", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, pt_gpio_acpi_match);
