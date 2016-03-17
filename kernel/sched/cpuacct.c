@@ -238,23 +238,10 @@ static struct cftype files[] = {
 void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
 	struct cpuacct *ca;
-	int cpu;
-
-	cpu = task_cpu(tsk);
 
 	rcu_read_lock();
-
-	ca = task_ca(tsk);
-
-	while (true) {
-		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
-		*cpuusage += cputime;
-
-		ca = parent_ca(ca);
-		if (!ca)
-			break;
-	}
-
+	for (ca = task_ca(tsk); ca; ca = parent_ca(ca))
+		*this_cpu_ptr(ca->cpuusage) += cputime;
 	rcu_read_unlock();
 }
 
@@ -263,18 +250,13 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
  *
  * Note: it's the caller that updates the account of the root cgroup.
  */
-void cpuacct_account_field(struct task_struct *p, int index, u64 val)
+void cpuacct_account_field(struct task_struct *tsk, int index, u64 val)
 {
-	struct kernel_cpustat *kcpustat;
 	struct cpuacct *ca;
 
 	rcu_read_lock();
-	ca = task_ca(p);
-	while (ca != &root_cpuacct) {
-		kcpustat = this_cpu_ptr(ca->cpustat);
-		kcpustat->cpustat[index] += val;
-		ca = parent_ca(ca);
-	}
+	for (ca = task_ca(tsk); ca != &root_cpuacct; ca = parent_ca(ca))
+		this_cpu_ptr(ca->cpustat)->cpustat[index] += val;
 	rcu_read_unlock();
 }
 
