@@ -1099,16 +1099,19 @@
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe615013c 0 4>, <0 0xe6150048 0 4>;
 			clocks = <&sd3_clk>, <&sd2_clk>, <&cpg_clocks R8A7794_CLK_SD0>,
-			         <&mmc0_clk>, <&rclk_clk>, <&hp_clk>, <&hp_clk>;
+				 <&mmc0_clk>, <&hp_clk>, <&hp_clk>, <&rclk_clk>,
+				 <&hp_clk>, <&hp_clk>;
 			#clock-cells = <1>;
 			clock-indices = <
 			        R8A7794_CLK_SDHI2 R8A7794_CLK_SDHI1 R8A7794_CLK_SDHI0
-				R8A7794_CLK_MMCIF0 R8A7794_CLK_CMT1
+				R8A7794_CLK_MMCIF0 R8A7794_CLK_IIC0
+				R8A7794_CLK_IIC1 R8A7794_CLK_CMT1
 				R8A7794_CLK_USBDMAC0 R8A7794_CLK_USBDMAC1
 			>;
 			clock-output-names =
 			        "sdhi2", "sdhi1", "sdhi0",
-				"mmcif0", "cmt1", "usbdmac0", "usbdmac1";
+				"mmcif0", "i2c6", "i2c7",
+				"cmt1", "usbdmac0", "usbdmac1";
 		};
 		mstp4_clks: mstp4_clks@e6150140 {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
