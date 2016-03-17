@@ -13,6 +13,7 @@
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "mips,mips24Kc";
+			clocks = <&pll ATH79_CLK_CPU>;
 			reg = <0>;
 		};
 	};
