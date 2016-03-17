@@ -732,7 +732,7 @@ static void *__init late_alloc(unsigned long sz)
 	return ptr;
 }
 
-static pte_t * __init pte_alloc(pmd_t *pmd, unsigned long addr,
+static pte_t * __init arm_pte_alloc(pmd_t *pmd, unsigned long addr,
 				unsigned long prot,
 				void *(*alloc)(unsigned long sz))
 {
@@ -747,7 +747,7 @@ static pte_t * __init pte_alloc(pmd_t *pmd, unsigned long addr,
 static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr,
 				      unsigned long prot)
 {
-	return pte_alloc(pmd, addr, prot, early_alloc);
+	return arm_pte_alloc(pmd, addr, prot, early_alloc);
 }
 
 static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
@@ -756,7 +756,7 @@ static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 				  void *(*alloc)(unsigned long sz),
 				  bool ng)
 {
-	pte_t *pte = pte_alloc(pmd, addr, type->prot_l1, alloc);
+	pte_t *pte = arm_pte_alloc(pmd, addr, type->prot_l1, alloc);
 	do {
 		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)),
 			    ng ? PTE_EXT_NG : 0);
