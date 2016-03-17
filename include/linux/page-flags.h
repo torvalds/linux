@@ -593,6 +593,8 @@ static inline void __ClearPageBuddy(struct page *page)
 	atomic_set(&page->_mapcount, -1);
 }
 
+extern bool is_free_buddy_page(struct page *page);
+
 #define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
 
 static inline int PageBalloon(struct page *page)
