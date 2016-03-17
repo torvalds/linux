@@ -131,4 +131,30 @@
 #define ES8316_CLKMGR_DAC_ANALOG_EN	(0X1<<0)
 #define ES8316_CLKMGR_DAC_ANALOG_DIS	(0X0<<0)
 
+/* REGISTER 0X0A */
+#define ES8316_ADCWL_MASK	(0x7 << 2)
+#define ES8316_ADCWL_32		(0x4 << 2)
+#define ES8316_ADCWL_24		(0x0 << 2)
+#define ES8316_ADCWL_20		(0x1 << 2)
+#define ES8316_ADCWL_18		(0x2 << 2)
+#define ES8316_ADCWL_16		(0x3 << 2)
+#define ES8316_ADCFMT_MASK	(0x3 << 0)
+#define ES8316_ADCFMT_I2S	(0x0 << 0)
+#define ES8316_ADCWL_LEFT	(0x1 << 0)
+#define ES8316_ADCWL_RIGHT	(0x2 << 0)
+#define ES8316_ADCWL_PCM	(0x3 << 0)
+
+/* REGISTER 0X0B */
+#define ES8316_DACWL_MASK	(0x7 << 2)
+#define ES8316_DACWL_32		(0x4 << 2)
+#define ES8316_DACWL_24		(0x0 << 2)
+#define ES8316_DACWL_20		(0x1 << 2)
+#define ES8316_DACWL_18		(0x2 << 2)
+#define ES8316_DACWL_16		(0x3 << 2)
+#define ES8316_DACFMT_MASK	(0x3 << 0)
+#define ES8316_DACFMT_I2S	(0x0 << 0)
+#define ES8316_DACWL_LEFT	(0x1 << 0)
+#define ES8316_DACWL_RIGHT	(0x2 << 0)
+#define ES8316_DACWL_PCM	(0x3 << 0)
+
 #endif

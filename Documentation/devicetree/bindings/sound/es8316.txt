@@ -1,0 +1,23 @@
+Everest ES8316 audio CODEC
+
+Required properties:
+
+  - compatible: "everest,es8316"
+  - reg: the I2C address of the device for I2C
+  - spk-con-gpio: spk mute enable/disable
+  - hp-det-gpio: headphone detect gpio
+Optional properties:
+
+- clocks: The phandle of the master clock to the CODEC
+- clock-names: Should be "mclk"
+
+Example:
+
+codec: es8316@10 {
+	compatible = "everest,es8316";
+	reg = <0x10>;
+	clocks = <&cru SCLK_I2S_8CH_OUT>;
+	clock-names = "mclk";
+	spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+	hp-det-gpio = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+};
