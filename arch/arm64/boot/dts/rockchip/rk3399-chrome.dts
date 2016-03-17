@@ -48,7 +48,7 @@
 	compatible = "rockchip,chrome", "rockchip,rk3399";
 
 	chosen {
-		bootargs = "rootwait cros_debug cros_secure ro root=/dev/mmcblk0p3 init=/sbin/init console=uart,mmio32,0xff1a0000";
+		bootargs = "rootwait cros_debug cros_secure ro root=/dev/mmcblk0p3 init=/sbin/init console=uart,mmio32,0xff1a0000 clk_ignore_unused";
 	};
 
 	memory@00000000 {
