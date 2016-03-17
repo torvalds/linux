@@ -21,6 +21,7 @@
 #ifndef _LINUX_RADIX_TREE_H
 #define _LINUX_RADIX_TREE_H
 
+#include <linux/bitops.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
 #include <linux/bug.h>
