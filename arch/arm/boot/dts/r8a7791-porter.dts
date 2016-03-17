@@ -113,11 +113,10 @@
 		clock-frequency = <74250000>;
 	};
 
-	x14_clk: x14-clock {
+	x14_clk: audio_clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <11289600>;
-		clock-output-names = "audio_clock";
 	};
 
 	sound {
