@@ -41,4 +41,6 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
+source "drivers/gpu/drm/bridge/analogix/Kconfig"
+
 endmenu

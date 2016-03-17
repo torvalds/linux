@@ -1,5 +1,5 @@
 /*
- * Samsung DP (Display port) register interface driver.
+ * Analogix DP (Display port) core register interface driver.
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
@@ -15,8 +15,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 
-#include "exynos_dp_core.h"
-#include "exynos_dp_reg.h"
+#include "analogix_dp_core.h"
+#include "analogix_dp_reg.h"
 
 #define COMMON_INT_MASK_1	0
 #define COMMON_INT_MASK_2	0
@@ -24,7 +24,7 @@
 #define COMMON_INT_MASK_4	(HOTPLUG_CHG | HPD_LOST | PLUG)
 #define INT_STA_MASK		INT_HPD
 
-void exynos_dp_enable_video_mute(struct exynos_dp_device *dp, bool enable)
+void analogix_dp_enable_video_mute(struct analogix_dp_device *dp, bool enable)
 {
 	u32 reg;
 
@@ -39,7 +39,7 @@ void exynos_dp_enable_video_mute(struct exynos_dp_device *dp, bool enable)
 	}
 }
 
-void exynos_dp_stop_video(struct exynos_dp_device *dp)
+void analogix_dp_stop_video(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -48,7 +48,7 @@ void exynos_dp_stop_video(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_VIDEO_CTL_1);
 }
 
-void exynos_dp_lane_swap(struct exynos_dp_device *dp, bool enable)
+void analogix_dp_lane_swap(struct analogix_dp_device *dp, bool enable)
 {
 	u32 reg;
 
@@ -62,7 +62,7 @@ void exynos_dp_lane_swap(struct exynos_dp_device *dp, bool enable)
 	writel(reg, dp->reg_base + EXYNOS_DP_LANE_MAP);
 }
 
-void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
+void analogix_dp_init_analog_param(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -84,7 +84,7 @@ void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_TX_AMP_TUNING_CTL);
 }
 
-void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
+void analogix_dp_init_interrupt(struct analogix_dp_device *dp)
 {
 	/* Set interrupt pin assertion polarity as high */
 	writel(INT_POL1 | INT_POL0, dp->reg_base + EXYNOS_DP_INT_CTL);
@@ -104,12 +104,12 @@ void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
 	writel(0x00, dp->reg_base + EXYNOS_DP_INT_STA_MASK);
 }
 
-void exynos_dp_reset(struct exynos_dp_device *dp)
+void analogix_dp_reset(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	exynos_dp_stop_video(dp);
-	exynos_dp_enable_video_mute(dp, 0);
+	analogix_dp_stop_video(dp);
+	analogix_dp_enable_video_mute(dp, 0);
 
 	reg = MASTER_VID_FUNC_EN_N | SLAVE_VID_FUNC_EN_N |
 		AUD_FIFO_FUNC_EN_N | AUD_FUNC_EN_N |
@@ -123,7 +123,7 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 
 	usleep_range(20, 30);
 
-	exynos_dp_lane_swap(dp, 0);
+	analogix_dp_lane_swap(dp, 0);
 
 	writel(0x0, dp->reg_base + EXYNOS_DP_SYS_CTL_1);
 	writel(0x40, dp->reg_base + EXYNOS_DP_SYS_CTL_2);
@@ -149,12 +149,12 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 	writel(0x00000101, dp->reg_base + EXYNOS_DP_SOC_GENERAL_CTL);
 }
 
-void exynos_dp_swreset(struct exynos_dp_device *dp)
+void analogix_dp_swreset(struct analogix_dp_device *dp)
 {
 	writel(RESET_DP_TX, dp->reg_base + EXYNOS_DP_TX_SW_RESET);
 }
 
-void exynos_dp_config_interrupt(struct exynos_dp_device *dp)
+void analogix_dp_config_interrupt(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -175,7 +175,7 @@ void exynos_dp_config_interrupt(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_INT_STA_MASK);
 }
 
-enum pll_status exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp)
+enum pll_status analogix_dp_get_pll_lock_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -186,7 +186,7 @@ enum pll_status exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp)
 		return PLL_UNLOCKED;
 }
 
-void exynos_dp_set_pll_power_down(struct exynos_dp_device *dp, bool enable)
+void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable)
 {
 	u32 reg;
 
@@ -201,7 +201,7 @@ void exynos_dp_set_pll_power_down(struct exynos_dp_device *dp, bool enable)
 	}
 }
 
-void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
+void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				enum analog_power_block block,
 				bool enable)
 {
@@ -288,12 +288,12 @@ void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 	}
 }
 
-void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
+void analogix_dp_init_analog_func(struct analogix_dp_device *dp)
 {
 	u32 reg;
 	int timeout_loop = 0;
 
-	exynos_dp_set_analog_power_down(dp, POWER_ALL, 0);
+	analogix_dp_set_analog_power_down(dp, POWER_ALL, 0);
 
 	reg = PLL_LOCK_CHG;
 	writel(reg, dp->reg_base + EXYNOS_DP_COMMON_INT_STA_1);
@@ -303,10 +303,10 @@ void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_DEBUG_CTL);
 
 	/* Power up PLL */
-	if (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
-		exynos_dp_set_pll_power_down(dp, 0);
+	if (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
+		analogix_dp_set_pll_power_down(dp, 0);
 
-		while (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
+		while (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
 			timeout_loop++;
 			if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
 				dev_err(dp->dev, "failed to get pll lock status\n");
@@ -323,7 +323,7 @@ void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_FUNC_EN_2);
 }
 
-void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp)
+void analogix_dp_clear_hotplug_interrupts(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -337,21 +337,21 @@ void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_INT_STA);
 }
 
-void exynos_dp_init_hpd(struct exynos_dp_device *dp)
+void analogix_dp_init_hpd(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
 	if (gpio_is_valid(dp->hpd_gpio))
 		return;
 
-	exynos_dp_clear_hotplug_interrupts(dp);
+	analogix_dp_clear_hotplug_interrupts(dp);
 
 	reg = readl(dp->reg_base + EXYNOS_DP_SYS_CTL_3);
 	reg &= ~(F_HPD | HPD_CTRL);
 	writel(reg, dp->reg_base + EXYNOS_DP_SYS_CTL_3);
 }
 
-enum dp_irq_type exynos_dp_get_irq_type(struct exynos_dp_device *dp)
+enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -378,7 +378,7 @@ enum dp_irq_type exynos_dp_get_irq_type(struct exynos_dp_device *dp)
 	}
 }
 
-void exynos_dp_reset_aux(struct exynos_dp_device *dp)
+void analogix_dp_reset_aux(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -388,7 +388,7 @@ void exynos_dp_reset_aux(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_FUNC_EN_2);
 }
 
-void exynos_dp_init_aux(struct exynos_dp_device *dp)
+void analogix_dp_init_aux(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -396,7 +396,7 @@ void exynos_dp_init_aux(struct exynos_dp_device *dp)
 	reg = RPLY_RECEIV | AUX_ERR;
 	writel(reg, dp->reg_base + EXYNOS_DP_INT_STA);
 
-	exynos_dp_reset_aux(dp);
+	analogix_dp_reset_aux(dp);
 
 	/* Disable AUX transaction H/W retry */
 	reg = AUX_BIT_PERIOD_EXPECTED_DELAY(3) | AUX_HW_RETRY_COUNT_SEL(0)|
@@ -413,7 +413,7 @@ void exynos_dp_init_aux(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_FUNC_EN_2);
 }
 
-int exynos_dp_get_plug_in_status(struct exynos_dp_device *dp)
+int analogix_dp_get_plug_in_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -429,7 +429,7 @@ int exynos_dp_get_plug_in_status(struct exynos_dp_device *dp)
 	return -EINVAL;
 }
 
-void exynos_dp_enable_sw_function(struct exynos_dp_device *dp)
+void analogix_dp_enable_sw_function(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -438,7 +438,7 @@ void exynos_dp_enable_sw_function(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_FUNC_EN_1);
 }
 
-int exynos_dp_start_aux_transaction(struct exynos_dp_device *dp)
+int analogix_dp_start_aux_transaction(struct analogix_dp_device *dp)
 {
 	int reg;
 	int retval = 0;
@@ -482,7 +482,7 @@ int exynos_dp_start_aux_transaction(struct exynos_dp_device *dp)
 	return retval;
 }
 
-int exynos_dp_write_byte_to_dpcd(struct exynos_dp_device *dp,
+int analogix_dp_write_byte_to_dpcd(struct analogix_dp_device *dp,
 				unsigned int reg_addr,
 				unsigned char data)
 {
@@ -516,7 +516,7 @@ int exynos_dp_write_byte_to_dpcd(struct exynos_dp_device *dp,
 		writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 		/* Start AUX transaction */
-		retval = exynos_dp_start_aux_transaction(dp);
+		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
 		else
@@ -527,7 +527,7 @@ int exynos_dp_write_byte_to_dpcd(struct exynos_dp_device *dp,
 	return retval;
 }
 
-int exynos_dp_read_byte_from_dpcd(struct exynos_dp_device *dp,
+int analogix_dp_read_byte_from_dpcd(struct analogix_dp_device *dp,
 				unsigned int reg_addr,
 				unsigned char *data)
 {
@@ -557,7 +557,7 @@ int exynos_dp_read_byte_from_dpcd(struct exynos_dp_device *dp,
 		writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 		/* Start AUX transaction */
-		retval = exynos_dp_start_aux_transaction(dp);
+		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
 		else
@@ -572,7 +572,7 @@ int exynos_dp_read_byte_from_dpcd(struct exynos_dp_device *dp,
 	return retval;
 }
 
-int exynos_dp_write_bytes_to_dpcd(struct exynos_dp_device *dp,
+int analogix_dp_write_bytes_to_dpcd(struct analogix_dp_device *dp,
 				unsigned int reg_addr,
 				unsigned int count,
 				unsigned char data[])
@@ -622,7 +622,7 @@ int exynos_dp_write_bytes_to_dpcd(struct exynos_dp_device *dp,
 			writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 			/* Start AUX transaction */
-			retval = exynos_dp_start_aux_transaction(dp);
+			retval = analogix_dp_start_aux_transaction(dp);
 			if (retval == 0)
 				break;
 			else
@@ -636,7 +636,7 @@ int exynos_dp_write_bytes_to_dpcd(struct exynos_dp_device *dp,
 	return retval;
 }
 
-int exynos_dp_read_bytes_from_dpcd(struct exynos_dp_device *dp,
+int analogix_dp_read_bytes_from_dpcd(struct analogix_dp_device *dp,
 				unsigned int reg_addr,
 				unsigned int count,
 				unsigned char data[])
@@ -680,7 +680,7 @@ int exynos_dp_read_bytes_from_dpcd(struct exynos_dp_device *dp,
 			writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 			/* Start AUX transaction */
-			retval = exynos_dp_start_aux_transaction(dp);
+			retval = analogix_dp_start_aux_transaction(dp);
 			if (retval == 0)
 				break;
 			else
@@ -702,7 +702,7 @@ int exynos_dp_read_bytes_from_dpcd(struct exynos_dp_device *dp,
 	return retval;
 }
 
-int exynos_dp_select_i2c_device(struct exynos_dp_device *dp,
+int analogix_dp_select_i2c_device(struct analogix_dp_device *dp,
 				unsigned int device_addr,
 				unsigned int reg_addr)
 {
@@ -728,14 +728,14 @@ int exynos_dp_select_i2c_device(struct exynos_dp_device *dp,
 	writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 	/* Start AUX transaction */
-	retval = exynos_dp_start_aux_transaction(dp);
+	retval = analogix_dp_start_aux_transaction(dp);
 	if (retval != 0)
 		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
 
 	return retval;
 }
 
-int exynos_dp_read_byte_from_i2c(struct exynos_dp_device *dp,
+int analogix_dp_read_byte_from_i2c(struct analogix_dp_device *dp,
 				unsigned int device_addr,
 				unsigned int reg_addr,
 				unsigned int *data)
@@ -750,7 +750,7 @@ int exynos_dp_read_byte_from_i2c(struct exynos_dp_device *dp,
 		writel(reg, dp->reg_base + EXYNOS_DP_BUFFER_DATA_CTL);
 
 		/* Select EDID device */
-		retval = exynos_dp_select_i2c_device(dp, device_addr, reg_addr);
+		retval = analogix_dp_select_i2c_device(dp, device_addr, reg_addr);
 		if (retval != 0)
 			continue;
 
@@ -764,7 +764,7 @@ int exynos_dp_read_byte_from_i2c(struct exynos_dp_device *dp,
 		writel(reg, dp->reg_base + EXYNOS_DP_AUX_CH_CTL_1);
 
 		/* Start AUX transaction */
-		retval = exynos_dp_start_aux_transaction(dp);
+		retval = analogix_dp_start_aux_transaction(dp);
 		if (retval == 0)
 			break;
 		else
@@ -779,7 +779,7 @@ int exynos_dp_read_byte_from_i2c(struct exynos_dp_device *dp,
 	return retval;
 }
 
-int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
+int analogix_dp_read_bytes_from_i2c(struct analogix_dp_device *dp,
 				unsigned int device_addr,
 				unsigned int reg_addr,
 				unsigned int count,
@@ -807,7 +807,7 @@ int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
 			 * request without sending address
 			 */
 			if (!defer)
-				retval = exynos_dp_select_i2c_device(dp,
+				retval = analogix_dp_select_i2c_device(dp,
 						device_addr, reg_addr + i);
 			else
 				defer = 0;
@@ -825,7 +825,7 @@ int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
 					EXYNOS_DP_AUX_CH_CTL_1);
 
 				/* Start AUX transaction */
-				retval = exynos_dp_start_aux_transaction(dp);
+				retval = analogix_dp_start_aux_transaction(dp);
 				if (retval == 0)
 					break;
 				else
@@ -852,7 +852,7 @@ int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
 	return retval;
 }
 
-void exynos_dp_set_link_bandwidth(struct exynos_dp_device *dp, u32 bwtype)
+void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 {
 	u32 reg;
 
@@ -861,7 +861,7 @@ void exynos_dp_set_link_bandwidth(struct exynos_dp_device *dp, u32 bwtype)
 		writel(reg, dp->reg_base + EXYNOS_DP_LINK_BW_SET);
 }
 
-void exynos_dp_get_link_bandwidth(struct exynos_dp_device *dp, u32 *bwtype)
+void analogix_dp_get_link_bandwidth(struct analogix_dp_device *dp, u32 *bwtype)
 {
 	u32 reg;
 
@@ -869,7 +869,7 @@ void exynos_dp_get_link_bandwidth(struct exynos_dp_device *dp, u32 *bwtype)
 	*bwtype = reg;
 }
 
-void exynos_dp_set_lane_count(struct exynos_dp_device *dp, u32 count)
+void analogix_dp_set_lane_count(struct analogix_dp_device *dp, u32 count)
 {
 	u32 reg;
 
@@ -877,7 +877,7 @@ void exynos_dp_set_lane_count(struct exynos_dp_device *dp, u32 count)
 	writel(reg, dp->reg_base + EXYNOS_DP_LANE_COUNT_SET);
 }
 
-void exynos_dp_get_lane_count(struct exynos_dp_device *dp, u32 *count)
+void analogix_dp_get_lane_count(struct analogix_dp_device *dp, u32 *count)
 {
 	u32 reg;
 
@@ -885,7 +885,7 @@ void exynos_dp_get_lane_count(struct exynos_dp_device *dp, u32 *count)
 	*count = reg;
 }
 
-void exynos_dp_enable_enhanced_mode(struct exynos_dp_device *dp, bool enable)
+void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp, bool enable)
 {
 	u32 reg;
 
@@ -900,8 +900,8 @@ void exynos_dp_enable_enhanced_mode(struct exynos_dp_device *dp, bool enable)
 	}
 }
 
-void exynos_dp_set_training_pattern(struct exynos_dp_device *dp,
-				 enum pattern_set pattern)
+void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
+				enum pattern_set pattern)
 {
 	u32 reg;
 
@@ -933,7 +933,7 @@ void exynos_dp_set_training_pattern(struct exynos_dp_device *dp,
 	}
 }
 
-void exynos_dp_set_lane0_pre_emphasis(struct exynos_dp_device *dp, u32 level)
+void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp, u32 level)
 {
 	u32 reg;
 
@@ -943,7 +943,7 @@ void exynos_dp_set_lane0_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 	writel(reg, dp->reg_base + EXYNOS_DP_LN0_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane1_pre_emphasis(struct exynos_dp_device *dp, u32 level)
+void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp, u32 level)
 {
 	u32 reg;
 
@@ -953,7 +953,7 @@ void exynos_dp_set_lane1_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 	writel(reg, dp->reg_base + EXYNOS_DP_LN1_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane2_pre_emphasis(struct exynos_dp_device *dp, u32 level)
+void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp, u32 level)
 {
 	u32 reg;
 
@@ -963,7 +963,7 @@ void exynos_dp_set_lane2_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 	writel(reg, dp->reg_base + EXYNOS_DP_LN2_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane3_pre_emphasis(struct exynos_dp_device *dp, u32 level)
+void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp, u32 level)
 {
 	u32 reg;
 
@@ -973,7 +973,7 @@ void exynos_dp_set_lane3_pre_emphasis(struct exynos_dp_device *dp, u32 level)
 	writel(reg, dp->reg_base + EXYNOS_DP_LN3_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane0_link_training(struct exynos_dp_device *dp,
+void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
 					u32 training_lane)
 {
 	u32 reg;
@@ -982,7 +982,7 @@ void exynos_dp_set_lane0_link_training(struct exynos_dp_device *dp,
 	writel(reg, dp->reg_base + EXYNOS_DP_LN0_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane1_link_training(struct exynos_dp_device *dp,
+void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
 					u32 training_lane)
 {
 	u32 reg;
@@ -991,8 +991,8 @@ void exynos_dp_set_lane1_link_training(struct exynos_dp_device *dp,
 	writel(reg, dp->reg_base + EXYNOS_DP_LN1_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane2_link_training(struct exynos_dp_device *dp,
-					u32 training_lane)
+void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
+					 u32 training_lane)
 {
 	u32 reg;
 
@@ -1000,7 +1000,7 @@ void exynos_dp_set_lane2_link_training(struct exynos_dp_device *dp,
 	writel(reg, dp->reg_base + EXYNOS_DP_LN2_LINK_TRAINING_CTL);
 }
 
-void exynos_dp_set_lane3_link_training(struct exynos_dp_device *dp,
+void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
 					u32 training_lane)
 {
 	u32 reg;
@@ -1009,7 +1009,7 @@ void exynos_dp_set_lane3_link_training(struct exynos_dp_device *dp,
 	writel(reg, dp->reg_base + EXYNOS_DP_LN3_LINK_TRAINING_CTL);
 }
 
-u32 exynos_dp_get_lane0_link_training(struct exynos_dp_device *dp)
+u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1017,7 +1017,7 @@ u32 exynos_dp_get_lane0_link_training(struct exynos_dp_device *dp)
 	return reg;
 }
 
-u32 exynos_dp_get_lane1_link_training(struct exynos_dp_device *dp)
+u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1025,7 +1025,7 @@ u32 exynos_dp_get_lane1_link_training(struct exynos_dp_device *dp)
 	return reg;
 }
 
-u32 exynos_dp_get_lane2_link_training(struct exynos_dp_device *dp)
+u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1033,7 +1033,7 @@ u32 exynos_dp_get_lane2_link_training(struct exynos_dp_device *dp)
 	return reg;
 }
 
-u32 exynos_dp_get_lane3_link_training(struct exynos_dp_device *dp)
+u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1041,7 +1041,7 @@ u32 exynos_dp_get_lane3_link_training(struct exynos_dp_device *dp)
 	return reg;
 }
 
-void exynos_dp_reset_macro(struct exynos_dp_device *dp)
+void analogix_dp_reset_macro(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1056,7 +1056,7 @@ void exynos_dp_reset_macro(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_PHY_TEST);
 }
 
-void exynos_dp_init_video(struct exynos_dp_device *dp)
+void analogix_dp_init_video(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1076,7 +1076,7 @@ void exynos_dp_init_video(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_VIDEO_CTL_8);
 }
 
-void exynos_dp_set_video_color_format(struct exynos_dp_device *dp)
+void analogix_dp_set_video_color_format(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1096,7 +1096,7 @@ void exynos_dp_set_video_color_format(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_VIDEO_CTL_3);
 }
 
-int exynos_dp_is_slave_video_stream_clock_on(struct exynos_dp_device *dp)
+int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1124,7 +1124,7 @@ int exynos_dp_is_slave_video_stream_clock_on(struct exynos_dp_device *dp)
 	return 0;
 }
 
-void exynos_dp_set_video_cr_mn(struct exynos_dp_device *dp,
+void analogix_dp_set_video_cr_mn(struct analogix_dp_device *dp,
 		enum clock_recovery_m_value_type type,
 		u32 m_value,
 		u32 n_value)
@@ -1159,7 +1159,7 @@ void exynos_dp_set_video_cr_mn(struct exynos_dp_device *dp,
 	}
 }
 
-void exynos_dp_set_video_timing_mode(struct exynos_dp_device *dp, u32 type)
+void analogix_dp_set_video_timing_mode(struct analogix_dp_device *dp, u32 type)
 {
 	u32 reg;
 
@@ -1174,7 +1174,7 @@ void exynos_dp_set_video_timing_mode(struct exynos_dp_device *dp, u32 type)
 	}
 }
 
-void exynos_dp_enable_video_master(struct exynos_dp_device *dp, bool enable)
+void analogix_dp_enable_video_master(struct analogix_dp_device *dp, bool enable)
 {
 	u32 reg;
 
@@ -1191,7 +1191,7 @@ void exynos_dp_enable_video_master(struct exynos_dp_device *dp, bool enable)
 	}
 }
 
-void exynos_dp_start_video(struct exynos_dp_device *dp)
+void analogix_dp_start_video(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1200,7 +1200,7 @@ void exynos_dp_start_video(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_VIDEO_CTL_1);
 }
 
-int exynos_dp_is_video_stream_on(struct exynos_dp_device *dp)
+int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1216,7 +1216,7 @@ int exynos_dp_is_video_stream_on(struct exynos_dp_device *dp)
 	return 0;
 }
 
-void exynos_dp_config_video_slave_mode(struct exynos_dp_device *dp)
+void analogix_dp_config_video_slave_mode(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1244,7 +1244,7 @@ void exynos_dp_config_video_slave_mode(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_SOC_GENERAL_CTL);
 }
 
-void exynos_dp_enable_scrambling(struct exynos_dp_device *dp)
+void analogix_dp_enable_scrambling(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
@@ -1253,7 +1253,7 @@ void exynos_dp_enable_scrambling(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_TRAINING_PTN_SET);
 }
 
-void exynos_dp_disable_scrambling(struct exynos_dp_device *dp)
+void analogix_dp_disable_scrambling(struct analogix_dp_device *dp)
 {
 	u32 reg;
 

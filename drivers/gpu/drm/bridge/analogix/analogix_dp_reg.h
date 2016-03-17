@@ -1,5 +1,5 @@
 /*
- * Register definition file for Samsung DP driver
+ * Register definition file for Analogix DP core driver
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _EXYNOS_DP_REG_H
-#define _EXYNOS_DP_REG_H
+#ifndef _ANALOGIX_DP_REG_H
+#define _ANALOGIX_DP_REG_H
 
 #define EXYNOS_DP_TX_SW_RESET			0x14
 #define EXYNOS_DP_FUNC_EN_1			0x18
@@ -363,4 +363,4 @@
 #define VIDEO_MODE_SLAVE_MODE			(0x1 << 0)
 #define VIDEO_MODE_MASTER_MODE			(0x0 << 0)
 
-#endif /* _EXYNOS_DP_REG_H */
+#endif /* _ANALOGIX_DP_REG_H */
