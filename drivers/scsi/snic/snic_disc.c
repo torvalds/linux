@@ -171,7 +171,7 @@ snic_scsi_scan_tgt(struct work_struct *work)
 			 tgt->channel,
 			 tgt->scsi_tgt_id,
 			 SCAN_WILD_CARD,
-			 1);
+			 SCSI_SCAN_RESCAN);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	tgt->flags &= ~SNIC_TGT_SCAN_PENDING;

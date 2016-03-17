@@ -2110,7 +2110,8 @@ fc_user_scan_tgt(struct Scsi_Host *shost, uint channel, uint id, u64 lun)
 		if ((channel == rport->channel) &&
 		    (id == rport->scsi_target_id)) {
 			spin_unlock_irqrestore(shost->host_lock, flags);
-			scsi_scan_target(&rport->dev, channel, id, lun, 1);
+			scsi_scan_target(&rport->dev, channel, id, lun,
+					 SCSI_SCAN_MANUAL);
 			return;
 		}
 	}
@@ -3277,7 +3278,8 @@ fc_scsi_scan_rport(struct work_struct *work)
 	    (rport->roles & FC_PORT_ROLE_FCP_TARGET) &&
 	    !(i->f->disable_target_scan)) {
 		scsi_scan_target(&rport->dev, rport->channel,
-			rport->scsi_target_id, SCAN_WILD_CARD, 1);
+				 rport->scsi_target_id, SCAN_WILD_CARD,
+				 SCSI_SCAN_RESCAN);
 	}
 
 	spin_lock_irqsave(shost->host_lock, flags);

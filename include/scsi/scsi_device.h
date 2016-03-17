@@ -50,6 +50,12 @@ enum scsi_device_state {
 	SDEV_CREATED_BLOCK,	/* same as above but for created devices */
 };
 
+enum scsi_scan_mode {
+	SCSI_SCAN_INITIAL = 0,
+	SCSI_SCAN_RESCAN,
+	SCSI_SCAN_MANUAL,
+};
+
 enum scsi_device_event {
 	SDEV_EVT_MEDIA_CHANGE	= 1,	/* media has changed */
 	SDEV_EVT_INQUIRY_CHANGE_REPORTED,		/* 3F 03  UA reported */
@@ -391,7 +397,8 @@ extern void scsi_device_resume(struct scsi_device *sdev);
 extern void scsi_target_quiesce(struct scsi_target *);
 extern void scsi_target_resume(struct scsi_target *);
 extern void scsi_scan_target(struct device *parent, unsigned int channel,
-			     unsigned int id, u64 lun, int rescan);
+			     unsigned int id, u64 lun,
+			     enum scsi_scan_mode rescan);
 extern void scsi_target_reap(struct scsi_target *);
 extern void scsi_target_block(struct device *);
 extern void scsi_target_unblock(struct device *, enum scsi_device_state);

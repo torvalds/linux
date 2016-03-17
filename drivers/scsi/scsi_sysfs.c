@@ -145,7 +145,8 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 	if (shost->transportt->user_scan)
 		res = shost->transportt->user_scan(shost, channel, id, lun);
 	else
-		res = scsi_scan_host_selected(shost, channel, id, lun, 1);
+		res = scsi_scan_host_selected(shost, channel, id, lun,
+					      SCSI_SCAN_MANUAL);
 	return res;
 }
 
