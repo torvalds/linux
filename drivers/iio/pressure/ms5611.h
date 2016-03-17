@@ -16,6 +16,8 @@
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 
+struct regulator;
+
 #define MS5611_RESET			0x1e
 #define MS5611_READ_ADC			0x00
 #define MS5611_READ_PROM_WORD		0xA0
@@ -57,6 +59,7 @@ struct ms5611_state {
 					  s32 *temp, s32 *pressure);
 
 	struct ms5611_chip_info *chip_info;
+	struct regulator *vdd;
 };
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
