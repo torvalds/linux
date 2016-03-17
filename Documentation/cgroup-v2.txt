@@ -1387,6 +1387,12 @@ system than killing the group.  Otherwise, memory.max is there to
 limit this type of spillover and ultimately contain buggy or even
 malicious applications.
 
+Setting the original memory.limit_in_bytes below the current usage was
+subject to a race condition, where concurrent charges could cause the
+limit setting to fail. memory.max on the other hand will first set the
+limit to prevent new charges, and then reclaim and OOM kill until the
+new limit is met - or the task writing to memory.max is killed.
+
 The combined memory+swap accounting and limiting is replaced by real
 control over swap space.
 
