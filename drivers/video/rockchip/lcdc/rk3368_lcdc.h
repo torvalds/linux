@@ -110,6 +110,7 @@
 
 #define DSP_CTRL0			(0x0010)
 #define v_DSP_OUT_MODE(x)			(((x)&0x0f)<<0)
+#define v_SW_CORE_DCLK_SEL(x)			(((x)&1)<<4)
 #define v_DSP_DCLK_DDR(x)			(((x)&1)<<8)
 #define v_DSP_DDR_PHASE(x)			(((x)&1)<<9)
 #define v_DSP_INTERLACE(x)			(((x)&1)<<10)
@@ -127,6 +128,7 @@
 #define v_DSP_X_MIR_EN(x)			(((x)&1)<<22)
 #define v_DSP_Y_MIR_EN(x)			(((x)&1)<<23)
 #define m_DSP_OUT_MODE				(0x0f<<0)
+#define m_SW_CORE_DCLK_SEL			(1<<4)
 #define m_DSP_DCLK_DDR				(1<<8)
 #define m_DSP_DDR_PHASE				(1<<9)
 #define m_DSP_INTERLACE				(1<<10)

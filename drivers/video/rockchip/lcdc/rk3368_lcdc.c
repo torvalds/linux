@@ -1686,6 +1686,16 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
 			     m_DSP_INTERLACE | m_DSP_FIELD_POL,
 			     v_DSP_INTERLACE(1) | v_DSP_FIELD_POL(0));
+		if (lcdc_dev->soc_type == VOP_FULL_RK3366) {
+			if (y_res <= 576)
+				lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
+					     m_SW_CORE_DCLK_SEL,
+					     v_SW_CORE_DCLK_SEL(1));
+			else
+				lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
+					     m_SW_CORE_DCLK_SEL,
+					     v_SW_CORE_DCLK_SEL(0));
+		}
 		mask =
 		    m_WIN0_INTERLACE_READ | m_WIN0_YRGB_DEFLICK |
 		    m_WIN0_CBR_DEFLICK;
@@ -1733,7 +1743,11 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
 			     m_DSP_INTERLACE | m_DSP_FIELD_POL,
 			     v_DSP_INTERLACE(0) | v_DSP_FIELD_POL(0));
-
+		if (lcdc_dev->soc_type == VOP_FULL_RK3366) {
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
+				     m_SW_CORE_DCLK_SEL,
+				     v_SW_CORE_DCLK_SEL(0));
+		}
 		mask =
 		    m_WIN0_INTERLACE_READ | m_WIN0_YRGB_DEFLICK |
 		    m_WIN0_CBR_DEFLICK;
