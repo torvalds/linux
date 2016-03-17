@@ -230,7 +230,7 @@
 		reg = <0x50040600 0x20>;
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&tegra_car TEGRA30_CLK_TWD>;
 	};
 

@@ -145,7 +145,7 @@
 		interrupt-parent = <&intc>;
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&tegra_car TEGRA20_CLK_TWD>;
 	};
 
