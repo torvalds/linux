@@ -358,7 +358,8 @@ In the first case there are two additional complications:
 - if CR4.SMEP is enabled: since we've turned the page into a kernel page,
   the kernel may now execute it.  We handle this by also setting spte.nx.
   If we get a user fetch or read fault, we'll change spte.u=1 and
-  spte.nx=gpte.nx back.
+  spte.nx=gpte.nx back.  For this to work, KVM forces EFER.NX to 1 when
+  shadow paging is in use.
 - if CR4.SMAP is disabled: since the page has been changed to a kernel
   page, it can not be reused when CR4.SMAP is enabled. We set
   CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Note,

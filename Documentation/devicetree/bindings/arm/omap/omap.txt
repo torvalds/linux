@@ -23,6 +23,7 @@ Optional properties:
   during suspend.
 - ti,no-reset-on-init: When present, the module should not be reset at init
 - ti,no-idle-on-init: When present, the module should not be idled at init
+- ti,no-idle: When present, the module is never allowed to idle.
 
 Example:
 
