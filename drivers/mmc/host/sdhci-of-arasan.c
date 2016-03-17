@@ -95,6 +95,7 @@ static int sdhci_arasan_suspend(struct device *dev)
 		ret = phy_power_off(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power off phy.\n");
+			sdhci_resume_host(host);
 			return ret;
 		}
 	}
@@ -129,24 +130,18 @@ static int sdhci_arasan_resume(struct device *dev)
 	ret = clk_enable(pltfm_host->clk);
 	if (ret) {
 		dev_err(dev, "Cannot enable SD clock.\n");
-		goto err_clk_en;
+		return ret;
 	}
 
 	if (!IS_ERR(sdhci_arasan->phy)) {
 		ret = phy_power_on(sdhci_arasan->phy);
 		if (ret) {
 			dev_err(dev, "Cannot power on phy.\n");
-			goto err_phy_power;
+			return ret;
 		}
 	}
 
 	return sdhci_resume_host(host);
-
-err_phy_power:
-	clk_disable(pltfm_host->clk);
-err_clk_en:
-	clk_disable(sdhci_arasan->clk_ahb);
-	return ret;
 }
 #endif /* ! CONFIG_PM_SLEEP */
 
@@ -169,19 +164,21 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	sdhci_arasan->clk_ahb = devm_clk_get(&pdev->dev, "clk_ahb");
 	if (IS_ERR(sdhci_arasan->clk_ahb)) {
 		dev_err(&pdev->dev, "clk_ahb clock not found.\n");
-		return PTR_ERR(sdhci_arasan->clk_ahb);
+		ret = PTR_ERR(sdhci_arasan->clk_ahb);
+		goto err_pltfm_free;
 	}
 
 	clk_xin = devm_clk_get(&pdev->dev, "clk_xin");
 	if (IS_ERR(clk_xin)) {
 		dev_err(&pdev->dev, "clk_xin clock not found.\n");
-		return PTR_ERR(clk_xin);
+		ret = PTR_ERR(clk_xin);
+		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(sdhci_arasan->clk_ahb);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable AHB clock.\n");
-		return ret;
+		goto err_pltfm_free;
 	}
 
 	ret = clk_prepare_enable(clk_xin);
@@ -238,14 +235,13 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		goto err_pltfm_free;
+		goto err_add_host;
 
 	return 0;
 
-err_pltfm_free:
+err_add_host:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_power_off(sdhci_arasan->phy);
-	sdhci_pltfm_free(pdev);
 err_phy_power:
 	if (!IS_ERR(sdhci_arasan->phy))
 		phy_exit(sdhci_arasan->phy);
@@ -253,12 +249,14 @@ clk_disable_all:
 	clk_disable_unprepare(clk_xin);
 clk_dis_ahb:
 	clk_disable_unprepare(sdhci_arasan->clk_ahb);
-
+err_pltfm_free:
+	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
 static int sdhci_arasan_remove(struct platform_device *pdev)
 {
+	int ret;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = pltfm_host->priv;
@@ -268,9 +266,11 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 		phy_exit(sdhci_arasan->phy);
 	}
 
+	ret = sdhci_pltfm_unregister(pdev);
+
 	clk_disable_unprepare(sdhci_arasan->clk_ahb);
 
-	return sdhci_pltfm_unregister(pdev);
+	return ret;
 }
 
 static const struct of_device_id sdhci_arasan_of_match[] = {
