@@ -942,13 +942,9 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_gart_size != -1) {
-		/* gtt size must be power of two and greater or equal to 32M */
+		/* gtt size must be greater or equal to 32M */
 		if (amdgpu_gart_size < 32) {
 			dev_warn(adev->dev, "gart size (%d) too small\n",
-				 amdgpu_gart_size);
-			amdgpu_gart_size = -1;
-		} else if (!amdgpu_check_pot_argument(amdgpu_gart_size)) {
-			dev_warn(adev->dev, "gart size (%d) must be a power of 2\n",
 				 amdgpu_gart_size);
 			amdgpu_gart_size = -1;
 		}
