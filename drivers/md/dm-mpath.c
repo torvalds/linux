@@ -89,8 +89,6 @@ struct multipath {
 	atomic_t pg_init_in_progress;	/* Only one pg_init allowed at once */
 	atomic_t pg_init_count;		/* Number of times pg_init called */
 
-	struct work_struct trigger_event;
-
 	/*
 	 * We must use a mempool of dm_mpath_io structs so that we
 	 * can resubmit bios on error.
@@ -98,6 +96,7 @@ struct multipath {
 	mempool_t *mpio_pool;
 
 	struct mutex work_mutex;
+	struct work_struct trigger_event;
 };
 
 /*
