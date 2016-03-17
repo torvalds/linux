@@ -141,7 +141,6 @@ extern unsigned amdgpu_pcie_lane_cap;
 #define CIK_CURSOR_HEIGHT 128
 
 struct amdgpu_device;
-struct amdgpu_fence;
 struct amdgpu_ib;
 struct amdgpu_vm;
 struct amdgpu_ring;
@@ -348,13 +347,15 @@ struct amdgpu_fence_driver {
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
 	/* sync_seq is protected by ring emission lock */
-	uint64_t			sync_seq;
-	atomic64_t			last_seq;
+	uint32_t			sync_seq;
+	atomic_t			last_seq;
 	bool				initialized;
 	struct amdgpu_irq_src		*irq_src;
 	unsigned			irq_type;
 	struct timer_list		fallback_timer;
-	wait_queue_head_t		fence_queue;
+	unsigned			num_fences_mask;
+	spinlock_t			lock;
+	struct fence			**fences;
 };
 
 /* some special values for the owner field */
@@ -363,16 +364,6 @@ struct amdgpu_fence_driver {
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
-
-struct amdgpu_fence {
-	struct fence base;
-
-	/* RB, DMA, etc. */
-	struct amdgpu_ring		*ring;
-	uint64_t			seq;
-
-	wait_queue_t			fence_wake;
-};
 
 struct amdgpu_user_fence {
 	/* write-back bo */
@@ -385,7 +376,8 @@ int amdgpu_fence_driver_init(struct amdgpu_device *adev);
 void amdgpu_fence_driver_fini(struct amdgpu_device *adev);
 void amdgpu_fence_driver_force_completion(struct amdgpu_device *adev);
 
-int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring);
+int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
+				  unsigned num_hw_submission);
 int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 				   struct amdgpu_irq_src *irq_src,
 				   unsigned irq_type);
@@ -393,7 +385,6 @@ void amdgpu_fence_driver_suspend(struct amdgpu_device *adev);
 void amdgpu_fence_driver_resume(struct amdgpu_device *adev);
 int amdgpu_fence_emit(struct amdgpu_ring *ring, struct fence **fence);
 void amdgpu_fence_process(struct amdgpu_ring *ring);
-int amdgpu_fence_wait_next(struct amdgpu_ring *ring);
 int amdgpu_fence_wait_empty(struct amdgpu_ring *ring);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 
@@ -539,11 +530,14 @@ int amdgpu_gem_debugfs_init(struct amdgpu_device *adev);
  * Assumption is that there won't be hole (all object on same
  * alignment).
  */
+
+#define AMDGPU_SA_NUM_FENCE_LISTS	32
+
 struct amdgpu_sa_manager {
 	wait_queue_head_t	wq;
 	struct amdgpu_bo	*bo;
 	struct list_head	*hole;
-	struct list_head	flist[AMDGPU_MAX_RINGS];
+	struct list_head	flist[AMDGPU_SA_NUM_FENCE_LISTS];
 	struct list_head	olist;
 	unsigned		size;
 	uint64_t		gpu_addr;
@@ -727,7 +721,6 @@ struct amdgpu_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
-	struct fence			*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
 	unsigned			vm_id;
@@ -1143,7 +1136,7 @@ struct amdgpu_gfx {
 
 int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		  unsigned size, struct amdgpu_ib *ib);
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib);
+void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib, struct fence *f);
 int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct amdgpu_ib *ib, struct fence *last_vm_update,
 		       struct fence **f);
@@ -1164,7 +1157,6 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		     struct amdgpu_irq_src *irq_src, unsigned irq_type,
 		     enum amdgpu_ring_type ring_type);
 void amdgpu_ring_fini(struct amdgpu_ring *ring);
-struct amdgpu_ring *amdgpu_ring_from_fence(struct fence *f);
 
 /*
  * CS.
@@ -1206,6 +1198,7 @@ struct amdgpu_job {
 	struct amdgpu_ring	*ring;
 	struct amdgpu_sync	sync;
 	struct amdgpu_ib	*ibs;
+	struct fence		*fence; /* the hw fence */
 	uint32_t		num_ibs;
 	void			*owner;
 	struct amdgpu_user_fence uf;
@@ -2065,20 +2058,6 @@ void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
-
-/*
- * Cast helper
- */
-extern const struct fence_ops amdgpu_fence_ops;
-static inline struct amdgpu_fence *to_amdgpu_fence(struct fence *f)
-{
-	struct amdgpu_fence *__f = container_of(f, struct amdgpu_fence, base);
-
-	if (__f->base.ops == &amdgpu_fence_ops)
-		return __f;
-
-	return NULL;
-}
 
 /*
  * Registers read & write functions.

@@ -161,7 +161,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 
 	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, &duplicates);
 	if (r) {
 		dev_err(adev->dev, "leaking bo va because "
 			"we fail to reserve bo (%d)\n", r);
@@ -258,12 +258,10 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 	    AMDGPU_GEM_USERPTR_REGISTER))
 		return -EINVAL;
 
-	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) && (
-	     !(args->flags & AMDGPU_GEM_USERPTR_ANONONLY) ||
-	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER))) {
+	if (!(args->flags & AMDGPU_GEM_USERPTR_READONLY) &&
+	     !(args->flags & AMDGPU_GEM_USERPTR_REGISTER)) {
 
-		/* if we want to write to it we must require anonymous
-		   memory and install a MMU notifier */
+		/* if we want to write to it we must install a MMU notifier */
 		return -EACCES;
 	}
 

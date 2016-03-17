@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,40 +20,19 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _FIJI_SMUMANAGER_H_
-#define _FIJI_SMUMANAGER_H_
 
+#ifndef _PP_ENDIAN_H_
+#define _PP_ENDIAN_H_
 
-struct fiji_smu_avfs {
-	enum AVFS_BTC_STATUS AvfsBtcStatus;
-	uint32_t           AvfsBtcParam;
-};
+#define PP_HOST_TO_SMC_UL(X) cpu_to_be32(X)
+#define PP_SMC_TO_HOST_UL(X) be32_to_cpu(X)
 
-struct fiji_buffer_entry {
-	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
-	void *kaddr;
-	unsigned long  handle;
-};
+#define PP_HOST_TO_SMC_US(X) cpu_to_be16(X)
+#define PP_SMC_TO_HOST_US(X) be16_to_cpu(X)
 
-struct fiji_smumgr {
-	uint8_t        *header;
-	uint8_t        *mec_image;
-	uint32_t        soft_regs_start;
-	struct fiji_smu_avfs avfs;
-	uint32_t        acpi_optimization;
+#define CONVERT_FROM_HOST_TO_SMC_UL(X) ((X) = PP_HOST_TO_SMC_UL(X))
+#define CONVERT_FROM_SMC_TO_HOST_UL(X) ((X) = PP_SMC_TO_HOST_UL(X))
 
-	struct fiji_buffer_entry header_buffer;
-};
+#define CONVERT_FROM_HOST_TO_SMC_US(X) ((X) = PP_HOST_TO_SMC_US(X))
 
-int fiji_smum_init(struct pp_smumgr *smumgr);
-int fiji_read_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smcAddress,
-		uint32_t *value, uint32_t limit);
-int fiji_write_smc_sram_dword(struct pp_smumgr *smumgr, uint32_t smc_addr,
-		uint32_t value, uint32_t limit);
-int fiji_copy_bytes_to_smc(struct pp_smumgr *smumgr, uint32_t smcStartAddress,
-		const uint8_t *src,	uint32_t byteCount, uint32_t limit);
-
-#endif
-
+#endif /* _PP_ENDIAN_H_ */

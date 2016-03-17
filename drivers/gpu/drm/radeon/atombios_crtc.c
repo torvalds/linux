@@ -1665,11 +1665,11 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 }
 
 int atombios_crtc_set_base_atomic(struct drm_crtc *crtc,
-                                  struct drm_framebuffer *fb,
+				  struct drm_framebuffer *fb,
 				  int x, int y, enum mode_set_atomic state)
 {
-       struct drm_device *dev = crtc->dev;
-       struct radeon_device *rdev = dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev))
 		return dce4_crtc_do_set_base(crtc, fb, x, y, 1);

@@ -32,8 +32,8 @@
 #include "oss/oss_2_4_d.h"
 #include "oss/oss_2_4_sh_mask.h"
 
-#include "gmc/gmc_8_1_d.h"
-#include "gmc/gmc_8_1_sh_mask.h"
+#include "gmc/gmc_7_1_d.h"
+#include "gmc/gmc_7_1_sh_mask.h"
 
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_enum.h"
@@ -727,7 +727,8 @@ static int sdma_v2_4_ring_test_ib(struct amdgpu_ring *ring)
 
 err1:
 	fence_put(f);
-	amdgpu_ib_free(adev, &ib);
+	amdgpu_ib_free(adev, &ib, NULL);
+	fence_put(f);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;

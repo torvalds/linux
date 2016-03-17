@@ -85,13 +85,13 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  *
  * @adev: amdgpu_device pointer
  * @ib: IB object to free
+ * @f: the fence SA bo need wait on for the ib alloation
  *
  * Free an IB (all asics).
  */
-void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
+void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib, struct fence *f)
 {
-	amdgpu_sa_bo_free(adev, &ib->sa_bo, ib->fence);
-	fence_put(ib->fence);
+	amdgpu_sa_bo_free(adev, &ib->sa_bo, f);
 }
 
 /**
@@ -123,6 +123,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	struct amdgpu_ib *ib = &ibs[0];
 	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
+	struct fence *hwf;
 	unsigned i;
 	int r = 0;
 
@@ -179,7 +180,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 			amdgpu_ring_emit_hdp_invalidate(ring);
 	}
 
-	r = amdgpu_fence_emit(ring, &ib->fence);
+	r = amdgpu_fence_emit(ring, &hwf);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		ring->current_ctx = old_ctx;
@@ -198,7 +199,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	}
 
 	if (f)
-		*f = fence_get(ib->fence);
+		*f = fence_get(hwf);
 
 	amdgpu_ring_commit(ring);
 	return 0;

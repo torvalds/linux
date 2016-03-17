@@ -4275,7 +4275,6 @@ static int fiji_populate_and_upload_sclk_mclk_dpm_levels(
 	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK) {
 		dpm_table->mclk_table.dpm_levels
 			[dpm_table->mclk_table.count - 1].value = mclk;
-
 		if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_OD6PlusinACSupport) ||
 			phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -4886,6 +4885,10 @@ static void fiji_print_current_perforce_level(
 	activity_percent >>= 8;
 
 	seq_printf(m, "\n [GPU load]: %u%%\n\n", activity_percent > 100 ? 100 : activity_percent);
+
+	seq_printf(m, "uvd    %sabled\n", data->uvd_power_gated ? "dis" : "en");
+
+	seq_printf(m, "vce    %sabled\n", data->vce_power_gated ? "dis" : "en");
 }
 
 static int fiji_program_display_gap(struct pp_hwmgr *hwmgr)

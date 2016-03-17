@@ -308,7 +308,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 {
 	bool is_iomem;
-	int r;
+	long r;
 
 	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 		return -EPERM;
@@ -319,14 +319,20 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 		}
 		return 0;
 	}
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
-	if (r) {
+
+	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, false, false,
+						MAX_SCHEDULE_TIMEOUT);
+	if (r < 0)
 		return r;
-	}
+
+	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.num_pages, &bo->kmap);
+	if (r)
+		return r;
+
 	bo->kptr = ttm_kmap_obj_virtual(&bo->kmap, &is_iomem);
-	if (ptr) {
+	if (ptr)
 		*ptr = bo->kptr;
-	}
+
 	return 0;
 }
 

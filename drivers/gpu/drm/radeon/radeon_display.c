@@ -407,7 +407,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	unsigned repcnt = 4;
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
 
-        down_read(&rdev->exclusive_lock);
+	down_read(&rdev->exclusive_lock);
 	if (work->fence) {
 		struct radeon_fence *fence;
 
@@ -919,7 +919,7 @@ static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
 	*den /= tmp;
 
 	/* make sure nominator is large enough */
-        if (*nom < nom_min) {
+	if (*nom < nom_min) {
 		tmp = DIV_ROUND_UP(nom_min, *nom);
 		*nom *= tmp;
 		*den *= tmp;
@@ -959,7 +959,7 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
-        if (*fb_div > fb_div_max) {
+	if (*fb_div > fb_div_max) {
 		*ref_div = DIV_ROUND_CLOSEST(*ref_div * fb_div_max, *fb_div);
 		*fb_div = fb_div_max;
 	}
@@ -1683,10 +1683,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* setup afmt */
 	radeon_afmt_init(rdev);
 
-	if (!list_empty(&rdev->ddev->mode_config.connector_list)) {
-		radeon_fbdev_init(rdev);
-		drm_kms_helper_poll_init(rdev->ddev);
-	}
+	radeon_fbdev_init(rdev);
+	drm_kms_helper_poll_init(rdev->ddev);
 
 	/* do pm late init */
 	ret = radeon_pm_late_init(rdev);
