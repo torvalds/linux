@@ -123,7 +123,7 @@ static int mount_fs(char *fstype)
 
 static void mount_cmds_exec(char *_cmds, int (*callback)(char*))
 {
-	char *saveptr, *token;
+	char *saveptr = NULL, *token;
 	int ret = 0;
 	char *cmds = strdup(_cmds);
 	token = strtok_r(cmds, ",", &saveptr);
