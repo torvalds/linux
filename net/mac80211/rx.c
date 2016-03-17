@@ -2474,14 +2474,14 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 
 	rx->skb->dev = dev;
 
-	if (local->ps_sdata && local->hw.conf.dynamic_ps_timeout > 0 &&
+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS) &&
+	    local->ps_sdata && local->hw.conf.dynamic_ps_timeout > 0 &&
 	    !is_multicast_ether_addr(
 		    ((struct ethhdr *)rx->skb->data)->h_dest) &&
 	    (!local->scanning &&
-	     !test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))) {
-			mod_timer(&local->dynamic_ps_timer, jiffies +
-			 msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
-	}
+	     !test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state)))
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 
 	ieee80211_deliver_skb(rx);
 
