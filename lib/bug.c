@@ -175,6 +175,17 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 			pr_warn("WARNING: at %p [verbose debug info unavailable]\n",
 				(void *)bugaddr);
 
+		if (panic_on_warn) {
+			/*
+			 * This thread may hit another WARN() in the panic path.
+			 * Resetting this prevents additional WARN() from
+			 * panicking the system on this thread.  Other threads
+			 * are blocked by the panic_mutex in panic().
+			 */
+			panic_on_warn = 0;
+			panic("panic_on_warn set ...\n");
+		}
+
 		print_modules();
 		show_regs(regs);
 		print_oops_end_marker();
