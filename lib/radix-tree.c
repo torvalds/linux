@@ -173,6 +173,41 @@ radix_tree_find_next_bit(const unsigned long *addr,
 	return size;
 }
 
+#if 0
+static void dump_node(void *slot, int height, int offset)
+{
+	struct radix_tree_node *node;
+	int i;
+
+	if (!slot)
+		return;
+
+	if (height == 0) {
+		pr_debug("radix entry %p offset %d\n", slot, offset);
+		return;
+	}
+
+	node = indirect_to_ptr(slot);
+	pr_debug("radix node: %p offset %d tags %lx %lx %lx path %x count %d parent %p\n",
+		slot, offset, node->tags[0][0], node->tags[1][0],
+		node->tags[2][0], node->path, node->count, node->parent);
+
+	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
+		dump_node(node->slots[i], height - 1, i);
+}
+
+/* For debug */
+static void radix_tree_dump(struct radix_tree_root *root)
+{
+	pr_debug("radix root: %p height %d rnode %p tags %x\n",
+			root, root->height, root->rnode,
+			root->gfp_mask >> __GFP_BITS_SHIFT);
+	if (!radix_tree_is_indirect_ptr(root->rnode))
+		return;
+	dump_node(root->rnode, root->height, 0);
+}
+#endif
+
 /*
  * This assumes that the caller has performed appropriate preallocation, and
  * that the caller has pinned this thread of control to the current CPU.
