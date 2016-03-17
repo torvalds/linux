@@ -70,6 +70,11 @@
 		serial3 = &uart3;
 	};
 
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
 	cpus {
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -104,7 +109,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x0>;
-
+			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
@@ -114,6 +119,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x1>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
@@ -122,6 +128,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x2>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
@@ -130,6 +137,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0 0x3>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLKL>;
 			operating-points-v2 = <&cluster0_opp>;
 		};
@@ -138,7 +146,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x100>;
-
+			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
@@ -148,6 +156,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0x0 0x101>;
+			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			operating-points-v2 = <&cluster1_opp>;
 		};
