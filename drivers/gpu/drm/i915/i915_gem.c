@@ -2550,7 +2550,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		return;
 
 	engine = request->engine;
-	dev_priv = engine->dev->dev_private;
+	dev_priv = request->i915;
 	ringbuf = request->ringbuf;
 
 	/*

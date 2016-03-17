@@ -897,7 +897,7 @@ int intel_logical_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 	int ret;
 
 	WARN_ON(req == NULL);
-	dev_priv = req->engine->dev->dev_private;
+	dev_priv = req->i915;
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
 				   dev_priv->mm.interruptible);

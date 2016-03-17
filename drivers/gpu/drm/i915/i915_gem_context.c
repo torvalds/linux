@@ -656,7 +656,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 {
 	struct intel_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = req->i915;
 	struct intel_context *from = engine->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
@@ -829,7 +829,7 @@ unpin_out:
 int i915_switch_context(struct drm_i915_gem_request *req)
 {
 	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = req->i915;
 
 	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));

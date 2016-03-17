@@ -2499,7 +2499,7 @@ int intel_ring_begin(struct drm_i915_gem_request *req,
 
 	WARN_ON(req == NULL);
 	engine = req->engine;
-	dev_priv = engine->dev->dev_private;
+	dev_priv = req->i915;
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
 				   dev_priv->mm.interruptible);

@@ -2192,7 +2192,7 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 
 int i915_ppgtt_init_ring(struct drm_i915_gem_request *req)
 {
-	struct drm_i915_private *dev_priv = req->engine->dev->dev_private;
+	struct drm_i915_private *dev_priv = req->i915;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 	if (i915.enable_execlists)
