@@ -485,12 +485,6 @@ static int act8865_pmic_probe(struct i2c_client *client,
 		pdata = &pdata_of;
 	}
 
-	if (pdata->num_regulators > num_regulators) {
-		dev_err(dev, "too many regulators: %d\n",
-			pdata->num_regulators);
-		return -EINVAL;
-	}
-
 	act8865 = devm_kzalloc(dev, sizeof(struct act8865), GFP_KERNEL);
 	if (!act8865)
 		return -ENOMEM;
