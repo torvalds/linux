@@ -108,6 +108,13 @@ void __init paging_init(void)
 	free_area_init_nodes(max_zone_pfns);
 }
 
+void mark_rodata_ro(void)
+{
+	/* Text and rodata are already protected. Nothing to do here. */
+	pr_info("Write protecting the kernel read-only data: %luk\n",
+		((unsigned long)&_eshared - (unsigned long)&_stext) >> 10);
+}
+
 void __init mem_init(void)
 {
 	if (MACHINE_HAS_TLB_LC)
@@ -126,9 +133,6 @@ void __init mem_init(void)
 	setup_zero_pages();	/* Setup zeroed pages. */
 
 	mem_init_print_info(NULL);
-	printk("Write protected kernel read-only data: %#lx - %#lx\n",
-	       (unsigned long)&_stext,
-	       PFN_ALIGN((unsigned long)&_eshared) - 1);
 }
 
 void free_initmem(void)
