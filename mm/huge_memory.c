@@ -78,7 +78,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE_MADVISE
 	(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)|
 #endif
-	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
+	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG)|
 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
 
@@ -270,37 +270,35 @@ static struct shrinker huge_zero_page_shrinker = {
 
 #ifdef CONFIG_SYSFS
 
-static ssize_t double_flag_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buf,
-				enum transparent_hugepage_flag enabled,
-				enum transparent_hugepage_flag req_madv)
-{
-	if (test_bit(enabled, &transparent_hugepage_flags)) {
-		VM_BUG_ON(test_bit(req_madv, &transparent_hugepage_flags));
-		return sprintf(buf, "[always] madvise never\n");
-	} else if (test_bit(req_madv, &transparent_hugepage_flags))
-		return sprintf(buf, "always [madvise] never\n");
-	else
-		return sprintf(buf, "always madvise [never]\n");
-}
-static ssize_t double_flag_store(struct kobject *kobj,
+static ssize_t triple_flag_store(struct kobject *kobj,
 				 struct kobj_attribute *attr,
 				 const char *buf, size_t count,
 				 enum transparent_hugepage_flag enabled,
+				 enum transparent_hugepage_flag deferred,
 				 enum transparent_hugepage_flag req_madv)
 {
-	if (!memcmp("always", buf,
-		    min(sizeof("always")-1, count))) {
-		set_bit(enabled, &transparent_hugepage_flags);
+	if (!memcmp("defer", buf,
+		    min(sizeof("defer")-1, count))) {
+		if (enabled == deferred)
+			return -EINVAL;
+		clear_bit(enabled, &transparent_hugepage_flags);
 		clear_bit(req_madv, &transparent_hugepage_flags);
+		set_bit(deferred, &transparent_hugepage_flags);
+	} else if (!memcmp("always", buf,
+		    min(sizeof("always")-1, count))) {
+		clear_bit(deferred, &transparent_hugepage_flags);
+		clear_bit(req_madv, &transparent_hugepage_flags);
+		set_bit(enabled, &transparent_hugepage_flags);
 	} else if (!memcmp("madvise", buf,
 			   min(sizeof("madvise")-1, count))) {
 		clear_bit(enabled, &transparent_hugepage_flags);
+		clear_bit(deferred, &transparent_hugepage_flags);
 		set_bit(req_madv, &transparent_hugepage_flags);
 	} else if (!memcmp("never", buf,
 			   min(sizeof("never")-1, count))) {
 		clear_bit(enabled, &transparent_hugepage_flags);
 		clear_bit(req_madv, &transparent_hugepage_flags);
+		clear_bit(deferred, &transparent_hugepage_flags);
 	} else
 		return -EINVAL;
 
@@ -310,17 +308,22 @@ static ssize_t double_flag_store(struct kobject *kobj,
 static ssize_t enabled_show(struct kobject *kobj,
 			    struct kobj_attribute *attr, char *buf)
 {
-	return double_flag_show(kobj, attr, buf,
-				TRANSPARENT_HUGEPAGE_FLAG,
-				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
+	if (test_bit(TRANSPARENT_HUGEPAGE_FLAG, &transparent_hugepage_flags))
+		return sprintf(buf, "[always] madvise never\n");
+	else if (test_bit(TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG, &transparent_hugepage_flags))
+		return sprintf(buf, "always [madvise] never\n");
+	else
+		return sprintf(buf, "always madvise [never]\n");
 }
+
 static ssize_t enabled_store(struct kobject *kobj,
 			     struct kobj_attribute *attr,
 			     const char *buf, size_t count)
 {
 	ssize_t ret;
 
-	ret = double_flag_store(kobj, attr, buf, count,
+	ret = triple_flag_store(kobj, attr, buf, count,
+				TRANSPARENT_HUGEPAGE_FLAG,
 				TRANSPARENT_HUGEPAGE_FLAG,
 				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
 
@@ -378,16 +381,23 @@ static ssize_t single_flag_store(struct kobject *kobj,
 static ssize_t defrag_show(struct kobject *kobj,
 			   struct kobj_attribute *attr, char *buf)
 {
-	return double_flag_show(kobj, attr, buf,
-				TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
-				TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG);
+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+		return sprintf(buf, "[always] defer madvise never\n");
+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+		return sprintf(buf, "always [defer] madvise never\n");
+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags))
+		return sprintf(buf, "always defer [madvise] never\n");
+	else
+		return sprintf(buf, "always defer madvise [never]\n");
+
 }
 static ssize_t defrag_store(struct kobject *kobj,
 			    struct kobj_attribute *attr,
 			    const char *buf, size_t count)
 {
-	return double_flag_store(kobj, attr, buf, count,
-				 TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+	return triple_flag_store(kobj, attr, buf, count,
+				 TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+				 TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
 				 TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG);
 }
 static struct kobj_attribute defrag_attr =
@@ -843,9 +853,30 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 	return 0;
 }
 
-static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
+/*
+ * If THP is set to always then directly reclaim/compact as necessary
+ * If set to defer then do no reclaim and defer to khugepaged
+ * If set to madvise and the VMA is flagged then directly reclaim/compact
+ */
+static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
 {
-	return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_RECLAIM)) | extra_gfp;
+	gfp_t reclaim_flags = 0;
+
+	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags) &&
+	    (vma->vm_flags & VM_HUGEPAGE))
+		reclaim_flags = __GFP_DIRECT_RECLAIM;
+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+		reclaim_flags = __GFP_KSWAPD_RECLAIM;
+	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+		reclaim_flags = __GFP_DIRECT_RECLAIM;
+
+	return GFP_TRANSHUGE | reclaim_flags;
+}
+
+/* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
+static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
+{
+	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
 }
 
 /* Caller must hold page table lock. */
@@ -919,7 +950,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		}
 		return ret;
 	}
-	gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
+	gfp = alloc_hugepage_direct_gfpmask(vma);
 	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
 	if (unlikely(!page)) {
 		count_vm_event(THP_FAULT_FALLBACK);
@@ -1279,7 +1310,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 alloc:
 	if (transparent_hugepage_enabled(vma) &&
 	    !transparent_hugepage_debug_cow()) {
-		huge_gfp = alloc_hugepage_gfpmask(transparent_hugepage_defrag(vma), 0);
+		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
 		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
 	} else
 		new_page = NULL;
@@ -2249,11 +2280,12 @@ static int khugepaged_find_target_node(void)
 	return 0;
 }
 
-static inline struct page *alloc_hugepage(int defrag)
+static inline struct page *alloc_khugepaged_hugepage(void)
 {
 	struct page *page;
 
-	page = alloc_pages(alloc_hugepage_gfpmask(defrag, 0), HPAGE_PMD_ORDER);
+	page = alloc_pages(alloc_hugepage_khugepaged_gfpmask(),
+			   HPAGE_PMD_ORDER);
 	if (page)
 		prep_transhuge_page(page);
 	return page;
@@ -2264,7 +2296,7 @@ static struct page *khugepaged_alloc_hugepage(bool *wait)
 	struct page *hpage;
 
 	do {
-		hpage = alloc_hugepage(khugepaged_defrag());
+		hpage = alloc_khugepaged_hugepage();
 		if (!hpage) {
 			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
 			if (!*wait)
@@ -2335,8 +2367,7 @@ static void collapse_huge_page(struct mm_struct *mm,
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 
 	/* Only allocate from the target node */
-	gfp = alloc_hugepage_gfpmask(khugepaged_defrag(), __GFP_OTHER_NODE) |
-		__GFP_THISNODE;
+	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_OTHER_NODE | __GFP_THISNODE;
 
 	/* release the mmap_sem read lock. */
 	new_page = khugepaged_alloc_page(hpage, gfp, mm, address, node);

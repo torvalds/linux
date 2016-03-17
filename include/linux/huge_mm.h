@@ -41,7 +41,8 @@ int vmf_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
 enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_FLAG,
 	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
@@ -71,12 +72,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
 	 !is_vma_temporary_stack(__vma))
-#define transparent_hugepage_defrag(__vma)				\
-	((transparent_hugepage_flags &					\
-	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\
-	 (transparent_hugepage_flags &					\
-	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG) &&		\
-	  (__vma)->vm_flags & VM_HUGEPAGE))
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
