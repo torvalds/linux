@@ -319,8 +319,6 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 	/* ICMPs are not backlogged, hence we cannot get
 	 * an established socket here.
 	 */
-	WARN_ON(req->sk);
-
 	if (seq != tcp_rsk(req)->snt_isn) {
 		NET_INC_STATS_BH(net, LINUX_MIB_OUTOFWINDOWICMPS);
 	} else if (abort) {
