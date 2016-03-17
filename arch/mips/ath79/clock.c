@@ -26,7 +26,7 @@
 #include "common.h"
 
 #define AR71XX_BASE_FREQ	40000000
-#define AR724X_BASE_FREQ	5000000
+#define AR724X_BASE_FREQ	40000000
 #define AR913X_BASE_FREQ	5000000
 
 static struct clk *clks[3];
@@ -103,8 +103,8 @@ static void __init ar724x_clocks_init(void)
 	div = ((pll >> AR724X_PLL_FB_SHIFT) & AR724X_PLL_FB_MASK);
 	freq = div * ref_rate;
 
-	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
-	freq *= div;
+	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK) * 2;
+	freq /= div;
 
 	cpu_rate = freq;
 
