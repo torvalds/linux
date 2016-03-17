@@ -181,11 +181,10 @@ static int __init orangefs_init(void)
 	 * and passes along the needed info. The argument signifies
 	 * which time orangefs_prepare_debugfs_help_string is being
 	 * called.
-	 *
 	 */
 	ret = orangefs_prepare_debugfs_help_string(1);
 	if (ret)
-		goto prepare_helpstring_failed;
+		goto cleanup_key_table;
 
 	ret = orangefs_debugfs_init();
 	if (ret)
@@ -207,7 +206,6 @@ static int __init orangefs_init(void)
 	}
 
 	orangefs_sysfs_exit();
-	fsid_key_table_finalize();
 
 sysfs_init_failed:
 
@@ -216,7 +214,8 @@ kernel_debug_init_failed:
 debugfs_init_failed:
 	orangefs_debugfs_cleanup();
 
-prepare_helpstring_failed:
+cleanup_key_table:
+	fsid_key_table_finalize();
 
 cleanup_progress_table:
 	kfree(htable_ops_in_progress);
