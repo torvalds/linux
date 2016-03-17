@@ -669,7 +669,7 @@ static int cik_sdma_ring_test_ib(struct amdgpu_ring *ring)
 
 err1:
 	fence_put(f);
-	amdgpu_ib_free(adev, &ib);
+	amdgpu_ib_free(adev, &ib, NULL);
 err0:
 	amdgpu_wb_free(adev, index);
 	return r;
