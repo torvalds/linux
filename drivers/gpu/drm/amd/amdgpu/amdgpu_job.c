@@ -70,9 +70,12 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 void amdgpu_job_free(struct amdgpu_job *job)
 {
 	unsigned i;
+	struct fence *f;
+	/* use sched fence if available */
+	f = (job->base.s_fence)? &job->base.s_fence->base : job->fence;
 
 	for (i = 0; i < job->num_ibs; ++i)
-		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, job->fence);
+		amdgpu_sa_bo_free(job->adev, &job->ibs[i].sa_bo, f);
 	fence_put(job->fence);
 
 	amdgpu_bo_unref(&job->uf.bo);
