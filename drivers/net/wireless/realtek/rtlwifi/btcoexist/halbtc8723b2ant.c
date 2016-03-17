@@ -3075,7 +3075,7 @@ static void btc8723b2ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 				  "[BTCoex], Action 2-Ant, "
 				  "algorithm = HS mode.\n");
 			btc8723b2ant_action_pan_hs(btcoexist);
-				break;
+			break;
 		case BT_8723B_2ANT_COEX_ALGO_PANEDR_A2DP:
 			BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE,
 				  "[BTCoex], Action 2-Ant, "
