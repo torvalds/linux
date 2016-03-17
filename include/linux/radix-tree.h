@@ -271,8 +271,15 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
 }
 
 int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
-			struct radix_tree_node **nodep, void ***slotp);
-int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+			unsigned order, struct radix_tree_node **nodep,
+			void ***slotp);
+int __radix_tree_insert(struct radix_tree_root *, unsigned long index,
+			unsigned order, void *);
+static inline int radix_tree_insert(struct radix_tree_root *root,
+			unsigned long index, void *entry)
+{
+	return __radix_tree_insert(root, index, 0, entry);
+}
 void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
 void *radix_tree_lookup(struct radix_tree_root *, unsigned long);

@@ -586,7 +586,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
 	void **slot;
 	int error;
 
-	error = __radix_tree_create(&mapping->page_tree, page->index,
+	error = __radix_tree_create(&mapping->page_tree, page->index, 0,
 				    &node, &slot);
 	if (error)
 		return error;
