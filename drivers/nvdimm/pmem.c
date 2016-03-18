@@ -330,18 +330,19 @@ static int pmem_rw_bytes(struct nd_namespace_common *ndns,
 
 static int nd_pfn_init(struct nd_pfn *nd_pfn)
 {
-	struct nd_pfn_sb *pfn_sb = kzalloc(sizeof(*pfn_sb), GFP_KERNEL);
 	struct pmem_device *pmem = dev_get_drvdata(&nd_pfn->dev);
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	u32 start_pad = 0, end_trunc = 0;
 	resource_size_t start, size;
 	struct nd_namespace_io *nsio;
 	struct nd_region *nd_region;
+	struct nd_pfn_sb *pfn_sb;
 	unsigned long npfns;
 	phys_addr_t offset;
 	u64 checksum;
 	int rc;
 
+	pfn_sb = devm_kzalloc(&nd_pfn->dev, sizeof(*pfn_sb), GFP_KERNEL);
 	if (!pfn_sb)
 		return -ENOMEM;
 
@@ -357,7 +358,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		dev_info(&nd_pfn->dev,
 				"%s is read-only, unable to init metadata\n",
 				dev_name(&nd_region->dev));
-		goto err;
+		return -ENXIO;
 	}
 
 	memset(pfn_sb, 0, sizeof(*pfn_sb));
@@ -402,12 +403,12 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	else if (nd_pfn->mode == PFN_MODE_RAM)
 		offset = ALIGN(start + SZ_8K, nd_pfn->align) - start;
 	else
-		goto err;
+		return -ENXIO;
 
 	if (offset + start_pad + end_trunc >= pmem->size) {
 		dev_err(&nd_pfn->dev, "%s unable to satisfy requested alignment\n",
 				dev_name(&ndns->dev));
-		goto err;
+		return -ENXIO;
 	}
 
 	npfns = (pmem->size - offset - start_pad - end_trunc) / SZ_4K;
@@ -424,30 +425,16 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
 	pfn_sb->checksum = cpu_to_le64(checksum);
 
-	rc = nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
-	if (rc)
-		goto err;
-
-	return 0;
- err:
-	nd_pfn->pfn_sb = NULL;
-	kfree(pfn_sb);
-	return -ENXIO;
+	return nvdimm_write_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb));
 }
 
-static int nvdimm_namespace_detach_pfn(struct nd_pfn *nd_pfn)
+static void nvdimm_namespace_detach_pfn(struct nd_pfn *nd_pfn)
 {
 	struct pmem_device *pmem;
 
 	/* free pmem disk */
 	pmem = dev_get_drvdata(&nd_pfn->dev);
 	pmem_detach_disk(pmem);
-
-	/* release nd_pfn resources */
-	kfree(nd_pfn->pfn_sb);
-	nd_pfn->pfn_sb = NULL;
-
-	return 0;
 }
 
 /*
@@ -587,7 +574,8 @@ static int nd_pmem_probe(struct device *dev)
 	if (is_nd_pfn(dev))
 		return nvdimm_namespace_attach_pfn(ndns);
 
-	if (nd_btt_probe(ndns, pmem) == 0 || nd_pfn_probe(ndns, pmem) == 0) {
+	if (nd_btt_probe(ndns, pmem) == 0
+			|| nd_pfn_probe(dev, ndns, pmem) == 0) {
 		/*
 		 * We'll come back as either btt-pmem, or pfn-pmem, so
 		 * drop the queue allocation for now.

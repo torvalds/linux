@@ -219,12 +219,14 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
 
 struct nd_pfn *to_nd_pfn(struct device *dev);
 #if IS_ENABLED(CONFIG_NVDIMM_PFN)
-int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata);
+int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
+		void *drvdata);
 bool is_nd_pfn(struct device *dev);
 struct device *nd_pfn_create(struct nd_region *nd_region);
 int nd_pfn_validate(struct nd_pfn *nd_pfn);
 #else
-static inline int nd_pfn_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns,
+		void *drvdata)
 {
 	return -ENODEV;
 }
