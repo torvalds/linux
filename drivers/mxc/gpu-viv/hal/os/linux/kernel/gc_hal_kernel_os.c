@@ -8503,7 +8503,7 @@ gckOS_CreateNativeFence(
     /* Cast timeline. */
     timeline = (struct viv_sync_timeline *) Timeline;
 
-    fd = get_unused_fd();
+    fd = get_unused_fd_flags(O_CLOEXEC);
 
     if (fd < 0)
     {
@@ -8565,7 +8565,6 @@ gckOS_WaitNativeFence(
     )
 {
     struct sync_timeline * timeline;
-    struct list_head *pos;
     struct sync_fence * fence;
     gctBOOL wait = gcvFALSE;
     gceSTATUS status = gcvSTATUS_OK;
@@ -8584,18 +8583,40 @@ gckOS_WaitNativeFence(
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
     }
 
-    list_for_each(pos, &fence->pt_list_head)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
     {
-        struct sync_pt * pt =
-        container_of(pos, struct sync_pt, pt_list);
+        int i;
 
-        /* Do not need to wait on same timeline. */
-        if (pt->parent != timeline)
+        for (i = 0; i < fence->num_fences; i++)
         {
-            wait = gcvTRUE;
-            break;
+            struct fence *f = fence->cbs[i].sync_pt;
+            struct sync_pt *pt = container_of(f, struct sync_pt, base);
+
+            /* Do not need to wait on same timeline. */
+            if ((sync_pt_parent(pt) != timeline) && !fence_is_signaled(f))
+            {
+                wait = gcvTRUE;
+                break;
+            }
         }
     }
+#else
+    {
+        struct list_head *pos;
+        list_for_each(pos, &fence->pt_list_head)
+        {
+            struct sync_pt * pt =
+            container_of(pos, struct sync_pt, pt_list);
+
+            /* Do not need to wait on same timeline. */
+            if (pt->parent != timeline)
+            {
+                wait = gcvTRUE;
+                break;
+            }
+        }
+    }
+#endif
 
     if (wait)
     {

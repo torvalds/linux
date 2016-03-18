@@ -79,7 +79,11 @@ viv_sync_pt_dup(
     struct viv_sync_timeline *obj;
 
     src = (struct viv_sync_pt *) sync_pt;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+    obj = (struct viv_sync_timeline *) sync_pt_parent(sync_pt);
+#else
     obj = (struct viv_sync_timeline *) sync_pt->parent;
+#endif
 
     /* Create the new sync_pt. */
     pt = (struct viv_sync_pt *)
@@ -111,7 +115,11 @@ viv_sync_pt_has_signaled(
     struct viv_sync_timeline * obj;
 
     pt  = (struct viv_sync_pt *)sync_pt;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+    obj = (struct viv_sync_timeline *) sync_pt_parent(sync_pt);
+#else
     obj = (struct viv_sync_timeline *)sync_pt->parent;
+#endif
 
     status = gckOS_QuerySyncPoint(obj->os, pt->sync, &state);
 
@@ -150,7 +158,11 @@ viv_sync_pt_free(
     struct viv_sync_timeline * obj;
 
     pt  = (struct viv_sync_pt *) sync_pt;
-    obj = (struct viv_sync_timeline *) sync_pt->parent;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+    obj = (struct viv_sync_timeline *) sync_pt_parent(sync_pt);
+#else
+    obj = (struct viv_sync_timeline *)sync_pt->parent;
+#endif
 
     gckOS_DestroySyncPoint(obj->os, pt->sync);
 }
