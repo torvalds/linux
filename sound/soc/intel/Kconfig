@@ -163,7 +163,6 @@ config SND_SOC_INTEL_SKYLAKE
 	tristate
 	select SND_HDA_EXT_CORE
 	select SND_SOC_TOPOLOGY
-	select SND_HDA_I915
 	select SND_SOC_INTEL_SST
 
 config SND_SOC_INTEL_SKL_RT286_MACH
