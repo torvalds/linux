@@ -143,6 +143,10 @@ enum dw_dma_msize {
 	DW_DMA_MSIZE_256,
 };
 
+/* Bitfields in LLP */
+#define DWC_LLP_LMS(x)		((x) & 3)	/* list master select */
+#define DWC_LLP_LOC(x)		((x) & ~3)	/* next lli */
+
 /* Bitfields in CTL_LO */
 #define DWC_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
 #define DWC_CTLL_DST_WIDTH(n)	((n)<<1)	/* bytes per element */
