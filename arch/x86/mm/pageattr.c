@@ -414,24 +414,30 @@ pmd_t *lookup_pmd_address(unsigned long address)
 phys_addr_t slow_virt_to_phys(void *__virt_addr)
 {
 	unsigned long virt_addr = (unsigned long)__virt_addr;
-	unsigned long phys_addr, offset;
+	phys_addr_t phys_addr;
+	unsigned long offset;
 	enum pg_level level;
 	pte_t *pte;
 
 	pte = lookup_address(virt_addr, &level);
 	BUG_ON(!pte);
 
+	/*
+	 * pXX_pfn() returns unsigned long, which must be cast to phys_addr_t
+	 * before being left-shifted PAGE_SHIFT bits -- this trick is to
+	 * make 32-PAE kernel work correctly.
+	 */
 	switch (level) {
 	case PG_LEVEL_1G:
-		phys_addr = pud_pfn(*(pud_t *)pte) << PAGE_SHIFT;
+		phys_addr = (phys_addr_t)pud_pfn(*(pud_t *)pte) << PAGE_SHIFT;
 		offset = virt_addr & ~PUD_PAGE_MASK;
 		break;
 	case PG_LEVEL_2M:
-		phys_addr = pmd_pfn(*(pmd_t *)pte) << PAGE_SHIFT;
+		phys_addr = (phys_addr_t)pmd_pfn(*(pmd_t *)pte) << PAGE_SHIFT;
 		offset = virt_addr & ~PMD_PAGE_MASK;
 		break;
 	default:
-		phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
+		phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
 		offset = virt_addr & ~PAGE_MASK;
 	}
 
