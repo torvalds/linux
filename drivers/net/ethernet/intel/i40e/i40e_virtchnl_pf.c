@@ -1311,8 +1311,8 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	struct i40e_pf *pf = vf->pf;
 	i40e_status aq_ret = 0;
 	struct i40e_vsi *vsi;
-	int i = 0, len = 0;
 	int num_vsis = 1;
+	int len = 0;
 	int ret;
 
 	if (!test_bit(I40E_VF_STAT_INIT, &vf->vf_states)) {
@@ -1374,15 +1374,14 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	vfres->num_queue_pairs = vf->num_queue_pairs;
 	vfres->max_vectors = pf->hw.func_caps.num_msix_vectors_vf;
 	if (vf->lan_vsi_idx) {
-		vfres->vsi_res[i].vsi_id = vf->lan_vsi_id;
-		vfres->vsi_res[i].vsi_type = I40E_VSI_SRIOV;
-		vfres->vsi_res[i].num_queue_pairs = vsi->alloc_queue_pairs;
+		vfres->vsi_res[0].vsi_id = vf->lan_vsi_id;
+		vfres->vsi_res[0].vsi_type = I40E_VSI_SRIOV;
+		vfres->vsi_res[0].num_queue_pairs = vsi->alloc_queue_pairs;
 		/* VFs only use TC 0 */
-		vfres->vsi_res[i].qset_handle
+		vfres->vsi_res[0].qset_handle
 					  = le16_to_cpu(vsi->info.qs_handle[0]);
-		ether_addr_copy(vfres->vsi_res[i].default_mac_addr,
+		ether_addr_copy(vfres->vsi_res[0].default_mac_addr,
 				vf->default_lan_addr.addr);
-		i++;
 	}
 	set_bit(I40E_VF_STAT_ACTIVE, &vf->vf_states);
 
