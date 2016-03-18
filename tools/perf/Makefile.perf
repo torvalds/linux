@@ -3,7 +3,7 @@ include ../scripts/Makefile.include
 # The default target of this Makefile is...
 all:
 
-include config/utilities.mak
+include ../scripts/utilities.mak
 
 # Define V to have a more verbose compile.
 #
