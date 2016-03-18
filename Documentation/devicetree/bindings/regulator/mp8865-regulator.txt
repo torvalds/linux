@@ -1,0 +1,24 @@
+MPS MP8865 Regulator Driver
+
+Required properties:
+- compatible: "mps,mp8865"
+- reg: I2C slave address
+- regulators: List of regulators provided by this controller.
+  The definition for each of these nodes is defined using the standard binding
+  for regulators at Documentation/devicetree/bindings/regulator/regulator.txt.
+
+example:
+	mp8865: mp8865@68 {
+		compatible = "mps,mp8865";
+		reg = <0x68>;
+		status = "okay";
+		regulators {
+			vdd_gpu: mp8865_dcdc1 {
+				regulator-name = "vdd_gpu";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
