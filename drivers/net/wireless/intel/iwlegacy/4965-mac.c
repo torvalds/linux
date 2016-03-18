@@ -5577,6 +5577,7 @@ __il4965_up(struct il_priv *il)
 	ret = il4965_hw_nic_init(il);
 	if (ret) {
 		IL_ERR("Unable to init nic\n");
+		il_dealloc_bcast_stations(il);
 		return ret;
 	}
 
