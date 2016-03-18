@@ -4,7 +4,7 @@ The device node has following properties.
 
 Required properties:
  - compatible: Can be one of "rockchip,rk3288-gmac", "rockchip,rk3366-gmac",
-   "rockchip, rk3368-gmac"
+   "rockchip, rk3368-gmac", "rockchip,rk3399-gmac"
  - reg: addresses and length of the register sets for the device.
  - interrupts: Should contain the GMAC interrupts.
  - interrupt-names: Should contain the interrupt names "macirq".
