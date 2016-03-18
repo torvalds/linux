@@ -999,7 +999,7 @@ static int dwc_pause(struct dma_chan *chan)
 	while (!(channel_readl(dwc, CFG_LO) & DWC_CFGL_FIFO_EMPTY) && count--)
 		udelay(2);
 
-	dwc->paused = true;
+	set_bit(DW_DMA_IS_PAUSED, &dwc->flags);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -1012,7 +1012,7 @@ static inline void dwc_chan_resume(struct dw_dma_chan *dwc)
 
 	channel_writel(dwc, CFG_LO, cfglo & ~DWC_CFGL_CH_SUSP);
 
-	dwc->paused = false;
+	clear_bit(DW_DMA_IS_PAUSED, &dwc->flags);
 }
 
 static int dwc_resume(struct dma_chan *chan)
@@ -1020,12 +1020,10 @@ static int dwc_resume(struct dma_chan *chan)
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	unsigned long		flags;
 
-	if (!dwc->paused)
-		return 0;
-
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	dwc_chan_resume(dwc);
+	if (test_bit(DW_DMA_IS_PAUSED, &dwc->flags))
+		dwc_chan_resume(dwc);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -1094,7 +1092,7 @@ dwc_tx_status(struct dma_chan *chan,
 	if (ret != DMA_COMPLETE)
 		dma_set_residue(txstate, dwc_get_residue(dwc));
 
-	if (dwc->paused && ret == DMA_IN_PROGRESS)
+	if (test_bit(DW_DMA_IS_PAUSED, &dwc->flags) && ret == DMA_IN_PROGRESS)
 		return DMA_PAUSED;
 
 	return ret;
