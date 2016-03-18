@@ -615,9 +615,7 @@ static ssize_t debugfs_run_write(struct file *filp, const char __user *ubuf,
 				kthread_create_on_node(ntb_perf_thread,
 						       (void *)pctx,
 						       node, "ntb_perf %d", i);
-			if (pctx->thread)
-				wake_up_process(pctx->thread);
-			else {
+			if (IS_ERR(pctx->thread)) {
 				perf->run = false;
 				for (i = 0; i < MAX_THREADS; i++) {
 					if (pctx->thread) {
@@ -625,7 +623,8 @@ static ssize_t debugfs_run_write(struct file *filp, const char __user *ubuf,
 						pctx->thread = NULL;
 					}
 				}
-			}
+			} else
+				wake_up_process(pctx->thread);
 
 			if (perf->run == false)
 				return -ENXIO;
