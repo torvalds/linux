@@ -28,8 +28,8 @@ struct dst_cache_pcpu {
 	};
 };
 
-void dst_cache_per_cpu_dst_set(struct dst_cache_pcpu *dst_cache,
-			       struct dst_entry *dst, u32 cookie)
+static void dst_cache_per_cpu_dst_set(struct dst_cache_pcpu *dst_cache,
+				      struct dst_entry *dst, u32 cookie)
 {
 	dst_release(dst_cache->dst);
 	if (dst)
@@ -39,8 +39,8 @@ void dst_cache_per_cpu_dst_set(struct dst_cache_pcpu *dst_cache,
 	dst_cache->dst = dst;
 }
 
-struct dst_entry *dst_cache_per_cpu_get(struct dst_cache *dst_cache,
-					struct dst_cache_pcpu *idst)
+static struct dst_entry *dst_cache_per_cpu_get(struct dst_cache *dst_cache,
+					       struct dst_cache_pcpu *idst)
 {
 	struct dst_entry *dst;
 
