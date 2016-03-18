@@ -3096,44 +3096,28 @@ static void pch_udc_remove(struct pci_dev *pdev)
 	kfree(dev);
 }
 
-#ifdef CONFIG_PM
-static int pch_udc_suspend(struct pci_dev *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int pch_udc_suspend(struct device *d)
 {
+	struct pci_dev *pdev = to_pci_dev(d);
 	struct pch_udc_dev *dev = pci_get_drvdata(pdev);
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 	pch_udc_disable_ep_interrupts(dev, UDC_EPINT_MSK_DISABLE_ALL);
 
-	pci_disable_device(pdev);
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-
-	if (pci_save_state(pdev)) {
-		dev_err(&pdev->dev,
-			"%s: could not save PCI config state\n", __func__);
-		return -ENOMEM;
-	}
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	return 0;
 }
 
-static int pch_udc_resume(struct pci_dev *pdev)
+static int pch_udc_resume(struct device *d)
 {
-	int ret;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-	ret = pci_enable_device(pdev);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: pci_enable_device failed\n", __func__);
-		return ret;
-	}
-	pci_enable_wake(pdev, PCI_D3hot, 0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(pch_udc_pm, pch_udc_suspend, pch_udc_resume);
+#define PCH_UDC_PM_OPS		(&pch_udc_pm)
 #else
-#define pch_udc_suspend	NULL
-#define pch_udc_resume	NULL
-#endif /* CONFIG_PM */
+#define PCH_UDC_PM_OPS		NULL
+#endif /* CONFIG_PM_SLEEP */
 
 static int pch_udc_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *id)
@@ -3262,9 +3246,10 @@ static struct pci_driver pch_udc_driver = {
 	.id_table =	pch_udc_pcidev_id,
 	.probe =	pch_udc_probe,
 	.remove =	pch_udc_remove,
-	.suspend =	pch_udc_suspend,
-	.resume =	pch_udc_resume,
 	.shutdown =	pch_udc_shutdown,
+	.driver = {
+		.pm = PCH_UDC_PM_OPS,
+	},
 };
 
 module_pci_driver(pch_udc_driver);
