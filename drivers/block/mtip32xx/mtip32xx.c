@@ -2051,7 +2051,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 					 outbuf,
 					 taskout,
 					 DMA_TO_DEVICE);
-		if (outbuf_dma == 0) {
+		if (pci_dma_mapping_error(dd->pdev, outbuf_dma)) {
 			err = -ENOMEM;
 			goto abort;
 		}
@@ -2068,7 +2068,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		inbuf_dma = pci_map_single(dd->pdev,
 					 inbuf,
 					 taskin, DMA_FROM_DEVICE);
-		if (inbuf_dma == 0) {
+		if (pci_dma_mapping_error(dd->pdev, inbuf_dma)) {
 			err = -ENOMEM;
 			goto abort;
 		}
