@@ -309,3 +309,10 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = handle_get_capacity,
 	.request = blk_request,
 };
+
+/* Needed to resolve linker error on Win32. We don't really support
+ * any network IO on Windows, anyway, so there's no loss here. */
+int lkl_netdevs_remove(void)
+{
+	return -1;
+}
