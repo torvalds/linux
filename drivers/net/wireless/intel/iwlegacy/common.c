@@ -2792,8 +2792,10 @@ il_tx_queue_free(struct il_priv *il, int txq_id)
 	il_tx_queue_unmap(il, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
+	if (txq->cmd) {
+		for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
+			kfree(txq->cmd[i]);
+	}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
@@ -2871,8 +2873,10 @@ il_cmd_queue_free(struct il_priv *il)
 	il_cmd_queue_unmap(il);
 
 	/* De-alloc array of command/tx buffers */
-	for (i = 0; i <= TFD_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
+	if (txq->cmd) {
+		for (i = 0; i <= TFD_CMD_SLOTS; i++)
+			kfree(txq->cmd[i]);
+	}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
@@ -3078,7 +3082,9 @@ err:
 		kfree(txq->cmd[i]);
 out_free_arrays:
 	kfree(txq->meta);
+	txq->meta = NULL;
 	kfree(txq->cmd);
+	txq->cmd = NULL;
 
 	return -ENOMEM;
 }
