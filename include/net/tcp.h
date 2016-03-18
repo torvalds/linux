@@ -449,7 +449,7 @@ const u8 *tcp_parse_md5sig_option(const struct tcphdr *th);
 
 void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb);
 void tcp_v4_mtu_reduced(struct sock *sk);
-void tcp_req_err(struct sock *sk, u32 seq);
+void tcp_req_err(struct sock *sk, u32 seq, bool abort);
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_create_openreq_child(const struct sock *sk,
 				      struct request_sock *req,

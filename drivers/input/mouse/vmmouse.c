@@ -458,8 +458,6 @@ int vmmouse_init(struct psmouse *psmouse)
 	priv->abs_dev = abs_dev;
 	psmouse->private = priv;
 
-	input_set_capability(rel_dev, EV_REL, REL_WHEEL);
-
 	/* Set up and register absolute device */
 	snprintf(priv->phys, sizeof(priv->phys), "%s/input1",
 		 psmouse->ps2dev.serio->phys);
@@ -475,10 +473,6 @@ int vmmouse_init(struct psmouse *psmouse)
 	abs_dev->id.version = psmouse->model;
 	abs_dev->dev.parent = &psmouse->ps2dev.serio->dev;
 
-	error = input_register_device(priv->abs_dev);
-	if (error)
-		goto init_fail;
-
 	/* Set absolute device capabilities */
 	input_set_capability(abs_dev, EV_KEY, BTN_LEFT);
 	input_set_capability(abs_dev, EV_KEY, BTN_RIGHT);
@@ -487,6 +481,13 @@ int vmmouse_init(struct psmouse *psmouse)
 	input_set_capability(abs_dev, EV_ABS, ABS_Y);
 	input_set_abs_params(abs_dev, ABS_X, 0, VMMOUSE_MAX_X, 0, 0);
 	input_set_abs_params(abs_dev, ABS_Y, 0, VMMOUSE_MAX_Y, 0, 0);
+
+	error = input_register_device(priv->abs_dev);
+	if (error)
+		goto init_fail;
+
+	/* Add wheel capability to the relative device */
+	input_set_capability(rel_dev, EV_REL, REL_WHEEL);
 
 	psmouse->protocol_handler = vmmouse_process_byte;
 	psmouse->disconnect = vmmouse_disconnect;

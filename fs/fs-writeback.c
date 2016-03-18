@@ -223,6 +223,9 @@ static void wb_wait_for_completion(struct backing_dev_info *bdi,
 #define WB_FRN_HIST_MAX_SLOTS	(WB_FRN_HIST_THR_SLOTS / 2 + 1)
 					/* one round can affect upto 5 slots */
 
+static atomic_t isw_nr_in_flight = ATOMIC_INIT(0);
+static struct workqueue_struct *isw_wq;
+
 void __inode_attach_wb(struct inode *inode, struct page *page)
 {
 	struct backing_dev_info *bdi = inode_to_bdi(inode);
@@ -424,6 +427,8 @@ skip_switch:
 
 	iput(inode);
 	kfree(isw);
+
+	atomic_dec(&isw_nr_in_flight);
 }
 
 static void inode_switch_wbs_rcu_fn(struct rcu_head *rcu_head)
@@ -433,7 +438,7 @@ static void inode_switch_wbs_rcu_fn(struct rcu_head *rcu_head)
 
 	/* needs to grab bh-unsafe locks, bounce to work item */
 	INIT_WORK(&isw->work, inode_switch_wbs_work_fn);
-	schedule_work(&isw->work);
+	queue_work(isw_wq, &isw->work);
 }
 
 /**
@@ -469,7 +474,8 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	/* while holding I_WB_SWITCH, no one else can update the association */
 	spin_lock(&inode->i_lock);
-	if (inode->i_state & (I_WB_SWITCH | I_FREEING) ||
+	if (!(inode->i_sb->s_flags & MS_ACTIVE) ||
+	    inode->i_state & (I_WB_SWITCH | I_FREEING) ||
 	    inode_to_wb(inode) == isw->new_wb) {
 		spin_unlock(&inode->i_lock);
 		goto out_free;
@@ -479,6 +485,8 @@ static void inode_switch_wbs(struct inode *inode, int new_wb_id)
 
 	ihold(inode);
 	isw->inode = inode;
+
+	atomic_inc(&isw_nr_in_flight);
 
 	/*
 	 * In addition to synchronizing among switchers, I_WB_SWITCH tells
@@ -841,6 +849,33 @@ restart:
 	if (last_wb)
 		wb_put(last_wb);
 }
+
+/**
+ * cgroup_writeback_umount - flush inode wb switches for umount
+ *
+ * This function is called when a super_block is about to be destroyed and
+ * flushes in-flight inode wb switches.  An inode wb switch goes through
+ * RCU and then workqueue, so the two need to be flushed in order to ensure
+ * that all previously scheduled switches are finished.  As wb switches are
+ * rare occurrences and synchronize_rcu() can take a while, perform
+ * flushing iff wb switches are in flight.
+ */
+void cgroup_writeback_umount(void)
+{
+	if (atomic_read(&isw_nr_in_flight)) {
+		synchronize_rcu();
+		flush_workqueue(isw_wq);
+	}
+}
+
+static int __init cgroup_writeback_init(void)
+{
+	isw_wq = alloc_workqueue("inode_switch_wbs", 0, 0);
+	if (!isw_wq)
+		return -ENOMEM;
+	return 0;
+}
+fs_initcall(cgroup_writeback_init);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 

@@ -62,11 +62,12 @@ xfs_inobp_check(
  * has not had the inode cores stamped into it. Hence for readahead, the buffer
  * may be potentially invalid.
  *
- * If the readahead buffer is invalid, we don't want to mark it with an error,
- * but we do want to clear the DONE status of the buffer so that a followup read
- * will re-read it from disk. This will ensure that we don't get an unnecessary
- * warnings during log recovery and we don't get unnecssary panics on debug
- * kernels.
+ * If the readahead buffer is invalid, we need to mark it with an error and
+ * clear the DONE status of the buffer so that a followup read will re-read it
+ * from disk. We don't report the error otherwise to avoid warnings during log
+ * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
+ * because all we want to do is say readahead failed; there is no-one to report
+ * the error to, so this will distinguish it from a non-ra verifier failure.
  */
 static void
 xfs_inode_buf_verify(
@@ -93,6 +94,7 @@ xfs_inode_buf_verify(
 						XFS_RANDOM_ITOBP_INOTOBP))) {
 			if (readahead) {
 				bp->b_flags &= ~XBF_DONE;
+				xfs_buf_ioerror(bp, -EIO);
 				return;
 			}
 

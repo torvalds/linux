@@ -42,7 +42,7 @@ static const char *proc_ns_follow_link(struct dentry *dentry, void **cookie)
 	if (!task)
 		return error;
 
-	if (ptrace_may_access(task, PTRACE_MODE_READ)) {
+	if (ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)) {
 		error = ns_get_path(&ns_path, task, ns_ops);
 		if (!error)
 			nd_jump_link(&ns_path);
@@ -63,7 +63,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	if (!task)
 		return res;
 
-	if (ptrace_may_access(task, PTRACE_MODE_READ)) {
+	if (ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)) {
 		res = ns_get_name(name, sizeof(name), task, ns_ops);
 		if (res >= 0)
 			res = readlink_copy(buffer, buflen, name);

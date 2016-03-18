@@ -168,12 +168,6 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	skb_queue_head_init(&n_ptr->bc_entry.inputq1);
 	__skb_queue_head_init(&n_ptr->bc_entry.arrvq);
 	skb_queue_head_init(&n_ptr->bc_entry.inputq2);
-	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
-	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
-		if (n_ptr->addr < temp_node->addr)
-			break;
-	}
-	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 	n_ptr->state = SELF_DOWN_PEER_LEAVING;
 	n_ptr->signature = INVALID_NODE_SIG;
 	n_ptr->active_links[0] = INVALID_BEARER_ID;
@@ -193,6 +187,12 @@ struct tipc_node *tipc_node_create(struct net *net, u32 addr, u16 capabilities)
 	tipc_node_get(n_ptr);
 	setup_timer(&n_ptr->timer, tipc_node_timeout, (unsigned long)n_ptr);
 	n_ptr->keepalive_intv = U32_MAX;
+	hlist_add_head_rcu(&n_ptr->hash, &tn->node_htable[tipc_hashfn(addr)]);
+	list_for_each_entry_rcu(temp_node, &tn->node_list, list) {
+		if (n_ptr->addr < temp_node->addr)
+			break;
+	}
+	list_add_tail_rcu(&n_ptr->list, &temp_node->list);
 exit:
 	spin_unlock_bh(&tn->node_list_lock);
 	return n_ptr;

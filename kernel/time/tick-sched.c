@@ -977,9 +977,9 @@ static void tick_nohz_switch_to_nohz(void)
 	/* Get the next period */
 	next = tick_init_jiffy_update();
 
-	hrtimer_forward_now(&ts->sched_timer, tick_period);
 	hrtimer_set_expires(&ts->sched_timer, next);
-	tick_program_event(next, 1);
+	hrtimer_forward_now(&ts->sched_timer, tick_period);
+	tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 	tick_nohz_activate(ts, NOHZ_MODE_LOWRES);
 }
 

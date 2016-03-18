@@ -175,21 +175,29 @@ static u8 update_white_list(struct hci_request *req)
 	 * command to remove it from the controller.
 	 */
 	list_for_each_entry(b, &hdev->le_white_list, list) {
-		struct hci_cp_le_del_from_white_list cp;
+		/* If the device is neither in pend_le_conns nor
+		 * pend_le_reports then remove it from the whitelist.
+		 */
+		if (!hci_pend_le_action_lookup(&hdev->pend_le_conns,
+					       &b->bdaddr, b->bdaddr_type) &&
+		    !hci_pend_le_action_lookup(&hdev->pend_le_reports,
+					       &b->bdaddr, b->bdaddr_type)) {
+			struct hci_cp_le_del_from_white_list cp;
 
-		if (hci_pend_le_action_lookup(&hdev->pend_le_conns,
-					      &b->bdaddr, b->bdaddr_type) ||
-		    hci_pend_le_action_lookup(&hdev->pend_le_reports,
-					      &b->bdaddr, b->bdaddr_type)) {
-			white_list_entries++;
+			cp.bdaddr_type = b->bdaddr_type;
+			bacpy(&cp.bdaddr, &b->bdaddr);
+
+			hci_req_add(req, HCI_OP_LE_DEL_FROM_WHITE_LIST,
+				    sizeof(cp), &cp);
 			continue;
 		}
 
-		cp.bdaddr_type = b->bdaddr_type;
-		bacpy(&cp.bdaddr, &b->bdaddr);
+		if (hci_find_irk_by_addr(hdev, &b->bdaddr, b->bdaddr_type)) {
+			/* White list can not be used with RPAs */
+			return 0x00;
+		}
 
-		hci_req_add(req, HCI_OP_LE_DEL_FROM_WHITE_LIST,
-			    sizeof(cp), &cp);
+		white_list_entries++;
 	}
 
 	/* Since all no longer valid white list entries have been

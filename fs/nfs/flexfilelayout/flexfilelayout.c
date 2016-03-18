@@ -145,7 +145,7 @@ static bool ff_mirror_match_fh(const struct nfs4_ff_layout_mirror *m1,
 		return false;
 	for (i = 0; i < m1->fh_versions_cnt; i++) {
 		bool found_fh = false;
-		for (j = 0; j < m2->fh_versions_cnt; i++) {
+		for (j = 0; j < m2->fh_versions_cnt; j++) {
 			if (nfs_compare_fh(&m1->fh_versions[i],
 					&m2->fh_versions[j]) == 0) {
 				found_fh = true;
@@ -1859,11 +1859,9 @@ ff_layout_encode_layoutreturn(struct pnfs_layout_hdr *lo,
 	start = xdr_reserve_space(xdr, 4);
 	BUG_ON(!start);
 
-	if (ff_layout_encode_ioerr(flo, xdr, args))
-		goto out;
-
+	ff_layout_encode_ioerr(flo, xdr, args);
 	ff_layout_encode_iostats(flo, xdr, args);
-out:
+
 	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 	dprintk("%s: Return\n", __func__);
 }

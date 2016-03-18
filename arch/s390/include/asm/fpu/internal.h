@@ -48,6 +48,7 @@ static inline void convert_fp_to_vx(__vector128 *vxrs, freg_t *fprs)
 static inline void fpregs_store(_s390_fp_regs *fpregs, struct fpu *fpu)
 {
 	fpregs->pad = 0;
+	fpregs->fpc = fpu->fpc;
 	if (MACHINE_HAS_VX)
 		convert_vx_to_fp((freg_t *)&fpregs->fprs, fpu->vxrs);
 	else
@@ -57,6 +58,7 @@ static inline void fpregs_store(_s390_fp_regs *fpregs, struct fpu *fpu)
 
 static inline void fpregs_load(_s390_fp_regs *fpregs, struct fpu *fpu)
 {
+	fpu->fpc = fpregs->fpc;
 	if (MACHINE_HAS_VX)
 		convert_fp_to_vx(fpu->vxrs, (freg_t *)&fpregs->fprs);
 	else

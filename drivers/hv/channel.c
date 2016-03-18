@@ -630,10 +630,19 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	 *    on the ring. We will not signal if more data is
 	 *    to be placed.
 	 *
+	 * Based on the channel signal state, we will decide
+	 * which signaling policy will be applied.
+	 *
 	 * If we cannot write to the ring-buffer; signal the host
 	 * even if we may not have written anything. This is a rare
 	 * enough condition that it should not matter.
 	 */
+
+	if (channel->signal_policy)
+		signal = true;
+	else
+		kick_q = true;
+
 	if (((ret == 0) && kick_q && signal) || (ret))
 		vmbus_setevent(channel);
 
@@ -733,10 +742,19 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	 *    on the ring. We will not signal if more data is
 	 *    to be placed.
 	 *
+	 * Based on the channel signal state, we will decide
+	 * which signaling policy will be applied.
+	 *
 	 * If we cannot write to the ring-buffer; signal the host
 	 * even if we may not have written anything. This is a rare
 	 * enough condition that it should not matter.
 	 */
+
+	if (channel->signal_policy)
+		signal = true;
+	else
+		kick_q = true;
+
 	if (((ret == 0) && kick_q && signal) || (ret))
 		vmbus_setevent(channel);
 

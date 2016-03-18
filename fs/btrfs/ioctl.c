@@ -568,6 +568,10 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 	}
 
+	mutex_lock(&new_root->objectid_mutex);
+	new_root->highest_objectid = new_dirid;
+	mutex_unlock(&new_root->objectid_mutex);
+
 	/*
 	 * insert the directory item
 	 */
@@ -2782,24 +2786,29 @@ out:
 static struct page *extent_same_get_page(struct inode *inode, pgoff_t index)
 {
 	struct page *page;
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 
 	page = grab_cache_page(inode->i_mapping, index);
 	if (!page)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (!PageUptodate(page)) {
-		if (extent_read_full_page_nolock(tree, page, btrfs_get_extent,
-						 0))
-			return NULL;
+		int ret;
+
+		ret = btrfs_readpage(NULL, page);
+		if (ret)
+			return ERR_PTR(ret);
 		lock_page(page);
 		if (!PageUptodate(page)) {
 			unlock_page(page);
 			page_cache_release(page);
-			return NULL;
+			return ERR_PTR(-EIO);
+		}
+		if (page->mapping != inode->i_mapping) {
+			unlock_page(page);
+			page_cache_release(page);
+			return ERR_PTR(-EAGAIN);
 		}
 	}
-	unlock_page(page);
 
 	return page;
 }
@@ -2811,17 +2820,31 @@ static int gather_extent_pages(struct inode *inode, struct page **pages,
 	pgoff_t index = off >> PAGE_CACHE_SHIFT;
 
 	for (i = 0; i < num_pages; i++) {
+again:
 		pages[i] = extent_same_get_page(inode, index + i);
-		if (!pages[i])
-			return -ENOMEM;
+		if (IS_ERR(pages[i])) {
+			int err = PTR_ERR(pages[i]);
+
+			if (err == -EAGAIN)
+				goto again;
+			pages[i] = NULL;
+			return err;
+		}
 	}
 	return 0;
 }
 
-static inline void lock_extent_range(struct inode *inode, u64 off, u64 len)
+static int lock_extent_range(struct inode *inode, u64 off, u64 len,
+			     bool retry_range_locking)
 {
-	/* do any pending delalloc/csum calc on src, one way or
-	   another, and lock file content */
+	/*
+	 * Do any pending delalloc/csum calculations on inode, one way or
+	 * another, and lock file content.
+	 * The locking order is:
+	 *
+	 *   1) pages
+	 *   2) range in the inode's io tree
+	 */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 		lock_extent(&BTRFS_I(inode)->io_tree, off, off + len - 1);
@@ -2839,8 +2862,11 @@ static inline void lock_extent_range(struct inode *inode, u64 off, u64 len)
 		unlock_extent(&BTRFS_I(inode)->io_tree, off, off + len - 1);
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
+		if (!retry_range_locking)
+			return -EAGAIN;
 		btrfs_wait_ordered_range(inode, off, len);
 	}
+	return 0;
 }
 
 static void btrfs_double_inode_unlock(struct inode *inode1, struct inode *inode2)
@@ -2865,15 +2891,24 @@ static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
 	unlock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
 }
 
-static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
-				     struct inode *inode2, u64 loff2, u64 len)
+static int btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
+				    struct inode *inode2, u64 loff2, u64 len,
+				    bool retry_range_locking)
 {
+	int ret;
+
 	if (inode1 < inode2) {
 		swap(inode1, inode2);
 		swap(loff1, loff2);
 	}
-	lock_extent_range(inode1, loff1, len);
-	lock_extent_range(inode2, loff2, len);
+	ret = lock_extent_range(inode1, loff1, len, retry_range_locking);
+	if (ret)
+		return ret;
+	ret = lock_extent_range(inode2, loff2, len, retry_range_locking);
+	if (ret)
+		unlock_extent(&BTRFS_I(inode1)->io_tree, loff1,
+			      loff1 + len - 1);
+	return ret;
 }
 
 struct cmp_pages {
@@ -2889,11 +2924,15 @@ static void btrfs_cmp_data_free(struct cmp_pages *cmp)
 
 	for (i = 0; i < cmp->num_pages; i++) {
 		pg = cmp->src_pages[i];
-		if (pg)
+		if (pg) {
+			unlock_page(pg);
 			page_cache_release(pg);
+		}
 		pg = cmp->dst_pages[i];
-		if (pg)
+		if (pg) {
+			unlock_page(pg);
 			page_cache_release(pg);
+		}
 	}
 	kfree(cmp->src_pages);
 	kfree(cmp->dst_pages);
@@ -2954,6 +2993,8 @@ static int btrfs_cmp_data(struct inode *src, u64 loff, struct inode *dst,
 
 		src_page = cmp->src_pages[i];
 		dst_page = cmp->dst_pages[i];
+		ASSERT(PageLocked(src_page));
+		ASSERT(PageLocked(dst_page));
 
 		addr = kmap_atomic(src_page);
 		dst_addr = kmap_atomic(dst_page);
@@ -3066,14 +3107,46 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 		goto out_unlock;
 	}
 
+again:
 	ret = btrfs_cmp_data_prepare(src, loff, dst, dst_loff, olen, &cmp);
 	if (ret)
 		goto out_unlock;
 
 	if (same_inode)
-		lock_extent_range(src, same_lock_start, same_lock_len);
+		ret = lock_extent_range(src, same_lock_start, same_lock_len,
+					false);
 	else
-		btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
+		ret = btrfs_double_extent_lock(src, loff, dst, dst_loff, len,
+					       false);
+	/*
+	 * If one of the inodes has dirty pages in the respective range or
+	 * ordered extents, we need to flush dellaloc and wait for all ordered
+	 * extents in the range. We must unlock the pages and the ranges in the
+	 * io trees to avoid deadlocks when flushing delalloc (requires locking
+	 * pages) and when waiting for ordered extents to complete (they require
+	 * range locking).
+	 */
+	if (ret == -EAGAIN) {
+		/*
+		 * Ranges in the io trees already unlocked. Now unlock all
+		 * pages before waiting for all IO to complete.
+		 */
+		btrfs_cmp_data_free(&cmp);
+		if (same_inode) {
+			btrfs_wait_ordered_range(src, same_lock_start,
+						 same_lock_len);
+		} else {
+			btrfs_wait_ordered_range(src, loff, len);
+			btrfs_wait_ordered_range(dst, dst_loff, len);
+		}
+		goto again;
+	}
+	ASSERT(ret == 0);
+	if (WARN_ON(ret)) {
+		/* ranges in the io trees already unlocked */
+		btrfs_cmp_data_free(&cmp);
+		return ret;
+	}
 
 	/* pass original length for comparison so we stay within i_size */
 	ret = btrfs_cmp_data(src, loff, dst, dst_loff, olen, &cmp);
@@ -3895,9 +3968,15 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		u64 lock_start = min_t(u64, off, destoff);
 		u64 lock_len = max_t(u64, off, destoff) + len - lock_start;
 
-		lock_extent_range(src, lock_start, lock_len);
+		ret = lock_extent_range(src, lock_start, lock_len, true);
 	} else {
-		btrfs_double_extent_lock(src, off, inode, destoff, len);
+		ret = btrfs_double_extent_lock(src, off, inode, destoff, len,
+					       true);
+	}
+	ASSERT(ret == 0);
+	if (WARN_ON(ret)) {
+		/* ranges in the io trees already unlocked */
+		goto out_unlock;
 	}
 
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);

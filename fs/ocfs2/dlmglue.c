@@ -1390,6 +1390,7 @@ static int __ocfs2_cluster_lock(struct ocfs2_super *osb,
 	unsigned int gen;
 	int noqueue_attempted = 0;
 	int dlm_locked = 0;
+	int kick_dc = 0;
 
 	if (!(lockres->l_flags & OCFS2_LOCK_INITIALIZED)) {
 		mlog_errno(-EINVAL);
@@ -1524,7 +1525,12 @@ update_holders:
 unlock:
 	lockres_clear_flags(lockres, OCFS2_LOCK_UPCONVERT_FINISHING);
 
+	/* ocfs2_unblock_lock reques on seeing OCFS2_LOCK_UPCONVERT_FINISHING */
+	kick_dc = (lockres->l_flags & OCFS2_LOCK_BLOCKED);
+
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
+	if (kick_dc)
+		ocfs2_wake_downconvert_thread(osb);
 out:
 	/*
 	 * This is helping work around a lock inversion between the page lock

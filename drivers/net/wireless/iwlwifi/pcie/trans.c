@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2007 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -33,6 +34,7 @@
  *
  * Copyright(c) 2005 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -924,9 +926,16 @@ monitor:
 	if (dest->monitor_mode == EXTERNAL_MODE && trans_pcie->fw_mon_size) {
 		iwl_write_prph(trans, le32_to_cpu(dest->base_reg),
 			       trans_pcie->fw_mon_phys >> dest->base_shift);
-		iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
-			       (trans_pcie->fw_mon_phys +
-				trans_pcie->fw_mon_size) >> dest->end_shift);
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
+				       (trans_pcie->fw_mon_phys +
+					trans_pcie->fw_mon_size - 256) >>
+						dest->end_shift);
+		else
+			iwl_write_prph(trans, le32_to_cpu(dest->end_reg),
+				       (trans_pcie->fw_mon_phys +
+					trans_pcie->fw_mon_size) >>
+						dest->end_shift);
 	}
 }
 

@@ -597,11 +597,6 @@ static void its_unmask_irq(struct irq_data *d)
 	lpi_set_config(d, true);
 }
 
-static void its_eoi_irq(struct irq_data *d)
-{
-	gic_write_eoir(d->hwirq);
-}
-
 static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 			    bool force)
 {
@@ -638,7 +633,7 @@ static struct irq_chip its_irq_chip = {
 	.name			= "ITS",
 	.irq_mask		= its_mask_irq,
 	.irq_unmask		= its_unmask_irq,
-	.irq_eoi		= its_eoi_irq,
+	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_set_affinity,
 	.irq_compose_msi_msg	= its_irq_compose_msi_msg,
 };

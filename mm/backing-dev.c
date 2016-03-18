@@ -989,7 +989,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
 		 * here rather than calling cond_resched().
 		 */
 		if (current->flags & PF_WQ_WORKER)
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		else
 			cond_resched();
 

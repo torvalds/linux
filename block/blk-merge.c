@@ -68,6 +68,18 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 	return bio_split(bio, q->limits.max_write_same_sectors, GFP_NOIO, bs);
 }
 
+static inline unsigned get_max_io_size(struct request_queue *q,
+				       struct bio *bio)
+{
+	unsigned sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector);
+	unsigned mask = queue_logical_block_size(q) - 1;
+
+	/* aligned to logical block size */
+	sectors &= ~(mask >> 9);
+
+	return sectors;
+}
+
 static struct bio *blk_bio_segment_split(struct request_queue *q,
 					 struct bio *bio,
 					 struct bio_set *bs,
@@ -79,17 +91,30 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	unsigned front_seg_size = bio->bi_seg_front_size;
 	bool do_split = true;
 	struct bio *new = NULL;
+	const unsigned max_sectors = get_max_io_size(q, bio);
 
 	bio_for_each_segment(bv, bio, iter) {
-		if (sectors + (bv.bv_len >> 9) > queue_max_sectors(q))
-			goto split;
-
 		/*
 		 * If the queue doesn't support SG gaps and adding this
 		 * offset would create a gap, disallow it.
 		 */
 		if (bvprvp && bvec_gap_to_prev(q, bvprvp, bv.bv_offset))
 			goto split;
+
+		if (sectors + (bv.bv_len >> 9) > max_sectors) {
+			/*
+			 * Consider this a new segment if we're splitting in
+			 * the middle of this vector.
+			 */
+			if (nsegs < queue_max_segments(q) &&
+			    sectors < max_sectors) {
+				nsegs++;
+				sectors = max_sectors;
+			}
+			if (sectors)
+				goto split;
+			/* Make this single bvec as the 1st segment */
+		}
 
 		if (bvprvp && blk_queue_cluster(q)) {
 			if (seg_size + bv.bv_len > queue_max_segment_size(q))

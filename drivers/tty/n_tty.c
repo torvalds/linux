@@ -258,16 +258,13 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 
 static void n_tty_check_unthrottle(struct tty_struct *tty)
 {
-	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
-	    tty->link->ldisc->ops->write_wakeup == n_tty_write_wakeup) {
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY) {
 		if (chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
 			return;
 		if (!tty->count)
 			return;
 		n_tty_kick_worker(tty);
-		n_tty_write_wakeup(tty->link);
-		if (waitqueue_active(&tty->link->write_wait))
-			wake_up_interruptible_poll(&tty->link->write_wait, POLLOUT);
+		tty_wakeup(tty->link);
 		return;
 	}
 

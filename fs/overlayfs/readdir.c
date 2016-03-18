@@ -571,7 +571,8 @@ void ovl_cleanup_whiteouts(struct dentry *upper, struct list_head *list)
 			       (int) PTR_ERR(dentry));
 			continue;
 		}
-		ovl_cleanup(upper->d_inode, dentry);
+		if (dentry->d_inode)
+			ovl_cleanup(upper->d_inode, dentry);
 		dput(dentry);
 	}
 	mutex_unlock(&upper->d_inode->i_mutex);

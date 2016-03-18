@@ -3531,12 +3531,14 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
+	rtnl_lock();
 	if (learned && removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
 					 lw->rocker_port->dev, &info.info);
 	else if (learned && !removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD,
 					 lw->rocker_port->dev, &info.info);
+	rtnl_unlock();
 
 	rocker_port_kfree(lw->trans, work);
 }
