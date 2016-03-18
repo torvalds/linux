@@ -116,7 +116,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id octeon_gpio_match[] = {
+static const struct of_device_id octeon_gpio_match[] = {
 	{
 		.compatible = "cavium,octeon-3860-gpio",
 	},
