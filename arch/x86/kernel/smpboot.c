@@ -312,8 +312,21 @@ static void __init smp_init_package_map(void)
 	/*
 	 * Today neither Intel nor AMD support heterogenous systems. That
 	 * might change in the future....
+	 *
+	 * While ideally we'd want '* smp_num_siblings' in the below @ncpus
+	 * computation, this won't actually work since some Intel BIOSes
+	 * report inconsistent HT data when they disable HT.
+	 *
+	 * In particular, they reduce the APIC-IDs to only include the cores,
+	 * but leave the CPUID topology to say there are (2) siblings.
+	 * This means we don't know how many threads there will be until
+	 * after the APIC enumeration.
+	 *
+	 * By not including this we'll sometimes over-estimate the number of
+	 * logical packages by the amount of !present siblings, but this is
+	 * still better than MAX_LOCAL_APIC.
 	 */
-	ncpus = boot_cpu_data.x86_max_cores * smp_num_siblings;
+	ncpus = boot_cpu_data.x86_max_cores;
 	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
 
 	/*
