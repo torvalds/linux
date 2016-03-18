@@ -217,6 +217,7 @@ enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
 	DW_DMA_IS_SOFT_LLP = 1,
 	DW_DMA_IS_PAUSED = 2,
+	DW_DMA_IS_INITIALIZED = 3,
 };
 
 struct dw_dma_chan {
@@ -225,7 +226,6 @@ struct dw_dma_chan {
 	u8				mask;
 	u8				priority;
 	enum dma_transfer_direction	direction;
-	bool				initialized;
 
 	/* software emulation of the LLP transfers */
 	struct list_head	*tx_node_active;
