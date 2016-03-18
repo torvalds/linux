@@ -3258,7 +3258,7 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 					const struct firmware *fw,
 					void *nvram, u32 nvlen)
 {
-	int bcmerror = -EFAULT;
+	int bcmerror;
 	u32 rstvec;
 
 	sdio_claim_host(bus->sdiodev->func[1]);
