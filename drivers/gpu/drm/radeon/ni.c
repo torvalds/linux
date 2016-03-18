@@ -1959,9 +1959,14 @@ static void cayman_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
 	evergreen_print_gpu_status_regs(rdev);
 }
 
-int cayman_asic_reset(struct radeon_device *rdev)
+int cayman_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		evergreen_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = cayman_gpu_check_soft_reset(rdev);
 

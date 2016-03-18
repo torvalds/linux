@@ -1871,9 +1871,14 @@ static void r600_gpu_pci_config_reset(struct radeon_device *rdev)
 	}
 }
 
-int r600_asic_reset(struct radeon_device *rdev)
+int r600_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		r600_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = r600_gpu_check_soft_reset(rdev);
 

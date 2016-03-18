@@ -2555,7 +2555,7 @@ void r100_bm_disable(struct radeon_device *rdev)
 	mdelay(1);
 }
 
-int r100_asic_reset(struct radeon_device *rdev)
+int r100_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	struct r100_mc_save save;
 	u32 status, tmp;

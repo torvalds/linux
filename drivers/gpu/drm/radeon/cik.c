@@ -5261,14 +5261,20 @@ static void cik_gpu_pci_config_reset(struct radeon_device *rdev)
  * cik_asic_reset - soft reset GPU
  *
  * @rdev: radeon_device pointer
+ * @hard: force hard reset
  *
  * Look up which blocks are hung and attempt
  * to reset them.
  * Returns 0 for success.
  */
-int cik_asic_reset(struct radeon_device *rdev)
+int cik_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		cik_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = cik_gpu_check_soft_reset(rdev);
 

@@ -3984,9 +3984,14 @@ void evergreen_gpu_pci_config_reset(struct radeon_device *rdev)
 	}
 }
 
-int evergreen_asic_reset(struct radeon_device *rdev)
+int evergreen_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	u32 reset_mask;
+
+	if (hard) {
+		evergreen_gpu_pci_config_reset(rdev);
+		return 0;
+	}
 
 	reset_mask = evergreen_gpu_check_soft_reset(rdev);
 

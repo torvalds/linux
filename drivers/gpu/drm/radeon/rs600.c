@@ -444,7 +444,7 @@ void rs600_hpd_fini(struct radeon_device *rdev)
 	radeon_irq_kms_disable_hpd(rdev, disable);
 }
 
-int rs600_asic_reset(struct radeon_device *rdev)
+int rs600_asic_reset(struct radeon_device *rdev, bool hard)
 {
 	struct rv515_mc_save save;
 	u32 status, tmp;

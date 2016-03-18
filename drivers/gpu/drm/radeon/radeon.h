@@ -1854,7 +1854,7 @@ struct radeon_asic {
 	int (*resume)(struct radeon_device *rdev);
 	int (*suspend)(struct radeon_device *rdev);
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
-	int (*asic_reset)(struct radeon_device *rdev);
+	int (*asic_reset)(struct radeon_device *rdev, bool hard);
 	/* Flush the HDP cache via MMIO */
 	void (*mmio_hdp_flush)(struct radeon_device *rdev);
 	/* check if 3D engine is idle */
@@ -2720,7 +2720,7 @@ static inline void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 #define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
 #define radeon_cs_parse(rdev, r, p) (rdev)->asic->ring[(r)]->cs_parse((p))
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
-#define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
+#define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev), false)
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart.tlb_flush((rdev))
 #define radeon_gart_get_page_entry(a, f) (rdev)->asic->gart.get_page_entry((a), (f))
 #define radeon_gart_set_page(rdev, i, e) (rdev)->asic->gart.set_page((rdev), (i), (e))
