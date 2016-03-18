@@ -76,7 +76,7 @@ static void __mic_free_irq(struct vop_device *vpdev,
 {
 	struct mic_device *mdev = vpdev_to_mdev(&vpdev->dev);
 
-	return mic_free_irq(mdev, cookie, data);
+	mic_free_irq(mdev, cookie, data);
 }
 
 static void __mic_ack_interrupt(struct vop_device *vpdev, int num)
@@ -272,7 +272,7 @@ ___mic_free_irq(struct scif_hw_dev *scdev,
 {
 	struct mic_device *mdev = scdev_to_mdev(scdev);
 
-	return mic_free_irq(mdev, cookie, data);
+	mic_free_irq(mdev, cookie, data);
 }
 
 static void ___mic_ack_interrupt(struct scif_hw_dev *scdev, int num)
@@ -362,7 +362,7 @@ _mic_request_threaded_irq(struct mbus_device *mbdev,
 static void _mic_free_irq(struct mbus_device *mbdev,
 			  struct mic_irq *cookie, void *data)
 {
-	return mic_free_irq(mbdev_to_mdev(mbdev), cookie, data);
+	mic_free_irq(mbdev_to_mdev(mbdev), cookie, data);
 }
 
 static void _mic_ack_interrupt(struct mbus_device *mbdev, int num)
