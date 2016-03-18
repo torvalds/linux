@@ -726,10 +726,10 @@ static void term_mc(struct cxlflash_cfg *cfg, enum undo_level level)
  */
 static void term_afu(struct cxlflash_cfg *cfg)
 {
-	term_mc(cfg, UNDO_START);
-
 	if (cfg->afu)
 		stop_afu(cfg);
+
+	term_mc(cfg, UNDO_START);
 
 	pr_debug("%s: returning\n", __func__);
 }
@@ -767,7 +767,6 @@ static void cxlflash_remove(struct pci_dev *pdev)
 		cancel_work_sync(&cfg->work_q);
 		term_afu(cfg);
 	case INIT_STATE_PCI:
-		pci_release_regions(cfg->dev);
 		pci_disable_device(pdev);
 	case INIT_STATE_NONE:
 		free_mem(cfg);
@@ -840,15 +839,6 @@ static int init_pci(struct cxlflash_cfg *cfg)
 	struct pci_dev *pdev = cfg->dev;
 	int rc = 0;
 
-	cfg->cxlflash_regs_pci = pci_resource_start(pdev, 0);
-	rc = pci_request_regions(pdev, CXLFLASH_NAME);
-	if (rc < 0) {
-		dev_err(&pdev->dev,
-			"%s: Couldn't register memory range of registers\n",
-			__func__);
-		goto out;
-	}
-
 	rc = pci_enable_device(pdev);
 	if (rc || pci_channel_offline(pdev)) {
 		if (pci_channel_offline(pdev)) {
@@ -860,55 +850,13 @@ static int init_pci(struct cxlflash_cfg *cfg)
 			dev_err(&pdev->dev, "%s: Cannot enable adapter\n",
 				__func__);
 			cxlflash_wait_for_pci_err_recovery(cfg);
-			goto out_release_regions;
+			goto out;
 		}
-	}
-
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (rc < 0) {
-		dev_dbg(&pdev->dev, "%s: Failed to set 64 bit PCI DMA mask\n",
-			__func__);
-		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-	}
-
-	if (rc < 0) {
-		dev_err(&pdev->dev, "%s: Failed to set PCI DMA mask\n",
-			__func__);
-		goto out_disable;
-	}
-
-	pci_set_master(pdev);
-
-	if (pci_channel_offline(pdev)) {
-		cxlflash_wait_for_pci_err_recovery(cfg);
-		if (pci_channel_offline(pdev)) {
-			rc = -EIO;
-			goto out_msi_disable;
-		}
-	}
-
-	rc = pci_save_state(pdev);
-
-	if (rc != PCIBIOS_SUCCESSFUL) {
-		dev_err(&pdev->dev, "%s: Failed to save PCI config space\n",
-			__func__);
-		rc = -EIO;
-		goto cleanup_nolog;
 	}
 
 out:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
-
-cleanup_nolog:
-out_msi_disable:
-	cxlflash_wait_for_pci_err_recovery(cfg);
-out_disable:
-	pci_disable_device(pdev);
-out_release_regions:
-	pci_release_regions(pdev);
-	goto out;
-
 }
 
 /**
@@ -2149,6 +2097,16 @@ static ssize_t lun_mode_store(struct device *dev,
 	rc = kstrtouint(buf, 10, &lun_mode);
 	if (!rc && (lun_mode < 5) && (lun_mode != afu->internal_lun)) {
 		afu->internal_lun = lun_mode;
+
+		/*
+		 * When configured for internal LUN, there is only one channel,
+		 * channel number 0, else there will be 2 (default).
+		 */
+		if (afu->internal_lun)
+			shost->max_channel = 0;
+		else
+			shost->max_channel = NUM_FC_PORTS - 1;
+
 		afu_reset(cfg);
 		scsi_scan_host(cfg->host);
 	}
@@ -2295,7 +2253,7 @@ static struct scsi_host_template driver_template = {
 	.eh_device_reset_handler = cxlflash_eh_device_reset_handler,
 	.eh_host_reset_handler = cxlflash_eh_host_reset_handler,
 	.change_queue_depth = cxlflash_change_queue_depth,
-	.cmd_per_lun = 16,
+	.cmd_per_lun = CXLFLASH_MAX_CMDS_PER_LUN,
 	.can_queue = CXLFLASH_MAX_CMDS,
 	.this_id = -1,
 	.sg_tablesize = SG_NONE,	/* No scatter gather support */
@@ -2544,8 +2502,8 @@ static pci_ers_result_t cxlflash_pci_error_detected(struct pci_dev *pdev,
 		if (unlikely(rc))
 			dev_err(dev, "%s: Failed to mark user contexts!(%d)\n",
 				__func__, rc);
-		term_mc(cfg, UNDO_START);
 		stop_afu(cfg);
+		term_mc(cfg, UNDO_START);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		cfg->state = STATE_FAILTERM;

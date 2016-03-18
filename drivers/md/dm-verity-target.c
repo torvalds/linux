@@ -354,7 +354,7 @@ int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
 				       size_t len))
 {
 	unsigned todo = 1 << v->data_dev_block_bits;
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_bio_data_size);
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	do {
 		int r;
@@ -460,7 +460,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 static void verity_finish_io(struct dm_verity_io *io, int error)
 {
 	struct dm_verity *v = io->v;
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_bio_data_size);
+	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_error = error;
@@ -574,7 +574,7 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	if (bio_data_dir(bio) == WRITE)
 		return -EIO;
 
-	io = dm_per_bio_data(bio, ti->per_bio_data_size);
+	io = dm_per_bio_data(bio, ti->per_io_data_size);
 	io->v = v;
 	io->orig_bi_end_io = bio->bi_end_io;
 	io->block = bio->bi_iter.bi_sector >> (v->data_dev_block_bits - SECTOR_SHIFT);
@@ -1036,15 +1036,15 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	ti->per_bio_data_size = sizeof(struct dm_verity_io) +
+	ti->per_io_data_size = sizeof(struct dm_verity_io) +
 				v->shash_descsize + v->digest_size * 2;
 
 	r = verity_fec_ctr(v);
 	if (r)
 		goto bad;
 
-	ti->per_bio_data_size = roundup(ti->per_bio_data_size,
-					__alignof__(struct dm_verity_io));
+	ti->per_io_data_size = roundup(ti->per_io_data_size,
+				       __alignof__(struct dm_verity_io));
 
 	return 0;
 

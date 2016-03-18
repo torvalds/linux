@@ -46,7 +46,7 @@ struct axp288_adc_info {
 	struct regmap *regmap;
 };
 
-static const struct iio_chan_spec const axp288_adc_channels[] = {
+static const struct iio_chan_spec axp288_adc_channels[] = {
 	{
 		.indexed = 1,
 		.type = IIO_TEMP,

@@ -193,6 +193,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
 
+	acpi_force_32bit_fadt_addr
+			force FADT to use 32 bit addresses rather than the
+			64 bit X_* addresses. Some firmware have broken 64
+			bit addresses for force ACPI ignore these and use
+			the older legacy 32 bit addresses.
+
 	acpica_no_return_repair [HW, ACPI]
 			Disable AML predefined validation mechanism
 			This mechanism can repair the evaluation result to make
@@ -666,7 +672,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	clearcpuid=BITNUM [X86]
 			Disable CPUID feature X for the kernel. See
-			arch/x86/include/asm/cpufeature.h for the valid bit
+			arch/x86/include/asm/cpufeatures.h for the valid bit
 			numbers. Note the Linux specific bits are not necessarily
 			stable over kernel options, but the vendor specific
 			ones should be.
@@ -1057,6 +1063,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			found on Freescale Vybrid and QorIQ LS1021A processors.
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
+
+		armada3700_uart,<addr>
+			Start an early, polled-mode console on the
+			Armada 3700 serial port at the specified
+			address. The serial port must already be setup
+			and configured. Options are not yet supported.
 
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
@@ -1687,6 +1699,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ip=		[IP_PNP]
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
+	irqaffinity=	[SMP] Set the default irq affinity mask
+			Format:
+			<cpu number>,...,<cpu number>
+			or
+			<cpu number>-<cpu number>
+			(must be a positive range in ascending order)
+			or a mixture
+			<cpu number>,...,<cpu number>-<cpu number>
+
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
 			for it. Intended to get systems with badly broken
@@ -1750,7 +1771,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	keepinitrd	[HW,ARM]
 
-	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
+	kernelcore=	[KNL,X86,IA-64,PPC]
+			Format: nn[KMGTPE] | "mirror"
+			This parameter
 			specifies the amount of memory usable by the kernel
 			for non-movable allocations.  The requested amount is
 			spread evenly throughout all nodes in the system. The
@@ -1765,6 +1788,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Note that allocations like PTEs-from-HighMem still
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
+
+			Instead of specifying the amount of memory (nn[KMGTPE]),
+			you can specify "mirror" option. In case "mirror"
+			option is specified, mirrored (reliable) memory is used
+			for non-movable allocations and remaining memory is used
+			for Movable pages. nn[KMGTPE] and "mirror" are exclusive,
+			so you can NOT specify nn[KMGTPE] and "mirror" at the same
+			time.
 
 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
 			Format: <Controller#>[,poll interval]
@@ -2566,6 +2597,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nointroute	[IA-64]
 
+	noinvpcid	[X86] Disable the INVPCID cpu feature.
+
 	nojitter	[IA-64] Disables jitter checking for ITC timers.
 
 	no-kvmclock	[X86,KVM] Disable paravirtualized KVM clock driver
@@ -2720,6 +2753,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			each page is disabled in default. With this switch,
 			we can turn it on.
 			on: enable the feature
+
+	page_poison=	[KNL] Boot-time parameter changing the state of
+			poisoning on the buddy allocator.
+			off: turn off poisoning
+			on: turn on poisoning
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
@@ -3494,6 +3532,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rodata=		[KNL]
 		on	Mark read-only kernel memory as read-only (default).
 		off	Leave read-only kernel memory writable for debugging.
+
+	rockchip.usb_uart
+			Enable the uart passthrough on the designated usb port
+			on Rockchip SoCs. When active, the signals of the
+			debug-uart get routed to the D+ and D- pins of the usb
+			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
 			See name_to_dev_t comment in init/do_mounts.c.

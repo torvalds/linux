@@ -48,7 +48,8 @@
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
  * us to make MDS RPCs with large enough reply buffers to hold the
  * maximum-sized (= maximum striped) EA and cookie without having to
- * calculate this (via a call into the LOV + OSCs) each time we make an RPC. */
+ * calculate this (via a call into the LOV + OSCs) each time we make an RPC.
+ */
 int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 {
 	struct lov_stripe_md lsm = { .lsm_magic = LOV_MAGIC_V3 };
@@ -74,7 +75,8 @@ int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 	cookiesize = stripes * sizeof(struct llog_cookie);
 
 	/* default cookiesize is 0 because from 2.4 server doesn't send
-	 * llog cookies to client. */
+	 * llog cookies to client.
+	 */
 	CDEBUG(D_HA,
 	       "updating def/max_easize: %d/%d def/max_cookiesize: 0/%d\n",
 	       def_easize, easize, cookiesize);

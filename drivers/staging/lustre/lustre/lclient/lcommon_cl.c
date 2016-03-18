@@ -116,8 +116,8 @@ void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
 {
 	struct ccc_thread_info *info;
 
-	info = kmem_cache_alloc(ccc_thread_kmem, GFP_NOFS | __GFP_ZERO);
-	if (info == NULL)
+	info = kmem_cache_zalloc(ccc_thread_kmem, GFP_NOFS);
+	if (!info)
 		info = ERR_PTR(-ENOMEM);
 	return info;
 }
@@ -135,8 +135,8 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 {
 	struct ccc_session *session;
 
-	session = kmem_cache_alloc(ccc_session_kmem, GFP_NOFS | __GFP_ZERO);
-	if (session == NULL)
+	session = kmem_cache_zalloc(ccc_session_kmem, GFP_NOFS);
+	if (!session)
 		session = ERR_PTR(-ENOMEM);
 	return session;
 }
@@ -173,7 +173,7 @@ int ccc_device_init(const struct lu_env *env, struct lu_device *d,
 	vdv = lu2ccc_dev(d);
 	vdv->cdv_next = lu2cl_dev(next);
 
-	LASSERT(d->ld_site != NULL && next->ld_type != NULL);
+	LASSERT(d->ld_site && next->ld_type);
 	next->ld_site = d->ld_site;
 	rc = next->ld_type->ldt_ops->ldto_device_init(
 			env, next, next->ld_type->ldt_name, NULL);
@@ -211,12 +211,12 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	vdv->cdv_cl.cd_ops = clops;
 
 	site = kzalloc(sizeof(*site), GFP_NOFS);
-	if (site != NULL) {
+	if (site) {
 		rc = cl_site_init(site, &vdv->cdv_cl);
 		if (rc == 0)
 			rc = lu_site_init_finish(&site->cs_lu);
 		else {
-			LASSERT(lud->ld_site == NULL);
+			LASSERT(!lud->ld_site);
 			CERROR("Cannot init lu_site, rc %d.\n", rc);
 			kfree(site);
 		}
@@ -236,7 +236,7 @@ struct lu_device *ccc_device_free(const struct lu_env *env,
 	struct cl_site    *site = lu2cl_site(d->ld_site);
 	struct lu_device  *next = cl2lu_dev(vdv->cdv_next);
 
-	if (d->ld_site != NULL) {
+	if (d->ld_site) {
 		cl_site_fini(site);
 		kfree(site);
 	}
@@ -251,8 +251,8 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct ccc_req *vrq;
 	int result;
 
-	vrq = kmem_cache_alloc(ccc_req_kmem, GFP_NOFS | __GFP_ZERO);
-	if (vrq != NULL) {
+	vrq = kmem_cache_zalloc(ccc_req_kmem, GFP_NOFS);
+	if (vrq) {
 		cl_req_slice_add(req, &vrq->crq_cl, dev, &ccc_req_ops);
 		result = 0;
 	} else
@@ -304,7 +304,7 @@ out_kmem:
 
 void ccc_global_fini(struct lu_device_type *device_type)
 {
-	if (ccc_inode_fini_env != NULL) {
+	if (ccc_inode_fini_env) {
 		cl_env_put(ccc_inode_fini_env, &dummy_refcheck);
 		ccc_inode_fini_env = NULL;
 	}
@@ -327,8 +327,8 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 	struct ccc_object *vob;
 	struct lu_object  *obj;
 
-	vob = kmem_cache_alloc(ccc_object_kmem, GFP_NOFS | __GFP_ZERO);
-	if (vob != NULL) {
+	vob = kmem_cache_zalloc(ccc_object_kmem, GFP_NOFS);
+	if (vob) {
 		struct cl_object_header *hdr;
 
 		obj = ccc2lu(vob);
@@ -365,7 +365,7 @@ int ccc_object_init(const struct lu_env *env, struct lu_object *obj,
 
 	under = &dev->cdv_next->cd_lu_dev;
 	below = under->ld_ops->ldo_object_alloc(env, obj->lo_header, under);
-	if (below != NULL) {
+	if (below) {
 		const struct cl_object_conf *cconf;
 
 		cconf = lu2cl_conf(conf);
@@ -396,8 +396,8 @@ int ccc_lock_init(const struct lu_env *env,
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	clk = kmem_cache_alloc(ccc_lock_kmem, GFP_NOFS | __GFP_ZERO);
-	if (clk != NULL) {
+	clk = kmem_cache_zalloc(ccc_lock_kmem, GFP_NOFS);
+	if (clk) {
 		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
 		result = 0;
 	} else
@@ -613,7 +613,8 @@ void ccc_lock_state(const struct lu_env *env,
 		 * stale i_size when doing appending writes and effectively
 		 * cancel the result of the truncate.  Getting the
 		 * ll_inode_size_lock() after the enqueue maintains the DLM
-		 * -> ll_inode_size_lock() acquiring order. */
+		 * -> ll_inode_size_lock() acquiring order.
+		 */
 		if (lock->cll_descr.cld_start == 0 &&
 		    lock->cll_descr.cld_end == CL_PAGE_EOF)
 			cl_merge_lvb(env, inode);
@@ -660,7 +661,7 @@ void ccc_io_update_iov(const struct lu_env *env,
 {
 	size_t size = io->u.ci_rw.crw_count;
 
-	if (!cl_is_normalio(env, io) || cio->cui_iter == NULL)
+	if (!cl_is_normalio(env, io) || !cio->cui_iter)
 		return;
 
 	iov_iter_truncate(cio->cui_iter, size);
@@ -749,12 +750,13 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 			 */
 			ccc_object_size_unlock(obj);
 			result = cl_glimpse_lock(env, io, inode, obj, 0);
-			if (result == 0 && exceed != NULL) {
+			if (result == 0 && exceed) {
 				/* If objective page index exceed end-of-file
 				 * page index, return directly. Do not expect
 				 * kernel will check such case correctly.
 				 * linux-2.6.18-128.1.1 miss to do that.
-				 * --bug 17336 */
+				 * --bug 17336
+				 */
 				loff_t size = cl_isize_read(inode);
 				loff_t cur_index = start >> PAGE_CACHE_SHIFT;
 				loff_t size_index = (size - 1) >>
@@ -884,7 +886,8 @@ again:
 
 		if (attr->ia_valid & ATTR_FILE)
 			/* populate the file descriptor for ftruncate to honor
-			 * group lock - see LU-787 */
+			 * group lock - see LU-787
+			 */
 			cio->cui_fd = cl_iattr2fd(inode, attr);
 
 		result = cl_io_loop(env, io);
@@ -896,7 +899,8 @@ again:
 		goto again;
 	/* HSM import case: file is released, cannot be restored
 	 * no need to fail except if restore registration failed
-	 * with -ENODATA */
+	 * with -ENODATA
+	 */
 	if (result == -ENODATA && io->ci_restore_needed &&
 	    io->ci_result != -ENODATA)
 		result = 0;
@@ -986,17 +990,6 @@ struct inode *ccc_object_inode(const struct cl_object *obj)
 }
 
 /**
- * Returns a pointer to cl_page associated with \a vmpage, without acquiring
- * additional reference to the resulting page. This is an unsafe version of
- * cl_vmpage_page() that can only be used under vmpage lock.
- */
-struct cl_page *ccc_vmpage_page_transient(struct page *vmpage)
-{
-	KLASSERT(PageLocked(vmpage));
-	return (struct cl_page *)vmpage->private;
-}
-
-/**
  * Initialize or update CLIO structures for regular files when new
  * meta-data arrives from the server.
  *
@@ -1033,11 +1026,12 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 	fid  = &lli->lli_fid;
 	LASSERT(fid_is_sane(fid));
 
-	if (lli->lli_clob == NULL) {
+	if (!lli->lli_clob) {
 		/* clob is slave of inode, empty lli_clob means for new inode,
 		 * there is no clob in cache with the given fid, so it is
 		 * unnecessary to perform lookup-alloc-lookup-insert, just
-		 * alloc and insert directly. */
+		 * alloc and insert directly.
+		 */
 		LASSERT(inode->i_state & I_NEW);
 		conf.coc_lu.loc_flags = LOC_F_NEW;
 		clob = cl_object_find(env, lu2cl_dev(site->ls_top_dev),
@@ -1109,7 +1103,7 @@ void cl_inode_fini(struct inode *inode)
 	int refcheck;
 	int emergency;
 
-	if (clob != NULL) {
+	if (clob) {
 		void		    *cookie;
 
 		cookie = cl_env_reenter();
@@ -1117,7 +1111,7 @@ void cl_inode_fini(struct inode *inode)
 		emergency = IS_ERR(env);
 		if (emergency) {
 			mutex_lock(&ccc_inode_fini_guard);
-			LASSERT(ccc_inode_fini_env != NULL);
+			LASSERT(ccc_inode_fini_env);
 			cl_env_implant(ccc_inode_fini_env, &refcheck);
 			env = ccc_inode_fini_env;
 		}
@@ -1162,7 +1156,8 @@ __u16 ll_dirent_type_get(struct lu_dirent *ent)
 }
 
 /**
- * build inode number from passed @fid */
+ * build inode number from passed @fid
+ */
 __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 {
 	if (BITS_PER_LONG == 32 || api32)
@@ -1173,7 +1168,8 @@ __u64 cl_fid_build_ino(const struct lu_fid *fid, int api32)
 
 /**
  * build inode generation from passed @fid.  If our FID overflows the 32-bit
- * inode number then return a non-zero generation to distinguish them. */
+ * inode number then return a non-zero generation to distinguish them.
+ */
 __u32 cl_fid_build_gen(const struct lu_fid *fid)
 {
 	__u32 gen;
@@ -1194,7 +1190,8 @@ __u32 cl_fid_build_gen(const struct lu_fid *fid)
  * have to wait for the refcount to become zero to destroy the older layout.
  *
  * Notice that the lsm returned by this function may not be valid unless called
- * inside layout lock - MDS_INODELOCK_LAYOUT. */
+ * inside layout lock - MDS_INODELOCK_LAYOUT.
+ */
 struct lov_stripe_md *ccc_inode_lsm_get(struct inode *inode)
 {
 	return lov_lsm_get(cl_i2info(inode)->lli_clob);

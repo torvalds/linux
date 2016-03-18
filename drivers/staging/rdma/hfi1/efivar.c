@@ -83,8 +83,7 @@ static int read_efi_var(const char *name, unsigned long *size,
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return -EOPNOTSUPP;
 
-	uni_name = kzalloc(sizeof(efi_char16_t) * (strlen(name) + 1),
-			   GFP_KERNEL);
+	uni_name = kcalloc(strlen(name) + 1, sizeof(efi_char16_t), GFP_KERNEL);
 	temp_buffer = kzalloc(EFI_DATA_SIZE, GFP_KERNEL);
 
 	if (!uni_name || !temp_buffer) {
@@ -128,13 +127,12 @@ static int read_efi_var(const char *name, unsigned long *size,
 	 * temporary buffer.  Now allocate a correctly sized
 	 * buffer.
 	 */
-	data = kmalloc(temp_size, GFP_KERNEL);
+	data = kmemdup(temp_buffer, temp_size, GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	memcpy(data, temp_buffer, temp_size);
 	*size = temp_size;
 	*return_data = data;
 

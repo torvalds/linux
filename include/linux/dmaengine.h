@@ -357,8 +357,8 @@ enum dma_slave_buswidth {
  */
 struct dma_slave_config {
 	enum dma_transfer_direction direction;
-	dma_addr_t src_addr;
-	dma_addr_t dst_addr;
+	phys_addr_t src_addr;
+	phys_addr_t dst_addr;
 	enum dma_slave_buswidth src_addr_width;
 	enum dma_slave_buswidth dst_addr_width;
 	u32 src_maxburst;
@@ -401,6 +401,7 @@ enum dma_residue_granularity {
  * 	since the enum dma_transfer_direction is not defined as bits for each
  * 	type of direction, the dma controller should fill (1 << <TYPE>) and same
  * 	should be checked by controller as well
+ * @max_burst: max burst capability per-transfer
  * @cmd_pause: true, if pause and thereby resume is supported
  * @cmd_terminate: true, if terminate cmd is supported
  * @residue_granularity: granularity of the reported transfer residue
@@ -411,6 +412,7 @@ struct dma_slave_caps {
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
 	u32 directions;
+	u32 max_burst;
 	bool cmd_pause;
 	bool cmd_terminate;
 	enum dma_residue_granularity residue_granularity;
@@ -654,6 +656,7 @@ struct dma_filter {
  * 	the enum dma_transfer_direction is not defined as bits for
  * 	each type of direction, the dma controller should fill (1 <<
  * 	<TYPE>) and same should be checked by controller as well
+ * @max_burst: max burst capability per-transfer
  * @residue_granularity: granularity of the transfer residue reported
  *	by tx_status
  * @device_alloc_chan_resources: allocate resources and return the
@@ -712,6 +715,7 @@ struct dma_device {
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
 	u32 directions;
+	u32 max_burst;
 	bool descriptor_reuse;
 	enum dma_residue_granularity residue_granularity;
 

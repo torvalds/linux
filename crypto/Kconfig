@@ -84,15 +84,6 @@ config CRYPTO_RNG_DEFAULT
 	tristate
 	select CRYPTO_DRBG_MENU
 
-config CRYPTO_PCOMP
-	tristate
-	select CRYPTO_PCOMP2
-	select CRYPTO_ALGAPI
-
-config CRYPTO_PCOMP2
-	tristate
-	select CRYPTO_ALGAPI2
-
 config CRYPTO_AKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
@@ -122,7 +113,6 @@ config CRYPTO_MANAGER2
 	select CRYPTO_AEAD2
 	select CRYPTO_HASH2
 	select CRYPTO_BLKCIPHER2
-	select CRYPTO_PCOMP2
 	select CRYPTO_AKCIPHER2
 
 config CRYPTO_USER
@@ -226,6 +216,9 @@ config CRYPTO_GLUE_HELPER_X86
 	tristate
 	depends on X86
 	select CRYPTO_ALGAPI
+
+config CRYPTO_ENGINE
+	tristate
 
 comment "Authenticated Encryption with Associated Data"
 
@@ -1506,15 +1499,6 @@ config CRYPTO_DEFLATE
 
 	  You will most probably want this if using IPSec.
 
-config CRYPTO_ZLIB
-	tristate "Zlib compression algorithm"
-	select CRYPTO_PCOMP
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
-	select NLATTR
-	help
-	  This is the zlib algorithm.
-
 config CRYPTO_LZO
 	tristate "LZO compression algorithm"
 	select CRYPTO_ALGAPI
@@ -1595,6 +1579,7 @@ endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_JITTERENTROPY
 	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	select CRYPTO_RNG
 	help
 	  The Jitterentropy RNG is a noise that is intended
 	  to provide seed to another RNG. The RNG does not

@@ -892,9 +892,8 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 				devpriv->xfer_count = cmd->chanlist_len;
 			} else {	/* make a multiple of scan length */
 				devpriv->xfer_count =
-				    (devpriv->xfer_count +
-				     cmd->chanlist_len - 1)
-				    / cmd->chanlist_len;
+				    DIV_ROUND_UP(devpriv->xfer_count,
+						 cmd->chanlist_len);
 				devpriv->xfer_count *= cmd->chanlist_len;
 			}
 			devpriv->flags |= SEND_EOS;

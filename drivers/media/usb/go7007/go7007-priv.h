@@ -250,7 +250,7 @@ struct go7007 {
 	struct i2c_adapter i2c_adapter;
 
 	/* HPI driver */
-	struct go7007_hpi_ops *hpi_ops;
+	const struct go7007_hpi_ops *hpi_ops;
 	void *hpi_context;
 	int interrupt_available;
 	wait_queue_head_t interrupt_waitq;

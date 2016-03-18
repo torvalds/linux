@@ -334,7 +334,7 @@ static int synpatics_rmi4_touchpad_report(struct synaptics_rmi4_data *pdata,
 	 *	10 = finger present but data may not be accurate,
 	 *	11 = reserved for product use.
 	 */
-	finger_registers	= (fingers_supported + 3)/4;
+	finger_registers	= (fingers_supported + 3) / 4;
 	data_base_addr		= rfi->fn_desc.data_base_addr;
 	retval = synaptics_rmi4_i2c_block_read(pdata, data_base_addr, values,
 							finger_registers);
@@ -350,7 +350,7 @@ static int synpatics_rmi4_touchpad_report(struct synaptics_rmi4_data *pdata,
 	data_reg_blk_size = rfi->size_of_data_register_block;
 	for (finger = 0; finger < fingers_supported; finger++) {
 		/* determine which data byte the finger status is in */
-		reg = finger/4;
+		reg = finger / 4;
 		/* bit shift to get finger's status */
 		finger_shift	= (finger % 4) * 2;
 		finger_status	= (values[reg] >> finger_shift) & 3;
@@ -566,7 +566,7 @@ static int synpatics_rmi4_touchpad_detect(struct synaptics_rmi4_data *pdata,
 	}
 	pdata->fingers_supported = rfi->num_of_data_points;
 	/* Need to get interrupt info for handling interrupts */
-	rfi->index_to_intr_reg = (interruptcount + 7)/8;
+	rfi->index_to_intr_reg = (interruptcount + 7) / 8;
 	if (rfi->index_to_intr_reg != 0)
 		rfi->index_to_intr_reg -= 1;
 	/*
@@ -870,7 +870,7 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
  * Descriptor structure.
  * Describes the number of i2c devices on the bus that speak RMI.
  */
-static struct synaptics_rmi4_platform_data synaptics_rmi4_platformdata = {
+static const struct synaptics_rmi4_platform_data synaptics_rmi4_platformdata = {
 	.irq_type       = (IRQF_TRIGGER_FALLING | IRQF_SHARED),
 	.x_flip		= false,
 	.y_flip		= true,
@@ -912,7 +912,7 @@ static int synaptics_rmi4_probe
 		return -ENOMEM;
 
 	rmi4_data->input_dev = input_allocate_device();
-	if (rmi4_data->input_dev == NULL) {
+	if (!rmi4_data->input_dev) {
 		retval = -ENOMEM;
 		goto err_input;
 	}
@@ -1039,7 +1039,6 @@ static int synaptics_rmi4_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /**
  * synaptics_rmi4_suspend() - suspend the touch screen controller
  * @dev: pointer to device structure
@@ -1047,7 +1046,7 @@ static int synaptics_rmi4_remove(struct i2c_client *client)
  * This function is used to suspend the
  * touch panel controller and returns integer
  */
-static int synaptics_rmi4_suspend(struct device *dev)
+static int __maybe_unused synaptics_rmi4_suspend(struct device *dev)
 {
 	/* Touch sleep mode */
 	int retval;
@@ -1081,7 +1080,7 @@ static int synaptics_rmi4_suspend(struct device *dev)
  * This function is used to resume the touch panel
  * controller and returns integer.
  */
-static int synaptics_rmi4_resume(struct device *dev)
+static int __maybe_unused synaptics_rmi4_resume(struct device *dev)
 {
 	int retval;
 	unsigned char intr_status;
@@ -1111,8 +1110,6 @@ static int synaptics_rmi4_resume(struct device *dev)
 
 	return 0;
 }
-
-#endif
 
 static SIMPLE_DEV_PM_OPS(synaptics_rmi4_dev_pm_ops, synaptics_rmi4_suspend,
 			 synaptics_rmi4_resume);

@@ -254,7 +254,7 @@ static int do_op(struct sw842_param *p, u8 o)
 		case OP_ACTION_NOOP:
 			break;
 		default:
-			pr_err("Interal error, invalid op %x\n", op);
+			pr_err("Internal error, invalid op %x\n", op);
 			return -EINVAL;
 		}
 

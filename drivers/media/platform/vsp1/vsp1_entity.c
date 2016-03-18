@@ -20,7 +20,6 @@
 
 #include "vsp1.h"
 #include "vsp1_entity.h"
-#include "vsp1_video.h"
 
 bool vsp1_entity_is_streaming(struct vsp1_entity *entity)
 {
@@ -46,7 +45,7 @@ int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming)
 	if (!streaming)
 		return 0;
 
-	if (!entity->subdev.ctrl_handler)
+	if (!entity->vsp1->info->uapi || !entity->subdev.ctrl_handler)
 		return 0;
 
 	ret = v4l2_ctrl_handler_setup(entity->subdev.ctrl_handler);
@@ -57,6 +56,18 @@ int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming)
 	}
 
 	return ret;
+}
+
+void vsp1_entity_route_setup(struct vsp1_entity *source)
+{
+	struct vsp1_entity *sink;
+
+	if (source->route->reg == 0)
+		return;
+
+	sink = container_of(source->sink, struct vsp1_entity, subdev.entity);
+	vsp1_mod_write(source, source->route->reg,
+		       sink->route->inputs[source->sink_pad]);
 }
 
 /* -----------------------------------------------------------------------------
@@ -120,9 +131,9 @@ const struct v4l2_subdev_internal_ops vsp1_subdev_internal_ops = {
  * Media Operations
  */
 
-static int vsp1_entity_link_setup(struct media_entity *entity,
-				  const struct media_pad *local,
-				  const struct media_pad *remote, u32 flags)
+int vsp1_entity_link_setup(struct media_entity *entity,
+			   const struct media_pad *local,
+			   const struct media_pad *remote, u32 flags)
 {
 	struct vsp1_entity *source;
 
@@ -147,11 +158,6 @@ static int vsp1_entity_link_setup(struct media_entity *entity,
 	return 0;
 }
 
-const struct media_entity_operations vsp1_media_ops = {
-	.link_setup = vsp1_entity_link_setup,
-	.link_validate = v4l2_subdev_link_validate,
-};
-
 /* -----------------------------------------------------------------------------
  * Initialization
  */
@@ -159,7 +165,8 @@ const struct media_entity_operations vsp1_media_ops = {
 static const struct vsp1_route vsp1_routes[] = {
 	{ VSP1_ENTITY_BRU, 0, VI6_DPR_BRU_ROUTE,
 	  { VI6_DPR_NODE_BRU_IN(0), VI6_DPR_NODE_BRU_IN(1),
-	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3), } },
+	    VI6_DPR_NODE_BRU_IN(2), VI6_DPR_NODE_BRU_IN(3),
+	    VI6_DPR_NODE_BRU_IN(4) } },
 	{ VSP1_ENTITY_HSI, 0, VI6_DPR_HSI_ROUTE, { VI6_DPR_NODE_HSI, } },
 	{ VSP1_ENTITY_HST, 0, VI6_DPR_HST_ROUTE, { VI6_DPR_NODE_HST, } },
 	{ VSP1_ENTITY_LIF, 0, 0, { VI6_DPR_NODE_LIF, } },
@@ -225,8 +232,6 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)
 {
-	if (entity->video)
-		vsp1_video_cleanup(entity->video);
 	if (entity->subdev.ctrl_handler)
 		v4l2_ctrl_handler_free(entity->subdev.ctrl_handler);
 	media_entity_cleanup(&entity->subdev.entity);

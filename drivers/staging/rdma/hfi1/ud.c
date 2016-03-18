@@ -671,7 +671,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	if (unlikely(bth1 & HFI1_BECN_SMASK)) {
 		/*
 		 * In pre-B0 h/w the CNP_OPCODE is handled via an
-		 * error path (errata 291394).
+		 * error path.
 		 */
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 		u32 lqpn =  be32_to_cpu(ohdr->bth[1]) & HFI1_QPN_MASK;

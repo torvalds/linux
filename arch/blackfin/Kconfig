@@ -1233,8 +1233,6 @@ source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 
-source "drivers/pci/hotplug/Kconfig"
-
 endmenu
 
 menu "Executable file formats"

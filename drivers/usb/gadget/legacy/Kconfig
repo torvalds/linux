@@ -103,8 +103,7 @@ config USB_ETH
 	   - CDC Ethernet Emulation Model (EEM) is a newer standard that has
 	     a simpler interface that can be used by more USB hardware.
 
-	  RNDIS support is an additional option, more demanding than than
-	  subset.
+	  RNDIS support is an additional option, more demanding than subset.
 
 	  Within the USB device, this gadget driver exposes a network device
 	  "usbX", where X depends on what other networking devices you have.

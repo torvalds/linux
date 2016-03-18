@@ -23,6 +23,7 @@
 #include <asm/sysinfo.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/gmap.h>
 #include <asm/io.h>
 #include <asm/ptrace.h>
 #include <asm/compat.h>
@@ -173,7 +174,7 @@ static int handle_skey(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
-	kvm_s390_rewind_psw(vcpu, 4);
+	kvm_s390_retry_instr(vcpu);
 	VCPU_EVENT(vcpu, 4, "%s", "retrying storage key operation");
 	return 0;
 }
@@ -184,7 +185,7 @@ static int handle_ipte_interlock(struct kvm_vcpu *vcpu)
 	if (psw_bits(vcpu->arch.sie_block->gpsw).p)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	wait_event(vcpu->kvm->arch.ipte_wq, !ipte_lock_held(vcpu));
-	kvm_s390_rewind_psw(vcpu, 4);
+	kvm_s390_retry_instr(vcpu);
 	VCPU_EVENT(vcpu, 4, "%s", "retrying ipte interlock operation");
 	return 0;
 }
@@ -354,7 +355,7 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	 * We need to shift the lower 32 facility bits (bit 0-31) from a u64
 	 * into a u32 memory representation. They will remain bits 0-31.
 	 */
-	fac = *vcpu->kvm->arch.model.fac->list >> 32;
+	fac = *vcpu->kvm->arch.model.fac_list >> 32;
 	rc = write_guest_lc(vcpu, offsetof(struct lowcore, stfl_fac_list),
 			    &fac, sizeof(fac));
 	if (rc)
@@ -759,8 +760,8 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 	if (((vcpu->arch.sie_block->ipb & 0xf0000000) >> 28) > 6)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/* Rewind PSW to repeat the ESSA instruction */
-	kvm_s390_rewind_psw(vcpu, 4);
+	/* Retry the ESSA instruction */
+	kvm_s390_retry_instr(vcpu);
 	vcpu->arch.sie_block->cbrlo &= PAGE_MASK;	/* reset nceo */
 	cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo);
 	down_read(&gmap->mm->mmap_sem);
@@ -981,11 +982,12 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_DAT)
 		ipte_lock(vcpu);
-	ret = guest_translate_address(vcpu, address1, ar, &gpa, 1);
+	ret = guest_translate_address(vcpu, address1, ar, &gpa, GACC_STORE);
 	if (ret == PGM_PROTECTION) {
 		/* Write protected? Try again with read-only... */
 		cc = 1;
-		ret = guest_translate_address(vcpu, address1, ar, &gpa, 0);
+		ret = guest_translate_address(vcpu, address1, ar, &gpa,
+					      GACC_FETCH);
 	}
 	if (ret) {
 		if (ret == PGM_ADDRESSING || ret == PGM_TRANSLATION_SPEC) {

@@ -1306,10 +1306,10 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
 	/*
 	 * Go to sleep waiting for the tty layer to wake me back up when
 	 * the empty flag goes away.
-	 *
-	 * NOTE: TODO: Do something with time passed in.
 	 */
-	rc = wait_event_interruptible(un->un_flags_wait, ((un->un_flags & UN_EMPTY) == 0));
+	rc = wait_event_interruptible_timeout(un->un_flags_wait,
+					      ((un->un_flags & UN_EMPTY) == 0),
+					      msecs_to_jiffies(seconds * 1000));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 	return rc;
@@ -1735,7 +1735,7 @@ static unsigned int neo_read_eeprom(unsigned char __iomem *base, unsigned int ad
 	/* enable chip select */
 	writeb(NEO_EECS, base + NEO_EEREG);
 	/* READ */
-	enable = (address | 0x180);
+	enable = address | 0x180;
 
 	for (bits = 9; bits--; ) {
 		databit = (enable & (1 << bits)) ? NEO_EEDI : 0;

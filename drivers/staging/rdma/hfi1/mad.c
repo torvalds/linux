@@ -2279,17 +2279,23 @@ static void a0_portstatus(struct hfi1_pportdata *ppd,
 {
 	if (!is_bx(ppd->dd)) {
 		unsigned long vl;
-		u64 max_vl_xmit_wait = 0, tmp;
+		u64 sum_vl_xmit_wait = 0;
 		u32 vl_all_mask = VL_MASK_ALL;
 
 		for_each_set_bit(vl, (unsigned long *)&(vl_all_mask),
 				 8 * sizeof(vl_all_mask)) {
-			tmp = read_port_cntr(ppd, C_TX_WAIT_VL,
-					     idx_from_vl(vl));
-			if (tmp > max_vl_xmit_wait)
-				max_vl_xmit_wait = tmp;
+			u64 tmp = sum_vl_xmit_wait +
+				  read_port_cntr(ppd, C_TX_WAIT_VL,
+						 idx_from_vl(vl));
+			if (tmp < sum_vl_xmit_wait) {
+				/* we wrapped */
+				sum_vl_xmit_wait = (u64)~0;
+				break;
+			}
+			sum_vl_xmit_wait = tmp;
 		}
-		rsp->port_xmit_wait = cpu_to_be64(max_vl_xmit_wait);
+		if (be64_to_cpu(rsp->port_xmit_wait) > sum_vl_xmit_wait)
+			rsp->port_xmit_wait = cpu_to_be64(sum_vl_xmit_wait);
 	}
 }
 
@@ -2491,18 +2497,19 @@ static u64 get_error_counter_summary(struct ib_device *ibdev, u8 port,
 	return error_counter_summary;
 }
 
-static void a0_datacounters(struct hfi1_devdata *dd, struct _port_dctrs *rsp,
+static void a0_datacounters(struct hfi1_pportdata *ppd, struct _port_dctrs *rsp,
 			    u32 vl_select_mask)
 {
-	if (!is_bx(dd)) {
+	if (!is_bx(ppd->dd)) {
 		unsigned long vl;
-		int vfi = 0;
 		u64 sum_vl_xmit_wait = 0;
+		u32 vl_all_mask = VL_MASK_ALL;
 
-		for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
-				8 * sizeof(vl_select_mask)) {
+		for_each_set_bit(vl, (unsigned long *)&(vl_all_mask),
+				 8 * sizeof(vl_all_mask)) {
 			u64 tmp = sum_vl_xmit_wait +
-				be64_to_cpu(rsp->vls[vfi++].port_vl_xmit_wait);
+				  read_port_cntr(ppd, C_TX_WAIT_VL,
+						 idx_from_vl(vl));
 			if (tmp < sum_vl_xmit_wait) {
 				/* we wrapped */
 				sum_vl_xmit_wait = (u64) ~0;
@@ -2572,7 +2579,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = (struct _port_dctrs *)&(req->port[0]);
+	rsp = &req->port[0];
 	memset(rsp, 0, sizeof(*rsp));
 
 	rsp->port_number = port;
@@ -2665,7 +2672,7 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 		vfi++;
 	}
 
-	a0_datacounters(dd, rsp, vl_select_mask);
+	a0_datacounters(ppd, rsp, vl_select_mask);
 
 	if (resp_len)
 		*resp_len += response_data_size;
@@ -2724,7 +2731,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 		return reply((struct ib_mad_hdr *)pmp);
 	}
 
-	rsp = (struct _port_ectrs *)&(req->port[0]);
+	rsp = &req->port[0];
 
 	ibp = to_iport(ibdev, port_num);
 	ppd = ppd_from_ibp(ibp);
@@ -2772,7 +2779,7 @@ static int pma_get_opa_porterrors(struct opa_pma_mad *pmp,
 	tmp = read_dev_cntr(dd, C_DC_UNC_ERR, CNTR_INVALID_VL);
 	rsp->uncorrectable_errors = tmp < 0x100 ? (tmp & 0xff) : 0xff;
 
-	vlinfo = (struct _vls_ectrs *)&(rsp->vls[0]);
+	vlinfo = &rsp->vls[0];
 	vfi = 0;
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	for_each_set_bit(vl, (unsigned long *)&(vl_select_mask),
@@ -2803,7 +2810,7 @@ static int pma_get_opa_errorinfo(struct opa_pma_mad *pmp,
 	u64 reg;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = (struct _port_ei *)&(req->port[0]);
+	rsp = &req->port[0];
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
@@ -3044,7 +3051,7 @@ static int pma_set_opa_errorinfo(struct opa_pma_mad *pmp,
 	u32 error_info_select;
 
 	req = (struct opa_port_error_info_msg *)pmp->data;
-	rsp = (struct _port_ei *)&(req->port[0]);
+	rsp = &req->port[0];
 
 	num_ports = OPA_AM_NPORT(be32_to_cpu(pmp->mad_hdr.attr_mod));
 	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));

@@ -77,9 +77,10 @@ static void imm_wakeup(void *ref)
 
 	spin_lock_irqsave(&arbitration_lock, flags);
 	if (dev->wanted) {
-		parport_claim(dev->dev);
-		got_it(dev);
-		dev->wanted = 0;
+		if (parport_claim(dev->dev) == 0) {
+			got_it(dev);
+			dev->wanted = 0;
+		}
 	}
 	spin_unlock_irqrestore(&arbitration_lock, flags);
 }

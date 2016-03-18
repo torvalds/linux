@@ -12,22 +12,24 @@
 #ifndef _HISI_SAS_H_
 #define _HISI_SAS_H_
 
+#include <linux/acpi.h>
 #include <linux/dmapool.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <scsi/sas_ata.h>
 #include <scsi/libsas.h>
 
-#define DRV_VERSION "v1.0"
+#define DRV_VERSION "v1.3"
 
 #define HISI_SAS_MAX_PHYS	9
 #define HISI_SAS_MAX_QUEUES	32
 #define HISI_SAS_QUEUE_SLOTS 512
-#define HISI_SAS_MAX_ITCT_ENTRIES 4096
+#define HISI_SAS_MAX_ITCT_ENTRIES 2048
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
-#define HISI_SAS_COMMAND_ENTRIES 8192
 
 #define HISI_SAS_STATUS_BUF_SZ \
 		(sizeof(struct hisi_sas_err_record) + 1024)
@@ -36,6 +38,11 @@
 
 #define HISI_SAS_MAX_SSP_RESP_SZ (sizeof(struct ssp_frame_hdr) + 1024)
 #define HISI_SAS_MAX_SMP_RESP_SZ 1028
+#define HISI_SAS_MAX_STP_RESP_SZ 28
+
+#define DEV_IS_EXPANDER(type) \
+	((type == SAS_EDGE_EXPANDER_DEVICE) || \
+	(type == SAS_FANOUT_EXPANDER_DEVICE))
 
 struct hisi_hba;
 
@@ -105,6 +112,7 @@ struct hisi_sas_slot {
 	int	cmplt_queue;
 	int	cmplt_queue_slot;
 	int	idx;
+	int	abort;
 	void	*cmd_hdr;
 	dma_addr_t cmd_hdr_dma;
 	void	*status_buffer;
@@ -113,6 +121,7 @@ struct hisi_sas_slot {
 	dma_addr_t command_table_dma;
 	struct hisi_sas_sge_page *sge_page;
 	dma_addr_t sge_page_dma;
+	struct work_struct abort_slot;
 };
 
 struct hisi_sas_tmf_task {
@@ -132,6 +141,8 @@ struct hisi_sas_hw {
 			struct hisi_sas_tmf_task *tmf);
 	int (*prep_smp)(struct hisi_hba *hisi_hba,
 			struct hisi_sas_slot *slot);
+	int (*prep_stp)(struct hisi_hba *hisi_hba,
+			struct hisi_sas_slot *slot);
 	int (*slot_complete)(struct hisi_hba *hisi_hba,
 			     struct hisi_sas_slot *slot, int abort);
 	void (*phy_enable)(struct hisi_hba *hisi_hba, int phy_no);
@@ -140,6 +151,7 @@ struct hisi_sas_hw {
 	void (*free_device)(struct hisi_hba *hisi_hba,
 			    struct hisi_sas_device *dev);
 	int (*get_wideport_bitmap)(struct hisi_hba *hisi_hba, int port_id);
+	int max_command_entries;
 	int complete_hdr_size;
 };
 
@@ -244,18 +256,7 @@ struct hisi_sas_itct {
 	__le64 sas_addr;
 	__le64 qw2;
 	__le64 qw3;
-	__le64 qw4;
-	__le64 qw_sata_ncq0_3;
-	__le64 qw_sata_ncq7_4;
-	__le64 qw_sata_ncq11_8;
-	__le64 qw_sata_ncq15_12;
-	__le64 qw_sata_ncq19_16;
-	__le64 qw_sata_ncq23_20;
-	__le64 qw_sata_ncq27_24;
-	__le64 qw_sata_ncq31_28;
-	__le64 qw_non_ncq_iptt;
-	__le64 qw_rsvd0;
-	__le64 qw_rsvd1;
+	__le64 qw4_15[12];
 };
 
 struct hisi_sas_iost {
@@ -266,17 +267,7 @@ struct hisi_sas_iost {
 };
 
 struct hisi_sas_err_record {
-	/* dw0 */
-	__le32 dma_err_type;
-
-	/* dw1 */
-	__le32 trans_tx_fail_type;
-
-	/* dw2 */
-	__le32 trans_rx_fail_type;
-
-	/* dw3 */
-	u32 rsvd;
+	u32	data[4];
 };
 
 struct hisi_sas_initial_fis {

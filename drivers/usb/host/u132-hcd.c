@@ -1309,13 +1309,9 @@ static void u132_hcd_ring_work_scheduler(struct work_struct *work)
 		u132_ring_put_kref(u132, ring);
 		return;
 	} else if (ring->curr_endp) {
-		struct u132_endp *last_endp = ring->curr_endp;
-		struct list_head *scan;
-		struct list_head *head = &last_endp->endp_ring;
+		struct u132_endp *endp, *last_endp = ring->curr_endp;
 		unsigned long wakeup = 0;
-		list_for_each(scan, head) {
-			struct u132_endp *endp = list_entry(scan,
-				struct u132_endp, endp_ring);
+		list_for_each_entry(endp, &last_endp->endp_ring, endp_ring) {
 			if (endp->queue_next == endp->queue_last) {
 			} else if ((endp->delayed == 0)
 				|| time_after_eq(jiffies, endp->jiffies)) {
@@ -2393,14 +2389,12 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 static int dequeue_from_overflow_chain(struct u132 *u132,
 	struct u132_endp *endp, struct urb *urb)
 {
-	struct list_head *scan;
-	struct list_head *head = &endp->urb_more;
-	list_for_each(scan, head) {
-		struct u132_urbq *urbq = list_entry(scan, struct u132_urbq,
-			urb_more);
+	struct u132_urbq *urbq;
+
+	list_for_each_entry(urbq, &endp->urb_more, urb_more) {
 		if (urbq->urb == urb) {
 			struct usb_hcd *hcd = u132_to_hcd(u132);
-			list_del(scan);
+			list_del(&urbq->urb_more);
 			endp->queue_size -= 1;
 			urb->error_count = 0;
 			usb_hcd_giveback_urb(hcd, urb, 0);

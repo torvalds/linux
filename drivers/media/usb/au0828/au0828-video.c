@@ -28,12 +28,14 @@
  */
 
 #include "au0828.h"
+#include "au8522.h"
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-mc.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
 #include <media/tuner.h>
@@ -638,61 +640,64 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 	return rc;
 }
 
-static int au0828_enable_analog_tuner(struct au0828_dev *dev)
+void au0828_usb_v4l2_media_release(struct au0828_dev *dev)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_device *mdev = dev->media_dev;
-	struct media_entity *source;
-	struct media_link *link, *found_link = NULL;
-	int ret, active_links = 0;
+	int i;
 
-	if (!mdev || !dev->decoder)
-		return 0;
-
-	/*
-	 * This will find the tuner that is connected into the decoder.
-	 * Technically, this is not 100% correct, as the device may be
-	 * using an analog input instead of the tuner. However, as we can't
-	 * do DVB streaming while the DMA engine is being used for V4L2,
-	 * this should be enough for the actual needs.
-	 */
-	list_for_each_entry(link, &dev->decoder->links, list) {
-		if (link->sink->entity == dev->decoder) {
-			found_link = link;
-			if (link->flags & MEDIA_LNK_FL_ENABLED)
-				active_links++;
-			break;
-		}
-	}
-
-	if (active_links == 1 || !found_link)
-		return 0;
-
-	source = found_link->source->entity;
-	list_for_each_entry(link, &source->links, list) {
-		struct media_entity *sink;
-		int flags = 0;
-
-		sink = link->sink->entity;
-
-		if (sink == dev->decoder)
-			flags = MEDIA_LNK_FL_ENABLED;
-
-		ret = media_entity_setup_link(link, flags);
-		if (ret) {
-			pr_err(
-				"Couldn't change link %s->%s to %s. Error %d\n",
-				source->name, sink->name,
-				flags ? "enabled" : "disabled",
-				ret);
-			return ret;
-		} else
-			au0828_isocdbg(
-				"link %s->%s was %s\n",
-				source->name, sink->name,
-				flags ? "ENABLED" : "disabled");
+	for (i = 0; i < AU0828_MAX_INPUT; i++) {
+		if (AUVI_INPUT(i).type == AU0828_VMUX_UNDEFINED)
+			return;
+		media_device_unregister_entity(&dev->input_ent[i]);
 	}
 #endif
+}
+
+static void au0828_usb_v4l2_release(struct v4l2_device *v4l2_dev)
+{
+	struct au0828_dev *dev =
+		container_of(v4l2_dev, struct au0828_dev, v4l2_dev);
+
+	v4l2_ctrl_handler_free(&dev->v4l2_ctrl_hdl);
+	v4l2_device_unregister(&dev->v4l2_dev);
+	au0828_usb_v4l2_media_release(dev);
+	au0828_usb_release(dev);
+}
+
+int au0828_v4l2_device_register(struct usb_interface *interface,
+				struct au0828_dev *dev)
+{
+	int retval;
+
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
+
+	/* Create the v4l2_device */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->v4l2_dev.mdev = dev->media_dev;
+#endif
+	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
+	if (retval) {
+		pr_err("%s() v4l2_device_register failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+
+	dev->v4l2_dev.release = au0828_usb_v4l2_release;
+
+	/* This control handler will inherit the controls from au8522 */
+	retval = v4l2_ctrl_handler_init(&dev->v4l2_ctrl_hdl, 4);
+	if (retval) {
+		pr_err("%s() v4l2_ctrl_handler_init failed\n",
+		       __func__);
+		mutex_unlock(&dev->lock);
+		kfree(dev);
+		return retval;
+	}
+	dev->v4l2_dev.ctrl_handler = &dev->v4l2_ctrl_hdl;
+
 	return 0;
 }
 
@@ -707,9 +712,6 @@ static int queue_setup(struct vb2_queue *vq,
 		return sizes[0] < size ? -EINVAL : 0;
 	*nplanes = 1;
 	sizes[0] = size;
-
-	au0828_enable_analog_tuner(dev);
-
 	return 0;
 }
 
@@ -949,13 +951,23 @@ static struct vb2_ops au0828_video_qops = {
  * au0828_analog_unregister
  * unregister v4l2 devices
  */
-void au0828_analog_unregister(struct au0828_dev *dev)
+int au0828_analog_unregister(struct au0828_dev *dev)
 {
 	dprintk(1, "au0828_analog_unregister called\n");
+
+	/* No analog TV */
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
+
 	mutex_lock(&au0828_sysfs_lock);
 	video_unregister_device(&dev->vdev);
 	video_unregister_device(&dev->vbi_dev);
 	mutex_unlock(&au0828_sysfs_lock);
+
+	v4l2_device_disconnect(&dev->v4l2_dev);
+	v4l2_device_put(&dev->v4l2_dev);
+
+	return 1;
 }
 
 /* This function ensures that video frames continue to be delivered even if
@@ -1067,8 +1079,39 @@ static int au0828_v4l2_close(struct file *filp)
 		goto end;
 
 	if (dev->users == 1) {
-		/* Save some power by putting tuner to sleep */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
+		/*
+		 * Avoid putting tuner in sleep if DVB or ALSA are
+		 * streaming.
+		 *
+		 * On most USB devices  like au0828 the tuner can
+		 * be safely put in sleep stare here if ALSA isn't
+		 * streaming. Exceptions are some very old USB tuner
+		 * models such as em28xx-based WinTV USB2 which have
+		 * a separate audio output jack. The devices that have
+		 * a separate audio output jack have analog tuners,
+		 * like Philips FM1236. Those devices are always on,
+		 * so the s_power callback are silently ignored.
+		 * So, the current logic here does the following:
+		 * Disable (put tuner to sleep) when
+		 * - ALSA and DVB aren't not streaming;
+		 * - the last V4L2 file handler is closed.
+		 *
+		 * FIXME:
+		 *
+		 * Additionally, this logic could be improved to
+		 * disable the media source if the above conditions
+		 * are met and if the device:
+		 * - doesn't have a separate audio out plug (or
+		 * - doesn't use a silicon tuner like xc2028/3028/4000/5000).
+		 *
+		 * Once this additional logic is in place, a callback
+		 * is needed to enable the media source and power on
+		 * the tuner, for radio to work.
+		*/
+		ret = v4l_enable_media_source(vdev);
+		if (ret == 0)
+			v4l2_device_call_all(&dev->v4l2_dev, 0, core,
+					     s_power, 0);
 		dev->std_set_in_tuner_core = 0;
 
 		/* When close the device, set the usb intf0 into alt0 to free
@@ -1312,7 +1355,6 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 
 	dprintk(1, "%s called std_set %d dev_state %d\n", __func__,
@@ -1375,8 +1417,10 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 	default:
 		dprintk(1, "unknown input type set [%d]\n",
 			AUVI_INPUT(index).type);
-		break;
+		return;
 	}
+
+	dev->ctrl_input = index;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
 			AUVI_INPUT(index).vmux, 0, 0);
@@ -1409,6 +1453,7 @@ static void au0828_s_input(struct au0828_dev *dev, int index)
 static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 {
 	struct au0828_dev *dev = video_drvdata(file);
+	struct video_device *vfd = video_devdata(file);
 
 	dprintk(1, "VIDIOC_S_INPUT in function %s, input=%d\n", __func__,
 		index);
@@ -1416,9 +1461,19 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int index)
 		return -EINVAL;
 	if (AUVI_INPUT(index).type == 0)
 		return -EINVAL;
-	dev->ctrl_input = index;
+
+	if (dev->ctrl_input == index)
+		return 0;
+
 	au0828_s_input(dev, index);
-	return 0;
+
+	/*
+	 * Input has been changed. Disable the media source
+	 * associated with the old input and enable source
+	 * for the newly set input
+	 */
+	v4l_disable_media_source(vfd);
+	return v4l_enable_media_source(vfd);
 }
 
 static int vidioc_enumaudio(struct file *file, void *priv, struct v4l2_audio *a)
@@ -1469,9 +1524,15 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct au0828_dev *dev = video_drvdata(file);
+	struct video_device *vfd = video_devdata(file);
+	int ret;
 
 	if (t->index != 0)
 		return -EINVAL;
+
+	ret = v4l_enable_media_source(vfd);
+	if (ret)
+		return ret;
 
 	dprintk(1, "%s called std_set %d dev_state %d\n", __func__,
 		dev->std_set_in_tuner_core, dev->dev_state);
@@ -1804,7 +1865,6 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		[AU0828_VMUX_CABLE] = "Cable TV",
 		[AU0828_VMUX_TELEVISION] = "Television",
 		[AU0828_VMUX_DVB] = "DVB",
-		[AU0828_VMUX_DEBUG] = "tv debug"
 	};
 	int ret, i;
 
@@ -1840,10 +1900,9 @@ static void au0828_analog_create_entities(struct au0828_dev *dev)
 		case AU0828_VMUX_CABLE:
 		case AU0828_VMUX_TELEVISION:
 		case AU0828_VMUX_DVB:
+		default: /* Just to shut up a warning */
 			ent->function = MEDIA_ENT_F_CONN_RF;
 			break;
-		default: /* AU0828_VMUX_DEBUG */
-			continue;
 		}
 
 		ret = media_entity_pads_init(ent, 1, &dev->input_pad[i]);
@@ -1869,6 +1928,10 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 	dprintk(1, "au0828_analog_register called for intf#%d!\n",
 		interface->cur_altsetting->desc.bInterfaceNumber);
+
+	/* No analog TV */
+	if (AUVI_INPUT(0).type == AU0828_VMUX_UNDEFINED)
+		return 0;
 
 	/* set au0828 usb interface0 to as5 */
 	retval = usb_set_interface(dev->usbdev,
@@ -1924,6 +1987,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->ctrl_ainput = 0;
 	dev->ctrl_freq = 960;
 	dev->std = V4L2_STD_NTSC_M;
+	/* Default input is TV Tuner */
 	au0828_s_input(dev, 0);
 
 	mutex_init(&dev->vb_queue_lock);
@@ -1975,6 +2039,16 @@ int au0828_analog_register(struct au0828_dev *dev,
 		ret = -ENODEV;
 		goto err_reg_vbi_dev;
 	}
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	retval = v4l2_mc_create_media_graph(dev->media_dev);
+	if (retval) {
+		pr_err("%s() au0282_dev_register failed to create graph\n",
+			__func__);
+		ret = -ENODEV;
+		goto err_reg_vbi_dev;
+	}
+#endif
 
 	dprintk(1, "%s completed!\n", __func__);
 

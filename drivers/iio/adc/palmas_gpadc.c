@@ -534,7 +534,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 	}
 	ret = request_threaded_irq(adc->irq, NULL,
 		palmas_gpadc_irq,
-		IRQF_ONESHOT | IRQF_EARLY_RESUME, dev_name(adc->dev),
+		IRQF_ONESHOT, dev_name(adc->dev),
 		adc);
 	if (ret < 0) {
 		dev_err(adc->dev,
@@ -549,7 +549,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 		adc->irq_auto_0 =  platform_get_irq(pdev, 1);
 		ret = request_threaded_irq(adc->irq_auto_0, NULL,
 				palmas_gpadc_irq_auto,
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas-adc-auto-0", adc);
 		if (ret < 0) {
 			dev_err(adc->dev, "request auto0 irq %d failed: %d\n",
@@ -565,7 +565,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 		adc->irq_auto_1 =  platform_get_irq(pdev, 2);
 		ret = request_threaded_irq(adc->irq_auto_1, NULL,
 				palmas_gpadc_irq_auto,
-				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+				IRQF_ONESHOT,
 				"palmas-adc-auto-1", adc);
 		if (ret < 0) {
 			dev_err(adc->dev, "request auto1 irq %d failed: %d\n",

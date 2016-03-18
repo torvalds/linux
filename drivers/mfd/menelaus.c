@@ -42,10 +42,10 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 #include <linux/mfd/menelaus.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/gpio.h>
 
 #define DRIVER_NAME			"menelaus"
 

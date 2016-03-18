@@ -1560,10 +1560,10 @@ static int cx24117_get_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
-static int cx24117_get_frontend(struct dvb_frontend *fe)
+static int cx24117_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct cx24117_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24117_cmd cmd;
 	u8 reg, st, inv;
 	int ret, idx;

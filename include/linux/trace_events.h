@@ -15,16 +15,6 @@ struct tracer;
 struct dentry;
 struct bpf_prog;
 
-struct trace_print_flags {
-	unsigned long		mask;
-	const char		*name;
-};
-
-struct trace_print_flags_u64 {
-	unsigned long long	mask;
-	const char		*name;
-};
-
 const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
 				  unsigned long flags,
 				  const struct trace_print_flags *flag_array);

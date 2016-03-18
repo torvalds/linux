@@ -387,10 +387,6 @@ static int sriov_init(struct pci_dev *dev, int pos)
 	struct resource *res;
 	struct pci_dev *pdev;
 
-	if (pci_pcie_type(dev) != PCI_EXP_TYPE_RC_END &&
-	    pci_pcie_type(dev) != PCI_EXP_TYPE_ENDPOINT)
-		return -ENODEV;
-
 	pci_read_config_word(dev, pos + PCI_SRIOV_CTRL, &ctrl);
 	if (ctrl & PCI_SRIOV_CTRL_VFE) {
 		pci_write_config_word(dev, pos + PCI_SRIOV_CTRL, 0);

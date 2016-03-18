@@ -72,11 +72,11 @@ module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
 
 /* Default doubles per-vcpu halt_poll_ns. */
 static unsigned int halt_poll_ns_grow = 2;
-module_param(halt_poll_ns_grow, int, S_IRUGO);
+module_param(halt_poll_ns_grow, uint, S_IRUGO | S_IWUSR);
 
 /* Default resets per-vcpu halt_poll_ns . */
 static unsigned int halt_poll_ns_shrink;
-module_param(halt_poll_ns_shrink, int, S_IRUGO);
+module_param(halt_poll_ns_shrink, uint, S_IRUGO | S_IWUSR);
 
 /*
  * Ordering of locks:
@@ -619,13 +619,10 @@ void *kvm_kvzalloc(unsigned long size)
 
 static void kvm_destroy_devices(struct kvm *kvm)
 {
-	struct list_head *node, *tmp;
+	struct kvm_device *dev, *tmp;
 
-	list_for_each_safe(node, tmp, &kvm->devices) {
-		struct kvm_device *dev =
-			list_entry(node, struct kvm_device, vm_node);
-
-		list_del(node);
+	list_for_each_entry_safe(dev, tmp, &kvm->devices, vm_node) {
+		list_del(&dev->vm_node);
 		dev->ops->destroy(dev);
 	}
 }
@@ -1436,11 +1433,17 @@ kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
 {
 	unsigned long addr = __gfn_to_hva_many(slot, gfn, NULL, write_fault);
 
-	if (addr == KVM_HVA_ERR_RO_BAD)
+	if (addr == KVM_HVA_ERR_RO_BAD) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_ERR_RO_FAULT;
+	}
 
-	if (kvm_is_error_hva(addr))
+	if (kvm_is_error_hva(addr)) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_NOSLOT;
+	}
 
 	/* Do not map writable pfn in the readonly memslot. */
 	if (writable && memslot_is_readonly(slot)) {
@@ -1942,14 +1945,15 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int old, val;
+	unsigned int old, val, grow;
 
 	old = val = vcpu->halt_poll_ns;
+	grow = READ_ONCE(halt_poll_ns_grow);
 	/* 10us base */
-	if (val == 0 && halt_poll_ns_grow)
+	if (val == 0 && grow)
 		val = 10000;
 	else
-		val *= halt_poll_ns_grow;
+		val *= grow;
 
 	if (val > halt_poll_ns)
 		val = halt_poll_ns;
@@ -1960,13 +1964,14 @@ static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 
 static void shrink_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int old, val;
+	unsigned int old, val, shrink;
 
 	old = val = vcpu->halt_poll_ns;
-	if (halt_poll_ns_shrink == 0)
+	shrink = READ_ONCE(halt_poll_ns_shrink);
+	if (shrink == 0)
 		val = 0;
 	else
-		val /= halt_poll_ns_shrink;
+		val /= shrink;
 
 	vcpu->halt_poll_ns = val;
 	trace_kvm_halt_poll_ns_shrink(vcpu->vcpu_id, val, old);

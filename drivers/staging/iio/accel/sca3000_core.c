@@ -216,8 +216,7 @@ static int sca3000_read_ctrl_reg(struct sca3000_state *st,
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_CTRL_DATA, 1);
 	if (ret)
 		goto error_ret;
-	else
-		return st->rx[0];
+	return st->rx[0];
 error_ret:
 	return ret;
 }
