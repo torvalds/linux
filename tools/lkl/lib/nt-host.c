@@ -67,7 +67,7 @@ static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 {
 	DWORD WINAPI (*win_fn)(LPVOID arg) = (DWORD WINAPI (*)(LPVOID))fn;
 
-	return CreateThread(NULL, 0, win_fn, arg, 0, NULL);
+	return (lkl_thread_t)CreateThread(NULL, 0, win_fn, arg, 0, NULL);
 }
 
 static void thread_detach(void)
