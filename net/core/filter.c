@@ -1682,14 +1682,7 @@ static const struct bpf_func_proto bpf_get_cgroup_classid_proto = {
 
 static u64 bpf_get_route_realm(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
-#ifdef CONFIG_IP_ROUTE_CLASSID
-	const struct dst_entry *dst;
-
-	dst = skb_dst((struct sk_buff *) (unsigned long) r1);
-	if (dst)
-		return dst->tclassid;
-#endif
-	return 0;
+	return dst_tclassid((struct sk_buff *) (unsigned long) r1);
 }
 
 static const struct bpf_func_proto bpf_get_route_realm_proto = {
@@ -1911,8 +1904,6 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-#define BPF_TUNLEN_MAX	255
-
 static u64 bpf_skb_set_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
 {
 	struct sk_buff *skb = (struct sk_buff *) (long) r1;
@@ -1922,7 +1913,7 @@ static u64 bpf_skb_set_tunnel_opt(u64 r1, u64 r2, u64 size, u64 r4, u64 r5)
 
 	if (unlikely(info != &md->u.tun_info || (size & (sizeof(u32) - 1))))
 		return -EINVAL;
-	if (unlikely(size > BPF_TUNLEN_MAX))
+	if (unlikely(size > IP_TUNNEL_OPTS_MAX))
 		return -ENOMEM;
 
 	ip_tunnel_info_opts_set(info, from, size);
@@ -1943,13 +1934,10 @@ static const struct bpf_func_proto *
 bpf_get_skb_set_tunnel_proto(enum bpf_func_id which)
 {
 	if (!md_dst) {
-		BUILD_BUG_ON(FIELD_SIZEOF(struct ip_tunnel_info,
-					  options_len) != 1);
-
 		/* Race is not possible, since it's called from verifier
 		 * that is holding verifier mutex.
 		 */
-		md_dst = metadata_dst_alloc_percpu(BPF_TUNLEN_MAX,
+		md_dst = metadata_dst_alloc_percpu(IP_TUNNEL_OPTS_MAX,
 						   GFP_KERNEL);
 		if (!md_dst)
 			return NULL;
@@ -2069,16 +2057,14 @@ static bool sk_filter_is_valid_access(int off, int size,
 static bool tc_cls_act_is_valid_access(int off, int size,
 				       enum bpf_access_type type)
 {
-	if (off == offsetof(struct __sk_buff, tc_classid))
-		return type == BPF_WRITE ? true : false;
-
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case offsetof(struct __sk_buff, mark):
 		case offsetof(struct __sk_buff, tc_index):
 		case offsetof(struct __sk_buff, priority):
 		case offsetof(struct __sk_buff, cb[0]) ...
-			offsetof(struct __sk_buff, cb[4]):
+		     offsetof(struct __sk_buff, cb[4]):
+		case offsetof(struct __sk_buff, tc_classid):
 			break;
 		default:
 			return false;
@@ -2195,8 +2181,10 @@ static u32 bpf_net_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 		ctx_off -= offsetof(struct __sk_buff, tc_classid);
 		ctx_off += offsetof(struct sk_buff, cb);
 		ctx_off += offsetof(struct qdisc_skb_cb, tc_classid);
-		WARN_ON(type != BPF_WRITE);
-		*insn++ = BPF_STX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
+		if (type == BPF_WRITE)
+			*insn++ = BPF_STX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
+		else
+			*insn++ = BPF_LDX_MEM(BPF_H, dst_reg, src_reg, ctx_off);
 		break;
 
 	case offsetof(struct __sk_buff, tc_index):
