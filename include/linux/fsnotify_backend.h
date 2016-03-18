@@ -293,14 +293,9 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 /*
  * fsnotify_d_instantiate - instantiate a dentry for inode
  */
-static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
+static inline void __fsnotify_d_instantiate(struct dentry *dentry)
 {
-	if (!inode)
-		return;
-
-	spin_lock(&dentry->d_lock);
 	__fsnotify_update_dcache_flags(dentry);
-	spin_unlock(&dentry->d_lock);
 }
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
@@ -399,7 +394,7 @@ static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 {}
 
-static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
+static inline void __fsnotify_d_instantiate(struct dentry *dentry)
 {}
 
 static inline u32 fsnotify_get_cookie(void)

@@ -537,8 +537,6 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, u
 		ino->dentry = dentry;
 
 		autofs4_add_active(dentry);
-
-		d_instantiate(dentry, NULL);
 	}
 	return NULL;
 }

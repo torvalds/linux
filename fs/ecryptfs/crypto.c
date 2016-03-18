@@ -1499,16 +1499,14 @@ out:
  */
 static int
 ecryptfs_encrypt_filename(struct ecryptfs_filename *filename,
-			  struct ecryptfs_crypt_stat *crypt_stat,
 			  struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
 	int rc = 0;
 
 	filename->encrypted_filename = NULL;
 	filename->encrypted_filename_size = 0;
-	if ((crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
-	    || (mount_crypt_stat && (mount_crypt_stat->flags
-				     & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK))) {
+	if (mount_crypt_stat && (mount_crypt_stat->flags
+				     & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)) {
 		size_t packet_size;
 		size_t remaining_bytes;
 
@@ -1944,7 +1942,6 @@ out:
 int ecryptfs_encrypt_and_encode_filename(
 	char **encoded_name,
 	size_t *encoded_name_size,
-	struct ecryptfs_crypt_stat *crypt_stat,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	const char *name, size_t name_size)
 {
@@ -1953,9 +1950,8 @@ int ecryptfs_encrypt_and_encode_filename(
 
 	(*encoded_name) = NULL;
 	(*encoded_name_size) = 0;
-	if ((crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCRYPT_FILENAMES))
-	    || (mount_crypt_stat && (mount_crypt_stat->flags
-				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES))) {
+	if (mount_crypt_stat && (mount_crypt_stat->flags
+				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)) {
 		struct ecryptfs_filename *filename;
 
 		filename = kzalloc(sizeof(*filename), GFP_KERNEL);
@@ -1968,8 +1964,7 @@ int ecryptfs_encrypt_and_encode_filename(
 		}
 		filename->filename = (char *)name;
 		filename->filename_size = name_size;
-		rc = ecryptfs_encrypt_filename(filename, crypt_stat,
-					       mount_crypt_stat);
+		rc = ecryptfs_encrypt_filename(filename, mount_crypt_stat);
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to encrypt "
 			       "filename; rc = [%d]\n", __func__, rc);
@@ -1980,11 +1975,9 @@ int ecryptfs_encrypt_and_encode_filename(
 			NULL, &encoded_name_no_prefix_size,
 			filename->encrypted_filename,
 			filename->encrypted_filename_size);
-		if ((crypt_stat && (crypt_stat->flags
-				    & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
-		    || (mount_crypt_stat
+		if (mount_crypt_stat
 			&& (mount_crypt_stat->flags
-			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)))
+			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK))
 			(*encoded_name_size) =
 				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
 				 + encoded_name_no_prefix_size);
@@ -2002,11 +1995,9 @@ int ecryptfs_encrypt_and_encode_filename(
 			kfree(filename);
 			goto out;
 		}
-		if ((crypt_stat && (crypt_stat->flags
-				    & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
-		    || (mount_crypt_stat
+		if (mount_crypt_stat
 			&& (mount_crypt_stat->flags
-			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK))) {
+			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)) {
 			memcpy((*encoded_name),
 			       ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX,
 			       ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE);
