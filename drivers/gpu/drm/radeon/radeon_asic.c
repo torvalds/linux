@@ -2696,6 +2696,9 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic->pm.set_memory_clock = NULL;
 	}
 
+	if (!radeon_uvd)
+		rdev->has_uvd = false;
+
 	return 0;
 }
 
