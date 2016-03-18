@@ -439,7 +439,6 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 	int sg_count = 0;
 	unsigned long flags = 0;
 	unsigned long ptr;
-	struct fc_rport_priv *rdata;
 	spinlock_t *io_lock = NULL;
 	int io_lock_acquired = 0;
 
@@ -455,14 +454,17 @@ static int fnic_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_
 		return 0;
 	}
 
-	rdata = lp->tt.rport_lookup(lp, rport->port_id);
-	if (!rdata || (rdata->rp_state == RPORT_ST_DELETE)) {
-		FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-			"returning IO as rport is removed\n");
-		atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
-		sc->result = DID_NO_CONNECT;
-		done(sc);
-		return 0;
+	if (rport) {
+		struct fc_rport_libfc_priv *rp = rport->dd_data;
+
+		if (!rp || rp->rp_state != RPORT_ST_READY) {
+			FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
+				"returning DID_NO_CONNECT for IO as rport is removed\n");
+			atomic64_inc(&fnic_stats->misc_stats.rport_not_ready);
+			sc->result = DID_NO_CONNECT<<16;
+			done(sc);
+			return 0;
+		}
 	}
 
 	if (lp->state != LPORT_ST_READY || !(lp->link_up))
