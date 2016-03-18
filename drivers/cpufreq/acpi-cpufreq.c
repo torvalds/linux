@@ -514,8 +514,10 @@ static int boost_notify(struct notifier_block *nb, unsigned long action,
 	 */
 
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		boost_set_msrs(acpi_cpufreq_driver.boost_enabled, cpumask);
 		break;
 
