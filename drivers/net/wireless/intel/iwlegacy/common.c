@@ -723,10 +723,9 @@ il_eeprom_init(struct il_priv *il)
 	sz = il->cfg->eeprom_size;
 	D_EEPROM("NVM size = %d\n", sz);
 	il->eeprom = kzalloc(sz, GFP_KERNEL);
-	if (!il->eeprom) {
-		ret = -ENOMEM;
-		goto alloc_err;
-	}
+	if (!il->eeprom)
+		return -ENOMEM;
+
 	e = (__le16 *) il->eeprom;
 
 	il->ops->apm_init(il);
@@ -778,7 +777,6 @@ err:
 		il_eeprom_free(il);
 	/* Reset chip to save power until we load uCode during "up". */
 	il_apm_stop(il);
-alloc_err:
 	return ret;
 }
 EXPORT_SYMBOL(il_eeprom_init);
