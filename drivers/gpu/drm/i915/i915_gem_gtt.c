@@ -3191,6 +3191,14 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	if ((ggtt->base.total - 1) >> 32) {
+		DRM_ERROR("We never expected a Global GTT with more than 32bits"
+			  "of address space! Found %lldM!\n",
+			  ggtt->base.total >> 20);
+		ggtt->base.total = 1ULL << 32;
+		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
+	}
+
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
