@@ -1680,6 +1680,10 @@ static const struct i2c_device_id max1363_id[] = {
 	{ "max11615", max11615 },
 	{ "max11616", max11616 },
 	{ "max11617", max11617 },
+	{ "max11644", max11644 },
+	{ "max11645", max11645 },
+	{ "max11646", max11646 },
+	{ "max11647", max11647 },
 	{}
 };
 
