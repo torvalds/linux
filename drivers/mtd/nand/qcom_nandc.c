@@ -1436,7 +1436,6 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *oob = chip->oob_poi;
-	int free_boff;
 	int data_size, oob_size;
 	int ret, status = 0;
 
@@ -1450,12 +1449,11 @@ static int qcom_nandc_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* calculate the data and oob size for the last codeword/step */
 	data_size = ecc->size - ((ecc->steps - 1) << 2);
-	oob_size = ecc->steps << 2;
-
-	free_boff = ecc->layout->oobfree[0].offset;
+	oob_size = mtd->oobavail;
 
 	/* override new oob content to last codeword */
-	memcpy(nandc->data_buffer + data_size, oob + free_boff, oob_size);
+	mtd_ooblayout_get_databytes(mtd, nandc->data_buffer + data_size, oob,
+				    0, mtd->oobavail);
 
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
 	update_rw_regs(host, 1, false);
