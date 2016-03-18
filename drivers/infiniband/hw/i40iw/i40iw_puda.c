@@ -729,7 +729,7 @@ void i40iw_puda_dele_resources(struct i40iw_sc_dev *dev,
 
 	switch (rsrc->completion) {
 	case PUDA_HASH_CRC_COMPLETE:
-		i40iw_free_hash_desc(&rsrc->hash_desc);
+		i40iw_free_hash_desc(rsrc->hash_desc);
 	case PUDA_QP_CREATED:
 		do {
 			if (reset)
@@ -1142,7 +1142,7 @@ static enum i40iw_status_code i40iw_ieq_handle_partial(struct i40iw_puda_rsrc *i
 	crcptr = txbuf->data + fpdu_len - 4;
 	mpacrc = *(u32 *)crcptr;
 	if (ieq->check_crc) {
-		status = i40iw_ieq_check_mpacrc(&ieq->hash_desc, txbuf->data,
+		status = i40iw_ieq_check_mpacrc(ieq->hash_desc, txbuf->data,
 						(fpdu_len - 4), mpacrc);
 		if (status) {
 			i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
@@ -1210,7 +1210,7 @@ static enum i40iw_status_code i40iw_ieq_process_buf(struct i40iw_puda_rsrc *ieq,
 		crcptr = datap + fpdu_len - 4;
 		mpacrc = *(u32 *)crcptr;
 		if (ieq->check_crc)
-			ret = i40iw_ieq_check_mpacrc(&ieq->hash_desc,
+			ret = i40iw_ieq_check_mpacrc(ieq->hash_desc,
 						     datap, fpdu_len - 4, mpacrc);
 		if (ret) {
 			status = I40IW_ERR_MPA_CRC;

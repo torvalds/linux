@@ -135,7 +135,7 @@ struct i40iw_puda_rsrc {
 	u32 rxq_invalid_cnt;
 	u32 tx_wqe_avail_cnt;
 	bool check_crc;
-	struct hash_desc hash_desc;
+	struct shash_desc *hash_desc;
 	struct list_head txpend;
 	struct list_head bufpool;	/* free buffers pool list for recv and xmit */
 	u32 alloc_buf_count;
@@ -173,11 +173,11 @@ struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev,
 				     struct i40iw_puda_buf *buf);
 enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_info *info,
 						 struct i40iw_puda_buf *buf);
-enum i40iw_status_code i40iw_ieq_check_mpacrc(struct hash_desc *desc,
+enum i40iw_status_code i40iw_ieq_check_mpacrc(struct shash_desc *desc,
 					      void *addr, u32 length, u32 value);
-enum i40iw_status_code i40iw_init_hash_desc(struct hash_desc *desc);
+enum i40iw_status_code i40iw_init_hash_desc(struct shash_desc **desc);
 void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
-void i40iw_free_hash_desc(struct hash_desc *desc);
+void i40iw_free_hash_desc(struct shash_desc *desc);
 void i40iw_ieq_update_tcpip_info(struct i40iw_puda_buf *buf, u16 length,
 				 u32 seqnum);
 #endif

@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <net/tcp.h>
+#include <crypto/hash.h>
 /* get readq/writeq support for 32 bit kernels, use the low-first version */
 #include <linux/io-64-nonatomic-lo-hi.h>
 
@@ -171,12 +172,12 @@ struct i40iw_hw;
 u8 __iomem *i40iw_get_hw_addr(void *dev);
 void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp);
 enum i40iw_status_code i40iw_vf_wait_vchnl_resp(struct i40iw_sc_dev *dev);
-enum i40iw_status_code i40iw_ieq_check_mpacrc(struct hash_desc *desc, void *addr,
+enum i40iw_status_code i40iw_ieq_check_mpacrc(struct shash_desc *desc, void *addr,
 					      u32 length, u32 value);
 struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *buf);
 void i40iw_ieq_update_tcpip_info(struct i40iw_puda_buf *buf, u16 length, u32 seqnum);
-void i40iw_free_hash_desc(struct hash_desc *);
-enum i40iw_status_code i40iw_init_hash_desc(struct hash_desc *);
+void i40iw_free_hash_desc(struct shash_desc *);
+enum i40iw_status_code i40iw_init_hash_desc(struct shash_desc **);
 enum i40iw_status_code i40iw_puda_get_tcpip_info(struct i40iw_puda_completion_info *info,
 						 struct i40iw_puda_buf *buf);
 enum i40iw_status_code i40iw_cqp_sds_cmd(struct i40iw_sc_dev *dev,

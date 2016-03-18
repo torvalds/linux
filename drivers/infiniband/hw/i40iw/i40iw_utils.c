@@ -1024,11 +1024,24 @@ void i40iw_ieq_mpa_crc_ae(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
  * i40iw_init_hash_desc - initialize hash for crc calculation
  * @desc: cryption type
  */
-enum i40iw_status_code i40iw_init_hash_desc(struct hash_desc *desc)
+enum i40iw_status_code i40iw_init_hash_desc(struct shash_desc **desc)
 {
-	desc->tfm = crypto_alloc_hash("crc32c", 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(desc->tfm))
+	struct crypto_shash *tfm;
+	struct shash_desc *tdesc;
+
+	tfm = crypto_alloc_shash("crc32c", 0, 0);
+	if (IS_ERR(tfm))
 		return I40IW_ERR_MPA_CRC;
+
+	tdesc = kzalloc(sizeof(*tdesc) + crypto_shash_descsize(tfm),
+			GFP_KERNEL);
+	if (!tdesc) {
+		crypto_free_shash(tfm);
+		return I40IW_ERR_MPA_CRC;
+	}
+	tdesc->tfm = tfm;
+	*desc = tdesc;
+
 	return 0;
 }
 
@@ -1036,9 +1049,12 @@ enum i40iw_status_code i40iw_init_hash_desc(struct hash_desc *desc)
  * i40iw_free_hash_desc - free hash desc
  * @desc: to be freed
  */
-void i40iw_free_hash_desc(struct hash_desc *desc)
+void i40iw_free_hash_desc(struct shash_desc *desc)
 {
-	crypto_free_hash(desc->tfm);
+	if (desc) {
+		crypto_free_shash(desc->tfm);
+		kfree(desc);
+	}
 }
 
 /**
@@ -1065,21 +1081,19 @@ enum i40iw_status_code i40iw_alloc_query_fpm_buf(struct i40iw_sc_dev *dev,
  * @length: length of buffer
  * @value: value to be compared
  */
-enum i40iw_status_code i40iw_ieq_check_mpacrc(struct hash_desc *desc,
+enum i40iw_status_code i40iw_ieq_check_mpacrc(struct shash_desc *desc,
 					      void *addr,
 					      u32 length,
 					      u32 value)
 {
-	struct scatterlist sg;
 	u32 crc = 0;
 	int ret;
 	enum i40iw_status_code ret_code = 0;
 
-	crypto_hash_init(desc);
-	sg_init_one(&sg, addr, length);
-	ret = crypto_hash_update(desc, &sg, length);
+	crypto_shash_init(desc);
+	ret = crypto_shash_update(desc, addr, length);
 	if (!ret)
-		crypto_hash_final(desc, (u8 *)&crc);
+		crypto_shash_final(desc, (u8 *)&crc);
 	if (crc != value) {
 		i40iw_pr_err("mpa crc check fail\n");
 		ret_code = I40IW_ERR_MPA_CRC;
