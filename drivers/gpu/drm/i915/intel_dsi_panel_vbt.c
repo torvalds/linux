@@ -198,7 +198,7 @@ static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	u8 gpio, action;
+	u8 gpio_index, action;
 	u16 function, pad;
 	u32 val;
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -207,13 +207,13 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data++;
 
-	gpio = *data++;
+	gpio_index = *data++;
 
 	/* pull up/down */
 	action = *data++ & 1;
 
-	if (gpio >= ARRAY_SIZE(gtable)) {
-		DRM_DEBUG_KMS("unknown gpio %u\n", gpio);
+	if (gpio_index >= ARRAY_SIZE(gtable)) {
+		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
 		goto out;
 	}
 
@@ -227,16 +227,16 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 		goto out;
 	}
 
-	function = gtable[gpio].function_reg;
-	pad = gtable[gpio].pad_reg;
+	function = gtable[gpio_index].function_reg;
+	pad = gtable[gpio_index].pad_reg;
 
 	mutex_lock(&dev_priv->sb_lock);
-	if (!gtable[gpio].init) {
+	if (!gtable[gpio_index].init) {
 		/* program the function */
 		/* FIXME: remove constant below */
 		vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, function,
 				  0x2000CC00);
-		gtable[gpio].init = 1;
+		gtable[gpio_index].init = 1;
 	}
 
 	val = 0x4 | action;
