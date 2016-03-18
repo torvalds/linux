@@ -105,18 +105,22 @@ nfsd4_block_decode_layoutupdate(__be32 *p, u32 len, struct iomap **iomapp,
 		u32 block_size)
 {
 	struct iomap *iomaps;
-	u32 nr_iomaps, expected, i;
+	u32 nr_iomaps, i;
 
 	if (len < sizeof(u32)) {
 		dprintk("%s: extent array too small: %u\n", __func__, len);
 		return -EINVAL;
 	}
+	len -= sizeof(u32);
+	if (len % PNFS_BLOCK_EXTENT_SIZE) {
+		dprintk("%s: extent array invalid: %u\n", __func__, len);
+		return -EINVAL;
+	}
 
 	nr_iomaps = be32_to_cpup(p++);
-	expected = sizeof(__be32) + nr_iomaps * PNFS_BLOCK_EXTENT_SIZE;
-	if (len != expected) {
+	if (nr_iomaps != len / PNFS_BLOCK_EXTENT_SIZE) {
 		dprintk("%s: extent array size mismatch: %u/%u\n",
-			__func__, len, expected);
+			__func__, len, nr_iomaps);
 		return -EINVAL;
 	}
 
