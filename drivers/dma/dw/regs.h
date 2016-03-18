@@ -114,10 +114,6 @@ struct dw_dma_regs {
 #define dma_writel_native writel
 #endif
 
-/* To access the registers in early stage of probe */
-#define dma_read_byaddr(addr, name) \
-	dma_readl_native((addr) + offsetof(struct dw_dma_regs, name))
-
 /* Bitfields in DW_PARAMS */
 #define DW_PARAMS_NR_CHAN	8		/* number of channels */
 #define DW_PARAMS_NR_MASTER	11		/* number of AHB masters */

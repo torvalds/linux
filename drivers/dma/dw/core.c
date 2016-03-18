@@ -1529,7 +1529,7 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	pm_runtime_get_sync(chip->dev);
 
 	if (!pdata) {
-		dw_params = dma_read_byaddr(chip->regs, DW_PARAMS);
+		dw_params = dma_readl(dw, DW_PARAMS);
 		dev_dbg(chip->dev, "DW_PARAMS: 0x%08x\n", dw_params);
 
 		autocfg = dw_params >> DW_PARAMS_EN & 1;
@@ -1629,11 +1629,9 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 
 		/* Hardware configuration */
 		if (autocfg) {
-			unsigned int dwc_params;
 			unsigned int r = DW_DMA_MAX_NR_CHANNELS - i - 1;
-			void __iomem *addr = chip->regs + r * sizeof(u32);
-
-			dwc_params = dma_read_byaddr(addr, DWC_PARAMS);
+			void __iomem *addr = &__dw_regs(dw)->DWC_PARAMS[r];
+			unsigned int dwc_params = dma_readl_native(addr);
 
 			dev_dbg(chip->dev, "DWC_PARAMS[%d]: 0x%08x\n", i,
 					   dwc_params);
