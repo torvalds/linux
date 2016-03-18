@@ -1198,6 +1198,11 @@
 				clock-names = "tdes_clk";
 				status = "okay";
 			};
+
+			chipid@fc069000 {
+				compatible = "atmel,sama5d2-chipid";
+				reg = <0xfc069000 0x8>;
+			};
 		};
 	};
 };
