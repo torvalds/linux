@@ -2653,14 +2653,14 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 /**
  * i915_handle_error - handle a gpu error
  * @dev: drm device
- *
+ * @engine_mask: mask representing engines that are hung
  * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
  * so userspace knows something bad happened (should trigger collection
  * of a ring dump etc.).
  */
-void i915_handle_error(struct drm_device *dev, bool wedged,
+void i915_handle_error(struct drm_device *dev, u32 engine_mask,
 		       const char *fmt, ...)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2671,10 +2671,10 @@ void i915_handle_error(struct drm_device *dev, bool wedged,
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
 
-	i915_capture_error_state(dev, wedged, error_msg);
+	i915_capture_error_state(dev, engine_mask, error_msg);
 	i915_report_and_clear_eir(dev);
 
-	if (wedged) {
+	if (engine_mask) {
 		atomic_or(I915_RESET_IN_PROGRESS_FLAG,
 				&dev_priv->gpu_error.reset_counter);
 
@@ -3033,7 +3033,7 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 	 */
 	tmp = I915_READ_CTL(engine);
 	if (tmp & RING_WAIT) {
-		i915_handle_error(dev, false,
+		i915_handle_error(dev, 0,
 				  "Kicking stuck wait on %s",
 				  engine->name);
 		I915_WRITE_CTL(engine, tmp);
@@ -3045,7 +3045,7 @@ ring_stuck(struct intel_engine_cs *engine, u64 acthd)
 		default:
 			return HANGCHECK_HUNG;
 		case 1:
-			i915_handle_error(dev, false,
+			i915_handle_error(dev, 0,
 					  "Kicking stuck semaphore on %s",
 					  engine->name);
 			I915_WRITE_CTL(engine, tmp);
@@ -3189,12 +3189,12 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 			DRM_INFO("%s on %s\n",
 				 stuck[i] ? "stuck" : "no progress",
 				 engine->name);
-			rings_hung++;
+			rings_hung |= intel_engine_flag(engine);
 		}
 	}
 
 	if (rings_hung) {
-		i915_handle_error(dev, true, "Ring hung");
+		i915_handle_error(dev, rings_hung, "Engine(s) hung");
 		goto out;
 	}
 

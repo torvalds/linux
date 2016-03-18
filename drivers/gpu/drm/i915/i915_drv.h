@@ -2757,7 +2757,7 @@ bool intel_hpd_pin_to_port(enum hpd_pin pin, enum port *port);
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);
 __printf(3, 4)
-void i915_handle_error(struct drm_device *dev, bool wedged,
+void i915_handle_error(struct drm_device *dev, u32 engine_mask,
 		       const char *fmt, ...);
 
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
@@ -3343,7 +3343,7 @@ static inline void i915_error_state_buf_release(
 {
 	kfree(eb->buf);
 }
-void i915_capture_error_state(struct drm_device *dev, bool wedge,
+void i915_capture_error_state(struct drm_device *dev, u32 engine_mask,
 			      const char *error_msg);
 void i915_error_state_get(struct drm_device *dev,
 			  struct i915_error_state_file_priv *error_priv);

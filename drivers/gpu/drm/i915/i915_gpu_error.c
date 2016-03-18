@@ -1301,7 +1301,7 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 
 static void i915_error_capture_msg(struct drm_device *dev,
 				   struct drm_i915_error_state *error,
-				   bool wedged,
+				   u32 engine_mask,
 				   const char *error_msg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1324,7 +1324,7 @@ static void i915_error_capture_msg(struct drm_device *dev,
 	scnprintf(error->error_msg + len, sizeof(error->error_msg) - len,
 		  ", reason: %s, action: %s",
 		  error_msg,
-		  wedged ? "reset" : "continue");
+		  engine_mask ? "reset" : "continue");
 }
 
 static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
@@ -1347,7 +1347,7 @@ static void i915_capture_gen_state(struct drm_i915_private *dev_priv,
  * out a structure which becomes available in debugfs for user level tools
  * to pick up.
  */
-void i915_capture_error_state(struct drm_device *dev, bool wedged,
+void i915_capture_error_state(struct drm_device *dev, u32 engine_mask,
 			      const char *error_msg)
 {
 	static bool warned;
@@ -1375,7 +1375,7 @@ void i915_capture_error_state(struct drm_device *dev, bool wedged,
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
 
-	i915_error_capture_msg(dev, error, wedged, error_msg);
+	i915_error_capture_msg(dev, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
 
 	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
