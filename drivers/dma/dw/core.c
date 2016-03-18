@@ -1522,6 +1522,8 @@ void dw_dma_cyclic_free(struct dma_chan *chan)
 	kfree(cdesc->desc);
 	kfree(cdesc);
 
+	dwc->cdesc = NULL;
+
 	clear_bit(DW_DMA_IS_CYCLIC, &dwc->flags);
 }
 EXPORT_SYMBOL(dw_dma_cyclic_free);
