@@ -3310,43 +3310,25 @@ wwn_prefix_err:
 /**
  *  ixgbe_set_mac_anti_spoofing - Enable/Disable MAC anti-spoofing
  *  @hw: pointer to hardware structure
- *  @enable: enable or disable switch for anti-spoofing
- *  @pf: Physical Function pool - do not enable anti-spoofing for the PF
+ *  @enable: enable or disable switch for MAC anti-spoofing
+ *  @vf: Virtual Function pool - VF Pool to set for MAC anti-spoofing
  *
  **/
-void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf)
+void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf)
 {
-	int j;
-	int pf_target_reg = pf >> 3;
-	int pf_target_shift = pf % 8;
-	u32 pfvfspoof = 0;
+	int vf_target_reg = vf >> 3;
+	int vf_target_shift = vf % 8;
+	u32 pfvfspoof;
 
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
+	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
 	if (enable)
-		pfvfspoof = IXGBE_SPOOF_MACAS_MASK;
-
-	/*
-	 * PFVFSPOOF register array is size 8 with 8 bits assigned to
-	 * MAC anti-spoof enables in each register array element.
-	 */
-	for (j = 0; j < pf_target_reg; j++)
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
-
-	/*
-	 * The PF should be allowed to spoof so that it can support
-	 * emulation mode NICs.  Do not set the bits assigned to the PF
-	 */
-	pfvfspoof &= (1 << pf_target_shift) - 1;
-	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
-
-	/*
-	 * Remaining pools belong to the PF so they do not need to have
-	 * anti-spoofing enabled.
-	 */
-	for (j++; j < IXGBE_PFVFSPOOF_REG_COUNT; j++)
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), 0);
+		pfvfspoof |= BIT(vf_target_shift);
+	else
+		pfvfspoof &= ~BIT(vf_target_shift);
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), pfvfspoof);
 }
 
 /**

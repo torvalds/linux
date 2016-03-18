@@ -964,8 +964,11 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		 * If the VF is allowed to set MAC filters then turn off
 		 * anti-spoofing to avoid false positives.
 		 */
-		if (adapter->vfinfo[vf].spoofchk_enabled)
-			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
+		if (adapter->vfinfo[vf].spoofchk_enabled) {
+			struct ixgbe_hw *hw = &adapter->hw;
+
+			hw->mac.ops.set_mac_anti_spoofing(hw, false, vf);
+		}
 	}
 
 	err = ixgbe_set_vf_macvlan(adapter, vf, index, new_mac);
@@ -1525,27 +1528,35 @@ int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int min_tx_rate,
 int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int vf_target_reg = vf >> 3;
-	int vf_target_shift = vf % 8;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 regval;
 
 	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
 	adapter->vfinfo[vf].spoofchk_enabled = setting;
 
-	regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
-	regval &= ~(1 << vf_target_shift);
-	regval |= (setting << vf_target_shift);
-	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+	/* configure MAC spoofing */
+	hw->mac.ops.set_mac_anti_spoofing(hw, setting, vf);
 
-	if (adapter->vfinfo[vf].vlan_count) {
-		vf_target_shift += IXGBE_SPOOF_VLANAS_SHIFT;
-		regval = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg));
-		regval &= ~(1 << vf_target_shift);
-		regval |= (setting << vf_target_shift);
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(vf_target_reg), regval);
+	/* configure VLAN spoofing */
+	if (adapter->vfinfo[vf].vlan_count)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, setting, vf);
+
+	/* Ensure LLDP and FC is set for Ethertype Antispoofing if we will be
+	 * calling set_ethertype_anti_spoofing for each VF in loop below
+	 */
+	if (hw->mac.ops.set_ethertype_anti_spoofing) {
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP),
+				(IXGBE_ETQF_FILTER_EN    |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 IXGBE_ETH_P_LLDP));
+
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC),
+				(IXGBE_ETQF_FILTER_EN |
+				 IXGBE_ETQF_TX_ANTISPOOF |
+				 ETH_P_PAUSE));
+
+		hw->mac.ops.set_ethertype_anti_spoofing(hw, setting, vf);
 	}
 
 	return 0;
