@@ -1341,7 +1341,7 @@ static int i40evf_get_rss_aq(struct i40e_vsi *vsi, const u8 *seed,
 	}
 
 	if (lut) {
-		ret = i40evf_aq_get_rss_lut(hw, vsi->id, seed, lut, lut_size);
+		ret = i40evf_aq_get_rss_lut(hw, vsi->id, false, lut, lut_size);
 		if (ret) {
 			dev_err(&adapter->pdev->dev,
 				"Cannot get RSS lut, err %s aq_err %s\n",
