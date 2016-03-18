@@ -1605,6 +1605,7 @@ config SERIAL_STM32_CONSOLE
 
 config SERIAL_MVEBU_UART
 	bool "Marvell EBU serial port support"
+	depends on ARCH_MVEBU || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  This driver is for Marvell EBU SoC's UART. If you have a machine
