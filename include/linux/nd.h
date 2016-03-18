@@ -82,6 +82,7 @@ struct nd_namespace_pmem {
  * @uuid: namespace name supplied in the dimm label
  * @id: ida allocated id
  * @lbasize: blk namespaces have a native sector size when btt not present
+ * @size: sum of all the resource ranges allocated to this namespace
  * @num_resources: number of dpa extents to claim
  * @res: discontiguous dpa extents for given dimm
  */
@@ -91,6 +92,7 @@ struct nd_namespace_blk {
 	u8 *uuid;
 	int id;
 	unsigned long lbasize;
+	resource_size_t size;
 	int num_resources;
 	struct resource **res;
 };
