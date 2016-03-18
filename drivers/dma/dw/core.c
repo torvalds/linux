@@ -45,13 +45,17 @@
 			DW_DMA_MSIZE_16;			\
 		u8 _dmsize = _is_slave ? _sconfig->dst_maxburst :	\
 			DW_DMA_MSIZE_16;			\
+		u8 _dms = (_dwc->direction == DMA_MEM_TO_DEV) ?		\
+			_dwc->p_master : _dwc->m_master;		\
+		u8 _sms = (_dwc->direction == DMA_DEV_TO_MEM) ?		\
+			_dwc->p_master : _dwc->m_master;		\
 								\
 		(DWC_CTLL_DST_MSIZE(_dmsize)			\
 		 | DWC_CTLL_SRC_MSIZE(_smsize)			\
 		 | DWC_CTLL_LLP_D_EN				\
 		 | DWC_CTLL_LLP_S_EN				\
-		 | DWC_CTLL_DMS(_dwc->p_master)			\
-		 | DWC_CTLL_SMS(_dwc->m_master));		\
+		 | DWC_CTLL_DMS(_dms)				\
+		 | DWC_CTLL_SMS(_sms));				\
 	})
 
 /*
