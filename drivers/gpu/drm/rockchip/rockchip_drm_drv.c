@@ -40,6 +40,9 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
+static LIST_HEAD(rockchip_drm_subdrv_list);
+static DEFINE_MUTEX(subdrv_list_mutex);
+
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
  * device.  This is used by the VOPs to map GEM buffers to a common DMA
@@ -307,9 +310,37 @@ static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
 }
 
+int rockchip_drm_register_subdrv(struct drm_rockchip_subdrv *subdrv)
+{
+	if (!subdrv)
+		return -EINVAL;
+
+	mutex_lock(&subdrv_list_mutex);
+	list_add_tail(&subdrv->list, &rockchip_drm_subdrv_list);
+	mutex_unlock(&subdrv_list_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_drm_register_subdrv);
+
+int rockchip_drm_unregister_subdrv(struct drm_rockchip_subdrv *subdrv)
+{
+	if (!subdrv)
+		return -EINVAL;
+
+	mutex_lock(&subdrv_list_mutex);
+	list_del(&subdrv->list);
+	mutex_unlock(&subdrv_list_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_drm_unregister_subdrv);
+
 static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct rockchip_drm_file_private *file_priv;
+	struct drm_rockchip_subdrv *subdrv;
+	int ret = 0;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
@@ -318,7 +349,23 @@ static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 
+	mutex_lock(&subdrv_list_mutex);
+	list_for_each_entry(subdrv, &rockchip_drm_subdrv_list, list) {
+		ret = subdrv->open(dev, subdrv->dev, file);
+		if (ret) {
+			mutex_unlock(&subdrv_list_mutex);
+			goto err_free_file_priv;
+		}
+	}
+	mutex_unlock(&subdrv_list_mutex);
+
 	return 0;
+
+err_free_file_priv:
+	kfree(file_priv);
+	file_priv = NULL;
+
+	return ret;
 }
 
 static void rockchip_drm_preclose(struct drm_device *dev,
@@ -326,6 +373,7 @@ static void rockchip_drm_preclose(struct drm_device *dev,
 {
 	struct rockchip_drm_file_private *file_private = file_priv->driver_priv;
 	struct rockchip_gem_object_node *cur, *d;
+	struct drm_rockchip_subdrv *subdrv;
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
@@ -346,6 +394,11 @@ static void rockchip_drm_preclose(struct drm_device *dev,
 	 */
 	INIT_LIST_HEAD(&file_private->gem_cpu_acquire_list);
 	mutex_unlock(&dev->struct_mutex);
+
+	mutex_lock(&subdrv_list_mutex);
+	list_for_each_entry(subdrv, &rockchip_drm_subdrv_list, list)
+		subdrv->close(dev, subdrv->dev, file_priv);
+	mutex_unlock(&subdrv_list_mutex);
 }
 
 static void rockchip_drm_postclose(struct drm_device *dev, struct drm_file *file)

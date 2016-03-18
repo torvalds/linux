@@ -43,6 +43,17 @@ struct rockchip_crtc_funcs {
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
 };
 
+struct drm_rockchip_subdrv {
+	struct list_head list;
+	struct device *dev;
+	struct drm_device *drm_dev;
+
+	int (*open)(struct drm_device *drm_dev, struct device *dev,
+		    struct drm_file *file);
+	void (*close)(struct drm_device *drm_dev, struct device *dev,
+		      struct drm_file *file);
+};
+
 struct rockchip_atomic_commit {
 	struct work_struct	work;
 	struct drm_atomic_state *state;
@@ -90,4 +101,8 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+
+int rockchip_drm_register_subdrv(struct drm_rockchip_subdrv *subdrv);
+int rockchip_drm_unregister_subdrv(struct drm_rockchip_subdrv *subdrv);
+
 #endif /* _ROCKCHIP_DRM_DRV_H_ */
