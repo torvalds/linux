@@ -284,7 +284,7 @@ static int pcbit_command(isdn_ctrl *ctl)
 	default:
 		printk(KERN_DEBUG "pcbit_command: unknown command\n");
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -968,7 +968,7 @@ static int pcbit_ioctl(isdn_ctrl *ctl)
 	default:
 		printk("error: unknown ioctl\n");
 		break;
-	};
+	}
 	return 0;
 }
 
