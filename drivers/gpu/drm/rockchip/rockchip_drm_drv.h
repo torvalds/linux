@@ -62,6 +62,7 @@ struct rockchip_drm_private {
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 
 	struct rockchip_atomic_commit commit;
+	struct iommu_domain *domain;
 };
 
 void rockchip_drm_atomic_work(struct work_struct *work);
