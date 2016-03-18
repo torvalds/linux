@@ -729,6 +729,14 @@ static int ath10k_fetch_cal_file(struct ath10k *ar)
 {
 	char filename[100];
 
+	/* pre-cal-<bus>-<id>.bin */
+	scnprintf(filename, sizeof(filename), "pre-cal-%s-%s.bin",
+		  ath10k_bus_str(ar->hif.bus), dev_name(ar->dev));
+
+	ar->pre_cal_file = ath10k_fetch_fw_file(ar, ATH10K_FW_DIR, filename);
+	if (!IS_ERR(ar->pre_cal_file))
+		goto success;
+
 	/* cal-<bus>-<id>.bin */
 	scnprintf(filename, sizeof(filename), "cal-%s-%s.bin",
 		  ath10k_bus_str(ar->hif.bus), dev_name(ar->dev));
@@ -737,7 +745,7 @@ static int ath10k_fetch_cal_file(struct ath10k *ar)
 	if (IS_ERR(ar->cal_file))
 		/* calibration file is optional, don't print any warnings */
 		return PTR_ERR(ar->cal_file);
-
+success:
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "found calibration file %s/%s\n",
 		   ATH10K_FW_DIR, filename);
 
@@ -1261,9 +1269,75 @@ success:
 	return 0;
 }
 
+static int ath10k_core_pre_cal_download(struct ath10k *ar)
+{
+	int ret;
+
+	ret = ath10k_download_cal_file(ar, ar->pre_cal_file);
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_PRE_CAL_MODE_FILE;
+		goto success;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find a pre calibration file, try DT next: %d\n",
+		   ret);
+
+	ret = ath10k_download_cal_dt(ar, "qcom,ath10k-pre-calibration-data");
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "unable to load pre cal data from DT: %d\n", ret);
+		return ret;
+	}
+	ar->cal_mode = ATH10K_PRE_CAL_MODE_DT;
+
+success:
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using calibration mode %s\n",
+		   ath10k_cal_mode_str(ar->cal_mode));
+
+	return 0;
+}
+
+static int ath10k_core_pre_cal_config(struct ath10k *ar)
+{
+	int ret;
+
+	ret = ath10k_core_pre_cal_download(ar);
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "failed to load pre cal data: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_core_get_board_id_from_otp(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to get board id: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath10k_download_and_run_otp(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to run otp: %d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "pre cal configuration done successfully\n");
+
+	return 0;
+}
+
 static int ath10k_download_cal_data(struct ath10k *ar)
 {
 	int ret;
+
+	ret = ath10k_core_pre_cal_config(ar);
+	if (ret == 0)
+		return 0;
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "pre cal download procedure failed, try cal file: %d\n",
+		   ret);
 
 	ret = ath10k_download_cal_file(ar, ar->cal_file);
 	if (ret == 0) {
@@ -1841,6 +1915,15 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 	}
 
 	ath10k_debug_print_hwfw_info(ar);
+
+	ret = ath10k_core_pre_cal_download(ar);
+	if (ret) {
+		/* pre calibration data download is not necessary
+		 * for all the chipsets. Ignore failures and continue.
+		 */
+		ath10k_dbg(ar, ATH10K_DBG_BOOT,
+			   "could not load pre cal data: %d\n", ret);
+	}
 
 	ret = ath10k_core_get_board_id_from_otp(ar);
 	if (ret && ret != -EOPNOTSUPP) {

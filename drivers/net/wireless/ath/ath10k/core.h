@@ -567,6 +567,8 @@ enum ath10k_cal_mode {
 	ATH10K_CAL_MODE_FILE,
 	ATH10K_CAL_MODE_OTP,
 	ATH10K_CAL_MODE_DT,
+	ATH10K_PRE_CAL_MODE_FILE,
+	ATH10K_PRE_CAL_MODE_DT,
 };
 
 enum ath10k_crypt_mode {
@@ -585,6 +587,10 @@ static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
 		return "otp";
 	case ATH10K_CAL_MODE_DT:
 		return "dt";
+	case ATH10K_PRE_CAL_MODE_FILE:
+		return "pre-cal-file";
+	case ATH10K_PRE_CAL_MODE_DT:
+		return "pre-cal-dt";
 	}
 
 	return "unknown";
@@ -719,7 +725,10 @@ struct ath10k {
 	const void *firmware_data;
 	size_t firmware_len;
 
-	const struct firmware *cal_file;
+	union {
+		const struct firmware *pre_cal_file;
+		const struct firmware *cal_file;
+	};
 
 	struct {
 		const void *firmware_codeswap_data;
