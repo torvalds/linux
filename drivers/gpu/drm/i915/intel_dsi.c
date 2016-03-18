@@ -1198,8 +1198,13 @@ void intel_dsi_init(struct drm_device *dev)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 	intel_connector->unregister = intel_connector_unregister;
 
-	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
-	if (port == PORT_A)
+	/*
+	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
+	 * port C. BXT isn't limited like this.
+	 */
+	if (IS_BROXTON(dev_priv))
+		intel_encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
+	else if (port == PORT_A)
 		intel_encoder->crtc_mask = BIT(PIPE_A);
 	else
 		intel_encoder->crtc_mask = BIT(PIPE_B);
