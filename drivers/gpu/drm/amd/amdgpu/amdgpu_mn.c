@@ -48,7 +48,8 @@ struct amdgpu_mn {
 	/* protected by adev->mn_lock */
 	struct hlist_node	node;
 
-	/* objects protected by mm->mmap_sem */
+	/* objects protected by lock */
+	struct mutex		lock;
 	struct rb_root		objects;
 };
 
@@ -72,7 +73,7 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 	struct amdgpu_bo *bo, *next_bo;
 
 	mutex_lock(&adev->mn_lock);
-	down_write(&rmn->mm->mmap_sem);
+	mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
 	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
 					     it.rb) {
@@ -82,7 +83,7 @@ static void amdgpu_mn_destroy(struct work_struct *work)
 		}
 		kfree(node);
 	}
-	up_write(&rmn->mm->mmap_sem);
+	mutex_unlock(&rmn->lock);
 	mutex_unlock(&adev->mn_lock);
 	mmu_notifier_unregister_no_release(&rmn->mn, rmn->mm);
 	kfree(rmn);
@@ -126,6 +127,8 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 	/* notification is exclusive, but interval is inclusive */
 	end -= 1;
 
+	mutex_lock(&rmn->lock);
+
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
 		struct amdgpu_mn_node *node;
@@ -160,6 +163,8 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 			amdgpu_bo_unreserve(bo);
 		}
 	}
+
+	mutex_unlock(&rmn->lock);
 }
 
 static const struct mmu_notifier_ops amdgpu_mn_ops = {
@@ -196,6 +201,7 @@ static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)
 	rmn->adev = adev;
 	rmn->mm = mm;
 	rmn->mn.ops = &amdgpu_mn_ops;
+	mutex_init(&rmn->lock);
 	rmn->objects = RB_ROOT;
 
 	r = __mmu_notifier_register(&rmn->mn, mm);
@@ -242,7 +248,7 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 
 	INIT_LIST_HEAD(&bos);
 
-	down_write(&rmn->mm->mmap_sem);
+	mutex_lock(&rmn->lock);
 
 	while ((it = interval_tree_iter_first(&rmn->objects, addr, end))) {
 		kfree(node);
@@ -256,7 +262,7 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 	if (!node) {
 		node = kmalloc(sizeof(struct amdgpu_mn_node), GFP_KERNEL);
 		if (!node) {
-			up_write(&rmn->mm->mmap_sem);
+			mutex_unlock(&rmn->lock);
 			return -ENOMEM;
 		}
 	}
@@ -271,7 +277,7 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 
 	interval_tree_insert(&node->it, &rmn->objects);
 
-	up_write(&rmn->mm->mmap_sem);
+	mutex_unlock(&rmn->lock);
 
 	return 0;
 }
@@ -297,7 +303,7 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 		return;
 	}
 
-	down_write(&rmn->mm->mmap_sem);
+	mutex_lock(&rmn->lock);
 
 	/* save the next list entry for later */
 	head = bo->mn_list.next;
@@ -312,6 +318,6 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 		kfree(node);
 	}
 
-	up_write(&rmn->mm->mmap_sem);
+	mutex_unlock(&rmn->lock);
 	mutex_unlock(&adev->mn_lock);
 }
