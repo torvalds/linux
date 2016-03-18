@@ -274,11 +274,6 @@ int topology_update_package_map(unsigned int apicid, unsigned int cpu)
 	if (test_and_set_bit(pkg, physical_package_map))
 		goto found;
 
-	if (pkg < __max_logical_packages) {
-		set_bit(pkg, logical_package_map);
-		physical_to_logical_pkg[pkg] = pkg;
-		goto found;
-	}
 	new = find_first_zero_bit(logical_package_map, __max_logical_packages);
 	if (new >= __max_logical_packages) {
 		physical_to_logical_pkg[pkg] = -1;
