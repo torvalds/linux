@@ -127,6 +127,8 @@ enum transcoder {
 	TRANSCODER_B,
 	TRANSCODER_C,
 	TRANSCODER_EDP,
+	TRANSCODER_DSI_A,
+	TRANSCODER_DSI_C,
 	I915_MAX_TRANSCODERS
 };
 
@@ -141,9 +143,18 @@ static inline const char *transcoder_name(enum transcoder transcoder)
 		return "C";
 	case TRANSCODER_EDP:
 		return "EDP";
+	case TRANSCODER_DSI_A:
+		return "DSI A";
+	case TRANSCODER_DSI_C:
+		return "DSI C";
 	default:
 		return "<invalid>";
 	}
+}
+
+static inline bool transcoder_is_dsi(enum transcoder transcoder)
+{
+	return transcoder == TRANSCODER_DSI_A || transcoder == TRANSCODER_DSI_C;
 }
 
 /*
@@ -196,6 +207,8 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_TRANSCODER_B,
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_EDP,
+	POWER_DOMAIN_TRANSCODER_DSI_A,
+	POWER_DOMAIN_TRANSCODER_DSI_C,
 	POWER_DOMAIN_PORT_DDI_A_LANES,
 	POWER_DOMAIN_PORT_DDI_B_LANES,
 	POWER_DOMAIN_PORT_DDI_C_LANES,

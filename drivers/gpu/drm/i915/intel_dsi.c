@@ -268,6 +268,7 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config)
 {
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
@@ -283,6 +284,14 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
+
+	if (IS_BROXTON(dev_priv)) {
+		/* Dual link goes to DSI transcoder A. */
+		if (intel_dsi->ports == BIT(PORT_C))
+			pipe_config->cpu_transcoder = TRANSCODER_DSI_C;
+		else
+			pipe_config->cpu_transcoder = TRANSCODER_DSI_A;
+	}
 
 	return true;
 }

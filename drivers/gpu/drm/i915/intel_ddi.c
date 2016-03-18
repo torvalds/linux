@@ -1061,6 +1061,8 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 	uint32_t temp;
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP_MST) {
+		WARN_ON(transcoder_is_dsi(cpu_transcoder));
+
 		temp = TRANS_MSA_SYNC_CLK;
 		switch (intel_crtc->config->pipe_bpp) {
 		case 18:
@@ -1941,6 +1943,10 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	struct intel_hdmi *intel_hdmi;
 	u32 temp, flags = 0;
+
+	/* XXX: DSI transcoder paranoia */
+	if (WARN_ON(transcoder_is_dsi(cpu_transcoder)))
+		return;
 
 	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)

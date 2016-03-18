@@ -437,7 +437,8 @@ struct intel_crtc_state {
 	bool has_infoframe;
 
 	/* CPU Transcoder for the pipe. Currently this can only differ from the
-	 * pipe on Haswell (where we have a special eDP transcoder). */
+	 * pipe on Haswell and later (where we have a special eDP transcoder)
+	 * and Broxton (where we have special DSI transcoders). */
 	enum transcoder cpu_transcoder;
 
 	/*

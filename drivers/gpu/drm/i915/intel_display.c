@@ -4900,6 +4900,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
+	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc->state);
 
@@ -4916,11 +4917,14 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->config->has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc, M1_N1);
 
-	intel_set_pipe_timings(intel_crtc);
+	if (!intel_crtc->config->has_dsi_encoder)
+		intel_set_pipe_timings(intel_crtc);
+
 	intel_set_pipe_src_size(intel_crtc);
 
-	if (intel_crtc->config->cpu_transcoder != TRANSCODER_EDP) {
-		I915_WRITE(PIPE_MULT(intel_crtc->config->cpu_transcoder),
+	if (cpu_transcoder != TRANSCODER_EDP &&
+	    !transcoder_is_dsi(cpu_transcoder)) {
+		I915_WRITE(PIPE_MULT(cpu_transcoder),
 			   intel_crtc->config->pixel_multiplier - 1);
 	}
 
@@ -4929,7 +4933,9 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 				     &intel_crtc->config->fdi_m_n, NULL);
 	}
 
-	haswell_set_pipeconf(crtc);
+	if (!intel_crtc->config->has_dsi_encoder)
+		haswell_set_pipeconf(crtc);
+
 	haswell_set_pipe_gamma(crtc);
 	haswell_set_pipemisc(crtc);
 
@@ -4972,7 +4978,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		dev_priv->display.initial_watermarks(pipe_config);
 	else
 		intel_update_watermarks(crtc);
-	intel_enable_pipe(intel_crtc);
+
+	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
+	if (!intel_crtc->config->has_dsi_encoder)
+		intel_enable_pipe(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder)
 		lpt_pch_enable(crtc);
@@ -5105,7 +5114,9 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	drm_crtc_vblank_off(crtc);
 	assert_vblank_disabled(crtc);
 
-	intel_disable_pipe(intel_crtc);
+	/* XXX: Do the pipe assertions at the right place for BXT DSI. */
+	if (!intel_crtc->config->has_dsi_encoder)
+		intel_disable_pipe(intel_crtc);
 
 	if (intel_crtc->config->dp_encoder_is_mst)
 		intel_ddi_set_vc_payload_alloc(crtc, false);
@@ -9957,6 +9968,47 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	return tmp & PIPECONF_ENABLE;
 }
 
+static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
+					 struct intel_crtc_state *pipe_config,
+					 unsigned long *power_domain_mask)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
+	enum port port;
+	enum transcoder cpu_transcoder;
+	u32 tmp;
+
+	pipe_config->has_dsi_encoder = false;
+
+	for_each_port_masked(port, BIT(PORT_A) | BIT(PORT_C)) {
+		if (port == PORT_A)
+			cpu_transcoder = TRANSCODER_DSI_A;
+		else
+			cpu_transcoder = TRANSCODER_DSI_C;
+
+		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+		if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+			continue;
+		*power_domain_mask |= BIT(power_domain);
+
+		/* XXX: this works for video mode only */
+		tmp = I915_READ(BXT_MIPI_PORT_CTRL(port));
+		if (!(tmp & DPI_ENABLE))
+			continue;
+
+		tmp = I915_READ(MIPI_CTRL(port));
+		if ((tmp & BXT_PIPE_SELECT_MASK) != BXT_PIPE_SELECT(crtc->pipe))
+			continue;
+
+		pipe_config->cpu_transcoder = cpu_transcoder;
+		pipe_config->has_dsi_encoder = true;
+		break;
+	}
+
+	return pipe_config->has_dsi_encoder;
+}
+
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 				       struct intel_crtc_state *pipe_config)
 {
@@ -10018,12 +10070,22 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_mask);
 
+	if (IS_BROXTON(dev_priv)) {
+		bxt_get_dsi_transcoder_state(crtc, pipe_config,
+					     &power_domain_mask);
+		WARN_ON(active && pipe_config->has_dsi_encoder);
+		if (pipe_config->has_dsi_encoder)
+			active = true;
+	}
+
 	if (!active)
 		goto out;
 
-	haswell_get_ddi_port_state(crtc, pipe_config);
+	if (!pipe_config->has_dsi_encoder) {
+		haswell_get_ddi_port_state(crtc, pipe_config);
+		intel_get_pipe_timings(crtc, pipe_config);
+	}
 
-	intel_get_pipe_timings(crtc, pipe_config);
 	intel_get_pipe_src_size(crtc, pipe_config);
 
 	if (INTEL_INFO(dev)->gen >= 9) {
@@ -10048,7 +10110,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
-	if (pipe_config->cpu_transcoder != TRANSCODER_EDP) {
+	if (pipe_config->cpu_transcoder != TRANSCODER_EDP &&
+	    !transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		pipe_config->pixel_multiplier =
 			I915_READ(PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
 	} else {
@@ -15520,10 +15583,15 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	i915_reg_t reg = PIPECONF(crtc->config->cpu_transcoder);
+	enum transcoder cpu_transcoder = crtc->config->cpu_transcoder;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
+	if (!transcoder_is_dsi(cpu_transcoder)) {
+		i915_reg_t reg = PIPECONF(cpu_transcoder);
+
+		I915_WRITE(reg,
+			   I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
+	}
 
 	/* restore vblank interrupts to correct state */
 	drm_crtc_vblank_reset(&crtc->base);
@@ -16194,6 +16262,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 			error->pipe[i].stat = I915_READ(PIPESTAT(i));
 	}
 
+	/* Note: this does not include DSI transcoders. */
 	error->num_transcoders = INTEL_INFO(dev)->num_pipes;
 	if (HAS_DDI(dev_priv->dev))
 		error->num_transcoders++; /* Account for eDP. */
