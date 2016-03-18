@@ -496,8 +496,11 @@ Description:
 		1kohm_to_gnd: connected to ground via an 1kOhm resistor,
 		6kohm_to_gnd: connected to ground via a 6kOhm resistor,
 		20kohm_to_gnd: connected to ground via a 20kOhm resistor,
+		90kohm_to_gnd: connected to ground via a 90kOhm resistor,
 		100kohm_to_gnd: connected to ground via an 100kOhm resistor,
+		125kohm_to_gnd: connected to ground via an 125kOhm resistor,
 		500kohm_to_gnd: connected to ground via a 500kOhm resistor,
+		640kohm_to_gnd: connected to ground via a 640kOhm resistor,
 		three_state: left floating.
 		For a list of available output power down options read
 		outX_powerdown_mode_available. If Y is not present the
@@ -1491,3 +1494,10 @@ Description:
 		This ABI is especially applicable for humidity sensors
 		to heatup the device and get rid of any condensation
 		in some humidity environment
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_ph_raw
+KernelVersion:	4.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Raw (unscaled no offset etc.) pH reading of a substance as a negative
+		base-10 logarithm of hydrodium ions in a litre of water.

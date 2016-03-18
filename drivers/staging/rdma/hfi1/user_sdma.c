@@ -67,7 +67,6 @@
 #include "hfi.h"
 #include "sdma.h"
 #include "user_sdma.h"
-#include "sdma.h"
 #include "verbs.h"  /* for the headers */
 #include "common.h" /* for struct hfi1_tid_info */
 #include "trace.h"
@@ -346,7 +345,7 @@ static void activate_packet_queue(struct iowait *wait, int reason)
 
 static void sdma_kmem_cache_ctor(void *obj)
 {
-	struct user_sdma_txreq *tx = (struct user_sdma_txreq *)obj;
+	struct user_sdma_txreq *tx = obj;
 
 	memset(tx, 0, sizeof(*tx));
 }
@@ -414,8 +413,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt, struct file *fp)
 	if (!cq)
 		goto cq_nomem;
 
-	memsize = ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size,
-			PAGE_SIZE);
+	memsize = PAGE_ALIGN(sizeof(*cq->comps) * hfi1_sdma_comp_ring_size);
 	cq->comps = vmalloc_user(memsize);
 	if (!cq->comps)
 		goto cq_comps_nomem;
@@ -468,8 +466,7 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 		fd->pq = NULL;
 	}
 	if (fd->cq) {
-		if (fd->cq->comps)
-			vfree(fd->cq->comps);
+		vfree(fd->cq->comps);
 		kfree(fd->cq);
 		fd->cq = NULL;
 	}
@@ -926,8 +923,8 @@ static int user_sdma_send_pkts(struct user_sdma_request *req, unsigned maxpkts)
 			unsigned pageidx, len;
 
 			base = (unsigned long)iovec->iov.iov_base;
-			offset = ((base + iovec->offset + iov_offset) &
-				  ~PAGE_MASK);
+			offset = offset_in_page(base + iovec->offset +
+						iov_offset);
 			pageidx = (((iovec->offset + iov_offset +
 				     base) - (base & PAGE_MASK)) >> PAGE_SHIFT);
 			len = offset + req->info.fragsize > PAGE_SIZE ?

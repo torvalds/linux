@@ -393,10 +393,7 @@ static const  int num_groups = ARRAY_SIZE(all_groups);
 
 char *spk_msg_get(enum msg_index_t index)
 {
-	char *ch;
-
-	ch = speakup_msgs[index];
-	return ch;
+	return speakup_msgs[index];
 }
 
 /*

@@ -775,6 +775,12 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/aoa/
 
+APEX EMBEDDED SYSTEMS STX104 DAC DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/dac/stx104.c
+
 APM DRIVER
 M:	Jiri Kosina <jikos@kernel.org>
 S:	Odd fixes
@@ -1961,6 +1967,12 @@ ATMEL AT91 / AT32 SERIAL DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/tty/serial/atmel_serial.c
+
+ATMEL SAMA5D2 ADC DRIVER
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	drivers/iio/adc/at91-sama5d2_adc.c
 
 ATMEL Audio ALSA driver
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
@@ -3547,13 +3559,6 @@ M:	Mark Hounschell <markh@compro.net>
 L:	driverdev-devel@linuxdriverproject.org
 S:	Maintained
 F:	drivers/staging/dgnc/
-
-DIGI EPCA PCI PRODUCTS
-M:	Lidza Louina <lidza.louina@gmail.com>
-M:	Daeseok Youn <daeseok.youn@gmail.com>
-L:	driverdev-devel@linuxdriverproject.org
-S:	Maintained
-F:	drivers/staging/dgap/
 
 DIOLAN U2C-12 I2C DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
@@ -8202,6 +8207,13 @@ S:	Maintained
 F:	Documentation/mn10300/
 F:	arch/mn10300/
 
+PARALLEL LCD/KEYPAD PANEL DRIVER
+M:      Willy Tarreau <willy@haproxy.com>
+M:      Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+S:      Odd Fixes
+F:      Documentation/misc-devices/lcd-panel-cgram.txt
+F:      drivers/misc/panel.c
+
 PARALLEL PORT SUBSYSTEM
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Sudip Mukherjee <sudip@vectorindia.org>
@@ -10454,19 +10466,6 @@ L:	ac100@lists.launchpad.net (moderated for non-subscribers)
 L:	linux-tegra@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/nvec/
-
-STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
-M:	Jens Frederich <jfrederich@gmail.com>
-M:	Daniel Drake <dsd@laptop.org>
-M:	Jon Nettleton <jon.nettleton@gmail.com>
-W:	http://wiki.laptop.org/go/DCON
-S:	Maintained
-F:	drivers/staging/olpc_dcon/
-
-STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
-M:	Willy Tarreau <willy@meta-x.org>
-S:	Odd Fixes
-F:	drivers/staging/panel/
 
 STAGING - REALTEK RTL8712U DRIVERS
 M:	Larry Finger <Larry.Finger@lwfinger.net>
