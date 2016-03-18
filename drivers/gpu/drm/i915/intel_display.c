@@ -9910,6 +9910,53 @@ static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
+static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
+				     struct intel_crtc_state *pipe_config,
+				     unsigned long *power_domain_mask)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_display_power_domain power_domain;
+	u32 tmp;
+
+	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
+
+	/*
+	 * XXX: Do intel_display_power_get_if_enabled before reading this (for
+	 * consistency and less surprising code; it's in always on power).
+	 */
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
+	if (tmp & TRANS_DDI_FUNC_ENABLE) {
+		enum pipe trans_edp_pipe;
+		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+		default:
+			WARN(1, "unknown pipe linked to edp transcoder\n");
+		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+		case TRANS_DDI_EDP_INPUT_A_ON:
+			trans_edp_pipe = PIPE_A;
+			break;
+		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+			trans_edp_pipe = PIPE_B;
+			break;
+		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+			trans_edp_pipe = PIPE_C;
+			break;
+		}
+
+		if (trans_edp_pipe == crtc->pipe)
+			pipe_config->cpu_transcoder = TRANSCODER_EDP;
+	}
+
+	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
+		return false;
+	*power_domain_mask |= BIT(power_domain);
+
+	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
+
+	return tmp & PIPECONF_ENABLE;
+}
+
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 				       struct intel_crtc_state *pipe_config)
 {
@@ -9960,48 +10007,18 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum intel_display_power_domain power_domain;
 	unsigned long power_domain_mask;
-	uint32_t tmp;
-	bool ret;
+	bool active;
 
 	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 	power_domain_mask = BIT(power_domain);
 
-	ret = false;
-
-	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 	pipe_config->shared_dpll = NULL;
 
-	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
-	if (tmp & TRANS_DDI_FUNC_ENABLE) {
-		enum pipe trans_edp_pipe;
-		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
-		default:
-			WARN(1, "unknown pipe linked to edp transcoder\n");
-		case TRANS_DDI_EDP_INPUT_A_ONOFF:
-		case TRANS_DDI_EDP_INPUT_A_ON:
-			trans_edp_pipe = PIPE_A;
-			break;
-		case TRANS_DDI_EDP_INPUT_B_ONOFF:
-			trans_edp_pipe = PIPE_B;
-			break;
-		case TRANS_DDI_EDP_INPUT_C_ONOFF:
-			trans_edp_pipe = PIPE_C;
-			break;
-		}
+	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_mask);
 
-		if (trans_edp_pipe == crtc->pipe)
-			pipe_config->cpu_transcoder = TRANSCODER_EDP;
-	}
-
-	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
-	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
-		goto out;
-	power_domain_mask |= BIT(power_domain);
-
-	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
-	if (!(tmp & PIPECONF_ENABLE))
+	if (!active)
 		goto out;
 
 	haswell_get_ddi_port_state(crtc, pipe_config);
@@ -10038,13 +10055,11 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->pixel_multiplier = 1;
 	}
 
-	ret = true;
-
 out:
 	for_each_power_domain(power_domain, power_domain_mask)
 		intel_display_power_put(dev_priv, power_domain);
 
-	return ret;
+	return active;
 }
 
 static void i845_update_cursor(struct drm_crtc *crtc, u32 base,
