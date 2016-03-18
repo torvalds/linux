@@ -6596,9 +6596,10 @@ F:	drivers/platform/x86/hp_accel.c
 
 LIVE PATCHING
 M:	Josh Poimboeuf <jpoimboe@redhat.com>
-M:	Seth Jennings <sjenning@redhat.com>
+M:	Jessica Yu <jeyu@redhat.com>
 M:	Jiri Kosina <jikos@kernel.org>
-M:	Vojtech Pavlik <vojtech@suse.com>
+M:	Miroslav Benes <mbenes@suse.cz>
+R:	Petr Mladek <pmladek@suse.com>
 S:	Maintained
 F:	kernel/livepatch/
 F:	include/linux/livepatch.h

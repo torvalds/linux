@@ -53,6 +53,7 @@
 #include <asm/sections.h>
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
+#include <linux/livepatch.h>
 #include <linux/async.h>
 #include <linux/percpu.h>
 #include <linux/kmemleak.h>
@@ -984,6 +985,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		mod->exit();
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
+	klp_module_going(mod);
 	ftrace_release_mod(mod);
 
 	async_synchronize_full();
@@ -3258,6 +3260,7 @@ fail:
 	module_put(mod);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
+	klp_module_going(mod);
 	ftrace_release_mod(mod);
 	free_module(mod);
 	wake_up_all(&module_wq);
@@ -3335,14 +3338,25 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	mod->state = MODULE_STATE_COMING;
 	mutex_unlock(&module_mutex);
 
-	ftrace_module_enable(mod);
-	blocking_notifier_call_chain(&module_notify_list,
-				     MODULE_STATE_COMING, mod);
 	return 0;
 
 out:
 	mutex_unlock(&module_mutex);
 	return err;
+}
+
+static int prepare_coming_module(struct module *mod)
+{
+	int err;
+
+	ftrace_module_enable(mod);
+	err = klp_module_coming(mod);
+	if (err)
+		return err;
+
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_COMING, mod);
+	return 0;
 }
 
 static int unknown_module_param_cb(char *param, char *val, const char *modname,
@@ -3459,13 +3473,17 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	if (err)
 		goto ddebug_cleanup;
 
+	err = prepare_coming_module(mod);
+	if (err)
+		goto bug_cleanup;
+
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
 				  -32768, 32767, mod,
 				  unknown_module_param_cb);
 	if (IS_ERR(after_dashes)) {
 		err = PTR_ERR(after_dashes);
-		goto bug_cleanup;
+		goto coming_cleanup;
 	} else if (after_dashes) {
 		pr_warn("%s: parameters '%s' after `--' ignored\n",
 		       mod->name, after_dashes);
@@ -3474,7 +3492,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Link in to syfs. */
 	err = mod_sysfs_setup(mod, info, mod->kp, mod->num_kp);
 	if (err < 0)
-		goto bug_cleanup;
+		goto coming_cleanup;
 
 	/* Get rid of temporary copy. */
 	free_copy(info);
@@ -3484,14 +3502,16 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	return do_init_module(mod);
 
+ coming_cleanup:
+	blocking_notifier_call_chain(&module_notify_list,
+				     MODULE_STATE_GOING, mod);
+	klp_module_going(mod);
+
  bug_cleanup:
 	/* module_bug_cleanup needs module_mutex protection */
 	mutex_lock(&module_mutex);
 	module_bug_cleanup(mod);
 	mutex_unlock(&module_mutex);
-
-	blocking_notifier_call_chain(&module_notify_list,
-				     MODULE_STATE_GOING, mod);
 
 	/* we can't deallocate the module until we clear memory protection */
 	module_disable_ro(mod);
