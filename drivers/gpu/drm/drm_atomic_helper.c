@@ -984,7 +984,17 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
 
-static void wait_for_fences(struct drm_device *dev,
+/**
+ * drm_atomic_helper_wait_for_fences - wait for fences stashed in plane state
+ * @dev: DRM device
+ * @state: atomic state object with old state structures
+ *
+ * For implicit sync, driver should fish the exclusive fence out from the
+ * incoming fb's and stash it in the drm_plane_state.  This is called after
+ * drm_atomic_helper_swap_state() so it uses the current plane state (and
+ * just uses the atomic state to find the changed planes)
+ */
+void drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
 	struct drm_plane *plane;
@@ -1002,6 +1012,7 @@ static void wait_for_fences(struct drm_device *dev,
 		plane->state->fence = NULL;
 	}
 }
+EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
 
 /**
  * drm_atomic_helper_framebuffer_changed - check if framebuffer has changed
@@ -1163,7 +1174,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
-	wait_for_fences(dev, state);
+	drm_atomic_helper_wait_for_fences(dev, state);
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
