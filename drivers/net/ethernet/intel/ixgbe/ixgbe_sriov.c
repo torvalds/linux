@@ -908,8 +908,6 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	u32 add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	u32 vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	u8 tcs = netdev_get_num_tc(adapter->netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	int err;
 
 	if (adapter->vfinfo[vf].pf_vlan || tcs) {
 		e_warn(drv,
@@ -923,19 +921,7 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	if (!vid && !add)
 		return 0;
 
-	err = ixgbe_set_vf_vlan(adapter, add, vid, vf);
-	if (err)
-		return err;
-
-	if (adapter->vfinfo[vf].spoofchk_enabled)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-
-	if (add)
-		adapter->vfinfo[vf].vlan_count++;
-	else if (adapter->vfinfo[vf].vlan_count)
-		adapter->vfinfo[vf].vlan_count--;
-
-	return 0;
+	return ixgbe_set_vf_vlan(adapter, add, vid, vf);
 }
 
 static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
@@ -1324,9 +1310,6 @@ static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
 
 	ixgbe_set_vmvir(adapter, vlan, qos, vf);
 	ixgbe_set_vmolr(hw, vf, false);
-	if (adapter->vfinfo[vf].spoofchk_enabled)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-	adapter->vfinfo[vf].vlan_count++;
 
 	/* enable hide vlan on X550 */
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -1359,9 +1342,6 @@ static int ixgbe_disable_port_vlan(struct ixgbe_adapter *adapter, int vf)
 	ixgbe_set_vf_vlan(adapter, true, 0, vf);
 	ixgbe_clear_vmvir(adapter, vf);
 	ixgbe_set_vmolr(hw, vf, true);
-	hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
-	if (adapter->vfinfo[vf].vlan_count)
-		adapter->vfinfo[vf].vlan_count--;
 
 	/* disable hide VLAN on X550 */
 	if (hw->mac.type >= ixgbe_mac_X550)
@@ -1539,8 +1519,7 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	hw->mac.ops.set_mac_anti_spoofing(hw, setting, vf);
 
 	/* configure VLAN spoofing */
-	if (adapter->vfinfo[vf].vlan_count)
-		hw->mac.ops.set_vlan_anti_spoofing(hw, setting, vf);
+	hw->mac.ops.set_vlan_anti_spoofing(hw, setting, vf);
 
 	/* Ensure LLDP and FC is set for Ethertype Antispoofing if we will be
 	 * calling set_ethertype_anti_spoofing for each VF in loop below
