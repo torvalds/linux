@@ -105,6 +105,29 @@ __mlx5_mask(typ, fld))
 	___t; \
 })
 
+/* Big endian getters */
+#define MLX5_GET64_BE(typ, p, fld) (*((__be64 *)(p) +\
+	__mlx5_64_off(typ, fld)))
+
+#define MLX5_GET_BE(type_t, typ, p, fld) ({				  \
+		type_t tmp;						  \
+		switch (sizeof(tmp)) {					  \
+		case sizeof(u8):					  \
+			tmp = (__force type_t)MLX5_GET(typ, p, fld);	  \
+			break;						  \
+		case sizeof(u16):					  \
+			tmp = (__force type_t)cpu_to_be16(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u32):					  \
+			tmp = (__force type_t)cpu_to_be32(MLX5_GET(typ, p, fld)); \
+			break;						  \
+		case sizeof(u64):					  \
+			tmp = (__force type_t)MLX5_GET64_BE(typ, p, fld); \
+			break;						  \
+			}						  \
+		tmp;							  \
+		})
+
 enum {
 	MLX5_MAX_COMMANDS		= 32,
 	MLX5_CMD_DATA_BLOCK_SIZE	= 512,
@@ -1284,7 +1307,8 @@ enum {
 	MLX5_RFC_3635_COUNTERS_GROUP	      = 0x3,
 	MLX5_ETHERNET_EXTENDED_COUNTERS_GROUP = 0x5,
 	MLX5_PER_PRIORITY_COUNTERS_GROUP      = 0x10,
-	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11
+	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
+	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
@@ -1294,6 +1318,11 @@ static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)
 	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
-#define MLX5_BY_PASS_NUM_PRIOS 9
+#define MLX5_BY_PASS_NUM_REGULAR_PRIOS 8
+#define MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS 8
+#define MLX5_BY_PASS_NUM_MULTICAST_PRIOS 1
+#define MLX5_BY_PASS_NUM_PRIOS (MLX5_BY_PASS_NUM_REGULAR_PRIOS +\
+				MLX5_BY_PASS_NUM_DONT_TRAP_PRIOS +\
+				MLX5_BY_PASS_NUM_MULTICAST_PRIOS)
 
 #endif /* MLX5_DEVICE_H */
