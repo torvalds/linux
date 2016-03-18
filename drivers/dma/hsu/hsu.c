@@ -160,7 +160,7 @@ irqreturn_t hsu_dma_irq(struct hsu_dma_chip *chip, unsigned short nr)
 		return IRQ_NONE;
 
 	/* Timeout IRQ, need wait some time, see Errata 2 */
-	if (hsuc->direction == DMA_DEV_TO_MEM && (sr & HSU_CH_SR_DESCTO_ANY))
+	if (sr & HSU_CH_SR_DESCTO_ANY)
 		udelay(2);
 
 	sr &= ~HSU_CH_SR_DESCTO_ANY;
