@@ -653,7 +653,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 		vma = i915_gem_obj_to_ggtt(src);
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
 		   vma && (vma->bound & GLOBAL_BIND) &&
-		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->gtt.mappable_end);
+		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->ggtt.mappable_end);
 
 	/* Cannot access stolen address directly, try to use the aperture */
 	if (src->stolen) {
@@ -663,7 +663,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		reloc_offset = i915_gem_obj_ggtt_offset(src);
-		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->gtt.mappable_end)
+		if (reloc_offset + num_pages * PAGE_SIZE > dev_priv->ggtt.mappable_end)
 			goto unwind;
 	}
 
@@ -689,7 +689,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 * captures what the GPU read.
 			 */
 
-			s = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+			s = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
@@ -722,7 +722,7 @@ unwind:
 	return NULL;
 }
 #define i915_error_ggtt_object_create(dev_priv, src) \
-	i915_error_object_create((dev_priv), (src), &(dev_priv)->gtt.base)
+	i915_error_object_create((dev_priv), (src), &(dev_priv)->ggtt.base)
 
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
@@ -1038,7 +1038,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 			vm = request->ctx && request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base :
-				&dev_priv->gtt.base;
+				&dev_priv->ggtt.base;
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten

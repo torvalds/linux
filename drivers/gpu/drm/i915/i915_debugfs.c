@@ -203,7 +203,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	struct list_head *head;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm = &dev_priv->ggtt.base;
 	struct i915_vma *vma;
 	u64 total_obj_size, total_gtt_size;
 	int count, ret;
@@ -433,7 +433,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	u32 count, mappable_count, purgeable_count;
 	u64 size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm = &dev_priv->gtt.base;
+	struct i915_address_space *vm = &dev_priv->ggtt.base;
 	struct drm_file *file;
 	struct i915_vma *vma;
 	int ret;
@@ -492,8 +492,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, size);
 
 	seq_printf(m, "%llu [%llu] gtt total\n",
-		   dev_priv->gtt.base.total,
-		   (u64)dev_priv->gtt.mappable_end - dev_priv->gtt.base.start);
+		   dev_priv->ggtt.base.total,
+		   (u64)dev_priv->ggtt.mappable_end - dev_priv->ggtt.base.start);
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);

@@ -132,7 +132,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_get_aperture *args = data;
-	struct i915_gtt *ggtt = &dev_priv->gtt;
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma;
 	size_t pinned;
 
@@ -146,7 +146,7 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
 
-	args->aper_size = dev_priv->gtt.base.total;
+	args->aper_size = dev_priv->ggtt.base.total;
 	args->aper_available_size = args->aper_size - pinned;
 
 	return 0;
@@ -807,7 +807,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * source page isn't available.  Return the error and we'll
 		 * retry in the slow path.
 		 */
-		if (fast_user_write(dev_priv->gtt.mappable, page_base,
+		if (fast_user_write(dev_priv->ggtt.mappable, page_base,
 				    page_offset, user_data, page_length)) {
 			ret = -EFAULT;
 			goto out_flush;
@@ -1825,7 +1825,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* Use a partial view if the object is bigger than the aperture. */
-	if (obj->base.size >= dev_priv->gtt.mappable_end &&
+	if (obj->base.size >= dev_priv->ggtt.mappable_end &&
 	    obj->tiling_mode == I915_TILING_NONE) {
 		static const unsigned int chunk_size = 256; // 1 MiB
 
@@ -1853,7 +1853,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	pfn = dev_priv->gtt.mappable_base +
+	pfn = dev_priv->ggtt.mappable_base +
 		i915_gem_obj_ggtt_offset_view(obj, &view);
 	pfn >>= PAGE_SHIFT;
 
@@ -3511,7 +3511,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
 	end = vm->total;
 	if (flags & PIN_MAPPABLE)
-		end = min_t(u64, end, dev_priv->gtt.mappable_end);
+		end = min_t(u64, end, dev_priv->ggtt.mappable_end);
 	if (flags & PIN_ZONE_4G)
 		end = min_t(u64, end, (1ULL << 32) - PAGE_SIZE);
 
@@ -3772,7 +3772,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 	vma = i915_gem_obj_to_ggtt(obj);
 	if (vma && drm_mm_node_allocated(&vma->node) && !obj->active)
 		list_move_tail(&vma->vm_link,
-			       &to_i915(obj->base.dev)->gtt.base.inactive_list);
+			       &to_i915(obj->base.dev)->ggtt.base.inactive_list);
 
 	return 0;
 }
@@ -4209,7 +4209,7 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		     (vma->node.start & (fence_alignment - 1)) == 0);
 
 	mappable = (vma->node.start + fence_size <=
-		    to_i915(obj->base.dev)->gtt.mappable_end);
+		    to_i915(obj->base.dev)->ggtt.mappable_end);
 
 	obj->map_and_fenceable = mappable && fenceable;
 }

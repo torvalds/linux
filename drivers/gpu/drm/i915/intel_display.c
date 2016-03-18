@@ -2503,7 +2503,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	if (size_aligned * 2 > dev_priv->gtt.stolen_usable_size)
+	if (size_aligned * 2 > dev_priv->ggtt.stolen_usable_size)
 		return false;
 
 	mutex_lock(&dev->struct_mutex);
@@ -15339,7 +15339,7 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.cursor_height = MAX_CURSOR_HEIGHT;
 	}
 
-	dev->mode_config.fb_base = dev_priv->gtt.mappable_base;
+	dev->mode_config.fb_base = dev_priv->ggtt.mappable_base;
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
 		      INTEL_INFO(dev)->num_pipes,

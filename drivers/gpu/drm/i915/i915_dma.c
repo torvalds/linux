@@ -491,8 +491,8 @@ static int i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return -ENOMEM;
 
-	ap->ranges[0].base = dev_priv->gtt.mappable_base;
-	ap->ranges[0].size = dev_priv->gtt.mappable_end;
+	ap->ranges[0].base = dev_priv->ggtt.mappable_base;
+	ap->ranges[0].size = dev_priv->ggtt.mappable_end;
 
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
@@ -1172,17 +1172,17 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
 
-	aperture_size = dev_priv->gtt.mappable_end;
+	aperture_size = dev_priv->ggtt.mappable_end;
 
-	dev_priv->gtt.mappable =
-		io_mapping_create_wc(dev_priv->gtt.mappable_base,
+	dev_priv->ggtt.mappable =
+		io_mapping_create_wc(dev_priv->ggtt.mappable_base,
 				     aperture_size);
-	if (dev_priv->gtt.mappable == NULL) {
+	if (dev_priv->ggtt.mappable == NULL) {
 		ret = -EIO;
 		goto out_gtt;
 	}
 
-	dev_priv->gtt.mtrr = arch_phys_wc_add(dev_priv->gtt.mappable_base,
+	dev_priv->ggtt.mtrr = arch_phys_wc_add(dev_priv->ggtt.mappable_base,
 					      aperture_size);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY,
@@ -1230,8 +1230,8 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 		pci_disable_msi(dev->pdev);
 
 	pm_qos_remove_request(&dev_priv->pm_qos);
-	arch_phys_wc_del(dev_priv->gtt.mtrr);
-	io_mapping_free(dev_priv->gtt.mappable);
+	arch_phys_wc_del(dev_priv->ggtt.mtrr);
+	io_mapping_free(dev_priv->ggtt.mappable);
 	i915_global_gtt_cleanup(dev);
 }
 

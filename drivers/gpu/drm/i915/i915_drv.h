@@ -1810,7 +1810,7 @@ struct drm_i915_private {
 	struct drm_atomic_state *modeset_restore_state;
 
 	struct list_head vm_list; /* Global list of all address spaces */
-	struct i915_gtt gtt; /* VM representing the global address space */
+	struct i915_ggtt ggtt; /* VM representing the global address space */
 
 	struct i915_gem_mm mm;
 	DECLARE_HASHTABLE(mm_structs, 7);
@@ -3126,7 +3126,7 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj);
 
 /* Some GGTT VM helpers */
 #define i915_obj_to_ggtt(obj) \
-	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->gtt.base)
+	(&((struct drm_i915_private *)(obj)->base.dev->dev_private)->ggtt.base)
 
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)

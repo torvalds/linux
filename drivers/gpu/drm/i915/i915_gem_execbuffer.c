@@ -330,7 +330,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 	/* Map the page containing the relocation we're going to perform.  */
 	offset = i915_gem_obj_ggtt_offset(obj);
 	offset += reloc->offset;
-	reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+	reloc_page = io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
 					      offset & PAGE_MASK);
 	iowrite32(lower_32_bits(delta), reloc_page + offset_in_page(offset));
 
@@ -340,7 +340,7 @@ relocate_entry_gtt(struct drm_i915_gem_object *obj,
 		if (offset_in_page(offset) == 0) {
 			io_mapping_unmap_atomic(reloc_page);
 			reloc_page =
-				io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+				io_mapping_map_atomic_wc(dev_priv->ggtt.mappable,
 							 offset);
 		}
 
@@ -1504,7 +1504,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ctx->ppgtt)
 		vm = &ctx->ppgtt->base;
 	else
-		vm = &dev_priv->gtt.base;
+		vm = &dev_priv->ggtt.base;
 
 	memset(&params_master, 0x00, sizeof(params_master));
 

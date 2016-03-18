@@ -4644,9 +4644,9 @@ static bool bxt_check_bios_rc6_setup(const struct drm_device *dev)
 	 * for this check.
 	 */
 	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
-	if (!((rc6_ctx_base >= dev_priv->gtt.stolen_reserved_base) &&
-	      (rc6_ctx_base + PAGE_SIZE <= dev_priv->gtt.stolen_reserved_base +
-					dev_priv->gtt.stolen_reserved_size))) {
+	if (!((rc6_ctx_base >= dev_priv->ggtt.stolen_reserved_base) &&
+	      (rc6_ctx_base + PAGE_SIZE <= dev_priv->ggtt.stolen_reserved_base +
+					dev_priv->ggtt.stolen_reserved_size))) {
 		DRM_DEBUG_KMS("RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
@@ -5291,7 +5291,7 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long pctx_paddr, paddr;
-	struct i915_gtt *gtt = &dev_priv->gtt;
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
@@ -5299,7 +5299,7 @@ static void cherryview_setup_pctx(struct drm_device *dev)
 	if ((pcbr >> VLV_PCBR_ADDR_SHIFT) == 0) {
 		DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
 		paddr = (dev_priv->mm.stolen_base +
-			 (gtt->stolen_size - pctx_size));
+			 (ggtt->stolen_size - pctx_size));
 
 		pctx_paddr = (paddr & (~4095));
 		I915_WRITE(VLV_PCBR, pctx_paddr);

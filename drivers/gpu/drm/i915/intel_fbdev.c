@@ -146,7 +146,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* If the FB is too big, just don't use it since fbdev is not very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
-	if (size * 2 < dev_priv->gtt.stolen_usable_size)
+	if (size * 2 < dev_priv->ggtt.stolen_usable_size)
 		obj = i915_gem_object_create_stolen(dev, size);
 	if (obj == NULL)
 		obj = i915_gem_alloc_object(dev, size);
@@ -244,13 +244,13 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	info->apertures->ranges[0].size = dev_priv->gtt.mappable_end;
+	info->apertures->ranges[0].size = dev_priv->ggtt.mappable_end;
 
 	info->fix.smem_start = dev->mode_config.fb_base + i915_gem_obj_ggtt_offset(obj);
 	info->fix.smem_len = size;
 
 	info->screen_base =
-		ioremap_wc(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
+		ioremap_wc(dev_priv->ggtt.mappable_base + i915_gem_obj_ggtt_offset(obj),
 			   size);
 	if (!info->screen_base) {
 		DRM_ERROR("Failed to remap framebuffer into virtual memory\n");

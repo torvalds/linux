@@ -339,7 +339,7 @@ struct i915_address_space {
  * and correct (in cases like swizzling). That region is referred to as GMADR in
  * the spec.
  */
-struct i915_gtt {
+struct i915_ggtt {
 	struct i915_address_space base;
 
 	size_t stolen_size;		/* Total size of stolen memory */
@@ -357,10 +357,9 @@ struct i915_gtt {
 
 	int mtrr;
 
-	/* global gtt ops */
-	int (*gtt_probe)(struct drm_device *dev, u64 *gtt_total,
-			  size_t *stolen, phys_addr_t *mappable_base,
-			  u64 *mappable_end);
+	int (*probe)(struct drm_device *dev, u64 *gtt_total,
+		     size_t *stolen, phys_addr_t *mappable_base,
+		     u64 *mappable_end);
 };
 
 struct i915_hw_ppgtt {
