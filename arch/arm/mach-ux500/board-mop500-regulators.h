@@ -11,14 +11,6 @@
 #ifndef __BOARD_MOP500_REGULATORS_H
 #define __BOARD_MOP500_REGULATORS_H
 
-#include <linux/regulator/machine.h>
-#include <linux/regulator/ab8500.h>
-
 extern struct ab8500_regulator_platform_data ab8500_regulator_plat_data;
-extern struct ab8500_regulator_platform_data ab8505_regulator_plat_data;
-extern struct regulator_init_data tps61052_regulator;
-extern struct regulator_init_data gpio_en_3v3_regulator;
-
-void mop500_regulator_init(void);
 
 #endif
