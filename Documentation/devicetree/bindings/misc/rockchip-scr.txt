@@ -1,0 +1,15 @@
+* Rockchip Smartcard Reader Controller driver.
+
+Required properties:
+- compatible: should be "rockchip-scr"
+	support smart card reader controller for SoC
+	such as RK3128, RK322x, RK3288, RK3368, RK3366 and etc.
+- reg: Should contain SCR registers location and length
+- interrupts: Should contain SCR interrupt
+
+Example:
+scr: rkscr@20048000 {
+	compatible = "rockchip-scr";
+	reg = <0x20048000 0x4000>;
+	interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
+};
