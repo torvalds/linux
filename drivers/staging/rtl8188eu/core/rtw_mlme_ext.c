@@ -2100,7 +2100,6 @@ static void site_survey(struct adapter *padapter)
 		issue_action_BSSCoexistPacket(padapter);
 		issue_action_BSSCoexistPacket(padapter);
 	}
-	return;
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
