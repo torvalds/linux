@@ -52,7 +52,7 @@ struct mp8865_platform_data {
 	struct device_node *of_node;
 };
 
-static const struct regulator_linear_range mp8865_voltage_ranges[] = {
+static const struct linear_range mp8865_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, VOL_MIN_IDX, VOL_MAX_IDX, 10000),
 };
 

@@ -685,6 +685,13 @@ config REGULATOR_MP8859
 	  Say M here if you want to include support for the regulator as a
 	  module. The module will be named "mp8859".
 
+config REGULATOR_MP8865
+	tristate "MPS MP8865 Power Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports MP8865 voltage regulator chip.
+
 config REGULATOR_MP886X
 	tristate "MPS MP8869 regulator driver"
 	depends on I2C && (OF || COMPILE_TEST)
