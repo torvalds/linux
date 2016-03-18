@@ -1664,6 +1664,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 #else
 		TRACE_FLAG_IRQS_NOSUPPORT |
 #endif
+		((pc & NMI_MASK    ) ? TRACE_FLAG_NMI     : 0) |
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(tif_need_resched() ? TRACE_FLAG_NEED_RESCHED : 0) |
