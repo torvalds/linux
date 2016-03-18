@@ -462,18 +462,18 @@ exit:
 	return ret;
 }
 
-static int ath10k_download_cal_file(struct ath10k *ar)
+static int ath10k_download_cal_file(struct ath10k *ar,
+				    const struct firmware *file)
 {
 	int ret;
 
-	if (!ar->cal_file)
+	if (!file)
 		return -ENOENT;
 
-	if (IS_ERR(ar->cal_file))
-		return PTR_ERR(ar->cal_file);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
-	ret = ath10k_download_board_data(ar, ar->cal_file->data,
-					 ar->cal_file->size);
+	ret = ath10k_download_board_data(ar, file->data, file->size);
 	if (ret) {
 		ath10k_err(ar, "failed to download cal_file data: %d\n", ret);
 		return ret;
@@ -484,7 +484,7 @@ static int ath10k_download_cal_file(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_cal_dt(struct ath10k *ar)
+static int ath10k_download_cal_dt(struct ath10k *ar, const char *dt_name)
 {
 	struct device_node *node;
 	int data_len;
@@ -498,8 +498,7 @@ static int ath10k_download_cal_dt(struct ath10k *ar)
 		 */
 		return -ENOENT;
 
-	if (!of_get_property(node, "qcom,ath10k-calibration-data",
-			     &data_len)) {
+	if (!of_get_property(node, dt_name, &data_len)) {
 		/* The calibration data node is optional */
 		return -ENOENT;
 	}
@@ -517,8 +516,7 @@ static int ath10k_download_cal_dt(struct ath10k *ar)
 		goto out;
 	}
 
-	ret = of_property_read_u8_array(node, "qcom,ath10k-calibration-data",
-					data, data_len);
+	ret = of_property_read_u8_array(node, dt_name, data, data_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read calibration data from DT: %d\n",
 			    ret);
@@ -1258,7 +1256,7 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 {
 	int ret;
 
-	ret = ath10k_download_cal_file(ar);
+	ret = ath10k_download_cal_file(ar, ar->cal_file);
 	if (ret == 0) {
 		ar->cal_mode = ATH10K_CAL_MODE_FILE;
 		goto done;
@@ -1268,7 +1266,7 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 		   "boot did not find a calibration file, try DT next: %d\n",
 		   ret);
 
-	ret = ath10k_download_cal_dt(ar);
+	ret = ath10k_download_cal_dt(ar, "qcom,ath10k-calibration-data");
 	if (ret == 0) {
 		ar->cal_mode = ATH10K_CAL_MODE_DT;
 		goto done;
