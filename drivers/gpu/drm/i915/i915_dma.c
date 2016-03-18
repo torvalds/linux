@@ -66,6 +66,47 @@ bool __i915_inject_load_failure(const char *func, int line)
 	return false;
 }
 
+#define FDO_BUG_URL "https://bugs.freedesktop.org/enter_bug.cgi?product=DRI"
+#define FDO_BUG_MSG "Please file a bug at " FDO_BUG_URL " against DRM/Intel " \
+		    "providing the dmesg log by booting with drm.debug=0xf"
+
+void
+__i915_printk(struct drm_i915_private *dev_priv, const char *level,
+	      const char *fmt, ...)
+{
+	static bool shown_bug_once;
+	struct device *dev = dev_priv->dev->dev;
+	bool is_error = level[1] <= KERN_ERR[1];
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	dev_printk(level, dev, "[" DRM_NAME ":%ps] %pV",
+		   __builtin_return_address(0), &vaf);
+
+	if (is_error && !shown_bug_once) {
+		dev_notice(dev, "%s", FDO_BUG_MSG);
+		shown_bug_once = true;
+	}
+
+	va_end(args);
+}
+
+static bool i915_error_injected(struct drm_i915_private *dev_priv)
+{
+	return i915.inject_load_failure &&
+	       i915_load_fail_count == i915.inject_load_failure;
+}
+
+#define i915_load_error(dev_priv, fmt, ...)				     \
+	__i915_printk(dev_priv,						     \
+		      i915_error_injected(dev_priv) ? KERN_DEBUG : KERN_ERR, \
+		      fmt, ##__VA_ARGS__)
+
 static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
@@ -972,8 +1013,6 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	dev_priv->dev = dev;
-
 	/* Setup the write-once "constant" device info */
 	device_info = (struct intel_device_info *)&dev_priv->info;
 	memcpy(device_info, info, sizeof(dev_priv->info));
@@ -1303,6 +1342,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 
 	dev->dev_private = dev_priv;
+	/* Must be set before calling __i915_printk */
+	dev_priv->dev = dev;
 
 	ret = i915_driver_init_early(dev_priv, dev,
 				     (struct intel_device_info *)flags);
@@ -1332,10 +1373,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	ret = i915_load_modeset_init(dev);
-	if (ret < 0) {
-		DRM_ERROR("failed to init modeset\n");
+	if (ret < 0)
 		goto out_cleanup_vblank;
-	}
 
 	i915_driver_register(dev_priv);
 
@@ -1356,6 +1395,8 @@ out_runtime_pm_put:
 	i915_driver_cleanup_early(dev_priv);
 out_free_priv:
 	kfree(dev_priv);
+
+	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
 
 	return ret;
 }

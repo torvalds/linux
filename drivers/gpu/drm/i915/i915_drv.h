@@ -2696,6 +2696,13 @@ extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
 /* i915_dma.c */
+void __printf(3, 4)
+__i915_printk(struct drm_i915_private *dev_priv, const char *level,
+	      const char *fmt, ...);
+
+#define i915_report_error(dev_priv, fmt, ...)				   \
+	__i915_printk(dev_priv, KERN_ERR, fmt, ##__VA_ARGS__)
+
 extern int i915_driver_load(struct drm_device *, unsigned long flags);
 extern int i915_driver_unload(struct drm_device *);
 extern int i915_driver_open(struct drm_device *dev, struct drm_file *file);
