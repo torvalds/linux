@@ -245,7 +245,12 @@ static int fsl_espi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (ret)
 		return ret;
 
-	wait_for_completion(&mpc8xxx_spi->done);
+	/* Won't hang up forever, SPI bus sometimes got lost interrupts... */
+	ret = wait_for_completion_timeout(&mpc8xxx_spi->done, 2 * HZ);
+	if (ret == 0)
+		dev_err(mpc8xxx_spi->dev,
+			"Transaction hanging up (left %d bytes)\n",
+			mpc8xxx_spi->count);
 
 	/* disable rx ints */
 	mpc8xxx_spi_write_reg(&reg_base->mask, 0);
