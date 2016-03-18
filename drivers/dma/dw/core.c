@@ -242,7 +242,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 
 		dwc_initialize(dwc);
 
-		dwc->residue = first->total_len;
+		first->residue = first->total_len;
 		dwc->tx_node_active = &first->tx_list;
 
 		/* Submit first block */
@@ -372,11 +372,11 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 			head = &desc->tx_list;
 			if (active != head) {
-				/* Update desc to reflect last sent one */
-				if (active != head->next)
-					desc = to_dw_desc(active->prev);
-
-				dwc->residue -= desc->len;
+				/* Update residue to reflect last sent descriptor */
+				if (active == head->next)
+					desc->residue -= desc->len;
+				else
+					desc->residue -= to_dw_desc(active->prev)->len;
 
 				child = to_dw_desc(active);
 
@@ -391,8 +391,6 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 			clear_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags);
 		}
 
-		dwc->residue = 0;
-
 		spin_unlock_irqrestore(&dwc->lock, flags);
 
 		dwc_complete_all(dw, dwc);
@@ -400,7 +398,6 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	}
 
 	if (list_empty(&dwc->active_list)) {
-		dwc->residue = 0;
 		spin_unlock_irqrestore(&dwc->lock, flags);
 		return;
 	}
@@ -415,7 +412,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
 		/* Initial residue value */
-		dwc->residue = desc->total_len;
+		desc->residue = desc->total_len;
 
 		/* Check first descriptors addr */
 		if (desc->txd.phys == DWC_LLP_LOC(llp)) {
@@ -426,20 +423,20 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		/* Check first descriptors llp */
 		if (lli_read(desc, llp) == llp) {
 			/* This one is currently in progress */
-			dwc->residue -= dwc_get_sent(dwc);
+			desc->residue -= dwc_get_sent(dwc);
 			spin_unlock_irqrestore(&dwc->lock, flags);
 			return;
 		}
 
-		dwc->residue -= desc->len;
+		desc->residue -= desc->len;
 		list_for_each_entry(child, &desc->tx_list, desc_node) {
 			if (lli_read(child, llp) == llp) {
 				/* Currently in progress */
-				dwc->residue -= dwc_get_sent(dwc);
+				desc->residue -= dwc_get_sent(dwc);
 				spin_unlock_irqrestore(&dwc->lock, flags);
 				return;
 			}
-			dwc->residue -= child->len;
+			desc->residue -= child->len;
 		}
 
 		/*
@@ -1059,16 +1056,37 @@ static int dwc_terminate_all(struct dma_chan *chan)
 	return 0;
 }
 
-static inline u32 dwc_get_residue(struct dw_dma_chan *dwc)
+static struct dw_desc *dwc_find_desc(struct dw_dma_chan *dwc, dma_cookie_t c)
 {
+	struct dw_desc *desc;
+
+	list_for_each_entry(desc, &dwc->active_list, desc_node)
+		if (desc->txd.cookie == c)
+			return desc;
+
+	return NULL;
+}
+
+static u32 dwc_get_residue(struct dw_dma_chan *dwc, dma_cookie_t cookie)
+{
+	struct dw_desc *desc;
 	unsigned long flags;
 	u32 residue;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	residue = dwc->residue;
-	if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags) && residue)
-		residue -= dwc_get_sent(dwc);
+	desc = dwc_find_desc(dwc, cookie);
+	if (desc) {
+		if (desc == dwc_first_active(dwc)) {
+			residue = desc->residue;
+			if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags) && residue)
+				residue -= dwc_get_sent(dwc);
+		} else {
+			residue = desc->total_len;
+		}
+	} else {
+		residue = 0;
+	}
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 	return residue;
@@ -1089,8 +1107,10 @@ dwc_tx_status(struct dma_chan *chan,
 	dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_COMPLETE)
-		dma_set_residue(txstate, dwc_get_residue(dwc));
+	if (ret == DMA_COMPLETE)
+		return ret;
+
+	dma_set_residue(txstate, dwc_get_residue(dwc, cookie));
 
 	if (test_bit(DW_DMA_IS_PAUSED, &dwc->flags) && ret == DMA_IN_PROGRESS)
 		return DMA_PAUSED;

@@ -237,7 +237,6 @@ struct dw_dma_chan {
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
-	u32			residue;
 	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
@@ -352,6 +351,7 @@ struct dw_desc {
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
 	size_t				total_len;
+	u32				residue;
 };
 
 #define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)
