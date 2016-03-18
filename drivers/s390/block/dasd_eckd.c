@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/compat.h>
 #include <linux/init.h>
+#include <linux/seq_file.h>
 
 #include <asm/css_chars.h>
 #include <asm/debug.h>
@@ -4627,6 +4628,167 @@ static int dasd_eckd_read_message_buffer(struct dasd_device *device,
 	return rc;
 }
 
+static int dasd_eckd_query_host_access(struct dasd_device *device,
+				       struct dasd_psf_query_host_access *data)
+{
+	struct dasd_eckd_private *private = device->private;
+	struct dasd_psf_query_host_access *host_access;
+	struct dasd_psf_prssd_data *prssdp;
+	struct dasd_ccw_req *cqr;
+	struct ccw1 *ccw;
+	int rc;
+
+	/* not available for HYPER PAV alias devices */
+	if (!device->block && private->lcu->pav == HYPER_PAV)
+		return -EOPNOTSUPP;
+
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
+				   sizeof(struct dasd_psf_prssd_data) + 1,
+				   device);
+	if (IS_ERR(cqr)) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate read message buffer request");
+		return PTR_ERR(cqr);
+	}
+	host_access = kzalloc(sizeof(*host_access), GFP_KERNEL | GFP_DMA);
+	if (!host_access) {
+		dasd_sfree_request(cqr, device);
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate host_access buffer");
+		return -ENOMEM;
+	}
+	cqr->startdev = device;
+	cqr->memdev = device;
+	cqr->block = NULL;
+	cqr->retries = 256;
+	cqr->expires = 10 * HZ;
+
+	/* Prepare for Read Subsystem Data */
+	prssdp = (struct dasd_psf_prssd_data *) cqr->data;
+	memset(prssdp, 0, sizeof(struct dasd_psf_prssd_data));
+	prssdp->order = PSF_ORDER_PRSSD;
+	prssdp->suborder = PSF_SUBORDER_QHA;	/* query host access */
+	/* LSS and Volume that will be queried */
+	prssdp->lss = private->ned->ID;
+	prssdp->volume = private->ned->unit_addr;
+	/* all other bytes of prssdp must be zero */
+
+	ccw = cqr->cpaddr;
+	ccw->cmd_code = DASD_ECKD_CCW_PSF;
+	ccw->count = sizeof(struct dasd_psf_prssd_data);
+	ccw->flags |= CCW_FLAG_CC;
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t) prssdp;
+
+	/* Read Subsystem Data - query host access */
+	ccw++;
+	ccw->cmd_code = DASD_ECKD_CCW_RSSD;
+	ccw->count = sizeof(struct dasd_psf_query_host_access);
+	ccw->flags |= CCW_FLAG_SLI;
+	ccw->cda = (__u32)(addr_t) host_access;
+
+	cqr->buildclk = get_tod_clock();
+	cqr->status = DASD_CQR_FILLED;
+	rc = dasd_sleep_on(cqr);
+	if (rc == 0) {
+		*data = *host_access;
+	} else {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev,
+				"Reading host access data failed with rc=%d\n",
+				rc);
+		rc = -EOPNOTSUPP;
+	}
+
+	dasd_sfree_request(cqr, cqr->memdev);
+	kfree(host_access);
+	return rc;
+}
+/*
+ * return number of grouped devices
+ */
+static int dasd_eckd_host_access_count(struct dasd_device *device)
+{
+	struct dasd_psf_query_host_access *access;
+	struct dasd_ckd_path_group_entry *entry;
+	struct dasd_ckd_host_information *info;
+	int count = 0;
+	int rc, i;
+
+	access = kzalloc(sizeof(*access), GFP_NOIO);
+	if (!access) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate access buffer");
+		return -ENOMEM;
+	}
+	rc = dasd_eckd_query_host_access(device, access);
+	if (rc) {
+		kfree(access);
+		return rc;
+	}
+
+	info = (struct dasd_ckd_host_information *)
+		access->host_access_information;
+	for (i = 0; i < info->entry_count; i++) {
+		entry = (struct dasd_ckd_path_group_entry *)
+			(info->entry + i * info->entry_size);
+		if (entry->status_flags & DASD_ECKD_PG_GROUPED)
+			count++;
+	}
+
+	kfree(access);
+	return count;
+}
+
+/*
+ * write host access information to a sequential file
+ */
+static int dasd_hosts_print(struct dasd_device *device, struct seq_file *m)
+{
+	struct dasd_psf_query_host_access *access;
+	struct dasd_ckd_path_group_entry *entry;
+	struct dasd_ckd_host_information *info;
+	char sysplex[9] = "";
+	int rc, i, j;
+
+	access = kzalloc(sizeof(*access), GFP_NOIO);
+	if (!access) {
+		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
+				"Could not allocate access buffer");
+		return -ENOMEM;
+	}
+	rc = dasd_eckd_query_host_access(device, access);
+	if (rc) {
+		kfree(access);
+		return rc;
+	}
+
+	info = (struct dasd_ckd_host_information *)
+		access->host_access_information;
+	for (i = 0; i < info->entry_count; i++) {
+		entry = (struct dasd_ckd_path_group_entry *)
+			(info->entry + i * info->entry_size);
+		/* PGID */
+		seq_puts(m, "pgid ");
+		for (j = 0; j < 11; j++)
+			seq_printf(m, "%02x", entry->pgid[j]);
+		seq_putc(m, '\n');
+		/* FLAGS */
+		seq_printf(m, "status_flags %02x\n", entry->status_flags);
+		/* SYSPLEX NAME */
+		memcpy(&sysplex, &entry->sysplex_name, sizeof(sysplex) - 1);
+		EBCASC(sysplex, sizeof(sysplex));
+		seq_printf(m, "sysplex_name %8s\n", sysplex);
+		/* SUPPORTED CYLINDER */
+		seq_printf(m, "supported_cylinder %d\n", entry->cylinder);
+		/* TIMESTAMP */
+		seq_printf(m, "timestamp %lu\n", (unsigned long)
+			   entry->timestamp);
+	}
+	kfree(access);
+
+	return 0;
+}
+
 /*
  * Perform Subsystem Function - CUIR response
  */
@@ -5099,6 +5261,8 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.get_uid = dasd_eckd_get_uid,
 	.kick_validate = dasd_eckd_kick_validate_server,
 	.check_attention = dasd_eckd_check_attention,
+	.host_access_count = dasd_eckd_host_access_count,
+	.hosts_print = dasd_hosts_print,
 };
 
 static int __init

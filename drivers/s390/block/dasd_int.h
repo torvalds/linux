@@ -365,6 +365,8 @@ struct dasd_discipline {
 	int (*get_uid) (struct dasd_device *, struct dasd_uid *);
 	void (*kick_validate) (struct dasd_device *);
 	int (*check_attention)(struct dasd_device *, __u8);
+	int (*host_access_count)(struct dasd_device *);
+	int (*hosts_print)(struct dasd_device *, struct seq_file *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -487,6 +489,7 @@ struct dasd_device {
 	unsigned long blk_timeout;
 
 	struct dentry *debugfs_dentry;
+	struct dentry *hosts_dentry;
 	struct dasd_profile profile;
 };
 

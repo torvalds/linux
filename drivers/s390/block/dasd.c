@@ -75,6 +75,8 @@ static void dasd_block_timeout(unsigned long);
 static void __dasd_process_erp(struct dasd_device *, struct dasd_ccw_req *);
 static void dasd_profile_init(struct dasd_profile *, struct dentry *);
 static void dasd_profile_exit(struct dasd_profile *);
+static void dasd_hosts_init(struct dentry *, struct dasd_device *);
+static void dasd_hosts_exit(struct dasd_device *);
 
 /*
  * SECTION: Operations on the device structure.
@@ -267,6 +269,7 @@ static int dasd_state_known_to_basic(struct dasd_device *device)
 		dasd_debugfs_setup(dev_name(&device->cdev->dev),
 				   dasd_debugfs_root_entry);
 	dasd_profile_init(&device->profile, device->debugfs_dentry);
+	dasd_hosts_init(device->debugfs_dentry, device);
 
 	/* register 'device' debug area, used for all DBF_DEV_XXX calls */
 	device->debug_area = debug_register(dev_name(&device->cdev->dev), 4, 1,
@@ -304,6 +307,7 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 		return rc;
 	dasd_device_clear_timer(device);
 	dasd_profile_exit(&device->profile);
+	dasd_hosts_exit(device);
 	debugfs_remove(device->debugfs_dentry);
 	DBF_DEV_EVENT(DBF_EMERG, device, "%p debug area deleted", device);
 	if (device->debug_area != NULL) {
@@ -1149,6 +1153,58 @@ int dasd_profile_on(struct dasd_profile *profile)
 }
 
 #endif				/* CONFIG_DASD_PROFILE */
+
+static int dasd_hosts_show(struct seq_file *m, void *v)
+{
+	struct dasd_device *device;
+	int rc = -EOPNOTSUPP;
+
+	device = m->private;
+	dasd_get_device(device);
+
+	if (device->discipline->hosts_print)
+		rc = device->discipline->hosts_print(device, m);
+
+	dasd_put_device(device);
+	return rc;
+}
+
+static int dasd_hosts_open(struct inode *inode, struct file *file)
+{
+	struct dasd_device *device = inode->i_private;
+
+	return single_open(file, dasd_hosts_show, device);
+}
+
+static const struct file_operations dasd_hosts_fops = {
+	.owner		= THIS_MODULE,
+	.open		= dasd_hosts_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void dasd_hosts_exit(struct dasd_device *device)
+{
+	debugfs_remove(device->hosts_dentry);
+	device->hosts_dentry = NULL;
+}
+
+static void dasd_hosts_init(struct dentry *base_dentry,
+			    struct dasd_device *device)
+{
+	struct dentry *pde;
+	umode_t mode;
+
+	if (!base_dentry)
+		return;
+
+	mode = S_IRUSR | S_IFREG;
+	pde = debugfs_create_file("host_access_list", mode, base_dentry,
+				  device, &dasd_hosts_fops);
+	if (pde && !IS_ERR(pde))
+		device->hosts_dentry = pde;
+}
 
 /*
  * Allocate memory for a channel program with 'cplength' channel
