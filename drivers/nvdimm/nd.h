@@ -197,11 +197,13 @@ struct nd_gen_sb {
 
 u64 nd_sb_checksum(struct nd_gen_sb *sb);
 #if IS_ENABLED(CONFIG_BTT)
-int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata);
+int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns,
+		void *drvdata);
 bool is_nd_btt(struct device *dev);
 struct device *nd_btt_create(struct nd_region *nd_region);
 #else
-static inline int nd_btt_probe(struct nd_namespace_common *ndns, void *drvdata)
+static inline int nd_btt_probe(struct device *dev,
+		struct nd_namespace_common *ndns, void *drvdata)
 {
 	return -ENODEV;
 }

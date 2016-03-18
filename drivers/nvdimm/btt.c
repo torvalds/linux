@@ -1306,7 +1306,7 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	struct btt *btt;
 	struct device *dev = &nd_btt->dev;
 
-	btt = kzalloc(sizeof(struct btt), GFP_KERNEL);
+	btt = devm_kzalloc(dev, sizeof(struct btt), GFP_KERNEL);
 	if (!btt)
 		return NULL;
 
@@ -1321,13 +1321,13 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 	ret = discover_arenas(btt);
 	if (ret) {
 		dev_err(dev, "init: error in arena_discover: %d\n", ret);
-		goto out_free;
+		return NULL;
 	}
 
 	if (btt->init_state != INIT_READY && nd_region->ro) {
 		dev_info(dev, "%s is read-only, unable to init btt metadata\n",
 				dev_name(&nd_region->dev));
-		goto out_free;
+		return NULL;
 	} else if (btt->init_state != INIT_READY) {
 		btt->num_arenas = (rawsize / ARENA_MAX_SIZE) +
 			((rawsize % ARENA_MAX_SIZE) ? 1 : 0);
@@ -1337,29 +1337,25 @@ static struct btt *btt_init(struct nd_btt *nd_btt, unsigned long long rawsize,
 		ret = create_arenas(btt);
 		if (ret) {
 			dev_info(dev, "init: create_arenas: %d\n", ret);
-			goto out_free;
+			return NULL;
 		}
 
 		ret = btt_meta_init(btt);
 		if (ret) {
 			dev_err(dev, "init: error in meta_init: %d\n", ret);
-			goto out_free;
+			return NULL;
 		}
 	}
 
 	ret = btt_blk_init(btt);
 	if (ret) {
 		dev_err(dev, "init: error in blk_init: %d\n", ret);
-		goto out_free;
+		return NULL;
 	}
 
 	btt_debugfs_init(btt);
 
 	return btt;
-
- out_free:
-	kfree(btt);
-	return NULL;
 }
 
 /**
@@ -1377,7 +1373,6 @@ static void btt_fini(struct btt *btt)
 		btt_blk_cleanup(btt);
 		free_arenas(btt);
 		debugfs_remove_recursive(btt->debugfs_dir);
-		kfree(btt);
 	}
 }
 

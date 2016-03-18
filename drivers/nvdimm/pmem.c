@@ -574,7 +574,7 @@ static int nd_pmem_probe(struct device *dev)
 	if (is_nd_pfn(dev))
 		return nvdimm_namespace_attach_pfn(ndns);
 
-	if (nd_btt_probe(ndns, pmem) == 0
+	if (nd_btt_probe(dev, ndns, pmem) == 0
 			|| nd_pfn_probe(dev, ndns, pmem) == 0) {
 		/*
 		 * We'll come back as either btt-pmem, or pfn-pmem, so
