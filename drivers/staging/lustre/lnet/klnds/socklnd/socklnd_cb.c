@@ -19,9 +19,6 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *   GNU General Public License for more details.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with Portals; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "socklnd.h"
@@ -47,10 +44,10 @@ ksocknal_alloc_tx(int type, int size)
 		spin_unlock(&ksocknal_data.ksnd_tx_lock);
 	}
 
-	if (tx == NULL)
+	if (!tx)
 		LIBCFS_ALLOC(tx, size);
 
-	if (tx == NULL)
+	if (!tx)
 		return NULL;
 
 	atomic_set(&tx->tx_refcount, 1);
@@ -70,7 +67,7 @@ ksocknal_alloc_tx_noop(__u64 cookie, int nonblk)
 	ksock_tx_t *tx;
 
 	tx = ksocknal_alloc_tx(KSOCK_MSG_NOOP, KSOCK_NOOP_TX_SIZE);
-	if (tx == NULL) {
+	if (!tx) {
 		CERROR("Can't allocate noop tx desc\n");
 		return NULL;
 	}
@@ -90,11 +87,11 @@ ksocknal_alloc_tx_noop(__u64 cookie, int nonblk)
 }
 
 void
-ksocknal_free_tx (ksock_tx_t *tx)
+ksocknal_free_tx(ksock_tx_t *tx)
 {
 	atomic_dec(&ksocknal_data.ksnd_nactive_txs);
 
-	if (tx->tx_lnetmsg == NULL && tx->tx_desc_size == KSOCK_NOOP_TX_SIZE) {
+	if (!tx->tx_lnetmsg && tx->tx_desc_size == KSOCK_NOOP_TX_SIZE) {
 		/* it's a noop tx */
 		spin_lock(&ksocknal_data.ksnd_tx_lock);
 
@@ -107,7 +104,7 @@ ksocknal_free_tx (ksock_tx_t *tx)
 }
 
 static int
-ksocknal_send_iov (ksock_conn_t *conn, ksock_tx_t *tx)
+ksocknal_send_iov(ksock_conn_t *conn, ksock_tx_t *tx)
 {
 	struct kvec *iov = tx->tx_iov;
 	int nob;
@@ -122,7 +119,7 @@ ksocknal_send_iov (ksock_conn_t *conn, ksock_tx_t *tx)
 		return rc;
 
 	nob = rc;
-	LASSERT (nob <= tx->tx_resid);
+	LASSERT(nob <= tx->tx_resid);
 	tx->tx_resid -= nob;
 
 	/* "consume" iov */
@@ -138,19 +135,19 @@ ksocknal_send_iov (ksock_conn_t *conn, ksock_tx_t *tx)
 		nob -= iov->iov_len;
 		tx->tx_iov = ++iov;
 		tx->tx_niov--;
-	} while (nob != 0);
+	} while (nob);
 
 	return rc;
 }
 
 static int
-ksocknal_send_kiov (ksock_conn_t *conn, ksock_tx_t *tx)
+ksocknal_send_kiov(ksock_conn_t *conn, ksock_tx_t *tx)
 {
 	lnet_kiov_t *kiov = tx->tx_kiov;
 	int nob;
 	int rc;
 
-	LASSERT(tx->tx_niov == 0);
+	LASSERT(!tx->tx_niov);
 	LASSERT(tx->tx_nkiov > 0);
 
 	/* Never touch tx->tx_kiov inside ksocknal_lib_send_kiov() */
@@ -160,7 +157,7 @@ ksocknal_send_kiov (ksock_conn_t *conn, ksock_tx_t *tx)
 		return rc;
 
 	nob = rc;
-	LASSERT (nob <= tx->tx_resid);
+	LASSERT(nob <= tx->tx_resid);
 	tx->tx_resid -= nob;
 
 	/* "consume" kiov */
@@ -176,27 +173,27 @@ ksocknal_send_kiov (ksock_conn_t *conn, ksock_tx_t *tx)
 		nob -= (int)kiov->kiov_len;
 		tx->tx_kiov = ++kiov;
 		tx->tx_nkiov--;
-	} while (nob != 0);
+	} while (nob);
 
 	return rc;
 }
 
 static int
-ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
+ksocknal_transmit(ksock_conn_t *conn, ksock_tx_t *tx)
 {
 	int rc;
 	int bufnob;
 
-	if (ksocknal_data.ksnd_stall_tx != 0) {
+	if (ksocknal_data.ksnd_stall_tx) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_tx));
 	}
 
-	LASSERT(tx->tx_resid != 0);
+	LASSERT(tx->tx_resid);
 
 	rc = ksocknal_connsock_addref(conn);
-	if (rc != 0) {
-		LASSERT (conn->ksnc_closing);
+	if (rc) {
+		LASSERT(conn->ksnc_closing);
 		return -ESHUTDOWN;
 	}
 
@@ -205,10 +202,10 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 			/* testing... */
 			ksocknal_data.ksnd_enomem_tx--;
 			rc = -EAGAIN;
-		} else if (tx->tx_niov != 0) {
-			rc = ksocknal_send_iov (conn, tx);
+		} else if (tx->tx_niov) {
+			rc = ksocknal_send_iov(conn, tx);
 		} else {
-			rc = ksocknal_send_kiov (conn, tx);
+			rc = ksocknal_send_kiov(conn, tx);
 		}
 
 		bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
@@ -216,8 +213,10 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 			conn->ksnc_tx_bufnob += rc; /* account it */
 
 		if (bufnob < conn->ksnc_tx_bufnob) {
-			/* allocated send buffer bytes < computed; infer
-			 * something got ACKed */
+			/*
+			 * allocated send buffer bytes < computed; infer
+			 * something got ACKed
+			 */
 			conn->ksnc_tx_deadline =
 				cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
 			conn->ksnc_peer->ksnp_last_alive = cfs_time_current();
@@ -227,7 +226,7 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 
 		if (rc <= 0) { /* Didn't write anything? */
 
-			if (rc == 0) /* some stacks return 0 instead of -EAGAIN */
+			if (!rc) /* some stacks return 0 instead of -EAGAIN */
 				rc = -EAGAIN;
 
 			/* Check if EAGAIN is due to memory pressure */
@@ -238,17 +237,17 @@ ksocknal_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 		}
 
 		/* socket's wmem_queued now includes 'rc' bytes */
-		atomic_sub (rc, &conn->ksnc_tx_nob);
+		atomic_sub(rc, &conn->ksnc_tx_nob);
 		rc = 0;
 
-	} while (tx->tx_resid != 0);
+	} while (tx->tx_resid);
 
 	ksocknal_connsock_decref(conn);
 	return rc;
 }
 
 static int
-ksocknal_recv_iov (ksock_conn_t *conn)
+ksocknal_recv_iov(ksock_conn_t *conn)
 {
 	struct kvec *iov = conn->ksnc_rx_iov;
 	int nob;
@@ -256,8 +255,10 @@ ksocknal_recv_iov (ksock_conn_t *conn)
 
 	LASSERT(conn->ksnc_rx_niov > 0);
 
-	/* Never touch conn->ksnc_rx_iov or change connection
-	 * status inside ksocknal_lib_recv_iov */
+	/*
+	 * Never touch conn->ksnc_rx_iov or change connection
+	 * status inside ksocknal_lib_recv_iov
+	 */
 	rc = ksocknal_lib_recv_iov(conn);
 
 	if (rc <= 0)
@@ -287,13 +288,13 @@ ksocknal_recv_iov (ksock_conn_t *conn)
 		nob -= iov->iov_len;
 		conn->ksnc_rx_iov = ++iov;
 		conn->ksnc_rx_niov--;
-	} while (nob != 0);
+	} while (nob);
 
 	return rc;
 }
 
 static int
-ksocknal_recv_kiov (ksock_conn_t *conn)
+ksocknal_recv_kiov(ksock_conn_t *conn)
 {
 	lnet_kiov_t *kiov = conn->ksnc_rx_kiov;
 	int nob;
@@ -301,8 +302,10 @@ ksocknal_recv_kiov (ksock_conn_t *conn)
 
 	LASSERT(conn->ksnc_rx_nkiov > 0);
 
-	/* Never touch conn->ksnc_rx_kiov or change connection
-	 * status inside ksocknal_lib_recv_iov */
+	/*
+	 * Never touch conn->ksnc_rx_kiov or change connection
+	 * status inside ksocknal_lib_recv_iov
+	 */
 	rc = ksocknal_lib_recv_kiov(conn);
 
 	if (rc <= 0)
@@ -332,41 +335,43 @@ ksocknal_recv_kiov (ksock_conn_t *conn)
 		nob -= kiov->kiov_len;
 		conn->ksnc_rx_kiov = ++kiov;
 		conn->ksnc_rx_nkiov--;
-	} while (nob != 0);
+	} while (nob);
 
 	return 1;
 }
 
 static int
-ksocknal_receive (ksock_conn_t *conn)
+ksocknal_receive(ksock_conn_t *conn)
 {
-	/* Return 1 on success, 0 on EOF, < 0 on error.
+	/*
+	 * Return 1 on success, 0 on EOF, < 0 on error.
 	 * Caller checks ksnc_rx_nob_wanted to determine
-	 * progress/completion. */
+	 * progress/completion.
+	 */
 	int rc;
 
-	if (ksocknal_data.ksnd_stall_rx != 0) {
+	if (ksocknal_data.ksnd_stall_rx) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(cfs_time_seconds(ksocknal_data.ksnd_stall_rx));
 	}
 
 	rc = ksocknal_connsock_addref(conn);
-	if (rc != 0) {
-		LASSERT (conn->ksnc_closing);
+	if (rc) {
+		LASSERT(conn->ksnc_closing);
 		return -ESHUTDOWN;
 	}
 
 	for (;;) {
-		if (conn->ksnc_rx_niov != 0)
-			rc = ksocknal_recv_iov (conn);
+		if (conn->ksnc_rx_niov)
+			rc = ksocknal_recv_iov(conn);
 		else
-			rc = ksocknal_recv_kiov (conn);
+			rc = ksocknal_recv_kiov(conn);
 
 		if (rc <= 0) {
 			/* error/EOF or partial receive */
 			if (rc == -EAGAIN) {
 				rc = 1;
-			} else if (rc == 0 && conn->ksnc_rx_started) {
+			} else if (!rc && conn->ksnc_rx_started) {
 				/* EOF in the middle of a message */
 				rc = -EPROTO;
 			}
@@ -375,7 +380,7 @@ ksocknal_receive (ksock_conn_t *conn)
 
 		/* Completed a fragment */
 
-		if (conn->ksnc_rx_nob_wanted == 0) {
+		if (!conn->ksnc_rx_nob_wanted) {
 			rc = 1;
 			break;
 		}
@@ -386,36 +391,36 @@ ksocknal_receive (ksock_conn_t *conn)
 }
 
 void
-ksocknal_tx_done (lnet_ni_t *ni, ksock_tx_t *tx)
+ksocknal_tx_done(lnet_ni_t *ni, ksock_tx_t *tx)
 {
 	lnet_msg_t *lnetmsg = tx->tx_lnetmsg;
-	int rc = (tx->tx_resid == 0 && !tx->tx_zc_aborted) ? 0 : -EIO;
+	int rc = (!tx->tx_resid && !tx->tx_zc_aborted) ? 0 : -EIO;
 
-	LASSERT(ni != NULL || tx->tx_conn != NULL);
+	LASSERT(ni || tx->tx_conn);
 
-	if (tx->tx_conn != NULL)
+	if (tx->tx_conn)
 		ksocknal_conn_decref(tx->tx_conn);
 
-	if (ni == NULL && tx->tx_conn != NULL)
+	if (!ni && tx->tx_conn)
 		ni = tx->tx_conn->ksnc_peer->ksnp_ni;
 
-	ksocknal_free_tx (tx);
-	if (lnetmsg != NULL) /* KSOCK_MSG_NOOP go without lnetmsg */
-		lnet_finalize (ni, lnetmsg, rc);
+	ksocknal_free_tx(tx);
+	if (lnetmsg) /* KSOCK_MSG_NOOP go without lnetmsg */
+		lnet_finalize(ni, lnetmsg, rc);
 }
 
 void
-ksocknal_txlist_done (lnet_ni_t *ni, struct list_head *txlist, int error)
+ksocknal_txlist_done(lnet_ni_t *ni, struct list_head *txlist, int error)
 {
 	ksock_tx_t *tx;
 
-	while (!list_empty (txlist)) {
+	while (!list_empty(txlist)) {
 		tx = list_entry(txlist->next, ksock_tx_t, tx_list);
 
-		if (error && tx->tx_lnetmsg != NULL) {
+		if (error && tx->tx_lnetmsg) {
 			CNETERR("Deleting packet type %d len %d %s->%s\n",
-				le32_to_cpu (tx->tx_lnetmsg->msg_hdr.type),
-				le32_to_cpu (tx->tx_lnetmsg->msg_hdr.payload_length),
+				le32_to_cpu(tx->tx_lnetmsg->msg_hdr.type),
+				le32_to_cpu(tx->tx_lnetmsg->msg_hdr.payload_length),
 				libcfs_nid2str(le64_to_cpu(tx->tx_lnetmsg->msg_hdr.src_nid)),
 				libcfs_nid2str(le64_to_cpu(tx->tx_lnetmsg->msg_hdr.dest_nid)));
 		} else if (error) {
@@ -435,12 +440,14 @@ ksocknal_check_zc_req(ksock_tx_t *tx)
 	ksock_conn_t *conn = tx->tx_conn;
 	ksock_peer_t *peer = conn->ksnc_peer;
 
-	/* Set tx_msg.ksm_zc_cookies[0] to a unique non-zero cookie and add tx
+	/*
+	 * Set tx_msg.ksm_zc_cookies[0] to a unique non-zero cookie and add tx
 	 * to ksnp_zc_req_list if some fragment of this message should be sent
 	 * zero-copy.  Our peer will send an ACK containing this cookie when
 	 * she has received this message to tell us we can signal completion.
 	 * tx_msg.ksm_zc_cookies[0] remains non-zero while tx is on
-	 * ksnp_zc_req_list. */
+	 * ksnp_zc_req_list.
+	 */
 	LASSERT(tx->tx_msg.ksm_type != KSOCK_MSG_NOOP);
 	LASSERT(tx->tx_zc_capable);
 
@@ -450,9 +457,10 @@ ksocknal_check_zc_req(ksock_tx_t *tx)
 	    !conn->ksnc_zc_capable)
 		return;
 
-	/* assign cookie and queue tx to pending list, it will be released when
-	 * a matching ack is received. See ksocknal_handle_zcack() */
-
+	/*
+	 * assign cookie and queue tx to pending list, it will be released when
+	 * a matching ack is received. See ksocknal_handle_zcack()
+	 */
 	ksocknal_tx_addref(tx);
 
 	spin_lock(&peer->ksnp_lock);
@@ -461,11 +469,11 @@ ksocknal_check_zc_req(ksock_tx_t *tx)
 	tx->tx_deadline =
 		cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
 
-	LASSERT(tx->tx_msg.ksm_zc_cookies[0] == 0);
+	LASSERT(!tx->tx_msg.ksm_zc_cookies[0]);
 
 	tx->tx_msg.ksm_zc_cookies[0] = peer->ksnp_zc_next_cookie++;
 
-	if (peer->ksnp_zc_next_cookie == 0)
+	if (!peer->ksnp_zc_next_cookie)
 		peer->ksnp_zc_next_cookie = SOCKNAL_KEEPALIVE_PING + 1;
 
 	list_add_tail(&tx->tx_zc_list, &peer->ksnp_zc_req_list);
@@ -485,7 +493,7 @@ ksocknal_uncheck_zc_req(ksock_tx_t *tx)
 
 	spin_lock(&peer->ksnp_lock);
 
-	if (tx->tx_msg.ksm_zc_cookies[0] == 0) {
+	if (!tx->tx_msg.ksm_zc_cookies[0]) {
 		/* Not waiting for an ACK */
 		spin_unlock(&peer->ksnp_lock);
 		return;
@@ -500,20 +508,20 @@ ksocknal_uncheck_zc_req(ksock_tx_t *tx)
 }
 
 static int
-ksocknal_process_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
+ksocknal_process_transmit(ksock_conn_t *conn, ksock_tx_t *tx)
 {
 	int rc;
 
 	if (tx->tx_zc_capable && !tx->tx_zc_checked)
 		ksocknal_check_zc_req(tx);
 
-	rc = ksocknal_transmit (conn, tx);
+	rc = ksocknal_transmit(conn, tx);
 
 	CDEBUG(D_NET, "send(%d) %d\n", tx->tx_resid, rc);
 
-	if (tx->tx_resid == 0) {
+	if (!tx->tx_resid) {
 		/* Sent everything OK */
-		LASSERT (rc == 0);
+		LASSERT(!rc);
 
 		return 0;
 	}
@@ -532,13 +540,13 @@ ksocknal_process_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 		spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 
 		/* enomem list takes over scheduler's ref... */
-		LASSERT (conn->ksnc_tx_scheduled);
+		LASSERT(conn->ksnc_tx_scheduled);
 		list_add_tail(&conn->ksnc_tx_list,
-				  &ksocknal_data.ksnd_enomem_conns);
+			      &ksocknal_data.ksnd_enomem_conns);
 		if (!cfs_time_aftereq(cfs_time_add(cfs_time_current(),
 						   SOCKNAL_ENOMEM_RETRY),
 				   ksocknal_data.ksnd_reaper_waketime))
-			wake_up (&ksocknal_data.ksnd_reaper_waitq);
+			wake_up(&ksocknal_data.ksnd_reaper_waitq);
 
 		spin_unlock_bh(&ksocknal_data.ksnd_reaper_lock);
 		return rc;
@@ -569,21 +577,19 @@ ksocknal_process_transmit (ksock_conn_t *conn, ksock_tx_t *tx)
 		ksocknal_uncheck_zc_req(tx);
 
 	/* it's not an error if conn is being closed */
-	ksocknal_close_conn_and_siblings (conn,
-					  (conn->ksnc_closing) ? 0 : rc);
+	ksocknal_close_conn_and_siblings(conn, (conn->ksnc_closing) ? 0 : rc);
 
 	return rc;
 }
 
 static void
-ksocknal_launch_connection_locked (ksock_route_t *route)
+ksocknal_launch_connection_locked(ksock_route_t *route)
 {
-
 	/* called holding write lock on ksnd_global_lock */
 
 	LASSERT(!route->ksnr_scheduled);
 	LASSERT(!route->ksnr_connecting);
-	LASSERT((ksocknal_route_mask() & ~route->ksnr_connected) != 0);
+	LASSERT(ksocknal_route_mask() & ~route->ksnr_connected);
 
 	route->ksnr_scheduled = 1;	      /* scheduling conn for connd */
 	ksocknal_route_addref(route);	   /* extra ref for connd */
@@ -591,14 +597,14 @@ ksocknal_launch_connection_locked (ksock_route_t *route)
 	spin_lock_bh(&ksocknal_data.ksnd_connd_lock);
 
 	list_add_tail(&route->ksnr_connd_list,
-			  &ksocknal_data.ksnd_connd_routes);
+		      &ksocknal_data.ksnd_connd_routes);
 	wake_up(&ksocknal_data.ksnd_connd_waitq);
 
 	spin_unlock_bh(&ksocknal_data.ksnd_connd_lock);
 }
 
 void
-ksocknal_launch_all_connections_locked (ksock_peer_t *peer)
+ksocknal_launch_all_connections_locked(ksock_peer_t *peer)
 {
 	ksock_route_t *route;
 
@@ -606,7 +612,7 @@ ksocknal_launch_all_connections_locked (ksock_peer_t *peer)
 	for (;;) {
 		/* launch any/all connections that need it */
 		route = ksocknal_find_connectable_route_locked(peer);
-		if (route == NULL)
+		if (!route)
 			return;
 
 		ksocknal_launch_connection_locked(route);
@@ -623,15 +629,15 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 	int tnob = 0;
 	int fnob = 0;
 
-	list_for_each (tmp, &peer->ksnp_conns) {
+	list_for_each(tmp, &peer->ksnp_conns) {
 		ksock_conn_t *c  = list_entry(tmp, ksock_conn_t, ksnc_list);
 		int nob = atomic_read(&c->ksnc_tx_nob) +
 			c->ksnc_sock->sk->sk_wmem_queued;
 		int rc;
 
 		LASSERT(!c->ksnc_closing);
-		LASSERT(c->ksnc_proto != NULL &&
-			c->ksnc_proto->pro_match_tx != NULL);
+		LASSERT(c->ksnc_proto &&
+			c->ksnc_proto->pro_match_tx);
 
 		rc = c->ksnc_proto->pro_match_tx(c, tx, nonblk);
 
@@ -642,7 +648,7 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 			continue;
 
 		case SOCKNAL_MATCH_YES: /* typed connection */
-			if (typed == NULL || tnob > nob ||
+			if (!typed || tnob > nob ||
 			    (tnob == nob && *ksocknal_tunables.ksnd_round_robin &&
 			     cfs_time_after(typed->ksnc_tx_last_post, c->ksnc_tx_last_post))) {
 				typed = c;
@@ -651,7 +657,7 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 			break;
 
 		case SOCKNAL_MATCH_MAY: /* fallback connection */
-			if (fallback == NULL || fnob > nob ||
+			if (!fallback || fnob > nob ||
 			    (fnob == nob && *ksocknal_tunables.ksnd_round_robin &&
 			     cfs_time_after(fallback->ksnc_tx_last_post, c->ksnc_tx_last_post))) {
 				fallback = c;
@@ -662,9 +668,9 @@ ksocknal_find_conn_locked(ksock_peer_t *peer, ksock_tx_t *tx, int nonblk)
 	}
 
 	/* prefer the typed selection */
-	conn = (typed != NULL) ? typed : fallback;
+	conn = (typed) ? typed : fallback;
 
-	if (conn != NULL)
+	if (conn)
 		conn->ksnc_tx_last_post = cfs_time_current();
 
 	return conn;
@@ -675,48 +681,51 @@ ksocknal_tx_prep(ksock_conn_t *conn, ksock_tx_t *tx)
 {
 	conn->ksnc_proto->pro_pack(tx);
 
-	atomic_add (tx->tx_nob, &conn->ksnc_tx_nob);
+	atomic_add(tx->tx_nob, &conn->ksnc_tx_nob);
 	ksocknal_conn_addref(conn); /* +1 ref for tx */
 	tx->tx_conn = conn;
 }
 
 void
-ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
+ksocknal_queue_tx_locked(ksock_tx_t *tx, ksock_conn_t *conn)
 {
 	ksock_sched_t *sched = conn->ksnc_scheduler;
 	ksock_msg_t *msg = &tx->tx_msg;
 	ksock_tx_t *ztx = NULL;
 	int bufnob = 0;
 
-	/* called holding global lock (read or irq-write) and caller may
+	/*
+	 * called holding global lock (read or irq-write) and caller may
 	 * not have dropped this lock between finding conn and calling me,
 	 * so we don't need the {get,put}connsock dance to deref
-	 * ksnc_sock... */
+	 * ksnc_sock...
+	 */
 	LASSERT(!conn->ksnc_closing);
 
 	CDEBUG(D_NET, "Sending to %s ip %pI4h:%d\n",
-		libcfs_id2str(conn->ksnc_peer->ksnp_id),
-		&conn->ksnc_ipaddr,
-		conn->ksnc_port);
+	       libcfs_id2str(conn->ksnc_peer->ksnp_id),
+	       &conn->ksnc_ipaddr, conn->ksnc_port);
 
 	ksocknal_tx_prep(conn, tx);
 
-	/* Ensure the frags we've been given EXACTLY match the number of
+	/*
+	 * Ensure the frags we've been given EXACTLY match the number of
 	 * bytes we want to send.  Many TCP/IP stacks disregard any total
 	 * size parameters passed to them and just look at the frags.
 	 *
 	 * We always expect at least 1 mapped fragment containing the
-	 * complete ksocknal message header. */
-	LASSERT(lnet_iov_nob (tx->tx_niov, tx->tx_iov) +
+	 * complete ksocknal message header.
+	 */
+	LASSERT(lnet_iov_nob(tx->tx_niov, tx->tx_iov) +
 		lnet_kiov_nob(tx->tx_nkiov, tx->tx_kiov) ==
 		(unsigned int)tx->tx_nob);
 	LASSERT(tx->tx_niov >= 1);
 	LASSERT(tx->tx_resid == tx->tx_nob);
 
-	CDEBUG (D_NET, "Packet %p type %d, nob %d niov %d nkiov %d\n",
-		tx, (tx->tx_lnetmsg != NULL) ? tx->tx_lnetmsg->msg_hdr.type :
-					       KSOCK_MSG_NOOP,
-		tx->tx_nob, tx->tx_niov, tx->tx_nkiov);
+	CDEBUG(D_NET, "Packet %p type %d, nob %d niov %d nkiov %d\n",
+	       tx, (tx->tx_lnetmsg) ? tx->tx_lnetmsg->msg_hdr.type :
+					      KSOCK_MSG_NOOP,
+	       tx->tx_nob, tx->tx_niov, tx->tx_nkiov);
 
 	/*
 	 * FIXME: SOCK_WMEM_QUEUED and SOCK_ERROR could block in __DARWIN8__
@@ -725,7 +734,7 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	bufnob = conn->ksnc_sock->sk->sk_wmem_queued;
 	spin_lock_bh(&sched->kss_lock);
 
-	if (list_empty(&conn->ksnc_tx_queue) && bufnob == 0) {
+	if (list_empty(&conn->ksnc_tx_queue) && !bufnob) {
 		/* First packet starts the timeout */
 		conn->ksnc_tx_deadline =
 			cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
@@ -736,26 +745,30 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	}
 
 	if (msg->ksm_type == KSOCK_MSG_NOOP) {
-		/* The packet is noop ZC ACK, try to piggyback the ack_cookie
-		 * on a normal packet so I don't need to send it */
-		LASSERT(msg->ksm_zc_cookies[1] != 0);
-		LASSERT(conn->ksnc_proto->pro_queue_tx_zcack != NULL);
+		/*
+		 * The packet is noop ZC ACK, try to piggyback the ack_cookie
+		 * on a normal packet so I don't need to send it
+		 */
+		LASSERT(msg->ksm_zc_cookies[1]);
+		LASSERT(conn->ksnc_proto->pro_queue_tx_zcack);
 
 		if (conn->ksnc_proto->pro_queue_tx_zcack(conn, tx, 0))
 			ztx = tx; /* ZC ACK piggybacked on ztx release tx later */
 
 	} else {
-		/* It's a normal packet - can it piggback a noop zc-ack that
-		 * has been queued already? */
-		LASSERT(msg->ksm_zc_cookies[1] == 0);
-		LASSERT(conn->ksnc_proto->pro_queue_tx_msg != NULL);
+		/*
+		 * It's a normal packet - can it piggback a noop zc-ack that
+		 * has been queued already?
+		 */
+		LASSERT(!msg->ksm_zc_cookies[1]);
+		LASSERT(conn->ksnc_proto->pro_queue_tx_msg);
 
 		ztx = conn->ksnc_proto->pro_queue_tx_msg(conn, tx);
 		/* ztx will be released later */
 	}
 
-	if (ztx != NULL) {
-		atomic_sub (ztx->tx_nob, &conn->ksnc_tx_nob);
+	if (ztx) {
+		atomic_sub(ztx->tx_nob, &conn->ksnc_tx_nob);
 		list_add_tail(&ztx->tx_list, &sched->kss_zombie_noop_txs);
 	}
 
@@ -763,24 +776,23 @@ ksocknal_queue_tx_locked (ksock_tx_t *tx, ksock_conn_t *conn)
 	    !conn->ksnc_tx_scheduled) { /* not scheduled to send */
 		/* +1 ref for scheduler */
 		ksocknal_conn_addref(conn);
-		list_add_tail (&conn->ksnc_tx_list,
-				   &sched->kss_tx_conns);
+		list_add_tail(&conn->ksnc_tx_list, &sched->kss_tx_conns);
 		conn->ksnc_tx_scheduled = 1;
-		wake_up (&sched->kss_waitq);
+		wake_up(&sched->kss_waitq);
 	}
 
 	spin_unlock_bh(&sched->kss_lock);
 }
 
 ksock_route_t *
-ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
+ksocknal_find_connectable_route_locked(ksock_peer_t *peer)
 {
 	unsigned long now = cfs_time_current();
 	struct list_head *tmp;
 	ksock_route_t *route;
 
-	list_for_each (tmp, &peer->ksnp_routes) {
-		route = list_entry (tmp, ksock_route_t, ksnr_list);
+	list_for_each(tmp, &peer->ksnp_routes) {
+		route = list_entry(tmp, ksock_route_t, ksnr_list);
 
 		LASSERT(!route->ksnr_connecting || route->ksnr_scheduled);
 
@@ -788,10 +800,10 @@ ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
 			continue;
 
 		/* all route types connected ? */
-		if ((ksocknal_route_mask() & ~route->ksnr_connected) == 0)
+		if (!(ksocknal_route_mask() & ~route->ksnr_connected))
 			continue;
 
-		if (!(route->ksnr_retry_interval == 0 || /* first attempt */
+		if (!(!route->ksnr_retry_interval || /* first attempt */
 		      cfs_time_aftereq(now, route->ksnr_timeout))) {
 			CDEBUG(D_NET,
 			       "Too soon to retry route %pI4h (cnted %d, interval %ld, %ld secs later)\n",
@@ -809,13 +821,13 @@ ksocknal_find_connectable_route_locked (ksock_peer_t *peer)
 }
 
 ksock_route_t *
-ksocknal_find_connecting_route_locked (ksock_peer_t *peer)
+ksocknal_find_connecting_route_locked(ksock_peer_t *peer)
 {
 	struct list_head *tmp;
 	ksock_route_t *route;
 
-	list_for_each (tmp, &peer->ksnp_routes) {
-		route = list_entry (tmp, ksock_route_t, ksnr_list);
+	list_for_each(tmp, &peer->ksnp_routes) {
+		route = list_entry(tmp, ksock_route_t, ksnr_list);
 
 		LASSERT(!route->ksnr_connecting || route->ksnr_scheduled);
 
@@ -827,7 +839,7 @@ ksocknal_find_connecting_route_locked (ksock_peer_t *peer)
 }
 
 int
-ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
+ksocknal_launch_packet(lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 {
 	ksock_peer_t *peer;
 	ksock_conn_t *conn;
@@ -835,21 +847,23 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 	int retry;
 	int rc;
 
-	LASSERT(tx->tx_conn == NULL);
+	LASSERT(!tx->tx_conn);
 
 	g_lock = &ksocknal_data.ksnd_global_lock;
 
 	for (retry = 0;; retry = 1) {
 		read_lock(g_lock);
 		peer = ksocknal_find_peer_locked(ni, id);
-		if (peer != NULL) {
-			if (ksocknal_find_connectable_route_locked(peer) == NULL) {
+		if (peer) {
+			if (!ksocknal_find_connectable_route_locked(peer)) {
 				conn = ksocknal_find_conn_locked(peer, tx, tx->tx_nonblk);
-				if (conn != NULL) {
-					/* I've got no routes that need to be
+				if (conn) {
+					/*
+					 * I've got no routes that need to be
 					 * connecting and I do have an actual
-					 * connection... */
-					ksocknal_queue_tx_locked (tx, conn);
+					 * connection...
+					 */
+					ksocknal_queue_tx_locked(tx, conn);
 					read_unlock(g_lock);
 					return 0;
 				}
@@ -862,12 +876,12 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 		write_lock_bh(g_lock);
 
 		peer = ksocknal_find_peer_locked(ni, id);
-		if (peer != NULL)
+		if (peer)
 			break;
 
 		write_unlock_bh(g_lock);
 
-		if ((id.pid & LNET_PID_USERFLAG) != 0) {
+		if (id.pid & LNET_PID_USERFLAG) {
 			CERROR("Refusing to create a connection to userspace process %s\n",
 			       libcfs_id2str(id));
 			return -EHOSTUNREACH;
@@ -881,7 +895,7 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 		rc = ksocknal_add_peer(ni, id,
 				       LNET_NIDADDR(id.nid),
 				       lnet_acceptor_port());
-		if (rc != 0) {
+		if (rc) {
 			CERROR("Can't add peer %s: %d\n",
 			       libcfs_id2str(id), rc);
 			return rc;
@@ -891,21 +905,21 @@ ksocknal_launch_packet (lnet_ni_t *ni, ksock_tx_t *tx, lnet_process_id_t id)
 	ksocknal_launch_all_connections_locked(peer);
 
 	conn = ksocknal_find_conn_locked(peer, tx, tx->tx_nonblk);
-	if (conn != NULL) {
+	if (conn) {
 		/* Connection exists; queue message on it */
-		ksocknal_queue_tx_locked (tx, conn);
+		ksocknal_queue_tx_locked(tx, conn);
 		write_unlock_bh(g_lock);
 		return 0;
 	}
 
 	if (peer->ksnp_accepting > 0 ||
-	    ksocknal_find_connecting_route_locked (peer) != NULL) {
+	    ksocknal_find_connecting_route_locked(peer)) {
 		/* the message is going to be pinned to the peer */
 		tx->tx_deadline =
 			cfs_time_shift(*ksocknal_tunables.ksnd_timeout);
 
 		/* Queue the message until a connection is established */
-		list_add_tail (&tx->tx_list, &peer->ksnp_tx_queue);
+		list_add_tail(&tx->tx_list, &peer->ksnp_tx_queue);
 		write_unlock_bh(g_lock);
 		return 0;
 	}
@@ -932,19 +946,20 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	int desc_size;
 	int rc;
 
-	/* NB 'private' is different depending on what we're sending.
-	 * Just ignore it... */
-
+	/*
+	 * NB 'private' is different depending on what we're sending.
+	 * Just ignore it...
+	 */
 	CDEBUG(D_NET, "sending %u bytes in %d frags to %s\n",
 	       payload_nob, payload_niov, libcfs_id2str(target));
 
-	LASSERT(payload_nob == 0 || payload_niov > 0);
+	LASSERT(!payload_nob || payload_niov > 0);
 	LASSERT(payload_niov <= LNET_MAX_IOV);
 	/* payload is either all vaddrs or all pages */
-	LASSERT (!(payload_kiov != NULL && payload_iov != NULL));
-	LASSERT (!in_interrupt ());
+	LASSERT(!(payload_kiov && payload_iov));
+	LASSERT(!in_interrupt());
 
-	if (payload_iov != NULL)
+	if (payload_iov)
 		desc_size = offsetof(ksock_tx_t,
 				     tx_frags.virt.iov[1 + payload_niov]);
 	else
@@ -954,7 +969,7 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	if (lntmsg->msg_vmflush)
 		mpflag = cfs_memory_pressure_get_and_set();
 	tx = ksocknal_alloc_tx(KSOCK_MSG_LNET, desc_size);
-	if (tx == NULL) {
+	if (!tx) {
 		CERROR("Can't allocate tx desc type %d size %d\n",
 		       type, desc_size);
 		if (lntmsg->msg_vmflush)
@@ -965,7 +980,7 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	tx->tx_conn = NULL;		     /* set when assigned a conn */
 	tx->tx_lnetmsg = lntmsg;
 
-	if (payload_iov != NULL) {
+	if (payload_iov) {
 		tx->tx_kiov = NULL;
 		tx->tx_nkiov = 0;
 		tx->tx_iov = tx->tx_frags.virt.iov;
@@ -992,7 +1007,7 @@ ksocknal_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg)
 	if (!mpflag)
 		cfs_memory_pressure_restore(mpflag);
 
-	if (rc == 0)
+	if (!rc)
 		return 0;
 
 	ksocknal_free_tx(tx);
@@ -1014,7 +1029,7 @@ ksocknal_thread_start(int (*fn)(void *arg), void *arg, char *name)
 }
 
 void
-ksocknal_thread_fini (void)
+ksocknal_thread_fini(void)
 {
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 	ksocknal_data.ksnd_nthreads--;
@@ -1022,7 +1037,7 @@ ksocknal_thread_fini (void)
 }
 
 int
-ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
+ksocknal_new_packet(ksock_conn_t *conn, int nob_to_skip)
 {
 	static char ksocknal_slop_buffer[4096];
 
@@ -1030,14 +1045,14 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 	unsigned int niov;
 	int skipped;
 
-	LASSERT(conn->ksnc_proto != NULL);
+	LASSERT(conn->ksnc_proto);
 
-	if ((*ksocknal_tunables.ksnd_eager_ack & conn->ksnc_type) != 0) {
+	if (*ksocknal_tunables.ksnd_eager_ack & conn->ksnc_type) {
 		/* Remind the socket to ack eagerly... */
 		ksocknal_lib_eager_ack(conn);
 	}
 
-	if (nob_to_skip == 0) {	 /* right at next packet boundary now */
+	if (!nob_to_skip) {	 /* right at next packet boundary now */
 		conn->ksnc_rx_started = 0;
 		mb();		       /* racing with timeout thread */
 
@@ -1061,11 +1076,11 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 
 			conn->ksnc_rx_iov = (struct kvec *)&conn->ksnc_rx_iov_space;
 			conn->ksnc_rx_iov[0].iov_base = &conn->ksnc_msg.ksm_u.lnetmsg;
-			conn->ksnc_rx_iov[0].iov_len = sizeof (lnet_hdr_t);
+			conn->ksnc_rx_iov[0].iov_len = sizeof(lnet_hdr_t);
 			break;
 
 		default:
-			LBUG ();
+			LBUG();
 		}
 		conn->ksnc_rx_niov = 1;
 
@@ -1075,9 +1090,10 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 		return 1;
 	}
 
-	/* Set up to skip as much as possible now.  If there's more left
-	 * (ran out of iov entries) we'll get called again */
-
+	/*
+	 * Set up to skip as much as possible now.  If there's more left
+	 * (ran out of iov entries) we'll get called again
+	 */
 	conn->ksnc_rx_state = SOCKNAL_RX_SLOP;
 	conn->ksnc_rx_nob_left = nob_to_skip;
 	conn->ksnc_rx_iov = (struct kvec *)&conn->ksnc_rx_iov_space;
@@ -1093,8 +1109,8 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 		skipped += nob;
 		nob_to_skip -= nob;
 
-	} while (nob_to_skip != 0 &&    /* mustn't overflow conn's rx iov */
-		 niov < sizeof(conn->ksnc_rx_iov_space) / sizeof (struct iovec));
+	} while (nob_to_skip &&    /* mustn't overflow conn's rx iov */
+		 niov < sizeof(conn->ksnc_rx_iov_space) / sizeof(struct iovec));
 
 	conn->ksnc_rx_niov = niov;
 	conn->ksnc_rx_kiov = NULL;
@@ -1104,13 +1120,13 @@ ksocknal_new_packet (ksock_conn_t *conn, int nob_to_skip)
 }
 
 static int
-ksocknal_process_receive (ksock_conn_t *conn)
+ksocknal_process_receive(ksock_conn_t *conn)
 {
 	lnet_hdr_t *lhdr;
 	lnet_process_id_t *id;
 	int rc;
 
-	LASSERT (atomic_read(&conn->ksnc_conn_refcount) > 0);
+	LASSERT(atomic_read(&conn->ksnc_conn_refcount) > 0);
 
 	/* NB: sched lock NOT held */
 	/* SOCKNAL_RX_LNET_HEADER is here for backward compatibility */
@@ -1119,13 +1135,13 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		conn->ksnc_rx_state == SOCKNAL_RX_LNET_HEADER ||
 		conn->ksnc_rx_state == SOCKNAL_RX_SLOP);
  again:
-	if (conn->ksnc_rx_nob_wanted != 0) {
+	if (conn->ksnc_rx_nob_wanted) {
 		rc = ksocknal_receive(conn);
 
 		if (rc <= 0) {
-			LASSERT (rc != -EAGAIN);
+			LASSERT(rc != -EAGAIN);
 
-			if (rc == 0)
+			if (!rc)
 				CDEBUG(D_NET, "[%p] EOF from %s ip %pI4h:%d\n",
 				       conn,
 				       libcfs_id2str(conn->ksnc_peer->ksnp_id),
@@ -1139,12 +1155,12 @@ ksocknal_process_receive (ksock_conn_t *conn)
 				       conn->ksnc_port);
 
 			/* it's not an error if conn is being closed */
-			ksocknal_close_conn_and_siblings (conn,
-							  (conn->ksnc_closing) ? 0 : rc);
-			return (rc == 0 ? -ESHUTDOWN : rc);
+			ksocknal_close_conn_and_siblings(conn,
+							 (conn->ksnc_closing) ? 0 : rc);
+			return (!rc ? -ESHUTDOWN : rc);
 		}
 
-		if (conn->ksnc_rx_nob_wanted != 0) {
+		if (conn->ksnc_rx_nob_wanted) {
 			/* short read */
 			return -EAGAIN;
 		}
@@ -1169,7 +1185,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		}
 
 		if (conn->ksnc_msg.ksm_type == KSOCK_MSG_NOOP &&
-		    conn->ksnc_msg.ksm_csum != 0 &&     /* has checksum */
+		    conn->ksnc_msg.ksm_csum &&     /* has checksum */
 		    conn->ksnc_msg.ksm_csum != conn->ksnc_rx_csum) {
 			/* NOOP Checksum error */
 			CERROR("%s: Checksum error, wire:0x%08X data:0x%08X\n",
@@ -1180,10 +1196,10 @@ ksocknal_process_receive (ksock_conn_t *conn)
 			return -EIO;
 		}
 
-		if (conn->ksnc_msg.ksm_zc_cookies[1] != 0) {
+		if (conn->ksnc_msg.ksm_zc_cookies[1]) {
 			__u64 cookie = 0;
 
-			LASSERT (conn->ksnc_proto != &ksocknal_protocol_v1x);
+			LASSERT(conn->ksnc_proto != &ksocknal_protocol_v1x);
 
 			if (conn->ksnc_msg.ksm_type == KSOCK_MSG_NOOP)
 				cookie = conn->ksnc_msg.ksm_zc_cookies[0];
@@ -1191,7 +1207,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 			rc = conn->ksnc_proto->pro_handle_zcack(conn, cookie,
 					       conn->ksnc_msg.ksm_zc_cookies[1]);
 
-			if (rc != 0) {
+			if (rc) {
 				CERROR("%s: Unknown ZC-ACK cookie: %llu, %llu\n",
 				       libcfs_id2str(conn->ksnc_peer->ksnp_id),
 				       cookie, conn->ksnc_msg.ksm_zc_cookies[1]);
@@ -1202,7 +1218,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		}
 
 		if (conn->ksnc_msg.ksm_type == KSOCK_MSG_NOOP) {
-			ksocknal_new_packet (conn, 0);
+			ksocknal_new_packet(conn, 0);
 			return 0;       /* NOOP is done and just return */
 		}
 
@@ -1224,7 +1240,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		/* unpack message header */
 		conn->ksnc_proto->pro_unpack(&conn->ksnc_msg);
 
-		if ((conn->ksnc_peer->ksnp_id.pid & LNET_PID_USERFLAG) != 0) {
+		if (conn->ksnc_peer->ksnp_id.pid & LNET_PID_USERFLAG) {
 			/* Userspace peer */
 			lhdr = &conn->ksnc_msg.ksm_u.lnetmsg.ksnm_hdr;
 			id = &conn->ksnc_peer->ksnp_id;
@@ -1243,14 +1259,14 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		if (rc < 0) {
 			/* I just received garbage: give up on this conn */
 			ksocknal_new_packet(conn, 0);
-			ksocknal_close_conn_and_siblings (conn, rc);
+			ksocknal_close_conn_and_siblings(conn, rc);
 			ksocknal_conn_decref(conn);
 			return -EPROTO;
 		}
 
 		/* I'm racing with ksocknal_recv() */
-		LASSERT (conn->ksnc_rx_state == SOCKNAL_RX_PARSE ||
-			 conn->ksnc_rx_state == SOCKNAL_RX_LNET_PAYLOAD);
+		LASSERT(conn->ksnc_rx_state == SOCKNAL_RX_PARSE ||
+			conn->ksnc_rx_state == SOCKNAL_RX_LNET_PAYLOAD);
 
 		if (conn->ksnc_rx_state != SOCKNAL_RX_LNET_PAYLOAD)
 			return 0;
@@ -1262,8 +1278,8 @@ ksocknal_process_receive (ksock_conn_t *conn)
 		/* payload all received */
 		rc = 0;
 
-		if (conn->ksnc_rx_nob_left == 0 &&   /* not truncating */
-		    conn->ksnc_msg.ksm_csum != 0 &&  /* has checksum */
+		if (!conn->ksnc_rx_nob_left &&   /* not truncating */
+		    conn->ksnc_msg.ksm_csum &&  /* has checksum */
 		    conn->ksnc_msg.ksm_csum != conn->ksnc_rx_csum) {
 			CERROR("%s: Checksum error, wire:0x%08X data:0x%08X\n",
 			       libcfs_id2str(conn->ksnc_peer->ksnp_id),
@@ -1271,7 +1287,7 @@ ksocknal_process_receive (ksock_conn_t *conn)
 			rc = -EIO;
 		}
 
-		if (rc == 0 && conn->ksnc_msg.ksm_zc_cookies[0] != 0) {
+		if (!rc && conn->ksnc_msg.ksm_zc_cookies[0]) {
 			LASSERT(conn->ksnc_proto != &ksocknal_protocol_v1x);
 
 			lhdr = &conn->ksnc_msg.ksm_u.lnetmsg.ksnm_hdr;
@@ -1285,16 +1301,16 @@ ksocknal_process_receive (ksock_conn_t *conn)
 
 		lnet_finalize(conn->ksnc_peer->ksnp_ni, conn->ksnc_cookie, rc);
 
-		if (rc != 0) {
+		if (rc) {
 			ksocknal_new_packet(conn, 0);
-			ksocknal_close_conn_and_siblings (conn, rc);
+			ksocknal_close_conn_and_siblings(conn, rc);
 			return -EPROTO;
 		}
 		/* Fall through */
 
 	case SOCKNAL_RX_SLOP:
 		/* starting new packet? */
-		if (ksocknal_new_packet (conn, conn->ksnc_rx_nob_left))
+		if (ksocknal_new_packet(conn, conn->ksnc_rx_nob_left))
 			return 0;       /* come back later */
 		goto again;	     /* try to finish reading slop now */
 
@@ -1308,9 +1324,9 @@ ksocknal_process_receive (ksock_conn_t *conn)
 }
 
 int
-ksocknal_recv (lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
-	       unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
-	       unsigned int offset, unsigned int mlen, unsigned int rlen)
+ksocknal_recv(lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
+	      unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
+	      unsigned int offset, unsigned int mlen, unsigned int rlen)
 {
 	ksock_conn_t *conn = private;
 	ksock_sched_t *sched = conn->ksnc_scheduler;
@@ -1322,7 +1338,7 @@ ksocknal_recv (lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	conn->ksnc_rx_nob_wanted = mlen;
 	conn->ksnc_rx_nob_left = rlen;
 
-	if (mlen == 0 || iov != NULL) {
+	if (!mlen || iov) {
 		conn->ksnc_rx_nkiov = 0;
 		conn->ksnc_rx_kiov = NULL;
 		conn->ksnc_rx_iov = conn->ksnc_rx_iov_space.iov;
@@ -1349,8 +1365,8 @@ ksocknal_recv (lnet_ni_t *ni, void *private, lnet_msg_t *msg, int delayed,
 	switch (conn->ksnc_rx_state) {
 	case SOCKNAL_RX_PARSE_WAIT:
 		list_add_tail(&conn->ksnc_rx_list, &sched->kss_rx_conns);
-		wake_up (&sched->kss_waitq);
-		LASSERT (conn->ksnc_rx_ready);
+		wake_up(&sched->kss_waitq);
+		LASSERT(conn->ksnc_rx_ready);
 		break;
 
 	case SOCKNAL_RX_PARSE:
@@ -1396,7 +1412,7 @@ int ksocknal_scheduler(void *arg)
 	cfs_block_allsigs();
 
 	rc = cfs_cpt_bind(lnet_cpt_table(), info->ksi_cpt);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Can't set CPT affinity to %d: %d\n",
 		       info->ksi_cpt, rc);
 	}
@@ -1408,18 +1424,20 @@ int ksocknal_scheduler(void *arg)
 
 		/* Ensure I progress everything semi-fairly */
 
-		if (!list_empty (&sched->kss_rx_conns)) {
+		if (!list_empty(&sched->kss_rx_conns)) {
 			conn = list_entry(sched->kss_rx_conns.next,
-					      ksock_conn_t, ksnc_rx_list);
+					  ksock_conn_t, ksnc_rx_list);
 			list_del(&conn->ksnc_rx_list);
 
 			LASSERT(conn->ksnc_rx_scheduled);
 			LASSERT(conn->ksnc_rx_ready);
 
-			/* clear rx_ready in case receive isn't complete.
+			/*
+			 * clear rx_ready in case receive isn't complete.
 			 * Do it BEFORE we call process_recv, since
 			 * data_ready can set it any time after we release
-			 * kss_lock. */
+			 * kss_lock.
+			 */
 			conn->ksnc_rx_ready = 0;
 			spin_unlock_bh(&sched->kss_lock);
 
@@ -1431,18 +1449,20 @@ int ksocknal_scheduler(void *arg)
 			LASSERT(conn->ksnc_rx_scheduled);
 
 			/* Did process_receive get everything it wanted? */
-			if (rc == 0)
+			if (!rc)
 				conn->ksnc_rx_ready = 1;
 
 			if (conn->ksnc_rx_state == SOCKNAL_RX_PARSE) {
-				/* Conn blocked waiting for ksocknal_recv()
+				/*
+				 * Conn blocked waiting for ksocknal_recv()
 				 * I change its state (under lock) to signal
-				 * it can be rescheduled */
+				 * it can be rescheduled
+				 */
 				conn->ksnc_rx_state = SOCKNAL_RX_PARSE_WAIT;
 			} else if (conn->ksnc_rx_ready) {
 				/* reschedule for rx */
-				list_add_tail (&conn->ksnc_rx_list,
-						   &sched->kss_rx_conns);
+				list_add_tail(&conn->ksnc_rx_list,
+					      &sched->kss_rx_conns);
 			} else {
 				conn->ksnc_rx_scheduled = 0;
 				/* drop my ref */
@@ -1452,25 +1472,24 @@ int ksocknal_scheduler(void *arg)
 			did_something = 1;
 		}
 
-		if (!list_empty (&sched->kss_tx_conns)) {
+		if (!list_empty(&sched->kss_tx_conns)) {
 			LIST_HEAD(zlist);
 
 			if (!list_empty(&sched->kss_zombie_noop_txs)) {
-				list_add(&zlist,
-					     &sched->kss_zombie_noop_txs);
+				list_add(&zlist, &sched->kss_zombie_noop_txs);
 				list_del_init(&sched->kss_zombie_noop_txs);
 			}
 
 			conn = list_entry(sched->kss_tx_conns.next,
-					      ksock_conn_t, ksnc_tx_list);
-			list_del (&conn->ksnc_tx_list);
+					  ksock_conn_t, ksnc_tx_list);
+			list_del(&conn->ksnc_tx_list);
 
 			LASSERT(conn->ksnc_tx_scheduled);
 			LASSERT(conn->ksnc_tx_ready);
 			LASSERT(!list_empty(&conn->ksnc_tx_queue));
 
 			tx = list_entry(conn->ksnc_tx_queue.next,
-					    ksock_tx_t, tx_list);
+					ksock_tx_t, tx_list);
 
 			if (conn->ksnc_tx_carrier == tx)
 				ksocknal_next_tx_carrier(conn);
@@ -1478,16 +1497,20 @@ int ksocknal_scheduler(void *arg)
 			/* dequeue now so empty list => more to send */
 			list_del(&tx->tx_list);
 
-			/* Clear tx_ready in case send isn't complete.  Do
+			/*
+			 * Clear tx_ready in case send isn't complete.  Do
 			 * it BEFORE we call process_transmit, since
 			 * write_space can set it any time after we release
-			 * kss_lock. */
+			 * kss_lock.
+			 */
 			conn->ksnc_tx_ready = 0;
 			spin_unlock_bh(&sched->kss_lock);
 
 			if (!list_empty(&zlist)) {
-				/* free zombie noop txs, it's fast because
-				 * noop txs are just put in freelist */
+				/*
+				 * free zombie noop txs, it's fast because
+				 * noop txs are just put in freelist
+				 */
 				ksocknal_txlist_done(NULL, &zlist, 0);
 			}
 
@@ -1496,8 +1519,7 @@ int ksocknal_scheduler(void *arg)
 			if (rc == -ENOMEM || rc == -EAGAIN) {
 				/* Incomplete send: replace tx on HEAD of tx_queue */
 				spin_lock_bh(&sched->kss_lock);
-				list_add(&tx->tx_list,
-					     &conn->ksnc_tx_queue);
+				list_add(&tx->tx_list, &conn->ksnc_tx_queue);
 			} else {
 				/* Complete send; tx -ref */
 				ksocknal_tx_decref(tx);
@@ -1508,13 +1530,15 @@ int ksocknal_scheduler(void *arg)
 			}
 
 			if (rc == -ENOMEM) {
-				/* Do nothing; after a short timeout, this
-				 * conn will be reposted on kss_tx_conns. */
+				/*
+				 * Do nothing; after a short timeout, this
+				 * conn will be reposted on kss_tx_conns.
+				 */
 			} else if (conn->ksnc_tx_ready &&
 				   !list_empty(&conn->ksnc_tx_queue)) {
 				/* reschedule for tx */
 				list_add_tail(&conn->ksnc_tx_list,
-						   &sched->kss_tx_conns);
+					      &sched->kss_tx_conns);
 			} else {
 				conn->ksnc_tx_scheduled = 0;
 				/* drop my ref */
@@ -1533,7 +1557,7 @@ int ksocknal_scheduler(void *arg)
 				rc = wait_event_interruptible_exclusive(
 					sched->kss_waitq,
 					!ksocknal_sched_cansleep(sched));
-				LASSERT (rc == 0);
+				LASSERT(!rc);
 			} else {
 				cond_resched();
 			}
@@ -1551,7 +1575,7 @@ int ksocknal_scheduler(void *arg)
  * Add connection to kss_rx_conns of scheduler
  * and wakeup the scheduler.
  */
-void ksocknal_read_callback (ksock_conn_t *conn)
+void ksocknal_read_callback(ksock_conn_t *conn)
 {
 	ksock_sched_t *sched;
 
@@ -1562,13 +1586,12 @@ void ksocknal_read_callback (ksock_conn_t *conn)
 	conn->ksnc_rx_ready = 1;
 
 	if (!conn->ksnc_rx_scheduled) {  /* not being progressed */
-		list_add_tail(&conn->ksnc_rx_list,
-				  &sched->kss_rx_conns);
+		list_add_tail(&conn->ksnc_rx_list, &sched->kss_rx_conns);
 		conn->ksnc_rx_scheduled = 1;
 		/* extra ref for scheduler */
 		ksocknal_conn_addref(conn);
 
-		wake_up (&sched->kss_waitq);
+		wake_up(&sched->kss_waitq);
 	}
 	spin_unlock_bh(&sched->kss_lock);
 }
@@ -1577,7 +1600,7 @@ void ksocknal_read_callback (ksock_conn_t *conn)
  * Add connection to kss_tx_conns of scheduler
  * and wakeup the scheduler.
  */
-void ksocknal_write_callback (ksock_conn_t *conn)
+void ksocknal_write_callback(ksock_conn_t *conn)
 {
 	ksock_sched_t *sched;
 
@@ -1589,20 +1612,19 @@ void ksocknal_write_callback (ksock_conn_t *conn)
 
 	if (!conn->ksnc_tx_scheduled && /* not being progressed */
 	    !list_empty(&conn->ksnc_tx_queue)) { /* packets to send */
-		list_add_tail (&conn->ksnc_tx_list,
-				   &sched->kss_tx_conns);
+		list_add_tail(&conn->ksnc_tx_list, &sched->kss_tx_conns);
 		conn->ksnc_tx_scheduled = 1;
 		/* extra ref for scheduler */
 		ksocknal_conn_addref(conn);
 
-		wake_up (&sched->kss_waitq);
+		wake_up(&sched->kss_waitq);
 	}
 
 	spin_unlock_bh(&sched->kss_lock);
 }
 
 static ksock_proto_t *
-ksocknal_parse_proto_version (ksock_hello_msg_t *hello)
+ksocknal_parse_proto_version(ksock_hello_msg_t *hello)
 {
 	__u32 version = 0;
 
@@ -1611,7 +1633,7 @@ ksocknal_parse_proto_version (ksock_hello_msg_t *hello)
 	else if (hello->kshm_magic == __swab32(LNET_PROTO_MAGIC))
 		version = __swab32(hello->kshm_version);
 
-	if (version != 0) {
+	if (version) {
 #if SOCKNAL_VERSION_DEBUG
 		if (*ksocknal_tunables.ksnd_protocol == 1)
 			return NULL;
@@ -1632,11 +1654,11 @@ ksocknal_parse_proto_version (ksock_hello_msg_t *hello)
 	if (hello->kshm_magic == le32_to_cpu(LNET_PROTO_TCP_MAGIC)) {
 		lnet_magicversion_t *hmv = (lnet_magicversion_t *)hello;
 
-		CLASSERT(sizeof (lnet_magicversion_t) ==
-			 offsetof (ksock_hello_msg_t, kshm_src_nid));
+		CLASSERT(sizeof(lnet_magicversion_t) ==
+			 offsetof(ksock_hello_msg_t, kshm_src_nid));
 
-		if (hmv->version_major == cpu_to_le16 (KSOCK_PROTO_V1_MAJOR) &&
-		    hmv->version_minor == cpu_to_le16 (KSOCK_PROTO_V1_MINOR))
+		if (hmv->version_major == cpu_to_le16(KSOCK_PROTO_V1_MAJOR) &&
+		    hmv->version_minor == cpu_to_le16(KSOCK_PROTO_V1_MINOR))
 			return &ksocknal_protocol_v1x;
 	}
 
@@ -1644,8 +1666,8 @@ ksocknal_parse_proto_version (ksock_hello_msg_t *hello)
 }
 
 int
-ksocknal_send_hello (lnet_ni_t *ni, ksock_conn_t *conn,
-		     lnet_nid_t peer_nid, ksock_hello_msg_t *hello)
+ksocknal_send_hello(lnet_ni_t *ni, ksock_conn_t *conn,
+		    lnet_nid_t peer_nid, ksock_hello_msg_t *hello)
 {
 	/* CAVEAT EMPTOR: this byte flips 'ipaddrs' */
 	ksock_net_t *net = (ksock_net_t *)ni->ni_data;
@@ -1653,7 +1675,7 @@ ksocknal_send_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	LASSERT(hello->kshm_nips <= LNET_MAX_INTERFACES);
 
 	/* rely on caller to hold a ref on socket so it wouldn't disappear */
-	LASSERT(conn->ksnc_proto != NULL);
+	LASSERT(conn->ksnc_proto);
 
 	hello->kshm_src_nid = ni->ni_nid;
 	hello->kshm_dst_nid = peer_nid;
@@ -1682,9 +1704,9 @@ ksocknal_invert_type(int type)
 }
 
 int
-ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
-		     ksock_hello_msg_t *hello, lnet_process_id_t *peerid,
-		     __u64 *incarnation)
+ksocknal_recv_hello(lnet_ni_t *ni, ksock_conn_t *conn,
+		    ksock_hello_msg_t *hello, lnet_process_id_t *peerid,
+		    __u64 *incarnation)
 {
 	/* Return < 0	fatal error
 	 *	0	  success
@@ -1692,7 +1714,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	 *	EPROTO     protocol version mismatch
 	 */
 	struct socket *sock = conn->ksnc_sock;
-	int active = (conn->ksnc_proto != NULL);
+	int active = !!conn->ksnc_proto;
 	int timeout;
 	int proto_match;
 	int rc;
@@ -1705,20 +1727,20 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 	timeout = active ? *ksocknal_tunables.ksnd_timeout :
 			    lnet_acceptor_timeout();
 
-	rc = lnet_sock_read(sock, &hello->kshm_magic, sizeof (hello->kshm_magic), timeout);
-	if (rc != 0) {
+	rc = lnet_sock_read(sock, &hello->kshm_magic, sizeof(hello->kshm_magic), timeout);
+	if (rc) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
-		LASSERT (rc < 0);
+		       rc, &conn->ksnc_ipaddr);
+		LASSERT(rc < 0);
 		return rc;
 	}
 
 	if (hello->kshm_magic != LNET_PROTO_MAGIC &&
 	    hello->kshm_magic != __swab32(LNET_PROTO_MAGIC) &&
-	    hello->kshm_magic != le32_to_cpu (LNET_PROTO_TCP_MAGIC)) {
+	    hello->kshm_magic != le32_to_cpu(LNET_PROTO_TCP_MAGIC)) {
 		/* Unexpected magic! */
 		CERROR("Bad magic(1) %#08x (%#08x expected) from %pI4h\n",
-		       __cpu_to_le32 (hello->kshm_magic),
+		       __cpu_to_le32(hello->kshm_magic),
 		       LNET_PROTO_TCP_MAGIC,
 		       &conn->ksnc_ipaddr);
 		return -EPROTO;
@@ -1726,15 +1748,15 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 
 	rc = lnet_sock_read(sock, &hello->kshm_version,
 			    sizeof(hello->kshm_version), timeout);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Error %d reading HELLO from %pI4h\n",
-			rc, &conn->ksnc_ipaddr);
+		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0);
 		return rc;
 	}
 
 	proto = ksocknal_parse_proto_version(hello);
-	if (proto == NULL) {
+	if (!proto) {
 		if (!active) {
 			/* unknown protocol from peer, tell peer my protocol */
 			conn->ksnc_proto = &ksocknal_protocol_v3x;
@@ -1760,7 +1782,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 
 	/* receive the rest of hello message anyway */
 	rc = conn->ksnc_proto->pro_recv_hello(conn, hello, timeout);
-	if (rc != 0) {
+	if (rc) {
 		CERROR("Error %d reading or checking hello from from %pI4h\n",
 		       rc, &conn->ksnc_ipaddr);
 		LASSERT(rc < 0);
@@ -1792,8 +1814,8 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 		conn->ksnc_type = ksocknal_invert_type(hello->kshm_ctype);
 		if (conn->ksnc_type == SOCKLND_CONN_NONE) {
 			CERROR("Unexpected type %d from %s ip %pI4h\n",
-				hello->kshm_ctype, libcfs_id2str(*peerid),
-				&conn->ksnc_ipaddr);
+			       hello->kshm_ctype, libcfs_id2str(*peerid),
+			       &conn->ksnc_ipaddr);
 			return -EPROTO;
 		}
 
@@ -1816,9 +1838,8 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 
 	if (ksocknal_invert_type(hello->kshm_ctype) != conn->ksnc_type) {
 		CERROR("Mismatched types: me %d, %s ip %pI4h %d\n",
-			conn->ksnc_type, libcfs_id2str(*peerid),
-			&conn->ksnc_ipaddr,
-			hello->kshm_ctype);
+		       conn->ksnc_type, libcfs_id2str(*peerid),
+		       &conn->ksnc_ipaddr, hello->kshm_ctype);
 		return -EPROTO;
 	}
 
@@ -1826,7 +1847,7 @@ ksocknal_recv_hello (lnet_ni_t *ni, ksock_conn_t *conn,
 }
 
 static int
-ksocknal_connect (ksock_route_t *route)
+ksocknal_connect(ksock_route_t *route)
 {
 	LIST_HEAD(zombies);
 	ksock_peer_t *peer = route->ksnr_peer;
@@ -1850,10 +1871,12 @@ ksocknal_connect (ksock_route_t *route)
 	for (;;) {
 		wanted = ksocknal_route_mask() & ~route->ksnr_connected;
 
-		/* stop connecting if peer/route got closed under me, or
-		 * route got connected while queued */
+		/*
+		 * stop connecting if peer/route got closed under me, or
+		 * route got connected while queued
+		 */
 		if (peer->ksnp_closing || route->ksnr_deleted ||
-		    wanted == 0) {
+		    !wanted) {
 			retry_later = 0;
 			break;
 		}
@@ -1869,14 +1892,14 @@ ksocknal_connect (ksock_route_t *route)
 		if (retry_later) /* needs reschedule */
 			break;
 
-		if ((wanted & (1 << SOCKLND_CONN_ANY)) != 0) {
+		if (wanted & (1 << SOCKLND_CONN_ANY)) {
 			type = SOCKLND_CONN_ANY;
-		} else if ((wanted & (1 << SOCKLND_CONN_CONTROL)) != 0) {
+		} else if (wanted & (1 << SOCKLND_CONN_CONTROL)) {
 			type = SOCKLND_CONN_CONTROL;
-		} else if ((wanted & (1 << SOCKLND_CONN_BULK_IN)) != 0) {
+		} else if (wanted & (1 << SOCKLND_CONN_BULK_IN)) {
 			type = SOCKLND_CONN_BULK_IN;
 		} else {
-			LASSERT ((wanted & (1 << SOCKLND_CONN_BULK_OUT)) != 0);
+			LASSERT(wanted & (1 << SOCKLND_CONN_BULK_OUT));
 			type = SOCKLND_CONN_BULK_OUT;
 		}
 
@@ -1893,7 +1916,7 @@ ksocknal_connect (ksock_route_t *route)
 		rc = lnet_connect(&sock, peer->ksnp_id.nid,
 				  route->ksnr_myipaddr,
 				  route->ksnr_ipaddr, route->ksnr_port);
-		if (rc != 0)
+		if (rc)
 			goto failed;
 
 		rc = ksocknal_create_conn(peer->ksnp_ni, route, sock, type);
@@ -1904,9 +1927,11 @@ ksocknal_connect (ksock_route_t *route)
 			goto failed;
 		}
 
-		/* A +ve RC means I have to retry because I lost the connection
-		 * race or I have to renegotiate protocol version */
-		retry_later = (rc != 0);
+		/*
+		 * A +ve RC means I have to retry because I lost the connection
+		 * race or I have to renegotiate protocol version
+		 */
+		retry_later = (rc);
 		if (retry_later)
 			CDEBUG(D_NET, "peer %s: conn race, retry later.\n",
 			       libcfs_nid2str(peer->ksnp_id.nid));
@@ -1918,17 +1943,20 @@ ksocknal_connect (ksock_route_t *route)
 	route->ksnr_connecting = 0;
 
 	if (retry_later) {
-		/* re-queue for attention; this frees me up to handle
-		 * the peer's incoming connection request */
-
+		/*
+		 * re-queue for attention; this frees me up to handle
+		 * the peer's incoming connection request
+		 */
 		if (rc == EALREADY ||
-		    (rc == 0 && peer->ksnp_accepting > 0)) {
-			/* We want to introduce a delay before next
+		    (!rc && peer->ksnp_accepting > 0)) {
+			/*
+			 * We want to introduce a delay before next
 			 * attempt to connect if we lost conn race,
 			 * but the race is resolved quickly usually,
-			 * so min_reconnectms should be good heuristic */
+			 * so min_reconnectms should be good heuristic
+			 */
 			route->ksnr_retry_interval =
-				cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000;
+				cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms) / 1000;
 			route->ksnr_timeout = cfs_time_add(cfs_time_current(),
 							   route->ksnr_retry_interval);
 		}
@@ -1949,30 +1977,34 @@ ksocknal_connect (ksock_route_t *route)
 	route->ksnr_retry_interval *= 2;
 	route->ksnr_retry_interval =
 		max(route->ksnr_retry_interval,
-		    cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms)/1000);
+		    cfs_time_seconds(*ksocknal_tunables.ksnd_min_reconnectms) / 1000);
 	route->ksnr_retry_interval =
 		min(route->ksnr_retry_interval,
-		    cfs_time_seconds(*ksocknal_tunables.ksnd_max_reconnectms)/1000);
+		    cfs_time_seconds(*ksocknal_tunables.ksnd_max_reconnectms) / 1000);
 
-	LASSERT (route->ksnr_retry_interval != 0);
+	LASSERT(route->ksnr_retry_interval);
 	route->ksnr_timeout = cfs_time_add(cfs_time_current(),
 					   route->ksnr_retry_interval);
 
 	if (!list_empty(&peer->ksnp_tx_queue) &&
-	    peer->ksnp_accepting == 0 &&
-	    ksocknal_find_connecting_route_locked(peer) == NULL) {
+	    !peer->ksnp_accepting &&
+	    !ksocknal_find_connecting_route_locked(peer)) {
 		ksock_conn_t *conn;
 
-		/* ksnp_tx_queue is queued on a conn on successful
-		 * connection for V1.x and V2.x */
-		if (!list_empty (&peer->ksnp_conns)) {
+		/*
+		 * ksnp_tx_queue is queued on a conn on successful
+		 * connection for V1.x and V2.x
+		 */
+		if (!list_empty(&peer->ksnp_conns)) {
 			conn = list_entry(peer->ksnp_conns.next,
-					      ksock_conn_t, ksnc_list);
-			LASSERT (conn->ksnc_proto == &ksocknal_protocol_v3x);
+					  ksock_conn_t, ksnc_list);
+			LASSERT(conn->ksnc_proto == &ksocknal_protocol_v3x);
 		}
 
-		/* take all the blocked packets while I've got the lock and
-		 * complete below... */
+		/*
+		 * take all the blocked packets while I've got the lock and
+		 * complete below...
+		 */
 		list_splice_init(&peer->ksnp_tx_queue, &zombies);
 	}
 
@@ -2011,8 +2043,10 @@ ksocknal_connd_check_start(time64_t sec, long *timeout)
 
 	if (total >= *ksocknal_tunables.ksnd_nconnds_max ||
 	    total > ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV) {
-		/* can't create more connd, or still have enough
-		 * threads to handle more connecting */
+		/*
+		 * can't create more connd, or still have enough
+		 * threads to handle more connecting
+		 */
 		return 0;
 	}
 
@@ -2041,7 +2075,7 @@ ksocknal_connd_check_start(time64_t sec, long *timeout)
 	rc = ksocknal_thread_start(ksocknal_connd, NULL, name);
 
 	spin_lock_bh(&ksocknal_data.ksnd_connd_lock);
-	if (rc == 0)
+	if (!rc)
 		return 1;
 
 	/* we tried ... */
@@ -2093,8 +2127,10 @@ ksocknal_connd_check_stop(time64_t sec, long *timeout)
 	       ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV;
 }
 
-/* Go through connd_routes queue looking for a route that we can process
- * right now, @timeout_p can be updated if we need to come back later */
+/*
+ * Go through connd_routes queue looking for a route that we can process
+ * right now, @timeout_p can be updated if we need to come back later
+ */
 static ksock_route_t *
 ksocknal_connd_get_route_locked(signed long *timeout_p)
 {
@@ -2104,10 +2140,9 @@ ksocknal_connd_get_route_locked(signed long *timeout_p)
 	now = cfs_time_current();
 
 	/* connd_routes can contain both pending and ordinary routes */
-	list_for_each_entry (route, &ksocknal_data.ksnd_connd_routes,
-				 ksnr_connd_list) {
-
-		if (route->ksnr_retry_interval == 0 ||
+	list_for_each_entry(route, &ksocknal_data.ksnd_connd_routes,
+			    ksnr_connd_list) {
+		if (!route->ksnr_retry_interval ||
 		    cfs_time_aftereq(now, route->ksnr_timeout))
 			return route;
 
@@ -2120,7 +2155,7 @@ ksocknal_connd_get_route_locked(signed long *timeout_p)
 }
 
 int
-ksocknal_connd (void *arg)
+ksocknal_connd(void *arg)
 {
 	spinlock_t *connd_lock = &ksocknal_data.ksnd_connd_lock;
 	ksock_connreq_t *cr;
@@ -2172,15 +2207,17 @@ ksocknal_connd (void *arg)
 			spin_lock_bh(connd_lock);
 		}
 
-		/* Only handle an outgoing connection request if there
+		/*
+		 * Only handle an outgoing connection request if there
 		 * is a thread left to handle incoming connections and
-		 * create new connd */
+		 * create new connd
+		 */
 		if (ksocknal_data.ksnd_connd_connecting + SOCKNAL_CONND_RESV <
 		    ksocknal_data.ksnd_connd_running) {
 			route = ksocknal_connd_get_route_locked(&timeout);
 		}
-		if (route != NULL) {
-			list_del (&route->ksnr_connd_list);
+		if (route) {
+			list_del(&route->ksnr_connd_list);
 			ksocknal_data.ksnd_connd_connecting++;
 			spin_unlock_bh(connd_lock);
 			dropped_lock = 1;
@@ -2231,24 +2268,26 @@ ksocknal_connd (void *arg)
 }
 
 static ksock_conn_t *
-ksocknal_find_timed_out_conn (ksock_peer_t *peer)
+ksocknal_find_timed_out_conn(ksock_peer_t *peer)
 {
 	/* We're called with a shared lock on ksnd_global_lock */
 	ksock_conn_t *conn;
 	struct list_head *ctmp;
 
-	list_for_each (ctmp, &peer->ksnp_conns) {
+	list_for_each(ctmp, &peer->ksnp_conns) {
 		int error;
 
-		conn = list_entry (ctmp, ksock_conn_t, ksnc_list);
+		conn = list_entry(ctmp, ksock_conn_t, ksnc_list);
 
 		/* Don't need the {get,put}connsock dance to deref ksnc_sock */
 		LASSERT(!conn->ksnc_closing);
 
-		/* SOCK_ERROR will reset error code of socket in
-		 * some platform (like Darwin8.x) */
+		/*
+		 * SOCK_ERROR will reset error code of socket in
+		 * some platform (like Darwin8.x)
+		 */
 		error = conn->ksnc_sock->sk->sk_err;
-		if (error != 0) {
+		if (error) {
 			ksocknal_conn_addref(conn);
 
 			switch (error) {
@@ -2292,11 +2331,13 @@ ksocknal_find_timed_out_conn (ksock_peer_t *peer)
 		}
 
 		if ((!list_empty(&conn->ksnc_tx_queue) ||
-		     conn->ksnc_sock->sk->sk_wmem_queued != 0) &&
+		     conn->ksnc_sock->sk->sk_wmem_queued) &&
 		    cfs_time_aftereq(cfs_time_current(),
 				     conn->ksnc_tx_deadline)) {
-			/* Timed out messages queued for sending or
-			 * buffered in the socket's send buffer */
+			/*
+			 * Timed out messages queued for sending or
+			 * buffered in the socket's send buffer
+			 */
 			ksocknal_conn_addref(conn);
 			CNETERR("Timeout sending data to %s (%pI4h:%d) the network or that node may be down.\n",
 				libcfs_id2str(peer->ksnp_id),
@@ -2313,20 +2354,18 @@ static inline void
 ksocknal_flush_stale_txs(ksock_peer_t *peer)
 {
 	ksock_tx_t *tx;
+	ksock_tx_t *tmp;
 	LIST_HEAD(stale_txs);
 
 	write_lock_bh(&ksocknal_data.ksnd_global_lock);
 
-	while (!list_empty (&peer->ksnp_tx_queue)) {
-		tx = list_entry (peer->ksnp_tx_queue.next,
-				     ksock_tx_t, tx_list);
-
+	list_for_each_entry_safe(tx, tmp, &peer->ksnp_tx_queue, tx_list) {
 		if (!cfs_time_aftereq(cfs_time_current(),
 				      tx->tx_deadline))
 			break;
 
-		list_del (&tx->tx_list);
-		list_add_tail (&tx->tx_list, &stale_txs);
+		list_del(&tx->tx_list);
+		list_add_tail(&tx->tx_list, &stale_txs);
 	}
 
 	write_unlock_bh(&ksocknal_data.ksnd_global_lock);
@@ -2336,6 +2375,7 @@ ksocknal_flush_stale_txs(ksock_peer_t *peer)
 
 static int
 ksocknal_send_keepalive_locked(ksock_peer_t *peer)
+	__must_hold(&ksocknal_data.ksnd_global_lock)
 {
 	ksock_sched_t *sched;
 	ksock_conn_t *conn;
@@ -2356,12 +2396,14 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 	if (time_before(cfs_time_current(), peer->ksnp_send_keepalive))
 		return 0;
 
-	/* retry 10 secs later, so we wouldn't put pressure
-	 * on this peer if we failed to send keepalive this time */
+	/*
+	 * retry 10 secs later, so we wouldn't put pressure
+	 * on this peer if we failed to send keepalive this time
+	 */
 	peer->ksnp_send_keepalive = cfs_time_shift(10);
 
 	conn = ksocknal_find_conn_locked(peer, NULL, 1);
-	if (conn != NULL) {
+	if (conn) {
 		sched = conn->ksnc_scheduler;
 
 		spin_lock_bh(&sched->kss_lock);
@@ -2378,12 +2420,12 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 
 	/* cookie = 1 is reserved for keepalive PING */
 	tx = ksocknal_alloc_tx_noop(1, 1);
-	if (tx == NULL) {
+	if (!tx) {
 		read_lock(&ksocknal_data.ksnd_global_lock);
 		return -ENOMEM;
 	}
 
-	if (ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id) == 0) {
+	if (!ksocknal_launch_packet(peer->ksnp_ni, tx, peer->ksnp_id)) {
 		read_lock(&ksocknal_data.ksnd_global_lock);
 		return 1;
 	}
@@ -2395,7 +2437,7 @@ ksocknal_send_keepalive_locked(ksock_peer_t *peer)
 }
 
 static void
-ksocknal_check_peer_timeouts (int idx)
+ksocknal_check_peer_timeouts(int idx)
 {
 	struct list_head *peers = &ksocknal_data.ksnd_peers[idx];
 	ksock_peer_t *peer;
@@ -2403,9 +2445,11 @@ ksocknal_check_peer_timeouts (int idx)
 	ksock_tx_t *tx;
 
  again:
-	/* NB. We expect to have a look at all the peers and not find any
+	/*
+	 * NB. We expect to have a look at all the peers and not find any
 	 * connections to time out, so we just use a shared lock while we
-	 * take a look... */
+	 * take a look...
+	 */
 	read_lock(&ksocknal_data.ksnd_global_lock);
 
 	list_for_each_entry(peer, peers, ksnp_list) {
@@ -2413,35 +2457,37 @@ ksocknal_check_peer_timeouts (int idx)
 		int resid = 0;
 		int n = 0;
 
-		if (ksocknal_send_keepalive_locked(peer) != 0) {
+		if (ksocknal_send_keepalive_locked(peer)) {
 			read_unlock(&ksocknal_data.ksnd_global_lock);
 			goto again;
 		}
 
-		conn = ksocknal_find_timed_out_conn (peer);
+		conn = ksocknal_find_timed_out_conn(peer);
 
-		if (conn != NULL) {
+		if (conn) {
 			read_unlock(&ksocknal_data.ksnd_global_lock);
 
-			ksocknal_close_conn_and_siblings (conn, -ETIMEDOUT);
+			ksocknal_close_conn_and_siblings(conn, -ETIMEDOUT);
 
-			/* NB we won't find this one again, but we can't
+			/*
+			 * NB we won't find this one again, but we can't
 			 * just proceed with the next peer, since we dropped
-			 * ksnd_global_lock and it might be dead already! */
+			 * ksnd_global_lock and it might be dead already!
+			 */
 			ksocknal_conn_decref(conn);
 			goto again;
 		}
 
-		/* we can't process stale txs right here because we're
-		 * holding only shared lock */
-		if (!list_empty (&peer->ksnp_tx_queue)) {
-			ksock_tx_t *tx =
-				list_entry (peer->ksnp_tx_queue.next,
-						ksock_tx_t, tx_list);
+		/*
+		 * we can't process stale txs right here because we're
+		 * holding only shared lock
+		 */
+		if (!list_empty(&peer->ksnp_tx_queue)) {
+			ksock_tx_t *tx = list_entry(peer->ksnp_tx_queue.next,
+						    ksock_tx_t, tx_list);
 
 			if (cfs_time_aftereq(cfs_time_current(),
 					     tx->tx_deadline)) {
-
 				ksocknal_peer_addref(peer);
 				read_unlock(&ksocknal_data.ksnd_global_lock);
 
@@ -2466,13 +2512,13 @@ ksocknal_check_peer_timeouts (int idx)
 			n++;
 		}
 
-		if (n == 0) {
+		if (!n) {
 			spin_unlock(&peer->ksnp_lock);
 			continue;
 		}
 
 		tx = list_entry(peer->ksnp_zc_req_list.next,
-				    ksock_tx_t, tx_zc_list);
+				ksock_tx_t, tx_zc_list);
 		deadline = tx->tx_deadline;
 		resid = tx->tx_resid;
 		conn = tx->tx_conn;
@@ -2486,7 +2532,7 @@ ksocknal_check_peer_timeouts (int idx)
 		       cfs_duration_sec(cfs_time_current() - deadline),
 		       resid, conn->ksnc_sock->sk->sk_wmem_queued);
 
-		ksocknal_close_conn_and_siblings (conn, -ETIMEDOUT);
+		ksocknal_close_conn_and_siblings(conn, -ETIMEDOUT);
 		ksocknal_conn_decref(conn);
 		goto again;
 	}
@@ -2495,7 +2541,7 @@ ksocknal_check_peer_timeouts (int idx)
 }
 
 int
-ksocknal_reaper (void *arg)
+ksocknal_reaper(void *arg)
 {
 	wait_queue_t wait;
 	ksock_conn_t *conn;
@@ -2515,12 +2561,10 @@ ksocknal_reaper (void *arg)
 	spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 
 	while (!ksocknal_data.ksnd_shuttingdown) {
-
-		if (!list_empty (&ksocknal_data.ksnd_deathrow_conns)) {
-			conn = list_entry (ksocknal_data. \
-					       ksnd_deathrow_conns.next,
-					       ksock_conn_t, ksnc_list);
-			list_del (&conn->ksnc_list);
+		if (!list_empty(&ksocknal_data.ksnd_deathrow_conns)) {
+			conn = list_entry(ksocknal_data.ksnd_deathrow_conns.next,
+					  ksock_conn_t, ksnc_list);
+			list_del(&conn->ksnc_list);
 
 			spin_unlock_bh(&ksocknal_data.ksnd_reaper_lock);
 
@@ -2531,10 +2575,10 @@ ksocknal_reaper (void *arg)
 			continue;
 		}
 
-		if (!list_empty (&ksocknal_data.ksnd_zombie_conns)) {
-			conn = list_entry (ksocknal_data.ksnd_zombie_conns.\
-					       next, ksock_conn_t, ksnc_list);
-			list_del (&conn->ksnc_list);
+		if (!list_empty(&ksocknal_data.ksnd_zombie_conns)) {
+			conn = list_entry(ksocknal_data.ksnd_zombie_conns.next,
+					  ksock_conn_t, ksnc_list);
+			list_del(&conn->ksnc_list);
 
 			spin_unlock_bh(&ksocknal_data.ksnd_reaper_lock);
 
@@ -2544,9 +2588,9 @@ ksocknal_reaper (void *arg)
 			continue;
 		}
 
-		if (!list_empty (&ksocknal_data.ksnd_enomem_conns)) {
+		if (!list_empty(&ksocknal_data.ksnd_enomem_conns)) {
 			list_add(&enomem_conns,
-				     &ksocknal_data.ksnd_enomem_conns);
+				 &ksocknal_data.ksnd_enomem_conns);
 			list_del_init(&ksocknal_data.ksnd_enomem_conns);
 		}
 
@@ -2554,10 +2598,10 @@ ksocknal_reaper (void *arg)
 
 		/* reschedule all the connections that stalled with ENOMEM... */
 		nenomem_conns = 0;
-		while (!list_empty (&enomem_conns)) {
-			conn = list_entry (enomem_conns.next,
-					       ksock_conn_t, ksnc_tx_list);
-			list_del (&conn->ksnc_tx_list);
+		while (!list_empty(&enomem_conns)) {
+			conn = list_entry(enomem_conns.next, ksock_conn_t,
+					  ksnc_tx_list);
+			list_del(&conn->ksnc_tx_list);
 
 			sched = conn->ksnc_scheduler;
 
@@ -2566,7 +2610,7 @@ ksocknal_reaper (void *arg)
 			LASSERT(conn->ksnc_tx_scheduled);
 			conn->ksnc_tx_ready = 1;
 			list_add_tail(&conn->ksnc_tx_list,
-					  &sched->kss_tx_conns);
+				      &sched->kss_tx_conns);
 			wake_up(&sched->kss_waitq);
 
 			spin_unlock_bh(&sched->kss_lock);
@@ -2580,21 +2624,22 @@ ksocknal_reaper (void *arg)
 			const int p = 1;
 			int chunk = ksocknal_data.ksnd_peer_hash_size;
 
-			/* Time to check for timeouts on a few more peers: I do
+			/*
+			 * Time to check for timeouts on a few more peers: I do
 			 * checks every 'p' seconds on a proportion of the peer
 			 * table and I need to check every connection 'n' times
 			 * within a timeout interval, to ensure I detect a
 			 * timeout on any connection within (n+1)/n times the
-			 * timeout interval. */
-
+			 * timeout interval.
+			 */
 			if (*ksocknal_tunables.ksnd_timeout > n * p)
 				chunk = (chunk * n * p) /
 					*ksocknal_tunables.ksnd_timeout;
-			if (chunk == 0)
+			if (!chunk)
 				chunk = 1;
 
 			for (i = 0; i < chunk; i++) {
-				ksocknal_check_peer_timeouts (peer_index);
+				ksocknal_check_peer_timeouts(peer_index);
 				peer_index = (peer_index + 1) %
 					     ksocknal_data.ksnd_peer_hash_size;
 			}
@@ -2602,25 +2647,27 @@ ksocknal_reaper (void *arg)
 			deadline = cfs_time_add(deadline, cfs_time_seconds(p));
 		}
 
-		if (nenomem_conns != 0) {
-			/* Reduce my timeout if I rescheduled ENOMEM conns.
+		if (nenomem_conns) {
+			/*
+			 * Reduce my timeout if I rescheduled ENOMEM conns.
 			 * This also prevents me getting woken immediately
-			 * if any go back on my enomem list. */
+			 * if any go back on my enomem list.
+			 */
 			timeout = SOCKNAL_ENOMEM_RETRY;
 		}
 		ksocknal_data.ksnd_reaper_waketime =
 			cfs_time_add(cfs_time_current(), timeout);
 
-		set_current_state (TASK_INTERRUPTIBLE);
-		add_wait_queue (&ksocknal_data.ksnd_reaper_waitq, &wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+		add_wait_queue(&ksocknal_data.ksnd_reaper_waitq, &wait);
 
 		if (!ksocknal_data.ksnd_shuttingdown &&
-		    list_empty (&ksocknal_data.ksnd_deathrow_conns) &&
-		    list_empty (&ksocknal_data.ksnd_zombie_conns))
+		    list_empty(&ksocknal_data.ksnd_deathrow_conns) &&
+		    list_empty(&ksocknal_data.ksnd_zombie_conns))
 			schedule_timeout(timeout);
 
-		set_current_state (TASK_RUNNING);
-		remove_wait_queue (&ksocknal_data.ksnd_reaper_waitq, &wait);
+		set_current_state(TASK_RUNNING);
+		remove_wait_queue(&ksocknal_data.ksnd_reaper_waitq, &wait);
 
 		spin_lock_bh(&ksocknal_data.ksnd_reaper_lock);
 	}

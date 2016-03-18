@@ -175,7 +175,6 @@ static int ci_requests_show(struct seq_file *s, void *data)
 {
 	struct ci_hdrc *ci = s->private;
 	unsigned long flags;
-	struct list_head   *ptr = NULL;
 	struct ci_hw_req *req = NULL;
 	struct td_node *node, *tmpnode;
 	unsigned i, j, qsize = sizeof(struct ci_hw_td)/sizeof(u32);
@@ -187,9 +186,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 
 	spin_lock_irqsave(&ci->lock, flags);
 	for (i = 0; i < ci->hw_ep_max; i++)
-		list_for_each(ptr, &ci->ci_hw_ep[i].qh.queue) {
-			req = list_entry(ptr, struct ci_hw_req, queue);
-
+		list_for_each_entry(req, &ci->ci_hw_ep[i].qh.queue, queue) {
 			list_for_each_entry_safe(node, tmpnode, &req->tds, td) {
 				seq_printf(s, "EP=%02i: TD=%08X %s\n",
 					   i % (ci->hw_ep_max / 2),

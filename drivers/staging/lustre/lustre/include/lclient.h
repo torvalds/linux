@@ -127,7 +127,7 @@ static inline struct ccc_thread_info *ccc_env_info(const struct lu_env *env)
 	struct ccc_thread_info      *info;
 
 	info = lu_context_key_get(&env->le_ctx, &ccc_key);
-	LASSERT(info != NULL);
+	LASSERT(info);
 	return info;
 }
 
@@ -156,7 +156,7 @@ static inline struct ccc_session *ccc_env_session(const struct lu_env *env)
 	struct ccc_session *ses;
 
 	ses = lu_context_key_get(env->le_ses, &ccc_session_key);
-	LASSERT(ses != NULL);
+	LASSERT(ses);
 	return ses;
 }
 
@@ -383,7 +383,8 @@ void cl_put_grouplock(struct ccc_grouplock *cg);
  *
  * NB: If you find you have to use these interfaces for your new code, please
  * think about it again. These interfaces may be removed in the future for
- * better layering. */
+ * better layering.
+ */
 struct lov_stripe_md *lov_lsm_get(struct cl_object *clobj);
 void lov_lsm_put(struct cl_object *clobj, struct lov_stripe_md *lsm);
 int lov_read_and_clear_async_rc(struct cl_object *clob);

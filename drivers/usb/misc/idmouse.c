@@ -257,9 +257,9 @@ static int idmouse_open(struct inode *inode, struct file *file)
 		if (result)
 			goto error;
 		result = idmouse_create_image (dev);
+		usb_autopm_put_interface(interface);
 		if (result)
 			goto error;
-		usb_autopm_put_interface(interface);
 
 		/* increment our usage count for the driver */
 		++dev->open;

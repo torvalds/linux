@@ -699,7 +699,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
 
 	if (pdev->dev.of_node)
-		pdata = of_match_device(sh_dmae_of_match, &pdev->dev)->data;
+		pdata = of_device_get_match_data(&pdev->dev);
 	else
 		pdata = dev_get_platdata(&pdev->dev);
 

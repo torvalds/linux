@@ -1064,6 +1064,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			A valid base address must be provided, and the serial
 			port must already be setup and configured.
 
+		armada3700_uart,<addr>
+			Start an early, polled-mode console on the
+			Armada 3700 serial port at the specified
+			address. The serial port must already be setup
+			and configured. Options are not yet supported.
+
 	earlyprintk=	[X86,SH,BLACKFIN,ARM,M68k]
 			earlyprintk=vga
 			earlyprintk=efi
@@ -3526,6 +3532,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rodata=		[KNL]
 		on	Mark read-only kernel memory as read-only (default).
 		off	Leave read-only kernel memory writable for debugging.
+
+	rockchip.usb_uart
+			Enable the uart passthrough on the designated usb port
+			on Rockchip SoCs. When active, the signals of the
+			debug-uart get routed to the D+ and D- pins of the usb
+			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
 			See name_to_dev_t comment in init/do_mounts.c.

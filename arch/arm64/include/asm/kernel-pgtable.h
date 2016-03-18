@@ -79,5 +79,17 @@
 #define SWAPPER_MM_MMUFLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS)
 #endif
 
+/*
+ * To make optimal use of block mappings when laying out the linear
+ * mapping, round down the base of physical memory to a size that can
+ * be mapped efficiently, i.e., either PUD_SIZE (4k granule) or PMD_SIZE
+ * (64k granule), or a multiple that can be mapped using contiguous bits
+ * in the page tables: 32 * PMD_SIZE (16k granule)
+ */
+#ifdef CONFIG_ARM64_64K_PAGES
+#define ARM64_MEMSTART_ALIGN	SZ_512M
+#else
+#define ARM64_MEMSTART_ALIGN	SZ_1G
+#endif
 
 #endif	/* __ASM_KERNEL_PGTABLE_H */

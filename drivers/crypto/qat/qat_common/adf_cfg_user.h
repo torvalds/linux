@@ -58,7 +58,7 @@ struct adf_user_cfg_key_val {
 		uint64_t padding3;
 	};
 	enum adf_cfg_val_type type;
-};
+} __packed;
 
 struct adf_user_cfg_section {
 	char name[ADF_CFG_MAX_SECTION_LEN_IN_BYTES];
@@ -70,7 +70,7 @@ struct adf_user_cfg_section {
 		struct adf_user_cfg_section *next;
 		uint64_t padding3;
 	};
-};
+} __packed;
 
 struct adf_user_cfg_ctl_data {
 	union {
@@ -78,5 +78,5 @@ struct adf_user_cfg_ctl_data {
 		uint64_t padding;
 	};
 	uint8_t device_id;
-};
+} __packed;
 #endif

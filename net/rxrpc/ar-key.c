@@ -12,11 +12,11 @@
  *	"afs@CAMBRIDGE.REDHAT.COM>
  */
 
+#include <crypto/skcipher.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/key-type.h>
-#include <linux/crypto.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <net/sock.h>
@@ -824,7 +824,7 @@ static void rxrpc_free_preparse(struct key_preparsed_payload *prep)
  */
 static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 {
-	struct crypto_blkcipher *ci;
+	struct crypto_skcipher *ci;
 
 	_enter("%zu", prep->datalen);
 
@@ -833,13 +833,13 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 
 	memcpy(&prep->payload.data[2], prep->data, 8);
 
-	ci = crypto_alloc_blkcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
+	ci = crypto_alloc_skcipher("pcbc(des)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(ci)) {
 		_leave(" = %ld", PTR_ERR(ci));
 		return PTR_ERR(ci);
 	}
 
-	if (crypto_blkcipher_setkey(ci, prep->data, 8) < 0)
+	if (crypto_skcipher_setkey(ci, prep->data, 8) < 0)
 		BUG();
 
 	prep->payload.data[0] = ci;
@@ -853,7 +853,7 @@ static int rxrpc_preparse_s(struct key_preparsed_payload *prep)
 static void rxrpc_free_preparse_s(struct key_preparsed_payload *prep)
 {
 	if (prep->payload.data[0])
-		crypto_free_blkcipher(prep->payload.data[0]);
+		crypto_free_skcipher(prep->payload.data[0]);
 }
 
 /*
@@ -870,7 +870,7 @@ static void rxrpc_destroy(struct key *key)
 static void rxrpc_destroy_s(struct key *key)
 {
 	if (key->payload.data[0]) {
-		crypto_free_blkcipher(key->payload.data[0]);
+		crypto_free_skcipher(key->payload.data[0]);
 		key->payload.data[0] = NULL;
 	}
 }

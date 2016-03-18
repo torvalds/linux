@@ -823,7 +823,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 	tail = ch->ch_r_tail;
 
 	/* Store how much space we have left in the queue */
-	qleft = (tail - head - 1);
+	qleft = tail - head - 1;
 	if (qleft < 0)
 		qleft += RQUEUEMASK + 1;
 

@@ -20,6 +20,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/termios.h>
 #include <linux/serial_core.h>
+#include <linux/module.h>
 
 #include "serial_mctrl_gpio.h"
 
@@ -249,3 +250,5 @@ void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
 	}
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_disable_ms);
+
+MODULE_LICENSE("GPL");

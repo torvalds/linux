@@ -40,22 +40,75 @@ dummy_stm_packet(struct stm_data *stm_data, unsigned int master,
 	return size;
 }
 
-static struct stm_data dummy_stm = {
-	.name		= "dummy_stm",
-	.sw_start	= 0x0000,
-	.sw_end		= 0xffff,
-	.sw_nchannels	= 0xffff,
-	.packet		= dummy_stm_packet,
-};
+#define DUMMY_STM_MAX 32
+
+static struct stm_data dummy_stm[DUMMY_STM_MAX];
+
+static int nr_dummies = 4;
+
+module_param(nr_dummies, int, 0600);
+
+static unsigned int dummy_stm_nr;
+
+static unsigned int fail_mode;
+
+module_param(fail_mode, int, 0600);
+
+static int dummy_stm_link(struct stm_data *data, unsigned int master,
+			  unsigned int channel)
+{
+	if (fail_mode && (channel & fail_mode))
+		return -EINVAL;
+
+	return 0;
+}
 
 static int dummy_stm_init(void)
 {
-	return stm_register_device(NULL, &dummy_stm, THIS_MODULE);
+	int i, ret = -ENOMEM, __nr_dummies = ACCESS_ONCE(nr_dummies);
+
+	if (__nr_dummies < 0 || __nr_dummies > DUMMY_STM_MAX)
+		return -EINVAL;
+
+	for (i = 0; i < __nr_dummies; i++) {
+		dummy_stm[i].name = kasprintf(GFP_KERNEL, "dummy_stm.%d", i);
+		if (!dummy_stm[i].name)
+			goto fail_unregister;
+
+		dummy_stm[i].sw_start		= 0x0000;
+		dummy_stm[i].sw_end		= 0xffff;
+		dummy_stm[i].sw_nchannels	= 0xffff;
+		dummy_stm[i].packet		= dummy_stm_packet;
+		dummy_stm[i].link		= dummy_stm_link;
+
+		ret = stm_register_device(NULL, &dummy_stm[i], THIS_MODULE);
+		if (ret)
+			goto fail_free;
+	}
+
+	dummy_stm_nr = __nr_dummies;
+
+	return 0;
+
+fail_unregister:
+	for (i--; i >= 0; i--) {
+		stm_unregister_device(&dummy_stm[i]);
+fail_free:
+		kfree(dummy_stm[i].name);
+	}
+
+	return ret;
+
 }
 
 static void dummy_stm_exit(void)
 {
-	stm_unregister_device(&dummy_stm);
+	int i;
+
+	for (i = 0; i < dummy_stm_nr; i++) {
+		stm_unregister_device(&dummy_stm[i]);
+		kfree(dummy_stm[i].name);
+	}
 }
 
 module_init(dummy_stm_init);

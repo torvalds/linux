@@ -317,7 +317,7 @@ static inline unsigned int kvm_get_vmid_bits(void)
 {
 	int reg = read_system_reg(SYS_ID_AA64MMFR1_EL1);
 
-	return (cpuid_feature_extract_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
+	return (cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR1_VMIDBITS_SHIFT) == 2) ? 16 : 8;
 }
 
 #endif /* __ASSEMBLY__ */

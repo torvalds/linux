@@ -138,6 +138,7 @@ header-y += genetlink.h
 header-y += gen_stats.h
 header-y += gfs2_ondisk.h
 header-y += gigaset_dev.h
+header-y += gpio.h
 header-y += gsmmux.h
 header-y += hdlcdrv.h
 header-y += hdlc.h

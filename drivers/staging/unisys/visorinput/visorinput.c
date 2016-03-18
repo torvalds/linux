@@ -222,8 +222,9 @@ static int visorinput_open(struct input_dev *visorinput_dev)
 	struct visorinput_devdata *devdata = input_get_drvdata(visorinput_dev);
 
 	if (!devdata) {
-		pr_err("%s input_get_drvdata(%p) returned NULL\n",
-		       __func__, visorinput_dev);
+		dev_err(&visorinput_dev->dev,
+			"%s input_get_drvdata(%p) returned NULL\n",
+			__func__, visorinput_dev);
 		return -EINVAL;
 	}
 	dev_dbg(&visorinput_dev->dev, "%s opened\n", __func__);
@@ -236,8 +237,9 @@ static void visorinput_close(struct input_dev *visorinput_dev)
 	struct visorinput_devdata *devdata = input_get_drvdata(visorinput_dev);
 
 	if (!devdata) {
-		pr_err("%s input_get_drvdata(%p) returned NULL\n",
-		       __func__, visorinput_dev);
+		dev_err(&visorinput_dev->dev,
+			"%s input_get_drvdata(%p) returned NULL\n",
+			__func__, visorinput_dev);
 		return;
 	}
 	dev_dbg(&visorinput_dev->dev, "%s closed\n", __func__);

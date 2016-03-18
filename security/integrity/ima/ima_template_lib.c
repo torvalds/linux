@@ -12,7 +12,6 @@
  * File: ima_template_lib.c
  *      Library of supported template fields.
  */
-#include <crypto/hash_info.h>
 
 #include "ima_template_lib.h"
 
