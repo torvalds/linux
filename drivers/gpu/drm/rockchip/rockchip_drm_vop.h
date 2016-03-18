@@ -33,6 +33,7 @@ struct vop_reg {
 	uint32_t offset;
 	uint32_t shift;
 	uint32_t mask;
+	bool write_mask;
 };
 
 struct vop_ctrl {
@@ -48,6 +49,10 @@ struct vop_ctrl {
 	struct vop_reg dither_down;
 	struct vop_reg dither_up;
 	struct vop_reg pin_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg mipi_pin_pol;
 
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
