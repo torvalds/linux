@@ -1451,7 +1451,7 @@ static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 
-	buf = vmalloc(QCA988X_CAL_DATA_LEN);
+	buf = vmalloc(ar->hw_params.cal_data_len);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err;
@@ -1466,7 +1466,7 @@ static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
 	}
 
 	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), buf,
-				   QCA988X_CAL_DATA_LEN);
+				   ar->hw_params.cal_data_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read calibration data: %d\n", ret);
 		goto err_vfree;
@@ -1491,10 +1491,11 @@ static ssize_t ath10k_debug_cal_data_read(struct file *file,
 					  char __user *user_buf,
 					  size_t count, loff_t *ppos)
 {
+	struct ath10k *ar = file->private_data;
 	void *buf = file->private_data;
 
 	return simple_read_from_buffer(user_buf, count, ppos,
-				       buf, QCA988X_CAL_DATA_LEN);
+				       buf, ar->hw_params.cal_data_len);
 }
 
 static int ath10k_debug_cal_data_release(struct inode *inode,

@@ -695,6 +695,7 @@ struct ath10k {
 		u32 tx_chain_mask;
 		u32 rx_chain_mask;
 		u32 max_spatial_stream;
+		u32 cal_data_len;
 
 		struct ath10k_hw_params_fw {
 			const char *dir;
