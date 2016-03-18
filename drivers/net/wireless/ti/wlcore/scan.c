@@ -38,7 +38,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	struct wl12xx_vif *wlvif;
 	int ret;
 
-	dwork = container_of(work, struct delayed_work, work);
+	dwork = to_delayed_work(work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
 
 	wl1271_debug(DEBUG_SCAN, "Scanning complete");
