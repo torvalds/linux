@@ -361,6 +361,7 @@ static const struct dev_pm_ops rockchip_dp_pm_ops = {
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {
 	{.compatible = "rockchip,rk3288-dp",},
+	{.compatible = "rockchip,rk3399-edp",},
 	{}
 };
 MODULE_DEVICE_TABLE(of, rockchip_dp_dt_ids);
