@@ -138,7 +138,7 @@ internal_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
-void internal_set_rx_headroom(struct net_device *dev, int new_hr)
+static void internal_set_rx_headroom(struct net_device *dev, int new_hr)
 {
 	dev->needed_headroom = new_hr;
 }
