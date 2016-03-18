@@ -2698,6 +2698,8 @@ int radeon_asic_init(struct radeon_device *rdev)
 
 	if (!radeon_uvd)
 		rdev->has_uvd = false;
+	if (!radeon_vce)
+		rdev->has_vce = false;
 
 	return 0;
 }
