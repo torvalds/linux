@@ -152,6 +152,7 @@ struct hdmi_spec {
 	struct hda_pcm_stream pcm_playback;
 
 	/* i915/powerwell (Haswell+/Valleyview+) specific */
+	bool use_acomp_notifier; /* use i915 eld_notify callback for hotplug */
 	struct i915_audio_component_audio_ops i915_audio_ops;
 	bool i915_bound; /* was i915 bound in this driver? */
 
@@ -159,8 +160,11 @@ struct hdmi_spec {
 };
 
 #ifdef CONFIG_SND_HDA_I915
-#define codec_has_acomp(codec) \
-	((codec)->bus->core.audio_component != NULL)
+static inline bool codec_has_acomp(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	return spec->use_acomp_notifier;
+}
 #else
 #define codec_has_acomp(codec)	false
 #endif
@@ -2248,12 +2252,18 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
+#ifdef CONFIG_SND_HDA_I915
 	/* Try to bind with i915 for Intel HSW+ codecs (if not done yet) */
-	if (!codec_has_acomp(codec) &&
-	    (codec->core.vendor_id >> 16) == 0x8086 &&
-	    is_haswell_plus(codec))
-		if (!snd_hdac_i915_init(&codec->bus->core))
-			spec->i915_bound = true;
+	if ((codec->core.vendor_id >> 16) == 0x8086 &&
+	    is_haswell_plus(codec)) {
+		if (!codec->bus->core.audio_component)
+			if (!snd_hdac_i915_init(&codec->bus->core))
+				spec->i915_bound = true;
+		/* use i915 audio component notifier for hotplug */
+		if (codec->bus->core.audio_component)
+			spec->use_acomp_notifier = true;
+	}
+#endif
 
 	if (is_haswell_plus(codec)) {
 		intel_haswell_enable_all_pins(codec, true);
