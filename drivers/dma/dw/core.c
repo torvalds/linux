@@ -557,7 +557,7 @@ static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
 	 */
 	if (unlikely(status_err & dwc->mask) ||
 			unlikely(status_xfer & dwc->mask)) {
-		int i;
+		unsigned int i;
 
 		dev_err(chan2dev(&dwc->chan),
 			"cyclic DMA unexpected %s interrupt, stopping DMA transfer\n",
@@ -597,7 +597,7 @@ static void dw_dma_tasklet(unsigned long data)
 	u32 status_block;
 	u32 status_xfer;
 	u32 status_err;
-	int i;
+	unsigned int i;
 
 	status_block = dma_readl(dw, RAW.BLOCK);
 	status_xfer = dma_readl(dw, RAW.XFER);
@@ -1115,7 +1115,7 @@ static void dwc_issue_pending(struct dma_chan *chan)
 
 static void dw_dma_off(struct dw_dma *dw)
 {
-	int i;
+	unsigned int i;
 
 	dma_writel(dw, CFG, 0);
 
@@ -1480,7 +1480,7 @@ void dw_dma_cyclic_free(struct dma_chan *chan)
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(dwc->chan.device);
 	struct dw_cyclic_desc	*cdesc = dwc->cdesc;
-	int			i;
+	unsigned int		i;
 	unsigned long		flags;
 
 	dev_dbg(chan2dev(&dwc->chan), "%s\n", __func__);
@@ -1516,8 +1516,8 @@ int dw_dma_probe(struct dw_dma_chip *chip, struct dw_dma_platform_data *pdata)
 	bool			autocfg = false;
 	unsigned int		dw_params;
 	unsigned int		max_blk_size = 0;
+	unsigned int		i;
 	int			err;
-	int			i;
 
 	dw = devm_kzalloc(chip->dev, sizeof(*dw), GFP_KERNEL);
 	if (!dw)
