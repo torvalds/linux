@@ -539,11 +539,18 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 	if (events & SPIE_NE) {
 		u32 rx_data, tmp;
 		u8 rx_data_8;
+		int ret;
 
 		/* Spin until RX is done */
-		while (SPIE_RXCNT(events) < min(4, mspi->len)) {
-			cpu_relax();
-			events = mpc8xxx_spi_read_reg(&reg_base->event);
+		if (SPIE_RXCNT(events) < min(4, mspi->len)) {
+			ret = spin_event_timeout(
+				!(SPIE_RXCNT(events =
+				mpc8xxx_spi_read_reg(&reg_base->event)) <
+						min(4, mspi->len)),
+						10000, 0); /* 10 msec */
+			if (!ret)
+				dev_err(mspi->dev,
+					 "tired waiting for SPIE_RXCNT\n");
 		}
 
 		if (mspi->len >= 4) {
