@@ -28,13 +28,11 @@
 
 #include "setup.h"
 
-#include "board-mop500-regulators.h"
 #include "board-mop500.h"
 #include "db8500-regs.h"
 #include "id.h"
 
 static struct ab8500_platform_data ab8500_platdata = {
-	.regulator	= &ab8500_regulator_plat_data,
 };
 
 static struct prcmu_pdata db8500_prcmu_pdata = {
