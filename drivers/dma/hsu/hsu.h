@@ -41,6 +41,9 @@
 #define HSU_CH_SR_DESCTO(x)	BIT(8 + (x))
 #define HSU_CH_SR_DESCTO_ANY	(BIT(11) | BIT(10) | BIT(9) | BIT(8))
 #define HSU_CH_SR_CHE		BIT(15)
+#define HSU_CH_SR_DESCE(x)	BIT(16 + (x))
+#define HSU_CH_SR_DESCE_ANY	(BIT(19) | BIT(18) | BIT(17) | BIT(16))
+#define HSU_CH_SR_CDESC_ANY	(BIT(31) | BIT(30))
 
 /* Bits in HSU_CH_CR */
 #define HSU_CH_CR_CHA		BIT(0)
