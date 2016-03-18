@@ -360,8 +360,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 	struct orangefs_object_kref root_object;
 
 	/* alloc and init our private orangefs sb info */
-	sb->s_fs_info =
-		kzalloc(sizeof(struct orangefs_sb_info_s), ORANGEFS_GFP_FLAGS);
+	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
 	if (!ORANGEFS_SB(sb))
 		return -ENOMEM;
 	ORANGEFS_SB(sb)->sb = sb;

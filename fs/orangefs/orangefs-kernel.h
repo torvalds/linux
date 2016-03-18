@@ -120,9 +120,6 @@ struct client_debug_mask {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-#define ORANGEFS_GFP_FLAGS (GFP_KERNEL)
-#define ORANGEFS_BUFMAP_GFP_FLAGS (GFP_KERNEL)
-
 /* orangefs xattr and acl related defines */
 #define ORANGEFS_XATTR_INDEX_POSIX_ACL_ACCESS  1
 #define ORANGEFS_XATTR_INDEX_POSIX_ACL_DEFAULT 2
