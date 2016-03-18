@@ -3034,20 +3034,16 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN8_PRIVATE_PAT_HI, pat >> 32);
 }
 
-static int gen8_gmch_probe(struct drm_device *dev,
-			   u64 *gtt_total,
-			   size_t *stolen,
-			   phys_addr_t *mappable_base,
-			   u64 *mappable_end)
+static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 {
+	struct drm_device *dev = ggtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u64 gtt_size;
 	u16 snb_gmch_ctl;
 	int ret;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
-	*mappable_base = pci_resource_start(dev->pdev, 2);
-	*mappable_end = pci_resource_len(dev->pdev, 2);
+	ggtt->mappable_base = pci_resource_start(dev->pdev, 2);
+	ggtt->mappable_end = pci_resource_len(dev->pdev, 2);
 
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(39)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(39));
@@ -3055,55 +3051,51 @@ static int gen8_gmch_probe(struct drm_device *dev,
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		*stolen = gen9_get_stolen_size(snb_gmch_ctl);
-		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+		ggtt->stolen_size = gen9_get_stolen_size(snb_gmch_ctl);
+		ggtt->size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	} else if (IS_CHERRYVIEW(dev)) {
-		*stolen = chv_get_stolen_size(snb_gmch_ctl);
-		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
+		ggtt->stolen_size = chv_get_stolen_size(snb_gmch_ctl);
+		ggtt->size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
-		*stolen = gen8_get_stolen_size(snb_gmch_ctl);
-		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+		ggtt->stolen_size = gen8_get_stolen_size(snb_gmch_ctl);
+		ggtt->size = gen8_get_total_gtt_size(snb_gmch_ctl);
 	}
 
-	*gtt_total = (gtt_size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
+	ggtt->base.total = (ggtt->size / sizeof(gen8_pte_t)) << PAGE_SHIFT;
 
 	if (IS_CHERRYVIEW(dev) || IS_BROXTON(dev))
 		chv_setup_private_ppat(dev_priv);
 	else
 		bdw_setup_private_ppat(dev_priv);
 
-	ret = ggtt_probe_common(dev, gtt_size);
+	ret = ggtt_probe_common(dev, ggtt->size);
 
-	dev_priv->ggtt.base.clear_range = gen8_ggtt_clear_range;
-	dev_priv->ggtt.base.insert_entries = gen8_ggtt_insert_entries;
-	dev_priv->ggtt.base.bind_vma = ggtt_bind_vma;
-	dev_priv->ggtt.base.unbind_vma = ggtt_unbind_vma;
-
+	ggtt->base.clear_range = gen8_ggtt_clear_range;
 	if (IS_CHERRYVIEW(dev_priv))
-		dev_priv->ggtt.base.insert_entries = gen8_ggtt_insert_entries__BKL;
+		ggtt->base.insert_entries = gen8_ggtt_insert_entries__BKL;
+	else
+		ggtt->base.insert_entries = gen8_ggtt_insert_entries;
+	ggtt->base.bind_vma = ggtt_bind_vma;
+	ggtt->base.unbind_vma = ggtt_unbind_vma;
+
 
 	return ret;
 }
 
-static int gen6_gmch_probe(struct drm_device *dev,
-			   u64 *gtt_total,
-			   size_t *stolen,
-			   phys_addr_t *mappable_base,
-			   u64 *mappable_end)
+static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int gtt_size;
+	struct drm_device *dev = ggtt->base.dev;
 	u16 snb_gmch_ctl;
 	int ret;
 
-	*mappable_base = pci_resource_start(dev->pdev, 2);
-	*mappable_end = pci_resource_len(dev->pdev, 2);
+	ggtt->mappable_base = pci_resource_start(dev->pdev, 2);
+	ggtt->mappable_end = pci_resource_len(dev->pdev, 2);
 
 	/* 64/512MB is the current min/max we actually know of, but this is just
 	 * a coarse sanity check.
 	 */
-	if ((*mappable_end < (64<<20) || (*mappable_end > (512<<20)))) {
-		DRM_ERROR("Unknown GMADR size (%llx)\n", *mappable_end);
+	if ((ggtt->mappable_end < (64<<20) || (ggtt->mappable_end > (512<<20)))) {
+		DRM_ERROR("Unknown GMADR size (%llx)\n", ggtt->mappable_end);
 		return -ENXIO;
 	}
 
@@ -3111,17 +3103,16 @@ static int gen6_gmch_probe(struct drm_device *dev,
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	*stolen = gen6_get_stolen_size(snb_gmch_ctl);
+	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
+	ggtt->size = gen6_get_total_gtt_size(snb_gmch_ctl);
+	ggtt->base.total = (ggtt->size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
 
-	gtt_size = gen6_get_total_gtt_size(snb_gmch_ctl);
-	*gtt_total = (gtt_size / sizeof(gen6_pte_t)) << PAGE_SHIFT;
+	ret = ggtt_probe_common(dev, ggtt->size);
 
-	ret = ggtt_probe_common(dev, gtt_size);
-
-	dev_priv->ggtt.base.clear_range = gen6_ggtt_clear_range;
-	dev_priv->ggtt.base.insert_entries = gen6_ggtt_insert_entries;
-	dev_priv->ggtt.base.bind_vma = ggtt_bind_vma;
-	dev_priv->ggtt.base.unbind_vma = ggtt_unbind_vma;
+	ggtt->base.clear_range = gen6_ggtt_clear_range;
+	ggtt->base.insert_entries = gen6_ggtt_insert_entries;
+	ggtt->base.bind_vma = ggtt_bind_vma;
+	ggtt->base.unbind_vma = ggtt_unbind_vma;
 
 	return ret;
 }
@@ -3134,12 +3125,9 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 	free_scratch_page(vm->dev, vm->scratch_page);
 }
 
-static int i915_gmch_probe(struct drm_device *dev,
-			   u64 *gtt_total,
-			   size_t *stolen,
-			   phys_addr_t *mappable_base,
-			   u64 *mappable_end)
+static int i915_gmch_probe(struct i915_ggtt *ggtt)
 {
+	struct drm_device *dev = ggtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
@@ -3149,15 +3137,16 @@ static int i915_gmch_probe(struct drm_device *dev,
 		return -EIO;
 	}
 
-	intel_gtt_get(gtt_total, stolen, mappable_base, mappable_end);
+	intel_gtt_get(&ggtt->base.total, &ggtt->stolen_size,
+		      &ggtt->mappable_base, &ggtt->mappable_end);
 
-	dev_priv->ggtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
-	dev_priv->ggtt.base.insert_entries = i915_ggtt_insert_entries;
-	dev_priv->ggtt.base.clear_range = i915_ggtt_clear_range;
-	dev_priv->ggtt.base.bind_vma = ggtt_bind_vma;
-	dev_priv->ggtt.base.unbind_vma = ggtt_unbind_vma;
+	ggtt->do_idle_maps = needs_idle_maps(dev_priv->dev);
+	ggtt->base.insert_entries = i915_ggtt_insert_entries;
+	ggtt->base.clear_range = i915_ggtt_clear_range;
+	ggtt->base.bind_vma = ggtt_bind_vma;
+	ggtt->base.unbind_vma = ggtt_unbind_vma;
 
-	if (unlikely(dev_priv->ggtt.do_idle_maps))
+	if (unlikely(ggtt->do_idle_maps))
 		DRM_INFO("applying Ironlake quirks for intel_iommu\n");
 
 	return 0;
@@ -3198,8 +3187,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	ggtt->base.dev = dev;
 	ggtt->base.is_ggtt = true;
 
-	ret = ggtt->probe(dev, &ggtt->base.total, &ggtt->stolen_size,
-			  &ggtt->mappable_base, &ggtt->mappable_end);
+	ret = ggtt->probe(ggtt);
 	if (ret)
 		return ret;
 
