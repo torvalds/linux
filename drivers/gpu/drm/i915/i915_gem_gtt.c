@@ -3103,8 +3103,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	 * a coarse sanity check.
 	 */
 	if ((*mappable_end < (64<<20) || (*mappable_end > (512<<20)))) {
-		DRM_ERROR("Unknown GMADR size (%llx)\n",
-			  dev_priv->gtt.mappable_end);
+		DRM_ERROR("Unknown GMADR size (%llx)\n", *mappable_end);
 		return -ENXIO;
 	}
 
