@@ -106,6 +106,76 @@ static void amdgpu_mn_release(struct mmu_notifier *mn,
 }
 
 /**
+ * amdgpu_mn_invalidate_node - unmap all BOs of a node
+ *
+ * @node: the node with the BOs to unmap
+ *
+ * We block for all BOs and unmap them by move them
+ * into system domain again.
+ */
+static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
+				      unsigned long start,
+				      unsigned long end)
+{
+	struct amdgpu_bo *bo;
+	long r;
+
+	list_for_each_entry(bo, &node->bos, mn_list) {
+
+		if (!amdgpu_ttm_tt_affect_userptr(bo->tbo.ttm, start, end))
+			continue;
+
+		r = amdgpu_bo_reserve(bo, true);
+		if (r) {
+			DRM_ERROR("(%ld) failed to reserve user bo\n", r);
+			continue;
+		}
+
+		r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+			true, false, MAX_SCHEDULE_TIMEOUT);
+		if (r <= 0)
+			DRM_ERROR("(%ld) failed to wait for user bo\n", r);
+
+		amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
+		r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+		if (r)
+			DRM_ERROR("(%ld) failed to validate user bo\n", r);
+
+		amdgpu_bo_unreserve(bo);
+	}
+}
+
+/**
+ * amdgpu_mn_invalidate_page - callback to notify about mm change
+ *
+ * @mn: our notifier
+ * @mn: the mm this callback is about
+ * @address: address of invalidate page
+ *
+ * Invalidation of a single page. Blocks for all BOs mapping it
+ * and unmap them by move them into system domain again.
+ */
+static void amdgpu_mn_invalidate_page(struct mmu_notifier *mn,
+				      struct mm_struct *mm,
+				      unsigned long address)
+{
+	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+	struct interval_tree_node *it;
+
+	mutex_lock(&rmn->lock);
+
+	it = interval_tree_iter_first(&rmn->objects, address, address);
+	if (it) {
+		struct amdgpu_mn_node *node;
+
+		node = container_of(it, struct amdgpu_mn_node, it);
+		amdgpu_mn_invalidate_node(node, address, address);
+	}
+
+	mutex_unlock(&rmn->lock);
+}
+
+/**
  * amdgpu_mn_invalidate_range_start - callback to notify about mm change
  *
  * @mn: our notifier
@@ -132,36 +202,11 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 	it = interval_tree_iter_first(&rmn->objects, start, end);
 	while (it) {
 		struct amdgpu_mn_node *node;
-		struct amdgpu_bo *bo;
-		long r;
 
 		node = container_of(it, struct amdgpu_mn_node, it);
 		it = interval_tree_iter_next(it, start, end);
 
-		list_for_each_entry(bo, &node->bos, mn_list) {
-
-			if (!amdgpu_ttm_tt_affect_userptr(bo->tbo.ttm, start,
-							  end))
-				continue;
-
-			r = amdgpu_bo_reserve(bo, true);
-			if (r) {
-				DRM_ERROR("(%ld) failed to reserve user bo\n", r);
-				continue;
-			}
-
-			r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
-				true, false, MAX_SCHEDULE_TIMEOUT);
-			if (r <= 0)
-				DRM_ERROR("(%ld) failed to wait for user bo\n", r);
-
-			amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
-			if (r)
-				DRM_ERROR("(%ld) failed to validate user bo\n", r);
-
-			amdgpu_bo_unreserve(bo);
-		}
+		amdgpu_mn_invalidate_node(node, start, end);
 	}
 
 	mutex_unlock(&rmn->lock);
@@ -169,6 +214,7 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 static const struct mmu_notifier_ops amdgpu_mn_ops = {
 	.release = amdgpu_mn_release,
+	.invalidate_page = amdgpu_mn_invalidate_page,
 	.invalidate_range_start = amdgpu_mn_invalidate_range_start,
 };
 
