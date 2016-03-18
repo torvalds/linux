@@ -93,11 +93,12 @@ static int omap_gem_dmabuf_begin_cpu_access(struct dma_buf *buffer,
 	return omap_gem_get_pages(obj, &pages, true);
 }
 
-static void omap_gem_dmabuf_end_cpu_access(struct dma_buf *buffer,
-		enum dma_data_direction dir)
+static int omap_gem_dmabuf_end_cpu_access(struct dma_buf *buffer,
+					  enum dma_data_direction dir)
 {
 	struct drm_gem_object *obj = buffer->priv;
 	omap_gem_put_pages(obj);
+	return 0;
 }
 
 
