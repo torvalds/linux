@@ -618,6 +618,74 @@ struct amdgpu_doorbell {
 	u32			num_doorbells;	/* Number of doorbells actually reserved for amdgpu. */
 };
 
+/*
+ * 64bit doorbell, offset are in QWORD, occupy 2KB doorbell space
+ */
+typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
+{
+	/*
+	 * All compute related doorbells: kiq, hiq, diq, traditional compute queue, user queue, should locate in
+	 * a continues range so that programming CP_MEC_DOORBELL_RANGE_LOWER/UPPER can cover this range.
+	 *  Compute related doorbells are allocated from 0x00 to 0x8a
+	 */
+
+
+	/* kernel scheduling */
+	AMDGPU_DOORBELL64_KIQ                     = 0x00,
+
+	/* HSA interface queue and debug queue */
+	AMDGPU_DOORBELL64_HIQ                     = 0x01,
+	AMDGPU_DOORBELL64_DIQ                     = 0x02,
+
+	/* Compute engines */
+	AMDGPU_DOORBELL64_MEC_RING0               = 0x03,
+	AMDGPU_DOORBELL64_MEC_RING1               = 0x04,
+	AMDGPU_DOORBELL64_MEC_RING2               = 0x05,
+	AMDGPU_DOORBELL64_MEC_RING3               = 0x06,
+	AMDGPU_DOORBELL64_MEC_RING4               = 0x07,
+	AMDGPU_DOORBELL64_MEC_RING5               = 0x08,
+	AMDGPU_DOORBELL64_MEC_RING6               = 0x09,
+	AMDGPU_DOORBELL64_MEC_RING7               = 0x0a,
+
+	/* User queue doorbell range (128 doorbells) */
+	AMDGPU_DOORBELL64_USERQUEUE_START         = 0x0b,
+	AMDGPU_DOORBELL64_USERQUEUE_END           = 0x8a,
+
+	/* Graphics engine */
+	AMDGPU_DOORBELL64_GFX_RING0               = 0x8b,
+
+	/*
+	 * Other graphics doorbells can be allocated here: from 0x8c to 0xef
+	 * Graphics voltage island aperture 1
+	 * default non-graphics QWORD index is 0xF0 - 0xFF inclusive
+	 */
+
+	/* sDMA engines */
+	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xF0,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
+	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xF2,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
+
+	/* Interrupt handler */
+	AMDGPU_DOORBELL64_IH                      = 0xF4,  /* For legacy interrupt ring buffer */
+	AMDGPU_DOORBELL64_IH_RING1                = 0xF5,  /* For page migration request log */
+	AMDGPU_DOORBELL64_IH_RING2                = 0xF6,  /* For page migration translation/invalidation log */
+
+	/* VCN engine */
+	AMDGPU_DOORBELL64_VCN0                    = 0xF8,
+	AMDGPU_DOORBELL64_VCN1                    = 0xF9,
+	AMDGPU_DOORBELL64_VCN2                    = 0xFA,
+	AMDGPU_DOORBELL64_VCN3                    = 0xFB,
+	AMDGPU_DOORBELL64_VCN4                    = 0xFC,
+	AMDGPU_DOORBELL64_VCN5                    = 0xFD,
+	AMDGPU_DOORBELL64_VCN6                    = 0xFE,
+	AMDGPU_DOORBELL64_VCN7                    = 0xFF,
+
+	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
+	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
+} AMDGPU_DOORBELL64_ASSIGNMENT;
+
+
 void amdgpu_doorbell_get_kfd_info(struct amdgpu_device *adev,
 				phys_addr_t *aperture_base,
 				size_t *aperture_size,
