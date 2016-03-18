@@ -325,11 +325,8 @@ struct pch_vbus_gpio_data {
  * @pdev:		reference to the PCI device
  * @ep:			array of endpoints
  * @lock:		protects all state
- * @active:		enabled the PCI device
  * @stall:		stall requested
  * @prot_stall:		protcol stall requested
- * @irq_registered:	irq registered with system
- * @mem_region:		device memory mapped
  * @registered:		driver registered with system
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
@@ -339,12 +336,8 @@ struct pch_vbus_gpio_data {
  * @data_requests:	DMA pool for data requests
  * @stp_requests:	DMA pool for setup requests
  * @dma_addr:		DMA pool for received
- * @ep0out_buf:		Buffer for DMA
  * @setup_data:		Received setup data
- * @phys_addr:		of device memory
  * @base_addr:		for mapped device memory
- * @bar:		Indicates which PCI BAR for USB regs
- * @irq:		IRQ line for the device
  * @cfg_data:		current cfg, intf, and alt in use
  * @vbus_gpio:		GPIO informaton for detecting VBUS
  */
@@ -354,11 +347,9 @@ struct pch_udc_dev {
 	struct pci_dev			*pdev;
 	struct pch_udc_ep		ep[PCH_UDC_EP_NUM];
 	spinlock_t			lock; /* protects all state */
-	unsigned	active:1,
+	unsigned
 			stall:1,
 			prot_stall:1,
-			irq_registered:1,
-			mem_region:1,
 			suspended:1,
 			connected:1,
 			vbus_session:1,
@@ -367,12 +358,8 @@ struct pch_udc_dev {
 	struct pci_pool		*data_requests;
 	struct pci_pool		*stp_requests;
 	dma_addr_t			dma_addr;
-	void				*ep0out_buf;
 	struct usb_ctrlrequest		setup_data;
-	unsigned long			phys_addr;
 	void __iomem			*base_addr;
-	unsigned			bar;
-	unsigned			irq;
 	struct pch_udc_cfg_data		cfg_data;
 	struct pch_vbus_gpio_data	vbus_gpio;
 };
@@ -2949,6 +2936,7 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 {
 	struct pch_udc_stp_dma_desc	*td_stp;
 	struct pch_udc_data_dma_desc	*td_data;
+	void				*ep0out_buf;
 
 	/* DMA setup */
 	dev->data_requests = pci_pool_create("data_requests", dev->pdev,
@@ -2991,10 +2979,11 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	dev->ep[UDC_EP0IN_IDX].td_data = NULL;
 	dev->ep[UDC_EP0IN_IDX].td_data_phys = 0;
 
-	dev->ep0out_buf = kzalloc(UDC_EP0OUT_BUFF_SIZE * 4, GFP_KERNEL);
-	if (!dev->ep0out_buf)
+	ep0out_buf = devm_kzalloc(&dev->pdev->dev, UDC_EP0OUT_BUFF_SIZE * 4,
+				  GFP_KERNEL);
+	if (!ep0out_buf)
 		return -ENOMEM;
-	dev->dma_addr = dma_map_single(&dev->pdev->dev, dev->ep0out_buf,
+	dev->dma_addr = dma_map_single(&dev->pdev->dev, ep0out_buf,
 				       UDC_EP0OUT_BUFF_SIZE * 4,
 				       DMA_FROM_DEVICE);
 	return 0;
@@ -3078,22 +3067,10 @@ static void pch_udc_remove(struct pci_dev *pdev)
 	if (dev->dma_addr)
 		dma_unmap_single(&dev->pdev->dev, dev->dma_addr,
 				 UDC_EP0OUT_BUFF_SIZE * 4, DMA_FROM_DEVICE);
-	kfree(dev->ep0out_buf);
 
 	pch_vbus_gpio_free(dev);
 
 	pch_udc_exit(dev);
-
-	if (dev->irq_registered)
-		free_irq(pdev->irq, dev);
-	if (dev->base_addr)
-		iounmap(dev->base_addr);
-	if (dev->mem_region)
-		release_mem_region(dev->phys_addr,
-				   pci_resource_len(pdev, dev->bar));
-	if (dev->active)
-		pci_disable_device(pdev);
-	kfree(dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -3122,69 +3099,46 @@ static SIMPLE_DEV_PM_OPS(pch_udc_pm, pch_udc_suspend, pch_udc_resume);
 static int pch_udc_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *id)
 {
-	unsigned long		resource;
-	unsigned long		len;
+	int			bar;
 	int			retval;
 	struct pch_udc_dev	*dev;
 
 	/* init */
-	dev = kzalloc(sizeof *dev, GFP_KERNEL);
-	if (!dev) {
-		pr_err("%s: no memory for device structure\n", __func__);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	/* pci setup */
-	if (pci_enable_device(pdev) < 0) {
-		kfree(dev);
-		pr_err("%s: pci_enable_device failed\n", __func__);
-		return -ENODEV;
-	}
-	dev->active = 1;
+	retval = pcim_enable_device(pdev);
+	if (retval)
+		return retval;
+
 	pci_set_drvdata(pdev, dev);
 
 	/* Determine BAR based on PCI ID */
 	if (id->device == PCI_DEVICE_ID_INTEL_QUARK_X1000_UDC)
-		dev->bar = PCH_UDC_PCI_BAR_QUARK_X1000;
+		bar = PCH_UDC_PCI_BAR_QUARK_X1000;
 	else
-		dev->bar = PCH_UDC_PCI_BAR;
+		bar = PCH_UDC_PCI_BAR;
 
 	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, dev->bar);
-	len = pci_resource_len(pdev, dev->bar);
+	retval = pcim_iomap_regions(pdev, 1 << bar, pci_name(pdev));
+	if (retval)
+		return retval;
 
-	if (!request_mem_region(resource, len, KBUILD_MODNAME)) {
-		dev_err(&pdev->dev, "%s: pci device used already\n", __func__);
-		retval = -EBUSY;
-		goto finished;
-	}
-	dev->phys_addr = resource;
-	dev->mem_region = 1;
+	dev->base_addr = pcim_iomap_table(pdev)[bar];
 
-	dev->base_addr = ioremap_nocache(resource, len);
-	if (!dev->base_addr) {
-		pr_err("%s: device memory cannot be mapped\n", __func__);
-		retval = -ENOMEM;
-		goto finished;
-	}
-	if (!pdev->irq) {
-		dev_err(&pdev->dev, "%s: irq not set\n", __func__);
-		retval = -ENODEV;
-		goto finished;
-	}
 	/* initialize the hardware */
-	if (pch_udc_pcd_init(dev)) {
-		retval = -ENODEV;
-		goto finished;
-	}
-	if (request_irq(pdev->irq, pch_udc_isr, IRQF_SHARED, KBUILD_MODNAME,
-			dev)) {
+	if (pch_udc_pcd_init(dev))
+		return -ENODEV;
+
+	retval = devm_request_irq(&pdev->dev, pdev->irq, pch_udc_isr,
+				  IRQF_SHARED, KBUILD_MODNAME, dev);
+	if (retval) {
 		dev_err(&pdev->dev, "%s: request_irq(%d) fail\n", __func__,
 			pdev->irq);
-		retval = -ENODEV;
 		goto finished;
 	}
-	dev->irq = pdev->irq;
-	dev->irq_registered = 1;
 
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
