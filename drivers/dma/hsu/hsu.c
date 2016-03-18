@@ -77,8 +77,8 @@ static void hsu_dma_chan_start(struct hsu_dma_chan *hsuc)
 	hsu_chan_writel(hsuc, HSU_CH_MTSR, mtsr);
 
 	/* Set descriptors */
-	count = (desc->nents - desc->active) % HSU_DMA_CHAN_NR_DESC;
-	for (i = 0; i < count; i++) {
+	count = desc->nents - desc->active;
+	for (i = 0; i < count && i < HSU_DMA_CHAN_NR_DESC; i++) {
 		hsu_chan_writel(hsuc, HSU_CH_DxSAR(i), desc->sg[i].addr);
 		hsu_chan_writel(hsuc, HSU_CH_DxTSR(i), desc->sg[i].len);
 
