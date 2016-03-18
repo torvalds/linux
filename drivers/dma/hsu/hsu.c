@@ -254,10 +254,13 @@ static void hsu_dma_issue_pending(struct dma_chan *chan)
 static size_t hsu_dma_active_desc_size(struct hsu_dma_chan *hsuc)
 {
 	struct hsu_dma_desc *desc = hsuc->desc;
-	size_t bytes = desc->length;
+	size_t bytes = 0;
 	int i;
 
-	i = desc->active % HSU_DMA_CHAN_NR_DESC;
+	for (i = desc->active; i < desc->nents; i++)
+		bytes += desc->sg[i].len;
+
+	i = HSU_DMA_CHAN_NR_DESC - 1;
 	do {
 		bytes += hsu_chan_readl(hsuc, HSU_CH_DxTSR(i));
 	} while (--i >= 0);
