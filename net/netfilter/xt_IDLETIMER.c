@@ -5,6 +5,7 @@
  * After timer expires a kevent will be sent.
  *
  * Copyright (C) 2004, 2010 Nokia Corporation
+ *
  * Written by Timo Teras <ext-timo.teras@nokia.com>
  *
  * Converted to x_tables and reworked for upstream inclusion
@@ -38,8 +39,16 @@
 #include <linux/netfilter/xt_IDLETIMER.h>
 #include <linux/kdev_t.h>
 #include <linux/kobject.h>
+#include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
+#include <linux/rtc.h>
+#include <linux/time.h>
+#include <linux/math64.h>
+#include <linux/suspend.h>
+#include <linux/notifier.h>
+#include <net/net_namespace.h>
+#include <net/sock.h>
 
 struct idletimer_tg_attr {
 	struct attribute attr;
@@ -55,13 +64,109 @@ struct idletimer_tg {
 	struct kobject *kobj;
 	struct idletimer_tg_attr attr;
 
+	struct timespec delayed_timer_trigger;
+	struct timespec last_modified_timer;
+	struct timespec last_suspend_time;
+	struct notifier_block pm_nb;
+
+	int timeout;
 	unsigned int refcnt;
+	bool work_pending;
+	bool send_nl_msg;
+	bool active;
+	uid_t uid;
 };
 
 static LIST_HEAD(idletimer_tg_list);
 static DEFINE_MUTEX(list_mutex);
+static DEFINE_SPINLOCK(timestamp_lock);
 
 static struct kobject *idletimer_tg_kobj;
+
+static bool check_for_delayed_trigger(struct idletimer_tg *timer,
+		struct timespec *ts)
+{
+	bool state;
+	struct timespec temp;
+	spin_lock_bh(&timestamp_lock);
+	timer->work_pending = false;
+	if ((ts->tv_sec - timer->last_modified_timer.tv_sec) > timer->timeout ||
+			timer->delayed_timer_trigger.tv_sec != 0) {
+		state = false;
+		temp.tv_sec = timer->timeout;
+		temp.tv_nsec = 0;
+		if (timer->delayed_timer_trigger.tv_sec != 0) {
+			temp = timespec_add(timer->delayed_timer_trigger, temp);
+			ts->tv_sec = temp.tv_sec;
+			ts->tv_nsec = temp.tv_nsec;
+			timer->delayed_timer_trigger.tv_sec = 0;
+			timer->work_pending = true;
+			schedule_work(&timer->work);
+		} else {
+			temp = timespec_add(timer->last_modified_timer, temp);
+			ts->tv_sec = temp.tv_sec;
+			ts->tv_nsec = temp.tv_nsec;
+		}
+	} else {
+		state = timer->active;
+	}
+	spin_unlock_bh(&timestamp_lock);
+	return state;
+}
+
+static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
+{
+	char iface_msg[NLMSG_MAX_SIZE];
+	char state_msg[NLMSG_MAX_SIZE];
+	char timestamp_msg[NLMSG_MAX_SIZE];
+	char uid_msg[NLMSG_MAX_SIZE];
+	char *envp[] = { iface_msg, state_msg, timestamp_msg, uid_msg, NULL };
+	int res;
+	struct timespec ts;
+	uint64_t time_ns;
+	bool state;
+
+	res = snprintf(iface_msg, NLMSG_MAX_SIZE, "INTERFACE=%s",
+		       iface);
+	if (NLMSG_MAX_SIZE <= res) {
+		pr_err("message too long (%d)", res);
+		return;
+	}
+
+	get_monotonic_boottime(&ts);
+	state = check_for_delayed_trigger(timer, &ts);
+	res = snprintf(state_msg, NLMSG_MAX_SIZE, "STATE=%s",
+			state ? "active" : "inactive");
+
+	if (NLMSG_MAX_SIZE <= res) {
+		pr_err("message too long (%d)", res);
+		return;
+	}
+
+	if (state) {
+		res = snprintf(uid_msg, NLMSG_MAX_SIZE, "UID=%u", timer->uid);
+		if (NLMSG_MAX_SIZE <= res)
+			pr_err("message too long (%d)", res);
+	} else {
+		res = snprintf(uid_msg, NLMSG_MAX_SIZE, "UID=");
+		if (NLMSG_MAX_SIZE <= res)
+			pr_err("message too long (%d)", res);
+	}
+
+	time_ns = timespec_to_ns(&ts);
+	res = snprintf(timestamp_msg, NLMSG_MAX_SIZE, "TIME_NS=%llu", time_ns);
+	if (NLMSG_MAX_SIZE <= res) {
+		timestamp_msg[0] = '\0';
+		pr_err("message too long (%d)", res);
+	}
+
+	pr_debug("putting nlmsg: <%s> <%s> <%s> <%s>\n", iface_msg, state_msg,
+		 timestamp_msg, uid_msg);
+	kobject_uevent_env(idletimer_tg_kobj, KOBJ_CHANGE, envp);
+	return;
+
+
+}
 
 static
 struct idletimer_tg *__idletimer_tg_find_by_label(const char *label)
@@ -83,6 +188,7 @@ static ssize_t idletimer_tg_show(struct kobject *kobj, struct attribute *attr,
 {
 	struct idletimer_tg *timer;
 	unsigned long expires = 0;
+	unsigned long now = jiffies;
 
 	mutex_lock(&list_mutex);
 
@@ -92,11 +198,15 @@ static ssize_t idletimer_tg_show(struct kobject *kobj, struct attribute *attr,
 
 	mutex_unlock(&list_mutex);
 
-	if (time_after(expires, jiffies))
+	if (time_after(expires, now))
 		return sprintf(buf, "%u\n",
-			       jiffies_to_msecs(expires - jiffies) / 1000);
+			       jiffies_to_msecs(expires - now) / 1000);
 
-	return sprintf(buf, "0\n");
+	if (timer->send_nl_msg)
+		return sprintf(buf, "0 %d\n",
+			jiffies_to_msecs(now - expires) / 1000);
+	else
+		return sprintf(buf, "0\n");
 }
 
 static void idletimer_tg_work(struct work_struct *work)
@@ -105,6 +215,9 @@ static void idletimer_tg_work(struct work_struct *work)
 						  work);
 
 	sysfs_notify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
+
+	if (timer->send_nl_msg)
+		notify_netlink_uevent(timer->attr.attr.name, timer);
 }
 
 static void idletimer_tg_expired(unsigned long data)
@@ -112,8 +225,55 @@ static void idletimer_tg_expired(unsigned long data)
 	struct idletimer_tg *timer = (struct idletimer_tg *) data;
 
 	pr_debug("timer %s expired\n", timer->attr.attr.name);
-
+	spin_lock_bh(&timestamp_lock);
+	timer->active = false;
+	timer->work_pending = true;
 	schedule_work(&timer->work);
+	spin_unlock_bh(&timestamp_lock);
+}
+
+static int idletimer_resume(struct notifier_block *notifier,
+		unsigned long pm_event, void *unused)
+{
+	struct timespec ts;
+	unsigned long time_diff, now = jiffies;
+	struct idletimer_tg *timer = container_of(notifier,
+			struct idletimer_tg, pm_nb);
+	if (!timer)
+		return NOTIFY_DONE;
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		get_monotonic_boottime(&timer->last_suspend_time);
+		break;
+	case PM_POST_SUSPEND:
+		spin_lock_bh(&timestamp_lock);
+		if (!timer->active) {
+			spin_unlock_bh(&timestamp_lock);
+			break;
+		}
+		/* since jiffies are not updated when suspended now represents
+		 * the time it would have suspended */
+		if (time_after(timer->timer.expires, now)) {
+			get_monotonic_boottime(&ts);
+			ts = timespec_sub(ts, timer->last_suspend_time);
+			time_diff = timespec_to_jiffies(&ts);
+			if (timer->timer.expires > (time_diff + now)) {
+				mod_timer_pending(&timer->timer,
+						(timer->timer.expires - time_diff));
+			} else {
+				del_timer(&timer->timer);
+				timer->timer.expires = 0;
+				timer->active = false;
+				timer->work_pending = true;
+				schedule_work(&timer->work);
+			}
+		}
+		spin_unlock_bh(&timestamp_lock);
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
 }
 
 static int idletimer_tg_create(struct idletimer_tg_info *info)
@@ -146,6 +306,21 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 	setup_timer(&info->timer->timer, idletimer_tg_expired,
 		    (unsigned long) info->timer);
 	info->timer->refcnt = 1;
+	info->timer->send_nl_msg = (info->send_nl_msg == 0) ? false : true;
+	info->timer->active = true;
+	info->timer->timeout = info->timeout;
+
+	info->timer->delayed_timer_trigger.tv_sec = 0;
+	info->timer->delayed_timer_trigger.tv_nsec = 0;
+	info->timer->work_pending = false;
+	info->timer->uid = 0;
+	get_monotonic_boottime(&info->timer->last_modified_timer);
+
+	info->timer->pm_nb.notifier_call = idletimer_resume;
+	ret = register_pm_notifier(&info->timer->pm_nb);
+	if (ret)
+		printk(KERN_WARNING "[%s] Failed to register pm notifier %d\n",
+				__func__, ret);
 
 	mod_timer(&info->timer->timer,
 		  msecs_to_jiffies(info->timeout * 1000) + jiffies);
@@ -162,6 +337,42 @@ out:
 	return ret;
 }
 
+static void reset_timer(const struct idletimer_tg_info *info,
+			struct sk_buff *skb)
+{
+	unsigned long now = jiffies;
+	struct idletimer_tg *timer = info->timer;
+	bool timer_prev;
+
+	spin_lock_bh(&timestamp_lock);
+	timer_prev = timer->active;
+	timer->active = true;
+	/* timer_prev is used to guard overflow problem in time_before*/
+	if (!timer_prev || time_before(timer->timer.expires, now)) {
+		pr_debug("Starting Checkentry timer (Expired, Jiffies): %lu, %lu\n",
+				timer->timer.expires, now);
+
+		/* Stores the uid resposible for waking up the radio */
+		if (skb && (skb->sk)) {
+			timer->uid = from_kuid_munged(current_user_ns(),
+						sock_i_uid(skb->sk));
+		}
+
+		/* checks if there is a pending inactive notification*/
+		if (timer->work_pending)
+			timer->delayed_timer_trigger = timer->last_modified_timer;
+		else {
+			timer->work_pending = true;
+			schedule_work(&timer->work);
+		}
+	}
+
+	get_monotonic_boottime(&timer->last_modified_timer);
+	mod_timer(&timer->timer,
+			msecs_to_jiffies(info->timeout * 1000) + now);
+	spin_unlock_bh(&timestamp_lock);
+}
+
 /*
  * The actual xt_tables plugin.
  */
@@ -169,15 +380,23 @@ static unsigned int idletimer_tg_target(struct sk_buff *skb,
 					 const struct xt_action_param *par)
 {
 	const struct idletimer_tg_info *info = par->targinfo;
+	unsigned long now = jiffies;
 
 	pr_debug("resetting timer %s, timeout period %u\n",
 		 info->label, info->timeout);
 
 	BUG_ON(!info->timer);
 
-	mod_timer(&info->timer->timer,
-		  msecs_to_jiffies(info->timeout * 1000) + jiffies);
+	info->timer->active = true;
 
+	if (time_before(info->timer->timer.expires, now)) {
+		schedule_work(&info->timer->work);
+		pr_debug("Starting timer %s (Expired, Jiffies): %lu, %lu\n",
+			 info->label, info->timer->timer.expires, now);
+	}
+
+	/* TODO: Avoid modifying timers on each packet */
+	reset_timer(info, skb);
 	return XT_CONTINUE;
 }
 
@@ -186,7 +405,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	struct idletimer_tg_info *info = par->targinfo;
 	int ret;
 
-	pr_debug("checkentry targinfo%s\n", info->label);
+	pr_debug("checkentry targinfo %s\n", info->label);
 
 	if (info->timeout == 0) {
 		pr_debug("timeout value is zero\n");
@@ -205,9 +424,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	info->timer = __idletimer_tg_find_by_label(info->label);
 	if (info->timer) {
 		info->timer->refcnt++;
-		mod_timer(&info->timer->timer,
-			  msecs_to_jiffies(info->timeout * 1000) + jiffies);
-
+		reset_timer(info, NULL);
 		pr_debug("increased refcnt of timer %s to %u\n",
 			 info->label, info->timer->refcnt);
 	} else {
@@ -220,6 +437,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	}
 
 	mutex_unlock(&list_mutex);
+
 	return 0;
 }
 
@@ -237,11 +455,12 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 		list_del(&info->timer->entry);
 		del_timer_sync(&info->timer->timer);
 		sysfs_remove_file(idletimer_tg_kobj, &info->timer->attr.attr);
+		unregister_pm_notifier(&info->timer->pm_nb);
 		kfree(info->timer->attr.attr.name);
 		kfree(info->timer);
 	} else {
 		pr_debug("decreased refcnt of timer %s to %u\n",
-			 info->label, info->timer->refcnt);
+		info->label, info->timer->refcnt);
 	}
 
 	mutex_unlock(&list_mutex);
@@ -249,6 +468,7 @@ static void idletimer_tg_destroy(const struct xt_tgdtor_param *par)
 
 static struct xt_target idletimer_tg __read_mostly = {
 	.name		= "IDLETIMER",
+	.revision	= 1,
 	.family		= NFPROTO_UNSPEC,
 	.target		= idletimer_tg_target,
 	.targetsize     = sizeof(struct idletimer_tg_info),
@@ -314,3 +534,4 @@ MODULE_DESCRIPTION("Xtables: idle time monitor");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("ipt_IDLETIMER");
 MODULE_ALIAS("ip6t_IDLETIMER");
+MODULE_ALIAS("arpt_IDLETIMER");

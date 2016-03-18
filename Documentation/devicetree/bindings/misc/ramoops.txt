@@ -1,0 +1,43 @@
+Ramoops oops/panic logger
+=========================
+
+ramoops provides persistent RAM storage for oops and panics, so they can be
+recovered after a reboot.
+
+Parts of this storage may be set aside for other persistent log buffers, such
+as kernel log messages, or for optional ECC error-correction data.  The total
+size of these optional buffers must fit in the reserved region.
+
+Any remaining space will be used for a circular buffer of oops and panic
+records.  These records have a configurable size, with a size of 0 indicating
+that they should be disabled.
+
+
+Required properties:
+
+- compatible: must be "ramoops"
+
+- memory-region: phandle to a region of memory that is preserved between reboots
+
+
+Optional properties:
+
+- ecc-size: enables ECC support and specifies ECC buffer size in bytes
+  (defaults to no ECC)
+
+- record-size: maximum size in bytes of each dump done on oops/panic
+  (defaults to 0)
+
+- console-size: size in bytes of log buffer reserved for kernel messages
+  (defaults to 0)
+
+- ftrace-size: size in bytes of log buffer reserved for function tracing and
+  profiling (defaults to 0)
+
+- pmsg-size: size in bytes of log buffer reserved for userspace messages
+  (defaults to 0)
+
+- unbuffered: if present, use unbuffered mappings to map the reserved region
+  (defaults to buffered mappings)
+
+- no-dump-oops: if present, only dump panics (defaults to panics and oops)

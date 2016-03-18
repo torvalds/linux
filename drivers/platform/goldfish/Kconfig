@@ -1,5 +1,23 @@
+menuconfig GOLDFISH
+	bool "Platform support for Goldfish virtual devices"
+	depends on X86_32 || X86_64 || ARM || ARM64 || MIPS
+	---help---
+	  Say Y here to get to see options for the Goldfish virtual platform.
+	  This option alone does not add any kernel code.
+
+	  Unless you are building for the Android Goldfish emulator say N here.
+
+if GOLDFISH
+
+config GOLDFISH_BUS
+	bool "Goldfish platform bus"
+	---help---
+	  This is a virtual bus to host Goldfish Android Virtual Devices.
+
 config GOLDFISH_PIPE
 	tristate "Goldfish virtual device for QEMU pipes"
 	---help---
 	  This is a virtual device to drive the QEMU pipe interface used by
 	  the Goldfish Android Virtual Device.
+
+endif # GOLDFISH

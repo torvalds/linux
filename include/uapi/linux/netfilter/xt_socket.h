@@ -26,4 +26,11 @@ struct xt_socket_mtinfo3 {
 			   | XT_SOCKET_NOWILDCARD \
 			   | XT_SOCKET_RESTORESKMARK)
 
+struct sock *xt_socket_lookup_slow_v4(struct net *net,
+				      const struct sk_buff *skb,
+				      const struct net_device *indev);
+struct sock *xt_socket_lookup_slow_v6(struct net *net,
+				      const struct sk_buff *skb,
+				      const struct net_device *indev);
+
 #endif /* _XT_SOCKET_H */
