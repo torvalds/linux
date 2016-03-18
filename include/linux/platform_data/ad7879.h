@@ -1,4 +1,4 @@
-/* linux/spi/ad7879.h */
+/* linux/platform_data/ad7879.h */
 
 /* Touchscreen characteristics vary between boards and models.  The
  * platform_data for the device's "struct device" holds this information.

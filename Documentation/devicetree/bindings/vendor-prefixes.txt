@@ -229,6 +229,7 @@ st	STMicroelectronics
 startek	Startek
 ste	ST-Ericsson
 stericsson	ST-Ericsson
+syna	Synaptics Inc.
 synology	Synology, Inc.
 SUNW	Sun Microsystems, Inc
 tbs	TBS Technologies
