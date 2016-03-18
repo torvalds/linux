@@ -25,19 +25,30 @@
 #include <asm/smp_plat.h>
 
 extern const struct cpu_operations smp_spin_table_ops;
+extern const struct cpu_operations acpi_parking_protocol_ops;
 extern const struct cpu_operations cpu_psci_ops;
 
 const struct cpu_operations *cpu_ops[NR_CPUS];
 
-static const struct cpu_operations *supported_cpu_ops[] __initconst = {
+static const struct cpu_operations *dt_supported_cpu_ops[] __initconst = {
 	&smp_spin_table_ops,
+	&cpu_psci_ops,
+	NULL,
+};
+
+static const struct cpu_operations *acpi_supported_cpu_ops[] __initconst = {
+#ifdef CONFIG_ARM64_ACPI_PARKING_PROTOCOL
+	&acpi_parking_protocol_ops,
+#endif
 	&cpu_psci_ops,
 	NULL,
 };
 
 static const struct cpu_operations * __init cpu_get_ops(const char *name)
 {
-	const struct cpu_operations **ops = supported_cpu_ops;
+	const struct cpu_operations **ops;
+
+	ops = acpi_disabled ? dt_supported_cpu_ops : acpi_supported_cpu_ops;
 
 	while (*ops) {
 		if (!strcmp(name, (*ops)->name))
@@ -75,8 +86,16 @@ static const char *__init cpu_read_enable_method(int cpu)
 		}
 	} else {
 		enable_method = acpi_get_enable_method(cpu);
-		if (!enable_method)
-			pr_err("Unsupported ACPI enable-method\n");
+		if (!enable_method) {
+			/*
+			 * In ACPI systems the boot CPU does not require
+			 * checking the enable method since for some
+			 * boot protocol (ie parking protocol) it need not
+			 * be initialized. Don't warn spuriously.
+			 */
+			if (cpu != 0)
+				pr_err("Unsupported ACPI enable-method\n");
+		}
 	}
 
 	return enable_method;
