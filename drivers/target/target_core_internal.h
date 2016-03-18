@@ -22,7 +22,6 @@ struct target_fabric_configfs {
 	struct list_head	tf_list;
 	struct config_group	tf_group;
 	struct config_group	tf_disc_group;
-	struct config_group	*tf_default_groups[2];
 	const struct target_core_fabric_ops *tf_ops;
 
 	struct config_item_type tf_discovery_cit;

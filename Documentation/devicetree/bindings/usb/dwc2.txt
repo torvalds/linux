@@ -8,6 +8,8 @@ Required properties:
   - rockchip,rk3066-usb: The DWC2 USB controller instance in the rk3066 Soc;
   - "rockchip,rk3188-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3188 Soc;
   - "rockchip,rk3288-usb", "rockchip,rk3066-usb", "snps,dwc2": for rk3288 Soc;
+  - "lantiq,arx100-usb": The DWC2 USB controller instance in Lantiq ARX SoCs;
+  - "lantiq,xrx200-usb": The DWC2 USB controller instance in Lantiq XRX SoCs;
   - snps,dwc2: A generic DWC2 USB controller with default parameters.
 - reg : Should contain 1 register range (address and length)
 - interrupts : Should contain 1 interrupt

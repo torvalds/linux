@@ -4979,6 +4979,7 @@ F:	include/linux/hw_random.h
 
 HARDWARE SPINLOCK CORE
 M:	Ohad Ben-Cohen <ohad@wizery.com>
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/hwspinlock.git
 F:	Documentation/hwspinlock.txt
@@ -5764,6 +5765,7 @@ S:	Supported
 F:	include/uapi/linux/mei.h
 F:	include/linux/mei_cl_bus.h
 F:	drivers/misc/mei/*
+F:	drivers/watchdog/mei_wdt.c
 F:	Documentation/misc-devices/mei/*
 
 INTEL MIC DRIVERS (mic)
@@ -6066,7 +6068,7 @@ S:	Maintained
 F:	drivers/media/platform/rcar_jpu.c
 
 JSM Neo PCI based serial card
-M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
+M:	Gabriel Krisman Bertazi <krisman@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/jsm/
@@ -6596,6 +6598,11 @@ F:	Documentation/ABI/testing/sysfs-kernel-livepatch
 F:	samples/livepatch/
 L:	live-patching@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/livepatching.git
+
+LINUX KERNEL DUMP TEST MODULE (LKDTM)
+M:	Kees Cook <keescook@chromium.org>
+S:	Maintained
+F:	drivers/misc/lkdtm.c
 
 LLC (802.2)
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
@@ -9169,6 +9176,7 @@ F:	include/linux/regmap.h
 
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/remoteproc.git
 S:	Maintained
 F:	drivers/remoteproc/
@@ -9177,6 +9185,7 @@ F:	include/linux/remoteproc.h
 
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
 M:	Ohad Ben-Cohen <ohad@wizery.com>
+M:	Bjorn Andersson <bjorn.andersson@linaro.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/rpmsg.git
 S:	Maintained
 F:	drivers/rpmsg/
@@ -11126,8 +11135,8 @@ M:	Jarkko Sakkinen <jarkko.sakkinen@linux.intel.com>
 R:	Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
-Q:	git git://github.com/PeterHuewe/linux-tpmdd.git
-T:	git https://github.com/PeterHuewe/linux-tpmdd
+Q:	https://patchwork.kernel.org/project/tpmdd-devel/list/
+T:	git git://git.infradead.org/users/jjs/linux-tpmdd.git
 S:	Maintained
 F:	drivers/char/tpm/
 
@@ -11307,7 +11316,7 @@ F:	include/linux/mtd/ubi.h
 F:	include/uapi/mtd/ubi-user.h
 
 USB ACM DRIVER
-M:	Oliver Neukum <oliver@neukum.org>
+M:	Oliver Neukum <oneukum@suse.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/acm.txt
@@ -11431,6 +11440,7 @@ M:	Valentina Manea <valentina.manea.m@gmail.com>
 M:	Shuah Khan <shuah.kh@samsung.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
+F:	Documentation/usb/usbip_protocol.txt
 F:	drivers/usb/usbip/
 F:	tools/usb/usbip/
 

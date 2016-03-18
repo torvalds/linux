@@ -102,8 +102,8 @@ enum vcpu_sysreg {
 	TTBR1_EL1,	/* Translation Table Base Register 1 */
 	TCR_EL1,	/* Translation Control Register */
 	ESR_EL1,	/* Exception Syndrome Register */
-	AFSR0_EL1,	/* Auxilary Fault Status Register 0 */
-	AFSR1_EL1,	/* Auxilary Fault Status Register 1 */
+	AFSR0_EL1,	/* Auxiliary Fault Status Register 0 */
+	AFSR1_EL1,	/* Auxiliary Fault Status Register 1 */
 	FAR_EL1,	/* Fault Address Register */
 	MAIR_EL1,	/* Memory Attribute Indirection Register */
 	VBAR_EL1,	/* Vector Base Address Register */
@@ -326,7 +326,9 @@ static inline void kvm_arch_mmu_notifier_invalidate_page(struct kvm *kvm,
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void);
 struct kvm_vcpu * __percpu *kvm_get_running_vcpus(void);
 
-u64 kvm_call_hyp(void *hypfn, ...);
+u64 __kvm_call_hyp(void *hypfn, ...);
+#define kvm_call_hyp(f, ...) __kvm_call_hyp(kvm_ksym_ref(f), ##__VA_ARGS__)
+
 void force_vm_exit(const cpumask_t *mask);
 void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
 
@@ -347,8 +349,8 @@ static inline void __cpu_init_hyp_mode(phys_addr_t boot_pgd_ptr,
 	 * Call initialization code, and switch to the full blown
 	 * HYP code.
 	 */
-	kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
-		     hyp_stack_ptr, vector_ptr);
+	__kvm_call_hyp((void *)boot_pgd_ptr, pgd_ptr,
+		       hyp_stack_ptr, vector_ptr);
 }
 
 static inline void kvm_arch_hardware_disable(void) {}

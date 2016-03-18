@@ -107,8 +107,8 @@
 		};
 	};
 
-	isp1704: isp1704 {
-		compatible = "nxp,isp1704";
+	isp1707: isp1707 {
+		compatible = "nxp,isp1707";
 		nxp,enable-gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 		usb-phy = <&usb2_phy>;
 	};
@@ -618,7 +618,7 @@
 		ti,termination-current = <100>;
 		ti,resistor-sense = <68>;
 
-		ti,usb-charger-detection = <&isp1704>;
+		ti,usb-charger-detection = <&isp1707>;
 	};
 };
 

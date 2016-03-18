@@ -22,6 +22,7 @@
 #include <asm/byteorder.h>
 #include <asm/switch_to.h>
 #include <crypto/algapi.h>
+#include <crypto/xts.h>
 
 /*
  * MAX_BYTES defines the number of bytes that are allowed to be processed
@@ -126,6 +127,11 @@ static int ppc_xts_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 		   unsigned int key_len)
 {
 	struct ppc_xts_ctx *ctx = crypto_tfm_ctx(tfm);
+	int err;
+
+	err = xts_check_key(tfm, in_key, key_len);
+	if (err)
+		return err;
 
 	key_len >>= 1;
 

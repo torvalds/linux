@@ -1214,6 +1214,21 @@ config SBC_EPX_C3_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sbc_epx_c3.
 
+config INTEL_MEI_WDT
+	tristate "Intel MEI iAMT Watchdog"
+	depends on INTEL_MEI && X86
+	select WATCHDOG_CORE
+	---help---
+	  A device driver for the Intel MEI iAMT watchdog.
+
+	  The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
+	  Whenever the OS hangs or crashes, iAMT will send an event
+	  to any subscriber to this event. The watchdog doesn't reset the
+	  the platform.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called mei_wdt.
+
 # M32R Architecture
 
 # M68K Architecture
