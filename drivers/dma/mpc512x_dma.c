@@ -760,21 +760,31 @@ mpc_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		tcd->ssize = MPC_DMA_TSIZE_4;
 		tcd->dsize = MPC_DMA_TSIZE_4;
 
-		len = sg_dma_len(sg);
-		tcd->nbytes = tcd_nunits * 4;
-		if (!IS_ALIGNED(len, tcd->nbytes))
-			goto err_prep;
+		if (mdma->is_mpc8308) {
+			tcd->nbytes = sg_dma_len(sg);
+			if (!IS_ALIGNED(tcd->nbytes, 4))
+				goto err_prep;
 
-		iter = len / tcd->nbytes;
-		if (iter >= 1 << 15) {
-			/* len is too big */
-			goto err_prep;
+			/* No major loops for MPC8303 */
+			tcd->biter = 1;
+			tcd->citer = 1;
+		} else {
+			len = sg_dma_len(sg);
+			tcd->nbytes = tcd_nunits * 4;
+			if (!IS_ALIGNED(len, tcd->nbytes))
+				goto err_prep;
+
+			iter = len / tcd->nbytes;
+			if (iter >= 1 << 15) {
+				/* len is too big */
+				goto err_prep;
+			}
+			/* citer_linkch contains the high bits of iter */
+			tcd->biter = iter & 0x1ff;
+			tcd->biter_linkch = iter >> 9;
+			tcd->citer = tcd->biter;
+			tcd->citer_linkch = tcd->biter_linkch;
 		}
-		/* citer_linkch contains the high bits of iter */
-		tcd->biter = iter & 0x1ff;
-		tcd->biter_linkch = iter >> 9;
-		tcd->citer = tcd->biter;
-		tcd->citer_linkch = tcd->biter_linkch;
 
 		tcd->e_sg = 0;
 		tcd->d_req = 1;
