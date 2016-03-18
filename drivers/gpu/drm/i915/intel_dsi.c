@@ -412,7 +412,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder)
 		temp &= ~LANE_CONFIGURATION_MASK;
 		temp &= ~DUAL_LINK_MODE_MASK;
 
-		if (intel_dsi->ports == ((1 << PORT_A) | (1 << PORT_C))) {
+		if (intel_dsi->ports == (BIT(PORT_A) | BIT(PORT_C))) {
 			temp |= (intel_dsi->dual_link - 1)
 						<< DUAL_LINK_MODE_SHIFT;
 			temp |= intel_crtc->pipe ?
@@ -1200,14 +1200,14 @@ void intel_dsi_init(struct drm_device *dev)
 
 	/* Pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI port C */
 	if (port == PORT_A)
-		intel_encoder->crtc_mask = 1 << PIPE_A;
+		intel_encoder->crtc_mask = BIT(PIPE_A);
 	else
-		intel_encoder->crtc_mask = 1 << PIPE_B;
+		intel_encoder->crtc_mask = BIT(PIPE_B);
 
 	if (dev_priv->vbt.dsi.config->dual_link)
-		intel_dsi->ports = (1 << PORT_A) | (1 << PORT_C);
+		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
 	else
-		intel_dsi->ports = 1 << port;
+		intel_dsi->ports = BIT(port);
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {
