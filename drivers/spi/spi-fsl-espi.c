@@ -544,6 +544,7 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 	if (events & SPIE_NE) {
 		u32 rx_data, tmp;
 		u8 rx_data_8;
+		int rx_nr_bytes = 4;
 		int ret;
 
 		/* Spin until RX is done */
@@ -560,7 +561,14 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 
 		if (mspi->len >= 4) {
 			rx_data = mpc8xxx_spi_read_reg(&reg_base->receive);
+		} else if (mspi->len <= 0) {
+			dev_err(mspi->dev,
+				"unexpected RX(SPIE_NE) interrupt occurred,\n"
+				"(local rxlen %d bytes, reg rxlen %d bytes)\n",
+				min(4, mspi->len), SPIE_RXCNT(events));
+			rx_nr_bytes = 0;
 		} else {
+			rx_nr_bytes = mspi->len;
 			tmp = mspi->len;
 			rx_data = 0;
 			while (tmp--) {
@@ -571,7 +579,7 @@ void fsl_espi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
 			rx_data <<= (4 - mspi->len) * 8;
 		}
 
-		mspi->len -= 4;
+		mspi->len -= rx_nr_bytes;
 
 		if (mspi->rx)
 			mspi->get_rx(rx_data, mspi);
