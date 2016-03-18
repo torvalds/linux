@@ -34,12 +34,6 @@
 #include "usb_osintf.h"
 #include "usb_ops.h"
 
-#define IS_MAC_ADDRESS_BROADCAST(addr) \
-( \
-	((addr[0] == 0xff) && (addr[1] == 0xff) && \
-	 (addr[2] == 0xff) && (addr[3] == 0xff) && \
-	 (addr[4] == 0xff) && (addr[5] == 0xff)) ? true : false \
-)
 
 static u8 validate_ssid(struct ndis_802_11_ssid *ssid)
 {
