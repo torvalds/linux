@@ -78,6 +78,11 @@
 #include "amdgpu_acp.h"
 #endif
 
+MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
+
 /*
  * Indirect registers accessor
  */
