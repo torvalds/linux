@@ -198,6 +198,21 @@
 &i2c0 {
 	status = "okay";
 
+	mp8865: mp8865@68 {
+		compatible = "mps,mp8865";
+		reg = <0x68>;
+		status = "okay";
+		regulators {
+			vdd_gpu: mp8865_dcdc1 {
+				regulator-name = "vdd_gpu";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
 	rk808: pmic@1b {
 		compatible = "rockchip,rk808";
 		reg = <0x1b>;
