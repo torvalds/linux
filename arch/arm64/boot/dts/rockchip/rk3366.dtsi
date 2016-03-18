@@ -227,6 +227,19 @@
 		status = "disabled";
 	};
 
+	scr: rkscr@ff1d0000 {
+		compatible = "rockchip-scr";
+		reg = <0x0 0xff1d0000 0x0 0x10000>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&scr_io &scr_detect &scr_rst &scr_clk>;
+		clocks = <&cru PCLK_SIM>;
+		clock-names = "g_pclk_sim_card";
+		status = "disabled";
+	};
+
 	sdmmc: rksdmmc@ff400000 {
 		compatible = "rockchip,rk3366-dw-mshc","rockchip,rk3288-dw-mshc";
 		clock-freq-min-max = <400000 150000000>;
@@ -1242,6 +1255,28 @@
 			spi1_rx: spi1-rx {
 				rockchip,pins =
 					<2 7 RK_FUNC_3 &pcfg_pull_up>;
+			};
+		};
+
+		scr {
+			scr_clk: scr-clk {
+				rockchip,pins =
+					<5 8 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			scr_io: scr-io {
+				rockchip,pins =
+					<5 9 RK_FUNC_2 &pcfg_pull_up>;
+			};
+
+			scr_rst: scr-rst {
+				rockchip,pins =
+					<5 10 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			scr_detect: scr-detect {
+				rockchip,pins =
+					<5 11 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
