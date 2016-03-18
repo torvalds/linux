@@ -1643,6 +1643,56 @@ static int mlx4_ib_tunnel_steer_add(struct ib_qp *qp, struct ib_flow_attr *flow_
 	return err;
 }
 
+static int mlx4_ib_add_dont_trap_rule(struct mlx4_dev *dev,
+				      struct ib_flow_attr *flow_attr,
+				      enum mlx4_net_trans_promisc_mode *type)
+{
+	int err = 0;
+
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DMFS_UC_MC_SNIFFER) ||
+	    (dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC) ||
+	    (flow_attr->num_of_specs > 1) || (flow_attr->priority != 0)) {
+		return -EOPNOTSUPP;
+	}
+
+	if (flow_attr->num_of_specs == 0) {
+		type[0] = MLX4_FS_MC_SNIFFER;
+		type[1] = MLX4_FS_UC_SNIFFER;
+	} else {
+		union ib_flow_spec *ib_spec;
+
+		ib_spec = (union ib_flow_spec *)(flow_attr + 1);
+		if (ib_spec->type !=  IB_FLOW_SPEC_ETH)
+			return -EINVAL;
+
+		/* if all is zero than MC and UC */
+		if (is_zero_ether_addr(ib_spec->eth.mask.dst_mac)) {
+			type[0] = MLX4_FS_MC_SNIFFER;
+			type[1] = MLX4_FS_UC_SNIFFER;
+		} else {
+			u8 mac[ETH_ALEN] = {ib_spec->eth.mask.dst_mac[0] ^ 0x01,
+					    ib_spec->eth.mask.dst_mac[1],
+					    ib_spec->eth.mask.dst_mac[2],
+					    ib_spec->eth.mask.dst_mac[3],
+					    ib_spec->eth.mask.dst_mac[4],
+					    ib_spec->eth.mask.dst_mac[5]};
+
+			/* Above xor was only on MC bit, non empty mask is valid
+			 * only if this bit is set and rest are zero.
+			 */
+			if (!is_zero_ether_addr(&mac[0]))
+				return -EINVAL;
+
+			if (is_multicast_ether_addr(ib_spec->eth.val.dst_mac))
+				type[0] = MLX4_FS_MC_SNIFFER;
+			else
+				type[0] = MLX4_FS_UC_SNIFFER;
+		}
+	}
+
+	return err;
+}
+
 static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 				    struct ib_flow_attr *flow_attr,
 				    int domain)
@@ -1652,6 +1702,10 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	enum mlx4_net_trans_promisc_mode type[2];
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
+
+	if ((flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
+	    (flow_attr->type != IB_FLOW_ATTR_NORMAL))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	memset(type, 0, sizeof(type));
 
@@ -1663,7 +1717,19 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 
 	switch (flow_attr->type) {
 	case IB_FLOW_ATTR_NORMAL:
-		type[0] = MLX4_FS_REGULAR;
+		/* If dont trap flag (continue match) is set, under specific
+		 * condition traffic be replicated to given qp,
+		 * without stealing it
+		 */
+		if (unlikely(flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP)) {
+			err = mlx4_ib_add_dont_trap_rule(dev,
+							 flow_attr,
+							 type);
+			if (err)
+				goto err_free;
+		} else {
+			type[0] = MLX4_FS_REGULAR;
+		}
 		break;
 
 	case IB_FLOW_ATTR_ALL_DEFAULT:
@@ -1675,8 +1741,8 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 		break;
 
 	case IB_FLOW_ATTR_SNIFFER:
-		type[0] = MLX4_FS_UC_SNIFFER;
-		type[1] = MLX4_FS_MC_SNIFFER;
+		type[0] = MLX4_FS_MIRROR_RX_PORT;
+		type[1] = MLX4_FS_MIRROR_SX_PORT;
 		break;
 
 	default:
