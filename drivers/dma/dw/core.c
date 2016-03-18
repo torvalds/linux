@@ -50,8 +50,8 @@
 		 | DWC_CTLL_SRC_MSIZE(_smsize)			\
 		 | DWC_CTLL_LLP_D_EN				\
 		 | DWC_CTLL_LLP_S_EN				\
-		 | DWC_CTLL_DMS(_dwc->dst_master)		\
-		 | DWC_CTLL_SMS(_dwc->src_master));		\
+		 | DWC_CTLL_DMS(_dwc->p_master)			\
+		 | DWC_CTLL_SMS(_dwc->m_master));		\
 	})
 
 /*
@@ -709,8 +709,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 	dwc->direction = DMA_MEM_TO_MEM;
 
-	data_width = min_t(unsigned int, dw->data_width[dwc->src_master],
-			   dw->data_width[dwc->dst_master]);
+	data_width = dw->data_width[dwc->m_master];
 
 	src_width = dst_width = min_t(unsigned int, data_width,
 				      dwc_fast_ffs(src | dest | len));
@@ -802,7 +801,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
 			DWC_CTLL_FC(DW_DMA_FC_D_M2P);
 
-		data_width = dw->data_width[dwc->src_master];
+		data_width = dw->data_width[dwc->m_master];
 
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
@@ -859,7 +858,7 @@ slave_sg_todev_fill_desc:
 		ctllo |= sconfig->device_fc ? DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
 			DWC_CTLL_FC(DW_DMA_FC_D_P2M);
 
-		data_width = dw->data_width[dwc->dst_master];
+		data_width = dw->data_width[dwc->m_master];
 
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
@@ -937,8 +936,8 @@ bool dw_dma_filter(struct dma_chan *chan, void *param)
 	dwc->src_id = dws->src_id;
 	dwc->dst_id = dws->dst_id;
 
-	dwc->src_master = dws->src_master;
-	dwc->dst_master = dws->dst_master;
+	dwc->m_master = dws->m_master;
+	dwc->p_master = dws->p_master;
 
 	return true;
 }
@@ -1227,8 +1226,8 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	dwc->src_id = 0;
 	dwc->dst_id = 0;
 
-	dwc->src_master = 0;
-	dwc->dst_master = 0;
+	dwc->m_master = 0;
+	dwc->p_master = 0;
 
 	dwc->initialized = false;
 

@@ -42,13 +42,13 @@ static struct dma_chan *dw_dma_of_xlate(struct of_phandle_args *dma_spec,
 
 	slave.src_id = dma_spec->args[0];
 	slave.dst_id = dma_spec->args[0];
-	slave.src_master = dma_spec->args[1];
-	slave.dst_master = dma_spec->args[2];
+	slave.m_master = dma_spec->args[1];
+	slave.p_master = dma_spec->args[2];
 
 	if (WARN_ON(slave.src_id >= DW_DMA_MAX_NR_REQUESTS ||
 		    slave.dst_id >= DW_DMA_MAX_NR_REQUESTS ||
-		    slave.src_master >= dw->nr_masters ||
-		    slave.dst_master >= dw->nr_masters))
+		    slave.m_master >= dw->nr_masters ||
+		    slave.p_master >= dw->nr_masters))
 		return NULL;
 
 	dma_cap_zero(cap);
@@ -66,8 +66,8 @@ static bool dw_dma_acpi_filter(struct dma_chan *chan, void *param)
 		.dma_dev = dma_spec->dev,
 		.src_id = dma_spec->slave_id,
 		.dst_id = dma_spec->slave_id,
-		.src_master = 1,
-		.dst_master = 0,
+		.m_master = 0,
+		.p_master = 1,
 	};
 
 	return dw_dma_filter(chan, &slave);

@@ -47,8 +47,8 @@ The four cells in order are:
 
 1. A phandle pointing to the DMA controller
 2. The DMA request line number
-3. Source master for transfers on allocated channel
-4. Destination master for transfers on allocated channel
+3. Memory master for transfers on allocated channel
+4. Peripheral master for transfers on allocated channel
 
 Example:
 	

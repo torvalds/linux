@@ -21,15 +21,15 @@
  * @dma_dev:	required DMA master device
  * @src_id:	src request line
  * @dst_id:	dst request line
- * @src_master: src master for transfers on allocated channel.
- * @dst_master: dest master for transfers on allocated channel.
+ * @m_master:	memory master for transfers on allocated channel
+ * @p_master:	peripheral master for transfers on allocated channel
  */
 struct dw_dma_slave {
 	struct device		*dma_dev;
 	u8			src_id;
 	u8			dst_id;
-	u8			src_master;
-	u8			dst_master;
+	u8			m_master;
+	u8			p_master;
 };
 
 /**

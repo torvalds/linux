@@ -249,8 +249,8 @@ struct dw_dma_chan {
 	/* custom slave configuration */
 	u8			src_id;
 	u8			dst_id;
-	u8			src_master;
-	u8			dst_master;
+	u8			m_master;
+	u8			p_master;
 
 	/* configuration passed via .device_config */
 	struct dma_slave_config dma_sconfig;

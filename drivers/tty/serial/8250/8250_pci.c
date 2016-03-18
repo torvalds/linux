@@ -1454,13 +1454,13 @@ byt_serial_setup(struct serial_private *priv,
 		return -EINVAL;
 	}
 
-	rx_param->src_master = 1;
-	rx_param->dst_master = 0;
+	rx_param->m_master = 0;
+	rx_param->p_master = 1;
 
 	dma->rxconf.src_maxburst = 16;
 
-	tx_param->src_master = 1;
-	tx_param->dst_master = 0;
+	tx_param->m_master = 0;
+	tx_param->p_master = 1;
 
 	dma->txconf.dst_maxburst = 16;
 

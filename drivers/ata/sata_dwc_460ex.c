@@ -201,8 +201,8 @@ static struct sata_dwc_host_priv host_pvt;
 static struct dw_dma_slave sata_dwc_dma_dws = {
 	.src_id = 0,
 	.dst_id = 0,
-	.src_master = 0,
-	.dst_master = 1,
+	.m_master = 1,
+	.p_master = 0,
 };
 
 /*

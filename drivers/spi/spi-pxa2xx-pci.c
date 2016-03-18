@@ -144,16 +144,16 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		struct dw_dma_slave *slave = c->tx_param;
 
 		slave->dma_dev = &dma_dev->dev;
-		slave->src_master = 1;
-		slave->dst_master = 0;
+		slave->m_master = 0;
+		slave->p_master = 1;
 	}
 
 	if (c->rx_param) {
 		struct dw_dma_slave *slave = c->rx_param;
 
 		slave->dma_dev = &dma_dev->dev;
-		slave->src_master = 1;
-		slave->dst_master = 0;
+		slave->m_master = 0;
+		slave->p_master = 1;
 	}
 
 	spi_pdata.dma_filter = lpss_dma_filter;
