@@ -808,6 +808,10 @@
 	status = "okay";
 };
 
+&scr {
+	status = "disabled";
+};
+
 &cpu0 {
 	cpu-supply = <&syr827>;
 };
