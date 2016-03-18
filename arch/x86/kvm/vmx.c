@@ -2637,8 +2637,15 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
+	/*
+	 * Old versions of KVM use the single-context version without
+	 * checking for support, so declare that it is supported even
+	 * though it is treated as global context.  The alternative is
+	 * not failing the single-context invvpid, and it is worse.
+	 */
 	if (enable_vpid)
 		vmx->nested.nested_vmx_vpid_caps = VMX_VPID_INVVPID_BIT |
+				VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT |
 				VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT;
 	else
 		vmx->nested.nested_vmx_vpid_caps = 0;
@@ -7416,12 +7423,17 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	}
 
 	switch (type) {
+	case VMX_VPID_EXTENT_SINGLE_CONTEXT:
+		/*
+		 * Old versions of KVM use the single-context version so we
+		 * have to support it; just treat it the same as all-context.
+		 */
 	case VMX_VPID_EXTENT_ALL_CONTEXT:
 		__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
-		/* Trap single context invalidation invvpid calls */
+		/* Trap individual address invalidation invvpid calls */
 		BUG_ON(1);
 		break;
 	}
