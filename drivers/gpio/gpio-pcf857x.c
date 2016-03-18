@@ -372,7 +372,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	gpio->out = ~n_latch;
 	gpio->status = gpio->out;
 
-	status = gpiochip_add_data(&gpio->chip, gpio);
+	status = devm_gpiochip_add_data(&client->dev, &gpio->chip, gpio);
 	if (status < 0)
 		goto fail;
 
@@ -383,7 +383,7 @@ static int pcf857x_probe(struct i2c_client *client,
 					      IRQ_TYPE_NONE);
 		if (status) {
 			dev_err(&client->dev, "cannot add irqchip\n");
-			goto fail_irq;
+			goto fail;
 		}
 
 		status = devm_request_threaded_irq(&client->dev, client->irq,
@@ -391,7 +391,7 @@ static int pcf857x_probe(struct i2c_client *client,
 					IRQF_TRIGGER_FALLING | IRQF_SHARED,
 					dev_name(&client->dev), gpio);
 		if (status)
-			goto fail_irq;
+			goto fail;
 
 		gpiochip_set_chained_irqchip(&gpio->chip, &pcf857x_irq_chip,
 					     client->irq, NULL);
@@ -412,9 +412,6 @@ static int pcf857x_probe(struct i2c_client *client,
 	dev_info(&client->dev, "probed\n");
 
 	return 0;
-
-fail_irq:
-	gpiochip_remove(&gpio->chip);
 
 fail:
 	dev_dbg(&client->dev, "probe error %d for '%s'\n", status,
@@ -440,7 +437,6 @@ static int pcf857x_remove(struct i2c_client *client)
 		}
 	}
 
-	gpiochip_remove(&gpio->chip);
 	return status;
 }
 
