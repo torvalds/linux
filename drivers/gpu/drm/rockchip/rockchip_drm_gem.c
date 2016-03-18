@@ -38,7 +38,7 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 					 &rk_obj->dma_addr, GFP_KERNEL,
 					 &rk_obj->dma_attrs);
 	if (!rk_obj->kvaddr) {
-		DRM_ERROR("failed to allocate %#x byte dma buffer", obj->size);
+		DRM_ERROR("failed to allocate %zu byte dma buffer", obj->size);
 		return -ENOMEM;
 	}
 
