@@ -417,6 +417,8 @@ int hsu_dma_probe(struct hsu_dma_chip *chip)
 
 	hsu->dma.dev = chip->dev;
 
+	dma_set_max_seg_size(hsu->dma.dev, HSU_CH_DxTSR_MASK);
+
 	ret = dma_async_device_register(&hsu->dma);
 	if (ret)
 		return ret;
