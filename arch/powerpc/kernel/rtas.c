@@ -1070,7 +1070,7 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	nret  = be32_to_cpu(args.nret);
 	token = be32_to_cpu(args.token);
 
-	if (nargs > ARRAY_SIZE(args.args)
+	if (nargs >= ARRAY_SIZE(args.args)
 	    || nret > ARRAY_SIZE(args.args)
 	    || nargs + nret > ARRAY_SIZE(args.args))
 		return -EINVAL;
