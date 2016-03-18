@@ -1,5 +1,3 @@
-
-
 /*
  * system calls hijack code
  * Copyright (c) 2015 Hajime Tazaki
