@@ -1358,6 +1358,7 @@ static void update_eld(struct hda_codec *codec,
 			   eld->eld_size) != 0)
 			eld_changed = true;
 
+	pin_eld->monitor_present = eld->monitor_present;
 	pin_eld->eld_valid = eld->eld_valid;
 	pin_eld->eld_size = eld->eld_size;
 	if (eld->eld_valid)
