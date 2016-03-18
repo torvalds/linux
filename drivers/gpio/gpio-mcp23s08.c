@@ -77,7 +77,6 @@ struct mcp23s08 {
 	/* lock protects the cached values */
 	struct mutex		lock;
 	struct mutex		irq_lock;
-	struct irq_domain	*irq_domain;
 
 	struct gpio_chip	chip;
 
@@ -95,11 +94,6 @@ struct mcp23s08_driver_data {
 	struct mcp23s08		*mcp[8];
 	struct mcp23s08		chip[];
 };
-
-/* This lock class tells lockdep that GPIO irqs are in a different
- * category than their parents, so it won't report false recursion.
- */
-static struct lock_class_key gpio_lock_class;
 
 /*----------------------------------------------------------------------*/
 
@@ -369,7 +363,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 		if ((BIT(i) & mcp->cache[MCP_INTF]) &&
 		    ((BIT(i) & intcap & mcp->irq_rise) ||
 		     (mcp->irq_fall & ~intcap & BIT(i)))) {
-			child_irq = irq_find_mapping(mcp->irq_domain, i);
+			child_irq = irq_find_mapping(mcp->chip.irqdomain, i);
 			handle_nested_irq(child_irq);
 		}
 	}
@@ -377,16 +371,10 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int mcp23s08_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct mcp23s08 *mcp = gpiochip_get_data(chip);
-
-	return irq_find_mapping(mcp->irq_domain, offset);
-}
-
 static void mcp23s08_irq_mask(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 	unsigned int pos = data->hwirq;
 
 	mcp->cache[MCP_GPINTEN] &= ~BIT(pos);
@@ -394,7 +382,8 @@ static void mcp23s08_irq_mask(struct irq_data *data)
 
 static void mcp23s08_irq_unmask(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 	unsigned int pos = data->hwirq;
 
 	mcp->cache[MCP_GPINTEN] |= BIT(pos);
@@ -402,7 +391,8 @@ static void mcp23s08_irq_unmask(struct irq_data *data)
 
 static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 	unsigned int pos = data->hwirq;
 	int status = 0;
 
@@ -426,14 +416,16 @@ static int mcp23s08_irq_set_type(struct irq_data *data, unsigned int type)
 
 static void mcp23s08_irq_bus_lock(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 
 	mutex_lock(&mcp->irq_lock);
 }
 
 static void mcp23s08_irq_bus_unlock(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 
 	mutex_lock(&mcp->lock);
 	mcp->ops->write(mcp, MCP_GPINTEN, mcp->cache[MCP_GPINTEN]);
@@ -445,7 +437,8 @@ static void mcp23s08_irq_bus_unlock(struct irq_data *data)
 
 static int mcp23s08_irq_reqres(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 
 	if (gpiochip_lock_as_irq(&mcp->chip, data->hwirq)) {
 		dev_err(mcp->chip.parent,
@@ -459,7 +452,8 @@ static int mcp23s08_irq_reqres(struct irq_data *data)
 
 static void mcp23s08_irq_relres(struct irq_data *data)
 {
-	struct mcp23s08 *mcp = irq_data_get_irq_chip_data(data);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct mcp23s08 *mcp = gpiochip_get_data(gc);
 
 	gpiochip_unlock_as_irq(&mcp->chip, data->hwirq);
 }
@@ -478,16 +472,10 @@ static struct irq_chip mcp23s08_irq_chip = {
 static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 {
 	struct gpio_chip *chip = &mcp->chip;
-	int err, irq, j;
+	int err;
 	unsigned long irqflags = IRQF_ONESHOT | IRQF_SHARED;
 
 	mutex_init(&mcp->irq_lock);
-
-	mcp->irq_domain = irq_domain_add_linear(chip->parent->of_node,
-						chip->ngpio,
-						&irq_domain_simple_ops, mcp);
-	if (!mcp->irq_domain)
-		return -ENODEV;
 
 	if (mcp->irq_active_high)
 		irqflags |= IRQF_TRIGGER_HIGH;
@@ -503,30 +491,23 @@ static int mcp23s08_irq_setup(struct mcp23s08 *mcp)
 		return err;
 	}
 
-	chip->to_irq = mcp23s08_gpio_to_irq;
-
-	for (j = 0; j < mcp->chip.ngpio; j++) {
-		irq = irq_create_mapping(mcp->irq_domain, j);
-		irq_set_lockdep_class(irq, &gpio_lock_class);
-		irq_set_chip_data(irq, mcp);
-		irq_set_chip(irq, &mcp23s08_irq_chip);
-		irq_set_nested_thread(irq, true);
-		irq_set_noprobe(irq);
+	err =  gpiochip_irqchip_add(chip,
+				    &mcp23s08_irq_chip,
+				    0,
+				    handle_simple_irq,
+				    IRQ_TYPE_NONE);
+	if (err) {
+		dev_err(chip->parent,
+			"could not connect irqchip to gpiochip: %d\n", err);
+		return err;
 	}
+
+	gpiochip_set_chained_irqchip(chip,
+				     &mcp23s08_irq_chip,
+				     mcp->irq,
+				     NULL);
+
 	return 0;
-}
-
-static void mcp23s08_irq_teardown(struct mcp23s08 *mcp)
-{
-	unsigned int irq, i;
-
-	for (i = 0; i < mcp->chip.ngpio; i++) {
-		irq = irq_find_mapping(mcp->irq_domain, i);
-		if (irq > 0)
-			irq_dispose_mapping(irq);
-	}
-
-	irq_domain_remove(mcp->irq_domain);
 }
 
 /*----------------------------------------------------------------------*/
@@ -721,7 +702,6 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	if (mcp->irq && mcp->irq_controller) {
 		status = mcp23s08_irq_setup(mcp);
 		if (status) {
-			mcp23s08_irq_teardown(mcp);
 			goto fail;
 		}
 	}
@@ -846,9 +826,6 @@ fail:
 static int mcp230xx_remove(struct i2c_client *client)
 {
 	struct mcp23s08 *mcp = i2c_get_clientdata(client);
-
-	if (client->irq && mcp->irq_controller)
-		mcp23s08_irq_teardown(mcp);
 
 	gpiochip_remove(&mcp->chip);
 	kfree(mcp);
@@ -1017,8 +994,6 @@ static int mcp23s08_remove(struct spi_device *spi)
 		if (!data->mcp[addr])
 			continue;
 
-		if (spi->irq && data->mcp[addr]->irq_controller)
-			mcp23s08_irq_teardown(data->mcp[addr]);
 		gpiochip_remove(&data->mcp[addr]->chip);
 	}
 
