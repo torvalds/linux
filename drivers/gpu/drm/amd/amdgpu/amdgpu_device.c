@@ -195,6 +195,44 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v)
 }
 
 /**
+ * amdgpu_mm_rdoorbell64 - read a doorbell Qword
+ *
+ * @adev: amdgpu_device pointer
+ * @index: doorbell index
+ *
+ * Returns the value in the doorbell aperture at the
+ * requested doorbell index (VEGA10+).
+ */
+u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index)
+{
+	if (index < adev->doorbell.num_doorbells) {
+		return atomic64_read((atomic64_t *)(adev->doorbell.ptr + index));
+	} else {
+		DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", index);
+		return 0;
+	}
+}
+
+/**
+ * amdgpu_mm_wdoorbell64 - write a doorbell Qword
+ *
+ * @adev: amdgpu_device pointer
+ * @index: doorbell index
+ * @v: value to write
+ *
+ * Writes @v to the doorbell aperture at the
+ * requested doorbell index (VEGA10+).
+ */
+void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
+{
+	if (index < adev->doorbell.num_doorbells) {
+		atomic64_set((atomic64_t *)(adev->doorbell.ptr + index), v);
+	} else {
+		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", index);
+	}
+}
+
+/**
  * amdgpu_invalid_rreg - dummy reg read function
  *
  * @adev: amdgpu device pointer

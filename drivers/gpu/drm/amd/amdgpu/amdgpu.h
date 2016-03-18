@@ -1521,6 +1521,8 @@ void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 
 u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
+u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index);
+void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 
 /*
  * Registers read & write functions.
@@ -1575,6 +1577,8 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
 
 #define RDOORBELL32(index) amdgpu_mm_rdoorbell(adev, (index))
 #define WDOORBELL32(index, v) amdgpu_mm_wdoorbell(adev, (index), (v))
+#define RDOORBELL64(index) amdgpu_mm_rdoorbell64(adev, (index))
+#define WDOORBELL64(index, v) amdgpu_mm_wdoorbell64(adev, (index), (v))
 
 #define REG_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define REG_FIELD_MASK(reg, field) reg##__##field##_MASK
