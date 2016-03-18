@@ -516,6 +516,29 @@ int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb)
 }
 
 /**
+ * amdgpu_wb_get_64bit - Allocate a wb entry
+ *
+ * @adev: amdgpu_device pointer
+ * @wb: wb index
+ *
+ * Allocate a wb slot for use by the driver (all asics).
+ * Returns 0 on success or -EINVAL on failure.
+ */
+int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb)
+{
+	unsigned long offset = bitmap_find_next_zero_area_off(adev->wb.used,
+				adev->wb.num_wb, 0, 2, 7, 0);
+	if ((offset + 1) < adev->wb.num_wb) {
+		__set_bit(offset, adev->wb.used);
+		__set_bit(offset + 1, adev->wb.used);
+		*wb = offset;
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
+/**
  * amdgpu_wb_free - Free a wb entry
  *
  * @adev: amdgpu_device pointer
@@ -527,6 +550,22 @@ void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb)
 {
 	if (wb < adev->wb.num_wb)
 		__clear_bit(wb, adev->wb.used);
+}
+
+/**
+ * amdgpu_wb_free_64bit - Free a wb entry
+ *
+ * @adev: amdgpu_device pointer
+ * @wb: wb index
+ *
+ * Free a wb slot allocated for use by the driver (all asics)
+ */
+void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb)
+{
+	if ((wb + 1) < adev->wb.num_wb) {
+		__clear_bit(wb, adev->wb.used);
+		__clear_bit(wb + 1, adev->wb.used);
+	}
 }
 
 /**
