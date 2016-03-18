@@ -1741,7 +1741,8 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	/* Call sync_audio_rate to set the N/CTS/M manually if necessary */
 	/* Todo: add DP1.2 MST audio support later */
-	snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
+	if (codec_has_acomp(codec))
+		snd_hdac_sync_audio_rate(&codec->bus->core, pin_nid, runtime->rate);
 
 	non_pcm = check_non_pcm_per_cvt(codec, cvt_nid);
 	mutex_lock(&per_pin->lock);
