@@ -318,6 +318,7 @@ int orangefs_inode_getattr(struct inode *inode, int new, int size)
 			strlcpy(orangefs_inode->link_target,
 			    new_op->downcall.resp.getattr.link_target,
 			    ORANGEFS_NAME_MAX);
+			inode->i_link = orangefs_inode->link_target;
 		}
 		break;
 	}

@@ -275,8 +275,6 @@ int orangefs_getattr(struct vfsmount *mnt,
 		/* override block size reported to stat */
 		orangefs_inode = ORANGEFS_I(inode);
 		kstat->blksize = orangefs_inode->blksize;
-
-		inode->i_link = ORANGEFS_I(dentry->d_inode)->link_target;
 	}
 	return ret;
 }
