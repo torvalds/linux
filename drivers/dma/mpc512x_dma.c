@@ -251,6 +251,7 @@ static inline struct mpc_dma_chan *dma_chan_to_mpc_dma_chan(struct dma_chan *c)
 static inline struct mpc_dma *dma_chan_to_mpc_dma(struct dma_chan *c)
 {
 	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(c);
+
 	return container_of(mchan, struct mpc_dma, channels[c->chan_id]);
 }
 
@@ -258,9 +259,9 @@ static inline struct mpc_dma *dma_chan_to_mpc_dma(struct dma_chan *c)
  * Execute all queued DMA descriptors.
  *
  * Following requirements must be met while calling mpc_dma_execute():
- * 	a) mchan->lock is acquired,
- * 	b) mchan->active list is empty,
- * 	c) mchan->queued list contains at least one entry.
+ *	a) mchan->lock is acquired,
+ *	b) mchan->active list is empty,
+ *	c) mchan->queued list contains at least one entry.
  */
 static void mpc_dma_execute(struct mpc_dma_chan *mchan)
 {
@@ -450,20 +451,15 @@ static void mpc_dma_tasklet(unsigned long data)
 		if (es & MPC_DMA_DMAES_SAE)
 			dev_err(mdma->dma.dev, "- Source Address Error\n");
 		if (es & MPC_DMA_DMAES_SOE)
-			dev_err(mdma->dma.dev, "- Source Offset"
-						" Configuration Error\n");
+			dev_err(mdma->dma.dev, "- Source Offset Configuration Error\n");
 		if (es & MPC_DMA_DMAES_DAE)
-			dev_err(mdma->dma.dev, "- Destination Address"
-								" Error\n");
+			dev_err(mdma->dma.dev, "- Destination Address Error\n");
 		if (es & MPC_DMA_DMAES_DOE)
-			dev_err(mdma->dma.dev, "- Destination Offset"
-						" Configuration Error\n");
+			dev_err(mdma->dma.dev, "- Destination Offset Configuration Error\n");
 		if (es & MPC_DMA_DMAES_NCE)
-			dev_err(mdma->dma.dev, "- NBytes/Citter"
-						" Configuration Error\n");
+			dev_err(mdma->dma.dev, "- NBytes/Citter Configuration Error\n");
 		if (es & MPC_DMA_DMAES_SGE)
-			dev_err(mdma->dma.dev, "- Scatter/Gather"
-						" Configuration Error\n");
+			dev_err(mdma->dma.dev, "- Scatter/Gather Configuration Error\n");
 		if (es & MPC_DMA_DMAES_SBE)
 			dev_err(mdma->dma.dev, "- Source Bus Error\n");
 		if (es & MPC_DMA_DMAES_DBE)
@@ -522,8 +518,8 @@ static int mpc_dma_alloc_chan_resources(struct dma_chan *chan)
 	for (i = 0; i < MPC_DMA_DESCRIPTORS; i++) {
 		mdesc = kzalloc(sizeof(struct mpc_dma_desc), GFP_KERNEL);
 		if (!mdesc) {
-			dev_notice(mdma->dma.dev, "Memory allocation error. "
-					"Allocated only %u descriptors\n", i);
+			dev_notice(mdma->dma.dev,
+				"Memory allocation error. Allocated only %u descriptors\n", i);
 			break;
 		}
 
@@ -925,7 +921,6 @@ static int mpc_dma_probe(struct platform_device *op)
 
 	mdma = devm_kzalloc(dev, sizeof(struct mpc_dma), GFP_KERNEL);
 	if (!mdma) {
-		dev_err(dev, "Memory exhausted!\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -1049,7 +1044,8 @@ static int mpc_dma_probe(struct platform_device *op)
 		out_be32(&mdma->regs->dmaerrl, 0xFFFF);
 	} else {
 		out_be32(&mdma->regs->dmacr, MPC_DMA_DMACR_EDCG |
-					MPC_DMA_DMACR_ERGA | MPC_DMA_DMACR_ERCA);
+						MPC_DMA_DMACR_ERGA |
+						MPC_DMA_DMACR_ERCA);
 
 		/* Disable hardware DMA requests */
 		out_be32(&mdma->regs->dmaerqh, 0);
