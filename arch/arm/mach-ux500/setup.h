@@ -13,7 +13,6 @@
 
 #include <asm/mach/arch.h>
 #include <linux/init.h>
-#include <linux/mfd/abx500/ab8500.h>
 
 void ux500_restart(enum reboot_mode mode, const char *cmd);
 

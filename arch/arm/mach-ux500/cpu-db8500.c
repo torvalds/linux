@@ -16,8 +16,6 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/dbx500-prcmu.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/perf/arm_pmu.h>
@@ -31,15 +29,6 @@
 #include "board-mop500.h"
 #include "db8500-regs.h"
 #include "id.h"
-
-static struct ab8500_platform_data ab8500_platdata = {
-};
-
-static struct prcmu_pdata db8500_prcmu_pdata = {
-	.ab_platdata	= &ab8500_platdata,
-	.version_offset	= DB8500_PRCMU_FW_VERSION_OFFSET,
-	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
-};
 
 static void __init u8500_map_io(void)
 {
@@ -109,8 +98,7 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
 		       "ux500-msp-i2s.3", &msp3_platform_data),
 	/* Requires non-DT:able platform data. */
-	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
-			&db8500_prcmu_pdata),
+	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu", NULL),
 	OF_DEV_AUXDATA("stericsson,ux500-cryp", 0xa03cb000, "cryp1", NULL),
 	OF_DEV_AUXDATA("stericsson,ux500-hash", 0xa03c2000, "hash1", NULL),
 	OF_DEV_AUXDATA("stericsson,snd-soc-mop500", 0, "snd-soc-mop500.0",
@@ -119,8 +107,7 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 };
 
 static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
-			&db8500_prcmu_pdata),
+	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu", NULL),
 	{},
 };
 
