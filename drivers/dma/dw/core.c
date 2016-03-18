@@ -201,12 +201,12 @@ static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
 	 * Software emulation of LLP mode relies on interrupts to continue
 	 * multi block transfer.
 	 */
-	ctllo = desc->lli.ctllo | DWC_CTLL_INT_EN;
+	ctllo = lli_read(desc, ctllo) | DWC_CTLL_INT_EN;
 
-	channel_writel(dwc, SAR, desc->lli.sar);
-	channel_writel(dwc, DAR, desc->lli.dar);
+	channel_writel(dwc, SAR, lli_read(desc, sar));
+	channel_writel(dwc, DAR, lli_read(desc, dar));
 	channel_writel(dwc, CTL_LO, ctllo);
-	channel_writel(dwc, CTL_HI, desc->lli.ctlhi);
+	channel_writel(dwc, CTL_HI, lli_read(desc, ctlhi));
 	channel_set_bit(dw, CH_EN, dwc->mask);
 
 	/* Move pointer to next descriptor */
@@ -424,7 +424,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		}
 
 		/* Check first descriptors llp */
-		if (desc->lli.llp == llp) {
+		if (lli_read(desc, llp) == llp) {
 			/* This one is currently in progress */
 			dwc->residue -= dwc_get_sent(dwc);
 			spin_unlock_irqrestore(&dwc->lock, flags);
@@ -433,7 +433,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 		dwc->residue -= desc->len;
 		list_for_each_entry(child, &desc->tx_list, desc_node) {
-			if (child->lli.llp == llp) {
+			if (lli_read(child, llp) == llp) {
 				/* Currently in progress */
 				dwc->residue -= dwc_get_sent(dwc);
 				spin_unlock_irqrestore(&dwc->lock, flags);
@@ -461,10 +461,14 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	spin_unlock_irqrestore(&dwc->lock, flags);
 }
 
-static inline void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
+static inline void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_desc *desc)
 {
 	dev_crit(chan2dev(&dwc->chan), "  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
-		 lli->sar, lli->dar, lli->llp, lli->ctlhi, lli->ctllo);
+		 lli_read(desc, sar),
+		 lli_read(desc, dar),
+		 lli_read(desc, llp),
+		 lli_read(desc, ctlhi),
+		 lli_read(desc, ctllo));
 }
 
 static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
@@ -500,9 +504,9 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 */
 	dev_WARN(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n"
 				       "  cookie: %d\n", bad_desc->txd.cookie);
-	dwc_dump_lli(dwc, &bad_desc->lli);
+	dwc_dump_lli(dwc, bad_desc);
 	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
-		dwc_dump_lli(dwc, &child->lli);
+		dwc_dump_lli(dwc, child);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -575,7 +579,7 @@ static void dwc_handle_cyclic(struct dw_dma *dw, struct dw_dma_chan *dwc,
 		dma_writel(dw, CLEAR.XFER, dwc->mask);
 
 		for (i = 0; i < dwc->cdesc->periods; i++)
-			dwc_dump_lli(dwc, &dwc->cdesc->desc[i]->lli);
+			dwc_dump_lli(dwc, dwc->cdesc->desc[i]);
 
 		spin_unlock_irqrestore(&dwc->lock, flags);
 	}
@@ -734,25 +738,24 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		if (!desc)
 			goto err_desc_get;
 
-		desc->lli.sar = src + offset;
-		desc->lli.dar = dest + offset;
-		desc->lli.ctllo = ctllo;
-		desc->lli.ctlhi = xfer_count;
+		lli_write(desc, sar, src + offset);
+		lli_write(desc, dar, dest + offset);
+		lli_write(desc, ctllo, ctllo);
+		lli_write(desc, ctlhi, xfer_count);
 		desc->len = xfer_count << src_width;
 
 		if (!first) {
 			first = desc;
 		} else {
-			prev->lli.llp = desc->txd.phys;
-			list_add_tail(&desc->desc_node,
-					&first->tx_list);
+			lli_write(prev, llp, desc->txd.phys);
+			list_add_tail(&desc->desc_node, &first->tx_list);
 		}
 		prev = desc;
 	}
 
 	if (flags & DMA_PREP_INTERRUPT)
 		/* Trigger interrupt after last block */
-		prev->lli.ctllo |= DWC_CTLL_INT_EN;
+		lli_set(prev, ctllo, DWC_CTLL_INT_EN);
 
 	prev->lli.llp = 0;
 	first->txd.flags = flags;
@@ -822,9 +825,9 @@ slave_sg_todev_fill_desc:
 			if (!desc)
 				goto err_desc_get;
 
-			desc->lli.sar = mem;
-			desc->lli.dar = reg;
-			desc->lli.ctllo = ctllo | DWC_CTLL_SRC_WIDTH(mem_width);
+			lli_write(desc, sar, mem);
+			lli_write(desc, dar, reg);
+			lli_write(desc, ctllo, ctllo | DWC_CTLL_SRC_WIDTH(mem_width));
 			if ((len >> mem_width) > dwc->block_size) {
 				dlen = dwc->block_size << mem_width;
 				mem += dlen;
@@ -834,15 +837,14 @@ slave_sg_todev_fill_desc:
 				len = 0;
 			}
 
-			desc->lli.ctlhi = dlen >> mem_width;
+			lli_write(desc, ctlhi, dlen >> mem_width);
 			desc->len = dlen;
 
 			if (!first) {
 				first = desc;
 			} else {
-				prev->lli.llp = desc->txd.phys;
-				list_add_tail(&desc->desc_node,
-						&first->tx_list);
+				lli_write(prev, llp, desc->txd.phys);
+				list_add_tail(&desc->desc_node, &first->tx_list);
 			}
 			prev = desc;
 			total_len += dlen;
@@ -879,9 +881,9 @@ slave_sg_fromdev_fill_desc:
 			if (!desc)
 				goto err_desc_get;
 
-			desc->lli.sar = reg;
-			desc->lli.dar = mem;
-			desc->lli.ctllo = ctllo | DWC_CTLL_DST_WIDTH(mem_width);
+			lli_write(desc, sar, reg);
+			lli_write(desc, dar, mem);
+			lli_write(desc, ctllo, ctllo | DWC_CTLL_DST_WIDTH(mem_width));
 			if ((len >> reg_width) > dwc->block_size) {
 				dlen = dwc->block_size << reg_width;
 				mem += dlen;
@@ -890,15 +892,14 @@ slave_sg_fromdev_fill_desc:
 				dlen = len;
 				len = 0;
 			}
-			desc->lli.ctlhi = dlen >> reg_width;
+			lli_write(desc, ctlhi, dlen >> reg_width);
 			desc->len = dlen;
 
 			if (!first) {
 				first = desc;
 			} else {
-				prev->lli.llp = desc->txd.phys;
-				list_add_tail(&desc->desc_node,
-						&first->tx_list);
+				lli_write(prev, llp, desc->txd.phys);
+				list_add_tail(&desc->desc_node, &first->tx_list);
 			}
 			prev = desc;
 			total_len += dlen;
@@ -913,7 +914,7 @@ slave_sg_fromdev_fill_desc:
 
 	if (flags & DMA_PREP_INTERRUPT)
 		/* Trigger interrupt after last block */
-		prev->lli.ctllo |= DWC_CTLL_INT_EN;
+		lli_set(prev, ctllo, DWC_CTLL_INT_EN);
 
 	prev->lli.llp = 0;
 	first->total_len = total_len;
@@ -1400,50 +1401,50 @@ struct dw_cyclic_desc *dw_dma_cyclic_prep(struct dma_chan *chan,
 
 		switch (direction) {
 		case DMA_MEM_TO_DEV:
-			desc->lli.dar = sconfig->dst_addr;
-			desc->lli.sar = buf_addr + (period_len * i);
-			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan)
-					| DWC_CTLL_DST_WIDTH(reg_width)
-					| DWC_CTLL_SRC_WIDTH(reg_width)
-					| DWC_CTLL_DST_FIX
-					| DWC_CTLL_SRC_INC
-					| DWC_CTLL_INT_EN);
+			lli_write(desc, dar, sconfig->dst_addr);
+			lli_write(desc, sar, buf_addr + period_len * i);
+			lli_write(desc, ctllo, (DWC_DEFAULT_CTLLO(chan)
+				| DWC_CTLL_DST_WIDTH(reg_width)
+				| DWC_CTLL_SRC_WIDTH(reg_width)
+				| DWC_CTLL_DST_FIX
+				| DWC_CTLL_SRC_INC
+				| DWC_CTLL_INT_EN));
 
-			desc->lli.ctllo |= sconfig->device_fc ?
-				DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
-				DWC_CTLL_FC(DW_DMA_FC_D_M2P);
+			lli_set(desc, ctllo, sconfig->device_fc ?
+					DWC_CTLL_FC(DW_DMA_FC_P_M2P) :
+					DWC_CTLL_FC(DW_DMA_FC_D_M2P));
 
 			break;
 		case DMA_DEV_TO_MEM:
-			desc->lli.dar = buf_addr + (period_len * i);
-			desc->lli.sar = sconfig->src_addr;
-			desc->lli.ctllo = (DWC_DEFAULT_CTLLO(chan)
-					| DWC_CTLL_SRC_WIDTH(reg_width)
-					| DWC_CTLL_DST_WIDTH(reg_width)
-					| DWC_CTLL_DST_INC
-					| DWC_CTLL_SRC_FIX
-					| DWC_CTLL_INT_EN);
+			lli_write(desc, dar, buf_addr + period_len * i);
+			lli_write(desc, sar, sconfig->src_addr);
+			lli_write(desc, ctllo, (DWC_DEFAULT_CTLLO(chan)
+				| DWC_CTLL_SRC_WIDTH(reg_width)
+				| DWC_CTLL_DST_WIDTH(reg_width)
+				| DWC_CTLL_DST_INC
+				| DWC_CTLL_SRC_FIX
+				| DWC_CTLL_INT_EN));
 
-			desc->lli.ctllo |= sconfig->device_fc ?
-				DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
-				DWC_CTLL_FC(DW_DMA_FC_D_P2M);
+			lli_set(desc, ctllo, sconfig->device_fc ?
+					DWC_CTLL_FC(DW_DMA_FC_P_P2M) :
+					DWC_CTLL_FC(DW_DMA_FC_D_P2M));
 
 			break;
 		default:
 			break;
 		}
 
-		desc->lli.ctlhi = (period_len >> reg_width);
+		lli_write(desc, ctlhi, period_len >> reg_width);
 		cdesc->desc[i] = desc;
 
 		if (last)
-			last->lli.llp = desc->txd.phys;
+			lli_write(last, llp, desc->txd.phys);
 
 		last = desc;
 	}
 
 	/* Let's make a cyclic list */
-	last->lli.llp = cdesc->desc[0]->txd.phys;
+	lli_write(last, llp, cdesc->desc[0]->txd.phys);
 
 	dev_dbg(chan2dev(&dwc->chan),
 			"cyclic prepared buf %pad len %zu period %zu periods %d\n",

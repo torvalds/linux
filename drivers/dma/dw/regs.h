@@ -308,25 +308,43 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 	return container_of(ddev, struct dw_dma, dma);
 }
 
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+typedef __be32 __dw32;
+#else
+typedef __le32 __dw32;
+#endif
+
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
 	/* values that are not changed by hardware */
-	u32		sar;
-	u32		dar;
-	u32		llp;		/* chain to next lli */
-	u32		ctllo;
+	__dw32		sar;
+	__dw32		dar;
+	__dw32		llp;		/* chain to next lli */
+	__dw32		ctllo;
 	/* values that may get written back: */
-	u32		ctlhi;
+	__dw32		ctlhi;
 	/* sstat and dstat can snapshot peripheral register state.
 	 * silicon config may discard either or both...
 	 */
-	u32		sstat;
-	u32		dstat;
+	__dw32		sstat;
+	__dw32		dstat;
 };
 
 struct dw_desc {
 	/* FIRST values the hardware uses */
 	struct dw_lli			lli;
+
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_be32(v))
+#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_be32(v))
+#define lli_read(d, reg)		be32_to_cpu((d)->lli.reg)
+#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_be32(v))
+#else
+#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_le32(v))
+#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_le32(v))
+#define lli_read(d, reg)		le32_to_cpu((d)->lli.reg)
+#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_le32(v))
+#endif
 
 	/* THEN values for driver housekeeping */
 	struct list_head		desc_node;
