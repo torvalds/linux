@@ -102,6 +102,8 @@ static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 					 struct intel_link_m_n *m2_n2);
 static void ironlake_set_pipeconf(struct drm_crtc *crtc);
 static void haswell_set_pipeconf(struct drm_crtc *crtc);
+static void haswell_set_pipe_gamma(struct drm_crtc *crtc);
+static void haswell_set_pipemisc(struct drm_crtc *crtc);
 static void intel_set_pipe_csc(struct drm_crtc *crtc);
 static void vlv_prepare_pll(struct intel_crtc *crtc,
 			    const struct intel_crtc_state *pipe_config);
@@ -4928,6 +4930,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	}
 
 	haswell_set_pipeconf(crtc);
+	haswell_set_pipe_gamma(crtc);
+	haswell_set_pipemisc(crtc);
 
 	intel_set_pipe_csc(crtc);
 
@@ -8764,16 +8768,12 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 
 static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
-	uint32_t val;
+	u32 val = 0;
 
-	val = 0;
-
-	if (IS_HASWELL(dev) && intel_crtc->config->dither)
+	if (IS_HASWELL(dev_priv) && intel_crtc->config->dither)
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	if (intel_crtc->config->base.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
@@ -8783,12 +8783,24 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 
 	I915_WRITE(PIPECONF(cpu_transcoder), val);
 	POSTING_READ(PIPECONF(cpu_transcoder));
+}
+
+static void haswell_set_pipe_gamma(struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	I915_WRITE(GAMMA_MODE(intel_crtc->pipe), GAMMA_MODE_MODE_8BIT);
 	POSTING_READ(GAMMA_MODE(intel_crtc->pipe));
+}
 
-	if (IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
-		val = 0;
+static void haswell_set_pipemisc(struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (IS_BROADWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 9) {
+		u32 val = 0;
 
 		switch (intel_crtc->config->pipe_bpp) {
 		case 18:
@@ -8811,7 +8823,7 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc)
 		if (intel_crtc->config->dither)
 			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
 
-		I915_WRITE(PIPEMISC(pipe), val);
+		I915_WRITE(PIPEMISC(intel_crtc->pipe), val);
 	}
 }
 
