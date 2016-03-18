@@ -3132,6 +3132,8 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	if (pch_udc_pcd_init(dev))
 		return -ENODEV;
 
+	pci_enable_msi(pdev);
+
 	retval = devm_request_irq(&pdev->dev, pdev->irq, pch_udc_isr,
 				  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (retval) {
