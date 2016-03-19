@@ -414,11 +414,11 @@ static bool vi_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
+static const struct amdgpu_allowed_register_entry tonga_allowed_read_registers[] = {
 	{mmGB_MACROTILE_MODE7, true},
 };
 
-static struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
+static const struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
 	{mmGB_TILE_MODE7, true},
 	{mmGB_TILE_MODE12, true},
 	{mmGB_TILE_MODE17, true},
@@ -426,7 +426,7 @@ static struct amdgpu_allowed_register_entry cz_allowed_read_registers[] = {
 	{mmGB_MACROTILE_MODE7, true},
 };
 
-static struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
+static const struct amdgpu_allowed_register_entry vi_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
 	{mmGRBM_STATUS2, false},
 	{mmGRBM_STATUS_SE0, false},
@@ -525,8 +525,8 @@ static uint32_t vi_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 static int vi_read_register(struct amdgpu_device *adev, u32 se_num,
 			    u32 sh_num, u32 reg_offset, u32 *value)
 {
-	struct amdgpu_allowed_register_entry *asic_register_table = NULL;
-	struct amdgpu_allowed_register_entry *asic_register_entry;
+	const struct amdgpu_allowed_register_entry *asic_register_table = NULL;
+	const struct amdgpu_allowed_register_entry *asic_register_entry;
 	uint32_t size, i;
 
 	*value = 0;

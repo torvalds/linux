@@ -962,7 +962,7 @@ static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-static struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
+static const struct amdgpu_allowed_register_entry cik_allowed_read_registers[] = {
 	{mmGRBM_STATUS, false},
 	{mmGB_ADDR_CONFIG, false},
 	{mmMC_ARB_RAMCFG, false},
