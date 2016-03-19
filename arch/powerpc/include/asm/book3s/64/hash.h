@@ -4,8 +4,7 @@
 
 /*
  * Common bits between 4K and 64K pages in a linux-style PTE.
- * These match the bits in the (hardware-defined) PowerPC PTE as closely
- * as possible. Additional bits may be defined in pgtable-hash64-*.h
+ * Additional bits may be defined in pgtable-hash64-*.h
  *
  * Note: We only support user read/write permissions. Supervisor always
  * have full read/write to pages above PAGE_OFFSET (pages below that
@@ -14,31 +13,34 @@
  * We could create separate kernel read-only if we used the 3 PP bits
  * combinations that newer processors provide but we currently don't.
  */
-#define _PAGE_PTE		0x00001
-#define _PAGE_PRESENT		0x00002 /* software: pte contains a translation */
-#define _PAGE_BIT_SWAP_TYPE	2
-#define _PAGE_USER		0x00004 /* matches one of the PP bits */
-#define _PAGE_EXEC		0x00008 /* No execute on POWER4 and newer (we invert) */
-#define _PAGE_GUARDED		0x00010
-/* We can derive Memory coherence from _PAGE_NO_CACHE */
+#define _PAGE_BIT_SWAP_TYPE	0
+
+#define _PAGE_EXEC		0x00001 /* execute permission */
+#define _PAGE_RW		0x00002 /* read & write access allowed */
+#define _PAGE_READ		0x00004	/* read access allowed */
+#define _PAGE_USER		0x00008 /* page may be accessed by userspace */
+#define _PAGE_GUARDED		0x00010 /* G: guarded (side-effect) page */
+/* M (memory coherence) is always set in the HPTE, so we don't need it here */
 #define _PAGE_COHERENT		0x0
 #define _PAGE_NO_CACHE		0x00020 /* I: cache inhibit */
 #define _PAGE_WRITETHRU		0x00040 /* W: cache write-through */
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
-#define _PAGE_RW		0x00200 /* software: user write access allowed */
-#define _PAGE_HASHPTE		0x00400 /* software: pte has an associated HPTE */
+#define _PAGE_SPECIAL		0x00400 /* software: special page */
 #define _PAGE_BUSY		0x00800 /* software: PTE & hash are busy */
-#define _PAGE_F_GIX		0x07000 /* full page: hidx bits */
-#define _PAGE_F_GIX_SHIFT	12
-#define _PAGE_F_SECOND		0x08000 /* Whether to use secondary hash or not */
-#define _PAGE_SPECIAL		0x10000 /* software: special page */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SOFT_DIRTY	0x20000 /* software: software dirty tracking */
+#define _PAGE_SOFT_DIRTY	0x200 /* software: software dirty tracking */
 #else
-#define _PAGE_SOFT_DIRTY	0x00000
+#define _PAGE_SOFT_DIRTY	0x000
 #endif
+
+#define _PAGE_F_GIX_SHIFT	57
+#define _PAGE_F_GIX		(7ul << 57)	/* HPTE index within HPTEG */
+#define _PAGE_F_SECOND		(1ul << 60)	/* HPTE is in 2ndary HPTEG */
+#define _PAGE_HASHPTE		(1ul << 61)	/* PTE has associated HPTE */
+#define _PAGE_PTE		(1ul << 62)	/* distinguishes PTEs from pointers */
+#define _PAGE_PRESENT		(1ul << 63)	/* pte contains a translation */
 
 /*
  * We need to differentiate between explicit huge page and THP huge
@@ -132,7 +134,7 @@
  * The mask convered by the RPN must be a ULL on 32-bit platforms with
  * 64-bit PTEs
  */
-#define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
+#define PTE_RPN_MASK	(((1UL << PTE_RPN_SIZE) - 1) << PTE_RPN_SHIFT)
 /*
  * _PAGE_CHG_MASK masks of bits that are to be preserved across
  * pgprot changes
@@ -223,15 +225,17 @@
 #define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
 
 #ifndef __ASSEMBLY__
-#define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
-				 || (pmd_val(pmd) & PMD_BAD_BITS))
-#define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
+#define	pmd_bad(pmd)		(pmd_val(pmd) & PMD_BAD_BITS)
+#define pmd_page_vaddr(pmd)	__va(pmd_val(pmd) & ~PMD_MASKED_BITS)
 
-#define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
-				 || (pud_val(pud) & PUD_BAD_BITS))
-#define pud_page_vaddr(pud)	(pud_val(pud) & ~PUD_MASKED_BITS)
+#define	pud_bad(pud)		(pud_val(pud) & PUD_BAD_BITS)
+#define pud_page_vaddr(pud)	__va(pud_val(pud) & ~PUD_MASKED_BITS)
+
+/* Pointers in the page table tree are physical addresses */
+#define __pgtable_ptr_val(ptr)	__pa(ptr)
 
 #define pgd_index(address) (((address) >> (PGDIR_SHIFT)) & (PTRS_PER_PGD - 1))
+#define pud_index(address) (((address) >> (PUD_SHIFT)) & (PTRS_PER_PUD - 1))
 #define pmd_index(address) (((address) >> (PMD_SHIFT)) & (PTRS_PER_PMD - 1))
 #define pte_index(address) (((address) >> (PAGE_SHIFT)) & (PTRS_PER_PTE - 1))
 
@@ -360,8 +364,18 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 	:"cc");
 }
 
+static inline int pgd_bad(pgd_t pgd)
+{
+	return (pgd_val(pgd) == 0);
+}
+
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)
+static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+{
+	return (unsigned long)__va(pgd_val(pgd) & ~PGD_MASKED_BITS);
+}
+
 
 /* Generic accessors to PTE bits */
 static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}
@@ -402,7 +416,7 @@ static inline int pte_protnone(pte_t pte)
 
 static inline int pte_present(pte_t pte)
 {
-	return pte_val(pte) & _PAGE_PRESENT;
+	return !!(pte_val(pte) & _PAGE_PRESENT);
 }
 
 /* Conversion functions: convert a page and protection to a page entry,
@@ -413,13 +427,13 @@ static inline int pte_present(pte_t pte)
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
-	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
+	return __pte((((pte_basic_t)(pfn) << PTE_RPN_SHIFT) & PTE_RPN_MASK) |
 		     pgprot_val(pgprot));
 }
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	return pte_val(pte) >> PTE_RPN_SHIFT;
+	return (pte_val(pte) & PTE_RPN_MASK) >> PTE_RPN_SHIFT;
 }
 
 /* Generic modifiers for PTE bits */

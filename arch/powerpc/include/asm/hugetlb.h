@@ -19,7 +19,7 @@ static inline pte_t *hugepd_page(hugepd_t hpd)
 	 * We have only four bits to encode, MMU page size
 	 */
 	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
-	return (pte_t *)(hpd.pd & ~HUGEPD_SHIFT_MASK);
+	return __va(hpd.pd & HUGEPD_ADDR_MASK);
 }
 
 static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)

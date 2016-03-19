@@ -2,7 +2,7 @@
 # Makefile for the PowerPC 86xx linux kernel.
 #
 
-obj-y				:= pic.o
+obj-y				:= pic.o common.o
 obj-$(CONFIG_SMP)		+= mpc86xx_smp.o
 obj-$(CONFIG_MPC8641_HPCN)	+= mpc86xx_hpcn.o
 obj-$(CONFIG_SBC8641D)		+= sbc8641d.o

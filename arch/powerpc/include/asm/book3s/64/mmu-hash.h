@@ -114,6 +114,7 @@
 
 #define POWER7_TLB_SETS		128	/* # sets in POWER7 TLB */
 #define POWER8_TLB_SETS		512	/* # sets in POWER8 TLB */
+#define POWER9_TLB_SETS_HASH	256	/* # sets in POWER9 TLB Hash mode */
 
 #ifndef __ASSEMBLY__
 
@@ -607,6 +608,9 @@ static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
 	return get_vsid(context, ea, ssize);
 }
+
+unsigned htab_shift_for_mem_size(unsigned long mem_size);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_HASH64_H_ */
