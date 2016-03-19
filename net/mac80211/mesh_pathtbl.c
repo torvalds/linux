@@ -18,6 +18,8 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
+static void mesh_path_free_rcu(struct mesh_table *tbl, struct mesh_path *mpath);
+
 static u32 mesh_table_hash(const void *addr, u32 len, u32 seed)
 {
 	/* Use last four bytes of hw addr as hash index */
@@ -40,18 +42,12 @@ static inline bool mpath_expired(struct mesh_path *mpath)
 	       !(mpath->flags & MESH_PATH_FIXED);
 }
 
-static void mesh_path_reclaim(struct rcu_head *rp)
-{
-	struct mesh_path *mpath = container_of(rp, struct mesh_path, rcu);
-
-	del_timer_sync(&mpath->timer);
-	kfree(mpath);
-}
-
-static void mesh_path_rht_free(void *ptr, void *unused_arg)
+static void mesh_path_rht_free(void *ptr, void *tblptr)
 {
 	struct mesh_path *mpath = ptr;
-	call_rcu(&mpath->rcu, mesh_path_reclaim);
+	struct mesh_table *tbl = tblptr;
+
+	mesh_path_free_rcu(tbl, mpath);
 }
 
 static struct mesh_table *mesh_table_alloc(void)
@@ -77,7 +73,7 @@ static struct mesh_table *mesh_table_alloc(void)
 static void mesh_table_free(struct mesh_table *tbl)
 {
 	rhashtable_free_and_destroy(&tbl->rhead,
-				    mesh_path_rht_free, NULL);
+				    mesh_path_rht_free, tbl);
 	kfree(tbl);
 }
 
@@ -551,18 +547,25 @@ out:
 	rhashtable_walk_exit(&iter);
 }
 
-static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
+static void mesh_path_free_rcu(struct mesh_table *tbl,
+			       struct mesh_path *mpath)
 {
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
 
-	rhashtable_remove_fast(&tbl->rhead, &mpath->rhash, mesh_rht_params);
 	spin_lock_bh(&mpath->state_lock);
-	mpath->flags |= MESH_PATH_RESOLVING;
+	mpath->flags |= MESH_PATH_RESOLVING | MESH_PATH_DELETED;
 	mesh_gate_del(tbl, mpath);
-	call_rcu(&mpath->rcu, mesh_path_reclaim);
 	spin_unlock_bh(&mpath->state_lock);
+	del_timer_sync(&mpath->timer);
 	atomic_dec(&sdata->u.mesh.mpaths);
 	atomic_dec(&tbl->entries);
+	kfree_rcu(mpath, rcu);
+}
+
+static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
+{
+	rhashtable_remove_fast(&tbl->rhead, &mpath->rhash, mesh_rht_params);
+	mesh_path_free_rcu(tbl, mpath);
 }
 
 /**

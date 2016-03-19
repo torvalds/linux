@@ -32,6 +32,8 @@
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
  * @MESH_PATH_REQ_QUEUED: there is an unsent path request for this destination
  *	already queued up, waiting for the discovery process to start.
+ * @MESH_PATH_DELETED: the mesh path has been deleted and should no longer
+ *	be used
  *
  * MESH_PATH_RESOLVED is used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
@@ -43,6 +45,7 @@ enum mesh_path_flags {
 	MESH_PATH_FIXED	=	BIT(3),
 	MESH_PATH_RESOLVED =	BIT(4),
 	MESH_PATH_REQ_QUEUED =	BIT(5),
+	MESH_PATH_DELETED =	BIT(6),
 };
 
 /**
