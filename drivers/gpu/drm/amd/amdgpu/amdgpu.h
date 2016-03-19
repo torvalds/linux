@@ -1903,7 +1903,6 @@ struct amdgpu_device {
 	int				usec_timeout;
 	const struct amdgpu_asic_funcs	*asic_funcs;
 	bool				shutdown;
-	bool				suspend;
 	bool				need_dma32;
 	bool				accel_working;
 	struct work_struct 		reset_work;
