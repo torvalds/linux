@@ -28,9 +28,17 @@
 
 #define DRIVER_NAME    "dw-mipi-dsi"
 
-#define GRF_SOC_CON6                    0x025c
-#define DSI0_SEL_VOP_LIT                (1 << 6)
-#define DSI1_SEL_VOP_LIT                (1 << 9)
+#define RK3288_GRF_SOC_CON6		0x025c
+#define RK3288_DSI0_SEL_VOP_LIT		BIT(6)
+#define RK3288_DSI1_SEL_VOP_LIT		BIT(9)
+
+#define RK3399_GRF_SOC_CON19		0x6250
+#define RK3399_DSI0_SEL_VOP_LIT		BIT(0)
+#define RK3399_DSI1_SEL_VOP_LIT		BIT(4)
+
+/* disable turnrequest, turndisable, forcetxstopmode, forcerxmode */
+#define RK3399_GRF_SOC_CON22		0x6258
+#define RK3399_GRF_DSI_MODE		0xffff0000
 
 #define DSI_VERSION			0x00
 #define DSI_PWR_UP			0x04
@@ -147,7 +155,6 @@
 #define LPRX_TO_CNT(p)			((p) & 0xffff)
 
 #define DSI_BTA_TO_CNT			0x8c
-
 #define DSI_LPCLK_CTRL			0x94
 #define AUTO_CLKLANE_CTRL		BIT(1)
 #define PHY_TXREQUESTCLKHS		BIT(0)
@@ -263,6 +270,11 @@ enum {
 };
 
 struct dw_mipi_dsi_plat_data {
+	u32 dsi0_en_bit;
+	u32 dsi1_en_bit;
+	u32 grf_switch_reg;
+	u32 grf_dsi0_mode;
+	u32 grf_dsi0_mode_reg;
 	unsigned int max_data_lanes;
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
 					   struct drm_display_mode *mode);
@@ -902,6 +914,7 @@ static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	const struct dw_mipi_dsi_plat_data *pdata = dsi->pdata;
 	int mux  = rockchip_drm_encoder_get_mux_id(dsi->dev->of_node, encoder);
 	u32 val;
 
@@ -909,6 +922,10 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
+
+	if (pdata->grf_dsi0_mode_reg)
+		regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
+			     pdata->grf_dsi0_mode);
 
 	dw_mipi_dsi_phy_init(dsi);
 	dw_mipi_dsi_wait_for_two_frames(dsi);
@@ -919,11 +936,11 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 	clk_disable_unprepare(dsi->pclk);
 
 	if (mux)
-		val = DSI0_SEL_VOP_LIT | (DSI0_SEL_VOP_LIT << 16);
+		val = pdata->dsi0_en_bit | (pdata->dsi0_en_bit << 16);
 	else
-		val = DSI0_SEL_VOP_LIT << 16;
+		val = pdata->dsi0_en_bit << 16;
 
-	regmap_write(dsi->grf_regmap, GRF_SOC_CON6, val);
+	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
 	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
 }
 
@@ -1071,6 +1088,19 @@ static enum drm_mode_status rk3288_mipi_dsi_mode_valid(
 }
 
 static struct dw_mipi_dsi_plat_data rk3288_mipi_dsi_drv_data = {
+	.dsi0_en_bit = RK3288_DSI0_SEL_VOP_LIT,
+	.dsi1_en_bit = RK3288_DSI1_SEL_VOP_LIT,
+	.grf_switch_reg = RK3288_GRF_SOC_CON6,
+	.max_data_lanes = 4,
+	.mode_valid = rk3288_mipi_dsi_mode_valid,
+};
+
+static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
+	.dsi0_en_bit = RK3399_DSI0_SEL_VOP_LIT,
+	.dsi1_en_bit = RK3399_DSI1_SEL_VOP_LIT,
+	.grf_switch_reg = RK3399_GRF_SOC_CON19,
+	.grf_dsi0_mode = RK3399_GRF_DSI_MODE,
+	.grf_dsi0_mode_reg = RK3399_GRF_SOC_CON22,
 	.max_data_lanes = 4,
 	.mode_valid = rk3288_mipi_dsi_mode_valid,
 };
@@ -1079,6 +1109,9 @@ static const struct of_device_id dw_mipi_dsi_dt_ids[] = {
 	{
 	 .compatible = "rockchip,rk3288-mipi-dsi",
 	 .data = &rk3288_mipi_dsi_drv_data,
+	},{
+	 .compatible = "rockchip,rk3399-mipi-dsi",
+	 .data = &rk3399_mipi_dsi_drv_data,
 	},
 	{ /* sentinel */ }
 };
