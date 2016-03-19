@@ -58,12 +58,7 @@ static struct mesh_table *mesh_table_alloc(void)
 	if (!newtbl)
 		return NULL;
 
-	newtbl->known_gates = kzalloc(sizeof(struct hlist_head), GFP_ATOMIC);
-	if (!newtbl->known_gates) {
-		kfree(newtbl);
-		return NULL;
-	}
-	INIT_HLIST_HEAD(newtbl->known_gates);
+	INIT_HLIST_HEAD(&newtbl->known_gates);
 	atomic_set(&newtbl->entries,  0);
 	spin_lock_init(&newtbl->gates_lock);
 
@@ -341,7 +336,7 @@ int mesh_path_add_gate(struct mesh_path *mpath)
 	mpath->sdata->u.mesh.num_gates++;
 
 	spin_lock(&tbl->gates_lock);
-	hlist_add_head_rcu(&mpath->gate_list, tbl->known_gates);
+	hlist_add_head_rcu(&mpath->gate_list, &tbl->known_gates);
 	spin_unlock(&tbl->gates_lock);
 
 	spin_unlock_bh(&mpath->state_lock);
@@ -759,16 +754,11 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 	struct mesh_path *from_mpath = mpath;
 	struct mesh_path *gate;
 	bool copy = false;
-	struct hlist_head *known_gates;
 
 	tbl = sdata->u.mesh.mesh_paths;
-	known_gates = tbl->known_gates;
-
-	if (!known_gates)
-		return -EHOSTUNREACH;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gate, known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
 		if (gate->flags & MESH_PATH_ACTIVE) {
 			mpath_dbg(sdata, "Forwarding to %pM\n", gate->dst);
 			mesh_path_move_to_queue(gate, from_mpath, copy);
@@ -781,7 +771,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 		}
 	}
 
-	hlist_for_each_entry_rcu(gate, known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
 		mpath_dbg(sdata, "Sending to %pM\n", gate->dst);
 		mesh_path_tx_pending(gate);
 	}

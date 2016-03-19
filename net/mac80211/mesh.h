@@ -134,7 +134,7 @@ struct mesh_path {
  */
 struct mesh_table {
 	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
-	struct hlist_head *known_gates;
+	struct hlist_head known_gates;
 	spinlock_t gates_lock;
 
 	struct rhashtable rhead;
