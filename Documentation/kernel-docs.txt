@@ -609,6 +609,13 @@
        Pages: 432.
        ISBN: 0-201-63338-8
 
+     * Title: "Linux Kernel Development, 3rd Edition"
+       Author: Robert Love
+       Publisher: Addison-Wesley.
+       Date: July, 2010
+       Pages: 440
+       ISBN: 978-0672329463
+
      MISCELLANEOUS:
 
      * Name: linux/Documentation
