@@ -63,7 +63,7 @@ static void __init keystone_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static phys_addr_t keystone_virt_to_idmap(unsigned long x)
+static unsigned long keystone_virt_to_idmap(unsigned long x)
 {
 	return (phys_addr_t)(x) - CONFIG_PAGE_OFFSET + KEYSTONE_LOW_PHYS_START;
 }
