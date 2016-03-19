@@ -39,6 +39,34 @@
 		ethernet0 = &gmac1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		hps_led0 {
+			label = "hps:blue:led0";
+			gpios = <&portb 24 0>;	/* HPS_GPIO53 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led1 {
+			label = "hps:blue:led1";
+			gpios = <&portb 25 0>;	/* HPS_GPIO54 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led2 {
+			label = "hps:blue:led2";
+			gpios = <&portb 26 0>;	/* HPS_GPIO55 */
+			linux,default-trigger = "heartbeat";
+		};
+
+		hps_led3 {
+			label = "hps:blue:led3";
+			gpios = <&portb 27 0>;	/* HPS_GPIO56 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	regulator_3_3v: vcc3p3-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC3P3";
@@ -59,6 +87,10 @@
 	txc-skew-ps = <2600>;
 	rxdv-skew-ps = <0>;
 	rxc-skew-ps = <2000>;
+};
+
+&gpio1 {	/* GPIO 30..57 */
+	status = "okay";
 };
 
 &gpio2 {
