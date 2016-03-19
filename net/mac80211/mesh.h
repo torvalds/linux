@@ -137,8 +137,6 @@ struct mesh_path {
  * @copy_node: function to copy nodes of the table
  * @size_order: determines size of the table, there will be 2^size_order hash
  *	buckets
- * @mean_chain_len: maximum average length for the hash buckets' list, if it is
- *	reached, the table will grow
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
  *
@@ -154,7 +152,6 @@ struct mesh_table {
 	void (*free_node) (struct hlist_node *p, bool free_leafs);
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
-	int mean_chain_len;
 	struct hlist_head *known_gates;
 	spinlock_t gates_lock;
 

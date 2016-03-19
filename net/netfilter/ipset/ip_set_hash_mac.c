@@ -110,7 +110,8 @@ hash_mac4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	if (unlikely(!tb[IPSET_ATTR_ETHER]))
+	if (unlikely(!tb[IPSET_ATTR_ETHER] ||
+		     nla_len(tb[IPSET_ATTR_ETHER]) != ETH_ALEN))
 		return -IPSET_ERR_PROTOCOL;
 
 	ret = ip_set_get_extensions(set, tb, &ext);

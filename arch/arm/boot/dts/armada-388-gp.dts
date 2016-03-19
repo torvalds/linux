@@ -60,7 +60,8 @@
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
-			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000>;
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
 
 		internal-regs {
 			spi@10600 {
@@ -133,6 +134,9 @@
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <3>;
 			};
 
 			/* CON4 */
@@ -152,6 +156,9 @@
 				status = "okay";
 				phy = <&phy0>;
 				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				bm,pool-short = <1>;
 			};
 
 
@@ -184,6 +191,10 @@
 					reg = <1>;
 					target-supply = <&reg_5v_sata1>;
 				};
+			};
+
+			bm@c8000 {
+				status = "okay";
 			};
 
 			sata@e0000 {
@@ -238,6 +249,10 @@
 				vcc-supply = <&reg_usb3_vbus>;
 				status = "okay";
 			};
+		};
+
+		bm-bppi {
+			status = "okay";
 		};
 
 		pcie-controller {

@@ -51,6 +51,7 @@
 #include <linux/neighbour.h>
 #include <uapi/linux/netdevice.h>
 #include <uapi/linux/if_bonding.h>
+#include <uapi/linux/pkt_cls.h>
 
 struct netpoll_info;
 struct device;
@@ -267,6 +268,7 @@ struct header_ops {
 	void	(*cache_update)(struct hh_cache *hh,
 				const struct net_device *dev,
 				const unsigned char *haddr);
+	bool	(*validate)(const char *ll_header, unsigned int len);
 };
 
 /* These flag bits are private to the generic network queueing
@@ -778,6 +780,27 @@ static inline bool netdev_phys_item_id_same(struct netdev_phys_item_id *a,
 typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 				       struct sk_buff *skb);
 
+/* These structures hold the attributes of qdisc and classifiers
+ * that are being passed to the netdevice through the setup_tc op.
+ */
+enum {
+	TC_SETUP_MQPRIO,
+	TC_SETUP_CLSU32,
+	TC_SETUP_CLSFLOWER,
+};
+
+struct tc_cls_u32_offload;
+
+struct tc_to_netdev {
+	unsigned int type;
+	union {
+		u8 tc;
+		struct tc_cls_u32_offload *cls_u32;
+		struct tc_cls_flower_offload *cls_flower;
+	};
+};
+
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -1073,6 +1096,12 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
  *	This function is used to get egress tunnel information for given skb.
  *	This is useful for retrieving outer tunnel header parameters while
  *	sampling packet.
+ * void (*ndo_set_rx_headroom)(struct net_device *dev, int needed_headroom);
+ *	This function is used to specify the headroom that the skb must
+ *	consider when allocation skb during packet reception. Setting
+ *	appropriate rx headroom value allows avoiding skb head copy on
+ *	forward. Setting a negative value reset the rx headroom to the
+ *	default value.
  *
  */
 struct net_device_ops {
@@ -1150,7 +1179,10 @@ struct net_device_ops {
 	int			(*ndo_set_vf_rss_query_en)(
 						   struct net_device *dev,
 						   int vf, bool setting);
-	int			(*ndo_setup_tc)(struct net_device *dev, u8 tc);
+	int			(*ndo_setup_tc)(struct net_device *dev,
+						u32 handle,
+						__be16 protocol,
+						struct tc_to_netdev *tc);
 #if IS_ENABLED(CONFIG_FCOE)
 	int			(*ndo_fcoe_enable)(struct net_device *dev);
 	int			(*ndo_fcoe_disable)(struct net_device *dev);
@@ -1255,6 +1287,8 @@ struct net_device_ops {
 							 bool proto_down);
 	int			(*ndo_fill_metadata_dst)(struct net_device *dev,
 						       struct sk_buff *skb);
+	void			(*ndo_set_rx_headroom)(struct net_device *dev,
+						       int needed_headroom);
 };
 
 /**
@@ -1291,6 +1325,10 @@ struct net_device_ops {
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
  * @IFF_L3MDEV_SLAVE: device is enslaved to an L3 master device
  * @IFF_TEAM: device is a team device
+ * @IFF_RXFH_CONFIGURED: device has had Rx Flow indirection table configured
+ * @IFF_PHONY_HEADROOM: the headroom value is controlled by an external
+ *	entity (i.e. the master device for bridged veth)
+ * @IFF_MACSEC: device is a MACsec device
  */
 enum netdev_priv_flags {
 	IFF_802_1Q_VLAN			= 1<<0,
@@ -1318,6 +1356,9 @@ enum netdev_priv_flags {
 	IFF_OPENVSWITCH			= 1<<22,
 	IFF_L3MDEV_SLAVE		= 1<<23,
 	IFF_TEAM			= 1<<24,
+	IFF_RXFH_CONFIGURED		= 1<<25,
+	IFF_PHONY_HEADROOM		= 1<<26,
+	IFF_MACSEC			= 1<<27,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1345,6 +1386,8 @@ enum netdev_priv_flags {
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
 #define IFF_L3MDEV_SLAVE		IFF_L3MDEV_SLAVE
 #define IFF_TEAM			IFF_TEAM
+#define IFF_RXFH_CONFIGURED		IFF_RXFH_CONFIGURED
+#define IFF_MACSEC			IFF_MACSEC
 
 /**
  *	struct net_device - The DEVICE structure.
@@ -1397,6 +1440,8 @@ enum netdev_priv_flags {
  *			do not use this in drivers
  *	@tx_dropped:	Dropped packets by core network,
  *			do not use this in drivers
+ *	@rx_nohandler:	nohandler dropped packets by core network on
+ *			inactive devices, do not use this in drivers
  *
  *	@wireless_handlers:	List of functions to handle Wireless Extensions,
  *				instead of ioctl,
@@ -1420,8 +1465,7 @@ enum netdev_priv_flags {
  *	@dma:		DMA channel
  *	@mtu:		Interface MTU value
  *	@type:		Interface hardware type
- *	@hard_header_len: Hardware header length, which means that this is the
- *			  minimum size of a packet.
+ *	@hard_header_len: Maximum hardware header length.
  *
  *	@needed_headroom: Extra headroom the hardware may need, but not in all
  *			  cases can this be guaranteed
@@ -1611,6 +1655,7 @@ struct net_device {
 
 	atomic_long_t		rx_dropped;
 	atomic_long_t		tx_dropped;
+	atomic_long_t		rx_nohandler;
 
 #ifdef CONFIG_WIRELESS_EXT
 	const struct iw_handler_def *	wireless_handlers;
@@ -1907,6 +1952,26 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 struct netdev_queue *netdev_pick_tx(struct net_device *dev,
 				    struct sk_buff *skb,
 				    void *accel_priv);
+
+/* returns the headroom that the master device needs to take in account
+ * when forwarding to this dev
+ */
+static inline unsigned netdev_get_fwd_headroom(struct net_device *dev)
+{
+	return dev->priv_flags & IFF_PHONY_HEADROOM ? 0 : dev->needed_headroom;
+}
+
+static inline void netdev_set_rx_headroom(struct net_device *dev, int new_hr)
+{
+	if (dev->netdev_ops->ndo_set_rx_headroom)
+		dev->netdev_ops->ndo_set_rx_headroom(dev, new_hr);
+}
+
+/* set the device rx headroom to the dev's default */
+static inline void netdev_reset_rx_headroom(struct net_device *dev)
+{
+	netdev_set_rx_headroom(dev, -1);
+}
 
 /*
  * Net namespace inlines
@@ -2625,6 +2690,24 @@ static inline int dev_parse_header(const struct sk_buff *skb,
 	if (!dev->header_ops || !dev->header_ops->parse)
 		return 0;
 	return dev->header_ops->parse(skb, haddr);
+}
+
+/* ll_header must have at least hard_header_len allocated */
+static inline bool dev_validate_header(const struct net_device *dev,
+				       char *ll_header, int len)
+{
+	if (likely(len >= dev->hard_header_len))
+		return true;
+
+	if (capable(CAP_SYS_RAWIO)) {
+		memset(ll_header + len, 0, dev->hard_header_len - len);
+		return true;
+	}
+
+	if (dev->header_ops && dev->header_ops->validate)
+		return dev->header_ops->validate(ll_header, len);
+
+	return false;
 }
 
 typedef int gifconf_func_t(struct net_device * dev, char __user * bufptr, int len);
@@ -3741,7 +3824,7 @@ void netdev_lower_state_changed(struct net_device *lower_dev,
 
 /* RSS keys are 40 or 52 bytes long */
 #define NETDEV_RSS_KEY_LEN 52
-extern u8 netdev_rss_key[NETDEV_RSS_KEY_LEN];
+extern u8 netdev_rss_key[NETDEV_RSS_KEY_LEN] __read_mostly;
 void netdev_rss_key_fill(void *buffer, size_t len);
 
 int dev_get_nest_level(struct net_device *dev,
@@ -3965,6 +4048,11 @@ static inline void skb_gso_error_unwind(struct sk_buff *skb, __be16 protocol,
 	skb->mac_len = mac_len;
 }
 
+static inline bool netif_is_macsec(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_MACSEC;
+}
+
 static inline bool netif_is_macvlan(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_MACVLAN;
@@ -4043,6 +4131,11 @@ static inline bool netif_is_lag_master(const struct net_device *dev)
 static inline bool netif_is_lag_port(const struct net_device *dev)
 {
 	return netif_is_bond_slave(dev) || netif_is_team_port(dev);
+}
+
+static inline bool netif_is_rxfh_configured(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_RXFH_CONFIGURED;
 }
 
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */

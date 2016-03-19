@@ -5,7 +5,7 @@
 struct bpf_insn;
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries);
+		   int max_entries, int map_flags);
 int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags);
 int bpf_lookup_elem(int fd, void *key, void *value);
 int bpf_delete_elem(int fd, void *key);

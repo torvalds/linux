@@ -509,6 +509,11 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 	memset(llcp_addr, 0, sizeof(*llcp_addr));
 	*len = sizeof(struct sockaddr_nfc_llcp);
 
+	lock_sock(sk);
+	if (!llcp_sock->dev) {
+		release_sock(sk);
+		return -EBADFD;
+	}
 	llcp_addr->sa_family = AF_NFC;
 	llcp_addr->dev_idx = llcp_sock->dev->idx;
 	llcp_addr->target_idx = llcp_sock->target_idx;
@@ -518,6 +523,7 @@ static int llcp_sock_getname(struct socket *sock, struct sockaddr *uaddr,
 	llcp_addr->service_name_len = llcp_sock->service_name_len;
 	memcpy(llcp_addr->service_name, llcp_sock->service_name,
 	       llcp_addr->service_name_len);
+	release_sock(sk);
 
 	return 0;
 }

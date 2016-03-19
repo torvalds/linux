@@ -73,8 +73,8 @@
 #define BY_PASS_MIN_LEVEL (KENREL_MIN_LEVEL + MLX5_BY_PASS_NUM_PRIOS +\
 			   LEFTOVERS_MAX_FT)
 
-#define KERNEL_MAX_FT 2
-#define KERNEL_NUM_PRIOS 1
+#define KERNEL_MAX_FT 3
+#define KERNEL_NUM_PRIOS 2
 #define KENREL_MIN_LEVEL 2
 
 #define ANCHOR_MAX_FT 1
@@ -372,8 +372,8 @@ static void del_rule(struct fs_node *node)
 		list_del(&rule->next_ft);
 		mutex_unlock(&rule->dest_attr.ft->lock);
 	}
-	fte->dests_size--;
-	if (fte->dests_size) {
+	if ((fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) &&
+	    --fte->dests_size) {
 		err = mlx5_cmd_update_fte(dev, ft,
 					  fg->id, fte);
 		if (err)
@@ -837,7 +837,8 @@ static struct mlx5_flow_rule *alloc_rule(struct mlx5_flow_destination *dest)
 
 	INIT_LIST_HEAD(&rule->next_ft);
 	rule->node.type = FS_TYPE_FLOW_DEST;
-	memcpy(&rule->dest_attr, dest, sizeof(*dest));
+	if (dest)
+		memcpy(&rule->dest_attr, dest, sizeof(*dest));
 
 	return rule;
 }
@@ -864,8 +865,9 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 		list_add(&rule->node.list, &fte->node.children);
 	else
 		list_add_tail(&rule->node.list, &fte->node.children);
-	fte->dests_size++;
-	if (fte->dests_size == 1)
+	if (dest)
+		fte->dests_size++;
+	if (fte->dests_size == 1 || !dest)
 		err = mlx5_cmd_create_fte(get_dev(&ft->node),
 					  ft, fg->id, fte);
 	else
@@ -881,7 +883,8 @@ static struct mlx5_flow_rule *add_rule_fte(struct fs_fte *fte,
 free_rule:
 	list_del(&rule->node.list);
 	kfree(rule);
-	fte->dests_size--;
+	if (dest)
+		fte->dests_size--;
 	return ERR_PTR(err);
 }
 
@@ -1100,6 +1103,9 @@ _mlx5_add_flow_rule(struct mlx5_flow_table *ft,
 {
 	struct mlx5_flow_group *g;
 	struct mlx5_flow_rule *rule;
+
+	if ((action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) && !dest)
+		return ERR_PTR(-EINVAL);
 
 	nested_lock_ref_node(&ft->node, FS_MUTEX_GRANDPARENT);
 	fs_for_each_fg(g, ft)

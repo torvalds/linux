@@ -90,7 +90,21 @@ struct stmmac_dma_cfg {
 	int pbl;
 	int fixed_burst;
 	int mixed_burst;
-	int burst_len;
+	bool aal;
+};
+
+#define AXI_BLEN	7
+struct stmmac_axi {
+	bool axi_lpi_en;
+	bool axi_xit_frm;
+	u32 axi_wr_osr_lmt;
+	u32 axi_rd_osr_lmt;
+	bool axi_kbbe;
+	bool axi_axi_all;
+	u32 axi_blen[AXI_BLEN];
+	bool axi_fb;
+	bool axi_mb;
+	bool axi_rb;
 };
 
 struct plat_stmmacenet_data {
@@ -123,5 +137,6 @@ struct plat_stmmacenet_data {
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
 	void *bsp_priv;
+	struct stmmac_axi *axi;
 };
 #endif

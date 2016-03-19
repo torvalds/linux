@@ -18,6 +18,23 @@
 #include "wmi-ops.h"
 #include "debug.h"
 
+void ath10k_sta_update_rx_duration(struct ath10k *ar, struct list_head *head)
+{	struct ieee80211_sta *sta;
+	struct ath10k_fw_stats_peer *peer;
+	struct ath10k_sta *arsta;
+
+	rcu_read_lock();
+	list_for_each_entry(peer, head, list) {
+		sta = ieee80211_find_sta_by_ifaddr(ar->hw, peer->peer_macaddr,
+						   NULL);
+		if (!sta)
+			continue;
+		arsta = (struct ath10k_sta *)sta->drv_priv;
+		arsta->rx_duration += (u64)peer->rx_duration;
+	}
+	rcu_read_unlock();
+}
+
 static ssize_t ath10k_dbg_sta_read_aggr_mode(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
@@ -232,6 +249,28 @@ static const struct file_operations fops_delba = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_dbg_sta_read_rx_duration(struct file *file,
+					       char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	char buf[100];
+	int len = 0;
+
+	len = scnprintf(buf, sizeof(buf),
+			"%llu usecs\n", arsta->rx_duration);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_rx_duration = {
+	.read = ath10k_dbg_sta_read_rx_duration,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -240,4 +279,6 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	debugfs_create_file("addba", S_IWUSR, dir, sta, &fops_addba);
 	debugfs_create_file("addba_resp", S_IWUSR, dir, sta, &fops_addba_resp);
 	debugfs_create_file("delba", S_IWUSR, dir, sta, &fops_delba);
+	debugfs_create_file("rx_duration", S_IRUGO, dir, sta,
+			    &fops_rx_duration);
 }

@@ -151,7 +151,7 @@ S:	Maintained
 F:	drivers/scsi/53c700*
 
 6LOWPAN GENERIC (BTLE/IEEE 802.15.4)
-M:	Alexander Aring <alex.aring@gmail.com>
+M:	Alexander Aring <aar@pengutronix.de>
 M:	Jukka Rissanen <jukka.rissanen@linux.intel.com>
 L:	linux-bluetooth@vger.kernel.org
 L:	linux-wpan@vger.kernel.org
@@ -2176,7 +2176,8 @@ M:	Marek Lindner <mareklindner@neomailbox.ch>
 M:	Simon Wunderlich <sw@simonwunderlich.de>
 M:	Antonio Quartulli <a@unstable.cc>
 L:	b.a.t.m.a.n@lists.open-mesh.org
-W:	http://www.open-mesh.org/
+W:	https://www.open-mesh.org/
+Q:	https://patchwork.open-mesh.org/project/batman/list/
 S:	Maintained
 F:	net/batman-adv/
 
@@ -2447,6 +2448,7 @@ F:	include/linux/bcm963xx_nvram.h
 F:	include/linux/bcm963xx_tag.h
 
 BROADCOM TG3 GIGABIT ETHERNET DRIVER
+M:	Siva Reddy Kallam <siva.kallam@broadcom.com>
 M:	Prashant Sreedharan <prashant@broadcom.com>
 M:	Michael Chan <mchan@broadcom.com>
 L:	netdev@vger.kernel.org
@@ -3522,6 +3524,14 @@ F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 F:	include/uapi/linux/dm-*.h
+
+DEVLINK
+M:	Jiri Pirko <jiri@mellanox.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	net/core/devlink.c
+F:	include/net/devlink.h
+F:	include/uapi/linux/devlink.h
 
 DIALOG SEMICONDUCTOR DRIVERS
 M:	Support Opensource <support.opensource@diasemi.com>
@@ -5447,10 +5457,11 @@ S:	Supported
 F:	drivers/idle/i7300_idle.c
 
 IEEE 802.15.4 SUBSYSTEM
-M:	Alexander Aring <alex.aring@gmail.com>
+M:	Alexander Aring <aar@pengutronix.de>
 L:	linux-wpan@vger.kernel.org
-W:	https://github.com/linux-wpan
-T:	git git://github.com/linux-wpan/linux-wpan-next.git
+W:	http://wpan.cakelab.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
 S:	Maintained
 F:	net/ieee802154/
 F:	net/mac802154/
@@ -7043,6 +7054,13 @@ F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
 
+MEDIATEK ETHERNET DRIVER
+M:	Felix Fietkau <nbd@openwrt.org>
+M:	John Crispin <blogic@openwrt.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/mediatek/
+
 MEDIATEK MT7601U WIRELESS LAN DRIVER
 M:	Jakub Kicinski <kubakici@wp.pl>
 L:	linux-wireless@vger.kernel.org
@@ -7540,7 +7558,6 @@ F:	net/netrom/
 
 NETRONOME ETHERNET DRIVERS
 M:	Jakub Kicinski <jakub.kicinski@netronome.com>
-M:	Rolf Neugebauer <rolf.neugebauer@netronome.com>
 L:	oss-drivers@netronome.com
 S:	Maintained
 F:	drivers/net/ethernet/netronome/
@@ -7677,7 +7694,6 @@ F:	net/nfc/
 F:	include/net/nfc/
 F:	include/uapi/linux/nfc.h
 F:	drivers/nfc/
-F:	include/linux/platform_data/microread.h
 F:	include/linux/platform_data/nfcmrvl.h
 F:	include/linux/platform_data/nxp-nci.h
 F:	include/linux/platform_data/pn544.h
@@ -9138,10 +9154,14 @@ S:	Maintained
 F:	drivers/net/ethernet/rdc/r6040.c
 
 RDS - RELIABLE DATAGRAM SOCKETS
-M:	Chien Yen <chien.yen@oracle.com>
+M:	Santosh Shilimkar <santosh.shilimkar@oracle.com>
+L:	netdev@vger.kernel.org
+L:	linux-rdma@vger.kernel.org
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
+W:	https://oss.oracle.com/projects/rds/
 S:	Supported
 F:	net/rds/
+F:	Documentation/networking/rds.txt
 
 READ-COPY UPDATE (RCU)
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
@@ -9542,6 +9562,7 @@ F:	drivers/media/i2c/s5k5baf.c
 
 SAMSUNG S3FWRN5 NFC DRIVER
 M:	Robert Baldyga <r.baldyga@samsung.com>
+M:	Krzysztof Opasiak <k.opasiak@samsung.com>
 L:	linux-nfc@lists.01.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/nfc/s3fwrn5
@@ -11404,6 +11425,13 @@ L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/host/isp116x*
 F:	include/linux/usb/isp116x.h
+
+USB LAN78XX ETHERNET DRIVER
+M:	Woojung Huh <woojung.huh@microchip.com>
+M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/usb/lan78xx.*
 
 USB MASS STORAGE DRIVER
 M:	Matthew Dharm <mdharm-usb@one-eyed-alien.net>
