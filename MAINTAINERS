@@ -5016,12 +5016,6 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/dvb-frontends/hd29l2*
 
-HEWLETT-PACKARD SMART2 RAID DRIVER
-L:	iss_storagedev@hp.com
-S:	Orphan
-F:	Documentation/blockdev/cpqarray.txt
-F:	drivers/block/cpqarray.*
-
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
 M:	Don Brace <don.brace@microsemi.com>
 L:	iss_storagedev@hp.com
@@ -5034,9 +5028,9 @@ F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
 HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
-M:	Don Brace <don.brace@pmcs.com>
+M:	Don Brace <don.brace@microsemi.com>
 L:	iss_storagedev@hp.com
-L:	storagedev@pmcs.com
+L:	esc.storagedev@microsemi.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/blockdev/cciss.txt
