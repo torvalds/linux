@@ -253,9 +253,8 @@ static int wilc_wlan_cfg_set_bin(u8 *frame, u32 offset, u16 id, u8 *b, u32 size)
 
 	if ((b != NULL) && (size != 0)) {
 		memcpy(&buf[4], b, size);
-		for (i = 0; i < size; i++) {
+		for (i = 0; i < size; i++)
 			checksum += buf[i + 4];
-		}
 	}
 
 	buf[size + 4] = checksum;
