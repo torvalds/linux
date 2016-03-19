@@ -116,7 +116,8 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 	skb->vlan_tci = 0;
 	skb_set_queue_mapping(skb, 0);
 	skb->pkt_type = PACKET_HOST;
-	return 0;
+
+	return iptunnel_pull_offloads(skb);
 }
 EXPORT_SYMBOL_GPL(iptunnel_pull_header);
 
