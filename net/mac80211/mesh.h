@@ -158,14 +158,14 @@ struct mesh_table {
  * that are found in the cache.
  */
 struct rmc_entry {
-	struct list_head list;
+	struct hlist_node list;
 	u32 seqnum;
 	unsigned long exp_time;
 	u8 sa[ETH_ALEN];
 };
 
 struct mesh_rmc {
-	struct list_head bucket[RMC_BUCKETS];
+	struct hlist_head bucket[RMC_BUCKETS];
 	u32 idx_mask;
 };
 

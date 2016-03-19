@@ -174,22 +174,23 @@ int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 		return -ENOMEM;
 	sdata->u.mesh.rmc->idx_mask = RMC_BUCKETS - 1;
 	for (i = 0; i < RMC_BUCKETS; i++)
-		INIT_LIST_HEAD(&sdata->u.mesh.rmc->bucket[i]);
+		INIT_HLIST_HEAD(&sdata->u.mesh.rmc->bucket[i]);
 	return 0;
 }
 
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_rmc *rmc = sdata->u.mesh.rmc;
-	struct rmc_entry *p, *n;
+	struct rmc_entry *p;
+	struct hlist_node *n;
 	int i;
 
 	if (!sdata->u.mesh.rmc)
 		return;
 
 	for (i = 0; i < RMC_BUCKETS; i++) {
-		list_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
-			list_del(&p->list);
+		hlist_for_each_entry_safe(p, n, &rmc->bucket[i], list) {
+			hlist_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 		}
 	}
@@ -218,7 +219,8 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	u32 seqnum = 0;
 	int entries = 0;
 	u8 idx;
-	struct rmc_entry *p, *n;
+	struct rmc_entry *p;
+	struct hlist_node *n;
 
 	if (!rmc)
 		return -1;
@@ -226,11 +228,11 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	/* Don't care about endianness since only match matters */
 	memcpy(&seqnum, &mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
 	idx = le32_to_cpu(mesh_hdr->seqnum) & rmc->idx_mask;
-	list_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
+	hlist_for_each_entry_safe(p, n, &rmc->bucket[idx], list) {
 		++entries;
 		if (time_after(jiffies, p->exp_time) ||
 		    entries == RMC_QUEUE_MAX_LEN) {
-			list_del(&p->list);
+			hlist_del(&p->list);
 			kmem_cache_free(rm_cache, p);
 			--entries;
 		} else if ((seqnum == p->seqnum) && ether_addr_equal(sa, p->sa))
@@ -244,7 +246,7 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	p->seqnum = seqnum;
 	p->exp_time = jiffies + RMC_TIMEOUT;
 	memcpy(p->sa, sa, ETH_ALEN);
-	list_add(&p->list, &rmc->bucket[idx]);
+	hlist_add_head(&p->list, &rmc->bucket[idx]);
 	return 0;
 }
 
