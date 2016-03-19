@@ -225,20 +225,10 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	} else
 #endif
 	{
-		struct user_i387_struct fp;
-
-		err = copy_from_user(&fp, (void *)sc.fpstate,
+		err = copy_from_user(regs->regs.fp, (void *)sc.fpstate,
 				     sizeof(struct user_i387_struct));
 		if (err)
 			return 1;
-
-		err = restore_fp_registers(pid, (unsigned long *) &fp);
-		if (err < 0) {
-			printk(KERN_ERR "copy_sc_from_user - "
-			       "restore_fp_registers failed, errno = %d\n",
-			       -err);
-			return 1;
-		}
 	}
 	return 0;
 }
@@ -325,10 +315,8 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	} else
 #endif
 	{
-		struct user_i387_struct fp;
-
-		err = save_fp_registers(pid, (unsigned long *) &fp);
-		if (copy_to_user(to_fp, &fp, sizeof(struct user_i387_struct)))
+		if (copy_to_user(to_fp, regs->regs.fp,
+				 sizeof(struct user_i387_struct)))
 			return 1;
 	}
 
