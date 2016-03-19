@@ -230,7 +230,7 @@ static int wilc_wlan_cfg_set_str(u8 *frame, u32 offset, u16 id, u8 *str, u32 siz
 	buf[1] = (u8)(id >> 8);
 	buf[2] = (u8)size;
 
-	if ((str != NULL) && (size != 0))
+	if ((str) && (size != 0))
 		memcpy(&buf[3], str, size);
 
 	return (size + 3);
@@ -251,7 +251,7 @@ static int wilc_wlan_cfg_set_bin(u8 *frame, u32 offset, u16 id, u8 *b, u32 size)
 	buf[2] = (u8)size;
 	buf[3] = (u8)(size >> 8);
 
-	if ((b != NULL) && (size != 0)) {
+	if ((b) && (size != 0)) {
 		memcpy(&buf[4], b, size);
 		for (i = 0; i < size; i++)
 			checksum += buf[i + 4];
