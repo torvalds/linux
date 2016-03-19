@@ -72,6 +72,7 @@ dmo	Data Modul AG
 ea	Embedded Artists AB
 ebv	EBV Elektronik
 edt	Emerging Display Technologies
+eeti	eGalax_eMPIA Technology Inc
 elan	Elan Microelectronic Corp.
 emmicro	EM Microelectronic
 energymicro	Silicon Laboratories (formerly Energy Micro AS)
@@ -247,6 +248,7 @@ tplink	TP-LINK Technologies Co., Ltd.
 tronfy	Tronfy
 truly	Truly Semiconductors Limited
 upisemi	uPI Semiconductor Corp.
+urt	United Radiant Technology Corporation
 usi	Universal Scientific Industrial Co., Ltd.
 v3	V3 Semiconductor
 variscite	Variscite Ltd.
