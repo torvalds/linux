@@ -2258,9 +2258,15 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 	/* Try to bind with i915 for Intel HSW+ codecs (if not done yet) */
 	if ((codec->core.vendor_id >> 16) == 0x8086 &&
 	    is_haswell_plus(codec)) {
+#if 0
+		/* on-demand binding leads to an unbalanced refcount when
+		 * both i915 and hda drivers are probed concurrently;
+		 * disabled temporarily for now
+		 */
 		if (!codec->bus->core.audio_component)
 			if (!snd_hdac_i915_init(&codec->bus->core))
 				spec->i915_bound = true;
+#endif
 		/* use i915 audio component notifier for hotplug */
 		if (codec->bus->core.audio_component)
 			spec->use_acomp_notifier = true;
