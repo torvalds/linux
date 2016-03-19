@@ -21,8 +21,6 @@
 /**
  * enum mesh_path_flags - mac80211 mesh path flags
  *
- *
- *
  * @MESH_PATH_ACTIVE: the mesh path can be used for forwarding
  * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
  * @MESH_PATH_SN_VALID: the mesh path contains a valid destination sequence
@@ -70,12 +68,16 @@ enum mesh_deferred_task_flags {
  * struct mesh_path - mac80211 mesh path structure
  *
  * @dst: mesh path destination mac address
+ * @mpp: mesh proxy mac address
+ * @rhash: rhashtable list pointer
+ * @gate_list: list pointer for known gates list
  * @sdata: mesh subif
  * @next_hop: mesh neighbor to which frames for this destination will be
  *	forwarded
  * @timer: mesh path discovery timer
  * @frame_queue: pending queue for frames sent to this destination while the
  *	path is unresolved
+ * @rcu: rcu head for freeing mesh path
  * @sn: target sequence number
  * @metric: current metric to this destination
  * @hop_count: hops to destination
@@ -94,10 +96,10 @@ enum mesh_deferred_task_flags {
  * @is_gate: the destination station of this path is a mesh gate
  *
  *
- * The combination of dst and sdata is unique in the mesh path table. Since the
- * next_hop STA is only protected by RCU as well, deleting the STA must also
- * remove/substitute the mesh_path structure and wait until that is no longer
- * reachable before destroying the STA completely.
+ * The dst address is unique in the mesh path table. Since the mesh_path is
+ * protected by RCU, deleting the next_hop STA must remove / substitute the
+ * mesh_path structure and wait until that is no longer reachable before
+ * destroying the STA completely.
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
@@ -127,10 +129,11 @@ struct mesh_path {
 /**
  * struct mesh_table
  *
- * @entries: number of entries in the table
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
- * @rhash: the rhashtable containing struct mesh_paths, keyed by dest addr
+ * @gates_lock: protects updates to known_gates
+ * @rhead: the rhashtable containing struct mesh_paths, keyed by dest addr
+ * @entries: number of entries in the table
  */
 struct mesh_table {
 	struct hlist_head known_gates;
@@ -151,6 +154,7 @@ struct mesh_table {
  * @seqnum: mesh sequence number of the frame
  * @exp_time: expiration time of the entry, in jiffies
  * @sa: source address of the frame
+ * @list: hashtable list pointer
  *
  * The Recent Multicast Cache keeps track of the latest multicast frames that
  * have been received by a mesh interface and discards received multicast frames
