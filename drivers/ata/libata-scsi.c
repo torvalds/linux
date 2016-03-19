@@ -174,13 +174,13 @@ static ssize_t ata_scsi_park_show(struct device *device,
 	struct ata_port *ap;
 	struct ata_link *link;
 	struct ata_device *dev;
-	unsigned long flags, now;
+	unsigned long now;
 	unsigned int uninitialized_var(msecs);
 	int rc = 0;
 
 	ap = ata_shost_to_port(sdev->host);
 
-	spin_lock_irqsave(ap->lock, flags);
+	spin_lock_irq(ap->lock);
 	dev = ata_scsi_find_dev(ap, sdev);
 	if (!dev) {
 		rc = -ENODEV;

@@ -113,7 +113,7 @@ int hfi1_alloc_lkey(struct hfi1_mregion *mr, int dma_region)
 		((((1 << (24 - hfi1_lkey_table_size)) - 1) & rkt->gen)
 		 << 8);
 	if (mr->lkey == 0) {
-		mr->lkey |= 1 << 8;
+		mr->lkey = 1 << 8;
 		rkt->gen++;
 	}
 	rcu_assign_pointer(rkt->table[r], mr);

@@ -288,6 +288,3 @@ void __exit ieee80211_crypto_wep_exit(void)
 	ieee80211_unregister_crypto_ops(&ieee80211_crypt_wep);
 }
 
-void ieee80211_wep_null(void)
-{
-}

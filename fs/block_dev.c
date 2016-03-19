@@ -575,7 +575,11 @@ static const struct super_operations bdev_sops = {
 static struct dentry *bd_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
+	struct dentry *dent;
+	dent = mount_pseudo(fs_type, "bdev:", &bdev_sops, NULL, BDEVFS_MAGIC);
+	if (dent)
+		dent->d_sb->s_iflags |= SB_I_CGROUPWB;
+	return dent;
 }
 
 static struct file_system_type bd_type = {

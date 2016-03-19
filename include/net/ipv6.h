@@ -259,8 +259,12 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
-	if (opt && !atomic_inc_not_zero(&opt->refcnt))
-		opt = NULL;
+	if (opt) {
+		if (!atomic_inc_not_zero(&opt->refcnt))
+			opt = NULL;
+		else
+			opt = rcu_pointer_handoff(opt);
+	}
 	rcu_read_unlock();
 	return opt;
 }

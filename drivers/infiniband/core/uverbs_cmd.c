@@ -1174,6 +1174,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	struct ib_uobject             *uobj;
 	struct ib_pd                  *pd;
 	struct ib_mw                  *mw;
+	struct ib_udata		       udata;
 	int                            ret;
 
 	if (out_len < sizeof(resp))
@@ -1195,7 +1196,12 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 		goto err_free;
 	}
 
-	mw = pd->device->alloc_mw(pd, cmd.mw_type);
+	INIT_UDATA(&udata, buf + sizeof(cmd),
+		   (unsigned long)cmd.response + sizeof(resp),
+		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
+		   out_len - sizeof(resp));
+
+	mw = pd->device->alloc_mw(pd, cmd.mw_type, &udata);
 	if (IS_ERR(mw)) {
 		ret = PTR_ERR(mw);
 		goto err_put;
@@ -3085,6 +3091,14 @@ int ib_uverbs_ex_create_flow(struct ib_uverbs_file *file,
 	if ((cmd.flow_attr.type == IB_FLOW_ATTR_SNIFFER &&
 	     !capable(CAP_NET_ADMIN)) || !capable(CAP_NET_RAW))
 		return -EPERM;
+
+	if (cmd.flow_attr.flags >= IB_FLOW_ATTR_FLAGS_RESERVED)
+		return -EINVAL;
+
+	if ((cmd.flow_attr.flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
+	    ((cmd.flow_attr.type == IB_FLOW_ATTR_ALL_DEFAULT) ||
+	     (cmd.flow_attr.type == IB_FLOW_ATTR_MC_DEFAULT)))
+		return -EINVAL;
 
 	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
 		return -EINVAL;

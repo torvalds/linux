@@ -12,6 +12,8 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -1058,6 +1060,93 @@ int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
 	return __reg_op(bitmap, pos, order, REG_OP_ALLOC);
 }
 EXPORT_SYMBOL(bitmap_allocate_region);
+
+/**
+ * bitmap_from_u32array - copy the contents of a u32 array of bits to bitmap
+ *	@bitmap: array of unsigned longs, the destination bitmap, non NULL
+ *	@nbits: number of bits in @bitmap
+ *	@buf: array of u32 (in host byte order), the source bitmap, non NULL
+ *	@nwords: number of u32 words in @buf
+ *
+ * copy min(nbits, 32*nwords) bits from @buf to @bitmap, remaining
+ * bits between nword and nbits in @bitmap (if any) are cleared. In
+ * last word of @bitmap, the bits beyond nbits (if any) are kept
+ * unchanged.
+ *
+ * Return the number of bits effectively copied.
+ */
+unsigned int
+bitmap_from_u32array(unsigned long *bitmap, unsigned int nbits,
+		     const u32 *buf, unsigned int nwords)
+{
+	unsigned int dst_idx, src_idx;
+
+	for (src_idx = dst_idx = 0; dst_idx < BITS_TO_LONGS(nbits); ++dst_idx) {
+		unsigned long part = 0;
+
+		if (src_idx < nwords)
+			part = buf[src_idx++];
+
+#if BITS_PER_LONG == 64
+		if (src_idx < nwords)
+			part |= ((unsigned long) buf[src_idx++]) << 32;
+#endif
+
+		if (dst_idx < nbits/BITS_PER_LONG)
+			bitmap[dst_idx] = part;
+		else {
+			unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
+
+			bitmap[dst_idx] = (bitmap[dst_idx] & ~mask)
+				| (part & mask);
+		}
+	}
+
+	return min_t(unsigned int, nbits, 32*nwords);
+}
+EXPORT_SYMBOL(bitmap_from_u32array);
+
+/**
+ * bitmap_to_u32array - copy the contents of bitmap to a u32 array of bits
+ *	@buf: array of u32 (in host byte order), the dest bitmap, non NULL
+ *	@nwords: number of u32 words in @buf
+ *	@bitmap: array of unsigned longs, the source bitmap, non NULL
+ *	@nbits: number of bits in @bitmap
+ *
+ * copy min(nbits, 32*nwords) bits from @bitmap to @buf. Remaining
+ * bits after nbits in @buf (if any) are cleared.
+ *
+ * Return the number of bits effectively copied.
+ */
+unsigned int
+bitmap_to_u32array(u32 *buf, unsigned int nwords,
+		   const unsigned long *bitmap, unsigned int nbits)
+{
+	unsigned int dst_idx = 0, src_idx = 0;
+
+	while (dst_idx < nwords) {
+		unsigned long part = 0;
+
+		if (src_idx < BITS_TO_LONGS(nbits)) {
+			part = bitmap[src_idx];
+			if (src_idx >= nbits/BITS_PER_LONG)
+				part &= BITMAP_LAST_WORD_MASK(nbits);
+			src_idx++;
+		}
+
+		buf[dst_idx++] = part & 0xffffffffUL;
+
+#if BITS_PER_LONG == 64
+		if (dst_idx < nwords) {
+			part >>= 32;
+			buf[dst_idx++] = part & 0xffffffffUL;
+		}
+#endif
+	}
+
+	return min_t(unsigned int, nbits, 32*nwords);
+}
+EXPORT_SYMBOL(bitmap_to_u32array);
 
 /**
  * bitmap_copy_le - copy a bitmap, putting the bits into little-endian order.

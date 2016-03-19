@@ -297,7 +297,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000174, 0x007D },   /* R372   - FLL1 Control 4 */ 
 	{ 0x00000175, 0x0004 },   /* R373   - FLL1 Control 5 */ 
 	{ 0x00000176, 0x0000 },   /* R374   - FLL1 Control 6 */ 
-	{ 0x00000177, 0x0181 },   /* R375   - FLL1 Loop Filter Test 1 */ 
 	{ 0x00000179, 0x0000 },   /* R377   - FLL1 Control 7 */
 	{ 0x00000181, 0x0000 },   /* R385   - FLL1 Synchroniser 1 */ 
 	{ 0x00000182, 0x0000 },   /* R386   - FLL1 Synchroniser 2 */ 
@@ -314,7 +313,6 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000194, 0x007D },   /* R404   - FLL2 Control 4 */ 
 	{ 0x00000195, 0x0004 },   /* R405   - FLL2 Control 5 */ 
 	{ 0x00000196, 0x0000 },   /* R406   - FLL2 Control 6 */ 
-	{ 0x00000197, 0x0000 },   /* R407   - FLL2 Loop Filter Test 1 */ 
 	{ 0x00000199, 0x0000 },   /* R409   - FLL2 Control 7 */
 	{ 0x000001A1, 0x0000 },   /* R417   - FLL2 Synchroniser 1 */ 
 	{ 0x000001A2, 0x0000 },   /* R418   - FLL2 Synchroniser 2 */ 
@@ -338,7 +336,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x000002A3, 0x1102 },   /* R675   - Mic Detect 1 */ 
 	{ 0x000002A4, 0x009F },   /* R676   - Mic Detect 2 */ 
 	{ 0x000002A6, 0x3737 },   /* R678   - Mic Detect Level 1 */
-	{ 0x000002A7, 0x372C },   /* R679   - Mic Detect Level 2 */
+	{ 0x000002A7, 0x2C37 },   /* R679   - Mic Detect Level 2 */
 	{ 0x000002A8, 0x1422 },   /* R680   - Mic Detect Level 3 */
 	{ 0x000002A9, 0x030A },   /* R681   - Mic Detect Level 4 */
 	{ 0x000002C3, 0x0000 },   /* R707   - Mic noise mix control 1 */ 
@@ -402,7 +400,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000435, 0x0180 },   /* R1077  - DAC Digital Volume 5R */ 
 	{ 0x00000436, 0x0081 },   /* R1078  - DAC Volume Limit 5R */
 	{ 0x00000437, 0x0200 },   /* R1079  - Noise Gate Select 5R */
-	{ 0x00000440, 0x8FFF },   /* R1088  - DRE Enable */
+	{ 0x00000440, 0x0FFF },   /* R1088  - DRE Enable */
 	{ 0x00000442, 0x3F0A },   /* R1090  - DRE Control 2 */
 	{ 0x00000443, 0xDC1F },   /* R1090  - DRE Control 3 */
 	{ 0x00000450, 0x0000 },   /* R1104  - DAC AEC Control 1 */ 
@@ -863,7 +861,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000C0F, 0x0400 },   /* R3087  - IRQ CTRL 1 */ 
 	{ 0x00000C10, 0x1000 },   /* R3088  - GPIO Debounce Config */ 
 	{ 0x00000C20, 0x8002 },   /* R3104  - Misc Pad Ctrl 1 */ 
-	{ 0x00000C21, 0x8001 },   /* R3105  - Misc Pad Ctrl 2 */ 
+	{ 0x00000C21, 0x0001 },   /* R3105  - Misc Pad Ctrl 2 */
 	{ 0x00000C22, 0x0000 },   /* R3106  - Misc Pad Ctrl 3 */ 
 	{ 0x00000C23, 0x0000 },   /* R3107  - Misc Pad Ctrl 4 */ 
 	{ 0x00000C24, 0x0000 },   /* R3108  - Misc Pad Ctrl 5 */ 
@@ -984,7 +982,7 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x00000ECD, 0x0000 },   /* R3789  - HPLPF4_2 */ 
 	{ 0x00000EE0, 0x0000 },   /* R3808  - ASRC_ENABLE */ 
 	{ 0x00000EE2, 0x0000 },   /* R3810  - ASRC_RATE1 */ 
-	{ 0x00000EE3, 0x0400 },   /* R3811  - ASRC_RATE2 */
+	{ 0x00000EE3, 0x4000 },   /* R3811  - ASRC_RATE2 */
 	{ 0x00000EF0, 0x0000 },   /* R3824  - ISRC 1 CTRL 1 */ 
 	{ 0x00000EF1, 0x0000 },   /* R3825  - ISRC 1 CTRL 2 */ 
 	{ 0x00000EF2, 0x0000 },   /* R3826  - ISRC 1 CTRL 3 */ 
@@ -1062,8 +1060,6 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL1_CONTROL_4:
 	case ARIZONA_FLL1_CONTROL_5:
 	case ARIZONA_FLL1_CONTROL_6:
-	case ARIZONA_FLL1_LOOP_FILTER_TEST_1:
-	case ARIZONA_FLL1_NCO_TEST_0:
 	case ARIZONA_FLL1_CONTROL_7:
 	case ARIZONA_FLL1_SYNCHRONISER_1:
 	case ARIZONA_FLL1_SYNCHRONISER_2:
@@ -1080,8 +1076,6 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_FLL2_CONTROL_4:
 	case ARIZONA_FLL2_CONTROL_5:
 	case ARIZONA_FLL2_CONTROL_6:
-	case ARIZONA_FLL2_LOOP_FILTER_TEST_1:
-	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_FLL2_CONTROL_7:
 	case ARIZONA_FLL2_SYNCHRONISER_1:
 	case ARIZONA_FLL2_SYNCHRONISER_2:
@@ -1849,8 +1843,6 @@ static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 	case ARIZONA_HAPTICS_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_1_STATUS:
 	case ARIZONA_ASYNC_SAMPLE_RATE_2_STATUS:
-	case ARIZONA_FLL1_NCO_TEST_0:
-	case ARIZONA_FLL2_NCO_TEST_0:
 	case ARIZONA_DAC_COMP_1:
 	case ARIZONA_DAC_COMP_2:
 	case ARIZONA_DAC_COMP_3:

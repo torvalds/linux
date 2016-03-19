@@ -24,11 +24,14 @@ config SND_RAWMIDI
 config SND_COMPRESS_OFFLOAD
 	tristate
 
-# To be effective this also requires INPUT - users should say:
-#    select SND_JACK if INPUT=y || INPUT=SND
-# to avoid having to force INPUT on.
 config SND_JACK
 	bool
+
+# enable input device support in jack layer
+config SND_JACK_INPUT_DEV
+	bool
+	depends on SND_JACK
+	default y if INPUT=y || INPUT=SND
 
 config SND_SEQUENCER
 	tristate "Sequencer support"

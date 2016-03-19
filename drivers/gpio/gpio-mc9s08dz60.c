@@ -103,17 +103,7 @@ static int mc9s08dz60_probe(struct i2c_client *client,
 	mc9s->client = client;
 	i2c_set_clientdata(client, mc9s);
 
-	return gpiochip_add_data(&mc9s->chip, mc9s);
-}
-
-static int mc9s08dz60_remove(struct i2c_client *client)
-{
-	struct mc9s08dz60 *mc9s;
-
-	mc9s = i2c_get_clientdata(client);
-
-	gpiochip_remove(&mc9s->chip);
-	return 0;
+	return devm_gpiochip_add_data(&client->dev, &mc9s->chip, mc9s);
 }
 
 static const struct i2c_device_id mc9s08dz60_id[] = {
@@ -128,7 +118,6 @@ static struct i2c_driver mc9s08dz60_i2c_driver = {
 		.name = "mc9s08dz60",
 	},
 	.probe = mc9s08dz60_probe,
-	.remove = mc9s08dz60_remove,
 	.id_table = mc9s08dz60_id,
 };
 

@@ -14,8 +14,8 @@
     #define i2cWriteReg sm750_hw_i2c_write_reg
     #define i2cReadReg  sm750_hw_i2c_read_reg
 #else
-    #define i2cWriteReg swI2CWriteReg
-    #define i2cReadReg  swI2CReadReg
+    #define i2cWriteReg sm750_sw_i2c_write_reg
+    #define i2cReadReg  sm750_sw_i2c_read_reg
 #endif
 
 /* SII164 Vendor and Device ID */
@@ -236,7 +236,7 @@ long sii164InitChip(
 	}
 
 	/* Return -1 if initialization fails. */
-	return (-1);
+	return -1;
 }
 
 

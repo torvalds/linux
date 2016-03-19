@@ -70,7 +70,7 @@ struct hist_key {
 };
 
 struct bpf_map_def SEC("maps") my_hist_map = {
-	.type = BPF_MAP_TYPE_HASH,
+	.type = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size = sizeof(struct hist_key),
 	.value_size = sizeof(long),
 	.max_entries = 1024,

@@ -261,34 +261,23 @@ static int wm8994_gpio_probe(struct platform_device *pdev)
 	else
 		wm8994_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add_data(&wm8994_gpio->gpio_chip, wm8994_gpio);
+	ret = devm_gpiochip_add_data(&pdev->dev, &wm8994_gpio->gpio_chip,
+				     wm8994_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, wm8994_gpio);
 
 	return ret;
-
-err:
-	return ret;
-}
-
-static int wm8994_gpio_remove(struct platform_device *pdev)
-{
-	struct wm8994_gpio *wm8994_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&wm8994_gpio->gpio_chip);
-	return 0;
 }
 
 static struct platform_driver wm8994_gpio_driver = {
 	.driver.name	= "wm8994-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= wm8994_gpio_probe,
-	.remove		= wm8994_gpio_remove,
 };
 
 static int __init wm8994_gpio_init(void)

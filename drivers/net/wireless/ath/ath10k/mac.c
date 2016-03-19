@@ -1358,10 +1358,7 @@ static int ath10k_mac_setup_bcn_p2p_ie(struct ath10k_vif *arvif,
 	const u8 *p2p_ie;
 	int ret;
 
-	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
-		return 0;
-
-	if (arvif->vdev_subtype != WMI_VDEV_SUBTYPE_P2P_GO)
+	if (arvif->vif->type != NL80211_IFTYPE_AP || !arvif->vif->p2p)
 		return 0;
 
 	mgmt = (void *)bcn->data;
@@ -3259,8 +3256,7 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 
 	/* This is case only for P2P_GO */
-	if (arvif->vdev_type != WMI_VDEV_TYPE_AP ||
-	    arvif->vdev_subtype != WMI_VDEV_SUBTYPE_P2P_GO)
+	if (vif->type != NL80211_IFTYPE_AP || !vif->p2p)
 		return;
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control))) {
@@ -3988,7 +3984,7 @@ static int ath10k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 static int ath10k_start(struct ieee80211_hw *hw)
 {
 	struct ath10k *ar = hw->priv;
-	u32 burst_enable;
+	u32 param;
 	int ret = 0;
 
 	/*
@@ -4031,13 +4027,15 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		goto err_power_down;
 	}
 
-	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->pmf_qos, 1);
+	param = ar->wmi.pdev_param->pmf_qos;
+	ret = ath10k_wmi_pdev_set_param(ar, param, 1);
 	if (ret) {
 		ath10k_warn(ar, "failed to enable PMF QOS: %d\n", ret);
 		goto err_core_stop;
 	}
 
-	ret = ath10k_wmi_pdev_set_param(ar, ar->wmi.pdev_param->dynamic_bw, 1);
+	param = ar->wmi.pdev_param->dynamic_bw;
+	ret = ath10k_wmi_pdev_set_param(ar, param, 1);
 	if (ret) {
 		ath10k_warn(ar, "failed to enable dynamic BW: %d\n", ret);
 		goto err_core_stop;
@@ -4053,8 +4051,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	}
 
 	if (test_bit(WMI_SERVICE_BURST, ar->wmi.svc_map)) {
-		burst_enable = ar->wmi.pdev_param->burst_enable;
-		ret = ath10k_wmi_pdev_set_param(ar, burst_enable, 0);
+		param = ar->wmi.pdev_param->burst_enable;
+		ret = ath10k_wmi_pdev_set_param(ar, param, 0);
 		if (ret) {
 			ath10k_warn(ar, "failed to disable burst: %d\n", ret);
 			goto err_core_stop;
@@ -4072,8 +4070,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	 * this problem.
 	 */
 
-	ret = ath10k_wmi_pdev_set_param(ar,
-					ar->wmi.pdev_param->arp_ac_override, 0);
+	param = ar->wmi.pdev_param->arp_ac_override;
+	ret = ath10k_wmi_pdev_set_param(ar, param, 0);
 	if (ret) {
 		ath10k_warn(ar, "failed to set arp ac override parameter: %d\n",
 			    ret);
@@ -4092,8 +4090,8 @@ static int ath10k_start(struct ieee80211_hw *hw)
 		}
 	}
 
-	ret = ath10k_wmi_pdev_set_param(ar,
-					ar->wmi.pdev_param->ani_enable, 1);
+	param = ar->wmi.pdev_param->ani_enable;
+	ret = ath10k_wmi_pdev_set_param(ar, param, 1);
 	if (ret) {
 		ath10k_warn(ar, "failed to enable ani by default: %d\n",
 			    ret);
@@ -4101,6 +4099,18 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	}
 
 	ar->ani_enabled = true;
+
+	if (test_bit(WMI_SERVICE_PEER_STATS, ar->wmi.svc_map)) {
+		param = ar->wmi.pdev_param->peer_stats_update_period;
+		ret = ath10k_wmi_pdev_set_param(ar, param,
+						PEER_DEFAULT_STATS_UPDATE_PERIOD);
+		if (ret) {
+			ath10k_warn(ar,
+				    "failed to set peer stats period : %d\n",
+				    ret);
+			goto err_core_stop;
+		}
+	}
 
 	ar->num_started_vdevs = 0;
 	ath10k_regd_update(ar);
@@ -4349,25 +4359,29 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		   bit, ar->free_vdev_map);
 
 	arvif->vdev_id = bit;
-	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
+	arvif->vdev_subtype =
+		ath10k_wmi_get_vdev_subtype(ar, WMI_VDEV_SUBTYPE_NONE);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
 		arvif->vdev_type = WMI_VDEV_TYPE_STA;
-		arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_DEVICE;
+		arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+					(ar, WMI_VDEV_SUBTYPE_P2P_DEVICE);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 		arvif->vdev_type = WMI_VDEV_TYPE_STA;
 		if (vif->p2p)
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_CLIENT;
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+					(ar, WMI_VDEV_SUBTYPE_P2P_CLIENT);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		arvif->vdev_type = WMI_VDEV_TYPE_IBSS;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		if (test_bit(WMI_SERVICE_MESH, ar->wmi.svc_map)) {
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_MESH;
+		if (test_bit(WMI_SERVICE_MESH_11S, ar->wmi.svc_map)) {
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+						(ar, WMI_VDEV_SUBTYPE_MESH_11S);
 		} else if (!test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 			ret = -EINVAL;
 			ath10k_warn(ar, "must load driver with rawmode=1 to add mesh interfaces\n");
@@ -4379,7 +4393,8 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		arvif->vdev_type = WMI_VDEV_TYPE_AP;
 
 		if (vif->p2p)
-			arvif->vdev_subtype = WMI_VDEV_SUBTYPE_P2P_GO;
+			arvif->vdev_subtype = ath10k_wmi_get_vdev_subtype
+						(ar, WMI_VDEV_SUBTYPE_P2P_GO);
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		arvif->vdev_type = WMI_VDEV_TYPE_MONITOR;
@@ -6366,12 +6381,13 @@ static u64 ath10k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 static int ath10k_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
-			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-			       u8 buf_size, bool amsdu)
+			       struct ieee80211_ampdu_params *params)
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac ampdu vdev_id %i sta %pM tid %hu action %d\n",
 		   arvif->vdev_id, sta->addr, tid, action);

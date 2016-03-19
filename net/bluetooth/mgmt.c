@@ -38,7 +38,7 @@
 #include "mgmt_util.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	11
+#define MGMT_REVISION	12
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
@@ -1382,8 +1382,19 @@ static int set_bondable(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (err < 0)
 		goto unlock;
 
-	if (changed)
+	if (changed) {
+		/* In limited privacy mode the change of bondable mode
+		 * may affect the local advertising address.
+		 */
+		if (hdev_is_powered(hdev) &&
+		    hci_dev_test_flag(hdev, HCI_ADVERTISING) &&
+		    hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
+		    hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
+			queue_work(hdev->req_workqueue,
+				   &hdev->discoverable_update);
+
 		err = new_settings(hdev, sk);
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -4423,7 +4434,7 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
-	if (cp->privacy != 0x00 && cp->privacy != 0x01)
+	if (cp->privacy != 0x00 && cp->privacy != 0x01 && cp->privacy != 0x02)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_PRIVACY,
 				       MGMT_STATUS_INVALID_PARAMS);
 
@@ -4442,10 +4453,15 @@ static int set_privacy(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 		changed = !hci_dev_test_and_set_flag(hdev, HCI_PRIVACY);
 		memcpy(hdev->irk, cp->irk, sizeof(hdev->irk));
 		hci_dev_set_flag(hdev, HCI_RPA_EXPIRED);
+		if (cp->privacy == 0x02)
+			hci_dev_set_flag(hdev, HCI_LIMITED_PRIVACY);
+		else
+			hci_dev_clear_flag(hdev, HCI_LIMITED_PRIVACY);
 	} else {
 		changed = hci_dev_test_and_clear_flag(hdev, HCI_PRIVACY);
 		memset(hdev->irk, 0, sizeof(hdev->irk));
 		hci_dev_clear_flag(hdev, HCI_RPA_EXPIRED);
+		hci_dev_clear_flag(hdev, HCI_LIMITED_PRIVACY);
 	}
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_PRIVACY, hdev);
@@ -5976,6 +5992,10 @@ static int add_advertising(struct sock *sk, struct hci_dev *hdev,
 				       status);
 
 	if (cp->instance < 1 || cp->instance > HCI_MAX_ADV_INSTANCES)
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
+				       MGMT_STATUS_INVALID_PARAMS);
+
+	if (data_len != sizeof(*cp) + cp->adv_data_len + cp->scan_rsp_len)
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_ADD_ADVERTISING,
 				       MGMT_STATUS_INVALID_PARAMS);
 

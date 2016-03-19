@@ -91,11 +91,10 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		return false;
 
-	ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-				     ie->ht_operation, &sta_chan_def);
-
-	ieee80211_vht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-				      ie->vht_operation, &sta_chan_def);
+	cfg80211_chandef_create(&sta_chan_def, sdata->vif.bss_conf.chandef.chan,
+				NL80211_CHAN_NO_HT);
+	ieee80211_chandef_ht_oper(ie->ht_operation, &sta_chan_def);
+	ieee80211_chandef_vht_oper(ie->vht_operation, &sta_chan_def);
 
 	if (!cfg80211_chandef_compatible(&sdata->vif.bss_conf.chandef,
 					 &sta_chan_def))

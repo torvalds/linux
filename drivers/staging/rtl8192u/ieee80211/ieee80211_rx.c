@@ -460,10 +460,8 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 	//	if (memcmp(entry->mac, mac, ETH_ALEN)){
 		if (p == &ieee->ibss_mac_hash[index]) {
 			entry = kmalloc(sizeof(struct ieee_ibss_seq), GFP_ATOMIC);
-			if (!entry) {
-				printk(KERN_WARNING "Cannot malloc new mac entry\n");
+			if (!entry)
 				return 0;
-			}
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num[tid] = seq;
 			entry->frag_num[tid] = frag;
@@ -594,12 +592,18 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
-	struct ieee80211_rxb *prxbIndicateArray[REORDER_WIN_SIZE];
+	struct ieee80211_rxb **prxbIndicateArray;
 	u8			WinSize = pHTInfo->RxReorderWinSize;
 	u16			WinEnd = (pTS->RxIndicateSeq + WinSize -1)%4096;
 	u8			index = 0;
 	bool			bMatchWinStart = false, bPktInBuf = false;
 	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): Seq is %d,pTS->RxIndicateSeq is %d, WinSize is %d\n",__func__,SeqNum,pTS->RxIndicateSeq,WinSize);
+
+	prxbIndicateArray = kmalloc(sizeof(struct ieee80211_rxb *) *
+			REORDER_WIN_SIZE, GFP_KERNEL);
+	if (!prxbIndicateArray)
+		return;
+
 	/* Rx Reorder initialize condition.*/
 	if (pTS->RxIndicateSeq == 0xffff) {
 		pTS->RxIndicateSeq = SeqNum;
@@ -618,6 +622,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 			kfree(prxb);
 			prxb = NULL;
 		}
+
+		kfree(prxbIndicateArray);
 		return;
 	}
 
@@ -741,6 +747,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		// Indicate packets
 		if(index>REORDER_WIN_SIZE){
 			IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): Rx Reorer buffer full!! \n");
+			kfree(prxbIndicateArray);
 			return;
 		}
 		ieee80211_indicate_packets(ieee, prxbIndicateArray, index);
@@ -752,9 +759,12 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
 		if(timer_pending(&pTS->RxPktPendingTimer))
 			del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxPktPendingTimer.expires = jiffies + MSECS(pHTInfo->RxReorderPendingTime);
+		pTS->RxPktPendingTimer.expires = jiffies +
+				msecs_to_jiffies(pHTInfo->RxReorderPendingTime);
 		add_timer(&pTS->RxPktPendingTimer);
 	}
+
+	kfree(prxbIndicateArray);
 }
 
 static u8 parse_subframe(struct sk_buff *skb,
@@ -897,7 +907,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	//added by amy for reorder
 #ifdef NOT_YET
 	struct net_device *wds = NULL;
-	struct sk_buff *skb2 = NULL;
 	struct net_device *wds = NULL;
 	int from_assoc_ap = 0;
 	void *sta = NULL;
@@ -1277,11 +1286,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	payload = skb->data + hdrlen;
 	//ethertype = (payload[6] << 8) | payload[7];
 	rxb = kmalloc(sizeof(struct ieee80211_rxb), GFP_ATOMIC);
-	if (rxb == NULL)
-	{
-		IEEE80211_DEBUG(IEEE80211_DL_ERR,"%s(): kmalloc rxb error\n",__func__);
+	if (!rxb)
 		goto rx_dropped;
-	}
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
 	if (parse_subframe(skb, rx_stats, rxb, src, dst) == 0) {

@@ -51,7 +51,7 @@ static void rsnd_mix_volume_init(struct rsnd_dai_stream *io,
 	rsnd_mod_write(mod, MIX_MIXIR, 1);
 
 	/* General Information */
-	rsnd_mod_write(mod, MIX_ADINR, rsnd_get_adinr_chan(mod, io));
+	rsnd_mod_write(mod, MIX_ADINR, rsnd_runtime_channel_after_ctu(io));
 
 	/* volume step */
 	rsnd_mod_write(mod, MIX_MIXMR, 0);
@@ -172,7 +172,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(mix), &rsnd_mix_ops,
-				    clk, RSND_MOD_MIX, i);
+				    clk, rsnd_mod_get_status, RSND_MOD_MIX, i);
 		if (ret)
 			goto rsnd_mix_probe_done;
 

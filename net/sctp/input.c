@@ -221,7 +221,7 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 
 	/* Create an SCTP packet structure. */
-	chunk = sctp_chunkify(skb, asoc, sk);
+	chunk = sctp_chunkify(skb, asoc, sk, GFP_ATOMIC);
 	if (!chunk)
 		goto discard_release;
 	SCTP_INPUT_CB(skb)->chunk = chunk;
@@ -937,7 +937,6 @@ static struct sctp_association *__sctp_lookup_association(
 	struct sctp_transport *t;
 	struct sctp_association *asoc = NULL;
 
-	rcu_read_lock();
 	t = sctp_addrs_lookup_transport(net, local, peer);
 	if (!t || !sctp_transport_hold(t))
 		goto out;
@@ -949,7 +948,6 @@ static struct sctp_association *__sctp_lookup_association(
 	sctp_transport_put(t);
 
 out:
-	rcu_read_unlock();
 	return asoc;
 }
 
@@ -962,7 +960,9 @@ struct sctp_association *sctp_lookup_association(struct net *net,
 {
 	struct sctp_association *asoc;
 
+	rcu_read_lock();
 	asoc = __sctp_lookup_association(net, laddr, paddr, transportp);
+	rcu_read_unlock();
 
 	return asoc;
 }

@@ -30,8 +30,7 @@
 #include <linux/ata_platform.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/regmap.h>
-
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #define DRV_NAME		"pata_at91"
 #define DRV_VERSION		"0.3"

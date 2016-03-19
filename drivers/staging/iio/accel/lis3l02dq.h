@@ -67,7 +67,8 @@
 #define LIS3L02DQ_REG_CTRL_2_THREE_WIRE_SPI_MODE	0x02
 
 /* Data alignment, default is 12 bit right justified
- * - option for 16 bit left justified */
+ * - option for 16 bit left justified
+ */
 #define LIS3L02DQ_REG_CTRL_2_DATA_ALIGNMENT_16_BIT_LEFT_JUSTIFIED	0x01
 
 /* Interrupt related stuff */
@@ -77,7 +78,8 @@
 #define LIS3L02DQ_REG_WAKE_UP_CFG_BOOLEAN_AND		0x80
 
 /* Latch interrupt request,
- * if on ack must be given by reading the ack register */
+ * if on ack must be given by reading the ack register
+ */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC		0x40
 
 /* Z Interrupt on High (above threshold) */
@@ -94,7 +96,8 @@
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW 0x01
 
 /* Register that gives description of what caused interrupt
- * - latched if set in CFG_ADDRES */
+ * - latched if set in CFG_ADDRES
+ */
 #define LIS3L02DQ_REG_WAKE_UP_SRC_ADDR			0x24
 /* top bit ignored */
 /* Interrupt Active */
@@ -123,7 +126,8 @@
 #define LIS3L02DQ_REG_STATUS_X_NEW_DATA			0x01
 
 /* The accelerometer readings - low and high bytes.
- * Form of high byte dependent on justification set in ctrl reg */
+ * Form of high byte dependent on justification set in ctrl reg
+ */
 #define LIS3L02DQ_REG_OUT_X_L_ADDR			0x28
 #define LIS3L02DQ_REG_OUT_X_H_ADDR			0x29
 #define LIS3L02DQ_REG_OUT_Y_L_ADDR			0x2A
@@ -132,7 +136,8 @@
 #define LIS3L02DQ_REG_OUT_Z_H_ADDR			0x2D
 
 /* Threshold values for all axes and both above and below thresholds
- * - i.e. there is only one value */
+ * - i.e. there is only one value
+ */
 #define LIS3L02DQ_REG_THS_L_ADDR			0x2E
 #define LIS3L02DQ_REG_THS_H_ADDR			0x2F
 

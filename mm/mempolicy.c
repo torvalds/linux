@@ -2559,9 +2559,7 @@ static void __init check_numabalancing_enable(void)
 		set_numabalancing_state(numabalancing_override == 1);
 
 	if (num_online_nodes() > 1 && !numabalancing_override) {
-		pr_info("%s automatic NUMA balancing. "
-			"Configure with numa_balancing= or the "
-			"kernel.numa_balancing sysctl",
+		pr_info("%s automatic NUMA balancing. Configure with numa_balancing= or the kernel.numa_balancing sysctl\n",
 			numabalancing_default ? "Enabling" : "Disabling");
 		set_numabalancing_state(numabalancing_default);
 	}

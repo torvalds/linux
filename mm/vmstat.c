@@ -826,6 +826,7 @@ const char * const vmstat_text[] = {
 	"compact_stall",
 	"compact_fail",
 	"compact_success",
+	"compact_daemon_wake",
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -847,6 +848,7 @@ const char * const vmstat_text[] = {
 	"thp_collapse_alloc_failed",
 	"thp_split_page",
 	"thp_split_page_failed",
+	"thp_deferred_split_page",
 	"thp_split_pmd",
 	"thp_zero_page_alloc",
 	"thp_zero_page_alloc_failed",

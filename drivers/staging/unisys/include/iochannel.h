@@ -575,7 +575,7 @@ struct spar_io_channel_protocol {
  * room)
  */
 static inline  u16
-add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
+add_physinfo_entries(u64 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
 		     u16 max_pi_arr_entries, struct phys_info pi_arr[])
 {
 	u32 len;
@@ -589,21 +589,19 @@ add_physinfo_entries(u32 inp_pfn, u16 inp_off, u32 inp_len, u16 index,
 		pi_arr[index].pi_pfn = inp_pfn;
 		pi_arr[index].pi_off = (u16)inp_off;
 		pi_arr[index].pi_len = (u16)inp_len;
-		    return index + 1;
+		return index + 1;
 	}
 
-	    /* this entry spans multiple pages */
-	    for (len = inp_len, i = 0; len;
-		 len -= pi_arr[index + i].pi_len, i++) {
+	/* this entry spans multiple pages */
+	for (len = inp_len, i = 0; len;
+		len -= pi_arr[index + i].pi_len, i++) {
 		if (index + i >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index + i].pi_pfn = inp_pfn + i;
 		if (i == 0) {
 			pi_arr[index].pi_off = inp_off;
 			pi_arr[index].pi_len = firstlen;
-		}
-
-		else {
+		} else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
 			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);

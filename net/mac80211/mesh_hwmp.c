@@ -205,9 +205,9 @@ static void prepare_frame_for_deferred_tx(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 
-	skb_set_mac_header(skb, 0);
-	skb_set_network_header(skb, 0);
-	skb_set_transport_header(skb, 0);
+	skb_reset_mac_header(skb);
+	skb_reset_network_header(skb);
+	skb_reset_transport_header(skb);
 
 	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
 	skb_set_queue_mapping(skb, IEEE80211_AC_VO);

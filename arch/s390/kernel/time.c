@@ -1432,7 +1432,7 @@ device_initcall(etr_init_sysfs);
 /*
  * Server Time Protocol (STP) code.
  */
-static int stp_online;
+static bool stp_online;
 static struct stp_sstpi stp_info;
 static void *stp_page;
 
@@ -1443,11 +1443,7 @@ static struct timer_list stp_timer;
 
 static int __init early_parse_stp(char *p)
 {
-	if (strncmp(p, "off", 3) == 0)
-		stp_online = 0;
-	else if (strncmp(p, "on", 2) == 0)
-		stp_online = 1;
-	return 0;
+	return kstrtobool(p, &stp_online);
 }
 early_param("stp", early_parse_stp);
 

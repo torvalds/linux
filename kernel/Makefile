@@ -14,8 +14,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 obj-$(CONFIG_MULTIUSER) += groups.o
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace debug files and internal ftrace files
-CFLAGS_REMOVE_cgroup-debug.o = $(CC_FLAGS_FTRACE)
+# Do not trace internal ftrace files
 CFLAGS_REMOVE_irq_work.o = $(CC_FLAGS_FTRACE)
 endif
 

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -105,6 +106,24 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 	IWL_DEBUG_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
 	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, 0,
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
+}
+
+static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
+{
+	int i;
+	struct iwl_rss_config_cmd cmd = {
+		.flags = cpu_to_le32(IWL_RSS_ENABLE),
+		.hash_mask = IWL_RSS_HASH_TYPE_IPV4_TCP |
+			     IWL_RSS_HASH_TYPE_IPV4_PAYLOAD |
+			     IWL_RSS_HASH_TYPE_IPV6_TCP |
+			     IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
+		cmd.indirection_table[i] = i % mvm->trans->num_rx_queues;
+	memcpy(cmd.secret_key, mvm->secret_key, sizeof(cmd.secret_key));
+
+	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
 }
 
 void iwl_free_fw_paging(struct iwl_mvm *mvm)
@@ -520,7 +539,9 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	struct iwl_sf_region st_fwrd_space;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
-	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE))
+	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
+	    !(fw_has_capa(&mvm->fw->ucode_capa,
+			  IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED)))
 		fw = iwl_get_ucode_image(mvm, IWL_UCODE_REGULAR_USNIFFER);
 	else
 		fw = iwl_get_ucode_image(mvm, ucode_type);
@@ -896,6 +917,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
+	/* Init RSS configuration */
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		ret = iwl_send_rss_cfg_cmd(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
+				ret);
+			goto error;
+		}
+	}
+
 	/* init the fw <-> mac80211 STA mapping */
 	for (i = 0; i < IWL_MVM_STATION_COUNT; i++)
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
@@ -925,8 +956,26 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+#ifdef CONFIG_THERMAL
+	if (iwl_mvm_is_tt_in_fw(mvm)) {
+		/* in order to give the responsibility of ct-kill and
+		 * TX backoff to FW we need to send empty temperature reporting
+		 * cmd during init time
+		 */
+		iwl_mvm_send_temp_report_ths_cmd(mvm);
+	} else {
+		/* Initialize tx backoffs to the minimal possible */
+		iwl_mvm_tt_tx_backoff(mvm, 0);
+	}
+
+	/* TODO: read the budget from BIOS / Platform NVM */
+	if (iwl_mvm_is_ctdp_supported(mvm) && mvm->cooling_dev.cur_state > 0)
+		ret = iwl_mvm_ctdp_command(mvm, CTDP_CMD_OPERATION_START,
+					   mvm->cooling_dev.cur_state);
+#else
 	/* Initialize tx backoffs to the minimal possible */
 	iwl_mvm_tt_tx_backoff(mvm, 0);
+#endif
 
 	WARN_ON(iwl_mvm_config_ltr(mvm));
 
@@ -962,7 +1011,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
-	iwl_trans_stop_device(mvm->trans);
+	iwl_mvm_stop_device(mvm);
 	return ret;
 }
 
@@ -1006,7 +1055,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 
 	return 0;
  error:
-	iwl_trans_stop_device(mvm->trans);
+	iwl_mvm_stop_device(mvm);
 	return ret;
 }
 
