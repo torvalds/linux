@@ -431,7 +431,7 @@ static inline int sctp_frag_point(const struct sctp_association *asoc, int pmtu)
 	if (asoc->user_frag)
 		frag = min_t(int, frag, asoc->user_frag);
 
-	frag = min_t(int, frag, SCTP_MAX_CHUNK_LEN);
+	frag = WORD_TRUNC(min_t(int, frag, SCTP_MAX_CHUNK_LEN));
 
 	return frag;
 }
