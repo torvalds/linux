@@ -159,8 +159,6 @@ static int nd_blk_do_bvec(struct nd_blk_device *blk_dev,
 
 static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 {
-	struct block_device *bdev = bio->bi_bdev;
-	struct gendisk *disk = bdev->bd_disk;
 	struct bio_integrity_payload *bip;
 	struct nd_blk_device *blk_dev;
 	struct bvec_iter iter;
@@ -181,7 +179,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	bip = bio_integrity(bio);
-	blk_dev = disk->private_data;
+	blk_dev = q->queuedata;
 	rw = bio_data_dir(bio);
 	do_acct = nd_iostat_start(bio, &start);
 	bio_for_each_segment(bvec, bio, iter) {
@@ -268,6 +266,7 @@ static int nd_blk_attach_disk(struct device *dev,
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_logical_block_size(q, blk_dev->sector_size);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	q->queuedata = blk_dev;
 
 	disk = alloc_disk(0);
 	if (!disk)
@@ -280,7 +279,6 @@ static int nd_blk_attach_disk(struct device *dev,
 	disk->driverfs_dev	= &ndns->dev;
 	disk->first_minor	= 0;
 	disk->fops		= &nd_blk_fops;
-	disk->private_data	= blk_dev;
 	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;
 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
