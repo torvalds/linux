@@ -1924,7 +1924,6 @@ struct amdgpu_device {
 	/* BIOS */
 	uint8_t				*bios;
 	bool				is_atom_bios;
-	uint16_t			bios_header_start;
 	struct amdgpu_bo		*stollen_vga_memory;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 
