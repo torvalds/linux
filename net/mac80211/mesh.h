@@ -133,11 +133,10 @@ struct mesh_path {
  * @rhash: the rhashtable containing struct mesh_paths, keyed by dest addr
  */
 struct mesh_table {
-	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 	struct hlist_head known_gates;
 	spinlock_t gates_lock;
-
 	struct rhashtable rhead;
+	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 };
 
 /* Recent multicast cache */
@@ -159,8 +158,8 @@ struct mesh_table {
  */
 struct rmc_entry {
 	struct hlist_node list;
-	u32 seqnum;
 	unsigned long exp_time;
+	u32 seqnum;
 	u8 sa[ETH_ALEN];
 };
 
