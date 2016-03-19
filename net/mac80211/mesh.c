@@ -220,6 +220,9 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 	u8 idx;
 	struct rmc_entry *p, *n;
 
+	if (!rmc)
+		return -1;
+
 	/* Don't care about endianness since only match matters */
 	memcpy(&seqnum, &mesh_hdr->seqnum, sizeof(mesh_hdr->seqnum));
 	idx = le32_to_cpu(mesh_hdr->seqnum) & rmc->idx_mask;
