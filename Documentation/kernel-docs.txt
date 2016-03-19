@@ -266,14 +266,14 @@
 
      * Title: "Kernel API changes from 2.0 to 2.2"
        Author: Richard Gooch.
-       URL:
-       http://www.linuxhq.com/guides/LKMPG/node28.html 
+       URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.2.html
        Keywords: 2.2, changes.
        Description: Kernel functions/structures/variables which changed
        from 2.0.x to 2.2.x.
 
      * Title: "Kernel API changes from 2.2 to 2.4"
        Author: Richard Gooch.
+       URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.4.html
        Keywords: 2.4, changes.
        Description: Kernel functions/structures/variables which changed
        from 2.2.x to 2.4.x.
