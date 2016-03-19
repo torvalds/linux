@@ -53,6 +53,8 @@
 #include <asm/cpu_device_id.h>
 #include "../perf_event.h"
 
+MODULE_LICENSE("GPL");
+
 /*
  * RAPL energy status counters
  */
@@ -592,6 +594,11 @@ static int rapl_cpu_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static struct notifier_block rapl_cpu_nb = {
+	.notifier_call	= rapl_cpu_notifier,
+	.priority       = CPU_PRI_PERF + 1,
+};
+
 static int rapl_check_hw_unit(bool apply_quirk)
 {
 	u64 msr_rapl_power_unit_bits;
@@ -660,7 +667,7 @@ static int __init rapl_prepare_cpus(void)
 	return 0;
 }
 
-static void __init cleanup_rapl_pmus(void)
+static void cleanup_rapl_pmus(void)
 {
 	int i;
 
@@ -691,51 +698,77 @@ static int __init init_rapl_pmus(void)
 	return 0;
 }
 
-static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
-	[0] = { .vendor = X86_VENDOR_INTEL, .family = 6 },
-	[1] = {},
+#define X86_RAPL_MODEL_MATCH(model, init)	\
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&init }
+
+struct intel_rapl_init_fun {
+	bool apply_quirk;
+	int cntr_mask;
+	struct attribute **attrs;
 };
+
+static const struct intel_rapl_init_fun snb_rapl_init __initconst = {
+	.apply_quirk = false,
+	.cntr_mask = RAPL_IDX_CLN,
+	.attrs = rapl_events_cln_attr,
+};
+
+static const struct intel_rapl_init_fun hsx_rapl_init __initconst = {
+	.apply_quirk = true,
+	.cntr_mask = RAPL_IDX_SRV,
+	.attrs = rapl_events_srv_attr,
+};
+
+static const struct intel_rapl_init_fun hsw_rapl_init __initconst = {
+	.apply_quirk = false,
+	.cntr_mask = RAPL_IDX_HSW,
+	.attrs = rapl_events_hsw_attr,
+};
+
+static const struct intel_rapl_init_fun snbep_rapl_init __initconst = {
+	.apply_quirk = false,
+	.cntr_mask = RAPL_IDX_SRV,
+	.attrs = rapl_events_srv_attr,
+};
+
+static const struct intel_rapl_init_fun knl_rapl_init __initconst = {
+	.apply_quirk = true,
+	.cntr_mask = RAPL_IDX_KNL,
+	.attrs = rapl_events_knl_attr,
+};
+
+static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
+	X86_RAPL_MODEL_MATCH(42, snb_rapl_init),	/* Sandy Bridge */
+	X86_RAPL_MODEL_MATCH(58, snb_rapl_init),	/* Ivy Bridge */
+	X86_RAPL_MODEL_MATCH(63, hsx_rapl_init),	/* Haswell-Server */
+	X86_RAPL_MODEL_MATCH(79, hsx_rapl_init),	/* Broadwell-Server */
+	X86_RAPL_MODEL_MATCH(60, hsw_rapl_init),	/* Haswell */
+	X86_RAPL_MODEL_MATCH(69, hsw_rapl_init),	/* Haswell-Celeron */
+	X86_RAPL_MODEL_MATCH(61, hsw_rapl_init),	/* Broadwell */
+	X86_RAPL_MODEL_MATCH(71, hsw_rapl_init),	/* Broadwell-H */
+	X86_RAPL_MODEL_MATCH(45, snbep_rapl_init),	/* Sandy Bridge-EP */
+	X86_RAPL_MODEL_MATCH(62, snbep_rapl_init),	/* IvyTown */
+	X86_RAPL_MODEL_MATCH(87, knl_rapl_init),	/* Knights Landing */
+	{},
+};
+
+MODULE_DEVICE_TABLE(x86cpu, rapl_cpu_match);
 
 static int __init rapl_pmu_init(void)
 {
-	bool apply_quirk = false;
+	const struct x86_cpu_id *id;
+	struct intel_rapl_init_fun *rapl_init;
+	bool apply_quirk;
 	int ret;
 
-	if (!x86_match_cpu(rapl_cpu_match))
+	id = x86_match_cpu(rapl_cpu_match);
+	if (!id)
 		return -ENODEV;
 
-	switch (boot_cpu_data.x86_model) {
-	case 42: /* Sandy Bridge */
-	case 58: /* Ivy Bridge */
-		rapl_cntr_mask = RAPL_IDX_CLN;
-		rapl_pmu_events_group.attrs = rapl_events_cln_attr;
-		break;
-	case 63: /* Haswell-Server */
-	case 79: /* Broadwell-Server */
-		apply_quirk = true;
-		rapl_cntr_mask = RAPL_IDX_SRV;
-		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
-		break;
-	case 60: /* Haswell */
-	case 69: /* Haswell-Celeron */
-	case 61: /* Broadwell */
-	case 71: /* Broadwell-H */
-		rapl_cntr_mask = RAPL_IDX_HSW;
-		rapl_pmu_events_group.attrs = rapl_events_hsw_attr;
-		break;
-	case 45: /* Sandy Bridge-EP */
-	case 62: /* IvyTown */
-		rapl_cntr_mask = RAPL_IDX_SRV;
-		rapl_pmu_events_group.attrs = rapl_events_srv_attr;
-		break;
-	case 87: /* Knights Landing */
-		apply_quirk = true;
-		rapl_cntr_mask = RAPL_IDX_KNL;
-		rapl_pmu_events_group.attrs = rapl_events_knl_attr;
-		break;
-	default:
-		return -ENODEV;
-	}
+	rapl_init = (struct intel_rapl_init_fun *)id->driver_data;
+	apply_quirk = rapl_init->apply_quirk;
+	rapl_cntr_mask = rapl_init->cntr_mask;
+	rapl_pmu_events_group.attrs = rapl_init->attrs;
 
 	ret = rapl_check_hw_unit(apply_quirk);
 	if (ret)
@@ -755,7 +788,7 @@ static int __init rapl_pmu_init(void)
 	if (ret)
 		goto out;
 
-	__perf_cpu_notifier(rapl_cpu_notifier);
+	__register_cpu_notifier(&rapl_cpu_nb);
 	cpu_notifier_register_done();
 	rapl_advertise();
 	return 0;
@@ -766,4 +799,14 @@ out:
 	cpu_notifier_register_done();
 	return ret;
 }
-device_initcall(rapl_pmu_init);
+module_init(rapl_pmu_init);
+
+static void __exit intel_rapl_exit(void)
+{
+	cpu_notifier_register_begin();
+	__unregister_cpu_notifier(&rapl_cpu_nb);
+	perf_pmu_unregister(&rapl_pmus->pmu);
+	cleanup_rapl_pmus();
+	cpu_notifier_register_done();
+}
+module_exit(intel_rapl_exit);

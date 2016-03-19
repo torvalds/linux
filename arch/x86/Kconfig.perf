@@ -8,4 +8,12 @@ config PERF_EVENTS_INTEL_UNCORE
 	Include support for Intel uncore performance events. These are
 	available on NehalemEX and more modern processors.
 
+config PERF_EVENTS_INTEL_RAPL
+	tristate "Intel rapl performance events"
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
+	default y
+	---help---
+	Include support for Intel rapl performance events for power
+	monitoring on modern processors.
+
 endmenu
