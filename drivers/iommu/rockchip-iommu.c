@@ -311,24 +311,22 @@ static void rk_iommu_zap_lines(struct rk_iommu *iommu, dma_addr_t iova,
 
 static bool rk_iommu_is_stall_active(struct rk_iommu *iommu)
 {
-	bool active = true;
+	u32 active = RK_MMU_STATUS_STALL_ACTIVE;
 	int i;
 
 	for (i = 0; i < iommu->num_mmu; i++)
-		active &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS) &
-					RK_MMU_STATUS_STALL_ACTIVE;
+		active &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
 
 	return active;
 }
 
 static bool rk_iommu_is_paging_enabled(struct rk_iommu *iommu)
 {
-	bool enable = true;
+	u32 enable = RK_MMU_STATUS_PAGING_ENABLED;
 	int i;
 
 	for (i = 0; i < iommu->num_mmu; i++)
-		enable &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS) &
-					RK_MMU_STATUS_PAGING_ENABLED;
+		enable &= rk_iommu_read(iommu->bases[i], RK_MMU_STATUS);
 
 	return enable;
 }
@@ -1049,9 +1047,9 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	for (i = 0; i < pdev->num_resources; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		iommu->bases[i] = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(iommu->bases[i]))
+		if (!res)
 			continue;
+		iommu->bases[i] = devm_ioremap_resource(&pdev->dev, res);
 		iommu->num_mmu++;
 	}
 	if (iommu->num_mmu == 0)
