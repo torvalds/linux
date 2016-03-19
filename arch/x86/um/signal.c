@@ -226,7 +226,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 #endif
 	{
 		err = copy_from_user(regs->regs.fp, (void *)sc.fpstate,
-				     sizeof(struct user_i387_struct));
+				     sizeof(struct _xstate));
 		if (err)
 			return 1;
 	}
@@ -234,7 +234,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 }
 
 static int copy_sc_to_user(struct sigcontext __user *to,
-			   struct _fpstate __user *to_fp, struct pt_regs *regs,
+			   struct _xstate __user *to_fp, struct pt_regs *regs,
 			   unsigned long mask)
 {
 	struct sigcontext sc;
@@ -300,23 +300,22 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			return 1;
 		}
 
-		err = convert_fxsr_to_user(to_fp, &fpx);
+		err = convert_fxsr_to_user(&to_fp->fpstate, &fpx);
 		if (err)
 			return 1;
 
-		err |= __put_user(fpx.swd, &to_fp->status);
-		err |= __put_user(X86_FXSR_MAGIC, &to_fp->magic);
+		err |= __put_user(fpx.swd, &to_fp->fpstate.status);
+		err |= __put_user(X86_FXSR_MAGIC, &to_fp->fpstate.magic);
 		if (err)
 			return 1;
 
-		if (copy_to_user(&to_fp->_fxsr_env[0], &fpx,
+		if (copy_to_user(&to_fp->fpstate._fxsr_env[0], &fpx,
 				 sizeof(struct user_fxsr_struct)))
 			return 1;
 	} else
 #endif
 	{
-		if (copy_to_user(to_fp, regs->regs.fp,
-				 sizeof(struct user_i387_struct)))
+		if (copy_to_user(to_fp, regs->regs.fp, sizeof(struct _xstate)))
 			return 1;
 	}
 
@@ -325,7 +324,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 
 #ifdef CONFIG_X86_32
 static int copy_ucontext_to_user(struct ucontext __user *uc,
-				 struct _fpstate __user *fp, sigset_t *set,
+				 struct _xstate __user *fp, sigset_t *set,
 				 unsigned long sp)
 {
 	int err = 0;
@@ -341,7 +340,7 @@ struct sigframe
 	char __user *pretcode;
 	int sig;
 	struct sigcontext sc;
-	struct _fpstate fpstate;
+	struct _xstate fpstate;
 	unsigned long extramask[_NSIG_WORDS-1];
 	char retcode[8];
 };
@@ -354,7 +353,7 @@ struct rt_sigframe
 	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
-	struct _fpstate fpstate;
+	struct _xstate fpstate;
 	char retcode[8];
 };
 
@@ -483,7 +482,7 @@ struct rt_sigframe
 	char __user *pretcode;
 	struct ucontext uc;
 	struct siginfo info;
-	struct _fpstate fpstate;
+	struct _xstate fpstate;
 };
 
 int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
