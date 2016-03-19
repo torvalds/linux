@@ -792,7 +792,8 @@ static int uv_scir_cpu_notify(struct notifier_block *self, unsigned long action,
 {
 	long cpu = (long)hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
 		uv_heartbeat_enable(cpu);
 		break;
