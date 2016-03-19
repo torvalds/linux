@@ -17,6 +17,11 @@
 struct gb_message;
 struct gb_host_device;
 
+#define gb_bundle_name(message)                                  \
+	(message->operation->connection->bundle ?                 \
+	dev_name(&message->operation->connection->bundle->dev) :  \
+	dev_name(&message->operation->connection->hd->svc->dev))
+
 DECLARE_EVENT_CLASS(gb_message,
 
 	TP_PROTO(struct gb_message *message),
@@ -24,7 +29,7 @@ DECLARE_EVENT_CLASS(gb_message,
 	TP_ARGS(message),
 
 	TP_STRUCT__entry(
-		__string(name, dev_name(&message->operation->connection->bundle->dev))
+		__string(name, gb_bundle_name(message))
 		__field(u16, op_id)
 		__field(u16, intf_cport_id)
 		__field(u16, hd_cport_id)
@@ -32,7 +37,7 @@ DECLARE_EVENT_CLASS(gb_message,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, dev_name(&message->operation->connection->bundle->dev))
+		__assign_str(name, gb_bundle_name(message))
 		__entry->op_id = message->operation->id;
 		__entry->intf_cport_id =
 			message->operation->connection->intf_cport_id;
