@@ -880,14 +880,12 @@ mwifiex_reset_write(struct file *file,
 {
 	struct mwifiex_private *priv = file->private_data;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	char cmd;
 	bool result;
+	int rc;
 
-	if (copy_from_user(&cmd, ubuf, sizeof(cmd)))
-		return -EFAULT;
-
-	if (strtobool(&cmd, &result))
-		return -EINVAL;
+	rc = kstrtobool_from_user(ubuf, count, &result);
+	if (rc)
+		return rc;
 
 	if (!result)
 		return -EINVAL;

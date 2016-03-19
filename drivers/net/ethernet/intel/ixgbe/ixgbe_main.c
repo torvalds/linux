@@ -1942,7 +1942,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 	/* Even if we own the page, we are not allowed to use atomic_set()
 	 * This would break get_page_unless_zero() users.
 	 */
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }

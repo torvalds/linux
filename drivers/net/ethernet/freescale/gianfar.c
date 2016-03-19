@@ -2944,7 +2944,7 @@ static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 	/* change offset to the other half */
 	rxb->page_offset ^= GFAR_RXB_TRUESIZE;
 
-	atomic_inc(&page->_count);
+	page_ref_inc(page);
 
 	return true;
 }

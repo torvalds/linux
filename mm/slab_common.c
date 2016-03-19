@@ -442,7 +442,7 @@ out_unlock:
 			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
 				name, err);
 		else {
-			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
+			pr_warn("kmem_cache_create(%s) failed with error %d\n",
 				name, err);
 			dump_stack();
 		}
@@ -510,7 +510,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	 * The memory cgroup could have been offlined while the cache
 	 * creation work was pending.
 	 */
-	if (!memcg_kmem_online(memcg))
+	if (memcg->kmem_state != KMEM_ONLINE)
 		goto out_unlock;
 
 	idx = memcg_cache_id(memcg);
@@ -726,8 +726,8 @@ void kmem_cache_destroy(struct kmem_cache *s)
 		err = shutdown_cache(s, &release, &need_rcu_barrier);
 
 	if (err) {
-		pr_err("kmem_cache_destroy %s: "
-		       "Slab cache still has objects\n", s->name);
+		pr_err("kmem_cache_destroy %s: Slab cache still has objects\n",
+		       s->name);
 		dump_stack();
 	}
 out_unlock:
@@ -1047,13 +1047,11 @@ static void print_slabinfo_header(struct seq_file *m)
 #else
 	seq_puts(m, "slabinfo - version: 2.1\n");
 #endif
-	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> "
-		 "<objperslab> <pagesperslab>");
+	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
 #ifdef CONFIG_DEBUG_SLAB
-	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> "
-		 "<error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
+	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
 	seq_putc(m, '\n');

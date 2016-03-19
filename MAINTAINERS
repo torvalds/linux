@@ -8498,7 +8498,7 @@ F:	include/crypto/pcrypt.h
 
 PER-CPU MEMORY ALLOCATOR
 M:	Tejun Heo <tj@kernel.org>
-M:	Christoph Lameter <cl@linux-foundation.org>
+M:	Christoph Lameter <cl@linux.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu.git
 S:	Maintained
 F:	include/linux/percpu*.h
@@ -11296,7 +11296,6 @@ F:	include/linux/cdrom.h
 F:	include/uapi/linux/cdrom.h
 
 UNISYS S-PAR DRIVERS
-M:	Benjamin Romer <benjamin.romer@unisys.com>
 M:	David Kershner <david.kershner@unisys.com>
 L:	sparmaintainer@unisys.com (Unisys internal)
 S:	Supported

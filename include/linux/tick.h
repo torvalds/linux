@@ -111,7 +111,7 @@ enum tick_dep_bits {
 #define TICK_DEP_MASK_CLOCK_UNSTABLE	(1 << TICK_DEP_BIT_CLOCK_UNSTABLE)
 
 #ifdef CONFIG_NO_HZ_COMMON
-extern int tick_nohz_enabled;
+extern bool tick_nohz_enabled;
 extern int tick_nohz_tick_stopped(void);
 extern void tick_nohz_idle_enter(void);
 extern void tick_nohz_idle_exit(void);
