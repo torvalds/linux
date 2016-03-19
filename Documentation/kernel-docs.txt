@@ -250,7 +250,7 @@
 
      * Title: "Analysis of the Ext2fs structure"
        Author: Louis-Dominique Dubeau.
-       URL: http://www.nondot.org/sabre/os/files/FileSystems/ext2fs/
+       URL: http://teaching.csse.uwa.edu.au/units/CITS2002/fs-ext2/
        Keywords: ext2, filesystem, ext2fs.
        Description: Description of ext2's blocks, directories, inodes,
        bitmaps, invariants...
