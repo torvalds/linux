@@ -352,8 +352,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
 
-	sta->debugfs.add_has_run = true;
-
 	if (!stations_dir)
 		return;
 

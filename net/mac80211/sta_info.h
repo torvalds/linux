@@ -488,7 +488,6 @@ struct sta_info {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct sta_info_debugfsdentries {
 		struct dentry *dir;
-		bool add_has_run;
 	} debugfs;
 #endif
 
