@@ -38,11 +38,6 @@
 			cap-sd-highspeed;
 		};
 
-		ethernet@ff702000 {
-			phy-mode = "rgmii";
-			status = "okay";
-		};
-
 		sysmgr@ffd08000 {
 			cpu1-start-addr = <0xffd080c4>;
 		};
