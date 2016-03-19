@@ -421,12 +421,8 @@ void init_irq_proc(void)
 	/*
 	 * Create entries for all existing IRQs.
 	 */
-	for_each_irq_desc(irq, desc) {
-		if (!desc)
-			continue;
-
+	for_each_irq_desc(irq, desc)
 		register_irq_proc(irq, desc);
-	}
 }
 
 #ifdef CONFIG_GENERIC_IRQ_SHOW
