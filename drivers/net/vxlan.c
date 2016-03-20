@@ -1810,10 +1810,9 @@ static struct dst_entry *vxlan6_get_route(struct vxlan_dev *vxlan,
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
-	fl6.flowi6_tos = RT_TOS(tos);
 	fl6.daddr = *daddr;
 	fl6.saddr = vxlan->cfg.saddr.sin6.sin6_addr;
-	fl6.flowlabel = label;
+	fl6.flowlabel = ip6_make_flowinfo(RT_TOS(tos), label);
 	fl6.flowi6_mark = skb->mark;
 	fl6.flowi6_proto = IPPROTO_UDP;
 
