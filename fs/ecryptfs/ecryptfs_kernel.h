@@ -569,7 +569,6 @@ int ecryptfs_fill_zeros(struct file *file, loff_t new_length);
 int ecryptfs_encrypt_and_encode_filename(
 	char **encoded_name,
 	size_t *encoded_name_size,
-	struct ecryptfs_crypt_stat *crypt_stat,
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
 	const char *name, size_t name_size);
 struct dentry *ecryptfs_lower_dentry(struct dentry *this_dentry);
