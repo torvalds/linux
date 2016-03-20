@@ -535,9 +535,6 @@ static int qcount[NUMPRIO];
 
 #define RETRYCHAN(chan) ((chan) == SDPCM_EVENT_CHANNEL)
 
-/* Retry count for register access failures */
-static const uint retry_limit = 2;
-
 /* Limit on rounding up frames */
 static const uint max_roundup = 512;
 
