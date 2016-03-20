@@ -106,7 +106,7 @@ position j0, j1, j2;
 @match_function_and_data_after_init_timer_context
 depends on !patch &&
 !match_immediate_function_data_after_init_timer_context &&
-(context || org || report)@
+ (context || org || report)@
 expression a, b, e1, e2, e3, e4, e5;
 position j0, j1, j2;
 @@
@@ -127,7 +127,7 @@ position j0, j1, j2;
 @r3_context depends on !patch &&
 !match_immediate_function_data_after_init_timer_context &&
 !match_function_and_data_after_init_timer_context &&
-(context || org || report)@
+ (context || org || report)@
 expression c, e6, e7;
 position r1.p;
 position j0, j1;
