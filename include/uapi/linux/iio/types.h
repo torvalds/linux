@@ -38,6 +38,7 @@ enum iio_chan_type {
 	IIO_CONCENTRATION,
 	IIO_RESISTANCE,
 	IIO_PH,
+	IIO_UVINDEX,
 };
 
 enum iio_modifier {

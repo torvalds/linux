@@ -56,6 +56,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_CONCENTRATION] = "concentration",
 	[IIO_RESISTANCE] = "resistance",
 	[IIO_PH] = "ph",
+	[IIO_UVINDEX] = "uvindex",
 };
 
 static const char * const iio_ev_type_text[] = {
@@ -147,6 +148,7 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_CONCENTRATION:
 	case IIO_RESISTANCE:
 	case IIO_PH:
+	case IIO_UVINDEX:
 		break;
 	default:
 		return false;

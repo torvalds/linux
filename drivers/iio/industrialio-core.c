@@ -79,6 +79,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_CONCENTRATION] = "concentration",
 	[IIO_RESISTANCE] = "resistance",
 	[IIO_PH] = "ph",
+	[IIO_UVINDEX] = "uvindex",
 };
 
 static const char * const iio_modifier_names[] = {
