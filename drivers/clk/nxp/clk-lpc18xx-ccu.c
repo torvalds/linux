@@ -28,8 +28,6 @@
 #define CCU_BRANCH_IS_BUS	BIT(0)
 #define CCU_BRANCH_HAVE_DIV2	BIT(1)
 
-#define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
-
 struct lpc18xx_branch_clk_data {
 	const char **name;
 	int num;
@@ -222,7 +220,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 		div->width = 1;
 
 		div_hw = &div->hw;
-		div_ops = &clk_divider_ops;
+		div_ops = &clk_divider_ro_ops;
 	}
 
 	branch->gate.reg = branch->offset + reg_base;
