@@ -385,7 +385,7 @@ static ssize_t cstate_get_attr_cpumask(struct device *dev,
 static int cstate_pmu_event_init(struct perf_event *event)
 {
 	u64 cfg = event->attr.config;
-	int ret = 0;
+	int cpu;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -400,26 +400,36 @@ static int cstate_pmu_event_init(struct perf_event *event)
 	    event->attr.sample_period) /* no sampling */
 		return -EINVAL;
 
+	if (event->cpu < 0)
+		return -EINVAL;
+
 	if (event->pmu == &cstate_core_pmu) {
 		if (cfg >= PERF_CSTATE_CORE_EVENT_MAX)
 			return -EINVAL;
 		if (!core_msr[cfg].attr)
 			return -EINVAL;
 		event->hw.event_base = core_msr[cfg].msr;
+		cpu = cpumask_any_and(&cstate_core_cpu_mask,
+				      topology_sibling_cpumask(event->cpu));
 	} else if (event->pmu == &cstate_pkg_pmu) {
 		if (cfg >= PERF_CSTATE_PKG_EVENT_MAX)
 			return -EINVAL;
 		if (!pkg_msr[cfg].attr)
 			return -EINVAL;
 		event->hw.event_base = pkg_msr[cfg].msr;
-	} else
+		cpu = cpumask_any_and(&cstate_pkg_cpu_mask,
+				      topology_core_cpumask(event->cpu));
+	} else {
 		return -ENOENT;
+	}
 
-	/* must be done before validate_group */
+	if (cpu >= nr_cpu_ids)
+		return -ENODEV;
+
+	event->cpu = cpu;
 	event->hw.config = cfg;
 	event->hw.idx = -1;
-
-	return ret;
+	return 0;
 }
 
 static inline u64 cstate_pmu_read_counter(struct perf_event *event)
@@ -469,94 +479,69 @@ static int cstate_pmu_event_add(struct perf_event *event, int mode)
 	return 0;
 }
 
+/*
+ * Check if exiting cpu is the designated reader. If so migrate the
+ * events when there is a valid target available
+ */
 static void cstate_cpu_exit(int cpu)
 {
-	int i, id, target;
+	unsigned int target;
 
-	/* cpu exit for cstate core */
-	if (has_cstate_core) {
-		id = topology_core_id(cpu);
-		target = -1;
+	if (has_cstate_core &&
+	    cpumask_test_and_clear_cpu(cpu, &cstate_core_cpu_mask)) {
 
-		for_each_online_cpu(i) {
-			if (i == cpu)
-				continue;
-			if (id == topology_core_id(i)) {
-				target = i;
-				break;
-			}
-		}
-		if (cpumask_test_and_clear_cpu(cpu, &cstate_core_cpu_mask) && target >= 0)
+		target = cpumask_any_but(topology_sibling_cpumask(cpu), cpu);
+		/* Migrate events if there is a valid target */
+		if (target < nr_cpu_ids) {
 			cpumask_set_cpu(target, &cstate_core_cpu_mask);
-		WARN_ON(cpumask_empty(&cstate_core_cpu_mask));
-		if (target >= 0)
 			perf_pmu_migrate_context(&cstate_core_pmu, cpu, target);
+		}
 	}
 
-	/* cpu exit for cstate pkg */
-	if (has_cstate_pkg) {
-		id = topology_physical_package_id(cpu);
-		target = -1;
+	if (has_cstate_pkg &&
+	    cpumask_test_and_clear_cpu(cpu, &cstate_pkg_cpu_mask)) {
 
-		for_each_online_cpu(i) {
-			if (i == cpu)
-				continue;
-			if (id == topology_physical_package_id(i)) {
-				target = i;
-				break;
-			}
-		}
-		if (cpumask_test_and_clear_cpu(cpu, &cstate_pkg_cpu_mask) && target >= 0)
+		target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+		/* Migrate events if there is a valid target */
+		if (target < nr_cpu_ids) {
 			cpumask_set_cpu(target, &cstate_pkg_cpu_mask);
-		WARN_ON(cpumask_empty(&cstate_pkg_cpu_mask));
-		if (target >= 0)
 			perf_pmu_migrate_context(&cstate_pkg_pmu, cpu, target);
+		}
 	}
 }
 
 static void cstate_cpu_init(int cpu)
 {
-	int i, id;
+	unsigned int target;
 
-	/* cpu init for cstate core */
-	if (has_cstate_core) {
-		id = topology_core_id(cpu);
-		for_each_cpu(i, &cstate_core_cpu_mask) {
-			if (id == topology_core_id(i))
-				break;
-		}
-		if (i >= nr_cpu_ids)
-			cpumask_set_cpu(cpu, &cstate_core_cpu_mask);
-	}
+	/*
+	 * If this is the first online thread of that core, set it in
+	 * the core cpu mask as the designated reader.
+	 */
+	target = cpumask_any_and(&cstate_core_cpu_mask,
+				 topology_sibling_cpumask(cpu));
 
-	/* cpu init for cstate pkg */
-	if (has_cstate_pkg) {
-		id = topology_physical_package_id(cpu);
-		for_each_cpu(i, &cstate_pkg_cpu_mask) {
-			if (id == topology_physical_package_id(i))
-				break;
-		}
-		if (i >= nr_cpu_ids)
-			cpumask_set_cpu(cpu, &cstate_pkg_cpu_mask);
-	}
+	if (has_cstate_core && target >= nr_cpu_ids)
+		cpumask_set_cpu(cpu, &cstate_core_cpu_mask);
+
+	/*
+	 * If this is the first online thread of that package, set it
+	 * in the package cpu mask as the designated reader.
+	 */
+	target = cpumask_any_and(&cstate_pkg_cpu_mask,
+				 topology_core_cpumask(cpu));
+	if (has_cstate_pkg && target >= nr_cpu_ids)
+		cpumask_set_cpu(cpu, &cstate_pkg_cpu_mask);
 }
 
 static int cstate_cpu_notifier(struct notifier_block *self,
-				  unsigned long action, void *hcpu)
+			       unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_UP_PREPARE:
-		break;
 	case CPU_STARTING:
 		cstate_cpu_init(cpu);
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_DYING:
-		break;
-	case CPU_ONLINE:
-	case CPU_DEAD:
 		break;
 	case CPU_DOWN_PREPARE:
 		cstate_cpu_exit(cpu);
@@ -564,7 +549,6 @@ static int cstate_cpu_notifier(struct notifier_block *self,
 	default:
 		break;
 	}
-
 	return NOTIFY_OK;
 }
 
