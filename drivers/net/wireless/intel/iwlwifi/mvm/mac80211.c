@@ -848,6 +848,7 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 	u16 *ssn = &params->ssn;
 	u8 buf_size = params->buf_size;
 	bool amsdu = params->amsdu;
+	u16 timeout = params->timeout;
 
 	IWL_DEBUG_HT(mvm, "A-MPDU action on addr %pM tid %d: action %d\n",
 		     sta->addr, tid, action);
@@ -888,10 +889,12 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 			ret = -EINVAL;
 			break;
 		}
-		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, *ssn, true, buf_size);
+		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, *ssn, true, buf_size,
+					 timeout);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false, buf_size);
+		ret = iwl_mvm_sta_rx_agg(mvm, sta, tid, 0, false, buf_size,
+					 timeout);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		if (!iwl_enable_tx_ampdu(mvm->cfg)) {

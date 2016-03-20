@@ -424,6 +424,36 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	}
 }
 
+static void iwl_mvm_agg_rx_received(struct iwl_mvm *mvm, u8 baid)
+{
+	unsigned long now = jiffies;
+	unsigned long timeout;
+	struct iwl_mvm_baid_data *data;
+
+	rcu_read_lock();
+
+	data = rcu_dereference(mvm->baid_map[baid]);
+	if (WARN_ON(!data))
+		goto out;
+
+	if (!data->timeout)
+		goto out;
+
+	timeout = data->timeout;
+	/*
+	 * Do not update last rx all the time to avoid cache bouncing
+	 * between the rx queues.
+	 * Update it every timeout. Worst case is the session will
+	 * expire after ~ 2 * timeout, which doesn't matter that much.
+	 */
+	if (time_before(data->last_rx + TU_TO_JIFFIES(timeout), now))
+		/* Update is atomic */
+		data->last_rx = now;
+
+out:
+	rcu_read_unlock();
+}
+
 void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 			struct iwl_rx_cmd_buffer *rxb, int queue)
 {
@@ -494,6 +524,9 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		u8 baid = (u8)((le32_to_cpu(desc->reorder_data) &
+			       IWL_RX_MPDU_REORDER_BAID_MASK) >>
+			       IWL_RX_MPDU_REORDER_BAID_SHIFT);
 
 		/*
 		 * We have tx blocked stations (with CS bit). If we heard
@@ -546,6 +579,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 			*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 		}
+		if (baid != IWL_RX_REORDER_DATA_INVALID_BAID)
+			iwl_mvm_agg_rx_received(mvm, baid);
 	}
 
 	/*

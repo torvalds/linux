@@ -255,8 +255,10 @@ struct iwl_mvm_keyinfo {
 	__le64 hw_tkip_mic_tx_key;
 } __packed;
 
-#define IWL_ADD_STA_STATUS_MASK	0xFF
-#define IWL_ADD_STA_BAID_MASK	0xFF00
+#define IWL_ADD_STA_STATUS_MASK		0xFF
+#define IWL_ADD_STA_BAID_VALID_MASK	0x8000
+#define IWL_ADD_STA_BAID_MASK		0x7F00
+#define IWL_ADD_STA_BAID_SHIFT		8
 
 /**
  * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.

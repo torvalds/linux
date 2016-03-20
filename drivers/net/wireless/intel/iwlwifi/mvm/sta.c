@@ -223,6 +223,39 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	return ret;
 }
 
+static void iwl_mvm_rx_agg_session_expired(unsigned long data)
+{
+	struct iwl_mvm_baid_data __rcu **rcu_ptr = (void *)data;
+	struct iwl_mvm_baid_data *ba_data;
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvm_sta;
+	unsigned long timeout;
+
+	rcu_read_lock();
+
+	ba_data = rcu_dereference(*rcu_ptr);
+
+	if (WARN_ON(!ba_data))
+		goto unlock;
+
+	if (!ba_data->timeout)
+		goto unlock;
+
+	timeout = ba_data->last_rx + TU_TO_JIFFIES(ba_data->timeout * 2);
+	if (time_is_after_jiffies(timeout)) {
+		mod_timer(&ba_data->session_timer, timeout);
+		goto unlock;
+	}
+
+	/* Timer expired */
+	sta = rcu_dereference(ba_data->mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	ieee80211_stop_rx_ba_session_offl(mvm_sta->vif,
+					  sta->addr, ba_data->tid);
+unlock:
+	rcu_read_unlock();
+}
+
 static int iwl_mvm_tdls_sta_init(struct iwl_mvm *mvm,
 				 struct ieee80211_sta *sta)
 {
@@ -1134,11 +1167,22 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 #define IWL_MAX_RX_BA_SESSIONS 16
 
+static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_internal_rxq_notif data = {
+		.type = IWL_MVM_RXQ_EMPTY,
+		.sync = 1,
+	};
+
+	iwl_mvm_sync_rx_queues_internal(mvm, &data, sizeof(data));
+}
+
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		       int tid, u16 ssn, bool start, u8 buf_size)
+		       int tid, u16 ssn, bool start, u8 buf_size, u16 timeout)
 {
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct iwl_mvm_add_sta_cmd cmd = {};
+	struct iwl_mvm_baid_data *baid_data = NULL;
 	int ret;
 	u32 status;
 
@@ -1147,6 +1191,16 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (start && mvm->rx_ba_sessions >= IWL_MAX_RX_BA_SESSIONS) {
 		IWL_WARN(mvm, "Not enough RX BA SESSIONS\n");
 		return -ENOSPC;
+	}
+
+	if (iwl_mvm_has_new_rx_api(mvm) && start) {
+		/*
+		 * Allocate here so if allocation fails we can bail out early
+		 * before starting the BA session in the firmware
+		 */
+		baid_data = kzalloc(sizeof(*baid_data), GFP_KERNEL);
+		if (!baid_data)
+			return -ENOMEM;
 	}
 
 	cmd.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color);
@@ -1167,7 +1221,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 					  iwl_mvm_add_sta_cmd_size(mvm),
 					  &cmd, &status);
 	if (ret)
-		return ret;
+		goto out_free;
 
 	switch (status & IWL_ADD_STA_STATUS_MASK) {
 	case ADD_STA_SUCCESS:
@@ -1185,14 +1239,74 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	if (!ret) {
-		if (start)
-			mvm->rx_ba_sessions++;
-		else if (mvm->rx_ba_sessions > 0)
-			/* check that restart flow didn't zero the counter */
-			mvm->rx_ba_sessions--;
-	}
+	if (ret)
+		goto out_free;
 
+	if (start) {
+		u8 baid;
+
+		mvm->rx_ba_sessions++;
+
+		if (!iwl_mvm_has_new_rx_api(mvm))
+			return 0;
+
+		if (WARN_ON(!(status & IWL_ADD_STA_BAID_VALID_MASK))) {
+			ret = -EINVAL;
+			goto out_free;
+		}
+		baid = (u8)((status & IWL_ADD_STA_BAID_MASK) >>
+			    IWL_ADD_STA_BAID_SHIFT);
+		baid_data->baid = baid;
+		baid_data->timeout = timeout;
+		baid_data->last_rx = jiffies;
+		init_timer(&baid_data->session_timer);
+		baid_data->session_timer.function =
+			iwl_mvm_rx_agg_session_expired;
+		baid_data->session_timer.data =
+			(unsigned long)&mvm->baid_map[baid];
+		baid_data->mvm = mvm;
+		baid_data->tid = tid;
+		baid_data->sta_id = mvm_sta->sta_id;
+
+		mvm_sta->tid_to_baid[tid] = baid;
+		if (timeout)
+			mod_timer(&baid_data->session_timer,
+				  TU_TO_EXP_TIME(timeout * 2));
+
+		/*
+		 * protect the BA data with RCU to cover a case where our
+		 * internal RX sync mechanism will timeout (not that it's
+		 * supposed to happen) and we will free the session data while
+		 * RX is being processed in parallel
+		 */
+		WARN_ON(rcu_access_pointer(mvm->baid_map[baid]));
+		rcu_assign_pointer(mvm->baid_map[baid], baid_data);
+	} else if (mvm->rx_ba_sessions > 0) {
+		u8 baid = mvm_sta->tid_to_baid[tid];
+
+		/* check that restart flow didn't zero the counter */
+		mvm->rx_ba_sessions--;
+		if (!iwl_mvm_has_new_rx_api(mvm))
+			return 0;
+
+		if (WARN_ON(baid == IWL_RX_REORDER_DATA_INVALID_BAID))
+			return -EINVAL;
+
+		baid_data = rcu_access_pointer(mvm->baid_map[baid]);
+		if (WARN_ON(!baid_data))
+			return -EINVAL;
+
+		/* synchronize all rx queues so we can safely delete */
+		iwl_mvm_sync_rxq_del_ba(mvm);
+		del_timer_sync(&baid_data->session_timer);
+
+		RCU_INIT_POINTER(mvm->baid_map[baid], NULL);
+		kfree_rcu(baid_data, rcu_head);
+	}
+	return 0;
+
+out_free:
+	kfree(baid_data);
 	return ret;
 }
 

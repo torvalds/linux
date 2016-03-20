@@ -613,6 +613,27 @@ struct iwl_mvm_shared_mem_cfg {
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
 
+/**
+ * struct iwl_mvm_baid_data - BA session data
+ * @sta_id: station id
+ * @tid: tid of the session
+ * @baid baid of the session
+ * @timeout: the timeout set in the addba request
+ * @last_rx: last rx jiffies, updated only if timeout passed from last update
+ * @session_timer: timer to check if BA session expired, runs at 2 * timeout
+ * @mvm: mvm pointer, needed for timer context
+ */
+struct iwl_mvm_baid_data {
+	struct rcu_head rcu_head;
+	u8 sta_id;
+	u8 tid;
+	u8 baid;
+	u16 timeout;
+	unsigned long last_rx;
+	struct timer_list session_timer;
+	struct iwl_mvm *mvm;
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -921,6 +942,10 @@ struct iwl_mvm {
 
 	u32 ciphers[6];
 	struct iwl_mvm_tof_data tof_data;
+
+	struct ieee80211_vif *nan_vif;
+#define IWL_MAX_BAID	32
+	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];
 
 	/*
 	 * Drop beacons from other APs in AP mode when there are no connected
