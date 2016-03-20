@@ -9,8 +9,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __EXYNOS_PMU_H
-#define __EXYNOS_PMU_H
+#ifndef __LINUX_SOC_EXYNOS_PMU_H
+#define __LINUX_SOC_EXYNOS_PMU_H
 
 enum sys_powerdown {
 	SYS_AFTR,
@@ -21,4 +21,4 @@ enum sys_powerdown {
 
 extern void exynos_sys_powerdown_conf(enum sys_powerdown mode);
 
-#endif /* __EXYNOS_PMU_H */
+#endif /* __LINUX_SOC_EXYNOS_PMU_H */

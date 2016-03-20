@@ -21,7 +21,9 @@
 #include <linux/delay.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
+
 #include "common.h"
+#include "emev2.h"
 
 #define EMEV2_SCU_BASE 0x1e000000
 #define EMEV2_SMU_BASE 0xe0110000
