@@ -315,17 +315,21 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	expected_interval = min(expected_interval, data->next_timer_us);
 
 	if (CPUIDLE_DRIVER_STATE_START > 0) {
-		data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
+		struct cpuidle_state *s = &drv->states[CPUIDLE_DRIVER_STATE_START];
+		unsigned int polling_threshold;
+
 		/*
 		 * We want to default to C1 (hlt), not to busy polling
 		 * unless the timer is happening really really soon, or
 		 * C1's exit latency exceeds the user configured limit.
 		 */
-		if (expected_interval > drv->states[CPUIDLE_DRIVER_STATE_START].target_residency &&
-		    latency_req > drv->states[CPUIDLE_DRIVER_STATE_START].exit_latency &&
-		    !drv->states[CPUIDLE_DRIVER_STATE_START].disabled &&
+		polling_threshold = max_t(unsigned int, 20, s->target_residency);
+		if (data->next_timer_us > polling_threshold &&
+		    latency_req > s->exit_latency && !s->disabled &&
 		    !dev->states_usage[CPUIDLE_DRIVER_STATE_START].disable)
 			data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
+		else
+			data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
 	} else {
 		data->last_state_idx = CPUIDLE_DRIVER_STATE_START;
 	}
