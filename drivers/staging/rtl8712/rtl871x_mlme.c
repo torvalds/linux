@@ -1205,7 +1205,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 		return _FAIL;
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
-	if (psetauthparm == NULL) {
+	if (!psetauthparm) {
 		kfree(pcmd);
 		return _FAIL;
 	}
@@ -1234,7 +1234,7 @@ sint r8712_set_key(struct _adapter *adapter,
 	if (!pcmd)
 		return _FAIL;
 	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
-	if (psetkeyparm == NULL) {
+	if (!psetkeyparm) {
 		ret = _FAIL;
 		goto err_free_cmd;
 	}
