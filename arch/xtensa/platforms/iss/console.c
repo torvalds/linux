@@ -96,21 +96,23 @@ static void rs_poll(unsigned long priv)
 {
 	struct tty_port *port = (struct tty_port *)priv;
 	int i = 0;
+	int rd = 1;
 	unsigned char c;
 
 	spin_lock(&timer_lock);
 
 	while (simc_poll(0)) {
-		simc_read(0, &c, 1);
+		rd = simc_read(0, &c, 1);
+		if (rd <= 0)
+			break;
 		tty_insert_flip_char(port, c, TTY_NORMAL);
 		i++;
 	}
 
 	if (i)
 		tty_flip_buffer_push(port);
-
-
-	mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
+	if (rd)
+		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
 	spin_unlock(&timer_lock);
 }
 
