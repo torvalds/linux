@@ -504,7 +504,7 @@ int r8712_usbctrl_vendorreq(struct intf_priv *pintfpriv, u8 request, u16 value,
 	u8 *palloc_buf, *pIo_buf;
 
 	palloc_buf = kmalloc((u32)len + 16, GFP_ATOMIC);
-	if (palloc_buf == NULL)
+	if (!palloc_buf)
 		return -ENOMEM;
 	pIo_buf = palloc_buf + 16 - ((addr_t)(palloc_buf) & 0x0f);
 	if (requesttype == 0x01) {
