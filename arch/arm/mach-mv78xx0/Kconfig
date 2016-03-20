@@ -1,5 +1,6 @@
 menuconfig ARCH_MV78XX0
-	bool "Marvell MV78xx0" if ARCH_MULTI_V5
+	bool "Marvell MV78xx0"
+	depends on ARCH_MULTI_V5
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select MVEBU_MBUS
