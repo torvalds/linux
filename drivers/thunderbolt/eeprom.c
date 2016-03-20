@@ -388,6 +388,11 @@ int tb_drom_read(struct tb_switch *sw)
 		sw->ports[4].link_nr = 1;
 		sw->ports[3].dual_link_port = &sw->ports[4];
 		sw->ports[4].dual_link_port = &sw->ports[3];
+
+		/* Port 5 is inaccessible on this gen 1 controller */
+		if (sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE)
+			sw->ports[5].disabled = true;
+
 		return 0;
 	}
 
