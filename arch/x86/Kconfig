@@ -160,10 +160,6 @@ config INSTRUCTION_DECODER
 	def_bool y
 	depends on KPROBES || PERF_EVENTS || UPROBES
 
-config PERF_EVENTS_INTEL_UNCORE
-	def_bool y
-	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
-
 config OUTPUT_FORMAT
 	string
 	default "elf32-i386" if X86_32
@@ -1041,6 +1037,8 @@ config X86_MCE_INJECT
 config X86_THERMAL_VECTOR
 	def_bool y
 	depends on X86_MCE_INTEL
+
+source "arch/x86/Kconfig.perf"
 
 config X86_LEGACY_VM86
 	bool "Legacy VM86 support"

@@ -1,0 +1,11 @@
+menu "Performance monitoring"
+
+config PERF_EVENTS_INTEL_UNCORE
+	tristate "Intel uncore performance events"
+	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
+	default y
+	---help---
+	Include support for Intel uncore performance events. These are
+	available on NehalemEX and more modern processors.
+
+endmenu
