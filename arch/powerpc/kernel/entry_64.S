@@ -210,7 +210,29 @@ system_call:			/* label this so stack traces look sane */
 	li	r11,-MAX_ERRNO
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
-	cmpld	r3,r11
+
+	andi.	r0,r8,MSR_FP
+	beq 2f
+#ifdef CONFIG_ALTIVEC
+	andis.	r0,r8,MSR_VEC@h
+	bne	3f
+#endif
+2:	addi    r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_PPC_BOOK3S
+	mtmsrd	r10,1		/* Restore RI */
+#endif
+	bl	restore_math
+#ifdef CONFIG_PPC_BOOK3S
+	ld	r10,PACAKMSR(r13)
+	li	r9,MSR_RI
+	andc	r11,r10,r9 /* Re-clear RI */
+	mtmsrd	r11,1
+#endif
+	ld	r8,_MSR(r1)
+	ld	r3,RESULT(r1)
+	li	r11,-MAX_ERRNO
+
+3:	cmpld	r3,r11
 	ld	r5,_CCR(r1)
 	bge-	syscall_error
 .Lsyscall_error_cont:
@@ -602,8 +624,8 @@ _GLOBAL(ret_from_except_lite)
 
 	/* Check current_thread_info()->flags */
 	andi.	r0,r4,_TIF_USER_WORK_MASK
-#ifdef CONFIG_PPC_BOOK3E
 	bne	1f
+#ifdef CONFIG_PPC_BOOK3E
 	/*
 	 * Check to see if the dbcr0 register is set up to debug.
 	 * Use the internal debug mode bit to do this.
@@ -618,7 +640,9 @@ _GLOBAL(ret_from_except_lite)
 	mtspr	SPRN_DBSR,r10
 	b	restore
 #else
-	beq	restore
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	restore_math
+	b	restore
 #endif
 1:	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	2f
@@ -1143,8 +1167,12 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
-	blr
+	mflr	r12
+	mtctr	r12
+	mtlr	r0
+	bctr
 
+#ifndef CC_USING_MPROFILE_KERNEL
 _GLOBAL_TOC(ftrace_caller)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
@@ -1166,6 +1194,115 @@ _GLOBAL(ftrace_graph_stub)
 	ld	r0, 128(r1)
 	mtlr	r0
 	addi	r1, r1, 112
+
+#else /* CC_USING_MPROFILE_KERNEL */
+/*
+ *
+ * ftrace_caller() is the function that replaces _mcount() when ftrace is
+ * active.
+ *
+ * We arrive here after a function A calls function B, and we are the trace
+ * function for B. When we enter r1 points to A's stack frame, B has not yet
+ * had a chance to allocate one yet.
+ *
+ * Additionally r2 may point either to the TOC for A, or B, depending on
+ * whether B did a TOC setup sequence before calling us.
+ *
+ * On entry the LR points back to the _mcount() call site, and r0 holds the
+ * saved LR as it was on entry to B, ie. the original return address at the
+ * call site in A.
+ *
+ * Our job is to save the register state into a struct pt_regs (on the stack)
+ * and then arrange for the ftrace function to be called.
+ */
+_GLOBAL(ftrace_caller)
+	/* Save the original return address in A's stack frame */
+	std	r0,LRSAVE(r1)
+
+	/* Create our stack frame + pt_regs */
+	stdu	r1,-SWITCH_FRAME_SIZE(r1)
+
+	/* Save all gprs to pt_regs */
+	SAVE_8GPRS(0,r1)
+	SAVE_8GPRS(8,r1)
+	SAVE_8GPRS(16,r1)
+	SAVE_8GPRS(24,r1)
+
+	/* Load special regs for save below */
+	mfmsr   r8
+	mfctr   r9
+	mfxer   r10
+	mfcr	r11
+
+	/* Get the _mcount() call site out of LR */
+	mflr	r7
+	/* Save it as pt_regs->nip & pt_regs->link */
+	std     r7, _NIP(r1)
+	std     r7, _LINK(r1)
+
+	/* Save callee's TOC in the ABI compliant location */
+	std	r2, 24(r1)
+	ld	r2,PACATOC(r13)	/* get kernel TOC in r2 */
+
+	addis	r3,r2,function_trace_op@toc@ha
+	addi	r3,r3,function_trace_op@toc@l
+	ld	r5,0(r3)
+
+	/* Calculate ip from nip-4 into r3 for call below */
+	subi    r3, r7, MCOUNT_INSN_SIZE
+
+	/* Put the original return address in r4 as parent_ip */
+	mr	r4, r0
+
+	/* Save special regs */
+	std     r8, _MSR(r1)
+	std     r9, _CTR(r1)
+	std     r10, _XER(r1)
+	std     r11, _CCR(r1)
+
+	/* Load &pt_regs in r6 for call below */
+	addi    r6, r1 ,STACK_FRAME_OVERHEAD
+
+	/* ftrace_call(r3, r4, r5, r6) */
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+
+	/* Load ctr with the possibly modified NIP */
+	ld	r3, _NIP(r1)
+	mtctr	r3
+
+	/* Restore gprs */
+	REST_8GPRS(0,r1)
+	REST_8GPRS(8,r1)
+	REST_8GPRS(16,r1)
+	REST_8GPRS(24,r1)
+
+	/* Restore callee's TOC */
+	ld	r2, 24(r1)
+
+	/* Pop our stack frame */
+	addi r1, r1, SWITCH_FRAME_SIZE
+
+	/* Restore original LR for return to B */
+	ld	r0, LRSAVE(r1)
+	mtlr	r0
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	stdu	r1, -112(r1)
+.globl ftrace_graph_call
+ftrace_graph_call:
+	b	ftrace_graph_stub
+_GLOBAL(ftrace_graph_stub)
+	addi	r1, r1, 112
+#endif
+
+	ld	r0,LRSAVE(r1)	/* restore callee's lr at _mcount site */
+	mtlr	r0
+	bctr			/* jump after _mcount site */
+#endif /* CC_USING_MPROFILE_KERNEL */
+
 _GLOBAL(ftrace_stub)
 	blr
 #else
@@ -1198,6 +1335,7 @@ _GLOBAL(ftrace_stub)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#ifndef CC_USING_MPROFILE_KERNEL
 _GLOBAL(ftrace_graph_caller)
 	/* load r4 with local address */
 	ld	r4, 128(r1)
@@ -1221,6 +1359,56 @@ _GLOBAL(ftrace_graph_caller)
 	mtlr	r0
 	addi	r1, r1, 112
 	blr
+
+#else /* CC_USING_MPROFILE_KERNEL */
+_GLOBAL(ftrace_graph_caller)
+	/* with -mprofile-kernel, parameter regs are still alive at _mcount */
+	std	r10, 104(r1)
+	std	r9, 96(r1)
+	std	r8, 88(r1)
+	std	r7, 80(r1)
+	std	r6, 72(r1)
+	std	r5, 64(r1)
+	std	r4, 56(r1)
+	std	r3, 48(r1)
+
+	/* Save callee's TOC in the ABI compliant location */
+	std	r2, 24(r1)
+	ld	r2, PACATOC(r13)	/* get kernel TOC in r2 */
+
+	mfctr	r4		/* ftrace_caller has moved local addr here */
+	std	r4, 40(r1)
+	mflr	r3		/* ftrace_caller has restored LR from stack */
+	subi	r4, r4, MCOUNT_INSN_SIZE
+
+	bl	prepare_ftrace_return
+	nop
+
+	/*
+	 * prepare_ftrace_return gives us the address we divert to.
+	 * Change the LR to this.
+	 */
+	mtlr	r3
+
+	ld	r0, 40(r1)
+	mtctr	r0
+	ld	r10, 104(r1)
+	ld	r9, 96(r1)
+	ld	r8, 88(r1)
+	ld	r7, 80(r1)
+	ld	r6, 72(r1)
+	ld	r5, 64(r1)
+	ld	r4, 56(r1)
+	ld	r3, 48(r1)
+
+	/* Restore callee's TOC */
+	ld	r2, 24(r1)
+
+	addi	r1, r1, 112
+	mflr	r0
+	std	r0, LRSAVE(r1)
+	bctr
+#endif /* CC_USING_MPROFILE_KERNEL */
 
 _GLOBAL(return_to_handler)
 	/* need to save return values */

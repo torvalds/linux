@@ -261,7 +261,7 @@ static int ccdc_update_raw_params(struct ccdc_config_params_raw *raw_params)
 	 */
 	if (raw_params->fault_pxl.fp_num != config_params->fault_pxl.fp_num) {
 		if (fpc_physaddr != NULL) {
-			free_pages((unsigned long)fpc_physaddr,
+			free_pages((unsigned long)fpc_virtaddr,
 				   get_order
 				   (config_params->fault_pxl.fp_num *
 				   FP_NUM_BYTES));

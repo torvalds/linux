@@ -252,7 +252,8 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	char bf[160];
 	int printed = 0;
 	const int win_width = top->winsize.ws_col - 1;
-	struct hists *hists = evsel__hists(top->sym_evsel);
+	struct perf_evsel *evsel = top->sym_evsel;
+	struct hists *hists = evsel__hists(evsel);
 
 	puts(CONSOLE_CLEAR);
 
@@ -288,7 +289,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	}
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
@@ -540,6 +541,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 static void perf_top__sort_new_samples(void *arg)
 {
 	struct perf_top *t = arg;
+	struct perf_evsel *evsel = t->sym_evsel;
 	struct hists *hists;
 
 	perf_top__reset_sample_counters(t);
@@ -547,7 +549,7 @@ static void perf_top__sort_new_samples(void *arg)
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
-	hists = evsel__hists(t->sym_evsel);
+	hists = evsel__hists(evsel);
 
 	if (t->evlist->enabled) {
 		if (t->zero) {
@@ -559,7 +561,7 @@ static void perf_top__sort_new_samples(void *arg)
 	}
 
 	hists__collapse_resort(hists, NULL);
-	hists__output_resort(hists, NULL);
+	perf_evsel__output_resort(evsel, NULL);
 }
 
 static void *display_thread_tui(void *arg)
@@ -1063,7 +1065,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 	return parse_callchain_top_opt(arg);
 }
 
-static int perf_top_config(const char *var, const char *value, void *cb)
+static int perf_top_config(const char *var, const char *value, void *cb __maybe_unused)
 {
 	if (!strcmp(var, "top.call-graph"))
 		var = "call-graph.record-mode"; /* fall-through */
@@ -1072,7 +1074,7 @@ static int perf_top_config(const char *var, const char *value, void *cb)
 		return 0;
 	}
 
-	return perf_default_config(var, value, cb);
+	return 0;
 }
 
 static int
@@ -1212,6 +1214,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		     parse_branch_stack),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
 		    "Show raw trace event output (do not use print fmt or plugins)"),
+	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
+		    "Show entries in a hierarchy"),
 	OPT_END()
 	};
 	const char * const top_usage[] = {
@@ -1239,9 +1243,29 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_delete_evlist;
 	}
 
+	if (symbol_conf.report_hierarchy) {
+		/* disable incompatible options */
+		symbol_conf.event_group = false;
+		symbol_conf.cumulate_callchain = false;
+
+		if (field_order) {
+			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			parse_options_usage(top_usage, options, "fields", 0);
+			parse_options_usage(NULL, options, "hierarchy", 0);
+			goto out_delete_evlist;
+		}
+	}
+
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
 	sort__need_collapse = 1;
+
+	if (top.use_stdio)
+		use_browser = 0;
+	else if (top.use_tui)
+		use_browser = 1;
+
+	setup_browser(false);
 
 	if (setup_sorting(top.evlist) < 0) {
 		if (sort_order)
@@ -1251,13 +1275,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 					    options, "fields", 0);
 		goto out_delete_evlist;
 	}
-
-	if (top.use_stdio)
-		use_browser = 0;
-	else if (top.use_tui)
-		use_browser = 1;
-
-	setup_browser(false);
 
 	status = target__validate(target);
 	if (status) {

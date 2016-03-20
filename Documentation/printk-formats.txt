@@ -298,6 +298,24 @@ bitmap and its derivatives such as cpumask and nodemask:
 
 	Passed by reference.
 
+Flags bitfields such as page flags, gfp_flags:
+
+	%pGp	referenced|uptodate|lru|active|private
+	%pGg	GFP_USER|GFP_DMA32|GFP_NOWARN
+	%pGv	read|exec|mayread|maywrite|mayexec|denywrite
+
+	For printing flags bitfields as a collection of symbolic constants that
+	would construct the value. The type of flags is given by the third
+	character. Currently supported are [p]age flags, [v]ma_flags (both
+	expect unsigned long *) and [g]fp_flags (expects gfp_t *). The flag
+	names and print order depends on the particular	type.
+
+	Note that this format should not be used directly in TP_printk() part
+	of a tracepoint. Instead, use the show_*_flags() functions from
+	<trace/events/mmflags.h>.
+
+	Passed by reference.
+
 Network device features:
 
 	%pNF	0x000000000000c000

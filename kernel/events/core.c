@@ -3112,17 +3112,6 @@ done:
 	return rotate;
 }
 
-#ifdef CONFIG_NO_HZ_FULL
-bool perf_event_can_stop_tick(void)
-{
-	if (atomic_read(&nr_freq_events) ||
-	    __this_cpu_read(perf_throttled_count))
-		return false;
-	else
-		return true;
-}
-#endif
-
 void perf_event_task_tick(void)
 {
 	struct list_head *head = this_cpu_ptr(&active_ctx_list);
@@ -3133,6 +3122,7 @@ void perf_event_task_tick(void)
 
 	__this_cpu_inc(perf_throttled_seq);
 	throttled = __this_cpu_xchg(perf_throttled_count, 0);
+	tick_dep_clear_cpu(smp_processor_id(), TICK_DEP_BIT_PERF_EVENTS);
 
 	list_for_each_entry_safe(ctx, tmp, head, active_ctx_list)
 		perf_adjust_freq_unthr_context(ctx, throttled);
@@ -3564,6 +3554,28 @@ static void unaccount_event_cpu(struct perf_event *event, int cpu)
 		atomic_dec(&per_cpu(perf_cgroup_events, cpu));
 }
 
+#ifdef CONFIG_NO_HZ_FULL
+static DEFINE_SPINLOCK(nr_freq_lock);
+#endif
+
+static void unaccount_freq_event_nohz(void)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	spin_lock(&nr_freq_lock);
+	if (atomic_dec_and_test(&nr_freq_events))
+		tick_nohz_dep_clear(TICK_DEP_BIT_PERF_EVENTS);
+	spin_unlock(&nr_freq_lock);
+#endif
+}
+
+static void unaccount_freq_event(void)
+{
+	if (tick_nohz_full_enabled())
+		unaccount_freq_event_nohz();
+	else
+		atomic_dec(&nr_freq_events);
+}
+
 static void unaccount_event(struct perf_event *event)
 {
 	bool dec = false;
@@ -3580,7 +3592,7 @@ static void unaccount_event(struct perf_event *event)
 	if (event->attr.task)
 		atomic_dec(&nr_task_events);
 	if (event->attr.freq)
-		atomic_dec(&nr_freq_events);
+		unaccount_freq_event();
 	if (event->attr.context_switch) {
 		dec = true;
 		atomic_dec(&nr_switch_events);
@@ -6424,9 +6436,9 @@ static int __perf_event_overflow(struct perf_event *event,
 		if (unlikely(throttle
 			     && hwc->interrupts >= max_samples_per_tick)) {
 			__this_cpu_inc(perf_throttled_count);
+			tick_dep_set_cpu(smp_processor_id(), TICK_DEP_BIT_PERF_EVENTS);
 			hwc->interrupts = MAX_INTERRUPTS;
 			perf_log_throttle(event, 0);
-			tick_nohz_full_kick();
 			ret = 1;
 		}
 	}
@@ -6785,7 +6797,7 @@ static void swevent_hlist_release(struct swevent_htable *swhash)
 	kfree_rcu(hlist, rcu_head);
 }
 
-static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
+static void swevent_hlist_put_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 
@@ -6797,15 +6809,15 @@ static void swevent_hlist_put_cpu(struct perf_event *event, int cpu)
 	mutex_unlock(&swhash->hlist_mutex);
 }
 
-static void swevent_hlist_put(struct perf_event *event)
+static void swevent_hlist_put(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 }
 
-static int swevent_hlist_get_cpu(struct perf_event *event, int cpu)
+static int swevent_hlist_get_cpu(int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 	int err = 0;
@@ -6828,14 +6840,13 @@ exit:
 	return err;
 }
 
-static int swevent_hlist_get(struct perf_event *event)
+static int swevent_hlist_get(void)
 {
-	int err;
-	int cpu, failed_cpu;
+	int err, cpu, failed_cpu;
 
 	get_online_cpus();
 	for_each_possible_cpu(cpu) {
-		err = swevent_hlist_get_cpu(event, cpu);
+		err = swevent_hlist_get_cpu(cpu);
 		if (err) {
 			failed_cpu = cpu;
 			goto fail;
@@ -6848,7 +6859,7 @@ fail:
 	for_each_possible_cpu(cpu) {
 		if (cpu == failed_cpu)
 			break;
-		swevent_hlist_put_cpu(event, cpu);
+		swevent_hlist_put_cpu(cpu);
 	}
 
 	put_online_cpus();
@@ -6864,7 +6875,7 @@ static void sw_perf_event_destroy(struct perf_event *event)
 	WARN_ON(event->parent);
 
 	static_key_slow_dec(&perf_swevent_enabled[event_id]);
-	swevent_hlist_put(event);
+	swevent_hlist_put();
 }
 
 static int perf_swevent_init(struct perf_event *event)
@@ -6895,7 +6906,7 @@ static int perf_swevent_init(struct perf_event *event)
 	if (!event->parent) {
 		int err;
 
-		err = swevent_hlist_get(event);
+		err = swevent_hlist_get();
 		if (err)
 			return err;
 
@@ -7816,6 +7827,27 @@ static void account_event_cpu(struct perf_event *event, int cpu)
 		atomic_inc(&per_cpu(perf_cgroup_events, cpu));
 }
 
+/* Freq events need the tick to stay alive (see perf_event_task_tick). */
+static void account_freq_event_nohz(void)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	/* Lock so we don't race with concurrent unaccount */
+	spin_lock(&nr_freq_lock);
+	if (atomic_inc_return(&nr_freq_events) == 1)
+		tick_nohz_dep_set(TICK_DEP_BIT_PERF_EVENTS);
+	spin_unlock(&nr_freq_lock);
+#endif
+}
+
+static void account_freq_event(void)
+{
+	if (tick_nohz_full_enabled())
+		account_freq_event_nohz();
+	else
+		atomic_inc(&nr_freq_events);
+}
+
+
 static void account_event(struct perf_event *event)
 {
 	bool inc = false;
@@ -7831,10 +7863,8 @@ static void account_event(struct perf_event *event)
 		atomic_inc(&nr_comm_events);
 	if (event->attr.task)
 		atomic_inc(&nr_task_events);
-	if (event->attr.freq) {
-		if (atomic_inc_return(&nr_freq_events) == 1)
-			tick_nohz_full_kick_all();
-	}
+	if (event->attr.freq)
+		account_freq_event();
 	if (event->attr.context_switch) {
 		atomic_inc(&nr_switch_events);
 		inc = true;
@@ -8000,6 +8030,9 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 				goto err_per_task;
 		}
 	}
+
+	/* symmetric to unaccount_event() in _free_event() */
+	account_event(event);
 
 	return event;
 
@@ -8364,8 +8397,6 @@ SYSCALL_DEFINE5(perf_event_open,
 		}
 	}
 
-	account_event(event);
-
 	/*
 	 * Special case software events and allow them to be part of
 	 * any hardware group.
@@ -8661,8 +8692,6 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 
 	/* Mark owner so we could distinguish it from user events. */
 	event->owner = TASK_TOMBSTONE;
-
-	account_event(event);
 
 	ctx = find_get_context(event->pmu, task, event);
 	if (IS_ERR(ctx)) {
@@ -9447,6 +9476,7 @@ ssize_t perf_event_sysfs_show(struct device *dev, struct device_attribute *attr,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(perf_event_sysfs_show);
 
 static int __init perf_event_sysfs_init(void)
 {

@@ -1165,8 +1165,7 @@ static void cypress_read_int_callback(struct urb *urb)
 
 	/* hangup, as defined in acm.c... this might be a bad place for it
 	 * though */
-	if (tty && !(tty->termios.c_cflag & CLOCAL) &&
-			!(priv->current_status & UART_CD)) {
+	if (tty && !C_CLOCAL(tty) && !(priv->current_status & UART_CD)) {
 		dev_dbg(dev, "%s - calling hangup\n", __func__);
 		tty_hangup(tty);
 		goto continue_read;

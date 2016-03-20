@@ -4,6 +4,7 @@
 
 config MLX4_EN
 	tristate "Mellanox Technologies 1/10/40Gbit Ethernet support"
+	depends on MAY_USE_DEVLINK
 	depends on PCI
 	select MLX4_CORE
 	select PTP_1588_CLOCK

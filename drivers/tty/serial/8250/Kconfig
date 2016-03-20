@@ -262,7 +262,12 @@ config SERIAL_8250_RSA
 	bool "Support RSA serial ports"
 	depends on SERIAL_8250_EXTENDED
 	help
-	  ::: To be written :::
+	  Say Y here if you have a IODATA RSA-DV II/S ISA card and
+	  would like to use its >115kbps speeds.
+	  You will need to provide module parameter "probe_rsa", or boot-time
+	  parameter 8250.probe_rsa with I/O addresses of this card then.
+
+	  If you don't have such card, or if unsure, say N.
 
 config SERIAL_8250_ACORN
 	tristate "Acorn expansion card serial port support"
@@ -271,6 +276,30 @@ config SERIAL_8250_ACORN
 	  If you have an Atomwide Serial card or Serial Port card for an Acorn
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
+
+config SERIAL_8250_BCM2835AUX
+	tristate "BCM2835 auxiliar mini UART support"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	depends on SERIAL_8250 && SERIAL_8250_SHARE_IRQ
+	help
+	  Support for the BCM2835 auxiliar mini UART.
+
+	  Features and limitations of the UART are
+	    Registers are similar to 16650 registers,
+              set bits in the control registers that are unsupported
+	      are ignored and read back as 0
+	    7/8 bit operation with 1 start and 1 stop bit
+	    8 symbols deep fifo for rx and tx
+	    SW controlled RTS and SW readable CTS
+	    Clock rate derived from system clock
+	    Uses 8 times oversampling (compared to 16 times for 16650)
+	    Missing break detection (but break generation)
+	    Missing framing error detection
+	    Missing parity bit
+	    Missing receive time-out interrupt
+	    Missing DCD, DSR, DTR and RI signals
+
+	  If unsure, say N.
 
 config SERIAL_8250_FSL
 	bool
@@ -295,6 +324,7 @@ config SERIAL_8250_EM
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
 	depends on SERIAL_8250
+	depends on MIPS || COMPILE_TEST
 	default y if MIPS_ALCHEMY || SOC_RT288X || SOC_RT305X || SOC_RT3883 || SOC_MT7620
 	help
 	  Selecting this option will add support for the alternate register
@@ -346,7 +376,7 @@ config SERIAL_8250_LPC18XX
 	  serial port, say Y to this option. If unsure, say Y.
 
 config SERIAL_8250_MT6577
-	bool "Mediatek serial port support"
+	tristate "Mediatek serial port support"
 	depends on SERIAL_8250 && ARCH_MEDIATEK
 	help
 	  If you have a Mediatek based board and want to use the
@@ -360,9 +390,10 @@ config SERIAL_8250_UNIPHIER
 	  serial ports, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_INGENIC
-	bool "Support for Ingenic SoC serial ports"
-	depends on OF_FLATTREE
-	select LIBFDT
+	tristate "Support for Ingenic SoC serial ports"
+	depends on SERIAL_8250
+	depends on (OF_FLATTREE && SERIAL_8250_CONSOLE) || !SERIAL_EARLYCON
+	depends on MIPS || COMPILE_TEST
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
@@ -377,6 +408,16 @@ config SERIAL_8250_MID
 	  Selecting this option will enable handling of the extra features
 	  present on the UART found on Intel Medfield SOC and various other
 	  Intel platforms.
+
+config SERIAL_8250_MOXA
+	tristate "MOXA SmartIO MUE support"
+	depends on SERIAL_8250 && PCI
+	help
+	  Say Y here if you have a Moxa SmartIO MUE multiport serial card.
+	  If unsure, say N.
+
+	  This driver can also be built as a module. The module will be called
+	  8250_moxa. If you want to do that, say M here.
 
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"

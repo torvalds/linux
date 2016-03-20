@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -264,9 +264,8 @@ enum iwl_rx_mpdu_mac_flags2 {
 };
 
 enum iwl_rx_mpdu_amsdu_info {
-	IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK	= 0x3f,
-	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x40,
-	/* 0x80 bit reserved for now */
+	IWL_RX_MPDU_AMSDU_SUBFRAME_IDX_MASK	= 0x7f,
+	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
 enum iwl_rx_l3l4_flags {
@@ -287,16 +286,13 @@ enum iwl_rx_mpdu_status {
 	IWL_RX_MPDU_STATUS_KEY_ERROR		= BIT(4),
 	IWL_RX_MPDU_STATUS_ICV_OK		= BIT(5),
 	IWL_RX_MPDU_STATUS_MIC_OK		= BIT(6),
-	/* TODO - verify this is the correct value */
 	IWL_RX_MPDU_RES_STATUS_TTAK_OK		= BIT(7),
 	IWL_RX_MPDU_STATUS_SEC_MASK		= 0x7 << 8,
 	IWL_RX_MPDU_STATUS_SEC_NONE		= 0x0 << 8,
 	IWL_RX_MPDU_STATUS_SEC_WEP		= 0x1 << 8,
 	IWL_RX_MPDU_STATUS_SEC_CCM		= 0x2 << 8,
 	IWL_RX_MPDU_STATUS_SEC_TKIP		= 0x3 << 8,
-	/* TODO - define IWL_RX_MPDU_STATUS_SEC_EXT_ENC - this is a stub */
 	IWL_RX_MPDU_STATUS_SEC_EXT_ENC		= 0x4 << 8,
-	/* TODO - define IWL_RX_MPDU_STATUS_SEC_GCM - this is a stub */
 	IWL_RX_MPDU_STATUS_SEC_GCM		= 0x5 << 8,
 	IWL_RX_MPDU_STATUS_DECRYPTED		= BIT(11),
 	IWL_RX_MPDU_STATUS_WEP_MATCH		= BIT(12),
@@ -350,11 +346,11 @@ struct iwl_rx_mpdu_desc {
 	/* DW8 */
 	__le32 filter_match;
 	/* DW9 */
-	__le32 gp2_on_air_rise;
-	/* DW10 */
 	__le32 rate_n_flags;
+	/* DW10 */
+	u8 energy_a, energy_b, channel, reserved;
 	/* DW11 */
-	u8 energy_a, energy_b, energy_c, channel;
+	__le32 gp2_on_air_rise;
 	/* DW12 & DW13 */
 	__le64 tsf_on_air_rise;
 } __packed;
@@ -364,5 +360,86 @@ struct iwl_frame_release {
 	u8 reserved;
 	__le16 nssn;
 };
+
+enum iwl_rss_hash_func_en {
+	IWL_RSS_HASH_TYPE_IPV4_TCP,
+	IWL_RSS_HASH_TYPE_IPV4_UDP,
+	IWL_RSS_HASH_TYPE_IPV4_PAYLOAD,
+	IWL_RSS_HASH_TYPE_IPV6_TCP,
+	IWL_RSS_HASH_TYPE_IPV6_UDP,
+	IWL_RSS_HASH_TYPE_IPV6_PAYLOAD,
+};
+
+#define IWL_RSS_HASH_KEY_CNT 10
+#define IWL_RSS_INDIRECTION_TABLE_SIZE 128
+#define IWL_RSS_ENABLE 1
+
+/**
+ * struct iwl_rss_config_cmd - RSS (Receive Side Scaling) configuration
+ *
+ * @flags: 1 - enable, 0 - disable
+ * @hash_mask: Type of RSS to use. Values are from %iwl_rss_hash_func_en
+ * @secret_key: 320 bit input of random key configuration from driver
+ * @indirection_table: indirection table
+ */
+struct iwl_rss_config_cmd {
+	__le32 flags;
+	u8 hash_mask;
+	u8 reserved[3];
+	__le32 secret_key[IWL_RSS_HASH_KEY_CNT];
+	u8 indirection_table[IWL_RSS_INDIRECTION_TABLE_SIZE];
+} __packed; /* RSS_CONFIG_CMD_API_S_VER_1 */
+
+#define IWL_MULTI_QUEUE_SYNC_MSG_MAX_SIZE 128
+#define IWL_MULTI_QUEUE_SYNC_SENDER_POS 0
+#define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
+
+/**
+ * struct iwl_rxq_sync_cmd - RXQ notification trigger
+ *
+ * @flags: flags of the notification. bit 0:3 are the sender queue
+ * @rxq_mask: rx queues to send the notification on
+ * @count: number of bytes in payload, should be DWORD aligned
+ * @payload: data to send to rx queues
+ */
+struct iwl_rxq_sync_cmd {
+	__le32 flags;
+	__le32 rxq_mask;
+	__le32 count;
+	u8 payload[];
+} __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_rxq_sync_notification - Notification triggered by RXQ
+ * sync command
+ *
+ * @count: number of bytes in payload
+ * @payload: data to send to rx queues
+ */
+struct iwl_rxq_sync_notification {
+	__le32 count;
+	u8 payload[];
+} __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
+
+/**
+* Internal message identifier
+*
+* @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
+*/
+enum iwl_mvm_rxq_notif_type {
+	IWL_MVM_RXQ_NOTIF_DEL_BA,
+};
+
+/**
+* struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+* in &iwl_rxq_sync_cmd. Should be DWORD aligned.
+*
+* @type: value from &iwl_mvm_rxq_notif_type
+* @data: payload
+*/
+struct iwl_mvm_internal_rxq_notif {
+	u32 type;
+	u8 data[];
+} __packed;
 
 #endif /* __fw_api_rx_h__ */

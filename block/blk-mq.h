@@ -57,6 +57,7 @@ extern int blk_mq_hw_queue_to_node(unsigned int *map, unsigned int);
  */
 extern int blk_mq_sysfs_register(struct request_queue *q);
 extern void blk_mq_sysfs_unregister(struct request_queue *q);
+extern void blk_mq_hctx_kobj_init(struct blk_mq_hw_ctx *hctx);
 
 extern void blk_mq_rq_timed_out(struct request *req, bool reserved);
 

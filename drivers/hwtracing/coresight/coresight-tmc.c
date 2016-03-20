@@ -1,5 +1,7 @@
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
+ * Description: CoreSight Trace Memory Controller driver
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -11,7 +13,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
@@ -124,7 +125,7 @@ struct tmc_drvdata {
 	bool			reading;
 	char			*buf;
 	dma_addr_t		paddr;
-	void __iomem		*vaddr;
+	void			*vaddr;
 	u32			size;
 	bool			enable;
 	enum tmc_config_type	config_type;
@@ -242,12 +243,9 @@ static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 {
 	unsigned long flags;
 
-	pm_runtime_get_sync(drvdata->dev);
-
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	if (drvdata->reading) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
-		pm_runtime_put(drvdata->dev);
 		return -EBUSY;
 	}
 
@@ -268,7 +266,7 @@ static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 	return 0;
 }
 
-static int tmc_enable_sink(struct coresight_device *csdev)
+static int tmc_enable_sink(struct coresight_device *csdev, u32 mode)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -380,8 +378,6 @@ static void tmc_disable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 out:
 	drvdata->enable = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-
-	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "TMC disabled\n");
 }
@@ -766,21 +762,8 @@ err_misc_register:
 err_devm_kzalloc:
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
 		dma_free_coherent(dev, drvdata->size,
-				&drvdata->paddr, GFP_KERNEL);
+				drvdata->vaddr, drvdata->paddr);
 	return ret;
-}
-
-static int tmc_remove(struct amba_device *adev)
-{
-	struct tmc_drvdata *drvdata = amba_get_drvdata(adev);
-
-	misc_deregister(&drvdata->miscdev);
-	coresight_unregister(drvdata->csdev);
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
-		dma_free_coherent(drvdata->dev, drvdata->size,
-				  &drvdata->paddr, GFP_KERNEL);
-
-	return 0;
 }
 
 static struct amba_id tmc_ids[] = {
@@ -795,13 +778,9 @@ static struct amba_driver tmc_driver = {
 	.drv = {
 		.name   = "coresight-tmc",
 		.owner  = THIS_MODULE,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= tmc_probe,
-	.remove		= tmc_remove,
 	.id_table	= tmc_ids,
 };
-
-module_amba_driver(tmc_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("CoreSight Trace Memory Controller driver");
+builtin_amba_driver(tmc_driver);

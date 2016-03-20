@@ -14,8 +14,8 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include <asm/io.h>
 
 #include <mach/portmux.h>

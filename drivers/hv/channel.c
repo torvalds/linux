@@ -219,6 +219,21 @@ error0:
 }
 EXPORT_SYMBOL_GPL(vmbus_open);
 
+/* Used for Hyper-V Socket: a guest client's connect() to the host */
+int vmbus_send_tl_connect_request(const uuid_le *shv_guest_servie_id,
+				  const uuid_le *shv_host_servie_id)
+{
+	struct vmbus_channel_tl_connect_request conn_msg;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_TL_CONNECT_REQUEST;
+	conn_msg.guest_endpoint_id = *shv_guest_servie_id;
+	conn_msg.host_service_id = *shv_host_servie_id;
+
+	return vmbus_post_msg(&conn_msg, sizeof(conn_msg));
+}
+EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
+
 /*
  * create_gpadl_header - Creates a gpadl for the specified buffer
  */
@@ -624,6 +639,7 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	u64 aligned_data = 0;
 	int ret;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 	int num_vecs = ((bufferlen != 0) ? 3 : 1);
 
 
@@ -643,7 +659,7 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, num_vecs,
-				  &signal);
+				  &signal, lock);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -659,6 +675,9 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	 * If we cannot write to the ring-buffer; signal the host
 	 * even if we may not have written anything. This is a rare
 	 * enough condition that it should not matter.
+	 * NOTE: in this case, the hvsock channel is an exception, because
+	 * it looks the host side's hvsock implementation has a throttling
+	 * mechanism which can hurt the performance otherwise.
 	 */
 
 	if (channel->signal_policy)
@@ -666,7 +685,8 @@ int vmbus_sendpacket_ctl(struct vmbus_channel *channel, void *buffer,
 	else
 		kick_q = true;
 
-	if (((ret == 0) && kick_q && signal) || (ret))
+	if (((ret == 0) && kick_q && signal) ||
+	    (ret && !is_hvsock_channel(channel)))
 		vmbus_setevent(channel);
 
 	return ret;
@@ -719,6 +739,7 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
@@ -755,7 +776,8 @@ int vmbus_sendpacket_pagebuffer_ctl(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	/*
 	 * Signalling the host is conditional on many factors:
@@ -818,6 +840,7 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 
 	packetlen = desc_size + bufferlen;
 	packetlen_aligned = ALIGN(packetlen, sizeof(u64));
@@ -837,7 +860,8 @@ int vmbus_sendpacket_mpb_desc(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);
@@ -862,6 +886,7 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	struct kvec bufferlist[3];
 	u64 aligned_data = 0;
 	bool signal = false;
+	bool lock = channel->acquire_ring_lock;
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
@@ -900,7 +925,8 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	bufferlist[2].iov_base = &aligned_data;
 	bufferlist[2].iov_len = (packetlen_aligned - packetlen);
 
-	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3, &signal);
+	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3,
+				  &signal, lock);
 
 	if (ret == 0 && signal)
 		vmbus_setevent(channel);

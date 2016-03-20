@@ -271,6 +271,8 @@ bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
 
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
+void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
+
 /**
  * pci_bus_add_device - start driver for a single device
  * @dev: device to add
@@ -285,13 +287,19 @@ void pci_bus_add_device(struct pci_dev *dev)
 	 * Can not put in pci_device_add yet because resources
 	 * are not assigned yet for some devices.
 	 */
+	pcibios_bus_add_device(dev);
 	pci_fixup_device(pci_fixup_final, dev);
 	pci_create_sysfs_dev_files(dev);
 	pci_proc_attach_device(dev);
 
 	dev->match_driver = true;
 	retval = device_attach(&dev->dev);
-	WARN_ON(retval < 0);
+	if (retval < 0) {
+		dev_warn(&dev->dev, "device attach failed (%d)\n", retval);
+		pci_proc_detach_device(dev);
+		pci_remove_sysfs_dev_files(dev);
+		return;
+	}
 
 	dev->is_added = 1;
 }

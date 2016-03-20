@@ -32,6 +32,7 @@
 #include <asm/mtrr.h>
 #include <asm/msr-index.h>
 #include <asm/asm.h>
+#include <asm/kvm_page_track.h>
 
 #define KVM_MAX_VCPUS 255
 #define KVM_SOFT_MAX_VCPUS 160
@@ -214,6 +215,14 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
+/*
+ * the pages used as guest page table on soft mmu are tracked by
+ * kvm_memory_slot.arch.gfn_track which is 16 bits, so the role bits used
+ * by indirect shadow page can not be more than 15 bits.
+ *
+ * Currently, we used 14 bits that are @level, @cr4_pae, @quadrant, @access,
+ * @nxe, @cr0_wp, @smep_andnot_wp and @smap_andnot_wp.
+ */
 union kvm_mmu_page_role {
 	unsigned word;
 	struct {
@@ -276,7 +285,7 @@ struct kvm_mmu_page {
 #endif
 
 	/* Number of writes since the last time traversal visited this page.  */
-	int write_flooding_count;
+	atomic_t write_flooding_count;
 };
 
 struct kvm_pio_request {
@@ -338,12 +347,8 @@ struct kvm_mmu {
 
 	struct rsvd_bits_validate guest_rsvd_check;
 
-	/*
-	 * Bitmap: bit set = last pte in walk
-	 * index[0:1]: level (zero-based)
-	 * index[2]: pte.ps
-	 */
-	u8 last_pte_bitmap;
+	/* Can have large pages at levels 2..last_nonleaf_level-1. */
+	u8 last_nonleaf_level;
 
 	bool nx;
 
@@ -498,7 +503,6 @@ struct kvm_vcpu_arch {
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
 	struct fpu guest_fpu;
-	bool eager_fpu;
 	u64 xcr0;
 	u64 guest_supported_xcr0;
 	u32 guest_xstate_size;
@@ -644,12 +648,13 @@ struct kvm_vcpu_arch {
 };
 
 struct kvm_lpage_info {
-	int write_count;
+	int disallow_lpage;
 };
 
 struct kvm_arch_memory_slot {
 	struct kvm_rmap_head *rmap[KVM_NR_PAGE_SIZES];
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
+	unsigned short *gfn_track[KVM_PAGE_TRACK_MAX];
 };
 
 /*
@@ -694,6 +699,8 @@ struct kvm_arch {
 	 */
 	struct list_head active_mmu_pages;
 	struct list_head zapped_obsolete_pages;
+	struct kvm_page_track_notifier_node mmu_sp_tracker;
+	struct kvm_page_track_notifier_head track_notifier_head;
 
 	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;
@@ -754,6 +761,8 @@ struct kvm_arch {
 
 	bool irqchip_split;
 	u8 nr_reserved_ioapic_pins;
+
+	bool disabled_lapic_found;
 };
 
 struct kvm_vm_stat {
@@ -988,6 +997,8 @@ void kvm_mmu_module_exit(void);
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_mmu_create(struct kvm_vcpu *vcpu);
 void kvm_mmu_setup(struct kvm_vcpu *vcpu);
+void kvm_mmu_init_vm(struct kvm *kvm);
+void kvm_mmu_uninit_vm(struct kvm *kvm);
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask);
 
@@ -1127,8 +1138,6 @@ void kvm_pic_clear_all(struct kvm_pic *pic, int irq_source_id);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
-void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-		       const u8 *new, int bytes);
 int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);

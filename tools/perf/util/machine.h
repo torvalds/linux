@@ -180,6 +180,16 @@ struct symbol *machine__find_kernel_symbol(struct machine *machine,
 }
 
 static inline
+struct symbol *machine__find_kernel_symbol_by_name(struct machine *machine,
+						   enum map_type type, const char *name,
+						   struct map **mapp,
+						   symbol_filter_t filter)
+{
+	return map_groups__find_symbol_by_name(&machine->kmaps, type, name,
+					       mapp, filter);
+}
+
+static inline
 struct symbol *machine__find_kernel_function(struct machine *machine, u64 addr,
 					     struct map **mapp,
 					     symbol_filter_t filter)

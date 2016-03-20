@@ -28,50 +28,15 @@ Overview of supplied cache replacement policies
 multiqueue (mq)
 ---------------
 
-This policy has been deprecated in favor of the smq policy (see below).
+This policy is now an alias for smq (see below).
 
-The multiqueue policy has three sets of 16 queues: one set for entries
-waiting for the cache and another two for those in the cache (a set for
-clean entries and a set for dirty entries).
+The following tunables are accepted, but have no effect:
 
-Cache entries in the queues are aged based on logical time. Entry into
-the cache is based on variable thresholds and queue selection is based
-on hit count on entry. The policy aims to take different cache miss
-costs into account and to adjust to varying load patterns automatically.
-
-Message and constructor argument pairs are:
 	'sequential_threshold <#nr_sequential_ios>'
 	'random_threshold <#nr_random_ios>'
 	'read_promote_adjustment <value>'
 	'write_promote_adjustment <value>'
 	'discard_promote_adjustment <value>'
-
-The sequential threshold indicates the number of contiguous I/Os
-required before a stream is treated as sequential.  Once a stream is
-considered sequential it will bypass the cache.  The random threshold
-is the number of intervening non-contiguous I/Os that must be seen
-before the stream is treated as random again.
-
-The sequential and random thresholds default to 512 and 4 respectively.
-
-Large, sequential I/Os are probably better left on the origin device
-since spindles tend to have good sequential I/O bandwidth.  The
-io_tracker counts contiguous I/Os to try to spot when the I/O is in one
-of these sequential modes.  But there are use-cases for wanting to
-promote sequential blocks to the cache (e.g. fast application startup).
-If sequential threshold is set to 0 the sequential I/O detection is
-disabled and sequential I/O will no longer implicitly bypass the cache.
-Setting the random threshold to 0 does _not_ disable the random I/O
-stream detection.
-
-Internally the mq policy determines a promotion threshold.  If the hit
-count of a block not in the cache goes above this threshold it gets
-promoted to the cache.  The read, write and discard promote adjustment
-tunables allow you to tweak the promotion threshold by adding a small
-value based on the io type.  They default to 4, 8 and 1 respectively.
-If you're trying to quickly warm a new cache device you may wish to
-reduce these to encourage promotion.  Remember to switch them back to
-their defaults after the cache fills though.
 
 Stochastic multiqueue (smq)
 ---------------------------

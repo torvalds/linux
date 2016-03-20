@@ -36,29 +36,34 @@ ifndef CONFIG_MODULE_SIG_HASH
 $(error Could not determine digest type to use from kernel config)
 endif
 
+redirect_openssl	= 2>&1
+quiet_redirect_openssl	= 2>&1
+silent_redirect_openssl = 2>/dev/null
+
 # We do it this way rather than having a boolean option for enabling an
 # external private key, because 'make randconfig' might enable such a
 # boolean option and we unfortunately can't make it depend on !RANDCONFIG.
 ifeq ($(CONFIG_MODULE_SIG_KEY),"certs/signing_key.pem")
 $(obj)/signing_key.pem: $(obj)/x509.genkey
-	@echo "###"
-	@echo "### Now generating an X.509 key pair to be used for signing modules."
-	@echo "###"
-	@echo "### If this takes a long time, you might wish to run rngd in the"
-	@echo "### background to keep the supply of entropy topped up.  It"
-	@echo "### needs to be run as root, and uses a hardware random"
-	@echo "### number generator if one is available."
-	@echo "###"
-	openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
+	@$(kecho) "###"
+	@$(kecho) "### Now generating an X.509 key pair to be used for signing modules."
+	@$(kecho) "###"
+	@$(kecho) "### If this takes a long time, you might wish to run rngd in the"
+	@$(kecho) "### background to keep the supply of entropy topped up.  It"
+	@$(kecho) "### needs to be run as root, and uses a hardware random"
+	@$(kecho) "### number generator if one is available."
+	@$(kecho) "###"
+	$(Q)openssl req -new -nodes -utf8 -$(CONFIG_MODULE_SIG_HASH) -days 36500 \
 		-batch -x509 -config $(obj)/x509.genkey \
 		-outform PEM -out $(obj)/signing_key.pem \
-		-keyout $(obj)/signing_key.pem 2>&1
-	@echo "###"
-	@echo "### Key pair generated."
-	@echo "###"
+		-keyout $(obj)/signing_key.pem \
+		$($(quiet)redirect_openssl)
+	@$(kecho) "###"
+	@$(kecho) "### Key pair generated."
+	@$(kecho) "###"
 
 $(obj)/x509.genkey:
-	@echo Generating X.509 key generation config
+	@$(kecho) Generating X.509 key generation config
 	@echo  >$@ "[ req ]"
 	@echo >>$@ "default_bits = 4096"
 	@echo >>$@ "distinguished_name = req_distinguished_name"

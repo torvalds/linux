@@ -55,6 +55,9 @@ struct arch_timer_cpu {
 
 	/* VGIC mapping */
 	struct irq_phys_map		*map;
+
+	/* Active IRQ state caching */
+	bool				active_cleared_last;
 };
 
 int kvm_timer_hyp_init(void);
@@ -73,5 +76,7 @@ int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
 bool kvm_timer_should_fire(struct kvm_vcpu *vcpu);
 void kvm_timer_schedule(struct kvm_vcpu *vcpu);
 void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
+
+void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu);
 
 #endif

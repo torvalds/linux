@@ -15,6 +15,7 @@
 #include "../include/dpcon-cmd.h"
 #include "dpmcp-cmd.h"
 #include "dpmcp.h"
+#include <linux/msi.h>
 
 /**
  * fsl_mc_resource_pool_add_device - add allocatable device to a resource
@@ -160,6 +161,7 @@ static const char *const fsl_mc_pool_type_strings[] = {
 	[FSL_MC_POOL_DPMCP] = "dpmcp",
 	[FSL_MC_POOL_DPBP] = "dpbp",
 	[FSL_MC_POOL_DPCON] = "dpcon",
+	[FSL_MC_POOL_IRQ] = "irq",
 };
 
 static int __must_check object_type_to_pool_type(const char *object_type,
@@ -465,6 +467,203 @@ void fsl_mc_object_free(struct fsl_mc_device *mc_adev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_object_free);
 
+/*
+ * Initialize the interrupt pool associated with a MC bus.
+ * It allocates a block of IRQs from the GIC-ITS
+ */
+int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
+			     unsigned int irq_count)
+{
+	unsigned int i;
+	struct msi_desc *msi_desc;
+	struct fsl_mc_device_irq *irq_resources;
+	struct fsl_mc_device_irq *mc_dev_irq;
+	int error;
+	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
+	struct fsl_mc_resource_pool *res_pool =
+			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
+
+	if (WARN_ON(irq_count == 0 ||
+		    irq_count > FSL_MC_IRQ_POOL_MAX_TOTAL_IRQS))
+		return -EINVAL;
+
+	error = fsl_mc_msi_domain_alloc_irqs(&mc_bus_dev->dev, irq_count);
+	if (error < 0)
+		return error;
+
+	irq_resources = devm_kzalloc(&mc_bus_dev->dev,
+				     sizeof(*irq_resources) * irq_count,
+				     GFP_KERNEL);
+	if (!irq_resources) {
+		error = -ENOMEM;
+		goto cleanup_msi_irqs;
+	}
+
+	for (i = 0; i < irq_count; i++) {
+		mc_dev_irq = &irq_resources[i];
+
+		/*
+		 * NOTE: This mc_dev_irq's MSI addr/value pair will be set
+		 * by the fsl_mc_msi_write_msg() callback
+		 */
+		mc_dev_irq->resource.type = res_pool->type;
+		mc_dev_irq->resource.data = mc_dev_irq;
+		mc_dev_irq->resource.parent_pool = res_pool;
+		INIT_LIST_HEAD(&mc_dev_irq->resource.node);
+		list_add_tail(&mc_dev_irq->resource.node, &res_pool->free_list);
+	}
+
+	for_each_msi_entry(msi_desc, &mc_bus_dev->dev) {
+		mc_dev_irq = &irq_resources[msi_desc->fsl_mc.msi_index];
+		mc_dev_irq->msi_desc = msi_desc;
+		mc_dev_irq->resource.id = msi_desc->irq;
+	}
+
+	res_pool->max_count = irq_count;
+	res_pool->free_count = irq_count;
+	mc_bus->irq_resources = irq_resources;
+	return 0;
+
+cleanup_msi_irqs:
+	fsl_mc_msi_domain_free_irqs(&mc_bus_dev->dev);
+	return error;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_populate_irq_pool);
+
+/**
+ * Teardown the interrupt pool associated with an MC bus.
+ * It frees the IRQs that were allocated to the pool, back to the GIC-ITS.
+ */
+void fsl_mc_cleanup_irq_pool(struct fsl_mc_bus *mc_bus)
+{
+	struct fsl_mc_device *mc_bus_dev = &mc_bus->mc_dev;
+	struct fsl_mc_resource_pool *res_pool =
+			&mc_bus->resource_pools[FSL_MC_POOL_IRQ];
+
+	if (WARN_ON(!mc_bus->irq_resources))
+		return;
+
+	if (WARN_ON(res_pool->max_count == 0))
+		return;
+
+	if (WARN_ON(res_pool->free_count != res_pool->max_count))
+		return;
+
+	INIT_LIST_HEAD(&res_pool->free_list);
+	res_pool->max_count = 0;
+	res_pool->free_count = 0;
+	mc_bus->irq_resources = NULL;
+	fsl_mc_msi_domain_free_irqs(&mc_bus_dev->dev);
+}
+EXPORT_SYMBOL_GPL(fsl_mc_cleanup_irq_pool);
+
+/**
+ * It allocates the IRQs required by a given MC object device. The
+ * IRQs are allocated from the interrupt pool associated with the
+ * MC bus that contains the device, if the device is not a DPRC device.
+ * Otherwise, the IRQs are allocated from the interrupt pool associated
+ * with the MC bus that represents the DPRC device itself.
+ */
+int __must_check fsl_mc_allocate_irqs(struct fsl_mc_device *mc_dev)
+{
+	int i;
+	int irq_count;
+	int res_allocated_count = 0;
+	int error = -EINVAL;
+	struct fsl_mc_device_irq **irqs = NULL;
+	struct fsl_mc_bus *mc_bus;
+	struct fsl_mc_resource_pool *res_pool;
+
+	if (WARN_ON(mc_dev->irqs))
+		return -EINVAL;
+
+	irq_count = mc_dev->obj_desc.irq_count;
+	if (WARN_ON(irq_count == 0))
+		return -EINVAL;
+
+	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+		mc_bus = to_fsl_mc_bus(mc_dev);
+	else
+		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
+
+	if (WARN_ON(!mc_bus->irq_resources))
+		return -EINVAL;
+
+	res_pool = &mc_bus->resource_pools[FSL_MC_POOL_IRQ];
+	if (res_pool->free_count < irq_count) {
+		dev_err(&mc_dev->dev,
+			"Not able to allocate %u irqs for device\n", irq_count);
+		return -ENOSPC;
+	}
+
+	irqs = devm_kzalloc(&mc_dev->dev, irq_count * sizeof(irqs[0]),
+			    GFP_KERNEL);
+	if (!irqs)
+		return -ENOMEM;
+
+	for (i = 0; i < irq_count; i++) {
+		struct fsl_mc_resource *resource;
+
+		error = fsl_mc_resource_allocate(mc_bus, FSL_MC_POOL_IRQ,
+						 &resource);
+		if (error < 0)
+			goto error_resource_alloc;
+
+		irqs[i] = to_fsl_mc_irq(resource);
+		res_allocated_count++;
+
+		WARN_ON(irqs[i]->mc_dev);
+		irqs[i]->mc_dev = mc_dev;
+		irqs[i]->dev_irq_index = i;
+	}
+
+	mc_dev->irqs = irqs;
+	return 0;
+
+error_resource_alloc:
+	for (i = 0; i < res_allocated_count; i++) {
+		irqs[i]->mc_dev = NULL;
+		fsl_mc_resource_free(&irqs[i]->resource);
+	}
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_allocate_irqs);
+
+/*
+ * It frees the IRQs that were allocated for a MC object device, by
+ * returning them to the corresponding interrupt pool.
+ */
+void fsl_mc_free_irqs(struct fsl_mc_device *mc_dev)
+{
+	int i;
+	int irq_count;
+	struct fsl_mc_bus *mc_bus;
+	struct fsl_mc_device_irq **irqs = mc_dev->irqs;
+
+	if (WARN_ON(!irqs))
+		return;
+
+	irq_count = mc_dev->obj_desc.irq_count;
+
+	if (strcmp(mc_dev->obj_desc.type, "dprc") == 0)
+		mc_bus = to_fsl_mc_bus(mc_dev);
+	else
+		mc_bus = to_fsl_mc_bus(to_fsl_mc_device(mc_dev->dev.parent));
+
+	if (WARN_ON(!mc_bus->irq_resources))
+		return;
+
+	for (i = 0; i < irq_count; i++) {
+		WARN_ON(!irqs[i]->mc_dev);
+		irqs[i]->mc_dev = NULL;
+		fsl_mc_resource_free(&irqs[i]->resource);
+	}
+
+	mc_dev->irqs = NULL;
+}
+EXPORT_SYMBOL_GPL(fsl_mc_free_irqs);
+
 /**
  * fsl_mc_allocator_probe - callback invoked when an allocatable device is
  * being added to the system
@@ -557,7 +756,7 @@ int __init fsl_mc_allocator_driver_init(void)
 	return fsl_mc_driver_register(&fsl_mc_allocator_driver);
 }
 
-void __exit fsl_mc_allocator_driver_exit(void)
+void fsl_mc_allocator_driver_exit(void)
 {
 	fsl_mc_driver_unregister(&fsl_mc_allocator_driver);
 }

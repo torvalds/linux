@@ -2169,7 +2169,10 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 		error = perf_event_task_enable();
 		break;
 	case PR_GET_TIMERSLACK:
-		error = current->timer_slack_ns;
+		if (current->timer_slack_ns > ULONG_MAX)
+			error = ULONG_MAX;
+		else
+			error = current->timer_slack_ns;
 		break;
 	case PR_SET_TIMERSLACK:
 		if (arg2 <= 0)

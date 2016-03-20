@@ -257,7 +257,7 @@ static int hfi1_filter_ib_service_level(void *ibhdr, void *packet_data,
 static int hfi1_filter_ib_pkey(void *ibhdr, void *packet_data, void *value);
 static int hfi1_filter_direction(void *ibhdr, void *packet_data, void *value);
 
-static struct hfi1_filter_array hfi1_filters[] = {
+static const struct hfi1_filter_array hfi1_filters[] = {
 	{ hfi1_filter_lid },
 	{ hfi1_filter_dlid },
 	{ hfi1_filter_mad_mgmt_class },

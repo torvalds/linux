@@ -560,7 +560,6 @@ struct se_node_acl {
 	struct config_group	acl_auth_group;
 	struct config_group	acl_param_group;
 	struct config_group	acl_fabric_stat_group;
-	struct config_group	*acl_default_groups[5];
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
 	struct completion	acl_free_comp;
@@ -887,7 +886,6 @@ struct se_portal_group {
 	const struct target_core_fabric_ops *se_tpg_tfo;
 	struct se_wwn		*se_tpg_wwn;
 	struct config_group	tpg_group;
-	struct config_group	*tpg_default_groups[7];
 	struct config_group	tpg_lun_group;
 	struct config_group	tpg_np_group;
 	struct config_group	tpg_acl_group;
@@ -923,7 +921,6 @@ static inline struct se_portal_group *param_to_tpg(struct config_item *item)
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	struct config_group	wwn_group;
-	struct config_group	*wwn_default_groups[2];
 	struct config_group	fabric_stat_group;
 };
 

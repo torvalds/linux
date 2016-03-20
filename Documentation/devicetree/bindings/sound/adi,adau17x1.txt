@@ -1,0 +1,24 @@
+Analog Devices ADAU1361/ADAU1461/ADAU1761/ADAU1961/ADAU1381/ADAU1781
+
+Required properties:
+
+ - compatible:		Should contain one of the following:
+			"adi,adau1361"
+			"adi,adau1461"
+			"adi,adau1761"
+			"adi,adau1961"
+			"adi,adau1381"
+			"adi,adau1781"
+
+ - reg:			The i2c address. Value depends on the state of ADDR0
+			and ADDR1, as wired in hardware.
+
+Examples:
+#include <dt-bindings/sound/adau17x1.h>
+
+	i2c_bus {
+		adau1361@38 {
+			compatible = "adi,adau1761";
+			reg = <0x38>;
+		};
+	};

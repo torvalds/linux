@@ -157,17 +157,15 @@ static void sti_cursor_atomic_update(struct drm_plane *drm_plane,
 		cursor->height = src_h;
 
 		if (cursor->pixmap.base)
-			dma_free_writecombine(cursor->dev,
-					      cursor->pixmap.size,
-					      cursor->pixmap.base,
-					      cursor->pixmap.paddr);
+			dma_free_wc(cursor->dev, cursor->pixmap.size,
+				    cursor->pixmap.base, cursor->pixmap.paddr);
 
 		cursor->pixmap.size = cursor->width * cursor->height;
 
-		cursor->pixmap.base = dma_alloc_writecombine(cursor->dev,
-							cursor->pixmap.size,
-							&cursor->pixmap.paddr,
-							GFP_KERNEL | GFP_DMA);
+		cursor->pixmap.base = dma_alloc_wc(cursor->dev,
+						   cursor->pixmap.size,
+						   &cursor->pixmap.paddr,
+						   GFP_KERNEL | GFP_DMA);
 		if (!cursor->pixmap.base) {
 			DRM_ERROR("Failed to allocate memory for pixmap\n");
 			return;
@@ -252,8 +250,8 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 
 	/* Allocate clut buffer */
 	size = 0x100 * sizeof(unsigned short);
-	cursor->clut = dma_alloc_writecombine(dev, size, &cursor->clut_paddr,
-					      GFP_KERNEL | GFP_DMA);
+	cursor->clut = dma_alloc_wc(dev, size, &cursor->clut_paddr,
+				    GFP_KERNEL | GFP_DMA);
 
 	if (!cursor->clut) {
 		DRM_ERROR("Failed to allocate memory for cursor clut\n");
@@ -286,7 +284,7 @@ struct drm_plane *sti_cursor_create(struct drm_device *drm_dev,
 	return &cursor->plane.drm_plane;
 
 err_plane:
-	dma_free_writecombine(dev, size, cursor->clut, cursor->clut_paddr);
+	dma_free_wc(dev, size, cursor->clut, cursor->clut_paddr);
 err_clut:
 	devm_kfree(dev, cursor);
 	return NULL;

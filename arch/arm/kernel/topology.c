@@ -40,7 +40,7 @@
  * to run the rebalance_domains for all idle cores and the cpu_capacity can be
  * updated during this sequence.
  */
-static DEFINE_PER_CPU(unsigned long, cpu_scale);
+static DEFINE_PER_CPU(unsigned long, cpu_scale) = SCHED_CAPACITY_SCALE;
 
 unsigned long arch_scale_cpu_capacity(struct sched_domain *sd, int cpu)
 {
@@ -306,8 +306,6 @@ void __init init_cpu_topology(void)
 		cpu_topo->socket_id = -1;
 		cpumask_clear(&cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
-
-		set_capacity_scale(cpu, SCHED_CAPACITY_SCALE);
 	}
 	smp_wmb();
 

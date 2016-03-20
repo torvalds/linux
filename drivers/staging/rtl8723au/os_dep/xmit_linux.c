@@ -37,7 +37,7 @@ int rtw_os_xmit_resource_alloc23a(struct rtw_adapter *padapter,
 
 	for (i = 0; i < 8; i++) {
 		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (pxmitbuf->pxmit_urb[i] == NULL) {
+		if (!pxmitbuf->pxmit_urb[i]) {
 			DBG_8723A("pxmitbuf->pxmit_urb[i]==NULL");
 			return _FAIL;
 		}

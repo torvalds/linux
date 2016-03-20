@@ -227,19 +227,11 @@ static u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 	return 0;
 }
 
-static int gart_fix_e820 __initdata = 1;
+static bool gart_fix_e820 __initdata = true;
 
 static int __init parse_gart_mem(char *p)
 {
-	if (!p)
-		return -EINVAL;
-
-	if (!strncmp(p, "off", 3))
-		gart_fix_e820 = 0;
-	else if (!strncmp(p, "on", 2))
-		gart_fix_e820 = 1;
-
-	return 0;
+	return kstrtobool(p, &gart_fix_e820);
 }
 early_param("gart_fix_e820", parse_gart_mem);
 

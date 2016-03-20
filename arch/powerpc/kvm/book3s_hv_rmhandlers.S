@@ -27,7 +27,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/kvm_book3s_asm.h>
-#include <asm/mmu-hash64.h>
+#include <asm/book3s/64/mmu-hash.h>
 #include <asm/tm.h>
 
 #define VCPU_GPRS_TM(reg) (((reg) * ULONG_SIZE) + VCPU_GPR_TM)
@@ -1370,6 +1370,20 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	std	r6, VCPU_ACOP(r9)
 	stw	r7, VCPU_GUEST_PID(r9)
 	std	r8, VCPU_WORT(r9)
+	/*
+	 * Restore various registers to 0, where non-zero values
+	 * set by the guest could disrupt the host.
+	 */
+	li	r0, 0
+	mtspr	SPRN_IAMR, r0
+	mtspr	SPRN_CIABR, r0
+	mtspr	SPRN_DAWRX, r0
+	mtspr	SPRN_TCSCR, r0
+	mtspr	SPRN_WORT, r0
+	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
+	li	r0, 1
+	sldi	r0, r0, 31
+	mtspr	SPRN_MMCRS, r0
 8:
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
@@ -2006,8 +2020,8 @@ hcall_real_table:
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
 	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
-	.long	0		/* 0x138 */
-	.long	0		/* 0x13c */
+	.long	DOTSYM(kvmppc_h_stuff_tce) - hcall_real_table
+	.long	DOTSYM(kvmppc_rm_h_put_tce_indirect) - hcall_real_table
 	.long	0		/* 0x140 */
 	.long	0		/* 0x144 */
 	.long	0		/* 0x148 */

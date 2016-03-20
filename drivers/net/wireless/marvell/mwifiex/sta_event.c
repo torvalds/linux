@@ -92,6 +92,9 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 	priv->is_data_rate_auto = true;
 	priv->data_rate = 0;
 
+	priv->assoc_resp_ht_param = 0;
+	priv->ht_param_present = false;
+
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	     GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && priv->hist_data)
 		mwifiex_hist_data_reset(priv);
@@ -607,11 +610,13 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_PS_AWAKE:
 		mwifiex_dbg(adapter, EVENT, "info: EVENT: AWAKE\n");
-		if (!adapter->pps_uapsd_mode && priv->port_open &&
+		if (!adapter->pps_uapsd_mode &&
+		    (priv->port_open ||
+		     (priv->bss_mode == NL80211_IFTYPE_ADHOC)) &&
 		    priv->media_connected && adapter->sleep_period.period) {
-				adapter->pps_uapsd_mode = true;
-				mwifiex_dbg(adapter, EVENT,
-					    "event: PPS/UAPSD mode activated\n");
+			adapter->pps_uapsd_mode = true;
+			mwifiex_dbg(adapter, EVENT,
+				    "event: PPS/UAPSD mode activated\n");
 		}
 		adapter->tx_lock_flag = false;
 		if (adapter->pps_uapsd_mode && adapter->gen_null_pkt) {
@@ -684,6 +689,13 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, EVENT, "event: BGS_REPORT\n");
 		ret = mwifiex_send_cmd(priv, HostCmd_CMD_802_11_BG_SCAN_QUERY,
 				       HostCmd_ACT_GEN_GET, 0, NULL, false);
+		break;
+
+	case EVENT_BG_SCAN_STOPPED:
+		dev_dbg(adapter->dev, "event: BGS_STOPPED\n");
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+		if (priv->sched_scanning)
+			priv->sched_scanning = false;
 		break;
 
 	case EVENT_PORT_RELEASE:

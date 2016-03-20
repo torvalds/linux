@@ -116,6 +116,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 			ieee80211_purge_tx_queue(&local->hw, &txqi->queue);
 			atomic_sub(n, &sdata->txqs_len[txqi->txq.ac]);
+			txqi->byte_cnt = 0;
 		}
 	}
 
@@ -498,10 +499,16 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct station_info sinfo;
+	struct station_info *sinfo;
 	int err = 0;
 
 	lockdep_assert_held(&local->sta_mtx);
+
+	sinfo = kzalloc(sizeof(struct station_info), GFP_KERNEL);
+	if (!sinfo) {
+		err = -ENOMEM;
+		goto out_err;
+	}
 
 	/* check if STA exists already */
 	if (sta_info_get_bss(sdata, sta->sta.addr)) {
@@ -530,14 +537,12 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	/* accept BA sessions now */
 	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
-	ieee80211_recalc_min_chandef(sdata);
 	ieee80211_sta_debugfs_add(sta);
 	rate_control_add_sta_debugfs(sta);
 
-	memset(&sinfo, 0, sizeof(sinfo));
-	sinfo.filled = 0;
-	sinfo.generation = local->sta_generation;
-	cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
+	sinfo->generation = local->sta_generation;
+	cfg80211_new_sta(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
+	kfree(sinfo);
 
 	sta_dbg(sdata, "Inserted STA %pM\n", sta->sta.addr);
 
@@ -557,6 +562,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	__cleanup_single_sta(sta);
  out_err:
 	mutex_unlock(&local->sta_mtx);
+	kfree(sinfo);
 	rcu_read_lock();
 	return err;
 }
@@ -898,7 +904,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct station_info sinfo = {};
+	struct station_info *sinfo;
 	int ret;
 
 	/*
@@ -936,12 +942,14 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 
 	sta_dbg(sdata, "Removed STA %pM\n", sta->sta.addr);
 
-	sta_set_sinfo(sta, &sinfo);
-	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (sinfo)
+		sta_set_sinfo(sta, sinfo);
+	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
+	kfree(sinfo);
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
-	ieee80211_recalc_min_chandef(sdata);
 
 	cleanup_single_sta(sta);
 }
@@ -1808,14 +1816,17 @@ int sta_info_move_state(struct sta_info *sta,
 			clear_bit(WLAN_STA_AUTH, &sta->_flags);
 		break;
 	case IEEE80211_STA_AUTH:
-		if (sta->sta_state == IEEE80211_STA_NONE)
+		if (sta->sta_state == IEEE80211_STA_NONE) {
 			set_bit(WLAN_STA_AUTH, &sta->_flags);
-		else if (sta->sta_state == IEEE80211_STA_ASSOC)
+		} else if (sta->sta_state == IEEE80211_STA_ASSOC) {
 			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
+			ieee80211_recalc_min_chandef(sta->sdata);
+		}
 		break;
 	case IEEE80211_STA_ASSOC:
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+			ieee80211_recalc_min_chandef(sta->sdata);
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 			if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
 			    (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&

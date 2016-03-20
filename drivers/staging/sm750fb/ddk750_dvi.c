@@ -53,44 +53,6 @@ int dviInit(
 	return -1; /* error */
 }
 
-
-/*
- *  dviGetVendorID
- *      This function gets the vendor ID of the DVI controller chip.
- *
- *  Output:
- *      Vendor ID
- */
-unsigned short dviGetVendorID(void)
-{
-	dvi_ctrl_device_t *pCurrentDviCtrl;
-
-	pCurrentDviCtrl = g_dcftSupportedDviController;
-	if (pCurrentDviCtrl != (dvi_ctrl_device_t *)0)
-		return pCurrentDviCtrl->pfnGetVendorId();
-
-	return 0x0000;
-}
-
-
-/*
- *  dviGetDeviceID
- *      This function gets the device ID of the DVI controller chip.
- *
- *  Output:
- *      Device ID
- */
-unsigned short dviGetDeviceID(void)
-{
-	dvi_ctrl_device_t *pCurrentDviCtrl;
-
-	pCurrentDviCtrl = g_dcftSupportedDviController;
-	if (pCurrentDviCtrl != (dvi_ctrl_device_t *)0)
-		return pCurrentDviCtrl->pfnGetDeviceId();
-
-	return 0x0000;
-}
-
 #endif
 
 

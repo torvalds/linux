@@ -222,67 +222,23 @@ static int __init service_level_perf_register(void)
 }
 arch_initcall(service_level_perf_register);
 
-/* See also arch/s390/kernel/traps.c */
-static unsigned long __store_trace(struct perf_callchain_entry *entry,
-				   unsigned long sp,
-				   unsigned long low, unsigned long high)
+static int __perf_callchain_kernel(void *data, unsigned long address)
 {
-	struct stack_frame *sf;
-	struct pt_regs *regs;
+	struct perf_callchain_entry *entry = data;
 
-	while (1) {
-		if (sp < low || sp > high - sizeof(*sf))
-			return sp;
-		sf = (struct stack_frame *) sp;
-		perf_callchain_store(entry, sf->gprs[8]);
-		/* Follow the backchain. */
-		while (1) {
-			low = sp;
-			sp = sf->back_chain;
-			if (!sp)
-				break;
-			if (sp <= low || sp > high - sizeof(*sf))
-				return sp;
-			sf = (struct stack_frame *) sp;
-			perf_callchain_store(entry, sf->gprs[8]);
-		}
-		/* Zero backchain detected, check for interrupt frame. */
-		sp = (unsigned long) (sf + 1);
-		if (sp <= low || sp > high - sizeof(*regs))
-			return sp;
-		regs = (struct pt_regs *) sp;
-		perf_callchain_store(entry, sf->gprs[8]);
-		low = sp;
-		sp = regs->gprs[15];
-	}
+	perf_callchain_store(entry, address);
+	return 0;
 }
 
 void perf_callchain_kernel(struct perf_callchain_entry *entry,
 			   struct pt_regs *regs)
 {
-	unsigned long head, frame_size;
-	struct stack_frame *head_sf;
-
 	if (user_mode(regs))
 		return;
-
-	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
-	head = regs->gprs[15];
-	head_sf = (struct stack_frame *) head;
-
-	if (!head_sf || !head_sf->back_chain)
-		return;
-
-	head = head_sf->back_chain;
-	head = __store_trace(entry, head,
-			     S390_lowcore.async_stack + frame_size - ASYNC_SIZE,
-			     S390_lowcore.async_stack + frame_size);
-
-	__store_trace(entry, head, S390_lowcore.thread_info,
-		      S390_lowcore.thread_info + THREAD_SIZE);
+	dump_trace(__perf_callchain_kernel, entry, NULL, regs->gprs[15]);
 }
 
-/* Perf defintions for PMU event attributes in sysfs */
+/* Perf definitions for PMU event attributes in sysfs */
 ssize_t cpumf_events_sysfs_show(struct device *dev,
 				struct device_attribute *attr, char *page)
 {

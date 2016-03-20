@@ -370,7 +370,7 @@ int tty_port_block_til_ready(struct tty_port *port,
 	}
 	if (filp->f_flags & O_NONBLOCK) {
 		/* Indicate we are open */
-		if (tty->termios.c_cflag & CBAUD)
+		if (C_BAUD(tty))
 			tty_port_raise_dtr_rts(port);
 		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
@@ -476,7 +476,6 @@ int tty_port_close_start(struct tty_port *port,
 		spin_unlock_irqrestore(&port->lock, flags);
 		return 0;
 	}
-	set_bit(ASYNCB_CLOSING, &port->flags);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	tty->closing = 1;
@@ -510,14 +509,12 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 
 	if (port->blocked_open) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		if (port->close_delay) {
-			msleep_interruptible(
-				jiffies_to_msecs(port->close_delay));
-		}
+		if (port->close_delay)
+			msleep_interruptible(jiffies_to_msecs(port->close_delay));
 		spin_lock_irqsave(&port->lock, flags);
 		wake_up_interruptible(&port->open_wait);
 	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
+	port->flags &= ~ASYNC_NORMAL_ACTIVE;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL(tty_port_close_end);

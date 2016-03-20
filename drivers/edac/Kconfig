@@ -367,14 +367,30 @@ config EDAC_OCTEON_PCI
 	  Support for error detection and correction on the
 	  Cavium Octeon family of SOCs.
 
-config EDAC_ALTERA_MC
-	bool "Altera SDRAM Memory Controller EDAC"
+config EDAC_ALTERA
+	bool "Altera SOCFPGA ECC"
 	depends on EDAC_MM_EDAC=y && ARCH_SOCFPGA
 	help
 	  Support for error detection and correction on the
-	  Altera SDRAM memory controller. Note that the
-	  preloader must initialize the SDRAM before loading
-	  the kernel.
+	  Altera SOCs. This must be selected for SDRAM ECC.
+	  Note that the preloader must initialize the SDRAM
+	  before loading the kernel.
+
+config EDAC_ALTERA_L2C
+	bool "Altera L2 Cache ECC"
+	depends on EDAC_ALTERA=y
+	select CACHE_L2X0
+	help
+	  Support for error detection and correction on the
+	  Altera L2 cache Memory for Altera SoCs. This option
+	  requires L2 cache so it will force that selection.
+
+config EDAC_ALTERA_OCRAM
+	bool "Altera On-Chip RAM ECC"
+	depends on EDAC_ALTERA=y && SRAM && GENERIC_ALLOCATOR
+	help
+	  Support for error detection and correction on the
+	  Altera On-Chip RAM Memory for Altera SoCs.
 
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"

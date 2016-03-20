@@ -18,7 +18,7 @@ if NET_VENDOR_RENESAS
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
 	depends on HAS_DMA
-	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
+	depends on ARCH_RENESAS || SUPERH || COMPILE_TEST
 	select CRC32
 	select MII
 	select MDIO_BITBANG
@@ -32,7 +32,7 @@ config SH_ETH
 config RAVB
 	tristate "Renesas Ethernet AVB support"
 	depends on HAS_DMA
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	select CRC32
 	select MII
 	select MDIO_BITBANG

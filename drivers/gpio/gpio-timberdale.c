@@ -237,12 +237,6 @@ static int timbgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem) {
-		dev_err(dev, "Unable to get resource\n");
-		return -EINVAL;
-	}
-
 	tgpio = devm_kzalloc(dev, sizeof(struct timbgpio), GFP_KERNEL);
 	if (!tgpio) {
 		dev_err(dev, "Memory alloc failed\n");
@@ -252,17 +246,10 @@ static int timbgpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&tgpio->lock);
 
-	if (!devm_request_mem_region(dev, iomem->start, resource_size(iomem),
-				     DRIVER_NAME)) {
-		dev_err(dev, "Region already claimed\n");
-		return -EBUSY;
-	}
-
-	tgpio->membase = devm_ioremap(dev, iomem->start, resource_size(iomem));
-	if (!tgpio->membase) {
-		dev_err(dev, "Cannot ioremap\n");
-		return -ENOMEM;
-	}
+	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	tgpio->membase = devm_ioremap_resource(dev, iomem);
+	if (IS_ERR(tgpio->membase))
+		return PTR_ERR(tgpio->membase);
 
 	gc = &tgpio->gpio;
 
@@ -279,7 +266,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->ngpio = pdata->nr_pins;
 	gc->can_sleep = false;
 
-	err = gpiochip_add_data(gc, tgpio);
+	err = devm_gpiochip_add_data(&pdev->dev, gc, tgpio);
 	if (err)
 		return err;
 
@@ -319,8 +306,6 @@ static int timbgpio_remove(struct platform_device *pdev)
 		irq_set_handler(irq, NULL);
 		irq_set_handler_data(irq, NULL);
 	}
-
-	gpiochip_remove(&tgpio->gpio);
 
 	return 0;
 }

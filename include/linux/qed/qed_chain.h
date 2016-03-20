@@ -19,6 +19,10 @@
 /* dma_addr_t manip */
 #define DMA_LO_LE(x)            cpu_to_le32(lower_32_bits(x))
 #define DMA_HI_LE(x)            cpu_to_le32(upper_32_bits(x))
+#define DMA_REGPAIR_LE(x, val)  do { \
+					(x).hi = DMA_HI_LE((val)); \
+					(x).lo = DMA_LO_LE((val)); \
+				} while (0)
 
 #define HILO_GEN(hi, lo, type)  ((((type)(hi)) << 32) + (lo))
 #define HILO_DMA(hi, lo)        HILO_GEN(hi, lo, dma_addr_t)

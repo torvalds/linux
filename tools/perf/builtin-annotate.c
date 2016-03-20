@@ -245,7 +245,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
 			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-			hists__output_resort(hists, NULL);
+			perf_evsel__output_resort(pos, NULL);
 
 			if (symbol_conf.event_group &&
 			    !perf_evsel__is_group_leader(pos))

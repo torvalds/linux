@@ -10,7 +10,6 @@
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <asm/uninorth.h>
-#include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/pmac_feature.h>
 #include "agp.h"

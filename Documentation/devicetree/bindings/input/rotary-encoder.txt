@@ -1,7 +1,7 @@
 Rotary encoder DT bindings
 
 Required properties:
-- gpios: a spec for two GPIOs to be used
+- gpios: a spec for at least two GPIOs to be used, most significant first
 
 Optional properties:
 - linux,axis: the input subsystem axis to map to this rotary encoder.

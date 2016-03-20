@@ -279,11 +279,11 @@ err:
 	return ret;
 }
 
-static int rtl2830_get_frontend(struct dvb_frontend *fe)
+static int rtl2830_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 
@@ -899,6 +899,9 @@ static int rtl2830_remove(struct i2c_client *client)
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
+
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
 
 	i2c_del_mux_adapter(dev->adapter);
 	regmap_exit(dev->regmap);

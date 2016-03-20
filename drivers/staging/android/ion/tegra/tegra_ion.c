@@ -33,12 +33,11 @@ static int tegra_ion_probe(struct platform_device *pdev)
 
 	num_heaps = pdata->nr;
 
-	heaps = devm_kzalloc(&pdev->dev,
-			     sizeof(struct ion_heap *) * pdata->nr,
-			     GFP_KERNEL);
+	heaps = devm_kcalloc(&pdev->dev, pdata->nr,
+			     sizeof(struct ion_heap *), GFP_KERNEL);
 
 	idev = ion_device_create(NULL);
-	if (IS_ERR_OR_NULL(idev))
+	if (IS_ERR(idev))
 		return PTR_ERR(idev);
 
 	/* create the heaps as specified in the board file */

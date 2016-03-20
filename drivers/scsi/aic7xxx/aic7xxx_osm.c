@@ -1336,6 +1336,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct scsi_device *sdev,
 	case AHC_DEV_Q_TAGGED:
 		scsi_change_queue_depth(sdev,
 				dev->openings + dev->active);
+		break;
 	default:
 		/*
 		 * We allow the OS to queue 2 untagged transactions to

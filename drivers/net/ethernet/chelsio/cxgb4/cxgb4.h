@@ -702,6 +702,11 @@ struct doorbell_stats {
 	u32 db_full;
 };
 
+struct hash_mac_addr {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -740,6 +745,7 @@ struct adapter {
 	void *uld_handle[CXGB4_ULD_MAX];
 	struct list_head list_node;
 	struct list_head rcu_node;
+	struct list_head mac_hlist; /* list of MAC addresses in MPS Hash */
 
 	struct tid_info tids;
 	void **tid_release_head;
@@ -1207,6 +1213,24 @@ static inline int t4_wr_mbox_ns(struct adapter *adap, int mbox, const void *cmd,
 	return t4_wr_mbox_meat(adap, mbox, cmd, size, rpl, false);
 }
 
+/**
+ *	hash_mac_addr - return the hash value of a MAC address
+ *	@addr: the 48-bit Ethernet MAC address
+ *
+ *	Hashes a MAC address according to the hash function used by HW inexact
+ *	(hash) address matching.
+ */
+static inline int hash_mac_addr(const u8 *addr)
+{
+	u32 a = ((u32)addr[0] << 16) | ((u32)addr[1] << 8) | addr[2];
+	u32 b = ((u32)addr[3] << 16) | ((u32)addr[4] << 8) | addr[5];
+
+	a ^= b;
+	a ^= (a >> 12);
+	a ^= (a >> 6);
+	return a & 0x3f;
+}
+
 void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 		       unsigned int data_reg, const u32 *vals,
 		       unsigned int nregs, unsigned int start_idx);
@@ -1389,6 +1413,9 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 		      unsigned int viid, bool free, unsigned int naddr,
 		      const u8 **addr, u16 *idx, u64 *hash, bool sleep_ok);
+int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
+		     unsigned int viid, unsigned int naddr,
+		     const u8 **addr, bool sleep_ok);
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		  int idx, const u8 *addr, bool persist, bool add_smt);
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,

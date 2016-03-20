@@ -1,7 +1,7 @@
 VERSION = 4
 PATCHLEVEL = 5
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
+EXTRAVERSION =
 NAME = Blurry Fish Butt
 
 # *DOCUMENTATION*
@@ -1087,6 +1087,14 @@ kselftest:
 kselftest-clean:
 	$(Q)$(MAKE) -C tools/testing/selftests clean
 
+PHONY += kselftest-merge
+kselftest-merge:
+	$(if $(wildcard $(objtree)/.config),, $(error No .config exists, config your kernel first!))
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
+		-m $(objtree)/.config \
+		$(srctree)/tools/testing/selftests/*/config
+	+$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
+
 # ---------------------------------------------------------------------------
 # Modules
 
@@ -1295,6 +1303,8 @@ help:
 	@echo  '                    Build, install, and boot kernel before'
 	@echo  '                    running kselftest on it'
 	@echo  '  kselftest-clean - Remove all generated kselftest files'
+	@echo  '  kselftest-merge - Merge all the config dependencies of kselftest to existed'
+	@echo  '                    .config.'
 	@echo  ''
 	@echo  'Kernel packaging:'
 	@$(MAKE) $(build)=$(package-dir) help

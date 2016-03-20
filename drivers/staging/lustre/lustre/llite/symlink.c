@@ -59,7 +59,8 @@ static int ll_readlink_internal(struct inode *inode,
 		*symname = lli->lli_symlink_name;
 		/* If the total CDEBUG() size is larger than a page, it
 		 * will print a warning to the console, avoid this by
-		 * printing just the last part of the symlink. */
+		 * printing just the last part of the symlink.
+		 */
 		CDEBUG(D_INODE, "using cached symlink %s%.*s, len = %d\n",
 		       print_limit < symlen ? "..." : "", print_limit,
 		       (*symname) + symlen - print_limit, symlen);
@@ -81,7 +82,6 @@ static int ll_readlink_internal(struct inode *inode,
 	}
 
 	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
-	LASSERT(body != NULL);
 	if ((body->valid & OBD_MD_LINKNAME) == 0) {
 		CERROR("OBD_MD_LINKNAME not set on reply\n");
 		rc = -EPROTO;
@@ -91,13 +91,13 @@ static int ll_readlink_internal(struct inode *inode,
 	LASSERT(symlen != 0);
 	if (body->eadatasize != symlen) {
 		CERROR("inode %lu: symlink length %d not expected %d\n",
-			inode->i_ino, body->eadatasize - 1, symlen - 1);
+		       inode->i_ino, body->eadatasize - 1, symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}
 
 	*symname = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_MD);
-	if (*symname == NULL ||
+	if (!*symname ||
 	    strnlen(*symname, symlen) != symlen - 1) {
 		/* not full/NULL terminated */
 		CERROR("inode %lu: symlink not NULL terminated string of length %d\n",

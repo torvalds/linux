@@ -145,7 +145,7 @@ void ODM_ReadAndConfig_MAC_REG_8723A(struct dm_odm_t *pDM_Odm)
 	u32     i           = 0;
 	u8     platform    = 0x04;
 	u8     board       = pDM_Odm->BoardType;
-	u32     ArrayLen    = sizeof(Array_MAC_REG_8723A)/sizeof(u32);
+	u32     ArrayLen    = ARRAY_SIZE(Array_MAC_REG_8723A);
 	u32 *Array       = Array_MAC_REG_8723A;
 
 	hex += board;

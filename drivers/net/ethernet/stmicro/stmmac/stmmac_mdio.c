@@ -243,6 +243,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 		goto bus_register_fail;
 	}
 
+	if (priv->plat->phy_node || mdio_node)
+		goto bus_register_done;
+
 	found = 0;
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
@@ -298,6 +301,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		return -ENODEV;
 	}
 
+bus_register_done:
 	priv->mii = new_bus;
 
 	return 0;

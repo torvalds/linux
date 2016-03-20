@@ -25,8 +25,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
-#include <asm/gpio.h>
-
 #include "atmel_usba_udc.h"
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS

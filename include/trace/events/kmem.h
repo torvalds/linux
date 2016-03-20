@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/tracepoint.h>
-#include <trace/events/gfpflags.h>
+#include <trace/events/mmflags.h>
 
 DECLARE_EVENT_CLASS(kmem_alloc,
 

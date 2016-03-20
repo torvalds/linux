@@ -390,6 +390,7 @@ data_copy:
 		*err = ext4_get_block(orig_inode, orig_blk_offset + i, bh, 0);
 		if (*err < 0)
 			break;
+		bh = bh->b_this_page;
 	}
 	if (!*err)
 		*err = block_commit_write(pagep[0], from, from + replaced_size);

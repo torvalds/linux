@@ -945,9 +945,9 @@ static int cx24123_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24123_get_frontend(struct dvb_frontend *fe)
+static int cx24123_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24123_state *state = fe->demodulator_priv;
 
 	dprintk("\n");

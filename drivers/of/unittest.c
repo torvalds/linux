@@ -1165,6 +1165,11 @@ static void of_unittest_destroy_tracked_overlays(void)
 				continue;
 
 			ret = of_overlay_destroy(id + overlay_first_id);
+			if (ret == -ENODEV) {
+				pr_warn("%s: no overlay to destroy for #%d\n",
+					__func__, id + overlay_first_id);
+				continue;
+			}
 			if (ret != 0) {
 				defers++;
 				pr_warn("%s: overlay destroy failed for #%d\n",

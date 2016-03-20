@@ -38,19 +38,7 @@ static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 
 static int build_id_cache__kcore_dir(char *dir, size_t sz)
 {
-	struct timeval tv;
-	struct tm tm;
-	char dt[32];
-
-	if (gettimeofday(&tv, NULL) || !localtime_r(&tv.tv_sec, &tm))
-		return -1;
-
-	if (!strftime(dt, sizeof(dt), "%Y%m%d%H%M%S", &tm))
-		return -1;
-
-	scnprintf(dir, sz, "%s%02u", dt, (unsigned)tv.tv_usec / 10000);
-
-	return 0;
+	return fetch_current_timestamp(dir, sz);
 }
 
 static bool same_kallsyms_reloc(const char *from_dir, char *to_dir)

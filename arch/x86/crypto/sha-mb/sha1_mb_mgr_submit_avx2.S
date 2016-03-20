@@ -197,7 +197,7 @@ len_is_0:
 	vpinsrd  $1, _args_digest+1*32(state , idx, 4), %xmm0, %xmm0
 	vpinsrd  $2, _args_digest+2*32(state , idx, 4), %xmm0, %xmm0
 	vpinsrd  $3, _args_digest+3*32(state , idx, 4), %xmm0, %xmm0
-	movl    4*32(state, idx, 4), DWORD_tmp
+	movl     _args_digest+4*32(state, idx, 4), DWORD_tmp
 
 	vmovdqu  %xmm0, _result_digest(job_rax)
 	movl    DWORD_tmp, _result_digest+1*16(job_rax)

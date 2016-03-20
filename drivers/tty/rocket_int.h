@@ -1144,7 +1144,6 @@ struct r_port {
 	int read_status_mask;
 	int cps;
 
-	struct completion close_wait;	/* Not yet matching the core */
 	spinlock_t slock;
 	struct mutex write_mtx;
 };

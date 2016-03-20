@@ -96,7 +96,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	 * In practice this won't execute very often unless on very fast
 	 * machines because the time window for this to happen is very small.
 	 */
-	while (amdgpuCrtc->enabled && repcnt--) {
+	while (amdgpuCrtc->enabled && --repcnt) {
 		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
 		 * start in hpos, and to the "fudged earlier" vblank start in
 		 * vpos.
@@ -112,13 +112,13 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 			break;
 
 		/* Sleep at least until estimated real start of hw vblank */
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
 		if (min_udelay > vblank->framedur_ns / 2000) {
 			/* Don't wait ridiculously long - something is wrong */
 			repcnt = 0;
 			break;
 		}
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		usleep_range(min_udelay, 2 * min_udelay);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	};

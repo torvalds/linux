@@ -691,21 +691,30 @@ static struct kernfs_node *kernfs_walk_ns(struct kernfs_node *parent,
 					  const unsigned char *path,
 					  const void *ns)
 {
-	static char path_buf[PATH_MAX];	/* protected by kernfs_mutex */
-	size_t len = strlcpy(path_buf, path, PATH_MAX);
-	char *p = path_buf;
-	char *name;
+	size_t len;
+	char *p, *name;
 
 	lockdep_assert_held(&kernfs_mutex);
 
-	if (len >= PATH_MAX)
+	/* grab kernfs_rename_lock to piggy back on kernfs_pr_cont_buf */
+	spin_lock_irq(&kernfs_rename_lock);
+
+	len = strlcpy(kernfs_pr_cont_buf, path, sizeof(kernfs_pr_cont_buf));
+
+	if (len >= sizeof(kernfs_pr_cont_buf)) {
+		spin_unlock_irq(&kernfs_rename_lock);
 		return NULL;
+	}
+
+	p = kernfs_pr_cont_buf;
 
 	while ((name = strsep(&p, "/")) && parent) {
 		if (*name == '\0')
 			continue;
 		parent = kernfs_find_ns(parent, name, ns);
 	}
+
+	spin_unlock_irq(&kernfs_rename_lock);
 
 	return parent;
 }

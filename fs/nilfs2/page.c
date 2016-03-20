@@ -180,7 +180,7 @@ void nilfs_page_bug(struct page *page)
 
 	printk(KERN_CRIT "NILFS_PAGE_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
 	       "mapping=%p ino=%lu\n",
-	       page, atomic_read(&page->_count),
+	       page, page_ref_count(page),
 	       (unsigned long long)page->index, page->flags, m, ino);
 
 	if (page_has_buffers(page)) {

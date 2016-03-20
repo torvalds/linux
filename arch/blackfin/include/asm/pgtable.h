@@ -97,6 +97,8 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 					  unsigned long);
 #define HAVE_ARCH_FB_UNMAPPED_AREA
 
+#define pgprot_writecombine pgprot_noncached
+
 #include <asm-generic/pgtable.h>
 
 #endif				/* _BLACKFIN_PGTABLE_H */

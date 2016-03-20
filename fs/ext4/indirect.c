@@ -555,8 +555,23 @@ int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
 		goto got_it;
 	}
 
-	/* Next simple case - plain lookup or failed read of indirect block */
-	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0 || err == -EIO)
+	/* Next simple case - plain lookup failed */
+	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
+		unsigned epb = inode->i_sb->s_blocksize / sizeof(u32);
+		int i;
+
+		/* Count number blocks in a subtree under 'partial' */
+		count = 1;
+		for (i = 0; partial + i != chain + depth - 1; i++)
+			count *= epb;
+		/* Fill in size of a hole we found */
+		map->m_pblk = 0;
+		map->m_len = min_t(unsigned int, map->m_len, count);
+		goto cleanup;
+	}
+
+	/* Failed read of indirect block */
+	if (err == -EIO)
 		goto cleanup;
 
 	/*
@@ -693,21 +708,21 @@ retry:
 		}
 		if (IS_DAX(inode))
 			ret = dax_do_io(iocb, inode, iter, offset,
-					ext4_get_block, NULL, 0);
+					ext4_dio_get_block, NULL, 0);
 		else
 			ret = __blockdev_direct_IO(iocb, inode,
 						   inode->i_sb->s_bdev, iter,
-						   offset, ext4_get_block, NULL,
-						   NULL, 0);
+						   offset, ext4_dio_get_block,
+						   NULL, NULL, 0);
 		inode_dio_end(inode);
 	} else {
 locked:
 		if (IS_DAX(inode))
 			ret = dax_do_io(iocb, inode, iter, offset,
-					ext4_get_block, NULL, DIO_LOCKING);
+					ext4_dio_get_block, NULL, DIO_LOCKING);
 		else
 			ret = blockdev_direct_IO(iocb, inode, iter, offset,
-						 ext4_get_block);
+						 ext4_dio_get_block);
 
 		if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 			loff_t isize = i_size_read(inode);

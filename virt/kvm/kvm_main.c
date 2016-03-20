@@ -72,11 +72,11 @@ module_param(halt_poll_ns, uint, S_IRUGO | S_IWUSR);
 
 /* Default doubles per-vcpu halt_poll_ns. */
 static unsigned int halt_poll_ns_grow = 2;
-module_param(halt_poll_ns_grow, int, S_IRUGO);
+module_param(halt_poll_ns_grow, uint, S_IRUGO | S_IWUSR);
 
 /* Default resets per-vcpu halt_poll_ns . */
 static unsigned int halt_poll_ns_shrink;
-module_param(halt_poll_ns_shrink, int, S_IRUGO);
+module_param(halt_poll_ns_shrink, uint, S_IRUGO | S_IWUSR);
 
 /*
  * Ordering of locks:
@@ -216,8 +216,7 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
 	vcpu->pid = NULL;
-	vcpu->halt_poll_ns = 0;
-	init_waitqueue_head(&vcpu->wq);
+	init_swait_queue_head(&vcpu->wq);
 	kvm_async_pf_vcpu_init(vcpu);
 
 	vcpu->pre_pcpu = -1;
@@ -620,13 +619,10 @@ void *kvm_kvzalloc(unsigned long size)
 
 static void kvm_destroy_devices(struct kvm *kvm)
 {
-	struct list_head *node, *tmp;
+	struct kvm_device *dev, *tmp;
 
-	list_for_each_safe(node, tmp, &kvm->devices) {
-		struct kvm_device *dev =
-			list_entry(node, struct kvm_device, vm_node);
-
-		list_del(node);
+	list_for_each_entry_safe(dev, tmp, &kvm->devices, vm_node) {
+		list_del(&dev->vm_node);
 		dev->ops->destroy(dev);
 	}
 }
@@ -1437,11 +1433,17 @@ kvm_pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn,
 {
 	unsigned long addr = __gfn_to_hva_many(slot, gfn, NULL, write_fault);
 
-	if (addr == KVM_HVA_ERR_RO_BAD)
+	if (addr == KVM_HVA_ERR_RO_BAD) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_ERR_RO_FAULT;
+	}
 
-	if (kvm_is_error_hva(addr))
+	if (kvm_is_error_hva(addr)) {
+		if (writable)
+			*writable = false;
 		return KVM_PFN_NOSLOT;
+	}
 
 	/* Do not map writable pfn in the readonly memslot. */
 	if (writable && memslot_is_readonly(slot)) {
@@ -1943,14 +1945,18 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_mark_page_dirty);
 
 static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int old, val;
+	unsigned int old, val, grow;
 
 	old = val = vcpu->halt_poll_ns;
+	grow = READ_ONCE(halt_poll_ns_grow);
 	/* 10us base */
-	if (val == 0 && halt_poll_ns_grow)
+	if (val == 0 && grow)
 		val = 10000;
 	else
-		val *= halt_poll_ns_grow;
+		val *= grow;
+
+	if (val > halt_poll_ns)
+		val = halt_poll_ns;
 
 	vcpu->halt_poll_ns = val;
 	trace_kvm_halt_poll_ns_grow(vcpu->vcpu_id, val, old);
@@ -1958,13 +1964,14 @@ static void grow_halt_poll_ns(struct kvm_vcpu *vcpu)
 
 static void shrink_halt_poll_ns(struct kvm_vcpu *vcpu)
 {
-	int old, val;
+	unsigned int old, val, shrink;
 
 	old = val = vcpu->halt_poll_ns;
-	if (halt_poll_ns_shrink == 0)
+	shrink = READ_ONCE(halt_poll_ns_shrink);
+	if (shrink == 0)
 		val = 0;
 	else
-		val /= halt_poll_ns_shrink;
+		val /= shrink;
 
 	vcpu->halt_poll_ns = val;
 	trace_kvm_halt_poll_ns_shrink(vcpu->vcpu_id, val, old);
@@ -1990,7 +1997,7 @@ static int kvm_vcpu_check_block(struct kvm_vcpu *vcpu)
 void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 {
 	ktime_t start, cur;
-	DEFINE_WAIT(wait);
+	DECLARE_SWAITQUEUE(wait);
 	bool waited = false;
 	u64 block_ns;
 
@@ -2015,7 +2022,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	kvm_arch_vcpu_blocking(vcpu);
 
 	for (;;) {
-		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_swait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
 		if (kvm_vcpu_check_block(vcpu) < 0)
 			break;
@@ -2024,7 +2031,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 		schedule();
 	}
 
-	finish_wait(&vcpu->wq, &wait);
+	finish_swait(&vcpu->wq, &wait);
 	cur = ktime_get();
 
 	kvm_arch_vcpu_unblocking(vcpu);
@@ -2056,11 +2063,11 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
 	int me;
 	int cpu = vcpu->cpu;
-	wait_queue_head_t *wqp;
+	struct swait_queue_head *wqp;
 
 	wqp = kvm_arch_vcpu_wq(vcpu);
-	if (waitqueue_active(wqp)) {
-		wake_up_interruptible(wqp);
+	if (swait_active(wqp)) {
+		swake_up(wqp);
 		++vcpu->stat.halt_wakeup;
 	}
 
@@ -2161,7 +2168,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (vcpu == me)
 				continue;
-			if (waitqueue_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;

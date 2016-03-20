@@ -11,13 +11,9 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/acpi.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>

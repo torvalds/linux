@@ -375,9 +375,9 @@ static int or51132_set_parameters(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int or51132_get_parameters(struct dvb_frontend* fe)
+static int or51132_get_parameters(struct dvb_frontend* fe,
+				  struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct or51132_state* state = fe->demodulator_priv;
 	int status;
 	int retry = 1;
