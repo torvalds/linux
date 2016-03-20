@@ -46,7 +46,6 @@
 				(SNBEP_PMON_CTL_EV_SEL_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
 				 SNBEP_PMON_CTL_EDGE_DET | \
-				 SNBEP_PMON_CTL_EV_SEL_EXT | \
 				 SNBEP_PMON_CTL_INVERT | \
 				 SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \
@@ -148,7 +147,6 @@
 /* IVBEP PCU */
 #define IVBEP_PCU_MSR_PMON_RAW_EVENT_MASK	\
 				(SNBEP_PMON_CTL_EV_SEL_MASK | \
-				 SNBEP_PMON_CTL_EV_SEL_EXT | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
 				 SNBEP_PMON_CTL_EDGE_DET | \
 				 SNBEP_PCU_MSR_PMON_CTL_TRESH_MASK | \
@@ -258,7 +256,6 @@
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_SEL_MASK | \
 				 SNBEP_PMON_CTL_EDGE_DET | \
 				 SNBEP_CBO_PMON_CTL_TID_EN | \
-				 SNBEP_PMON_CTL_EV_SEL_EXT | \
 				 SNBEP_PMON_CTL_INVERT | \
 				 KNL_PCU_MSR_PMON_CTL_TRESH_MASK | \
 				 SNBEP_PCU_MSR_PMON_CTL_OCC_INVERT | \
@@ -472,7 +469,7 @@ static struct attribute *snbep_uncore_cbox_formats_attr[] = {
 };
 
 static struct attribute *snbep_uncore_pcu_formats_attr[] = {
-	&format_attr_event_ext.attr,
+	&format_attr_event.attr,
 	&format_attr_occ_sel.attr,
 	&format_attr_edge.attr,
 	&format_attr_inv.attr,
@@ -1313,7 +1310,7 @@ static struct attribute *ivbep_uncore_cbox_formats_attr[] = {
 };
 
 static struct attribute *ivbep_uncore_pcu_formats_attr[] = {
-	&format_attr_event_ext.attr,
+	&format_attr_event.attr,
 	&format_attr_occ_sel.attr,
 	&format_attr_edge.attr,
 	&format_attr_thresh5.attr,
