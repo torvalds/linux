@@ -699,8 +699,8 @@ void pcbit_l3_receive(struct pcbit_dev *dev, ulong msg,
  */
 
 static char statbuf[STATBUF_LEN];
-static int stat_st = 0;
-static int stat_end = 0;
+static int stat_st;
+static int stat_end;
 
 static int pcbit_stat(u_char __user *buf, int len, int driver, int channel)
 {
